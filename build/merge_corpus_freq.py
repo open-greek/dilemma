@@ -1,138 +1,141 @@
 #!/usr/bin/env python3
-"""Merge GLAUx and Diorisis corpus frequencies into a combined file.
+"""Merge per-source form frequency files into data/corpus_freq.json.
 
-Both corpora use the same format: accent-stripped lowercase forms mapped to
-frequency arrays [total, philosophy, poetry, history, oratory, science,
-narrative, epistles, religion, commentary, other].
+Sums element-wise [total, philosophy, poetry, history, oratory, science,
+narrative, epistles, religion, commentary, other] vectors across every
+configured input. Missing inputs are skipped with a warning, so this
+runs out-of-the-box on a partial build.
 
-The merged output uses the same format and same genre order, so it's a
-drop-in replacement for glaux_freq.json. Token counts are summed across
-both corpora.
+Default sources:
+    data/glaux_freq.json              GLAUx (17M, 10 genres)
+    data/diorisis_freq.json           Diorisis (10M, 10 genres)
+    data/pg_freq.json                 Patrologia Graeca / Migne
+    data/first1kgreek_freq.json       First1KGreek
+    data/pta_freq.json                Patristic Text Archive
+    data/canonical_greeklit_freq.json Perseus canonical-greekLit
 
-Output: data/corpus_freq.json (combined GLAUx 17M + Diorisis 10M = ~27M tokens)
+The post-GLAUx-Diorisis sources don't carry a genre breakdown, so their
+counts all land in their build-time default bucket (PG/PTA in religion,
+First1KGreek + canonical-greekLit in other). The genre-aware ranking
+that consumers do via GLAUx/Diorisis still works -- they just see extra
+ungenred volume from the unlemmatized corpora.
 
-To use the merged frequencies, either:
-  1. Point GLAUX_FREQ_PATH / FREQ_PATH at corpus_freq.json, or
-  2. Replace glaux_freq.json with the merged file:
-     cp data/corpus_freq.json data/glaux_freq.json
+Output: data/corpus_freq.json (drop-in replacement for old GLAUx+Diorisis-only file)
 
 Usage:
     python build/merge_corpus_freq.py
+    python build/merge_corpus_freq.py --include glaux diorisis pg
 """
 
 import argparse
 import json
 import time
-from collections import defaultdict
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
 
-GLAUX_FREQ_PATH = DATA_DIR / "glaux_freq.json"
-DIORISIS_FREQ_PATH = DATA_DIR / "diorisis_freq.json"
-OUTPUT_PATH = DATA_DIR / "corpus_freq.json"
-
-# Same genre order used by both files
 GENRE_ORDER = [
     "philosophy", "poetry", "history", "oratory", "science",
     "narrative", "epistles", "religion", "commentary", "other",
 ]
+VEC_LEN = 1 + len(GENRE_ORDER)
+
+# (key, path, label, default_bucket). `default_bucket` is used when the
+# source file has no per-genre breakdown (a [total]-only vector) -- the
+# full count gets attributed to that bucket. Sources that *do* ship a
+# breakdown ignore this field.
+SOURCES = [
+    ("glaux", DATA_DIR / "glaux_freq.json", "GLAUx", None),
+    ("diorisis", DATA_DIR / "diorisis_freq.json", "Diorisis", None),
+    ("pg", DATA_DIR / "pg_freq.json", "Patrologia Graeca", "religion"),
+    ("first1kgreek", DATA_DIR / "first1kgreek_freq.json", "First1KGreek", "other"),
+    ("pta", DATA_DIR / "pta_freq.json", "PatristicTextArchive", "religion"),
+    ("canonical_greeklit", DATA_DIR / "canonical_greeklit_freq.json",
+     "Perseus canonical-greekLit", "other"),
+]
+
+OUTPUT_PATH = DATA_DIR / "corpus_freq.json"
 
 
-def load_freq(path):
-    """Load a frequency file and return (total_tokens, forms_dict)."""
-    with open(path, encoding="utf-8") as f:
+def load_freq(path: Path):
+    with path.open(encoding="utf-8") as f:
         data = json.load(f)
     total = data.get("_total_tokens", 0)
-    genres = data.get("_genres", [])
     forms = data.get("forms", {})
-
-    # Verify genre order matches
-    if genres != GENRE_ORDER:
-        print(f"  WARNING: Genre order mismatch in {path.name}")
-        print(f"    Expected: {GENRE_ORDER}")
-        print(f"    Got:      {genres}")
-
+    genres = data.get("_genres", [])
+    if genres and genres != GENRE_ORDER:
+        print(f"  WARN: genre order mismatch in {path.name}: {genres}")
     return total, forms
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Merge GLAUx + Diorisis frequencies")
-    parser.add_argument("--glaux", type=Path, default=GLAUX_FREQ_PATH)
-    parser.add_argument("--diorisis", type=Path, default=DIORISIS_FREQ_PATH)
-    parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
-    args = parser.parse_args()
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument(
+        "--include",
+        nargs="*",
+        choices=[s[0] for s in SOURCES],
+        default=[s[0] for s in SOURCES],
+        help="Subset of sources to merge (default: all available).",
+    )
+    p.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    args = p.parse_args()
+
+    selected = [s for s in SOURCES if s[0] in args.include]
 
     t0 = time.time()
-    n_genres = len(GENRE_ORDER)
-    vec_len = 1 + n_genres  # [total, g1, g2, ...]
+    merged: dict[str, list[int]] = {}
+    sources_used: list[str] = []
+    total_tokens = 0
 
-    # Load GLAUx
-    print(f"Loading {args.glaux.name}...", end=" ", flush=True)
-    glaux_total, glaux_forms = load_freq(args.glaux)
-    print(f"{glaux_total:,} tokens, {len(glaux_forms):,} forms")
+    for key, path, label, default_bucket in selected:
+        if not path.exists():
+            print(f"skip: {path.name} not found")
+            continue
+        n, forms = load_freq(path)
+        print(f"  {label:30s}  {n:>12,} tokens  {len(forms):>8,} forms"
+              f"{f'  -> {default_bucket}' if default_bucket else ''}")
+        sources_used.append(f"{label} ({n // 1_000_000}M tokens)")
+        total_tokens += n
+        bucket_offset = (1 + GENRE_ORDER.index(default_bucket)
+                         if default_bucket else None)
+        for form, vec in forms.items():
+            existing = merged.get(form)
+            if existing is None:
+                existing = [0] * VEC_LEN
+                merged[form] = existing
+            if len(vec) == VEC_LEN:
+                for i in range(VEC_LEN):
+                    existing[i] += vec[i]
+            else:
+                # Short / totals-only vector: add to total + default bucket.
+                cnt = vec[0]
+                existing[0] += cnt
+                if bucket_offset is not None:
+                    existing[bucket_offset] += cnt
 
-    # Load Diorisis
-    print(f"Loading {args.diorisis.name}...", end=" ", flush=True)
-    dior_total, dior_forms = load_freq(args.diorisis)
-    print(f"{dior_total:,} tokens, {len(dior_forms):,} forms")
+    print(f"\nMerged forms: {len(merged):,}")
+    print(f"Total tokens (sum across sources): {total_tokens:,}")
 
-    # Merge: sum frequency vectors element-wise
-    print("Merging...", end=" ", flush=True)
-    merged = {}
-    all_forms = set(glaux_forms.keys()) | set(dior_forms.keys())
-
-    glaux_only = 0
-    dior_only = 0
-    both = 0
-
-    for form in all_forms:
-        g = glaux_forms.get(form)
-        d = dior_forms.get(form)
-
-        if g and d:
-            # Both corpora have this form: sum the vectors
-            merged[form] = [g[i] + d[i] for i in range(vec_len)]
-            both += 1
-        elif g:
-            merged[form] = list(g)  # copy
-            glaux_only += 1
-        else:
-            merged[form] = list(d)  # copy
-            dior_only += 1
-
-    combined_total = glaux_total + dior_total
-    print(f"{len(merged):,} unique forms")
-
-    print(f"\nOverlap statistics:")
-    print(f"  GLAUx only:  {glaux_only:,}")
-    print(f"  Diorisis only: {dior_only:,}")
-    print(f"  Both corpora:  {both:,}")
-    print(f"  Combined tokens: {combined_total:,} "
-          f"(GLAUx {glaux_total:,} + Diorisis {dior_total:,})")
-
-    print(f"\nGenre distribution (combined):")
+    print(f"\nGenre distribution:")
     for i, g in enumerate(GENRE_ORDER):
-        total_g = sum(v[1 + i] for v in merged.values())
-        print(f"  {g:15s}: {total_g:>12,} tokens")
+        gt = sum(v[1 + i] for v in merged.values())
+        print(f"  {g:15s} {gt:>14,}  ({100 * gt / max(1, total_tokens):>5.2f}%)")
 
-    # Write output
-    print(f"\nWriting {args.output}...", end=" ", flush=True)
-    output = {
-        "_total_tokens": combined_total,
+    out = {
+        "_total_tokens": total_tokens,
         "_genres": GENRE_ORDER,
         "_n_forms": len(merged),
-        "_sources": ["GLAUx (17M tokens)", "Diorisis (10M tokens)"],
+        "_sources": sources_used,
         "forms": merged,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, separators=(",", ":"))
-    size_mb = args.output.stat().st_size / 1e6
-    print(f"{size_mb:.0f} MB ({time.time() - t0:.1f}s)")
+    with args.output.open("w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"\nWrote {args.output} ({args.output.stat().st_size / 1e6:.0f} MB, "
+          f"{time.time() - t0:.1f}s)")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

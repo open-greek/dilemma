@@ -1699,6 +1699,56 @@ seq2seq model can recover the correct lemma.
 Each form is indexed under its original, monotonic, and accent-stripped
 variants for fuzzy matching.
 
+#### Form-frequency corpora and coverage diagnostics
+
+`data/corpus_freq.json` is the merged form-frequency table consumed by
+`rank_forms.py` and `vesuvius.py`. It unions six sources (per-form
+counts summed, genre vectors element-wise added):
+
+| Source | Tokens | License | Genre breakdown |
+|---|---:|---|---|
+| GLAUx | 17M | CC BY-SA | yes (10 genres, lemma-aware) |
+| Diorisis | 10M | CC BY-SA | yes (10 genres, lemma-aware) |
+| Patrologia Graeca (Migne) | 3M | PD | bucket = religion |
+| First1KGreek | 23M | CC BY-SA | bucket = other |
+| Patristic Text Archive | 3M | CC BY-SA | bucket = religion |
+| Perseus canonical-greekLit | 11M | CC BY-SA | bucket = other |
+| **Total** | **67M tokens / 1.10M forms** | | |
+
+Build:
+
+```
+python build/build_glaux_freq.py              # if not already built
+python build/build_diorisis_freq.py
+python build/build_pg_freq.py
+python build/build_first1kgreek_freq.py       # needs ~/Documents/corpora/First1KGreek
+python build/build_pta_freq.py                # needs ~/Documents/corpora/pta_data
+python build/build_canonical_greeklit_freq.py # needs ~/Documents/corpora/canonical-greekLit
+python build/merge_corpus_freq.py             # writes data/corpus_freq.json
+```
+
+The three GitHub-hosted TEI corpora (First1KGreek, PTA, canonical-greekLit)
+are tokenised by `build/tei_tokenize.py`, which extracts text from
+`<text>` subtrees, drops apparatus / notes / bibliography, and splits on
+non-Greek characters with accent-stripped lowercase NFC keys -- the same
+shape GLAUx and Diorisis already use, so the merge is a straight
+element-wise sum.
+
+To inspect lookup coverage against the merged corpus run:
+
+```
+python build/coverage_report.py
+```
+
+As of the current pipeline, `ag_lookup.json` covers **88.05% of running
+tokens** in the merged 67M-token corpus, but only **19.66% of unique
+forms**. The long-tail gap is dominated by elision forms (`δ’`, `ἀλλ’`,
+`δι’`, `καθ’`, ...) which Wiktionary does not index as separate
+headwords. None of the six sources is lemmatised end-to-end by Dilemma,
+so they all contribute frequency and coverage signal but not new
+form-lemma pairs (lemma pairs come from Wiktionary plus the
+GLAUx/Diorisis/PROIEL/Gorman/Perseus treebanks).
+
 #### Extraction sources
 
 Form-lemma pairs come from three sources per Wiktionary entry:
@@ -1843,6 +1893,42 @@ will propagate into Dilemma via kaikki dumps.
 | **αὐτοῦ ambiguity** | ~200 | Genuine lexical ambiguity: both an adverb ("here/there") and genitive of αὐτός. Resolved when POS context is available via `lemmatize_pos()`. |
 | **μιν → ὅς** | ~340 | Convention difference. Wiktionary maps μιν to the 3rd person pronoun. Perseus treebank uses μιν as its own lemma. |
 | **Lemma convention differences** | ~400 | αὐτάρ vs ἀτάρ, κε vs ἄν - Wiktionary and Perseus use different citation forms for some Homeric particles. Handled by lemma equivalence groups for evaluation. |
+
+### Future work
+
+#### Per-lemma `passive_subject` hint for verbs
+
+Apps that render English translations of Greek verb forms (e.g.
+flashcard or lexicon UIs showing `ἐλέχθη → it was said`) need to pick
+the right English subject pronoun for passive and mediopassive 3sg
+forms. The natural choice depends on whether the verb's typical patient
+is a person or a thing:
+
+- thing-passive: "it was said", "it was done", "it was written"
+- person-passive: "he/she was killed", "he/she was crowned", "he/she was baptized"
+
+Selectional preferences of this kind are not exposed by morphology data
+or by raw LSJ glosses as a structured field. Consumers currently work
+around the gap with hand-curated allowlists keyed on the English verb
+base, which scales badly past ~150 entries.
+
+A first-class fix would add a per-verb `passive_subject` tag
+(`person | thing | either`) to Dilemma's verb exports, sourced from
+Wiktionary semantic categories, gloss-text patterns, or a one-shot LLM
+annotation pass over the headword set.
+
+#### Voice-aware MG inflection cells
+
+MG conjugation tables in canonical entries collapse active and
+mediopassive forms into the same `tense_person` cell as a list (e.g.
+`present.3sg = [λέει, λέγεται]`). Consumers that show one English
+translation per cell can only render one voice, so the mediopassive
+reading ("it is said") gets dropped on the table view even when the
+runtime conjugator handles it correctly per-card. A voice-keyed
+inflection shape (matching the AG canonical pattern of
+`active_present_indicative_3sg` / `mediopassive_present_indicative_3sg`)
+would let downstream apps emit the right English row alongside each
+form.
 
 ## Architecture
 
