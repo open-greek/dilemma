@@ -14,10 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download lookup data from HuggingFace Hub
+      - name: Install Python dependencies
         run: |
+          pip install -q --upgrade pip
           pip install -q pytest huggingface_hub
-          hf download ciscoriordan/dilemma data/lookup.db data/spell_index.db --local-dir .
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q transformers
+
+      - name: Download lookup data from HuggingFace Hub
+        run: hf download ciscoriordan/dilemma data/lookup.db data/spell_index.db --local-dir .
 
       - name: Run all tests
         run: python3 -m pytest tests/ -x -v
