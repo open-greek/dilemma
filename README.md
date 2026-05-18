@@ -1312,6 +1312,27 @@ Generates ONNX model files so inference works without PyTorch.
 python export_onnx.py                  # exports encoder.onnx + decoder_step.onnx
 ```
 
+### Release
+
+Releases are cut by bumping the version and pushing the resulting tag.
+`bumpver` (configured in `pyproject.toml`'s `[tool.bumpver]`) rewrites
+`VERSION` and `pyproject.toml` in lockstep, commits, tags `v{version}`,
+and pushes both -- which fires `.github/workflows/release.yml`. That
+workflow re-runs the same test job that gates `main` (via `workflow_call`
+on `test.yml`, so install deps can never drift between the two) and only
+then publishes a GitHub Release with auto-generated notes.
+
+```bash
+bumpver update --patch          # 0.7.0 -> 0.7.1
+bumpver update --minor          # 0.7.0 -> 0.8.0
+bumpver update --major          # 0.7.0 -> 1.0.0
+bumpver update --patch --dry    # preview without committing
+```
+
+Before bumping, regenerate and HF-upload any data outputs the new
+version is meant to ship (see CLAUDE.md), so the release tag points at a
+SHA whose data files match what's on HuggingFace.
+
 ### Testing
 
 Tests run automatically via GitHub Actions on push and pull request to

@@ -5,28 +5,19 @@ on:
     tags: ["v*"]
 
 jobs:
+  test:
+    # Inherit the exact same job that gates main, including install steps.
+    # Prevents the dep-drift class of bug that bit the v0.7.0 first attempt.
+    uses: ./.github/workflows/test.yml
+
   release:
+    needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Python dependencies
-        run: |
-          pip install -q --upgrade pip
-          pip install -q pytest huggingface_hub
-          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -q transformers
-
-      - name: Download lookup data from HuggingFace Hub
-        run: hf download ciscoriordan/dilemma data/lookup.db data/spell_index.db --local-dir .
-
-      - name: Run all tests
-        run: python3 -m pytest tests/ -x -v
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:

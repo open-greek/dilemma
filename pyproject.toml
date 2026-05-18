@@ -54,3 +54,24 @@ dilemma = []
 markers = [
     "slow: tests requiring model weights (skip by default, run with --run-slow)",
 ]
+
+# Single-command release: `bumpver update --patch|--minor|--major` rewrites
+# every version string below, commits, tags v{version}, and pushes both the
+# commit and the tag -- which then fires .github/workflows/release.yml.
+# Excludes dilemma/tagger/__init__.py which carries its own independent
+# version for the sub-package.
+[tool.bumpver]
+current_version = "0.7.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version: {old_version} -> {new_version}"
+tag_message = "v{new_version}"
+commit = true
+tag = true
+push = true
+
+[tool.bumpver.file_patterns]
+"VERSION" = ["{version}"]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+    '^version = "{version}"',
+]
