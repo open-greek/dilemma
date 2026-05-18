@@ -8,40 +8,68 @@ Dilemma is a diachronic Greek lemmatizer spanning Ancient Greek (Classical,
 Homeric, Hellenistic), Medieval/Byzantine Greek (both vernacular and
 literary), and Modern Greek (Demotic and Katharevousa).
 
-Three things to know about it up front.
+### A four-layer pipeline, not a single model
 
-### A supervised character-level transformer
+Dilemma stacks complementary techniques and falls back through them in
+priority order, so the expensive layer only runs on the words the cheap
+layers can't reach. This is the single most important thing to know
+about the design.
 
-The model is a 4M-parameter encoder-decoder, the architecture from the
-[SIGMORPHON](https://sigmorphon.github.io/) shared tasks, applied to
-Greek lemmatization rather than inflection. It reads a word one Greek
-character at a time and emits the lemma one character at a time.
-Training data is 3.5M `(form, lemma)` pairs from Wiktionary inflection
-tables, the LSJ and Sophocles Lua expansions described below, and
-gold-standard treebanks (Perseus, PROIEL, Gorman, DiGreC) plus annotated
-corpora (GLAUx, Diorisis, HNC). Every pair is labelled, so the model
-learns from explicit supervision, not from raw text.
+| # | Layer | Resolves | Speed |
+|---|-------|----------|-------|
+| 1 | **12.5M-form SQLite lookup** | known forms (Wiktionary + LSJ + Sophocles + GLAUx + treebanks) | `O(1)` hash, microseconds |
+| 2 | **Rule-based fallback** | augment / reduplication stripping, elision, crasis, enclitic particles, compound decomposition | `O(1)` per rule |
+| 3 | **Dialect normalization** | Ionic, Doric, Aeolic, Koine -> Attic, so the (Attic-heavy) lookup can match | `O(k)` candidates |
+| 4 | **Character-level transformer** | unseen forms the other three layers miss | beam search, `O(b·n²)` |
 
-Training from scratch on a single GPU takes about 35 minutes on a 4090
-(95 minutes on a 2080 Ti) and the exported ONNX file is ~50 MB.
-Fine-tuning *ByT5-small* on the same data took roughly 20 hours and
-ships ~300M parameters with the transformers stack attached. Greek
-lemmatization is pattern-rich enough that the small specialized model
-matches the large general one.
+The lookup carries the bulk; layers 2-3 catch systematic things a lookup
+table can't enumerate exhaustively; layer 4 (a 4M-parameter
+encoder-decoder trained from scratch on 3.5M supervised pairs) only sees
+the ~5% the cheap layers can't resolve. That is why Dilemma is both
+faster than pipelines that route every word through a model and more
+accurate than ones that lean only on a lookup table.
 
-See [Transformer model](#transformer-model) for the full architecture.
+See [Pipeline overview](#pipeline-overview) for the full layer list with
+every sub-rule (particle stripping, BK-tree spell correction, etc.).
 
-### Convention remapping
+### Three distinctive choices within the pipeline
 
-The same Greek word has different citation forms in different
-dictionaries. LSJ writes εἶπον as `λέγω`, Cunliffe writes γίνεται as
-`γίγνομαι`, Triantafyllidis writes σπήλαια as `σπήλαιο`, and Wiktionary
-disagrees with all three on a long tail of words. Tools like stanza,
-spaCy, and CLTK lock you into whatever convention their training
-treebank used.
+**A 12.5M-form lookup driven by Wiktionary's own Lua modules.** The
+biggest contributor to layer 1's coverage is running
+[`Module:grc-decl`](https://en.wiktionary.org/wiki/Module:grc-decl) and
+[`Module:grc-conj`](https://en.wiktionary.org/wiki/Module:grc-conj)
+-- the modules Wiktionary editors invoke via templates when writing
+inflection tables -- via
+[wikitextprocessor](https://github.com/tatuylonen/wikitextprocessor)
+over the LSJ headword set (32K nouns + 22K verbs + 14K adjectives) and
+the Sophocles Byzantine/Patristic lexicon (13.5K nouns + 4.6K verbs).
+That generates 5.2M extra inflected forms no editor has touched,
+lifting the lookup from 5.2M Wiktionary-only entries to 12.5M total --
+the largest compiled for Greek. This single mechanism closes the
+classical and Byzantine vocabulary gap that every other tool has. See
+[LSJ/Sophocles expansion](#lsjsophocles-expansion).
 
-Dilemma's `convention` parameter remaps the output to whichever standard
-you are targeting:
+**A character-level encoder-decoder for layer 4, not a fine-tuned
+subword LM.** The [SIGMORPHON](https://sigmorphon.github.io/)
+architecture (4M params, ~50 MB ONNX) trained from scratch on 3.5M
+`(form, lemma)` pairs from Wiktionary inflection tables, the Lua
+expansions above, gold-standard treebanks (Perseus, PROIEL, Gorman,
+DiGreC), and annotated corpora (GLAUx, Diorisis, HNC). Existing Greek
+tools either fine-tune giant subword models (stanza, spaCy, ~300M+
+params) or use hand-coded rule engines (Morpheus, CLTK) that don't
+generalize. Training from scratch takes ~35 min on a 4090; the small
+specialized model matches *ByT5-small* (300M params, 20-hour fine-tune)
+because Greek lemmatization is pattern-rich enough that 4M parameters
+of Greek-specific capacity beat 300M of general capacity. See
+[Transformer model](#transformer-model).
+
+**Convention remapping baked into the API.** The same word has
+different citation forms in different dictionaries -- LSJ writes εἶπον
+as `λέγω`, Cunliffe writes γίνεται as `γίγνομαι`, Triantafyllidis
+writes σπήλαια as `σπήλαιο`. Other tools lock you into whatever
+convention their training treebank used. `Dilemma(convention=...)`
+remaps the output to LSJ, Cunliffe, Triantafyllidis, or Wiktionary at
+runtime from the same model weights:
 
 ```python
 Dilemma(convention="lsj")               # LSJ headwords
@@ -50,127 +78,33 @@ Dilemma(convention="triantafyllidis")   # Triantafyllidis MG dictionary
 Dilemma()                               # default: Wiktionary headwords
 ```
 
-The remapping table is built automatically from
-`data/lemma_equivalences.json` cross-referenced against each
-convention's headword list, with explicit per-convention overrides for
-edge cases. See [Conventions](#conventions).
+This is the difference between scoring 65% on a benchmark because of
+citation mismatch and 95% on the underlying linguistic task. See
+[Conventions](#conventions).
 
-### Wiktionary Lua expansion of LSJ and Sophocles
+### Worth flagging
 
-Wiktionary ships its own Lua inflection modules,
-[`Module:grc-decl`](https://en.wiktionary.org/wiki/Module:grc-decl) and
-[`Module:grc-conj`](https://en.wiktionary.org/wiki/Module:grc-conj),
-which generate full paradigms from a headword plus grammatical metadata.
-Wiktionary itself only renders those paradigms for headwords an editor
-has manually written up.
-
-Dilemma runs the same modules, via
-[wikitextprocessor](https://github.com/tatuylonen/wikitextprocessor),
-over the headword sets of LSJ (32K nouns, 22K verbs, 14K adjectives)
-and the Sophocles Byzantine/Patristic lexicon (13.5K nouns, 4.6K verbs).
-That produces about 5.2M extra inflected forms for classical and
-Byzantine vocabulary that is not enumerated anywhere on Wiktionary, and
-lifts the lookup table from 5.2M Wiktionary-only forms to 12.5M total,
-the largest compiled for Greek. It is the single biggest contributor
-to Dilemma's coverage of rare vocabulary.
-
-See [Lookup table](#lookup-table) and
-[LSJ/Sophocles expansion](#lsjsophocles-expansion) for the build
-pipeline.
-
-### How the pieces fit together
-
-The three pieces above sit on top of a layered pipeline:
-
-1. The 12.5M-form lookup table resolves most words instantly.
-2. A rule-based layer handles the things a lookup cannot enumerate:
-   augment and reduplication stripping, elision, crasis, enclitic
-   particle suffixes.
-3. A dialect normalizer maps Ionic, Doric, Aeolic, and Koine forms to
-   their Attic equivalents so the (Attic-heavy) lookup can match them.
-4. The transformer catches the remaining ~5% of words.
-
-Other things worth flagging:
-
-- No other lemmatizer covers Ancient, Byzantine, and Modern Greek in
-  one system. Morpheus is classical AG only; stanza is AG or MG but
-  not both. Dilemma resolves Katharevousa, vernacular medieval, and
-  regional MG varieties (Cypriot, Cretan) alongside Homer and
-  Herodotus.
-- Dialect normalization is systematic, not just a wordlist. No other
+- **No other lemmatizer covers Ancient, Byzantine, and Modern Greek
+  in one system.** Morpheus is classical AG only; stanza is AG or MG
+  but not both. Dilemma resolves Katharevousa, vernacular medieval, and
+  regional MG varieties (Cypriot, Cretan) alongside Homer and Herodotus.
+- **Dialect normalization is systematic, not a wordlist.** No other
   Greek lemmatizer handles Ionic/Doric/Aeolic/Koine variation this way.
-- Elision recovery does consonant de-assimilation. καθ' becomes κατά
-  by reversing the aspiration rule, with corpus frequency as the
+- **Elision recovery does consonant de-assimilation.** `καθ’` becomes
+  `κατά` by reversing the aspiration rule, with corpus frequency as the
   tiebreaker between candidates.
+- **Fully supervised, end to end.** Every training pair is labelled
+  (Wiktionary tables, Lua expansions, gold treebanks) and the lookup is
+  a dictionary of correct answers -- nothing relies on unsupervised
+  pattern discovery from raw text. Failure modes are predictable and
+  fixes reproducible: edit the Wiktionary entry, rerun the pipeline,
+  the fix flows through.
 
-### Why these architecture choices
-
-Most of the design decisions in Dilemma are deliberate departures from
-how other Greek NLP tools are built. The individual techniques are
-standard in computational linguistics; what makes Dilemma the strongest
-Greek lemmatizer available is the combination, and the fact that each
-choice is the right one for Greek specifically.
-
-A character-level encoder-decoder, not a fine-tuned subword LM. The
-SIGMORPHON architecture is the right tool for morphologically rich
-inflectional languages, and Greek is the canonical example. Existing
-Greek tools either fine-tune a giant subword model (stanza, spaCy) or
-use rule-based morphological analyzers (Morpheus, CLTK) that struggle
-with anything outside their hand-coded paradigms. A 4M-parameter
-character-level model trained from scratch on Greek-specific data beats
-both: it learns the morphology directly, generalizes to unseen forms,
-and ships in 50 MB of ONNX rather than gigabytes of pretrained weights.
-
-A 12.5M-form SQLite lookup, not a model-only pipeline. Most Greek words
-are not interestingly ambiguous, and a hash-table lookup answers them
-in microseconds. Other tools route every word through their tagger;
-Dilemma reserves the model for the ~5% the lookup can't resolve, which
-is why it's both faster and more accurate. The SQLite layer with
-monotonic and accent-stripped fallback keys means polytonic, monotonic,
-and unaccented input all hit the same entries.
-
-Wiktionary's own Lua modules driving an external headword set, not
-hand-written paradigm tables. Existing morphological analyzers ship
-hand-coded paradigms (Morpheus' stemsrc, jtauber/greek-inflexion's
-templates) that take decades of expert effort to build and never quite
-finish. Dilemma instead invokes the very same `Module:grc-decl` and
-`Module:grc-conj` that Wiktionary editors use, but points them at the
-LSJ and Sophocles headword sets. That gets you 5.2M extra inflected
-forms with no per-paradigm hand-curation, which is what closes the
-classical and Byzantine vocabulary gap that every other tool has.
-
-A BK-tree for spelling correction. Edit-distance lookup over Greek's
-combinatorial accent-and-breathing space is hard to do quickly with a
-naive scan; a BK-tree gives metric-space nearest-neighbour search in
-log time and makes the whole spell-check feature feasible inside a
-mobile keyboard's memory budget.
-
-Convention remapping baked into the API. Every other Greek lemmatizer
-locks you into the citation conventions of its training treebank. By
-treating output convention as a runtime parameter backed by a
-machine-built equivalence table, Dilemma serves an LSJ workflow, a
-Cunliffe workflow, and a Triantafyllidis workflow from the same model
-weights. This is the difference between a tool that scores 65% on a
-benchmark because of citation mismatch and one that scores 95% on the
-underlying linguistic task.
-
-Fully supervised, end to end. Every training pair has a known-correct
-lemma (Wiktionary inflection tables, the Lua expansions, gold-standard
-treebanks), and the lookup table is literally a dictionary of correct
-answers. Nothing in Dilemma relies on unsupervised pattern discovery
-from raw text, which is why the failure modes are predictable and the
-fixes are reproducible (edit a Wiktionary entry, rerun the pipeline,
-the fix flows through).
-
-**SQLite backend:** The lookup table loads from a pre-built SQLite database
-(instant startup, ~0.3s) instead of parsing 600MB of JSON (~11s). Falls
-back to JSON if the database isn't present.
-
-**ONNX support:** For inference, ONNX Runtime (~50 MB) and PyTorch
-(~2 GB) produce identical results. If you already have PyTorch
-installed, it works fine. If you're starting fresh, ONNX is the
-lighter option. PyTorch is only required for training. The lookup
-table (which handles 95%+ of words) needs neither.
+**SQLite + ONNX backends:** The lookup loads from a pre-built SQLite
+database (~0.3s startup) instead of parsing 600 MB of JSON (~11s),
+falling back to JSON if the DB isn't present. ONNX Runtime (~50 MB) and
+PyTorch (~2 GB) produce identical inference results -- use whichever
+you already have. The lookup handles 95%+ of words and needs neither.
 
 ## Table of Contents
 
@@ -509,7 +443,7 @@ The lookup table combines forms from multiple sources:
 | **LSJ** (Liddell-Scott-Jones) | 4.2M | 32K nouns, 22K verbs (incl. 700+ with principal parts parsed from the entry head and ~800 athematic / irregular μι-verbs), 14K adjectives, all expanded via Wiktionary Lua modules |
 | **Sophocles Lexicon** (Byzantine/Patristic) | 1.0M | 13.5K nouns, 4.6K verbs, 1.5K adverbs from OCR'd TEI data |
 | **[GLAUx](https://github.com/alekkeersmaekers/glaux)** (Keersmaekers, 2021) | 557K | 17M-token corpus, 8th c. BC - 4th c. AD, 98.8% lemma accuracy |
-| **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Also provides frequency data (27M combined tokens with GLAUx). |
+| **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Contributes to the merged 67M-token `corpus_freq.json` alongside GLAUx, PG, First1KGreek, PTA, and Perseus canonical-greekLit. |
 | **[HNC Golden Corpus](https://inventory.clarin.gr/corpus/870)** (CLARIN:EL) | 1K new | 88K-token gold-standard MG corpus, 11K unique form-lemma pairs. Low priority (only added when not in Wiktionary). Also used for MG evaluation. |
 | **[PROIEL](https://github.com/UniversalDependencies/UD_Ancient_Greek-PROIEL)** (UD treebank) | 33K | Herodotus gold-standard form-lemma pairs (expert-verified) |
 | **[Perseus](https://github.com/UniversalDependencies/UD_Ancient_Greek-Perseus)** (UD treebank) | 42K | 178K tokens: Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus |
@@ -1346,13 +1280,17 @@ python tests/test_dilemma.py                # lookup table + end-to-end lemmatiz
 python tests/test_dilemma.py --lookup-only  # skip model tests
 ```
 
-`tests/test_comprehensive.py` is the main pytest test suite (263 tests)
-covering core lemmatization, particle suffix stripping, verb morphology
-stripping, article-agreement disambiguation, crasis resolution, elision
-handling, orthographic normalization, dialect normalization (Ionic, Doric,
-Aeolic, Koine), convention switching, language filtering, spelling
-suggestions, batch operations, PROIEL/Gorman treebank pairs, and edge
-cases.
+The suite is ~1,040 tests across roughly a dozen files.
+`tests/test_comprehensive.py` is the largest single file (~196 tests)
+and covers core lemmatization, particle suffix stripping, verb
+morphology stripping, article-agreement disambiguation, crasis
+resolution, elision handling, orthographic normalization, dialect
+normalization (Ionic, Doric, Aeolic, Koine), convention switching,
+language filtering, spelling suggestions, batch operations, PROIEL /
+Gorman treebank pairs, and edge cases. The remaining files cover
+paradigm builders, athematic verb expansion, LSJ principal-parts
+extraction, the `morph_diff` annotator, and end-to-end integrity
+checks.
 
 `tests/test_integrity.py` runs 7 structural checks: ONNX/vocab dimension
 match, DB table presence, model load, inference, and ONNX/PyTorch
@@ -1379,7 +1317,9 @@ For each language, the script produces:
 
 Frequency sources (used for primary ranking):
 - **MG**: [FrequencyWords/OpenSubtitles](https://github.com/hermitdave/FrequencyWords) (1.49M forms)
-- **AG**: GLAUx + Diorisis corpus token frequencies (27M combined tokens)
+- **AG**: merged `corpus_freq.json` (67M tokens, 1.10M unique forms) from
+  GLAUx + Diorisis + Patrologia Graeca + First1KGreek + PatristicTextArchive
+  + Perseus canonical-greekLit
 - **Medieval**: AG corpus frequencies as proxy
 
 Additional corpora available in `--verbose` per-form breakdowns:
@@ -1693,10 +1633,13 @@ GLAUx is the primary corpus source due to its 98.8% lemma accuracy.
 The [Diorisis corpus](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)
 (Vatri & McGillivray, 2018; 10M tokens, Homer - 5th c. AD) is used
 as a secondary source: its 456K form-lemma pairs add 76K new entries
-not found in GLAUx, and its token frequencies are merged with GLAUx
-for 27M combined tokens. Because Diorisis has lower lemma accuracy
-(91.4%), its pairs are only added when they don't conflict with existing
-entries from Wiktionary, LSJ, or GLAUx.
+not found in GLAUx. Because Diorisis has lower lemma accuracy (91.4%),
+its pairs are only added when they don't conflict with existing entries
+from Wiktionary, LSJ, or GLAUx. For form-frequency data, GLAUx and
+Diorisis are merged with four other CC BY-SA / PD sources into the
+67M-token `corpus_freq.json` (see
+[Form-frequency corpora](#form-frequency-corpora-and-coverage-diagnostics)
+below).
 
 We chose not to integrate one other large corpus:
 
