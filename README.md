@@ -1,7 +1,7 @@
 # Dilemma <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/ancient-greece.svg" width="28" alt="Ancient Greece"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/languages/el.svg" width="28" alt="Greek"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/countries/cy.svg" width="28" alt="Cyprus"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/byzantine.svg" width="28" alt="Byzantine"> [![Tests](https://github.com/ciscoriordan/dilemma/actions/workflows/test.yml/badge.svg)](https://github.com/ciscoriordan/dilemma/actions/workflows/test.yml)
 
 <p align="center">
-  <img width="640" alt="dilemma" src="social.jpg">
+  <img width="640" alt="dilemma" src="scripts/social.jpg">
 </p>
 
 Dilemma is a diachronic Greek lemmatizer spanning Ancient Greek (Classical,
