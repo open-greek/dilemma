@@ -49,21 +49,48 @@ def test_meta_schema(raw):
     assert m["sources"] == ["glaux", "diorisis"]
     assert len(m["genres"]) == 10
     assert m["n_lemmas"] == len(raw["lemmas"])
-    assert m["total_tokens"] > 25_000_000          # ~27M
+    # Union of works (~17.5M), not the ~27M naive GLAUx+Diorisis sum.
+    assert 15_000_000 < m["total_tokens"] < 22_000_000
+    assert "dedup" in m
     assert set(m["source_sha"]) == {
         "glaux_metadata", "glaux_xml", "diorisis_xml"}
 
 
+def test_dedup_total_is_union_not_sum(raw):
+    """total / by_* are the DEDUPED frequency (each work counted once);
+    source_counts holds each source's INDEPENDENT count (overlapping). So the
+    deduped total sits between GLAUx alone and the naive GLAUx+Diorisis sum, and
+    both sources' evidence is preserved."""
+    total = sc_glaux = sc_diorisis = 0
+    for e in raw["lemmas"].values():
+        total += e["total"]
+        sc_glaux += e["source_counts"].get("glaux", 0)
+        sc_diorisis += e["source_counts"].get("diorisis", 0)
+    assert total == raw["_meta"]["total_tokens"]
+    assert sc_glaux < total < sc_glaux + sc_diorisis          # union, not sum
+    assert sc_glaux > 10_000_000 and sc_diorisis > 5_000_000  # both preserved
+
+
 def test_dimension_sums_are_consistent(raw):
-    """by_source and by_genre partition every token; by_century / by_dialect
-    are subsets (a token may lack a dialect)."""
+    """by_genre partitions the deduped tokens (sums to total); by_century /
+    by_dialect are subsets. source_counts is independent (need not sum to
+    total) but is always present and non-empty."""
     for w, e in raw["lemmas"].items():
         t = e["total"]
-        assert sum(e["by_source"].values()) == t, w
+        assert e["source_counts"], w
         assert sum(e["by_genre"].values()) == t, w
         assert sum(e["by_century"].values()) <= t, w
         if "by_dialect" in e:
             assert sum(e["by_dialect"].values()) <= t, w
+
+
+def test_evidence_only_lemmas_preserved(raw):
+    """The multi-source design keeps single-source readings of shared works
+    (total 0, non-empty source_counts) instead of discarding them, and every
+    lemma carries at least one source's evidence."""
+    assert all(e["source_counts"] for e in raw["lemmas"].values())
+    zero = [w for w, e in raw["lemmas"].items() if e["total"] == 0]
+    assert zero, "expected some total=0 evidence-only lemmas"
 
 
 def test_keys_are_lexical_greek(raw):
@@ -85,7 +112,7 @@ def test_keys_are_lexical_greek(raw):
 
 def test_inner_dicts_are_canonically_ordered(raw):
     """Lemma keys sorted by code point; within each lemma, by_century is
-    chronological, by_genre follows _meta.genres, by_source follows
+    chronological, by_genre follows _meta.genres, source_counts follows
     _meta.sources, by_dialect is alphabetical (the brief's "sorted keys")."""
     genre_pos = {g: i for i, g in enumerate(raw["_meta"]["genres"])}
     source_pos = {s: i for i, s in enumerate(raw["_meta"]["sources"])}
@@ -98,8 +125,8 @@ def test_inner_dicts_are_canonically_ordered(raw):
         assert cents == sorted(cents), (w, "by_century", cents)
         gp = [genre_pos[g] for g in e["by_genre"]]
         assert gp == sorted(gp), (w, "by_genre", list(e["by_genre"]))
-        sp = [source_pos[s] for s in e["by_source"]]
-        assert sp == sorted(sp), (w, "by_source", list(e["by_source"]))
+        sp = [source_pos[s] for s in e["source_counts"]]
+        assert sp == sorted(sp), (w, "source_counts", list(e["source_counts"]))
         if "by_dialect" in e:
             dk = list(e["by_dialect"])
             assert dk == sorted(dk), (w, "by_dialect", dk)
@@ -112,7 +139,8 @@ def test_common_lemma_is_frequent(d):
     assert a is not None
     assert a["total"] > 1000
     assert a["dominant_pos"] == "noun"
-    assert set(a["by_source"]) <= {"glaux", "diorisis"}
+    # attested independently by both corpora (agreement = confidence)
+    assert set(a["source_counts"]) == {"glaux", "diorisis"}
 
 
 def test_homeric_lemma_century_and_dialect(d):

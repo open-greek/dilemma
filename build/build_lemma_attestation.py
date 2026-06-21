@@ -30,6 +30,7 @@ import argparse
 import csv
 import hashlib
 import json
+import re
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -203,27 +204,40 @@ def dominant_pos(pos_counter):
 
 
 class LemmaProfile:
-    """Mutable per-lemma accumulator. Compacted to plain dicts at the end."""
-    __slots__ = ("total", "by_source", "by_genre", "by_century",
-                 "by_dialect", "pos")
+    """Mutable per-lemma accumulator.
+
+    Two views are kept. The DEDUPED frequency stream (total + by_genre /
+    by_century / by_dialect) is fed only by the preferred source for each work
+    (GLAUx wins shared works), so each text is counted once. source_counts holds
+    every source's INDEPENDENT token count for the lemma -- overlapping, never
+    summed -- which preserves both lemmatizers' evidence (agreement = confidence,
+    a source-only reading = recall). POS is pooled across sources for
+    dominant_pos so even a total=0 (single-source) lemma gets a real POS.
+    """
+    __slots__ = ("total", "by_genre", "by_century", "by_dialect",
+                 "source_counts", "pos")
 
     def __init__(self):
         self.total = 0
-        self.by_source = Counter()
         self.by_genre = Counter()
         self.by_century = Counter()
         self.by_dialect = Counter()
+        self.source_counts = Counter()
         self.pos = Counter()
 
-    def add(self, source, genre, century, dialect, pos, n=1):
+    def observe(self, source, pos, n=1):
+        """Record one source's independent lemmatization of n tokens."""
+        self.source_counts[source] += n
+        self.pos[pos] += n
+
+    def add_deduped(self, genre, century, dialect, n=1):
+        """Add n preferred-source tokens to the deduped frequency stream."""
         self.total += n
-        self.by_source[source] += n
         self.by_genre[genre] += n
         if century is not None:
             self.by_century[str(century)] += n
         if dialect:
             self.by_dialect[dialect] += n
-        self.pos[pos] += n
 
 
 def load_glaux_metadata(path, agg_hash):
@@ -266,8 +280,31 @@ def fold_file_hash(agg, stem, data):
     agg.update(hashlib.sha256(data).digest())
 
 
+def diorisis_work_id(root, filename):
+    """TLG 'AUTHOR-WORK' id (e.g. '0527-001') for a Diorisis text, formatted to
+    match GLAUx file stems, or None if it can't be determined.
+
+    Used to defer to GLAUx on shared works (the two corpora annotate largely the
+    same texts). Reads the header tlgAuthor/tlgId, stripping any letter suffix
+    on the work number (Diorisis splits a few Plutarch Lives as 051a/051b that
+    GLAUx keeps under one numeric id); falls back to the '(NNNN) - ... (NNN)'
+    filename convention.
+    """
+    a = root.find(".//tlgAuthor")
+    t = root.find(".//tlgId")
+    author = (a.text or "").strip() if a is not None else ""
+    work = re.sub(r"\D", "", (t.text or "").strip() if t is not None else "")
+    if author.isdigit() and work:
+        return f"{int(author):04d}-{int(work):03d}"
+    m = re.search(r"\((\d{3,4})\)[^()]*\((\d{1,3})[a-z]?\)\.xml$", filename)
+    if m:
+        return f"{int(m.group(1)):04d}-{int(m.group(2)):03d}"
+    return None
+
+
 def process_glaux(glaux_dir, meta, profiles, limit, stats):
     glaux_hash = hashlib.sha256()
+    work_ids = set()  # GLAUx file stems = TLG work ids, for the Diorisis dedup
     files = sorted(glaux_dir.glob("*.xml"))
     if limit:
         files = files[:limit]
@@ -282,6 +319,7 @@ def process_glaux(glaux_dir, meta, profiles, limit, stats):
         except ET.ParseError:
             stats["parse_errors"] += 1
             continue
+        work_ids.add(stem)
         for w in root.iter("word"):
             postag = w.get("postag", "")
             if postag and postag[0] == "u":
@@ -295,16 +333,18 @@ def process_glaux(glaux_dir, meta, profiles, limit, stats):
                 stats["glaux_nonlexical_lemma"] += 1
                 continue
             pos = GLAUX_POS_MAP.get(postag[0] if postag else "", "other")
-            profiles[lemma].add("glaux", genre, century, dialect, pos)
+            p = profiles[lemma]
+            p.observe("glaux", pos)
+            p.add_deduped(genre, century, dialect)  # GLAUx preferred everywhere
             stats["glaux_tokens"] += 1
         if (i + 1) % 200 == 0:
             print(f"  {i+1}/{len(files)} files, "
                   f"{stats['glaux_tokens']:,} tokens, "
                   f"{len(profiles):,} lemmas", flush=True)
-    return glaux_hash.hexdigest()
+    return glaux_hash.hexdigest(), work_ids
 
 
-def process_diorisis(diorisis_dir, profiles, limit, stats):
+def process_diorisis(diorisis_dir, profiles, limit, stats, glaux_work_ids):
     dio_hash = hashlib.sha256()
     files = sorted(diorisis_dir.glob("*.xml"))
     if limit:
@@ -318,18 +358,29 @@ def process_diorisis(diorisis_dir, profiles, limit, stats):
         except ET.ParseError:
             stats["parse_errors"] += 1
             continue
-        genre_el = root.find(".//genre")
-        raw_genre = (genre_el.text or "").strip() if genre_el is not None else ""
-        genre = DIORISIS_GENRE_MAP.get(raw_genre, "other")
-        # Date lives at <creation><date>; the header also carries edition and
-        # processing dates, so this exact path matters.
-        date_el = root.find(".//creation/date")
-        century = None
-        if date_el is not None and date_el.text:
-            try:
-                century = year_to_century(int(date_el.text.strip()))
-            except ValueError:
-                stats["diorisis_bad_date"] += 1
+        # Dedup: if GLAUx already annotates this TLG work, Diorisis's tokens for
+        # it are kept only as independent lemmatization evidence (source_counts),
+        # NOT added to the deduped frequency stream -- GLAUx is preferred there.
+        wid = diorisis_work_id(root, xf.name)
+        deferred = wid is not None and wid in glaux_work_ids
+        if deferred:
+            stats["diorisis_deferred_works"] += 1
+            genre = "other"
+            century = None
+        else:
+            stats["diorisis_kept_works"] += 1
+            genre_el = root.find(".//genre")
+            raw_genre = (genre_el.text or "").strip() if genre_el is not None else ""
+            genre = DIORISIS_GENRE_MAP.get(raw_genre, "other")
+            # Date lives at <creation><date>; the header also carries edition and
+            # processing dates, so this exact path matters.
+            date_el = root.find(".//creation/date")
+            century = None
+            if date_el is not None and date_el.text:
+                try:
+                    century = year_to_century(int(date_el.text.strip()))
+                except ValueError:
+                    stats["diorisis_bad_date"] += 1
         for w in root.iter("word"):
             lem = w.find("lemma")
             if lem is None:
@@ -343,9 +394,13 @@ def process_diorisis(diorisis_dir, profiles, limit, stats):
                 stats["diorisis_nonlexical_lemma"] += 1
                 continue
             pos = DIORISIS_POS_MAP.get((lem.get("POS") or "").lower(), "other")
-            # Diorisis carries no dialect.
-            profiles[entry].add("diorisis", genre, century, None, pos)
-            stats["diorisis_tokens"] += 1
+            p = profiles[entry]
+            p.observe("diorisis", pos)
+            if deferred:
+                stats["diorisis_evidence_tokens"] += 1
+            else:
+                p.add_deduped(genre, century, None)  # Diorisis-only work
+                stats["diorisis_tokens"] += 1
         if (i + 1) % 100 == 0:
             print(f"  {i+1}/{len(files)} files, "
                   f"{stats['diorisis_tokens']:,} tokens, "
@@ -371,7 +426,8 @@ def build_output(profiles, observed_dialects, total_tokens, source_sha):
         p = profiles[lemma]
         entry = {
             "total": p.total,
-            "by_source": ordered(p.by_source, lambda s: source_idx.get(s, 99)),
+            "source_counts": ordered(p.source_counts,
+                                     lambda s: source_idx.get(s, 99)),
             "by_genre": ordered(p.by_genre, lambda g: genre_idx.get(g, 99)),
             "by_century": ordered(p.by_century, int),
         }
@@ -383,6 +439,8 @@ def build_output(profiles, observed_dialects, total_tokens, source_sha):
     meta = {
         "schema_version": SCHEMA_VERSION,
         "sources": list(SOURCE_ORDER),
+        "dedup": ("each TLG work counted once; GLAUx preferred, Diorisis "
+                  "contributes only works GLAUx lacks (joined on author-work id)"),
         "genres": GENRE_ORDER,
         "dialects": sorted(observed_dialects),
         "century_scheme": ("signed century integer, -8 = 8th c. BC, "
@@ -413,9 +471,22 @@ def build_output(profiles, observed_dialects, total_tokens, source_sha):
             "verbatim; blank dialects are omitted.",
             "total_tokens counts only lemmatized Greek tokens; punctuation, "
             "non-Greek, and unlemmatized tokens are excluded.",
+            "GLAUx and Diorisis independently annotate largely the same texts. "
+            "To avoid double-counting, total and the by_* breakdowns are a "
+            "DEDUPED frequency: each TLG work is counted once, using GLAUx's "
+            "copy for any work it contains (it has dialect and richer metadata) "
+            "and Diorisis only for works GLAUx lacks, joined on TLG author-work "
+            "id. So total/by_* are a union of works, not a sum.",
+            "source_counts is separate: each source's INDEPENDENT token count "
+            "for the lemma (overlapping; do NOT sum, and it does not equal "
+            "total). Two sources agreeing is a confidence signal. A lemma "
+            "produced only by a non-preferred source's reading of a shared work "
+            "has total 0 but a non-empty source_counts -- a real but "
+            "single-source, lower-confidence attestation; filter on total > 0 "
+            "for frequency-backed lemmas only.",
             "Ordering: lemma keys sorted by code point; within each lemma, "
             "by_century is chronological, by_genre follows the genres list, "
-            "by_source follows the sources list, by_dialect is alphabetical.",
+            "source_counts follows the sources list, by_dialect is alphabetical.",
         ],
     }
     return {"_meta": meta, "lemmas": lemmas}
@@ -423,9 +494,14 @@ def build_output(profiles, observed_dialects, total_tokens, source_sha):
 
 def report(stats, profiles, total_tokens):
     print(f"\nLemmas: {len(profiles):,}")
-    print(f"Lemmatized Greek tokens (total): {total_tokens:,}")
+    print(f"Deduped tokens (total; union of works, counted once): "
+          f"{total_tokens:,}")
     print(f"  glaux:    {stats['glaux_tokens']:,}")
-    print(f"  diorisis: {stats['diorisis_tokens']:,}")
+    print(f"  diorisis: {stats['diorisis_tokens']:,} "
+          f"(from {stats['diorisis_kept_works']:,} GLAUx-absent works)")
+    print(f"Independent evidence in source_counts (not summed into total):")
+    print(f"  diorisis on {stats['diorisis_deferred_works']:,} shared works: "
+          f"{stats['diorisis_evidence_tokens']:,} tokens")
     print("Skipped / dropped:")
     print(f"  glaux unlemmatized:        {stats['glaux_unlemmatized']:,}")
     print(f"  glaux non-lexical lemma:   {stats['glaux_nonlexical_lemma']:,}")
@@ -471,10 +547,10 @@ def main():
     observed_dialects = {d for (_, _, d) in glaux_meta.values() if d}
     print(f"  {len(glaux_meta)} texts, dialects: {sorted(observed_dialects)}")
 
-    source_sha["glaux_xml"] = process_glaux(
+    source_sha["glaux_xml"], glaux_work_ids = process_glaux(
         args.glaux, glaux_meta, profiles, args.limit, stats)
     source_sha["diorisis_xml"] = process_diorisis(
-        args.diorisis, profiles, args.limit, stats)
+        args.diorisis, profiles, args.limit, stats, glaux_work_ids)
 
     total_tokens = stats["glaux_tokens"] + stats["diorisis_tokens"]
     report(stats, profiles, total_tokens)

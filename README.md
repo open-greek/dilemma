@@ -908,26 +908,33 @@ table, avoiding false matches from MG monotonic forms.
 ### Corpus attestation
 
 `Dilemma.attestation(lemma)` returns a per-lemma diachronic profile built from
-the GLAUx and Diorisis corpora (27M lemmatized tokens, 131K lemmas): how often,
+the GLAUx and Diorisis corpora (17.5M deduped tokens, 131K lemmas): how often,
 when, where, and in what genre a lemma is attested. It is keyed by the corpora's
 own NFC polytonic lemma annotation and returns `None` for an unattested lemma.
 
 ```python
 d.attestation("ἀείδω")
 # {
-#   "total": 3109,
-#   "by_source":  {"glaux": 1869, "diorisis": 1240},
-#   "by_genre":   {"philosophy": 745, "poetry": 694, "history": 457, ...},
-#   "by_century": {"-8": 100, "-4": 319, "2": 1079, ...},   # signed; -8 = 8th c. BC
-#   "by_dialect": {"Ionic/Epic": 156, "Attic": 249, ...},   # GLAUx only
+#   "total": 1942,                                          # deduped frequency
+#   "source_counts": {"glaux": 1869, "diorisis": 1240},    # independent, NOT summed
+#   "by_genre":   {"philosophy": 367, "poetry": 441, "history": 263, ...},
+#   "by_century": {"-8": 49, "-7": 20, "-6": 40, ...},      # signed; -8 = 8th c. BC
+#   "by_dialect": {"Aeolic": 2, "Attic": 249, "Attic/Koine": 662, ...},  # GLAUx only
 #   "dominant_pos": "verb",
 # }
 ```
 
 The artifact is `data/lemma_attestation.json`, built by the standalone
-`build/build_lemma_attestation.py` pass straight from the two corpora. It is
-distinct from the form-keyed, genre-only `corpus_freq.json`: this one is
-lemma-keyed and adds the century and dialect axes. Because the corpora are not
+`build/build_lemma_attestation.py` pass straight from the two corpora. GLAUx and
+Diorisis annotate largely the same texts, so the frequency (`total` and the
+`by_*` breakdowns) is deduplicated at the work level by TLG id (each work counted
+once, GLAUx preferred for its dialect and richer metadata) - a union, not a sum.
+`source_counts` separately keeps each lemmatizer's full independent count
+(overlapping, never summed): agreement is a confidence signal, and a lemma seen
+only in a non-preferred source's reading of a shared work has `total` 0 but a
+non-empty `source_counts`. It is distinct from the form-keyed, genre-only
+`corpus_freq.json`: this one is lemma-keyed and adds the century and dialect
+axes. Because the corpora are not
 sense-disambiguated there is one profile per lemma string, so `dominant_pos`
 disambiguates a noun-vs-verb homograph but not same-POS senses. The file's
 `_meta` block documents the full schema, the signed-century scheme, and the

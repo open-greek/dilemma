@@ -3292,12 +3292,17 @@ class Dilemma:
     def attestation(self, lemma: str) -> dict | None:
         """Corpus attestation profile for an Ancient Greek lemma, or None.
 
-        Returns the per-lemma record from ``data/lemma_attestation.json``:
-        token counts stratified by ``by_source`` (glaux / diorisis),
-        ``by_genre`` (10 bins), ``by_century`` (signed century integer, where
-        ``-8`` = 8th c. BC and ``2`` = 2nd c. AD), and ``by_dialect`` (GLAUx
-        only; present only when known), plus ``total`` and ``dominant_pos``.
-        Returns None for a lemma not attested in GLAUx or Diorisis.
+        Returns the per-lemma record from ``data/lemma_attestation.json``: the
+        deduped frequency ``total`` with its ``by_genre`` (10 bins),
+        ``by_century`` (signed century integer, where ``-8`` = 8th c. BC and
+        ``2`` = 2nd c. AD), and ``by_dialect`` (GLAUx only; present only when
+        known) breakdowns, plus ``source_counts`` (each corpus's independent
+        token count -- overlapping, not summed; agreement is a confidence
+        signal) and ``dominant_pos``. Because GLAUx and Diorisis annotate the
+        same texts, counts are deduplicated per work (GLAUx preferred), so a
+        lemma seen only in a non-preferred source's reading of a shared work has
+        ``total`` 0 but a non-empty ``source_counts``. Returns None for a lemma
+        not attested in GLAUx or Diorisis.
 
         The argument is matched (after NFC normalization) against the corpora's
         own polytonic lemma annotation; it is not accent-stripped. Because the
