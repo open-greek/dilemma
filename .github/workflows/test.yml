@@ -25,7 +25,7 @@ jobs:
           pip install -q transformers
 
       - name: Download lookup data from HuggingFace Hub
-        run: hf download ciscoriordan/dilemma data/lookup.db data/spell_index.db --local-dir .
+        run: hf download ciscoriordan/dilemma data/lookup.db data/spell_index.db data/lemma_attestation.json --local-dir .
 
       - name: Run all tests
         run: python3 -m pytest tests/ -x -v
