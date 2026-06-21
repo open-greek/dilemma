@@ -2,7 +2,7 @@
 
 ## Data Storage
 
-Large data files and models are stored on HuggingFace at `hf.co/ciscoriordan/dilemma` (public model repo), not in git. This includes lookup.db, all *_lookup.json/*_pairs.json/*_freq.json files, spell_index.db, vesuvius_index.json.gz, and ONNX/PyTorch model files. Download with `huggingface-cli download ciscoriordan/dilemma --local-dir . --include "data/*" "model/*"`.
+Large data files and models are stored on HuggingFace at `hf.co/ciscoriordan/dilemma` (public model repo), not in git. This includes lookup.db, all *_lookup.json/*_pairs.json/*_freq.json files, lemma_attestation.json, spell_index.db, vesuvius_index.json.gz, and ONNX/PyTorch model files. Download with `huggingface-cli download ciscoriordan/dilemma --local-dir . --include "data/*" "model/*"`.
 
 ## Build Pipeline
 
@@ -19,6 +19,10 @@ Large data files and models are stored on HuggingFace at `hf.co/ciscoriordan/dil
 
 ### Concurrent build_lookup_db.py
 Never run multiple `build_lookup_db.py` instances simultaneously. They corrupt the SQLite output. Kill any stale processes before rebuilding.
+
+## Corpus attestation (lemma-keyed)
+
+`build/build_lemma_attestation.py` reads GLAUx (`~/Documents/glaux/`) and Diorisis (`data/diorisis/xml/`) directly and emits `data/lemma_attestation.json`: for each AG lemma, token counts stratified by source, genre (the 10 corpus_freq bins), century (signed; -8 = 8th c. BC), and dialect (GLAUx only), plus `dominant_pos`. This is a standalone corpus-aggregation pass (~3 min, 131K lemmas, 27M tokens) - it does NOT need the lookup-db build or transformer retrain, just the corpora on disk. Only GLAUx + Diorisis are used (the other corpus_freq sources lack clean date/dialect metadata). Output is byte-stable (sorted keys, SHA-256 source hashes in `_meta`, no wall-clock). It is keyed by surface FORM nowhere - keys are the corpora's own NFC polytonic lemma annotation, restricted to lexical Greek. Distinct from `corpus_freq.json`, which is form-keyed and genre-only. Public API: `Dilemma.attestation(lemma) -> dict | None`. Run `python -m pytest tests/test_attestation.py` after changes.
 
 ## Benchmarks
 

@@ -108,6 +108,7 @@ DGE_HEADWORDS_PATH = DATA_DIR / "dge_headwords.json"
 LGPN_NAMES_PATH = DATA_DIR / "lgpn_names.json"
 LEMMA_EQUIVALENCES_PATH = DATA_DIR / "lemma_equivalences.json"
 CORPUS_FREQ_PATH = DATA_DIR / "corpus_freq.json"
+ATTESTATION_PATH = DATA_DIR / "lemma_attestation.json"
 CONVENTION_DIR = DATA_DIR
 
 _VALID_CONVENTIONS = {None, "lsj", "cunliffe", "triantafyllidis", "wiktionary"}
@@ -843,6 +844,9 @@ class Dilemma:
 
         # GLAUx corpus frequency: stripped_form -> token_count (lazy-loaded)
         self._glaux_freq: dict[str, int] | None = None
+
+        # Per-lemma corpus attestation profiles (lazy-loaded)
+        self._attestation: dict[str, dict] | None = None
 
         self._load_lookups(skip_pos=skip_pos)
         self._convention_map = self._build_convention_map(convention)
@@ -3284,6 +3288,30 @@ class Dilemma:
                     for form, counts in data.get("forms", {}).items()
                 }
         return self._glaux_freq.get(stripped_form, 0)
+
+    def attestation(self, lemma: str) -> dict | None:
+        """Corpus attestation profile for an Ancient Greek lemma, or None.
+
+        Returns the per-lemma record from ``data/lemma_attestation.json``:
+        token counts stratified by ``by_source`` (glaux / diorisis),
+        ``by_genre`` (10 bins), ``by_century`` (signed century integer, where
+        ``-8`` = 8th c. BC and ``2`` = 2nd c. AD), and ``by_dialect`` (GLAUx
+        only; present only when known), plus ``total`` and ``dominant_pos``.
+        Returns None for a lemma not attested in GLAUx or Diorisis.
+
+        The argument is matched (after NFC normalization) against the corpora's
+        own polytonic lemma annotation; it is not accent-stripped. Because the
+        corpora are not sense-disambiguated, there is one profile per lemma
+        string -- LSJ (A)/(B) homographs are not separated; use
+        ``dominant_pos`` to pick a noun-vs-verb homograph. The artifact's
+        ``_meta`` documents the full schema. Lazily loaded on first call.
+        """
+        if self._attestation is None:
+            self._attestation = {}
+            if ATTESTATION_PATH.exists():
+                with open(ATTESTATION_PATH, encoding="utf-8") as f:
+                    self._attestation = json.load(f).get("lemmas", {})
+        return self._attestation.get(unicodedata.normalize("NFC", lemma))
 
     def _rank_spell_results(self, word: str, query_stripped: str,
                             hits: dict[str, list[str]],

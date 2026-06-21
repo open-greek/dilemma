@@ -905,6 +905,34 @@ pattern, and proper nouns are deprioritized.
 Polytonic input automatically restricts expansion to the AG lookup
 table, avoiding false matches from MG monotonic forms.
 
+### Corpus attestation
+
+`Dilemma.attestation(lemma)` returns a per-lemma diachronic profile built from
+the GLAUx and Diorisis corpora (27M lemmatized tokens, 131K lemmas): how often,
+when, where, and in what genre a lemma is attested. It is keyed by the corpora's
+own NFC polytonic lemma annotation and returns `None` for an unattested lemma.
+
+```python
+d.attestation("ἀείδω")
+# {
+#   "total": 3109,
+#   "by_source":  {"glaux": 1869, "diorisis": 1240},
+#   "by_genre":   {"philosophy": 745, "poetry": 694, "history": 457, ...},
+#   "by_century": {"-8": 100, "-4": 319, "2": 1079, ...},   # signed; -8 = 8th c. BC
+#   "by_dialect": {"Ionic/Epic": 156, "Attic": 249, ...},   # GLAUx only
+#   "dominant_pos": "verb",
+# }
+```
+
+The artifact is `data/lemma_attestation.json`, built by the standalone
+`build/build_lemma_attestation.py` pass straight from the two corpora. It is
+distinct from the form-keyed, genre-only `corpus_freq.json`: this one is
+lemma-keyed and adds the century and dialect axes. Because the corpora are not
+sense-disambiguated there is one profile per lemma string, so `dominant_pos`
+disambiguates a noun-vs-verb homograph but not same-POS senses. The file's
+`_meta` block documents the full schema, the signed-century scheme, and the
+caveats.
+
 ## POS tagger and dependency parser
 
 Dilemma also ships a diachronic Greek POS tagger and dependency parser.

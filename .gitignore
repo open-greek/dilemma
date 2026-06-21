@@ -9,6 +9,7 @@ data/diorisis_freq.json
 data/diorisis_pairs.json
 data/glaux_freq.json
 data/glaux_pairs.json
+data/lemma_attestation.json
 data/lookup.db
 data/med_lookup.json
 data/med_pairs.json
