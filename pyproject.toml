@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dilemma"
-version = "0.7.1"
+version = "0.8.0"
 description = "Diachronic Greek lemmatizer (Ancient, Byzantine, and Modern Greek)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -61,7 +61,7 @@ markers = [
 # Excludes dilemma/tagger/__init__.py which carries its own independent
 # version for the sub-package.
 [tool.bumpver]
-current_version = "0.7.1"
+current_version = "0.8.0"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version: {old_version} -> {new_version}"
 tag_message = "v{new_version}"
