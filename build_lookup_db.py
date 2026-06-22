@@ -36,7 +36,7 @@ AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
 DGE_HEADWORDS_PATH = DATA_DIR / "dge_headwords.json"
 LGPN_NAMES_PATH = DATA_DIR / "lgpn_names.json"
 PD_HEADWORDS_PATH = DATA_DIR / "pd_headwords.json"
-BRILLDAG_HEADWORDS_PATH = DATA_DIR / "brilldag_headwords.json"
+VLG_HEADWORDS_PATH = DATA_DIR / "vlg_headwords.json"
 MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
@@ -257,23 +257,23 @@ def build():
         ag_headwords |= {strip_accents(h.lower()) for h in pd_raw}
         print(f"  PD headwords (L&S, Pape, Bailly, etc.): {len(pd_new):,} new")
 
-    if BRILLDAG_HEADWORDS_PATH.exists():
-        with open(BRILLDAG_HEADWORDS_PATH, encoding="utf-8") as f:
-            brilldag_raw = set(json.load(f))
-        brilldag_new = brilldag_raw - ag_headwords_exact
-        ag_headwords_exact |= brilldag_raw
-        ag_headwords |= brilldag_raw
-        ag_headwords |= {h.lower() for h in brilldag_raw}
-        ag_headwords |= {strip_accents(h.lower()) for h in brilldag_raw}
+    if VLG_HEADWORDS_PATH.exists():
+        with open(VLG_HEADWORDS_PATH, encoding="utf-8") as f:
+            vlg_raw = set(json.load(f))
+        vlg_new = vlg_raw - ag_headwords_exact
+        ag_headwords_exact |= vlg_raw
+        ag_headwords |= vlg_raw
+        ag_headwords |= {h.lower() for h in vlg_raw}
+        ag_headwords |= {strip_accents(h.lower()) for h in vlg_raw}
         # Add self-map entries to AG lookup so these headwords are
         # recognized by Dilemma's spell-checker (form -> lemma = itself).
-        brilldag_lookup_added = 0
-        for h in brilldag_raw:
+        vlg_lookup_added = 0
+        for h in vlg_raw:
             if h not in ag:
                 ag[h] = h
-                brilldag_lookup_added += 1
-        print(f"  BrillDAG headwords: {len(brilldag_new):,} new, "
-              f"+{brilldag_lookup_added:,} self-maps to AG lookup")
+                vlg_lookup_added += 1
+        print(f"  VLG headwords: {len(vlg_new):,} new, "
+              f"+{vlg_lookup_added:,} self-maps to AG lookup")
 
     # Expand AG and Med with GLAUx corpus pairs (644K forms from
     # 8th c. BC - 4th c. AD Greek texts). These are corpus-derived

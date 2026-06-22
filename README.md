@@ -451,6 +451,7 @@ The lookup table combines forms from multiple sources:
 | **DGE** (Diccionario Griego-Espanol) | 52K | Headword filter coverage for spell-check |
 | **LGPN** (Lexicon of Greek Personal Names) | 44K | Proper noun headword coverage |
 | **Perseus Digital Library** (L&S, Pape, Bailly, etc.) | 176K | Headword filter from multiple classical lexica |
+| **VLG** (Vocabolario della Lingua Greca, Montanari) | 133K | Headword filter coverage; 12K new beyond LSJ/DGE/Perseus |
 | Closed-class fixes | ~500 | Articles, pronouns, prepositions mapped to canonical lemmas |
 
 **Wiktionary Lua expansion.** Most of the non-Wiktionary forms above

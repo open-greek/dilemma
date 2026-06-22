@@ -1301,16 +1301,16 @@ class Dilemma:
         """Build sorted (sort_key, headword) list from all headword sources.
 
         Lazy-loaded on first call to headwords_between(). Combines:
-        LSJ, Cunliffe, DGE, LGPN, BrillDAG, and ag_headwords (Wiktionary-derived).
+        LSJ, Cunliffe, DGE, LGPN, VLG, and ag_headwords (Wiktionary-derived).
         """
         if hasattr(self, "_sorted_hw_index"):
             return
         all_hws = set()
         PD_HW_PATH = DATA_DIR / "pd_headwords.json"
-        BRILLDAG_HW_PATH = DATA_DIR / "brilldag_headwords.json"
+        VLG_HW_PATH = DATA_DIR / "vlg_headwords.json"
         for path in [LSJ_HEADWORDS_PATH, CUNLIFFE_HEADWORDS_PATH,
                      AG_HEADWORDS_PATH, DGE_HEADWORDS_PATH, LGPN_NAMES_PATH,
-                     PD_HW_PATH, BRILLDAG_HW_PATH]:
+                     PD_HW_PATH, VLG_HW_PATH]:
             if path.exists():
                 with open(path, encoding="utf-8") as f:
                     all_hws.update(json.load(f))
