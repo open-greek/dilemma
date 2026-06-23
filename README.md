@@ -174,20 +174,21 @@ you already have. The lookup handles 95%+ of words and needs neither.
 ### Installation
 
 ```bash
-pip install "dilemma[onnx] @ git+https://github.com/ciscoriordan/dilemma.git"
+pip install "dilemma-nlp[onnx] @ git+https://github.com/ciscoriordan/dilemma.git"
 python -m dilemma download
 ```
 
 The first line installs the package plus ONNX Runtime (~50 MB, for unseen-form
-inference). If you already have PyTorch installed, use `dilemma[torch]`
-instead, or just plain `dilemma` to skip the model backend and rely on the
+inference). If you already have PyTorch installed, use `dilemma-nlp[torch]`
+instead, or just plain `dilemma-nlp` to skip the model backend and rely on the
 lookup table alone. The second line downloads the lookup tables and ONNX
 model files from HuggingFace into `~/.cache/dilemma/` (~1.6 GB).
 
-Dilemma looks for data in this order: `$DILEMMA_DATA_DIR`,
-`~/.cache/dilemma/data/`, `<repo-root>/data/` (when running from a clone),
-and `<package>/data/`. Set `DILEMMA_DATA_DIR` to point at an existing copy
-if you have one.
+Dilemma uses `$DILEMMA_DATA_DIR` if set; otherwise it picks whichever of
+`~/.cache/dilemma/data/` (the download), `<repo-root>/data/` (a clone), or a
+bundled copy holds the most recently built or downloaded `lookup.db`, so a
+fresh local rebuild is never shadowed by a stale download cache. Set
+`DILEMMA_DATA_DIR` to force a specific copy.
 
 To work from a git checkout (for development or to rebuild the data):
 
@@ -949,7 +950,7 @@ They live under `dilemma.tagger` and install via the `[tagger]` extra
 (the dependency that pulls in `torch` and `transformers`):
 
 ```bash
-pip install "dilemma[tagger]"
+pip install "dilemma-nlp[tagger]"
 python -m dilemma download              # also fetches the tagger weights
 ```
 

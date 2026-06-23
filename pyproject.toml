@@ -3,7 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dilemma"
+# Import package stays `dilemma`; the PyPI distribution name is dilemma-nlp
+# because plain "dilemma" is taken by an unrelated project.
+name = "dilemma-nlp"
 version = "0.8.0"
 description = "Diachronic Greek lemmatizer (Ancient, Byzantine, and Modern Greek)"
 readme = "README.md"
