@@ -1,0 +1,15 @@
+{
+  "db_sha256": "d081919845c3eaca3df9e5542255bcee2879c409db768aaafc997d976cc11e26",
+  "source": "LSJ10 headwords.sqlite (table headwords, `headword` column, all rows)",
+  "stats": {
+    "clean_headwords": 121237,
+    "distinct_raw_headword": 121879,
+    "dropped_by_reason": {
+      "bare_single_consonant": 38,
+      "leading_dash_suffix": 13,
+      "multi_token_or_empty": 468
+    },
+    "dropped_total": 519,
+    "source_rows": 122572
+  }
+}

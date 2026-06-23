@@ -38,6 +38,7 @@ LGPN_NAMES_PATH = DATA_DIR / "lgpn_names.json"
 PD_HEADWORDS_PATH = DATA_DIR / "pd_headwords.json"
 VLG_HEADWORDS_PATH = DATA_DIR / "vlg_headwords.json"
 WIP_HEADWORDS_PATH = DATA_DIR / "wip_headwords.json"
+LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
@@ -294,6 +295,25 @@ def build():
                 wip_lookup_added += 1
         print(f"  WiP headwords: {len(wip_new):,} new, "
               f"+{wip_lookup_added:,} self-maps to AG lookup")
+
+    # LSJ 10th ed. headwords (Liddell-Scott-Jones, from the LSJ10 app database
+    # via build/build_lsj10_headwords.py). Clean single-token NFC polytonic
+    # headwords used as AG self-maps, same as the VLG/WiP blocks.
+    if LSJ10_HEADWORDS_PATH.exists():
+        with open(LSJ10_HEADWORDS_PATH, encoding="utf-8") as f:
+            lsj10_raw = {h for h in json.load(f) if " " not in h}
+        lsj10_new = lsj10_raw - ag_headwords_exact
+        ag_headwords_exact |= lsj10_raw
+        ag_headwords |= lsj10_raw
+        ag_headwords |= {h.lower() for h in lsj10_raw}
+        ag_headwords |= {strip_accents(h.lower()) for h in lsj10_raw}
+        lsj10_lookup_added = 0
+        for h in lsj10_raw:
+            if h not in ag:
+                ag[h] = h
+                lsj10_lookup_added += 1
+        print(f"  LSJ10 headwords: {len(lsj10_new):,} new, "
+              f"+{lsj10_lookup_added:,} self-maps to AG lookup")
 
     # Expand AG and Med with GLAUx corpus pairs (644K forms from
     # 8th c. BC - 4th c. AD Greek texts). These are corpus-derived
