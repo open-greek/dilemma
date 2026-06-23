@@ -39,51 +39,61 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-def _resolve_data_dir() -> Path:
-    """Return the directory holding Dilemma data files.
+def _newest_marker_mtime(d: Path, markers):
+    """Newest mtime among `markers` (glob patterns relative to `d`), or None if
+    `d` holds none of them. lookup.db and the model weights are written only by
+    a rebuild or `dilemma download`, never by git (they are gitignored), so the
+    mtime is a reliable "how fresh is this copy" signal."""
+    best = None
+    for pat in markers:
+        for f in d.glob(pat):
+            try:
+                mt = f.stat().st_mtime
+            except OSError:
+                continue
+            if best is None or mt > best:
+                best = mt
+    return best
 
-    Resolution order:
-      1. $DILEMMA_DATA_DIR (if set and existing)
-      2. ~/.cache/dilemma/data/ (if existing)
-      3. <repo-root>/data/ (dev mode; repo root is the package's parent)
-      4. <package>/data/ (if someone bundled data inside the install)
-      5. Fallback: ~/.cache/dilemma/data/ even if it doesn't exist yet,
-         so callers get a stable path to write to.
+
+def _resolve_dir(env_var: str, subdir: str, markers) -> Path:
+    """Resolve a Dilemma data/model directory, preferring freshness over a fixed
+    precedence so a locally rebuilt copy is never shadowed by a stale download
+    cache (and vice-versa).
+
+      1. $<env_var> (explicit override) if set and existing.
+      2. Otherwise, among the dev tree (<repo-root>/<subdir>/), the download
+         cache (~/.cache/dilemma/<subdir>/), and any bundled <package>/<subdir>/,
+         pick the one whose data was built/downloaded most recently.
+      3. If none holds data yet, fall back to whichever dir exists, then to
+         ~/.cache/dilemma/<subdir>/ as a stable path to write to.
     """
-    env = os.environ.get("DILEMMA_DATA_DIR")
+    env = os.environ.get(env_var)
     if env:
         p = Path(env).expanduser()
         if p.exists():
             return p
-    cache = Path.home() / ".cache" / "dilemma" / "data"
-    if cache.exists():
-        return cache
-    dev = Path(__file__).resolve().parent.parent / "data"
-    if dev.exists():
-        return dev
-    bundled = Path(__file__).resolve().parent / "data"
-    if bundled.exists():
-        return bundled
+    cache = Path.home() / ".cache" / "dilemma" / subdir
+    dev = Path(__file__).resolve().parent.parent / subdir
+    bundled = Path(__file__).resolve().parent / subdir
+    scored = [(d, _newest_marker_mtime(d, markers)) for d in (dev, cache, bundled)]
+    scored = [(d, mt) for d, mt in scored if mt is not None]
+    if scored:
+        return max(scored, key=lambda dm: dm[1])[0]
+    for d in (cache, dev, bundled):
+        if d.exists():
+            return d
     return cache
+
+
+def _resolve_data_dir() -> Path:
+    """Directory holding Dilemma data files (lookup.db, spell_index.db, ...)."""
+    return _resolve_dir("DILEMMA_DATA_DIR", "data", ["lookup.db"])
 
 
 def _resolve_model_dir() -> Path:
-    """Return the directory holding trained model files. Same order as data."""
-    env = os.environ.get("DILEMMA_MODEL_DIR")
-    if env:
-        p = Path(env).expanduser()
-        if p.exists():
-            return p
-    cache = Path.home() / ".cache" / "dilemma" / "model"
-    if cache.exists():
-        return cache
-    dev = Path(__file__).resolve().parent.parent / "model"
-    if dev.exists():
-        return dev
-    bundled = Path(__file__).resolve().parent / "model"
-    if bundled.exists():
-        return bundled
-    return cache
+    """Directory holding trained model files (<scale>/encoder.onnx | model.pt)."""
+    return _resolve_dir("DILEMMA_MODEL_DIR", "model", ["*/encoder.onnx", "*/model.pt"])
 
 
 DATA_DIR = _resolve_data_dir()
