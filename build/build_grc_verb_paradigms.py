@@ -5,8 +5,8 @@ Aggregates tagged form->lemma pairs (kaikki + GLAUx + LSJ expansion) into
 per-lemma paradigm dicts keyed by `<voice>_<tense>_<mood>_<person><number>`,
 with infinitives keyed `<voice>_<tense>_infinitive` and participle nominative
 forms keyed `<voice>_<tense>_participle_nom_<gender>_sg`. Output schema
-matches `jtauber_ag_paradigms.json` so Klisy's `build_canonical_ag.rb` can
-consume the file as a drop-in alternative or supplement.
+matches `jtauber_ag_paradigms.json` so a downstream canonical-paradigm
+builder can consume the file as a drop-in alternative or supplement.
 
 Inputs (from data/):
   - ag_pairs.json     Wiktionary kaikki form-lemma pairs (now tense-tagged)
@@ -21,9 +21,9 @@ Output:
 Dialect handling: the default Attic forms (no dialect tag, or explicit
 "Attic") populate the top-level paradigm. Forms tagged with one of
 {Epic, Ionic, Doric, Aeolic, Koine, ...} are emitted under
-`forms.<dialect_lower>` as a parallel paradigm slice. The Klisy consumer
-(`build_canonical_ag.rb`) currently only reads the Attic slice; we keep
-the dialect data so it can pick it up later without rebuilding.
+`forms.<dialect_lower>` as a parallel paradigm slice. A downstream consumer
+currently only reads the Attic slice; we keep the dialect data so it can
+be picked up later without rebuilding.
 
 Usage:
   python build/build_grc_verb_paradigms.py

@@ -3,7 +3,7 @@
 # Keeps AG data from committed version untouched
 # Usage: ./rebuild_el_and_test.sh
 set -e
-cd /Users/franciscoriordan/Documents/dilemma
+cd "$(dirname "$0")"
 
 echo "=== Step 1: Restore committed AG data ==="
 git checkout HEAD -- data/ag_lookup.json data/ag_pairs.json data/ag_pos_lookup.json data/med_lookup.json data/med_pairs.json

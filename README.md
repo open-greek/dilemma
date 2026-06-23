@@ -1394,7 +1394,7 @@ ancient topics could boost forms with high `freq_glaux`).
 
 `export_hunspell.py` produces compact Hunspell `.dic` + `.aff` pairs from
 `lookup.db`, aimed at mobile consumers (primarily the
-[Tonos](https://github.com/ciscoriordan/tonos) iOS polytonic keyboard)
+[Tonos](https://tonospolytonic.com/) iOS polytonic keyboard)
 where the full 993 MB `lookup.db` and 482 MB `spell_index.db` do not
 fit inside the ~48 MB memory ceiling of a keyboard extension. Affix
 compression collapses each inflection class to a single SFX rule

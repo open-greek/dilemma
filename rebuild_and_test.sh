@@ -2,7 +2,7 @@
 # Full rebuild + LSJ overlay + benchmark
 # Usage: ./rebuild_and_test.sh
 set -e
-cd /Users/franciscoriordan/Documents/dilemma
+cd "$(dirname "$0")"
 
 echo "=== Step 1: build_data.py ==="
 python build_data.py --kaikki kaikki

@@ -527,7 +527,7 @@ class TestLanguageFiltering:
     # contamination leaking in: αυτό -> τα (via EN τα-pron shared grid),
     # αυτές -> τα, ο -> ὅς (polytonic AG relative pronoun via the ὅ stripped
     # key), etc. lemmatize(lang='el') would return those bad lemmas to
-    # downstream consumers like the dilemma tagger + Klisy. These tests pin the correct
+    # downstream consumers like the dilemma tagger. These tests pin the correct
     # behaviour so the contamination can't regress silently.
     # ------------------------------------------------------------------
 

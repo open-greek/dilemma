@@ -39,7 +39,7 @@ LSJ9_FORMS = LSJ9_DIR / "lsj9_forms.tsv"
 LSJ9_HEADWORDS = LSJ9_DIR / "lsj9_headwords.json"
 LSJ9_GLOSSES = LSJ9_DIR / "lsj9_glosses.jsonl"
 KAIKKI_DIR = Path(os.environ.get(
-    "KAIKKI_DIR", Path.home() / "Documents" / "Klisy" / "word_collector"))
+    "KAIKKI_DIR", Path.home() / "Documents" / "kaikki"))
 # Try nested layout first (en-el/), then flat layout
 _KAIKKI_AG_NESTED = KAIKKI_DIR / "en-el" / "kaikki.org-dictionary-AncientGreek.jsonl"
 _KAIKKI_AG_FLAT = KAIKKI_DIR / "kaikki.org-en-dictionary-AncientGreek.jsonl"
@@ -245,7 +245,7 @@ def _parse_lsj9_headwords():
 
 
 def parse_lsj9_entries(forms_path: Path = LSJ9_FORMS) -> dict:
-    """Load entries from lsj9_forms.tsv (output of lsjpre export_lsj9.py).
+    """Load entries from lsj9_forms.tsv (an upstream LSJ9 export).
 
     This provides explicit grammar (ὁ/ἡ/τό/ον/ές) and pre-extracted
     genitive endings for 63K entries.

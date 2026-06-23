@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import sys
 import unicodedata
@@ -27,9 +28,11 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
-GORMAN = (Path.home() / "Documents" / "iliad-pipeline" / "data" / "sources"
-          / "beyond-translation-site" / "backend" / "data" / "raw" / "gorman-trees")
-ILIAD_TB = Path.home() / "Documents" / "iliad-pipeline" / "cache" / "treebank.xml"
+# Holdout eval sources; set GORMAN_TREES / ILIAD_TREEBANK to your copies.
+GORMAN = Path(os.environ.get(
+    "GORMAN_TREES", Path.home() / "Documents" / "gorman-trees"))
+ILIAD_TB = Path(os.environ.get(
+    "ILIAD_TREEBANK", Path.home() / "Documents" / "iliad" / "treebank.xml"))
 LSJ_PATH = DATA_DIR / "lsj_headwords.json"
 CUNLIFFE_PATH = DATA_DIR / "cunliffe_headwords.json"
 

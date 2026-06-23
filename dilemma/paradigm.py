@@ -795,8 +795,8 @@ def fill_canonical_dict(
     `canonical` is a mapping `{key -> entry}` where `entry` has at
     least `lemma`, `pos`, and (optionally) `inflections.<dialect>:
     {inflection_key: form}`. The keys of the outer dict are
-    arbitrary - typically file paths from build_canonical_ag.rb's
-    `pending_canonical`.
+    arbitrary - typically file paths from a downstream canonical
+    builder's `pending_canonical`.
 
     For every verb / noun / adj entry, missing cells in the named
     `dialect` are filled via `generate(...)`. The mutated entry
@@ -806,7 +806,7 @@ def fill_canonical_dict(
       * inflections_source.<dialect>.<inflection_key>: <source>
 
     `allow_template=False` (the default) skips template-derived
-    fills, matching build_canonical_ag.rb's default behaviour. Pass
+    fills, matching the downstream canonical builder's default behaviour. Pass
     `allow_template=True` to opt in to the template fallback.
 
     Returns the mutated map plus a small stats dict (cells filled

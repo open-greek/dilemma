@@ -13,6 +13,7 @@ Run with:
 from __future__ import annotations
 
 import importlib.util
+import os
 import unicodedata
 from pathlib import Path
 
@@ -418,8 +419,9 @@ class TestJtauberCompat:
     @pytest.fixture(scope="class")
     def jtauber(self):
         import json
-        path = (Path.home() / "Documents" / "Klisy" / "word_collector"
-                / "jtauber_ag_paradigms.json")
+        path = Path(os.environ.get(
+            "JTAUBER_PARADIGMS",
+            Path.home() / "Documents" / "jtauber_ag_paradigms.json"))
         if not path.exists():
             pytest.skip(f"jtauber paradigms not found at {path}")
         with open(path) as f:

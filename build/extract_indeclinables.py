@@ -2,11 +2,11 @@
 """Extract indeclinable words (adverbs, prepositions, conjunctions, particles)
 from lsj9 data and save as form->lemma pairs for the lookup table.
 
-Reads lsj9_indeclinables.json (produced by lsjpre's export_lsj9.py) which
+Reads lsj9_indeclinables.json (from an upstream LSJ9 export) which
 contains headword -> POS category mappings detected from the raw LSJ entry
 text.
 
-Detection strategy (in export_lsj9.py):
+Detection strategy (in the upstream LSJ9 export):
 - STRONG markers: "Particle", "Prep.", "Conj.", "Interj.", or "exclamation"
   in the entry text (after stripping parenthetical content)
 - WEAK markers: "Adv." in entry text for entries without adjective-like or
@@ -38,7 +38,7 @@ def extract_indeclinables():
     print("Loading indeclinables from lsj9 export...")
 
     if not LSJ9_INDECLINABLES.exists():
-        print(f"  {LSJ9_INDECLINABLES} not found. Run export_lsj9.py first.")
+        print(f"  {LSJ9_INDECLINABLES} not found. Run the upstream LSJ9 export first.")
         return {}, Counter()
 
     with open(LSJ9_INDECLINABLES, encoding="utf-8") as f:

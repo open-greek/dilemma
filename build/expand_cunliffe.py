@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Expand Cunliffe Homeric Lexicon headwords into inflected forms.
 
-Reads Cunliffe data from iliad-pipeline output, extracts headwords with
+Reads a Cunliffe lexicon export, extracts headwords with
 grammar info, and expands via grc-decl/grc-conj templates. Merges
 expanded forms into ag_lookup.json.
 
@@ -15,6 +15,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import sys
 import unicodedata
@@ -27,8 +28,9 @@ from expand_lsj import (
     DATA_DIR,
 )
 
-CUNLIFFE_PATH = (Path.home() / "Documents" / "iliad-align"
-                 / "output" / "cunliffe.json")
+# Cunliffe Homeric lexicon export; set CUNLIFFE_JSON to your copy.
+CUNLIFFE_PATH = Path(os.environ.get(
+    "CUNLIFFE_JSON", Path.home() / "Documents" / "cunliffe" / "cunliffe.json"))
 AG_LOOKUP = DATA_DIR / "ag_lookup.json"
 HEADWORDS_OUT = DATA_DIR / "cunliffe_headwords.json"
 
@@ -47,7 +49,7 @@ _ADJ_PATTERNS = re.compile(
 
 
 def load_cunliffe() -> dict[str, dict]:
-    """Load Cunliffe entries from iliad-pipeline output."""
+    """Load Cunliffe entries from the lexicon export."""
     if not CUNLIFFE_PATH.exists():
         print(f"Cunliffe not found at {CUNLIFFE_PATH}")
         sys.exit(1)

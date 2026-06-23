@@ -448,7 +448,7 @@ class TestFillCanonicalDict:
 
 
 # ---------------------------------------------------------------------------
-# End-to-end determinism on a Klisy-shaped input
+# End-to-end determinism on a canonical-shaped input
 # ---------------------------------------------------------------------------
 
 
@@ -511,7 +511,7 @@ class TestFillDeterminismTemplateOnly:
 class TestFillDeterminism:
     """Two fills of the same canonical input must produce byte-identical JSON.
 
-    The Klisy build pipeline relies on this: it writes the
+    The downstream build pipeline relies on this: it writes the
     `pending_canonical` hash to a tempfile, runs `python -m dilemma
     paradigm fill`, parses the output, then later compares each
     candidate YAML against any existing on-disk file and skips
@@ -605,7 +605,7 @@ class TestFillDeterminism:
         assert first == second, (
             "fill_canonical_dict produced non-byte-identical output "
             "across two consecutive invocations on the same input. "
-            "This breaks Klisy's compare-and-skip write phase and "
+            "This breaks the downstream compare-and-skip write phase and "
             "indicates a non-deterministic ordering somewhere in the "
             "fill chain (set iteration, dict-from-set, randomised hash, ...)."
         )
@@ -669,7 +669,7 @@ class TestFillDeterminism:
         # End-to-end: run the actual `python -m dilemma paradigm fill`
         # CLI in two separate processes (so any fork-time
         # non-determinism, e.g. PYTHONHASHSEED, surfaces) and assert
-        # byte-identical output files. The Klisy build calls dilemma
+        # byte-identical output files. The downstream build calls dilemma
         # exactly this way; this test catches CLI-only regressions
         # the in-process tests above might miss.
         import subprocess
@@ -700,6 +700,6 @@ class TestFillDeterminism:
             assert out_a.read_bytes() == out_b.read_bytes(), (
                 "two consecutive `python -m dilemma paradigm fill` "
                 "subprocess invocations on the same input produced "
-                "different bytes; this is the exact regression Klisy's "
-                "build_canonical_ag.rb consumes."
+                "different bytes; this is the exact regression the "
+                "downstream canonical builder consumes."
             )
