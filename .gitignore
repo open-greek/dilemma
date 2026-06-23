@@ -4,6 +4,7 @@ data/ag_lookup_scored.json
 data/ag_lsj_verb_pairs.json
 data/ag_pairs.json
 data/ag_verb_paradigms.json
+data/ag_verb_paradigms.sanity.json
 data/corpus_freq.json
 data/diorisis_freq.json
 data/diorisis_pairs.json
