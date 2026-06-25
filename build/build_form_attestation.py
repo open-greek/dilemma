@@ -70,14 +70,60 @@ DEFAULT_FIRST1K_DIR = CORPORA / "First1KGreek" / "data"
 DEFAULT_PTA_DIR = CORPORA / "pta_data" / "data"
 DEFAULT_CANONICAL_DIR = CORPORA / "canonical-greekLit" / "data"
 DEFAULT_BYZ_DIR = Path.home() / "Documents" / "byzantine-vernacular-corpus" / "texts"
+DEFAULT_PG_DIR = CORPORA / "PG"   # calfa-co/Patrologia-Graeca OCR ($0/$8/$9 markers)
 PROFILE_OUT = DATA_DIR / "form_profile.db"
 CITATIONS_OUT = DATA_DIR / "form_citations.db"
 DEFAULT_CAP = 200
 
 # Dedup priority + default genre bucket for a source's non-GLAUx works.
-ALL_SOURCES = ["glaux", "diorisis", "first1k", "pta", "byz", "canonical"]
-DEFAULT_SOURCES = ["glaux", "diorisis", "first1k", "pta", "byz"]
+ALL_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byz", "canonical"]
+DEFAULT_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byz"]
 TEI_GENRE = {"first1k": "other", "pta": "religion", "canonical": "other"}
+
+# Patrologia Graeca: per-volume composition century and a short work label,
+# from the calfa-co README table. Only the explicitly-dated "Nth century"
+# volumes get a century; the 6 "Pre-Nicaean" volumes (3,5,6,8,9,16.3) are left
+# undated (None) because that label is a wide range and PG's traditional
+# attributions are often anachronistic (e.g. ps.-Dionysius). They still
+# contribute attestation, citations and source_counts, just not by_century.
+PG_CENTURY = {
+    "21": 4, "42": 4, "67": 5, "71": 5, "73": 5, "87.1": 7, "101": 9,
+    "107": 10, "109": 10, "112": 10, "113": 10, "118": 10,
+    "121": 11, "122": 11, "123": 11, "124": 11, "125": 11, "126": 11,
+    "134": 12, "139": 13, "146": 14, "148": 14, "151": 14, "153": 14,
+    "155": 15, "157": 15, "158": 15,
+}
+PG_TITLE = {
+    "3": "Dionysius the Areopagite", "5": "Apostolic Fathers & Apologists",
+    "6": "Greek Apologists (Justin, Tatian, ...)", "8": "Clement of Alexandria",
+    "9": "Clement of Alexandria", "16.3": "Origen; Hippolytus",
+    "21": "Eusebius, Praeparatio Evangelica", "42": "Epiphanius, Panarion",
+    "67": "Socrates & Sozomen, Historia Ecclesiastica",
+    "71": "Cyril of Alexandria", "73": "Cyril of Alexandria, Comm. on John",
+    "87.1": "Procopius of Gaza", "101": "Photius", "107": "Leo the Emperor",
+    "109": "Byzantine historians (Theophanes Continuatus, ...)",
+    "112": "Constantine Porphyrogenitus, De ceremoniis",
+    "113": "Constantine Porphyrogenitus, De administrando imperio",
+    "118": "Oecumenius", "121": "George Cedrenus",
+    "122": "George Cedrenus; Psellus; Scylitzes",
+    "123": "Theophylact of Bulgaria", "124": "Theophylact of Bulgaria",
+    "125": "Theophylact of Bulgaria", "126": "Theophylact of Bulgaria",
+    "134": "John Zonaras, Annales", "139": "Nicetas Choniates; others",
+    "146": "Nicephorus Callistus, Eccl. History",
+    "148": "Nicephorus Gregoras, Historia Byzantina",
+    "151": "Gregory Palamas", "153": "John Cantacuzene",
+    "155": "Simeon of Thessalonica", "157": "George Codinus; Ducas",
+    "158": "Michael Glycas",
+}
+_PG_MARKER = re.compile(r"^\$0=\S+\s+\$8=(\d+)")
+
+
+def _pg_volume(dirname: str) -> str:
+    """'PG087_1' -> '87.1', 'PG003' -> '3' (the $0 marker is unreliable on the
+    dotted volumes, so the directory name is canonical)."""
+    s = dirname[2:] if dirname.startswith("PG") else dirname
+    parts = [str(int(p)) for p in s.split("_") if p.isdigit()]
+    return ".".join(parts) or s
 
 # GLAUx div_* attributes are CUMULATIVE (the finest already embeds its
 # ancestors), so the locus is the value of the single finest present division.
@@ -469,6 +515,53 @@ def process_byzantine(byz_dir, forms, form_ids, profiles, works,
     return h.hexdigest()
 
 
+def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, stats):
+    """Patrologia Graeca (calfa-co OCR): one .txt per Migne volume, with
+    ``$0=vol $8=page $9=line`` markers. Locus is the Migne page; the work is the
+    volume (no TLG id, so never deduped against the other sources - its patristic
+    overlap with PTA is kept as independent evidence in source_counts)."""
+    h = hashlib.sha256()
+    files = sorted(pg_dir.glob("PG*/PG*_text.txt"))
+    if limit:
+        files = files[:limit]
+    print(f"pg: {len(files)} Patrologia Graeca volumes")
+    for xf in files:
+        data = xf.read_bytes()
+        fold_file_hash(h, xf.parent.name, data)
+        vol = _pg_volume(xf.parent.name)
+        century = PG_CENTURY.get(vol)
+        work_id = "PG" + vol
+        works[work_id] = {
+            "work_id": work_id, "id_scheme": "pg", "source": "pg",
+            "author": None, "title": PG_TITLE.get(vol, f"Patrologia Graeca {vol}"),
+            "genre": "religion", "dialect": None, "century": century,
+            "start_year": century_year(century, True),
+            "end_year": century_year(century, False),
+        }
+        claimed.add(work_id)
+        page = None
+        file_cites = Counter()
+        for line in data.decode("utf-8", "replace").split("\n"):
+            m = _PG_MARKER.match(line)
+            if m:
+                page = m.group(1)
+                continue
+            for run in _GREEK_RUN.finditer(line):
+                form = nfc_key(run.group(0))
+                if not _is_lexical_form(form):
+                    stats["pg_nonlexical"] += 1
+                    continue
+                fid = _intern(form, forms, form_ids)
+                p = profiles[fid]
+                p.observe("pg", "other")
+                p.add_deduped("religion", century, None)
+                stats["pg_tokens"] += 1
+                file_cites[(fid, page, "migne-page")] += 1
+        sink.add([(fid, work_id, "pg", loc, sch, c, century)
+                  for (fid, loc, sch), c in file_cites.items()])
+    return h.hexdigest()
+
+
 # ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
@@ -611,6 +704,7 @@ def main():
     p.add_argument("--first1k", type=Path, default=DEFAULT_FIRST1K_DIR)
     p.add_argument("--pta", type=Path, default=DEFAULT_PTA_DIR)
     p.add_argument("--canonical", type=Path, default=DEFAULT_CANONICAL_DIR)
+    p.add_argument("--pg", type=Path, default=DEFAULT_PG_DIR)
     p.add_argument("--byz", type=Path, default=DEFAULT_BYZ_DIR)
     p.add_argument("--sources", default=",".join(DEFAULT_SOURCES),
                    help="comma list from " + ",".join(ALL_SOURCES))
@@ -654,6 +748,10 @@ def main():
             source_sha[f"{src}_xml"] = process_tei(
                 src, d, TEI_GENRE[src], glaux_works, forms, form_ids,
                 profiles, works, sink, claimed, args.limit, stats)
+    if "pg" in sources:
+        source_sha["pg_txt"] = process_pg(
+            args.pg, forms, form_ids, profiles, works,
+            sink, claimed, args.limit, stats)
     if "byz" in sources:
         source_sha["byz_txt"] = process_byzantine(
             args.byz, forms, form_ids, profiles, works,

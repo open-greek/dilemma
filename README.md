@@ -985,10 +985,13 @@ generate_paradigm("λύω", "verb", attested_only=True, with_attestation=True)
 
 The data lives in two SQLite artifacts built by the standalone
 `build/build_form_attestation.py` pass. It reads the lemmatized GLAUx + Diorisis
-treebanks plus the raw-text First1KGreek, PTA and byzantine-vernacular corpora
-(for late-antique, patristic and Byzantine coverage), deduping each work once by
-source priority (so `total_count` is a deduped union while `citations` keep every
-source's passages). Both artifacts are opt-in downloads, kept out of the base
+treebanks plus the raw-text First1KGreek, PTA, Patrologia Graeca and
+byzantine-vernacular corpora (for late-antique, patristic and Byzantine
+coverage), deduping each work once by source priority (so `total_count` is a
+deduped union while `citations` keep every source's passages). The raw-text
+sources (especially the OCR'd Patrologia Graeca) are noisier than the treebanks,
+so a form attested only there is lower-confidence; `source_counts` tells you
+which corpora attest each form. Both artifacts are opt-in downloads, kept out of the base
 `dilemma download`:
 
 ```bash

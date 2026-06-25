@@ -285,11 +285,12 @@ def _build_all(out_dir: Path, cap: int = 50) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(
         [sys.executable, str(BUILDER),
-         "--sources", "glaux,diorisis,first1k,pta,byz",
+         "--sources", "glaux,diorisis,first1k,pta,pg,byz",
          "--glaux", str(FX / "glaux"), "--metadata", str(FX / "metadata.txt"),
          "--diorisis", str(FX / "diorisis"),
          "--first1k", str(FX / "first1k" / "data"),
          "--pta", str(FX / "pta" / "data"),
+         "--pg", str(FX / "pg"),
          "--byz", str(FX / "byz"),
          "--profile-out", str(out_dir / "form_profile.db"),
          "--citations-out", str(out_dir / "form_citations.db"),
@@ -326,6 +327,15 @@ def test_byz_form_attested_with_line_locus(built_all):
     assert rec["by_century"] == {14: 1}           # manifest "14th century"
     assert rec["citations"][0]["source"] == "byz"
     assert rec["citations"][0]["locus_scheme"] == "line"
+
+
+def test_pg_form_attested_with_migne_locus(built_all):
+    rec = built_all.attestation("θεωρία", max_citations=None)
+    assert rec is not None and rec["source_counts"].get("pg") == 2  # pp.10 + 11
+    assert rec["by_century"] == {14: 2}                # PG151 -> Gregory Palamas, 14th c.
+    cite = rec["citations"][0]
+    assert cite["work_id"] == "PG151" and cite["locus_scheme"] == "migne-page"
+    assert cite["locus"] in ("10", "11")
 
 
 def test_phase_b_does_not_break_phase_a(built_all):
