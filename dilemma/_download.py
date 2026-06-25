@@ -6,9 +6,11 @@
     python -m dilemma download --only-tagger    # tagger weights only
 
 Both lemma data and tagger weights live at
-https://huggingface.co/ciscoriordan/dilemma (~2.7 GB combined). The tagger
-weights are under the `tagger/` prefix and the lemma artifacts are under
-`data/` and `model/`.
+https://huggingface.co/ciscoriordan/dilemma. The base download is ~4.4 GB
+(lemma `data/` ~1.8 GB + `model/` ~0.07 GB + tagger weights ~2.5 GB); the
+two opt-in form-attestation DBs add ~1.2 GB more (~5.5 GB for everything).
+The tagger weights are under the `tagger/` prefix and the lemma artifacts
+are under `data/` and `model/`.
 """
 
 import argparse

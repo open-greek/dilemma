@@ -181,8 +181,10 @@ python -m dilemma download
 The first line installs the package plus ONNX Runtime (~50 MB, for unseen-form
 inference). If you already have PyTorch installed, use `dilemma-nlp[torch]`
 instead, or just plain `dilemma-nlp` to skip the model backend and rely on the
-lookup table alone. The second line downloads the lookup tables and ONNX
-model files from HuggingFace into `~/.cache/dilemma/` (~1.6 GB).
+lookup table alone. The second line downloads the lookup tables, ONNX
+model files, and tagger weights from HuggingFace into `~/.cache/dilemma/`
+(~4.4 GB: lemma data ~1.8 GB + model ~0.07 GB + tagger weights ~2.5 GB; add
+`--no-tagger` for the ~1.9 GB lemma-only download).
 
 Dilemma uses `$DILEMMA_DATA_DIR` if set; otherwise it picks whichever of
 `~/.cache/dilemma/data/` (the download), `<repo-root>/data/` (a clone), or a
