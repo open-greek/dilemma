@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<treebank version="2" xml:lang="grc">
+  <sentence id="1" document_id="9991-001" analysis="auto">
+    <word id="1" form="μῆνιν" line="1.1" div_book="1" lemma="μῆνις" postag="n-s---fa-"/>
+    <word id="2" form="ἄειδε" line="1.1" div_book="1" lemma="ἀείδω" postag="v2spma---"/>
+    <word id="3" form="θεά" line="1.1" div_book="1" lemma="θεά" postag="n-s---fv-"/>
+    <word id="4" form="," line="1.1" div_book="1" lemma="," postag="u--------"/>
+    <word id="5" form="οὐλομένην" line="1.2" div_book="1" lemma="οὐλόμενος" postag="a-s---fa-"/>
+  </sentence>
+  <sentence id="2" document_id="9991-001" analysis="auto">
+    <word id="6" form="Μῆνιν" line="2.1" div_book="2" lemma="μῆνις" postag="n-s---fa-"/>
+    <word id="7" form="θεά" line="2.1" div_book="2" lemma="θεά" postag="n-s---fv-"/>
+  </sentence>
+</treebank>

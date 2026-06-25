@@ -2,7 +2,7 @@
 
 ## Data Storage
 
-Large data files and models are stored on HuggingFace at `hf.co/ciscoriordan/dilemma` (public model repo), not in git. This includes lookup.db, all *_lookup.json/*_pairs.json/*_freq.json files, lemma_attestation.json, spell_index.db, vesuvius_index.json.gz, and ONNX/PyTorch model files. Download with `huggingface-cli download ciscoriordan/dilemma --local-dir . --include "data/*" "model/*"`.
+Large data files and models are stored on HuggingFace at `hf.co/ciscoriordan/dilemma` (public model repo), not in git. This includes lookup.db, all *_lookup.json/*_pairs.json/*_freq.json files, lemma_attestation.json, form_profile.db, form_citations.db, spell_index.db, vesuvius_index.json.gz, and ONNX/PyTorch model files. Download with `huggingface-cli download ciscoriordan/dilemma --local-dir . --include "data/*" "model/*"`. Both form-attestation DBs are excluded from the base `python -m dilemma download`: `--with-attestation` pulls form_profile.db (gate + usage distribution), `--with-citations` additionally pulls the large form_citations.db (example loci) and implies the profile.
 
 ## Build Pipeline
 
@@ -23,6 +23,17 @@ Never run multiple `build_lookup_db.py` instances simultaneously. They corrupt t
 ## Corpus attestation (lemma-keyed)
 
 `build/build_lemma_attestation.py` reads GLAUx (`~/Documents/glaux/`) and Diorisis (`data/diorisis/xml/`) directly and emits `data/lemma_attestation.json`: for each AG lemma, token counts stratified by source, genre (the 10 corpus_freq bins), century (signed; -8 = 8th c. BC), and dialect (GLAUx only), plus `dominant_pos`. This is a standalone corpus-aggregation pass (~3 min, 131K lemmas, 17.5M deduped tokens) - it does NOT need the lookup-db build or transformer retrain, just the corpora on disk. Only GLAUx + Diorisis are used (the other corpus_freq sources lack clean date/dialect metadata). GLAUx and Diorisis annotate largely the same texts, so the frequency (total + by_*) is deduplicated at the work level by TLG id (each work counted once, GLAUx preferred); totals are a union, not a sum. `source_counts` separately keeps each lemmatizer's full independent count (overlapping, not summed) as a confidence/recall signal - this is dedup AND multi-source, not either/or. Generalizes to N sources (add a key); token-level ROVER voting would be a per-work alignment pass layered on top (the corpora are ~98% but not token-identical, so alignment is non-trivial). Output is byte-stable (sorted keys, SHA-256 source hashes in `_meta`, no wall-clock). It is keyed by surface FORM nowhere - keys are the corpora's own NFC polytonic lemma annotation, restricted to lexical Greek. Distinct from `corpus_freq.json`, which is form-keyed and genre-only. Public API: `Dilemma.attestation(lemma) -> dict | None`. Run `python -m pytest tests/test_attestation.py` after changes.
+
+## Form attestation ("attested only" + citations)
+
+`build/build_form_attestation.py` is the surface-FORM sibling of the lemma-keyed attestation pass: it reads GLAUx + Diorisis directly and emits two SQLite artifacts (both opt-in downloads). `data/form_profile.db` (~207 MB, `--with-attestation`) holds, per exact NFC polytonic form, the keys (`form`, grave/case-folded `form_norm`), a deduped usage distribution (`total_count`, `source_counts`, `by_century`, `by_genre`, `by_dialect`, a `century x genre` joint for the heatmap, `dominant_pos`), and a `works` table. `data/form_citations.db` (~443 MB, `--with-citations`) holds up to `--cap` (default 200) example loci per form. Like the lemma pass, totals are deduped at the work level (GLAUx preferred) so `total_count != SUM(citations.count)`; citations keep both sources. Diorisis forms are Beta Code, converted via `beta_to_nfc` from `extract_diorisis_lm.py` (matches GLAUx's U+2019 elision mark). GLAUx loci are the single finest present `div_*`/`line` value (the attributes are cumulative); Diorisis loci are sentence-granular. Reproducibility is asserted via a logical content hash (`meta.content_hash`), not file bytes. It is a standalone pass (no lookup-db build, no retrain); run on the local Mac where the corpora live. Run `python -m pytest tests/test_form_attestation.py` after changes.
+
+The runtime lives in `dilemma/_attest_db.py` (pure stdlib, no torch; the single source of truth for the three key functions, imported by the builder, core, and paradigm). Public API:
+- `Dilemma.form_attestation(form, *, max_citations=20) -> dict | None` (form-keyed sibling of `attestation(lemma)`).
+- Input gate: `lemmatize` / `lemmatize_verbose` / `lemmatize_batch` / `lemmatize_pos` / `lemmatize_batch_pos` take `attested_only=True` (exact NFC, via elision expansion; gated words yield `None` / `[]`). `lemmatize_verbose(..., with_attestation=True)` attaches each candidate's matched-form attestation.
+- Output gate: `paradigm.generate` / `generate_paradigm` take `attested_only=True` (grave/case-folded match, filter-then-pick across the source precedence) and `with_attestation=True`. `fill_canonical_dict` is intentionally NOT gated (Klisy wants full coverage).
+
+Phase B (follow-up) extends the builder to the Byzantine/patristic corpora (First1KGreek, canonical-greekLit, PTA, PG, byzantine-vernacular) with locus-aware tokenization; the `works.id_scheme` column and free-form `locus`/`locus_scheme` already accommodate them, so it is the same schema and API.
 
 ## Benchmarks
 
@@ -62,7 +73,7 @@ In `build_data.py`, proper noun entries (`pos="name"`) get lower confidence for 
 
 ## Testing
 
-- 263 tests across 4 test files
+- ~1,000 tests across the files in `tests/`
 - Tests run on self-hosted GitHub Actions runner on CORSAIRONE (WSL2)
 - `python -m pytest tests/ -x -v` to run locally
 - Always run tests after any pipeline change before committing

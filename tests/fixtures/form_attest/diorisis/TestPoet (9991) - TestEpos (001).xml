@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI.2>
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>TestEpos</title>
+        <author>TestPoet</author>
+        <tlgAuthor>9991</tlgAuthor>
+        <tlgId>001</tlgId>
+      </titleStmt>
+    </fileDesc>
+    <profileDesc>
+      <creation><date>-450</date></creation>
+    </profileDesc>
+    <xenoData><genre>Poetry</genre></xenoData>
+  </teiHeader>
+  <text><body>
+    <sentence id="1" location="1">
+      <word form="mh=nin" id="1"><lemma id="1" entry="μῆνις" POS="noun"><analysis morph="fem acc sg"/></lemma></word>
+      <word form="qea/" id="2"><lemma id="2" entry="θεά" POS="noun"><analysis morph="fem voc sg"/></lemma></word>
+    </sentence>
+  </body></text>
+</TEI.2>

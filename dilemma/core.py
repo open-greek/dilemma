@@ -267,6 +267,9 @@ class LemmaCandidate:
     score: float = 1.0    # confidence (1.0 for lookup, lower for model)
     via: str = ""         # how the lookup matched: "exact", "lower", "mono",
                           # "stripped", "elision:ε" (which vowel expanded), etc.
+    attestation: dict | None = None  # corpus attestation of the matched surface
+                          # form, populated only by lemmatize_verbose(
+                          # with_attestation=True); None otherwise.
 
 
 def to_monotonic(s: str) -> str:
@@ -857,6 +860,10 @@ class Dilemma:
 
         # Per-lemma corpus attestation profiles (lazy-loaded)
         self._attestation: dict[str, dict] | None = None
+
+        # Form-keyed corpus attestation (form_profile.db / form_citations.db),
+        # for the "attested only" gate + form_attestation(). Lazy-opened.
+        self._attest = None
 
         self._load_lookups(skip_pos=skip_pos)
         self._convention_map = self._build_convention_map(convention)
@@ -2374,7 +2381,7 @@ class Dilemma:
                                    key=lambda c: (_gender_score(c), c.proper, -c.score))
         return candidates_sorted
 
-    def lemmatize(self, word: str) -> str:
+    def lemmatize(self, word: str, *, attested_only: bool = False) -> str | None:
         """Lemmatize a single Greek word.
 
         Resolution order:
@@ -2389,12 +2396,22 @@ class Dilemma:
           9. Model with beam search + headword filter
 
         If a convention is set, the output lemma is remapped accordingly.
+
+        When ``attested_only=True``, the input surface form must occur in the
+        corpus (exact NFC polytonic, or via elision expansion); otherwise this
+        returns ``None`` rather than a guessed lemma. Digits and empty input are
+        passed through unchanged. Needs ``form_profile.db`` (download it with
+        ``python -m dilemma download``).
         """
         if not word:
             return word
         # Pass through tokens that are purely digits/punctuation (dates, numbers)
         if word.isdigit():
             return word
+
+        # Attested-only gate: drop forms that don't occur in the corpus.
+        if attested_only and self._resolve_attested_form(word) is None:
+            return None
 
         # Resolve articles/pronouns to canonical lemma
         closed = self._resolve_closed_class(word)
@@ -2588,7 +2605,8 @@ class Dilemma:
 
         return None
 
-    def lemmatize_pos(self, word: str, upos: str) -> str:
+    def lemmatize_pos(self, word: str, upos: str,
+                      *, attested_only: bool = False) -> str | None:
         """Lemmatize with POS-aware disambiguation.
 
         POS is used to disambiguate among multiple candidates, or to
@@ -2613,16 +2631,23 @@ class Dilemma:
         Args:
             word: Greek word form.
             upos: Universal POS tag (NOUN, VERB, ADJ, etc.).
+            attested_only: If True and the input form is unattested in the
+                corpus, return None instead of a lemma.
 
         Returns:
-            The lemma string.
+            The lemma string, or None when gated out by ``attested_only``.
         """
+        # Attested-only gate: drop forms that don't occur in the corpus.
+        if attested_only and word and not word.isdigit() \
+                and self._resolve_attested_form(word) is None:
+            return None
+
         # Get all candidates from regular lookup
-        candidates = self.lemmatize_verbose(word)
+        candidates = self._lemmatize_verbose_impl(word)
 
         if not candidates:
             # Should not happen (verbose always adds identity), but be safe
-            return self.lemmatize(word)
+            return self.lemmatize(word, attested_only=attested_only)
 
         # Use POS tables to disambiguate or override
         pos_lemma = self._pos_table_lookup(word, upos)
@@ -2668,7 +2693,8 @@ class Dilemma:
         # (same result as regular lemmatize)
         return candidates[0].lemma
 
-    def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str]) -> list[str]:
+    def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str],
+                            *, attested_only: bool = False) -> list[str | None]:
         """Lemmatize a batch of words with POS-aware disambiguation.
 
         POS is used to disambiguate among multiple candidates, or to
@@ -2701,10 +2727,13 @@ class Dilemma:
         )
 
         # Step 1: Get baseline results from regular batch lemmatization
-        results = self.lemmatize_batch(words)
+        results = self.lemmatize_batch(words, attested_only=attested_only)
 
         # Step 2: For each word, check if POS could improve the result
         for i, (word, upos) in enumerate(zip(words, upos_tags)):
+            # Don't resurrect a gated-out (None) result via POS correction.
+            if attested_only and results[i] is None:
+                continue
             pos_lemma = self._pos_table_lookup(word, upos)
             if pos_lemma is not None:
                 pos_lemma_conv = self._apply_convention(pos_lemma)
@@ -2714,7 +2743,7 @@ class Dilemma:
 
                 # POS suggests a different lemma than baseline. Check if
                 # the POS lemma is among the valid candidates.
-                candidates = self.lemmatize_verbose(word)
+                candidates = self._lemmatize_verbose_impl(word)
 
                 # Check if any candidate matches the POS-specific lemma
                 pos_stripped = strip_accents(pos_lemma_conv.lower())
@@ -2744,7 +2773,7 @@ class Dilemma:
             # Also handles ADJ feminine-to-masculine fix (not a self-map
             # but still a wrong lemma form).
             if results[i] is not None and upos in ("ADJ", "VERB"):
-                candidates = self.lemmatize_verbose(word)
+                candidates = self._lemmatize_verbose_impl(word)
                 if len(candidates) > 1:
                     mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
                     if mg_fix is not None:
@@ -2754,6 +2783,9 @@ class Dilemma:
 
     def lemmatize_verbose(self, word: str,
                           prev_word: str | None = None,
+                          *,
+                          attested_only: bool = False,
+                          with_attestation: bool = False,
                           ) -> list[LemmaCandidate]:
         """Return all candidate lemmas with metadata.
 
@@ -2768,6 +2800,14 @@ class Dilemma:
                 (e.g. ὁ, τήν, τῶν), it is used to rank candidates by
                 gender/number agreement. Only affects ranking, not
                 filtering - all candidates are still returned.
+            attested_only: If True and the input surface form is not attested
+                in the corpus (exact NFC, or via elision expansion), return an
+                empty list instead of candidates. The gate is on the FORM, so a
+                real lemma can be dropped because the particular inflection typed
+                is unattested.
+            with_attestation: If True, set each candidate's ``attestation`` to
+                the corpus attestation of the matched surface form (None when
+                the form is unattested). Needs ``form_profile.db``.
 
         Examples:
             lemmatize_verbose("ἔριδι")
@@ -2781,6 +2821,23 @@ class Dilemma:
             lemmatize_verbose("ἀλλ̓")
             -> [LemmaCandidate(lemma="ἀλλά", lang="grc", source="elision", via="elision:ά")]
         """
+        # Digits / empty are not Greek forms; pass through ungated.
+        attest_key = None
+        if (attested_only or with_attestation) and word and not word.isdigit():
+            attest_key = self._resolve_attested_form(word)
+            if attested_only and attest_key is None:
+                return []
+        candidates = self._lemmatize_verbose_impl(word, prev_word)
+        if with_attestation and attest_key is not None:
+            payload = self.form_attestation(attest_key)
+            for c in candidates:
+                c.attestation = payload
+        return candidates
+
+    def _lemmatize_verbose_impl(self, word: str,
+                                prev_word: str | None = None,
+                                ) -> list[LemmaCandidate]:
+        """Build the candidate list (no attestation gate); see lemmatize_verbose."""
         candidates = []
         seen = set()  # track (lemma_lower, lang) to avoid exact dupes
 
@@ -2988,10 +3045,16 @@ class Dilemma:
 
         return candidates
 
-    def lemmatize_batch(self, words: list[str]) -> list[str]:
+    def lemmatize_batch(self, words: list[str], *,
+                        attested_only: bool = False) -> list[str | None]:
         """Lemmatize a batch of words. Uses model only for unknowns.
 
         If a convention is set, all output lemmas are remapped accordingly.
+
+        When ``attested_only=True``, any word whose surface form is unattested
+        in the corpus (exact NFC, or via elision expansion) yields ``None`` at
+        its position, preserving positional alignment with the input. Digits and
+        empty strings pass through unchanged. Needs ``form_profile.db``.
         """
         results = []
         model_indices = []
@@ -3082,6 +3145,15 @@ class Dilemma:
         # Apply convention remapping to all results
         if self._convention_map:
             results = [self._apply_convention(r) if r else r for r in results]
+
+        # Attested-only gate: null out words whose surface form is unattested.
+        # (Digits / empty pass through; they are not Greek forms.)
+        if attested_only:
+            results = [
+                None if (w and not w.isdigit()
+                         and self._resolve_attested_form(w) is None) else r
+                for w, r in zip(words, results)
+            ]
 
         return results
 
@@ -3327,6 +3399,57 @@ class Dilemma:
                 with open(ATTESTATION_PATH, encoding="utf-8") as f:
                     self._attestation = json.load(f).get("lemmas", {})
         return self._attestation.get(unicodedata.normalize("NFC", lemma))
+
+    # ---- Form-keyed corpus attestation ("attested only" + references) ----
+
+    def _attestdb(self):
+        """Lazily open the form-attestation DBs (form_profile / form_citations).
+
+        Returns the shared :class:`dilemma._attest_db.AttestDB`. The DBs are
+        resolved from the same data dir as the rest of Dilemma's artifacts.
+        """
+        if self._attest is None:
+            from ._attest_db import AttestDB
+            # No explicit dir: AttestDB scans the candidate data dirs
+            # ($DILEMMA_DATA_DIR, dev tree, download cache), so the form DBs are
+            # found wherever `dilemma download --with-attestation` placed them.
+            self._attest = AttestDB()
+        return self._attest
+
+    def _resolve_attested_form(self, word: str) -> str | None:
+        """The attested surface key for ``word``, or None if it is unattested.
+
+        Returns the exact NFC form when that occurs in the corpus, else an
+        elision expansion that does (an elided token like ``ἀλλ̓`` is
+        canonically attested as its full form ``ἀλλά``; a strict exact check on
+        the raw elided token would miss it). This is the input-direction gate's
+        match: exact NFC polytonic, plus elision resolution.
+        """
+        db = self._attestdb()
+        if db.is_attested(word):
+            return unicodedata.normalize("NFC", word)
+        for expanded, _lemma, _vowel in self._expand_elision_all(word):
+            if db.is_attested(expanded):
+                return expanded
+        return None
+
+    def form_attestation(self, form: str, *, max_citations: int | None = 20):
+        """Corpus attestation for an exact polytonic surface FORM, or None.
+
+        The form-keyed sibling of :meth:`attestation` (which is lemma-keyed).
+        Returns a dict ``{form, attested, total_count, n_works, source_counts,
+        by_century, by_genre, by_dialect, by_century_genre, dominant_pos,
+        citations}`` for a form attested in GLAUx or Diorisis, or ``None`` if
+        the exact NFC form does not occur in the corpus. ``total_count`` and the
+        distributions reflect the full evidence; ``max_citations`` bounds only
+        the returned ``citations`` list (``None`` returns every stored citation,
+        ``0`` skips them). ``citations`` is empty (with a ``citations_note``)
+        unless the opt-in ``form_citations.db`` has been downloaded.
+
+        Raises if ``form_profile.db`` is not available; download it with
+        ``python -m dilemma download``.
+        """
+        return self._attestdb().attestation(form, max_citations=max_citations)
 
     def _rank_spell_results(self, word: str, query_stripped: str,
                             hits: dict[str, list[str]],

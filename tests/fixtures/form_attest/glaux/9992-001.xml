@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<treebank version="2" xml:lang="grc">
+  <sentence id="1" document_id="9992-001" analysis="auto">
+    <word id="1" form="λόγος" div_book="1" div_chapter="1.1" div_section="1.1.1" lemma="λόγος" postag="n-s---mn-"/>
+    <word id="2" form="μῆνιν" div_book="1" div_chapter="1.1" div_section="1.1.2" lemma="μῆνις" postag="n-s---fa-"/>
+    <word id="3" form="μὲν" div_book="1" div_chapter="1.1" div_section="1.1.2" lemma="μέν" postag="g--------"/>
+  </sentence>
+</treebank>

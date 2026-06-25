@@ -19,11 +19,20 @@ DEFAULT_CACHE = Path.home() / ".cache" / "dilemma"
 REPO = "ciscoriordan/dilemma"
 INCLUDES = ["data/*", "model/*"]
 
+# The form-attestation DBs are large and only needed for the `attested only`
+# gate / form_attestation(). Both are kept OUT of the base download; fetch them
+# explicitly. form_profile.db (the gate + usage distribution) comes with
+# --with-attestation; the larger form_citations.db (example loci) needs
+# --with-citations (which implies the profile).
+PROFILE_FILE = "data/form_profile.db"
+CITATIONS_FILE = "data/form_citations.db"
+ATTEST_FILES = [PROFILE_FILE, CITATIONS_FILE]
+
 TAGGER_REPO = "ciscoriordan/dilemma"
 TAGGER_INCLUDES = ["tagger/*"]
 
 
-def _snapshot_download(*, repo_id, local_dir, allow_patterns):
+def _snapshot_download(*, repo_id, local_dir, allow_patterns, ignore_patterns=None):
     try:
         from huggingface_hub import snapshot_download
     except ImportError as e:
@@ -35,16 +44,23 @@ def _snapshot_download(*, repo_id, local_dir, allow_patterns):
         repo_id=repo_id,
         local_dir=str(local_dir),
         allow_patterns=allow_patterns,
+        ignore_patterns=ignore_patterns,
     )
 
 
 def download(target_dir: Path | None = None, *, tagger: bool = True,
-             dilemma: bool = True) -> Path:
+             dilemma: bool = True, attestation: bool = False,
+             citations: bool = False) -> Path:
     """Download Dilemma + tagger artifacts from HuggingFace to `target_dir`.
 
     Lemma `data/` and `model/` go directly under `target_dir`. Tagger
     weights land at `target_dir/tagger_model/` (mirrors `~/.cache/dilemma/`
     layout: `model/` for the lemmatizer, `tagger_model/` for the tagger).
+
+    The form-attestation DBs are excluded from the base `data/*` download:
+    `attestation=True` pulls `form_profile.db` (the gate + usage distribution),
+    and `citations=True` additionally pulls the larger `form_citations.db`
+    (example loci) and implies the profile.
 
     Returns the path that was downloaded into. Requires `huggingface_hub`.
     """
@@ -54,6 +70,15 @@ def download(target_dir: Path | None = None, *, tagger: bool = True,
     if dilemma:
         _snapshot_download(
             repo_id=REPO, local_dir=dest, allow_patterns=INCLUDES,
+            ignore_patterns=ATTEST_FILES,
+        )
+    if attestation or citations:
+        _snapshot_download(
+            repo_id=REPO, local_dir=dest, allow_patterns=[PROFILE_FILE],
+        )
+    if citations:
+        _snapshot_download(
+            repo_id=REPO, local_dir=dest, allow_patterns=[CITATIONS_FILE],
         )
     if tagger:
         tagger_dest = dest / "tagger_model"
@@ -106,11 +131,24 @@ def main(argv: list[str] | None = None) -> int:
         "--only-tagger", action="store_true",
         help="Download only tagger weights (skip lemma data + model)",
     )
+    parser.add_argument(
+        "--with-attestation", action="store_true",
+        help="Also fetch form_profile.db (the 'attested only' gate + the "
+             "form_attestation usage distribution); excluded from base otherwise",
+    )
+    parser.add_argument(
+        "--with-citations", action="store_true",
+        help="Also fetch the large form_citations.db (example loci for "
+             "form_attestation); implies --with-attestation",
+    )
     args = parser.parse_args(argv)
     dest = download(
         args.dir,
         tagger=not args.no_tagger,
         dilemma=not args.only_tagger,
+        attestation=(args.with_attestation or args.with_citations)
+        and not args.only_tagger,
+        citations=args.with_citations and not args.only_tagger,
     )
     print(f"Downloaded to {dest}")
     print(

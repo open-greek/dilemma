@@ -943,6 +943,61 @@ disambiguates a noun-vs-verb homograph but not same-POS senses. The file's
 `_meta` block documents the full schema, the signed-century scheme, and the
 caveats.
 
+### Attested forms: the "attested only" gate and form attestation
+
+The lemma profile above has a surface-FORM sibling: which exact inflected forms
+actually occur in the corpus, with their own usage distribution and the passages
+that attest them. `Dilemma.form_attestation(form)` returns it, or `None` if the
+form is unattested:
+
+```python
+rec = d.form_attestation("μῆνιν")
+# {
+#   "total_count": 96, "n_works": 41,
+#   "source_counts": {"glaux": 70, "diorisis": 58},
+#   "by_century": {-8: 31, -5: 9, ...},          # usage-by-year axis
+#   "by_genre":   {"poetry": 60, "history": 12, ...},
+#   "by_century_genre": {-8: {"poetry": 31}, ...},  # joint, for a usage heatmap
+#   "dominant_pos": "noun",
+#   "citations": [                                 # example passages (work + locus)
+#     {"author": "Homerus", "title": "Ilias", "source": "glaux",
+#      "century": -8, "locus": "1.1", "locus_scheme": "line", "count": 1}, ...]
+# }
+```
+
+Both directions of the lemmatizer/generator take an `attested_only` flag (off by
+default, so nothing changes unless you ask for it):
+
+```python
+# Input: only lemmatize forms that actually occur in the corpus (exact NFC,
+# elision resolved); an unattested form returns None instead of a guess.
+d.lemmatize("μῆνιν", attested_only=True)          # "μῆνις"
+d.lemmatize("υπολογιστές", attested_only=True)    # None (modern, unattested)
+d.lemmatize_batch(words, attested_only=True)      # None at unattested positions
+# attach the citations to each candidate:
+d.lemmatize_verbose("μῆνιν", with_attestation=True)
+
+# Output: only generate paradigm cells whose form is attested (grave/case
+# folded, since generated forms are citation-style), with optional citations.
+from dilemma.paradigm import generate, generate_paradigm, ParadigmSlot
+generate_paradigm("λύω", "verb", attested_only=True, with_attestation=True)
+```
+
+The data lives in two SQLite artifacts built by the standalone
+`build/build_form_attestation.py` pass (GLAUx + Diorisis, same dedup discipline
+as the lemma profile, so `total_count` is a deduped union while `citations` keep
+both sources). Both are opt-in downloads, kept out of the base `dilemma download`:
+
+```bash
+python -m dilemma download --with-attestation   # form_profile.db: gate + distribution
+python -m dilemma download --with-citations      # + form_citations.db: example loci
+```
+
+`--with-attestation` is enough for the gate and the usage distribution that
+powers the usage-by-year graph and heatmap; `--with-citations` adds the example
+loci (and implies the profile). Without them, `attested_only` and
+`form_attestation` raise a clear "download it" error.
+
 ## POS tagger and dependency parser
 
 Dilemma also ships a diachronic Greek POS tagger and dependency parser.
