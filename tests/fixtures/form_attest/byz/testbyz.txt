@@ -1,0 +1,5 @@
+(test header, editor metadata)
+
+καὶ ὁ γέρων ἐλάλει
+
+τὴν κόρην ἐφίλει

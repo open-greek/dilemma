@@ -33,6 +33,7 @@ def _build(out_dir: Path, cap: int = 50) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(
         [sys.executable, str(BUILDER),
+         "--sources", "glaux,diorisis",
          "--glaux", str(FX / "glaux"),
          "--metadata", str(FX / "metadata.txt"),
          "--diorisis", str(FX / "diorisis"),
@@ -234,6 +235,104 @@ def test_form_attestation_api_real():
     rec = d.form_attestation("μῆνιν", max_citations=3)
     assert rec is not None and rec["total_count"] >= 1
     assert d.form_attestation("ζζζζζ") is None
+
+
+# --- Phase B: First1K / PTA / byzantine sources ---------------------------
+
+
+def test_tei_locus_iter_and_meta():
+    lxml = pytest.importorskip("lxml.etree")
+    sys.path.insert(0, str(REPO / "build"))
+    import tei_locus
+    tei = (
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc>'
+        '<titleStmt><title>X</title><author>A</author></titleStmt>'
+        '<publicationStmt><idno type="TLG">tlg9995.tlg001</idno></publicationStmt>'
+        '</fileDesc><profileDesc><creation><date notBefore="0440" notAfter="0460"/>'
+        '</creation></profileDesc></teiHeader><text><body>'
+        '<div type="edition" n="urn:cts:pta:pta9995.pta001.pta-grc1">'
+        '<div type="textpart" subtype="book" n="1">'
+        '<div type="textpart" subtype="chapter" n="2">'
+        '<p>θεόπνευστος <note>skip me</note> ἀρετὴ</p></div></div>'
+        '<div type="textpart" subtype="Book" n="2"><l n="5">μῆνιν ἄειδε</l></div>'
+        '</div></body></text></TEI>'
+    )
+    root = lxml.fromstring(tei.encode("utf-8"))
+    toks = list(tei_locus.iter_tokens(root))
+    forms = {f for f, l, s in toks}
+    assert "θεόπνευστος" in forms and "ἀρετὴ" in forms
+    assert "skip" not in forms and "me" not in forms  # <note> skipped
+    by_form = {f: (l, s) for f, l, s in toks}
+    assert by_form["θεόπνευστος"] == ("1.2", "book.chapter")
+    assert by_form["μῆνιν"] == ("2.5", "Book.line")   # verse line locus
+    meta = tei_locus.work_meta(root, "pta9995.pta001.pta-grc1.xml")
+    assert meta["tlg_id"] == "9995-001"
+    assert meta["creation_year"] == 450
+
+
+def test_byz_century_parsing():
+    sys.path.insert(0, str(REPO / "build"))
+    import build_form_attestation as B
+    assert B._byz_century("12th century (MS 15th century)") == 12
+    assert B._byz_century("14th century") == 14
+    assert B._byz_century("3rd century BC") == -3
+    assert B._byz_century("undated") is None
+
+
+def _build_all(out_dir: Path, cap: int = 50) -> str:
+    pytest.importorskip("betacode.conv")
+    pytest.importorskip("lxml.etree")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run(
+        [sys.executable, str(BUILDER),
+         "--sources", "glaux,diorisis,first1k,pta,byz",
+         "--glaux", str(FX / "glaux"), "--metadata", str(FX / "metadata.txt"),
+         "--diorisis", str(FX / "diorisis"),
+         "--first1k", str(FX / "first1k" / "data"),
+         "--pta", str(FX / "pta" / "data"),
+         "--byz", str(FX / "byz"),
+         "--profile-out", str(out_dir / "form_profile.db"),
+         "--citations-out", str(out_dir / "form_citations.db"),
+         "--cap", str(cap)],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    return out_dir
+
+
+@pytest.fixture(scope="module")
+def built_all(tmp_path_factory):
+    return AttestDB(_build_all(tmp_path_factory.mktemp("form_attest_b")))
+
+
+def test_first1k_form_attested_with_tei_locus(built_all):
+    rec = built_all.attestation("πατερικὸν", max_citations=None)
+    assert rec is not None and rec["source_counts"].get("first1k") == 1
+    cite = rec["citations"][0]
+    assert cite["source"] == "first1k"
+    assert cite["locus"] == "1.2" and cite["locus_scheme"] == "book.chapter"
+
+
+def test_pta_form_attested_with_century(built_all):
+    rec = built_all.attestation("θεόπνευστος", max_citations=None)
+    assert rec is not None and rec["source_counts"].get("pta") == 1
+    assert rec["by_century"] == {5: 1}            # creation date 440-460 -> 5th c.
+    assert rec["citations"][0]["locus_scheme"] == "section"
+
+
+def test_byz_form_attested_with_line_locus(built_all):
+    rec = built_all.attestation("γέρων", max_citations=None)
+    assert rec is not None and rec["source_counts"].get("byz") == 1
+    assert rec["by_century"] == {14: 1}           # manifest "14th century"
+    assert rec["citations"][0]["source"] == "byz"
+    assert rec["citations"][0]["locus_scheme"] == "line"
+
+
+def test_phase_b_does_not_break_phase_a(built_all):
+    # μῆνιν still attested from GLAUx+Diorisis with its deduped total of 3.
+    rec = built_all.attestation("μῆνιν")
+    assert rec["total_count"] == 3
+    assert "glaux" in rec["source_counts"] and "diorisis" in rec["source_counts"]
 
 
 @pytest.mark.skipif(not _real_available(), reason="form_profile.db not present")

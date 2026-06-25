@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>Test Patristic Homily</title>
+        <author><persName>TestFather</persName></author>
+      </titleStmt>
+      <publicationStmt>
+        <idno type="PTA">pta9995.pta001</idno>
+        <idno type="TLG">tlg9995.tlg001</idno>
+      </publicationStmt>
+    </fileDesc>
+    <profileDesc>
+      <creation><date notBefore="0440" notAfter="0460"/></creation>
+    </profileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <div type="edition" xml:lang="grc" n="urn:cts:pta:pta9995.pta001.pta-grc1">
+        <div type="textpart" subtype="section" n="3">
+          <p>θεόπνευστος ἀρετὴ καὶ πίστις.</p>
+        </div>
+      </div>
+    </body>
+  </text>
+</TEI>

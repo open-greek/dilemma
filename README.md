@@ -984,9 +984,12 @@ generate_paradigm("λύω", "verb", attested_only=True, with_attestation=True)
 ```
 
 The data lives in two SQLite artifacts built by the standalone
-`build/build_form_attestation.py` pass (GLAUx + Diorisis, same dedup discipline
-as the lemma profile, so `total_count` is a deduped union while `citations` keep
-both sources). Both are opt-in downloads, kept out of the base `dilemma download`:
+`build/build_form_attestation.py` pass. It reads the lemmatized GLAUx + Diorisis
+treebanks plus the raw-text First1KGreek, PTA and byzantine-vernacular corpora
+(for late-antique, patristic and Byzantine coverage), deduping each work once by
+source priority (so `total_count` is a deduped union while `citations` keep every
+source's passages). Both artifacts are opt-in downloads, kept out of the base
+`dilemma download`:
 
 ```bash
 python -m dilemma download --with-attestation   # form_profile.db: gate + distribution

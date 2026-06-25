@@ -20,7 +20,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -q --upgrade pip
-          pip install -q pytest huggingface_hub betacode pygtrie
+          pip install -q pytest huggingface_hub betacode pygtrie lxml
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q transformers
 
