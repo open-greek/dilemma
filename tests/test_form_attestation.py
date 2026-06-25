@@ -27,9 +27,9 @@ BUILDER = REPO / "build" / "build_form_attestation.py"
 
 
 def _build(out_dir: Path, cap: int = 50) -> str:
-    # The builder converts Diorisis Beta Code via the optional `betacode`
-    # package; skip the build-from-mini-corpus tests where it isn't installed.
-    pytest.importorskip("betacode")
+    # The builder converts Diorisis Beta Code via betacode.conv (which needs
+    # pygtrie); skip the build-from-mini-corpus tests where that isn't importable.
+    pytest.importorskip("betacode.conv")
     out_dir.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(
         [sys.executable, str(BUILDER),
