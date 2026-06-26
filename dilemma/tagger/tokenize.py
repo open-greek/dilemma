@@ -60,12 +60,22 @@ def batch_tokenize(
     """
     tokenizer = _get_tokenizer()
 
-    # Preprocess: strip accents + lowercase (matching gr-nlp-toolkit)
-    normalized = [strip_accents_and_lowercase(s) for s in sentences]
+    # Pre-split into whitespace words and normalize each word, then tokenize
+    # with is_split_into_words=True. This keeps word boundaries identical to
+    # sentence.split(): even when a word contains punctuation or an elision
+    # mark (which BERT's basic tokenizer would otherwise split into extra
+    # tokens), every resulting subword keeps its source-word index via
+    # word_ids(), so word_forms / raw_forms / masks stay aligned. The old
+    # approach inferred word boundaries from "##" prefixes and zipped
+    # raw_forms by position, which drifted on any punctuation/elision split.
+    batch_words = [s.split() for s in sentences]
+    batch_norm = [
+        [strip_accents_and_lowercase(w) for w in words] for words in batch_words
+    ]
 
-    # Tokenize with padding
     enc = tokenizer(
-        normalized,
+        batch_norm,
+        is_split_into_words=True,
         padding=True,
         truncation=True,
         max_length=max_length,
@@ -73,66 +83,37 @@ def batch_tokenize(
         return_attention_mask=True,
     )
 
-    special_ids = set(tokenizer.all_special_ids)
     all_word_masks = []
     all_s2w = []
     all_forms = []
     all_raw_forms = []
 
     for i in range(len(sentences)):
-        ids = enc.input_ids[i].tolist()
-        tokens = tokenizer.convert_ids_to_tokens(ids)
-
-        # Split original sentence into whitespace tokens for alignment.
-        # BERT's tokenizer splits on whitespace identically for both
-        # original and normalized text (strip_accents_and_lowercase
-        # preserves spaces), so word boundaries align 1:1.
-        orig_words = sentences[i].split()
+        word_ids = enc.word_ids(i)  # per-subword source-word index (None=special)
 
         mask = []
-        s2w = {0: 0}  # CLS -> root (index 0)
-        forms = []
-        word_idx = 0
-        current_ids = []
-
-        for j, (tok, tok_id) in enumerate(zip(tokens, ids)):
-            if tok_id in special_ids:
-                # Special token ([CLS], [SEP], [PAD])
+        s2w = {}
+        present = []  # source-word indices, in order, that survived truncation
+        seq = 0       # 1-based sequential word index (matches decode's head refs)
+        prev = None
+        for j, wid in enumerate(word_ids):
+            if wid is None:
                 mask.append(False)
-                s2w[j] = 0
-            elif tok.startswith("##"):
-                # Continuation subword
-                mask.append(False)
-                s2w[j] = word_idx
-                current_ids.append(tok_id)
+                s2w[j] = 0  # special tokens -> root
             else:
-                # First subword of a new word
-                if current_ids:
-                    # Decode previous word
-                    forms.append(tokenizer.decode(current_ids))
-                word_idx += 1
-                mask.append(True)
-                s2w[j] = word_idx
-                current_ids = [tok_id]
-
-        # Decode last word
-        if current_ids:
-            forms.append(tokenizer.decode(current_ids))
-
-        # Build raw_forms from original words, aligned to BERT word indices.
-        # If BERT produced fewer words (due to truncation), pad with the
-        # normalized form; if more (shouldn't happen), truncate.
-        raw_forms = []
-        for w_i in range(len(forms)):
-            if w_i < len(orig_words):
-                raw_forms.append(orig_words[w_i])
-            else:
-                raw_forms.append(forms[w_i])
+                if wid != prev:
+                    seq += 1
+                    mask.append(True)
+                    present.append(wid)
+                else:
+                    mask.append(False)
+                s2w[j] = seq
+                prev = wid
 
         all_word_masks.append(mask)
         all_s2w.append(s2w)
-        all_forms.append(forms)
-        all_raw_forms.append(raw_forms)
+        all_forms.append([batch_norm[i][w] for w in present])
+        all_raw_forms.append([batch_words[i][w] for w in present])
 
     return BatchEncoding(
         input_ids=enc.input_ids,

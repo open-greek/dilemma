@@ -53,6 +53,26 @@ def _has_dilemma():
 
 
 # ---------------------------------------------------------------------------
+# Tokenization alignment (regression: elision/punctuation must not drift)
+# ---------------------------------------------------------------------------
+
+def test_batch_tokenize_aligns_raw_forms_with_elision_and_punct():
+    """word_forms / raw_forms must stay 1:1 with sentence.split() even when a
+    word carries an elision mark (μετʼ) or trailing punctuation (χόλον·, ,).
+    Regression for the off-by-one drift where BERT's basic tokenizer split
+    such words into extra tokens and raw_forms was zipped by position."""
+    from dilemma.tagger.tokenize import batch_tokenize
+    s = "ὡς μὴ πατροφόνος μετʼ Ἀχαιοῖσιν, χόλον·"
+    words = s.split()
+    enc = batch_tokenize([s])
+    assert enc.raw_forms[0] == words            # exact, in order
+    assert len(enc.word_forms[0]) == len(words)
+    assert sum(enc.word_masks[0]) == len(words)  # one first-subword per word
+    nonzero = [v for v in enc.subword2word[0].values() if v]
+    assert nonzero and max(nonzero) == len(words)
+
+
+# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
