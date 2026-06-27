@@ -29,6 +29,14 @@ from .morph_diff import (
     MorphDiff,
     Role,
 )
+from .morph_reconcile import (
+    reconcile_token,
+    reconcile_work,
+    vote_readings,
+    Reading,
+    Provenance,
+    ReconciledToken,
+)
 from .paradigm import (
     generate,
     generate_paradigm,
@@ -63,6 +71,12 @@ __all__ = [
     "diff_paradigm",
     "MorphDiff",
     "Role",
+    "reconcile_token",
+    "reconcile_work",
+    "vote_readings",
+    "Reading",
+    "Provenance",
+    "ReconciledToken",
     "Tagger",
     "generate",
     "generate_paradigm",
