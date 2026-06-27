@@ -285,12 +285,26 @@ def rule_mid_ending(form, feats):
     loses no genuine middle. Infinitives carry VerbForm=Inf (no Mood field) in
     the UD encoding, so the guard checks VerbForm; Mood=Inf is also honoured for
     treebanks that tag the infinitive as a mood."""
-    if feats.get("VerbForm") == "Inf" or feats.get("Mood") == "Inf":
+    if feats.get("VerbForm") in ("Inf", "Part") or feats.get("Mood") == "Inf":
         return None
-    if feats.get("Voice") == "Act" and _MID_ENDING_RE.search(_deaccent(form)):
-        return ({"Voice": "Mid"}, "mid-ending",
-                f"{form!r} ends in a mediopassive ending; Voice=Act is impossible")
-    return None
+    if feats.get("Voice") != "Act":
+        return None
+    m = _MID_ENDING_RE.search(_deaccent(form))
+    if not m:
+        return None
+    ending = m.group(0).rstrip(_ELISION)
+    # σθε / σθον / σθην mark 2nd/3rd plural-or-dual; on a Number=Sing token they
+    # are stem-final (ἄϊσθε, ὄλισθε = aorist 3sg active), not an inflectional
+    # ending, so the rule must not fire.
+    if ending in ("σθε", "σθον", "σθην") and feats.get("Number") == "Sing":
+        return None
+    # Middle and passive are syncretic (Mid,Pass) in the present / imperfect /
+    # perfect; only the aorist keeps them distinct. So an aorist middle ending
+    # is specifically Mid, and every other middle ending is the syncretic Mid,Pass.
+    is_aor = feats.get("Tense") == "Past" and feats.get("Aspect") == "Perf"
+    voice = "Mid" if is_aor else "Mid,Pass"
+    return ({"Voice": voice}, "mid-ending",
+            f"{form!r} ends in a mediopassive ending; Voice=Act is impossible")
 
 
 def rule_perf_stem(form, lemma, feats, perf_stems):

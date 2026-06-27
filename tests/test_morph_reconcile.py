@@ -124,12 +124,35 @@ def test_mid_ending_not_fired_when_already_mid():
 def test_mid_ending_resolves_a_voted_disagreement():
     # Sources split Act/Mid; the forced ending decides it and clears contested.
     readings = [
-        verb("a", "ὑπισχνέομαι", Person="3", Number="Sing", Voice="Act"),
-        verb("b", "ὑπισχνέομαι", Person="3", Number="Sing", Voice="Pass"),
+        verb("a", "ὑπισχνέομαι", Person="3", Number="Sing", Voice="Act",
+             Tense="Past", Aspect="Perf"),
+        verb("b", "ὑπισχνέομαι", Person="3", Number="Sing", Voice="Pass",
+             Tense="Past", Aspect="Perf"),
     ]
     tok = reconcile_token("ὑπέσχετο", readings)
-    assert tok.chosen["feats"]["Voice"] == "Mid"
+    assert tok.chosen["feats"]["Voice"] == "Mid"   # aorist middle ending
     assert "Voice" not in tok.contested_fields
+
+
+def test_mid_ending_present_is_syncretic_midpass():
+    # A present mediopassive ending mistagged Act -> the syncretic Mid,Pass
+    # (middle and passive coincide outside the aorist), not bare Mid.
+    tok = reconcile_token(
+        "λύεται",
+        [verb("a", "λύω", Person="3", Number="Sing", Tense="Pres", Voice="Act",
+              Mood="Ind")])
+    assert tok.chosen["feats"]["Voice"] == "Mid,Pass"
+
+
+def test_mid_ending_skips_stem_final_sthe_singular():
+    # ὄλισθε / ἄϊσθε are aorist 3sg ACTIVE; their -σθε is stem-final, not the
+    # 2pl mediopassive ending, so the rule must not flip them to middle.
+    for form, lemma in [("ὄλισθε", "ὀλισθάνω"), ("ἄϊσθε", "ἀΐω")]:
+        tok = reconcile_token(
+            form, [verb("a", lemma, Person="3", Number="Sing", Voice="Act",
+                        Tense="Past", Aspect="Perf", Mood="Ind")])
+        assert tok.chosen["feats"]["Voice"] == "Act", form
+        assert "rule:mid-ending" not in methods(tok), form
 
 
 def test_mid_ending_skips_active_infinitive():
@@ -474,7 +497,7 @@ def test_reconcile_work_batches():
     toks = reconcile_work([
         {"form": "ὑπέσχετο",
          "readings": [verb("a", "ὑπισχνέομαι", Person="3", Number="Sing",
-                           Voice="Act", Tense="Past", Mood="Ind")]},
+                           Voice="Act", Tense="Past", Aspect="Perf", Mood="Ind")]},
         {"form": "λύει",
          "readings": [verb("a", "λύω", Person="3", Number="Sing",
                            Tense="Pres", Voice="Act", Mood="Ind")]},
@@ -488,7 +511,7 @@ def test_reading_objects_accepted_directly():
     tok = reconcile_token(
         "λύεται",
         [Reading("a", "λύω", "VERB", {"Voice": "Act"})])
-    assert tok.chosen["feats"]["Voice"] == "Mid"       # mid-ending rule
+    assert tok.chosen["feats"]["Voice"] == "Mid,Pass"  # present -> syncretic
     assert isinstance(tok.readings[0], Reading)
 
 
