@@ -753,12 +753,41 @@ def _apply_noun_cache(headword, stem_len, ref_stem_plain, ref_forms):
     return forms
 
 
+_GENITIVE_ARTICLES = {
+    "ἡ", "ὁ", "τό", "τὸ", "τά", "τὰ", "τοῦ", "τῆς", "τῶν", "οἱ", "αἱ",
+    "ἥ", "ὅ", "οὐ", "οὐκ", "οὐχ", "ὦ", "δέ", "δὲ", "καί", "καὶ",
+}
+_GREEK_GENITIVE = re.compile(r"^[Ͱ-Ͽἀ-῿̀-ͅ\-]+$")
+
+
+def _genitive_is_junk(gen):
+    """True if a parsed LSJ genitive is clearly not a usable genitive form
+    (markup like '**', a dialect note such as 'Ion.', an article/particle,
+    Latin, digits, internal whitespace, or too short). Such fields come from
+    mis-parsing the LSJ entry; we infer the genitive from the nominative
+    instead. A valid-but-irregular genitive is NOT junk and is left as-is, so we
+    never substitute a wrong standard-rule paradigm for an irregular noun.
+    """
+    g = gen.strip()
+    if len(g) < 2:
+        return True
+    if g in _GENITIVE_ARTICLES:
+        return True
+    if re.search(r"[\s*().,;:\[\]/0-9A-Za-z]", g):
+        return True
+    return not _GREEK_GENITIVE.match(g)
+
+
 def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
     """Expand a noun using grc-decl template. Returns set of forms.
 
     Uses a cache keyed by declension pattern: nouns with the same
     (gender, nom_ending, gen_ending) produce the same inflection endings.
     """
+    # A junk LSJ genitive (article, dialect note, "**" markup, fragment) can't
+    # match a declension, so discard it and infer from the nominative instead.
+    if genitive and _genitive_is_junk(genitive):
+        genitive = ""
     if not genitive:
         genitive = infer_genitive(headword, gender, wikt_genitives)
 
