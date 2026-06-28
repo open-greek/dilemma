@@ -35,6 +35,11 @@ data/glaux_pairs_commercial.json
 data/glaux_freq_commercial.json
 data/corpus_freq_commercial.json
 
+# Tagger training data + weights (built by build/build_mg_tagger_data.py +
+# train_tagger.py / export_tagger_onnx.py; weights live on HuggingFace).
+data/tagger/
+data/tagger_mg/
+
 # Other generated data
 data/*.jsonl
 data/*.db

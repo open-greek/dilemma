@@ -1052,6 +1052,11 @@ full Iliad (24 books, 146K tokens) it tags + parses in 19.5 s. Trained
 weights, treebank sources, and the `lang="med"` Medieval/Byzantine model
 are documented in `dilemma/tagger/__init__.py`.
 
+The ONNX taggers are reproducible from `train_tagger.py` (Greek-BERT/GreBerta
+encoder + per-feature heads), `export_tagger_onnx.py` (3-input ONNX export),
+and `build/build_mg_tagger_data.py` (Modern Greek data from UD_Greek-GDT). The
+Ancient-Greek data prep (GLAUx + the Morpheus candidate step) lives upstream.
+
 ## Greek Coverage
 
 ### Language codes
