@@ -42,12 +42,13 @@ PREFIX_SPACE = True
 
 
 def nfeats(upos, lemma, feats):
-    # AG canonicalizes feats via morpheus_engine.normalize_feats (a pure
-    # function; imported lazily so MG / --no-normalize needs no Morpheus).
+    # AG canonicalizes feats onto the gold treebank convention via
+    # convert_treebank.normalize_feats (pure Python, no Morpheus). MG /
+    # --no-normalize skips it entirely.
     if not NORMALIZE:
         return feats
     try:
-        from morpheus_engine import normalize_feats
+        from convert_treebank import normalize_feats
         return normalize_feats(upos, lemma, feats)
     except Exception:
         return feats

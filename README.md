@@ -1054,8 +1054,10 @@ are documented in `dilemma/tagger/__init__.py`.
 
 The ONNX taggers are reproducible from `train_tagger.py` (Greek-BERT/GreBerta
 encoder + per-feature heads), `export_tagger_onnx.py` (3-input ONNX export),
-and `build/build_mg_tagger_data.py` (Modern Greek data from UD_Greek-GDT). The
-Ancient-Greek data prep (GLAUx + the Morpheus candidate step) lives upstream.
+and the data builders `build/build_tagger_data.py` (Ancient Greek from GLAUx)
+and `build/build_mg_tagger_data.py` (Modern Greek from UD_Greek-GDT), with
+`convert_treebank.py` doing the AGDT postag→UD mapping. Both are Morpheus-free,
+so the taggers reproduce from the public repo plus the corpora.
 
 ## Greek Coverage
 
