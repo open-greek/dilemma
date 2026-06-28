@@ -51,6 +51,12 @@ LSJGR_BRIDGES_PATH = DATA_DIR / "lsjgr_bridges.json"
 RELATED_LEMMAS_PATH = DATA_DIR / "related_lemmas.json"
 HNC_PAIRS_PATH = DATA_DIR / "hnc_pairs.json"
 
+# Set True (via --exclude-nc) for a commercial-safe lookup: drops the
+# NonCommercial treebanks (PROIEL, Gorman, UD Perseus) and uses the NC-free
+# glaux_pairs_commercial.json. The model is unaffected (it trains on
+# Wiktionary). See build/nc_filter.py and NOTICE.
+EXCLUDE_NC = False
+
 
 def strip_accents(s):
     nfd = unicodedata.normalize("NFD", s)
@@ -157,7 +163,9 @@ def build():
     # than corpus-derived pairs (GLAUx, Diorisis) since every
     # lemma assignment is expert-verified.
     proiel_added_ag = 0
-    if PROIEL_PAIRS_PATH.exists():
+    if EXCLUDE_NC:
+        print("  PROIEL: excluded (CC BY-NC-SA 3.0, commercial-safe build)")
+    elif PROIEL_PAIRS_PATH.exists():
         t_p = time.time()
         with open(PROIEL_PAIRS_PATH, encoding="utf-8") as f:
             proiel_pairs = json.load(f)
@@ -178,7 +186,9 @@ def build():
     # Herodotus, Thucydides, Xenophon, Demosthenes, Lysias, Polybius, etc.)
     # Gold-standard single annotator, same priority tier as PROIEL.
     gorman_added_ag = 0
-    if GORMAN_PAIRS_PATH.exists():
+    if EXCLUDE_NC:
+        print("  Gorman: excluded (CC BY-NC-SA 4.0, commercial-safe build)")
+    elif GORMAN_PAIRS_PATH.exists():
         t_gr = time.time()
         with open(GORMAN_PAIRS_PATH, encoding="utf-8") as f:
             gorman_pairs = json.load(f)
@@ -199,7 +209,9 @@ def build():
     # Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus.)
     # Gold-standard annotations, same priority tier as PROIEL/Gorman.
     perseus_added_ag = 0
-    if PERSEUS_PAIRS_PATH.exists():
+    if EXCLUDE_NC:
+        print("  Perseus: excluded (UD Perseus CC BY-NC-SA 3.0, commercial-safe build)")
+    elif PERSEUS_PAIRS_PATH.exists():
         t_pe = time.time()
         with open(PERSEUS_PAIRS_PATH, encoding="utf-8") as f:
             perseus_pairs = json.load(f)
@@ -832,4 +844,19 @@ def build():
 
 
 if __name__ == "__main__":
+    import argparse
+    _ap = argparse.ArgumentParser(description="Build the form->lemma lookup DB")
+    _ap.add_argument("--exclude-nc", action="store_true",
+                     help="Commercial-safe build: drop the NonCommercial "
+                          "treebanks (PROIEL/Gorman/UD-Perseus) and use the "
+                          "NC-free glaux_pairs_commercial.json. Writes "
+                          "lookup_commercial.db / spell_index_commercial.db.")
+    _args = _ap.parse_args()
+    if _args.exclude_nc:
+        EXCLUDE_NC = True
+        DB_PATH = DATA_DIR / "lookup_commercial.db"
+        SPELL_DB_PATH = DATA_DIR / "spell_index_commercial.db"
+        GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs_commercial.json"
+        print("=== Commercial-safe build: excluding NonCommercial sources ===")
+        print(f"    output: {DB_PATH.name} + {SPELL_DB_PATH.name}\n")
     build()

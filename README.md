@@ -2043,22 +2043,21 @@ vocabulary (~160 tokens), so the same word is ~10 steps. Combined with
 
 ## Credits
 
-- Training data from [English Wiktionary](https://en.wiktionary.org/) and [Greek Wiktionary](https://el.wiktionary.org/) via [kaikki.org](https://kaikki.org/) JSONL dumps
-- LSJ headwords, forms, and POS data from [LSJ9](https://github.com/ciscoriordan/lsj9) processed exports (`lsj9_headwords_flat.json`, `lsj9_headword_pos.json`, `lsj9_frequency.json`, `lsj9_indeclinables.json`)
-- Sophocles lexicon TEI from [Ionian University / Internet Archive](https://archive.org/details/pateres)
-- [GLAUx](https://github.com/alekkeersmaekers/glaux) corpus data (Keersmaekers, 2021) ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/))
-- [Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256) corpus data (Vatri & McGillivray, 2018) ([CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/))
-- [PROIEL Treebank](https://github.com/UniversalDependencies/UD_Ancient_Greek-PROIEL) gold-standard annotations ([CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/))
-- [Perseus Treebank](https://github.com/UniversalDependencies/UD_Ancient_Greek-Perseus) (AGDT) gold-standard annotations ([CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/))
-- [Gorman Treebanks](https://github.com/UD-Greek/UD_Ancient_Greek-Gorman) (Gorman) ([CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/))
-- [HNC Golden Corpus](https://inventory.clarin.gr/corpus/870) from CLARIN:EL ([openUnderPSI](https://www.clarin.eu/content/licenses-and-clarin-categories))
-- DGE headwords from the [Diccionario Griego-Espanol](http://dge.cchs.csic.es/) (CSIC)
-- LGPN proper names from the [Lexicon of Greek Personal Names](https://www.lgpn.ox.ac.uk/) (Oxford)
-- Perseus Digital Library headwords (L&S, Pape, Bailly) from the [Perseus project](https://www.perseus.tufts.edu/)
-- MG polytonic frequencies from [glossAPI/Wikisource Greek texts](https://huggingface.co/datasets/glossAPI/Wikisource_Greek_texts) on HuggingFace
-- DBBE evaluation data from [Swaelens et al.](https://github.com/coswaele/ByzantineGreekDatasets) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))
-- Flag icons by [svg-flags](https://github.com/ciscoriordan/svg-flags)
+Dilemma builds on openly licensed lexica, treebanks, and corpora - Wiktionary,
+LSJ, the Sophocles lexicon, GLAUx, Diorisis, First1KGreek, the Patristic Text
+Archive, the Patrologia Graeca, the AGDT / PROIEL / Gorman dependency treebanks,
+and more. The complete list, with authors, sources, and licenses, is in
+[NOTICE](NOTICE).
 
 ## License
 
-[MIT](https://opensource.org/license/mit). © Francisco Riordan.
+Dilemma's source code is licensed [MIT](LICENSE) (full text in
+[LICENSE](LICENSE)). © Francisco Riordan.
+
+The data artifacts Dilemma builds - the lookup database, the trained model, the
+frequency tables, and the corpus-attestation databases - are derived from
+third-party data and remain under their upstream licenses; see [NOTICE](NOTICE).
+A commercial-safe build (`--exclude-nc`) drops the NonCommercial sources (the
+PROIEL, Gorman, and UD Perseus treebanks, and NonCommercial GLAUx texts),
+writing `*_commercial` variants; the model is unaffected (it trains only on
+Wiktionary pairs).

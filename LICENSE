@@ -19,3 +19,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+-------------------------------------------------------------------------------
+
+The MIT License above applies to Dilemma's SOURCE CODE.
+
+The DATA ARTIFACTS that Dilemma builds or distributes - the SQLite lookup
+database, the trained model weights, the corpus-frequency tables, and the
+lemma/form corpus-attestation databases - are DERIVED FROM third-party sources
+and remain subject to their respective upstream licenses, not the MIT license.
+The full list of those sources and their licenses is in the NOTICE file.
+
+Some of those sources carry NonCommercial terms (the PROIEL, Gorman, and UD
+Perseus treebanks, and a few NonCommercial-licensed GLAUx texts). A
+commercial-safe build (the `--exclude-nc` build flag) drops them and emits
+`*_commercial` artifacts. See NOTICE for details.

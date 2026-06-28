@@ -271,9 +271,14 @@ class CiteSink:
 
 
 def process_glaux(glaux_dir, glaux_works, forms, form_ids, profiles, works,
-                  sink, claimed, limit, stats):
+                  sink, claimed, limit, stats, nc_stems=frozenset()):
     h = hashlib.sha256()
     files = sorted(glaux_dir.glob("*.xml"))
+    if nc_stems:
+        before = len(files)
+        files = [f for f in files if f.stem not in nc_stems]
+        print(f"  commercial-safe: excluded {before - len(files)} "
+              f"NonCommercial GLAUx text(s)")
     if limit:
         files = files[:limit]
     print(f"GLAUx: {len(files)} files")
@@ -713,8 +718,19 @@ def main():
     p.add_argument("--citations-out", type=Path, default=CITATIONS_OUT)
     p.add_argument("--stats", action="store_true", help="report only, no write")
     p.add_argument("--limit", type=int, default=0, help="first N files per source")
+    p.add_argument("--exclude-nc", action="store_true",
+                   help="Drop NonCommercial GLAUx texts (commercial-safe build); "
+                        "writes form_profile_commercial.db / form_citations_commercial.db.")
     args = p.parse_args()
     sources = [s for s in args.sources.split(",") if s]
+
+    from nc_filter import nc_glaux_stems
+    nc_stems = nc_glaux_stems(args.metadata) if args.exclude_nc else frozenset()
+    if args.exclude_nc:
+        if args.profile_out == PROFILE_OUT:
+            args.profile_out = DATA_DIR / "form_profile_commercial.db"
+        if args.citations_out == CITATIONS_OUT:
+            args.citations_out = DATA_DIR / "form_citations_commercial.db"
 
     t0 = time.time()
     stats = Counter()
@@ -737,7 +753,7 @@ def main():
     if "glaux" in sources:
         source_sha["glaux_xml"] = process_glaux(
             args.glaux, glaux_works, forms, form_ids, profiles, works,
-            sink, claimed, args.limit, stats)
+            sink, claimed, args.limit, stats, nc_stems)
     if "diorisis" in sources:
         source_sha["diorisis_xml"] = process_diorisis(
             args.diorisis, forms, form_ids, profiles, works,

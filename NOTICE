@@ -1,0 +1,125 @@
+Dilemma - Third-Party Notices and Attributions
+================================================
+
+Dilemma's own source code is released under the MIT License (see LICENSE).
+
+The data artifacts that Dilemma builds and distributes - the SQLite lookup
+database, the trained character-level model, the corpus-frequency tables, and
+the lemma/form corpus-attestation databases - are DERIVED from the third-party
+sources listed below and remain subject to their respective licenses. They are
+not covered by the MIT license that applies to the code.
+
+Public-domain texts, and faithful digitizations of public-domain texts, are
+credited here for scholarship and provenance; the digitization itself is not
+treated as a separately licensable layer.
+
+Each entry gives, where applicable: title, author/maintainer, source link, and
+license. "Derived/extracted" means Dilemma uses data computed from the source
+(e.g. form-to-lemma pairs, headword lists, token statistics) rather than
+redistributing the source verbatim.
+
+
+Lexica and dictionaries
+-----------------------
+
+- English Wiktionary and Greek Wiktionary (Wikimedia community).
+  https://en.wiktionary.org/ , https://el.wiktionary.org/
+  Obtained as JSONL via kaikki.org (https://kaikki.org/).
+  License: CC BY-SA 3.0  (https://creativecommons.org/licenses/by-sa/3.0/).
+  Glosses and inflection data are extracted and transformed.
+
+- A Greek-English Lexicon (LSJ), H.G. Liddell, R. Scott, H.S. Jones,
+  9th ed. (Oxford, 1940). Public domain. Headwords, forms, and POS via the
+  LSJ9 processed exports (https://github.com/ciscoriordan/lsj9).
+
+- Greek Lexicon of the Roman and Byzantine Periods, E.A. Sophocles.
+  Public domain. TEI via Ionian University / Internet Archive
+  (https://archive.org/details/pateres).
+
+- Perseus Digital Library lexica - Lewis & Short, Pape, Bailly (headword
+  filter only). https://www.perseus.tufts.edu/
+
+- Diccionario Griego-Espanol (DGE), CSIC (headwords only).
+  http://dge.cchs.csic.es/
+
+- Lexicon of Greek Personal Names (LGPN), University of Oxford (proper names
+  only). https://www.lgpn.ox.ac.uk/
+
+
+Treebanks and annotated corpora
+-------------------------------
+
+- GLAUx, Alek Keersmaekers (2021).
+  https://github.com/alekkeersmaekers/glaux
+  License: CC BY-SA 4.0 for most texts; some source texts are more restrictive
+  (e.g. CC BY-NC), with the per-text license recorded in GLAUx's metadata.
+  GLAUx aggregates the dependency treebanks listed below.
+
+- The Ancient Greek Dependency Treebanks (AGDT / Perseus), Perseus Project
+  (G. Crane et al.). https://github.com/PerseusDL/treebank_data
+  License: CC BY-SA 3.0. (The Universal Dependencies release,
+  UD_Ancient_Greek-Perseus, is CC BY-NC-SA 3.0.)
+
+- PROIEL Treebank, the PROIEL project.
+  https://github.com/UniversalDependencies/UD_Ancient_Greek-PROIEL
+  License: CC BY-NC-SA 3.0  (NonCommercial).
+
+- Gorman Treebanks, Vanessa Gorman.
+  https://github.com/UD-Greek/UD_Ancient_Greek-Gorman
+  License: CC BY-NC-SA 4.0  (NonCommercial).
+
+- Pedalion Trees. https://github.com/perseids-publications/pedalion-trees
+  License: CC BY-SA 4.0.
+
+- Harrington Trees. https://github.com/perseids-publications/harrington-trees
+  License: CC BY-SA 4.0.
+
+- The Diorisis Ancient Greek Corpus, A. Vatri and B. McGillivray (2018).
+  https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256
+  License: CC BY-SA 3.0.
+
+- First1KGreek, Open Greek and Latin.
+  https://github.com/OpenGreekAndLatin/First1KGreek
+  License: CC BY-SA 4.0.
+
+- Patristic Text Archive (PTA).
+  https://github.com/PatristicTextArchive/pta_data
+  License: per-file Creative Commons licenses, recorded in each file's header.
+
+- Patrologia Graeca (OCR), Calfa.
+  https://github.com/calfa-co/Patrologia-Graeca
+  License: CC BY 4.0; the underlying Migne text is public domain.
+
+- Byzantine vernacular corpus, Francisco Riordan.
+  https://github.com/ciscoriordan/byzantine-vernacular-corpus
+
+
+Evaluation data
+---------------
+
+- HNC Golden Corpus, CLARIN:EL. License: openUnderPSI.
+  https://inventory.clarin.gr/corpus/870
+
+- DBBE datasets, Swaelens et al. License: CC BY 4.0.
+  https://github.com/coswaele/ByzantineGreekDatasets
+
+
+Frequencies and assets
+----------------------
+
+- glossAPI / Wikisource Greek texts.
+  https://huggingface.co/datasets/glossAPI/Wikisource_Greek_texts
+
+- Flag icons, svg-flags. https://github.com/ciscoriordan/svg-flags
+
+
+A note on NonCommercial components
+----------------------------------
+
+A few annotated corpora carry NonCommercial terms: the PROIEL treebank, the
+Universal Dependencies Perseus release, and the Gorman treebanks, plus
+individual NonCommercial texts within GLAUx. What Dilemma extracts from
+treebanks is factual form-to-lemma annotation and aggregate token statistics,
+not the syntactic apparatus. Each source's license is recorded above, and for
+GLAUx the license is recorded per text in its metadata, so NonCommercial
+sources can be identified and excluded where a particular use requires it.

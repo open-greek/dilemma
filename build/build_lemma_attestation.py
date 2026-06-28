@@ -302,10 +302,15 @@ def diorisis_work_id(root, filename):
     return None
 
 
-def process_glaux(glaux_dir, meta, profiles, limit, stats):
+def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset()):
     glaux_hash = hashlib.sha256()
     work_ids = set()  # GLAUx file stems = TLG work ids, for the Diorisis dedup
     files = sorted(glaux_dir.glob("*.xml"))
+    if nc_stems:
+        before = len(files)
+        files = [f for f in files if f.stem not in nc_stems]
+        print(f"  commercial-safe: excluded {before - len(files)} "
+              f"NonCommercial GLAUx text(s)")
     if limit:
         files = files[:limit]
     print(f"GLAUx: {len(files)} files")
@@ -535,7 +540,15 @@ def main():
     p.add_argument("--limit", type=int, default=0,
                    help="Process only the first N files of each corpus "
                         "(smoke test; gives partial counts).")
+    p.add_argument("--exclude-nc", action="store_true",
+                   help="Drop NonCommercial GLAUx texts (commercial-safe "
+                        "build); writes lemma_attestation_commercial.json.")
     args = p.parse_args()
+
+    from nc_filter import nc_glaux_stems
+    nc_stems = nc_glaux_stems(args.metadata) if args.exclude_nc else frozenset()
+    if args.exclude_nc and args.output == OUTPUT_PATH:
+        args.output = DATA_DIR / "lemma_attestation_commercial.json"
 
     t0 = time.time()
     stats = Counter()
@@ -548,7 +561,7 @@ def main():
     print(f"  {len(glaux_meta)} texts, dialects: {sorted(observed_dialects)}")
 
     source_sha["glaux_xml"], glaux_work_ids = process_glaux(
-        args.glaux, glaux_meta, profiles, args.limit, stats)
+        args.glaux, glaux_meta, profiles, args.limit, stats, nc_stems)
     source_sha["diorisis_xml"] = process_diorisis(
         args.diorisis, profiles, args.limit, stats, glaux_work_ids)
 
