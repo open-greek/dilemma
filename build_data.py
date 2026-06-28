@@ -333,6 +333,19 @@ def extract_pairs(jsonl_path: Path, lang: str,
         "grc-decl",
     }
 
+    # Modern Greek personal-pronoun headword (accent-stripped) -> grammatical
+    # person. The shared MG conjugation table dumps all three persons onto each
+    # headword, so εγώ's forms[] lists the third-person αυτός forms (αυτό,
+    # αυτόν, αυτά, ...) tagged 'third-person'. Without filtering, those map
+    # αυτό -> εγώ. Keep only forms whose person tag matches the headword.
+    _PRON_PERSON = {
+        "εγω": "first-person", "εμεις": "first-person",
+        "εσυ": "second-person", "εσεις": "second-person",
+        "αυτος": "third-person", "αυτη": "third-person", "αυτο": "third-person",
+        "αυτοι": "third-person", "αυτες": "third-person", "αυτα": "third-person",
+    }
+    _PERSON_TAGS = {"first-person", "second-person", "third-person"}
+
     # First pass: collect closed-class headwords and article forms.
     # Article forms leak into Katharevousa noun/adj declension templates
     # (e.g. γωνιακός lists τῶν as its genitive plural "form").
@@ -649,6 +662,16 @@ def extract_pairs(jsonl_path: Path, lang: str,
             for f_entry in forms:
                 tags = f_entry.get("tags", [])
                 form_text = f_entry.get("form", "")
+
+                # Drop cross-person forms from a personal-pronoun table (εγώ's
+                # shared conjugation lists the third-person αυτός forms, which
+                # would mislemmatize αυτό -> εγώ).
+                if pos == "pron":
+                    hw_person = _PRON_PERSON.get(strip_accents(lemma.lower()))
+                    if hw_person:
+                        fp = _PERSON_TAGS.intersection(tags)
+                        if fp and hw_person not in fp:
+                            continue
 
                 # Update dialect context from table-tags. If a page-level
                 # dialect is set (from the entry's own sense tags), it
