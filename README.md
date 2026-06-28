@@ -183,7 +183,7 @@ inference). If you already have PyTorch installed, use `dilemma-nlp[torch]`
 instead, or just plain `dilemma-nlp` to skip the model backend and rely on the
 lookup table alone. The second line downloads the lookup tables, ONNX
 model files, and tagger weights from HuggingFace into `~/.cache/dilemma/`
-(~4.4 GB: lemma data ~1.8 GB + model ~0.07 GB + tagger weights ~2.5 GB; add
+(~3.7 GB: lemma data ~1.8 GB + model ~0.07 GB + tagger weights ~1.8 GB; add
 `--no-tagger` for the ~1.9 GB lemma-only download).
 
 Dilemma uses `$DILEMMA_DATA_DIR` if set; otherwise it picks whichever of
@@ -1008,30 +1008,40 @@ loci (and implies the profile). Without them, `attested_only` and
 
 ## POS tagger and dependency parser
 
-Dilemma also ships a diachronic Greek POS tagger and dependency parser.
-They live under `dilemma.tagger` and install via the `[tagger]` extra
-(the dependency that pulls in `torch` and `transformers`):
+Dilemma also ships a diachronic Greek POS tagger and dependency parser
+under `dilemma.tagger`. The Ancient-Greek (`grc`) path uses a fine-tuned
+[GreBerta](https://huggingface.co/bowphs/GreBerta) encoder (Apache-2.0)
+that PRESERVES polytonic accents and breathings, and runs on a lightweight
+`onnxruntime` + `tokenizers` backend (no `torch`):
 
 ```bash
-pip install "dilemma-nlp[tagger]"
-python -m dilemma download              # also fetches the tagger weights
+pip install "dilemma-nlp[tagger-onnx]"   # grc morphology tagger (no torch)
+# or "dilemma-nlp[tagger]" for the full torch tagger + dependency parser (el/med)
+python -m dilemma download               # also fetches the tagger weights
 ```
 
 ```python
 from dilemma import Tagger
 
-tagger = Tagger(lang="grc", device="cpu")    # Ancient Greek (device auto-detected)
+tagger = Tagger(lang="grc")    # Ancient Greek (GreBerta, accent-preserving)
 results = tagger.tag(["μῆνιν ἄειδε θεὰ Πηληϊάδεω Ἀχιλῆος"])
 for tok in results[0]:
     print(tok)
-# {'form': 'μηνιν', 'upos': 'NOUN', 'lemma': 'μῆνις', 'feats': {...},
-#  'head': 2, 'deprel': 'obj', 'raw_form': 'μῆνιν'}
+# {'form': 'μῆνιν', 'upos': 'NOUN', 'lemma': 'μῆνις',
+#  'feats': {'Case': 'Acc', 'Number': 'Sing', 'Gender': 'Fem'},
+#  'head': None, 'deprel': None, 'raw_form': 'μῆνιν'}
 ```
 
 Supports `lang="el"` (Modern Greek), `lang="grc"` (Ancient), and
 `lang="med"` (Medieval/Byzantine). When `lemmatize=True` (the default),
 the tagger preloads the lemmatizer module internally and returns a
-`lemma` field on every token.
+`lemma` field on every token (POS-aware, from the `grc` UPOS prediction).
+
+The `grc` GreBerta backend does contextual UPOS + core UD-feature tagging
+(no dependency parsing, so `head`/`deprel` are `None`); on held-out Iliad
+it reaches ~97% UPOS / ~95% UPOS+features. The `el` and `med` paths use the
+joint POS tagger + dependency parser (Ancient-Greek-BERT / Greek-BERT),
+which needs the heavier `[tagger]` extra (`torch` + `transformers`).
 
 The tagger is ~25x faster than `gr-nlp-toolkit` on real-world Greek text
 after `gr-nlp-toolkit`'s [PR #29](https://github.com/nlpaueb/gr-nlp-toolkit/pull/29)

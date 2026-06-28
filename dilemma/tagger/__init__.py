@@ -105,6 +105,8 @@ class Tagger:
         self._lemma_cache = lemma_cache
         self._lemmatizer = None
         self._dialect = dialect
+        self._using_greberta = False   # accent-preserving ONNX backend (grc)
+        self._greberta = None
 
         if lang == "el":
             self._init_el(pos_path, dp_path)
@@ -113,8 +115,10 @@ class Tagger:
         else:
             raise ValueError(f"Unsupported language: {lang}. Use 'el', 'grc', or 'med'.")
 
-        self.model.to(self.device)
-        self.model.eval()
+        # The GreBerta backend is an ONNX session, not a torch module.
+        if self.model is not None:
+            self.model.to(self.device)
+            self.model.eval()
 
         if self._lemmatize:
             self._init_lemmatizer()
@@ -166,9 +170,25 @@ class Tagger:
     def _init_grc(self, checkpoint):
         """Initialize AG/Medieval model with single BERT (jointly trained).
 
-        Prefers ONNX weights if available (no PyTorch/transformers needed
-        for inference). Falls back to PyTorch checkpoint.
+        Prefers the accent-preserving GreBerta ONNX backend when its weights
+        are present (grc); else the joint Ancient-Greek-BERT ONNX, else the
+        PyTorch checkpoint.
         """
+        # Accent-preserving GreBerta backend (preferred for grc, and for med -
+        # Byzantine literary Greek is classicizing, so the AG model serves it).
+        # Only auto-selected when no explicit checkpoint was requested.
+        if checkpoint is None:
+            from .grc_onnx import GreBertaTagger
+            # med has no model of its own; fall back to the grc GreBerta weights.
+            candidates = [self.lang, "grc"] if self.lang == "med" else [self.lang]
+            for cand in candidates:
+                gdir = _WEIGHTS_DIR / cand
+                if GreBertaTagger.available(gdir):
+                    self._greberta = GreBertaTagger(gdir)
+                    self._using_greberta = True
+                    self.model = None
+                    return
+
         # Try ONNX if explicitly requested via checkpoint="onnx"
         onnx_dir = _WEIGHTS_DIR / self.lang / "onnx"
         if checkpoint == "onnx" and (onnx_dir / "tagger_joint.onnx").exists():
@@ -284,6 +304,13 @@ class Tagger:
 
     def _tag_batch(self, sentences: list[str]) -> list[list[dict]]:
         """Process a single batch through the model."""
+        if self._using_greberta:
+            # Accent-preserving GreBerta path: its own tokenization + decode,
+            # then the shared (language-agnostic) lemmatization step.
+            results = self._greberta.tag_sentences(sentences)
+            self._add_lemmas(results)
+            return results
+
         enc = batch_tokenize(sentences)
 
         if getattr(self, "_using_onnx", False):
@@ -303,6 +330,15 @@ class Tagger:
             raw_forms=enc.raw_forms,
         )
 
+        self._add_lemmas(results)
+        return results
+
+    def _add_lemmas(self, results: list[list[dict]]) -> None:
+        """Attach lemmas to decoded tokens in place (shared by all backends).
+
+        Uses the polytonic ``raw_form`` (Dilemma's lookup is keyed on polytonic
+        forms) and the predicted UPOS for POS-aware disambiguation.
+        """
         if self._lemmatize and self._lemmatizer is not None:
             # Use raw (polytonic) forms for lemmatization when available,
             # since Dilemma's lookup tables are keyed on polytonic forms.
@@ -348,5 +384,3 @@ class Tagger:
             for sent_tokens in results:
                 for token in sent_tokens:
                     token["lemma"] = token["form"]
-
-        return results

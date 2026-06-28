@@ -38,6 +38,11 @@ dev = ["pytest>=7"]
 # Tagger: POS tagger + dependency parser. Pulls torch and transformers,
 # so it is opt-in - users who only want the lemmatizer can skip it.
 tagger = ["torch>=2.5", "transformers", "huggingface_hub>=0.20"]
+# Lightweight Ancient-Greek tagger: the GreBerta morphology backend runs on
+# onnxruntime + tokenizers only (no torch/transformers). Enough for
+# `Tagger(lang="grc")` accent-preserving UPOS + feature tagging.
+tagger-onnx = ["onnxruntime>=1.15", "tokenizers>=0.15", "numpy>=1.24",
+               "huggingface_hub>=0.20"]
 
 [project.urls]
 Homepage = "https://github.com/ciscoriordan/dilemma"
