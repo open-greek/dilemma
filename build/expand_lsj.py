@@ -46,6 +46,166 @@ _KAIKKI_AG_FLAT = KAIKKI_DIR / "kaikki.org-en-dictionary-AncientGreek.jsonl"
 KAIKKI_AG = _KAIKKI_AG_NESTED if _KAIKKI_AG_NESTED.exists() else _KAIKKI_AG_FLAT
 WTP_DB = DATA_DIR / "wtp.db"
 
+# --- Lua runtime compatibility for running Wiktionary's grc modules via wtp ---
+# lupa's default runtime here is PUC Lua 5.5, which is too strict for the
+# Wiktionary modules: its numeric for-loop variable is read-only (Module:scripts
+# reassigns it) and string.char rejects floats. Lua 5.1/5.2 are too old for
+# wtp's OWN sandbox (it uses `load(string)` and `\u` escapes). Lua 5.3 is the one
+# version that satisfies both, together with the Module:string/char override
+# below (which handles the float->int issue 5.3 still enforces). Force it.
+try:
+    import lupa.lua53 as _lua53
+    import wikitextprocessor.luaexec as _wtp_luaexec
+    _wtp_luaexec.LuaRuntime = _lua53.LuaRuntime
+except Exception:
+    pass
+
+# Three idempotent patches to wtp's bundled sandbox Lua files (gaps that break
+# the grc presentation modules). Applied at import; no-ops once applied.
+try:
+    import wikitextprocessor as _wtp_pkg
+    _luadir = Path(_wtp_pkg.__file__).parent / "lua"
+
+    # (a) mw_text.lua: mw.text.unstrip calls the misspelled `untripNoWiki`
+    # (defined as `unstripNoWiki`), crashing the grc link path; and two per-call
+    # debug print()s would flood a full expansion.
+    _mt = _luadir / "mw_text.lua"
+    _s = _mt.read_text(encoding="utf-8")
+    _f = (_s.replace("mw.text.untripNoWiki", "mw.text.unstripNoWiki")
+            .replace('   print("mw.text.unstripNoWiki called")\n', "")
+            .replace('   print("mw.text.killMarkers called")\n', ""))
+    if _f != _s:
+        _mt.write_text(_f, encoding="utf-8")
+
+    # (b) _sandbox_phase1.lua: expose `package` to modules (Module:load,
+    # Module:require when needed, labels, ... read package.loaded/loaders).
+    _p1 = _luadir / "_sandbox_phase1.lua"
+    _s = _p1.read_text(encoding="utf-8")
+    if 'env["package"]' not in _s:
+        _anchor = '    env["require"] = _orig_new_require'
+        _pkg = (_anchor + '\n    env["package"] = { loaded = _orig_package.loaded,'
+                ' loaders = { [2] = function(m) return function() return'
+                ' _orig_new_require(m) end end },'
+                ' searchers = { [2] = function(m) return function() return'
+                ' _orig_new_require(m) end end }, preload = {} }')
+        if _anchor in _s:
+            _p1.write_text(_s.replace(_anchor, _pkg, 1), encoding="utf-8")
+
+    # (c) mw_title.lua: mw.title.new should accept a title object (it has
+    # __tostring) rather than asserting it is a string.
+    _mti = _luadir / "mw_title.lua"
+    _s = _mti.read_text(encoding="utf-8")
+    _old = '   assert(type(text) == "string")'
+    _new = '   if type(text) ~= "string" then text = tostring(text) end'
+    if _old in _s:
+        _mti.write_text(_s.replace(_old, _new, 1), encoding="utf-8")
+except Exception:
+    pass
+
+# The current Wiktionary Module:load caches loaders/data via Lua's
+# `package.loaded` and `package.loaders[2]`, which wtp's module sandbox does not
+# expose (modules see `package` as nil). That breaks every module that loads
+# data through it (grc-decl -> grc-decl/table -> languages -> load_data), so the
+# paradigm expansion silently produces zero forms. We override Module:load with
+# a sandbox-compatible shim providing the same public API (safe_require,
+# load_data, safe_load_data) backed by `require` + `mw.loadData` and plain-table
+# caching. Loaded after the tarball modules so it wins.
+_LOAD_MODULE_SHIM = """\
+local export = {}
+local require, loadData = require, mw.loadData
+local req_cache, data_cache = {}, {}
+
+function export.safe_require(modname)
+\tlocal c = req_cache[modname]
+\tif c ~= nil then if c == false then return nil end return c end
+\tlocal ok, mod = pcall(require, modname)
+\tif ok then req_cache[modname] = mod return mod end
+\treq_cache[modname] = false
+\treturn nil
+end
+
+function export.load_data(modname)
+\tlocal c = data_cache[modname]
+\tif c ~= nil and c ~= false then return c end
+\tlocal data = loadData(modname)
+\tdata_cache[modname] = data
+\treturn data
+end
+
+function export.safe_load_data(modname)
+\tlocal c = data_cache[modname]
+\tif c ~= nil then if c == false then return nil end return c end
+\tlocal ok, data = pcall(loadData, modname)
+\tif ok then data_cache[modname] = data return data end
+\tdata_cache[modname] = false
+\treturn nil
+end
+
+return export
+"""
+
+# Replacement for Wiktionary's Module:string/char. The original manually
+# UTF-8-encodes codepoints with float division and calls string.char on the
+# float bytes, which Lua 5.3+ rejects. This returns the same thing (a function
+# mapping codepoints -> UTF-8 string) using utf8.char with integer coercion.
+_STRING_CHAR_SHIM = """\
+local char, floor, unpack = string.char, math.floor, table.unpack
+return function(...)
+\tlocal n = select("#", ...)
+\tif n == 0 then return end
+\tlocal bytes, b = {}, 0
+\tfor i = 1, n do
+\t\tlocal cp = floor((select(i, ...)))  -- integer cp so // and % stay integer
+\t\tif cp < 0x80 then
+\t\t\tb = b + 1; bytes[b] = cp
+\t\telseif cp < 0x800 then
+\t\t\tbytes[b+1] = 0xC0 + cp // 0x40
+\t\t\tbytes[b+2] = 0x80 + cp % 0x40
+\t\t\tb = b + 2
+\t\telseif cp < 0x10000 then
+\t\t\tbytes[b+1] = 0xE0 + cp // 0x1000
+\t\t\tbytes[b+2] = 0x80 + cp // 0x40 % 0x40
+\t\t\tbytes[b+3] = 0x80 + cp % 0x40
+\t\t\tb = b + 3
+\t\telse
+\t\t\tbytes[b+1] = 0xF0 + cp // 0x40000
+\t\t\tbytes[b+2] = 0x80 + cp // 0x1000 % 0x40
+\t\t\tbytes[b+3] = 0x80 + cp // 0x40 % 0x40
+\t\t\tbytes[b+4] = 0x80 + cp % 0x40
+\t\t\tb = b + 4
+\t\tend
+\tend
+\treturn char(unpack(bytes, 1, b))
+end
+"""
+
+# grc-decl computes the inflected forms, then wraps each in Module:links.full_link
+# for display, which drags in the headword/title/maintenance-category machinery
+# that wtp's sandbox only partially implements. We only need the forms, and
+# full_link's `term` IS the form, so replace Module:links with a shim whose link
+# functions return the bare term and whose every other function is a no-op.
+_LINKS_SHIM = """\
+local export = {}
+local function term_of(data)
+  if type(data) == "table" then return data.alt or data.term or "" end
+  if data == nil then return "" end
+  return tostring(data)
+end
+function export.full_link(data) return term_of(data) end
+function export.language_link(data) return term_of(data) end
+function export.plain_link(data) return term_of(data) end
+return setmetatable(export, { __index = function() return function() return "" end end })
+"""
+
+# Pure-decoration modules that only add maintenance/hidden categories or other
+# page chrome we don't want. Their page-context machinery (Module:pages page-type
+# lookups, etc.) crashes in the synthetic sandbox, so replace each with a
+# no-op: every function returns "".
+_NOOP_MODULE_SHIM = """\
+return setmetatable({}, { __index = function() return function() return "" end end })
+"""
+_NOOP_MODULES = ["Module:maintenance category", "Module:pages"]
+
 # Article -> gender mapping
 GENDER_MAP = {
     "ὁ": "m", "ἡ": "f", "τό": "n",
@@ -430,7 +590,7 @@ def setup_wtp():
     if WTP_DB.exists():
         WTP_DB.unlink()
 
-    wtp = Wtp(db_path=str(WTP_DB))
+    wtp = Wtp(cache_file=str(WTP_DB))  # wtp >=0.4.x renamed db_path -> cache_file
 
     NS_MODULE = 828
     NS_TEMPLATE = 10
@@ -458,10 +618,27 @@ def setup_wtp():
                     continue
                 body = f.read().decode("utf-8", errors="replace")
                 title = tar_to_title(member.name, ns_name)
-                wtp.add_page(title, ns_id, body, model=model)
+                # wtp >=0.4.x: add_page(model, title, text) - no namespace_id arg
+                wtp.add_page(model, title, body)
                 count += 1
         print(f"  Loaded {count:,} {ns_name.lower()}s")
 
+    # Override Wiktionary's Module:load (which needs Lua `package`, absent in the
+    # wtp sandbox) with a sandbox-compatible shim. See _LOAD_MODULE_SHIM.
+    wtp.add_page("Scribunto", "Module:load", _LOAD_MODULE_SHIM)
+    wtp.add_page("Scribunto", "Module:string/char", _STRING_CHAR_SHIM)
+    wtp.add_page("Scribunto", "Module:links", _LINKS_SHIM)
+    for _m in _NOOP_MODULES:
+        wtp.add_page("Scribunto", _m, _NOOP_MODULE_SHIM)
+    print("  Patched Module:load + string/char + links + "
+          f"{len(_NOOP_MODULES)} no-op decoration module(s) for the wtp sandbox.")
+
+    # wtp >=0.4.x: analyze_templates() persists the template-transclusion index
+    # to the cache file. Without it, a fresh Wtp opened from wtp.db (the separate
+    # --expand process) cannot resolve any {{template}} and every paradigm
+    # expands to an error, so the expansion silently adds ~0 forms.
+    print("  Analyzing templates (persists transclusion index to cache)...")
+    wtp.analyze_templates()
     print("  Database ready.")
     return wtp
 
@@ -477,7 +654,7 @@ def get_wtp():
     if WTP_DB.exists():
         from wikitextprocessor import Wtp
         print(f"Loading existing wtp database from {WTP_DB}...")
-        _WTP_INSTANCE = Wtp(db_path=str(WTP_DB))
+        _WTP_INSTANCE = Wtp(cache_file=str(WTP_DB))
     else:
         _WTP_INSTANCE = setup_wtp()
     return _WTP_INSTANCE
