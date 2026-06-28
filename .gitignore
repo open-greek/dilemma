@@ -82,6 +82,7 @@ mg_ranked_forms_verbose.json
 ag_ranked_forms_verbose.json
 med_ranked_forms_verbose.json
 mg_lookup_scored.json
+med_lookup_scored.json
 
 # Env / local dev
 .env
