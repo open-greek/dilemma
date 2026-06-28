@@ -183,7 +183,7 @@ inference). If you already have PyTorch installed, use `dilemma-nlp[torch]`
 instead, or just plain `dilemma-nlp` to skip the model backend and rely on the
 lookup table alone. The second line downloads the lookup tables, ONNX
 model files, and tagger weights from HuggingFace into `~/.cache/dilemma/`
-(~3.7 GB: lemma data ~1.8 GB + model ~0.07 GB + tagger weights ~1.8 GB; add
+(~2.9 GB: lemma data ~1.8 GB + model ~0.07 GB + tagger weights ~1.0 GB; add
 `--no-tagger` for the ~1.9 GB lemma-only download).
 
 Dilemma uses `$DILEMMA_DATA_DIR` if set; otherwise it picks whichever of
