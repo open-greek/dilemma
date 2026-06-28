@@ -105,8 +105,8 @@ class Tagger:
         self._lemma_cache = lemma_cache
         self._lemmatizer = None
         self._dialect = dialect
-        self._using_greberta = False   # accent-preserving ONNX backend (grc)
-        self._greberta = None
+        self._using_onnx_morph = False   # ONNX morphology backend (grc/med/el)
+        self._morph_onnx = None
 
         if lang == "el":
             self._init_el(pos_path, dp_path)
@@ -115,7 +115,7 @@ class Tagger:
         else:
             raise ValueError(f"Unsupported language: {lang}. Use 'el', 'grc', or 'med'.")
 
-        # The GreBerta backend is an ONNX session, not a torch module.
+        # The ONNX morph backend is an onnxruntime session, not a torch module.
         if self.model is not None:
             self.model.to(self.device)
             self.model.eval()
@@ -126,10 +126,20 @@ class Tagger:
     def _init_el(self, pos_path, dp_path):
         """Initialize MG model.
 
-        Checks for a fine-tuned single-backbone checkpoint first (from
-        train.py --lang el). Falls back to gr-nlp-toolkit dual-backbone
-        weights if no checkpoint exists.
+        Prefers the torch-free ONNX morph backend (Greek-BERT, trained on
+        UD_Greek-GDT). Else a fine-tuned single-backbone checkpoint (from
+        train.py --lang el), else gr-nlp-toolkit dual-backbone weights.
         """
+        # Torch-free ONNX morph backend (no explicit weight paths requested)
+        if pos_path is None and dp_path is None:
+            from .onnx_backend import OnnxMorphTagger
+            el_dir = _WEIGHTS_DIR / "el"
+            if OnnxMorphTagger.available(el_dir):
+                self._morph_onnx = OnnxMorphTagger(el_dir)
+                self._using_onnx_morph = True
+                self.model = None
+                return
+
         # Prefer fine-tuned single-backbone checkpoint
         finetuned = _WEIGHTS_DIR / "el" / "tagger_el.pt"
         if finetuned.exists():
@@ -174,18 +184,18 @@ class Tagger:
         are present (grc); else the joint Ancient-Greek-BERT ONNX, else the
         PyTorch checkpoint.
         """
-        # Accent-preserving GreBerta backend (preferred for grc, and for med -
-        # Byzantine literary Greek is classicizing, so the AG model serves it).
+        # Accent-preserving GreBerta ONNX backend (preferred for grc, and for med
+        # - Byzantine literary Greek is classicizing, so the AG model serves it).
         # Only auto-selected when no explicit checkpoint was requested.
         if checkpoint is None:
-            from .grc_onnx import GreBertaTagger
+            from .onnx_backend import OnnxMorphTagger
             # med has no model of its own; fall back to the grc GreBerta weights.
             candidates = [self.lang, "grc"] if self.lang == "med" else [self.lang]
             for cand in candidates:
                 gdir = _WEIGHTS_DIR / cand
-                if GreBertaTagger.available(gdir):
-                    self._greberta = GreBertaTagger(gdir)
-                    self._using_greberta = True
+                if OnnxMorphTagger.available(gdir):
+                    self._morph_onnx = OnnxMorphTagger(gdir)
+                    self._using_onnx_morph = True
                     self.model = None
                     return
 
@@ -240,7 +250,9 @@ class Tagger:
             else:
                 self._lemmatize = False
                 return
-        dilemma_lang = "all"
+        # Use the MG lookup for Modern Greek (avoids AG lemmas like την->ὅς,
+        # Τρώες->Τρώς); the "all" lookup for AG/Medieval.
+        dilemma_lang = "el" if self.lang == "el" else "all"
         self._lemmatizer = Dilemma(lang=dilemma_lang, device="cpu",
                                    dialect=self._dialect)
         self._lemmatizer.preload()
@@ -304,10 +316,10 @@ class Tagger:
 
     def _tag_batch(self, sentences: list[str]) -> list[list[dict]]:
         """Process a single batch through the model."""
-        if self._using_greberta:
-            # Accent-preserving GreBerta path: its own tokenization + decode,
+        if self._using_onnx_morph:
+            # ONNX morph backend (grc/med/el): its own tokenization + decode,
             # then the shared (language-agnostic) lemmatization step.
-            results = self._greberta.tag_sentences(sentences)
+            results = self._morph_onnx.tag_sentences(sentences)
             self._add_lemmas(results)
             return results
 

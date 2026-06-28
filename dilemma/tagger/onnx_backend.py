@@ -1,26 +1,30 @@
-"""Accent-preserving GreBerta morphology backend for the Ancient-Greek path.
+"""Accent-preserving ONNX morphology backend shared by the Ancient-Greek and
+Modern-Greek tagger paths.
 
-This replaces the de-accenting Ancient-Greek-BERT model on the ``grc`` path with
-a fine-tuned GreBerta encoder (Apache-2.0, polytonic-preserving byte-level BPE).
-It predicts UPOS + the core UD features IN CONTEXT and, unlike the joint morphy
-model, does NOT de-accent the input, so breathing marks and accents - which
-distinguish real minimal pairs - survive into the tagger.
+Both languages use the same architecture (a transformer encoder + per-feature
+classification heads) exported to a 3-input ONNX model
+(``input_ids, attention_mask, sub_idx`` -> ``upos`` + one logit tensor per UD
+feature). Only the encoder + label set differ, and both are captured in the
+weights directory, so one runtime serves both:
+
+- ``grc`` / ``med``: GreBerta (Apache-2.0, polytonic-preserving byte-level BPE).
+- ``el``:            Greek-BERT (nlpaueb), trained on UD_Greek-GDT.
 
 Pure runtime: onnxruntime + tokenizers + numpy (no torch, no transformers). It
-produces the same per-token dict shape the joint decoder does, except it does
-not do dependency parsing, so ``head``/``deprel`` are ``None``. Lemmas are added
-downstream by ``Tagger`` via the Dilemma lemmatizer (shared with the MG path).
+does contextual UPOS + UD-feature tagging - no dependency parsing, so
+``head``/``deprel`` are ``None``. Lemmas are added downstream by ``Tagger`` via
+the Dilemma lemmatizer.
 """
 import json
 from pathlib import Path
 
 import numpy as np
 
-PAD_ID = 1  # GreBerta / RoBERTa <pad>
+PAD_ID = 1  # RoBERTa <pad>; BERT uses 0 (set from the tokenizer below)
 
 
-class GreBertaTagger:
-    """ONNX GreBerta UPOS + UD-feature tagger over whitespace-split words."""
+class OnnxMorphTagger:
+    """ONNX UPOS + UD-feature tagger over whitespace-split words."""
 
     REQUIRED = ("tagger.onnx", "tagger_labels.json")
 
@@ -37,7 +41,7 @@ class GreBertaTagger:
             from tokenizers import Tokenizer
         except ImportError as e:  # pragma: no cover - optional extra
             raise ImportError(
-                "The GreBerta tagger needs `onnxruntime` and `tokenizers` "
+                "The ONNX tagger needs `onnxruntime` and `tokenizers` "
                 "(`pip install onnxruntime tokenizers`).") from e
         self.sess = ort.InferenceSession(
             str(d / "tagger.onnx"), providers=["CPUExecutionProvider"])
@@ -48,12 +52,30 @@ class GreBertaTagger:
         self.none = lab["none"]
         self.max_len = lab["max_len"]
         self.tok = Tokenizer.from_file(str(d / "tokenizer" / "tokenizer.json"))
+        # pad id from the tokenizer (RoBERTa=1, BERT=0)
+        pad = self.tok.token_to_id("<pad>")
+        if pad is None:
+            pad = self.tok.token_to_id("[PAD]")
+        self.pad_id = pad if pad is not None else PAD_ID
+        # Optional multiword-token split map (Modern Greek: στο -> σ + το). The
+        # model is trained on syntactic words, so MWT surfaces are expanded here.
+        mwt_path = d / "mwt.json"
+        self.mwt = (json.loads(mwt_path.read_text(encoding="utf-8"))
+                    if mwt_path.exists() else {})
+
+    def _split_mwt(self, words):
+        if not self.mwt:
+            return words
+        out = []
+        for w in words:
+            out.extend(self.mwt.get(w.lower(), [w]))
+        return out
 
     def tag_sentences(self, sentences, bs: int = 32):
         """sentences: list[str]. Returns list (per sentence) of token dicts
         {form, raw_form, upos, feats, head, deprel} aligned to whitespace words.
         head/deprel are None (no dependency parsing on this path)."""
-        token_lists = [s.split() for s in sentences]
+        token_lists = [self._split_mwt(s.split()) for s in sentences]
         out = [None] * len(token_lists)
         order = sorted(range(len(token_lists)), key=lambda i: len(token_lists[i]))
         for s in range(0, len(order), bs):
@@ -67,7 +89,7 @@ class GreBertaTagger:
             maxsub = min(self.max_len, max(len(e.ids) for e in encs))
             maxw = max(len(token_lists[i]) for i in idxs)
             B = len(idxs)
-            ids = np.full((B, maxsub), PAD_ID, dtype=np.int64)
+            ids = np.full((B, maxsub), self.pad_id, dtype=np.int64)
             mask = np.zeros((B, maxsub), dtype=np.int64)
             sub = np.zeros((B, maxw), dtype=np.int64)
             nwords = []

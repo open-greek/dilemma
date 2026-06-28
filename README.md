@@ -1037,11 +1037,13 @@ Supports `lang="el"` (Modern Greek), `lang="grc"` (Ancient), and
 the tagger preloads the lemmatizer module internally and returns a
 `lemma` field on every token (POS-aware, from the `grc` UPOS prediction).
 
-The `grc` GreBerta backend does contextual UPOS + core UD-feature tagging
-(no dependency parsing, so `head`/`deprel` are `None`); on held-out Iliad
-it reaches ~97% UPOS / ~95% UPOS+features. The `el` and `med` paths use the
-joint POS tagger + dependency parser (Ancient-Greek-BERT / Greek-BERT),
-which needs the heavier `[tagger]` extra (`torch` + `transformers`).
+All three languages run on the torch-free ONNX backend (`[tagger-onnx]`):
+`grc`/`med` on GreBerta, `el` on Greek-BERT (trained on UD_Greek-GDT, ~98%
+UPOS on held-out test; Modern Greek multiword tokens like στο = σ + το are
+split automatically). It does contextual UPOS + UD-feature tagging, no
+dependency parsing, so `head`/`deprel` are `None`. The standalone dependency
+parser (and the legacy joint Ancient-Greek-BERT model) still need the heavier
+`[tagger]` extra (`torch` + `transformers`).
 
 The tagger is ~25x faster than `gr-nlp-toolkit` on real-world Greek text
 after `gr-nlp-toolkit`'s [PR #29](https://github.com/nlpaueb/gr-nlp-toolkit/pull/29)
