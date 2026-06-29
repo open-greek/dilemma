@@ -228,6 +228,7 @@ class TestExpandVerbIntegration:
 
     @pytest.fixture(scope="class")
     def wtp(self, el):
+        pytest.importorskip("wikitextprocessor")
         if not el.WTP_DB.exists():
             pytest.skip("wtp.db not present (run --setup first)")
         return el.get_wtp()

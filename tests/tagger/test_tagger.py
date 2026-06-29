@@ -40,6 +40,33 @@ def _has_dilemma():
 
 
 # ---------------------------------------------------------------------------
+# Torch-free runtime (a 1.0 guarantee)
+# ---------------------------------------------------------------------------
+
+def test_tagger_runtime_is_torch_free():
+    """Importing the tagger runtime must not pull in torch or transformers.
+
+    Run in a fresh subprocess so other tests' imports don't pollute sys.modules.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parents[2]
+    code = (
+        "import sys; "
+        f"sys.path.insert(0, {str(repo_root)!r}); "
+        "import dilemma.tagger; "
+        "print('torchfree=' + str('torch' not in sys.modules "
+        "and 'transformers' not in sys.modules))"
+    )
+    out = subprocess.run([sys.executable, "-c", code],
+                         capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    assert "torchfree=True" in out.stdout, \
+        f"tagger import pulled torch/transformers:\n{out.stdout}\n{out.stderr}"
+
+
+# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 

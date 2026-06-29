@@ -74,6 +74,8 @@ def _get_dilemma(lang="all"):
 
 
 class TestResult:
+    __test__ = False  # a result-holder helper, not a pytest test class
+
     def __init__(self, name, passed, message=""):
         self.name = name
         self.passed = passed

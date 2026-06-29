@@ -1,4 +1,9 @@
-"""Pytest configuration for Morphy tests."""
+"""Pytest configuration shared across the dilemma test suite.
+
+Defines the ``--run-slow`` flag (and the auto-skip of ``@pytest.mark.slow``
+tests without it) at the suite root so it works for ``pytest tests/`` as well
+as ``pytest tests/tagger/``.
+"""
 
 import pytest
 

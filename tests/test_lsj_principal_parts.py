@@ -327,8 +327,9 @@ WTP_DB = SCRIPT_DIR / "data" / "wtp.db"
 
 @pytest.fixture(scope="module")
 def wtp_instance():
-    """Lazily build a WTP instance. Skips the test if the wtp.db
-    artifact is missing."""
+    """Lazily build a WTP instance. Skips the test if the wikitextprocessor
+    package or the wtp.db artifact is missing."""
+    pytest.importorskip("wikitextprocessor")
     if not WTP_DB.exists():
         pytest.skip(f"wtp.db not present at {WTP_DB}; skipping integration")
     from expand_lsj import get_wtp
