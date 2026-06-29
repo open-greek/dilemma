@@ -30,7 +30,9 @@ lemma/form corpus-attestation databases - are DERIVED FROM third-party sources
 and remain subject to their respective upstream licenses, not the MIT license.
 The full list of those sources and their licenses is in the NOTICE file.
 
-Some of those sources carry NonCommercial terms (the PROIEL, Gorman, and UD
-Perseus treebanks, and a few NonCommercial-licensed GLAUx texts). A
-commercial-safe build (the `--exclude-nc` build flag) drops them and emits
-`*_commercial` artifacts. See NOTICE for details.
+The build is openly licensed by default: NonCommercial sources are never
+ingested. The PROIEL treebank (CC BY-NC-SA) and UD Perseus are dropped
+entirely, the NonCommercial GLAUx texts and NonCommercial PTA files are
+filtered out, and UD Perseus is replaced by the AGDT original (CC BY-SA).
+Gorman (CC BY-SA 4.0) and Diorisis (CC BY 4.0) are kept. See NOTICE for the
+full per-source list.

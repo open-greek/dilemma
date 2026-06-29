@@ -16,6 +16,7 @@ data/med_lookup.json
 data/med_pairs.json
 data/mg_lookup.json
 data/mg_pairs.json
+data/proiel_pairs.json  # PROIEL is CC BY-NC-SA; never ingested, kept out of the openly-licensed repo
 data/spell_index.db
 data/vesuvius_index.json.gz
 

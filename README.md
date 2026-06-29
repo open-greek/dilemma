@@ -549,7 +549,7 @@ The lookup table is built from Wiktionary [kaikki dumps](https://kaikki.org/)
 (EN and EL editions for MG and AG, plus EL Medieval Greek), expanded with
 inflected forms from LSJ (via Wiktionary Lua modules) and the Sophocles
 lexicon of Roman and Byzantine Greek, then augmented with form-lemma pairs
-from gold-standard treebanks (PROIEL, Gorman, AGDT). Each form is indexed under
+from gold-standard treebanks (Gorman, AGDT). Each form is indexed under
 its original, monotonic, and accent-stripped variants, so `θεοὶ` (polytonic
 with grave), `θεοί` (monotonic with acute), and `θεοι` (stripped) all
 resolve to `θεός`. Input can be polytonic, monotonic, or unaccented. AG
@@ -668,7 +668,7 @@ It's supervised, not self-supervised. Training data is 3.5M explicit
 and Medieval, including the LSJ verb-paradigm Lua expansion) plus the
 GLAUx morphologically-tagged corpus. Every example has a known-correct
 answer. (The LSJ/Sophocles noun expansion and the other treebanks --
-Perseus, PROIEL, Gorman, Diorisis, HNC -- feed the lookup table, not
+Perseus, Gorman, Diorisis, HNC -- feed the lookup table, not
 the model; DiGreC is evaluation-only.)
 
 The vocabulary is character-level, not subword. The encoder reads one
@@ -1203,7 +1203,7 @@ much larger than the headword count suggests.
 However, Wiktionary tags are only a fraction of Dilemma's actual dialect
 coverage. Corpus-derived form-lemma pairs add substantially more:
 GLAUx contributes 76K Ionic pairs from Herodotus and the Hippocratic
-corpus, PROIEL adds 33K gold-standard Herodotus pairs, and Gorman adds
+corpus, and Gorman adds
 79K pairs across Herodotus, Thucydides, Xenophon, Demosthenes, and
 others. The dialect normalization layer (Ionic, Doric, Aeolic, Koine)
 then maps remaining dialectal forms to their Attic equivalents for
@@ -1483,8 +1483,8 @@ and covers core lemmatization, particle suffix stripping, verb
 morphology stripping, article-agreement disambiguation, crasis
 resolution, elision handling, orthographic normalization, dialect
 normalization (Ionic, Doric, Aeolic, Koine), convention switching,
-language filtering, spelling suggestions, batch operations, PROIEL /
-Gorman treebank pairs, and edge cases. The remaining files cover
+language filtering, spelling suggestions, batch operations, Gorman
+treebank pairs, and edge cases. The remaining files cover
 paradigm builders, athematic verb expansion, LSJ principal-parts
 extraction, the `morph_diff` annotator, and end-to-end integrity
 checks.
@@ -1906,7 +1906,7 @@ forms**. The long-tail gap is dominated by elision forms (`δ’`, `ἀλλ’`,
 headwords. None of the six sources is lemmatised end-to-end by Dilemma,
 so they all contribute frequency and coverage signal but not new
 form-lemma pairs (lemma pairs come from Wiktionary plus the
-GLAUx/Diorisis/PROIEL/Gorman/Perseus treebanks).
+GLAUx/Diorisis/Gorman/Perseus treebanks).
 
 #### Extraction sources
 
@@ -2139,7 +2139,7 @@ vocabulary (~381 tokens), so the same word is ~10 steps. Combined with
 
 Dilemma builds on openly licensed lexica, treebanks, and corpora - Wiktionary,
 LSJ, the Sophocles lexicon, GLAUx, Diorisis, First1KGreek, the Patristic Text
-Archive, the Patrologia Graeca, the AGDT / PROIEL / Gorman dependency treebanks,
+Archive, the Patrologia Graeca, the AGDT / Gorman dependency treebanks,
 and more. The complete list, with authors, sources, and licenses, is in
 [NOTICE](NOTICE).
 

@@ -80,33 +80,17 @@ def d_ionic_hellenistic():
 # 1. PROIEL/GORMAN DATA INTEGRATION
 # ===========================================================================
 
-class TestProielGormanDataFiles:
-    """Verify PROIEL and Gorman data files exist and have correct structure."""
+class TestGormanDataFiles:
+    """Verify the Gorman (CC BY-SA) data file exists and has correct structure.
 
-    def test_proiel_pairs_exists(self):
-        """proiel_pairs.json should exist."""
-        assert (DATA_DIR / "proiel_pairs.json").exists(), \
-            "proiel_pairs.json not found in data/"
+    PROIEL (CC BY-NC-SA) is intentionally not ingested and not committed, so the
+    Ionic/Herodotus coverage it once contributed is checked via Gorman/AGDT.
+    """
 
     def test_gorman_pairs_exists(self):
         """gorman_pairs.json should exist."""
         assert (DATA_DIR / "gorman_pairs.json").exists(), \
             "gorman_pairs.json not found in data/"
-
-    def test_proiel_pairs_structure(self):
-        """proiel_pairs.json should be a list of {form, lemma, pos} dicts."""
-        with open(DATA_DIR / "proiel_pairs.json", encoding="utf-8") as f:
-            data = json.load(f)
-        assert isinstance(data, list)
-        assert len(data) > 10_000, \
-            f"Expected >10K PROIEL pairs, got {len(data)}"
-        # Check structure of first entry
-        entry = data[0]
-        assert "form" in entry
-        assert "lemma" in entry
-        assert "pos" in entry
-        assert isinstance(entry["form"], str)
-        assert isinstance(entry["lemma"], str)
 
     def test_gorman_pairs_structure(self):
         """gorman_pairs.json should be a list of {form, lemma, pos} dicts."""
@@ -119,17 +103,6 @@ class TestProielGormanDataFiles:
         assert "form" in entry
         assert "lemma" in entry
 
-    def test_proiel_contains_herodotus_ionic_forms(self):
-        """PROIEL should contain Herodotus-specific Ionic forms."""
-        with open(DATA_DIR / "proiel_pairs.json", encoding="utf-8") as f:
-            data = json.load(f)
-        forms = {p["form"] for p in data}
-        # These are well-known Ionic forms from Herodotus
-        expected_ionic = {"πρήγματα", "ἱστορίης", "μοῦνος", "ξεῖνος"}
-        found = expected_ionic & forms
-        assert len(found) >= 3, \
-            f"Expected Ionic forms from Herodotus, only found: {found}"
-
     def test_gorman_contains_herodotus_forms(self):
         """Gorman should contain forms from Herodotus and other authors."""
         with open(DATA_DIR / "gorman_pairs.json", encoding="utf-8") as f:
@@ -141,30 +114,17 @@ class TestProielGormanDataFiles:
         assert len(found) >= 2, \
             f"Expected forms from Gorman treebank, only found: {found}"
 
-    def test_proiel_lemma_correctness_spot_check(self):
-        """Spot-check that PROIEL lemma assignments are correct."""
-        with open(DATA_DIR / "proiel_pairs.json", encoding="utf-8") as f:
-            data = json.load(f)
-        form_to_lemma = {p["form"]: p["lemma"] for p in data}
-        # Known correct mappings from Herodotus
-        checks = {
-            "πρήγματα": "πρᾶγμα",
-            "ἱστορίης": "ἱστορία",
-            "μοῦνος": "μόνος",
-        }
-        for form, expected_lemma in checks.items():
-            if form in form_to_lemma:
-                assert form_to_lemma[form] == expected_lemma, \
-                    f"PROIEL: {form} -> expected {expected_lemma}, " \
-                    f"got {form_to_lemma[form]}"
 
+class TestIonicFormsInLookup:
+    """Verify Ionic (Herodotus) forms resolve through the main lemmatizer.
 
-class TestProielGormanInLookup:
-    """Verify PROIEL/Gorman forms resolve through the main lemmatizer."""
+    These come from the openly-licensed Gorman/AGDT treebanks; PROIEL
+    (CC BY-NC-SA) is excluded, so Ionic coverage must not depend on it.
+    """
 
     @pytest.mark.parametrize("form,expected", [
-        ("πρήγματα", "πρᾶγμα"),     # Ionic plural, PROIEL
-        ("ἱστορίης", "ἱστορία"),     # Ionic genitive, PROIEL
+        ("πρήγματα", "πρᾶγμα"),     # Ionic plural
+        ("ἱστορίης", "ἱστορία"),     # Ionic genitive
         ("μοῦνος", "μόνος"),         # Ionic ου/ο alternation
         ("ξεῖνος", "ξένος"),         # Ionic ξεῖνος
         ("ποιέειν", "ποιέω"),        # Ionic uncontracted infinitive
@@ -172,13 +132,13 @@ class TestProielGormanInLookup:
         ("ὅκου", "ὅπου"),            # Ionic κ/π interchange
     ])
     def test_ionic_forms_resolve_via_lookup(self, d_all, form, expected):
-        """Ionic forms from PROIEL/Gorman should resolve via lookup table."""
+        """Ionic forms should resolve via the lookup table (Gorman/AGDT)."""
         result = d_all.lemmatize(form)
         assert strip_accents(result.lower()) == strip_accents(expected), \
             f"{form} -> expected {expected}, got {result}"
 
-    def test_lookup_db_has_proiel_entries(self):
-        """lookup.db should contain entries added from PROIEL."""
+    def test_lookup_db_has_ionic_entries(self):
+        """lookup.db should contain Ionic entries added from the treebanks."""
         db_path = DATA_DIR / "lookup.db"
         if not db_path.exists():
             pytest.skip("lookup.db not found")
@@ -191,7 +151,7 @@ class TestProielGormanInLookup:
         ).fetchone()
         conn.close()
         assert row is not None, \
-            "πρήγματα should be in lookup.db (from PROIEL/Gorman)"
+            "πρήγματα should be in lookup.db (from Gorman/AGDT)"
         assert row[0] == "πρᾶγμα"
 
 

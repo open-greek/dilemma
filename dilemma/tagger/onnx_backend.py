@@ -8,7 +8,9 @@ feature). Only the encoder + label set differ, and both are captured in the
 weights directory, so one runtime serves both:
 
 - ``grc`` / ``med``: GreBerta (Apache-2.0, polytonic-preserving byte-level BPE).
-- ``el``:            Greek-BERT (nlpaueb), trained on UD_Greek-GDT.
+- ``el``:            Greek-BERT (nlpaueb), trained on the openly licensed
+                     UD_Greek-GUD + CC BY-SA dialect treebanks (Cretan/Lesbian/
+                     Messinian), not the NonCommercial UD_Greek-GDT.
 
 Pure runtime: onnxruntime + tokenizers + numpy (no torch, no transformers). It
 does contextual UPOS + UD-feature tagging, and - when the model carries a
