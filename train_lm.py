@@ -336,7 +336,7 @@ def main():
     ap.add_argument("--byzantine-dir", type=str, default=None,
                     help="Override the Byzantine corpus directory "
                          "(defaults to "
-                         "~/Documents/byzantine-vernacular-corpus/texts).")
+                         "~/Documents/corpus-of-open-greek/sources/byzantine).")
     ap.add_argument("--out", type=str, default=str(BUILD_DIR))
     ap.add_argument("--vocab-size", type=int, default=80_000)
     ap.add_argument("--min-count-bi", type=int, default=1)

@@ -21,11 +21,14 @@ from pathlib import Path
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
 OUTPUT_PATH = Path(__file__).parent.parent / "data" / "treebank_pos_lookup.json"
 
-TREEBANK_DIRS = [
-    TREEBANKS_DIR / "UD_Ancient_Greek-Perseus",
-    TREEBANKS_DIR / "UD_Ancient_Greek-PROIEL",
-    TREEBANKS_DIR / "DiGreC",
-]
+# Openly licensed sources only. UD_Ancient_Greek-Perseus and -PROIEL are
+# CC BY-NC-SA (NonCommercial) and are NOT used; the AGDT POS data comes from the
+# Perseus original (.tb.xml, CC BY-SA 3.0 US) instead. DiGreC is dropped pending
+# license verification.
+import os
+AGDT_DIR = Path(os.environ.get(
+    "DILEMMA_AGDT_DIR", str(TREEBANKS_DIR / "treebank_data")))
+TREEBANK_DIRS: list = []   # no CoNLL-U sources (the NC UD treebanks are excluded)
 
 GORMAN_DIR = TREEBANKS_DIR / "Greek-Dependency-Trees" / "xml versions"
 
@@ -121,6 +124,26 @@ def build_lookup():
                 count += 1
             total_tokens += count
             print(f"  {f.name}: {count} tokens")
+
+    # AGDT original (.tb.xml, CC BY-SA 3.0 US) - the openly licensed Perseus
+    # POS source, replacing the NonCommercial UD_Ancient_Greek-Perseus.
+    agdt_files = []
+    for _ver in ("v2.1", "v2.0", "v1.6"):
+        _texts = AGDT_DIR / _ver / "Greek" / "texts"
+        if _texts.exists():
+            agdt_files = sorted(_texts.glob("*.tb.xml"))
+            break
+    if agdt_files:
+        agdt_tokens = 0
+        for f in agdt_files:
+            for form, lemma, upos in parse_gorman_xml(f):
+                form_upos_lemmas[form][upos][lemma] += 1
+                agdt_tokens += 1
+        total_tokens += agdt_tokens
+        print(f"  AGDT (Perseus original): {len(agdt_files)} files, "
+              f"{agdt_tokens:,} tokens")
+    else:
+        print("  Skipping AGDT (not found; set DILEMMA_AGDT_DIR)")
 
     # Gorman AGDT XML trees
     if GORMAN_DIR.exists():

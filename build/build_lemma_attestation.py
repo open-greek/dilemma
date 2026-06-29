@@ -309,7 +309,7 @@ def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset())
     if nc_stems:
         before = len(files)
         files = [f for f in files if f.stem not in nc_stems]
-        print(f"  commercial-safe: excluded {before - len(files)} "
+        print(f"  Excluded {before - len(files)} "
               f"NonCommercial GLAUx text(s)")
     if limit:
         files = files[:limit]
@@ -540,15 +540,12 @@ def main():
     p.add_argument("--limit", type=int, default=0,
                    help="Process only the first N files of each corpus "
                         "(smoke test; gives partial counts).")
-    p.add_argument("--exclude-nc", action="store_true",
-                   help="Drop NonCommercial GLAUx texts (commercial-safe "
-                        "build); writes lemma_attestation_commercial.json.")
     args = p.parse_args()
 
+    # Openly licensed by default: always drop the NonCommercial GLAUx texts
+    # (this pass uses only GLAUx + Diorisis, both otherwise permissive).
     from nc_filter import nc_glaux_stems
-    nc_stems = nc_glaux_stems(args.metadata) if args.exclude_nc else frozenset()
-    if args.exclude_nc and args.output == OUTPUT_PATH:
-        args.output = DATA_DIR / "lemma_attestation_commercial.json"
+    nc_stems = nc_glaux_stems(args.metadata)
 
     t0 = time.time()
     stats = Counter()

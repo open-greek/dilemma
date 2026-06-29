@@ -43,7 +43,6 @@ MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
 DIORISIS_PAIRS_PATH = DATA_DIR / "diorisis_pairs.json"
-PROIEL_PAIRS_PATH = DATA_DIR / "proiel_pairs.json"
 GORMAN_PAIRS_PATH = DATA_DIR / "gorman_pairs.json"
 PERSEUS_PAIRS_PATH = DATA_DIR / "perseus_pairs.json"
 ETYMOLOGY_BRIDGES_PATH = DATA_DIR / "etymology_bridges.json"
@@ -51,11 +50,10 @@ LSJGR_BRIDGES_PATH = DATA_DIR / "lsjgr_bridges.json"
 RELATED_LEMMAS_PATH = DATA_DIR / "related_lemmas.json"
 HNC_PAIRS_PATH = DATA_DIR / "hnc_pairs.json"
 
-# Set True (via --exclude-nc) for a commercial-safe lookup: drops the
-# NonCommercial treebanks (PROIEL, Gorman, UD Perseus) and uses the NC-free
-# glaux_pairs_commercial.json. The model is unaffected (it trains on
-# Wiktionary). See build/nc_filter.py and NOTICE.
-EXCLUDE_NC = False
+# The lookup is openly licensed by default: PROIEL (CC BY-NC-SA) is excluded;
+# Gorman (CC BY-SA 4.0) and Perseus (the CC BY-SA AGDT original) are kept;
+# glaux_pairs.json is built with the NonCommercial GLAUx texts already filtered
+# out (build/nc_filter.py + build/build_glaux_pairs.py). See NOTICE.
 
 
 def strip_accents(s):
@@ -158,37 +156,15 @@ def build():
     else:
         print(f"  HNC: no hnc_pairs.json found, skipping")
 
-    # Expand AG with PROIEL gold-standard pairs (33K forms from
-    # Herodotus' Histories, manually annotated). Higher priority
-    # than corpus-derived pairs (GLAUx, Diorisis) since every
-    # lemma assignment is expert-verified.
-    proiel_added_ag = 0
-    if EXCLUDE_NC:
-        print("  PROIEL: excluded (CC BY-NC-SA 3.0, commercial-safe build)")
-    elif PROIEL_PAIRS_PATH.exists():
-        t_p = time.time()
-        with open(PROIEL_PAIRS_PATH, encoding="utf-8") as f:
-            proiel_pairs = json.load(f)
-        for p in proiel_pairs:
-            form, lemma = p["form"], p["lemma"]
-            if form not in ag:
-                ag[form] = lemma
-                proiel_added_ag += 1
-        print(f"  PROIEL: +{proiel_added_ag:,} to AG "
-              f"({len(proiel_pairs):,} total, "
-              f"{len(proiel_pairs) - proiel_added_ag:,} already present) "
-              f"({time.time()-t_p:.1f}s)")
-    else:
-        print(f"  PROIEL: no proiel_pairs.json found, skipping")
+    # PROIEL is excluded entirely: CC BY-NC-SA 3.0 (NonCommercial) at both the
+    # UD release and the original proiel-treebank, with no permissive version.
 
-    # Expand AG with Gorman treebank pairs (79K unique form-lemma pairs
-    # from 687K tokens of annotated Ancient Greek across multiple authors:
-    # Herodotus, Thucydides, Xenophon, Demosthenes, Lysias, Polybius, etc.)
-    # Gold-standard single annotator, same priority tier as PROIEL.
+    # Expand AG with Gorman treebank pairs (form-lemma pairs from 687K tokens of
+    # annotated Ancient Greek: Herodotus, Thucydides, Xenophon, Demosthenes,
+    # Lysias, Polybius, etc.). Gold-standard single annotator. CC BY-SA 4.0
+    # (the authoritative perseids-publications/gorman-trees license).
     gorman_added_ag = 0
-    if EXCLUDE_NC:
-        print("  Gorman: excluded (CC BY-NC-SA 4.0, commercial-safe build)")
-    elif GORMAN_PAIRS_PATH.exists():
+    if GORMAN_PAIRS_PATH.exists():
         t_gr = time.time()
         with open(GORMAN_PAIRS_PATH, encoding="utf-8") as f:
             gorman_pairs = json.load(f)
@@ -204,14 +180,12 @@ def build():
     else:
         print(f"  Gorman: no gorman_pairs.json found, skipping")
 
-    # Expand AG with Perseus treebank pairs (42K unique form-lemma pairs
-    # from 178K tokens of AGDT-annotated Greek: Sophocles, Aeschylus,
-    # Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus.)
-    # Gold-standard annotations, same priority tier as PROIEL/Gorman.
+    # Expand AG with AGDT/Perseus treebank pairs (the 33 Greek AGDT works:
+    # Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch,
+    # Polybius, Athenaeus). Sourced from the AGDT original
+    # (PerseusDL/treebank_data), CC BY-SA 3.0 US -- not the NC UD repackaging.
     perseus_added_ag = 0
-    if EXCLUDE_NC:
-        print("  Perseus: excluded (UD Perseus CC BY-NC-SA 3.0, commercial-safe build)")
-    elif PERSEUS_PAIRS_PATH.exists():
+    if PERSEUS_PAIRS_PATH.exists():
         t_pe = time.time()
         with open(PERSEUS_PAIRS_PATH, encoding="utf-8") as f:
             perseus_pairs = json.load(f)
@@ -220,7 +194,7 @@ def build():
             if form not in ag:
                 ag[form] = lemma
                 perseus_added_ag += 1
-        print(f"  Perseus: +{perseus_added_ag:,} to AG "
+        print(f"  Perseus (AGDT): +{perseus_added_ag:,} to AG "
               f"({len(perseus_pairs):,} total, "
               f"{len(perseus_pairs) - perseus_added_ag:,} already present) "
               f"({time.time()-t_pe:.1f}s)")
@@ -494,10 +468,19 @@ def build():
     def _sanitize_table(name: str, table: dict) -> dict:
         out: dict = {}
         changed = 0
+        dropped_elided = 0
         for k, v in table.items():
             sk = sanitize_form(k)
             sv = sanitize_form(v) if isinstance(v, str) else v
             if not sk:
+                continue
+            # Elided forms encoded with a trailing apostrophe (U+2019 right
+            # single quote, U+0027 ascii) are resolved by the runtime elision
+            # layer, not as lookup entries. Keeping them risks a self-map -
+            # created when lemma validation rejected the source lemma (e.g.
+            # glaux ἀλλ' -> ἄλλος) - shadowing elision (ἀλλ' -> ἀλλά). Drop them.
+            if sk[-1] in ("’", "'"):
+                dropped_elided += 1
                 continue
             if sk != k:
                 changed += 1
@@ -508,6 +491,9 @@ def build():
         if changed:
             print(f"  Sanitised {changed:,} {name} forms "
                   f"(misplaced breathing marks)")
+        if dropped_elided:
+            print(f"  Dropped {dropped_elided:,} {name} trailing-apostrophe "
+                  f"elided forms (resolved via elision layer)")
         return out
 
     print("\nSanitising form-and-lemma tables...")
@@ -844,19 +830,7 @@ def build():
 
 
 if __name__ == "__main__":
-    import argparse
-    _ap = argparse.ArgumentParser(description="Build the form->lemma lookup DB")
-    _ap.add_argument("--exclude-nc", action="store_true",
-                     help="Commercial-safe build: drop the NonCommercial "
-                          "treebanks (PROIEL/Gorman/UD-Perseus) and use the "
-                          "NC-free glaux_pairs_commercial.json. Writes "
-                          "lookup_commercial.db / spell_index_commercial.db.")
-    _args = _ap.parse_args()
-    if _args.exclude_nc:
-        EXCLUDE_NC = True
-        DB_PATH = DATA_DIR / "lookup_commercial.db"
-        SPELL_DB_PATH = DATA_DIR / "spell_index_commercial.db"
-        GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs_commercial.json"
-        print("=== Commercial-safe build: excluding NonCommercial sources ===")
-        print(f"    output: {DB_PATH.name} + {SPELL_DB_PATH.name}\n")
+    # The build is openly licensed by default (no NonCommercial sources, no
+    # variants): PROIEL dropped, Gorman + AGDT-Perseus kept, NC-filtered
+    # glaux_pairs.json. Writes lookup.db + spell_index.db.
     build()

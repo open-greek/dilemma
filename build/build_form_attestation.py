@@ -65,12 +65,12 @@ from dilemma._attest_db import nfc_key, norm_key, SCHEMA_VERSION  # noqa: E402
 DEFAULT_GLAUX_DIR = Path.home() / "Documents" / "glaux" / "xml"
 DEFAULT_METADATA = Path.home() / "Documents" / "glaux" / "metadata.txt"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"
-CORPORA = Path.home() / "Documents" / "corpora"
-DEFAULT_FIRST1K_DIR = CORPORA / "First1KGreek" / "data"
-DEFAULT_PTA_DIR = CORPORA / "pta_data" / "data"
-DEFAULT_CANONICAL_DIR = CORPORA / "canonical-greekLit" / "data"
-DEFAULT_BYZ_DIR = Path.home() / "Documents" / "byzantine-vernacular-corpus" / "texts"
-DEFAULT_PG_DIR = CORPORA / "PG"   # calfa-co/Patrologia-Graeca OCR ($0/$8/$9 markers)
+COG_SOURCES = Path.home() / "Documents" / "corpus-of-open-greek" / "sources"
+DEFAULT_FIRST1K_DIR = COG_SOURCES / "first1k" / "data"
+DEFAULT_PTA_DIR = COG_SOURCES / "pta" / "data"
+DEFAULT_CANONICAL_DIR = COG_SOURCES / "perseus" / "data"
+DEFAULT_BYZ_DIR = COG_SOURCES / "byzantine"
+DEFAULT_PG_DIR = COG_SOURCES / "cgpg"   # calfa-co/Patrologia-Graeca OCR ($0/$8/$9 markers)
 PROFILE_OUT = DATA_DIR / "form_profile.db"
 CITATIONS_OUT = DATA_DIR / "form_citations.db"
 DEFAULT_CAP = 200
@@ -277,7 +277,7 @@ def process_glaux(glaux_dir, glaux_works, forms, form_ids, profiles, works,
     if nc_stems:
         before = len(files)
         files = [f for f in files if f.stem not in nc_stems]
-        print(f"  commercial-safe: excluded {before - len(files)} "
+        print(f"  Excluded {before - len(files)} "
               f"NonCommercial GLAUx text(s)")
     if limit:
         files = files[:limit]
@@ -393,6 +393,7 @@ def process_diorisis(diorisis_dir, forms, form_ids, profiles, works,
 def process_tei(source, tei_dir, default_genre, glaux_works, forms, form_ids,
                 profiles, works, sink, claimed, limit, stats):
     """First1KGreek / canonical-greekLit / PTA: raw-text TEI with CTS loci."""
+    from nc_filter import tei_is_noncommercial
     h = hashlib.sha256()
     files = sorted(tei_dir.glob("*/*/*grc*.xml"))
     if limit:
@@ -400,6 +401,11 @@ def process_tei(source, tei_dir, default_genre, glaux_works, forms, form_ids,
     print(f"{source}: {len(files)} Greek TEI files")
     for i, xf in enumerate(files):
         data = xf.read_bytes()
+        # Openly licensed: skip per-file NonCommercial texts (PTA records the
+        # license in the TEI header; e.g. pta0036 is CC BY-NC-SA).
+        if tei_is_noncommercial(data):
+            stats["nc_skipped"] += 1
+            continue
         fold_file_hash(h, str(xf.relative_to(tei_dir)), data)
         root, meta = tei_locus.parse_file(xf)
         if root is None:
@@ -718,19 +724,14 @@ def main():
     p.add_argument("--citations-out", type=Path, default=CITATIONS_OUT)
     p.add_argument("--stats", action="store_true", help="report only, no write")
     p.add_argument("--limit", type=int, default=0, help="first N files per source")
-    p.add_argument("--exclude-nc", action="store_true",
-                   help="Drop NonCommercial GLAUx texts (commercial-safe build); "
-                        "writes form_profile_commercial.db / form_citations_commercial.db.")
     args = p.parse_args()
     sources = [s for s in args.sources.split(",") if s]
 
+    # Openly licensed by default: always drop the NonCommercial GLAUx source
+    # texts (process_tei additionally drops NonCommercial PTA texts per-file).
+    # See build/nc_filter.py and NOTICE.
     from nc_filter import nc_glaux_stems
-    nc_stems = nc_glaux_stems(args.metadata) if args.exclude_nc else frozenset()
-    if args.exclude_nc:
-        if args.profile_out == PROFILE_OUT:
-            args.profile_out = DATA_DIR / "form_profile_commercial.db"
-        if args.citations_out == CITATIONS_OUT:
-            args.citations_out = DATA_DIR / "form_citations_commercial.db"
+    nc_stems = nc_glaux_stems(args.metadata)
 
     t0 = time.time()
     stats = Counter()

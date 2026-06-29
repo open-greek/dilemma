@@ -34,7 +34,8 @@ REPO_ROOT = SCRIPT_DIR.parent
 DATA_DIR = REPO_ROOT / "data"
 OUT_PATH = DATA_DIR / "first1kgreek_freq.json"
 
-DEFAULT_REPO = Path.home() / "Documents" / "corpora" / "First1KGreek"
+# First1KGreek now lives under the corpus-of-open-greek (cog) source clones
+DEFAULT_REPO = Path.home() / "Documents" / "corpus-of-open-greek" / "sources" / "first1k"
 
 GENRE_ORDER = [
     "philosophy", "poetry", "history", "oratory", "science",

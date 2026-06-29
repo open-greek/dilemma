@@ -31,7 +31,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 DATA_DIR = REPO_ROOT / "data"
 OUT_PATH = DATA_DIR / "pta_freq.json"
 
-DEFAULT_REPO = Path.home() / "Documents" / "corpora" / "pta_data"
+DEFAULT_REPO = Path.home() / "Documents" / "corpus-of-open-greek" / "sources" / "pta"
 
 GENRE_ORDER = [
     "philosophy", "poetry", "history", "oratory", "science",
@@ -52,8 +52,13 @@ def main() -> int:
               f"{args.repo}", file=sys.stderr)
         return 1
 
+    from nc_filter import tei_is_noncommercial
     files = sorted((args.repo / "data").rglob("*.pta-grc*.xml"))
-    print(f"Found {len(files):,} Greek TEI files under {args.repo}")
+    # Openly licensed: drop the per-file NonCommercial PTA texts (e.g. pta0036).
+    before = len(files)
+    files = [f for f in files if not tei_is_noncommercial(f.read_bytes())]
+    print(f"Found {len(files):,} Greek TEI files under "
+          f"{args.repo} (excluded {before - len(files)} NonCommercial)")
 
     t0 = time.time()
     total: Counter = Counter()

@@ -3,7 +3,7 @@
 Factored out of ``train_lm.py`` to stay merge-friendly alongside other
 corpus ingestors (Diorisis, polytonic MG) landing on sibling branches.
 
-The corpus lives at ``~/Documents/byzantine-vernacular-corpus/texts/``
+The corpus lives at ``~/Documents/corpus-of-open-greek/sources/byzantine/``
 and consists of medieval / early-modern Greek vernacular literature
 (Digenes Akritas, Ptochoprodromika, Poulologos, Apokopos, etc.). Most
 files are polytonic; two of the largest (Erotokritos and Chronicle of
@@ -35,7 +35,7 @@ EOS_TOK = "</s>"
 SENT_END = {".", ";", "·", "!", "?"}
 
 DEFAULT_CORPUS_DIR = (
-    Path.home() / "Documents" / "byzantine-vernacular-corpus" / "texts"
+    Path.home() / "Documents" / "corpus-of-open-greek" / "sources" / "byzantine"
 )
 
 # Files that are substantially monotonic. Computed by measuring the
@@ -239,7 +239,7 @@ def iter_byzantine_sentences(
     Parameters
     ----------
     corpus_dir: location of the ``.txt`` files. Defaults to
-        ``~/Documents/byzantine-vernacular-corpus/texts``.
+        ``~/Documents/corpus-of-open-greek/sources/byzantine``.
     include_monotonic: if True, include files classified as monotonic
         (Erotokritos, Chronicle of the Moreas). Defaults to False
         because mixing monotonic surface forms (``της``) with

@@ -116,7 +116,7 @@ def extract_glaux(glaux_dir, stats_only=False, exclude_nc=False, metadata_path=N
     """Extract form->lemma pairs from GLAUx XML files.
 
     exclude_nc: drop the handful of GLAUx source texts whose license is
-    NonCommercial (for a commercial-safe build); see build/nc_filter.py.
+    NonCommercial (for an openly licensed build); see build/nc_filter.py.
     """
     xml_files = sorted(Path(glaux_dir).glob("*.xml"))
     if not xml_files:
@@ -129,7 +129,7 @@ def extract_glaux(glaux_dir, stats_only=False, exclude_nc=False, metadata_path=N
         nc = nc_glaux_stems(meta)
         before = len(xml_files)
         xml_files = [x for x in xml_files if x.stem not in nc]
-        print(f"Commercial-safe: excluded {before - len(xml_files)} "
+        print(f"Excluded {before - len(xml_files)} "
               f"NonCommercial GLAUx text(s)")
 
     print(f"Processing {len(xml_files)} GLAUx files...")
@@ -237,19 +237,14 @@ def main():
                         help="Path to GLAUx xml/ directory")
     parser.add_argument("--stats", action="store_true",
                         help="Show stats only, don't save")
-    parser.add_argument("--output", type=str, default=None,
-                        help="Output path (default: glaux_pairs.json, or "
-                             "glaux_pairs_commercial.json with --exclude-nc)")
-    parser.add_argument("--exclude-nc", action="store_true",
-                        help="Drop NonCommercial-licensed GLAUx texts "
-                             "(commercial-safe build)")
+    parser.add_argument("--output", type=str,
+                        default=str(DATA_DIR / "glaux_pairs.json"),
+                        help="Output path (default: glaux_pairs.json)")
     args = parser.parse_args()
 
-    pairs = extract_glaux(args.glaux, stats_only=args.stats,
-                          exclude_nc=args.exclude_nc)
-    if args.output is None:
-        args.output = str(DATA_DIR / ("glaux_pairs_commercial.json"
-                                      if args.exclude_nc else "glaux_pairs.json"))
+    # Always drop the NonCommercial GLAUx source texts: glaux_pairs.json is a
+    # openly licensed artifact (see build/nc_filter.py and NOTICE).
+    pairs = extract_glaux(args.glaux, stats_only=args.stats, exclude_nc=True)
 
     if not args.stats and pairs:
         out = Path(args.output)

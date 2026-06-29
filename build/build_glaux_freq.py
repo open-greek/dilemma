@@ -106,15 +106,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--glaux", type=Path, default=DEFAULT_GLAUX_DIR)
     parser.add_argument("--metadata", type=Path, default=DEFAULT_METADATA)
-    parser.add_argument("--output", type=Path, default=None,
-                        help="Output (default glaux_freq.json, or "
-                             "glaux_freq_commercial.json with --exclude-nc)")
-    parser.add_argument("--exclude-nc", action="store_true",
-                        help="Drop NonCommercial GLAUx texts (commercial-safe)")
+    parser.add_argument("--output", type=Path,
+                        default=DATA_DIR / "glaux_freq.json",
+                        help="Output (default glaux_freq.json)")
     args = parser.parse_args()
-    if args.output is None:
-        args.output = DATA_DIR / ("glaux_freq_commercial.json"
-                                  if args.exclude_nc else "glaux_freq.json")
 
     t0 = time.time()
 
@@ -123,10 +118,9 @@ def main():
     tlg_to_genre = load_metadata(args.metadata)
     print(f"{len(tlg_to_genre)} texts")
 
-    nc_stems = frozenset()
-    if args.exclude_nc:
-        from nc_filter import nc_glaux_stems
-        nc_stems = nc_glaux_stems(args.metadata)
+    # Openly licensed by default: always drop the NonCommercial GLAUx texts.
+    from nc_filter import nc_glaux_stems
+    nc_stems = nc_glaux_stems(args.metadata)
 
     genre_to_idx = {g: i for i, g in enumerate(GENRE_ORDER)}
     n_genres = len(GENRE_ORDER)
@@ -141,7 +135,7 @@ def main():
     if nc_stems:
         before = len(xml_files)
         xml_files = [x for x in xml_files if x.stem not in nc_stems]
-        print(f"Commercial-safe: excluded {before - len(xml_files)} "
+        print(f"Excluded {before - len(xml_files)} "
               f"NonCommercial GLAUx text(s)")
     print(f"Processing {len(xml_files)} XML files...")
 

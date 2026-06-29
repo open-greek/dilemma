@@ -78,20 +78,13 @@ def main() -> int:
         default=[s[0] for s in SOURCES],
         help="Subset of sources to merge (default: all available).",
     )
-    p.add_argument("--output", type=Path, default=None)
-    p.add_argument("--commercial", action="store_true",
-                   help="Commercial-safe merge: use glaux_freq_commercial.json "
-                        "(NC GLAUx texts excluded) and write corpus_freq_commercial.json.")
+    p.add_argument("--output", type=Path, default=OUTPUT_PATH)
     args = p.parse_args()
 
+    # Openly licensed by default: glaux_freq.json (NC GLAUx texts excluded) and
+    # pta_freq.json (NC PTA texts excluded) are already openly licensed, so the
+    # plain merge produces an openly licensed corpus_freq.json.
     selected = [s for s in SOURCES if s[0] in args.include]
-    if args.commercial:
-        selected = [(k, DATA_DIR / "glaux_freq_commercial.json", lbl, b)
-                    if k == "glaux" else (k, path, lbl, b)
-                    for (k, path, lbl, b) in selected]
-    if args.output is None:
-        args.output = (DATA_DIR / "corpus_freq_commercial.json"
-                       if args.commercial else OUTPUT_PATH)
 
     t0 = time.time()
     merged: dict[str, list[int]] = {}

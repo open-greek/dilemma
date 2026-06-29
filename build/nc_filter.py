@@ -1,4 +1,4 @@
-"""Identify NonCommercial-licensed GLAUx source texts, for commercial-safe builds.
+"""Identify NonCommercial-licensed GLAUx source texts, for openly licensed builds.
 
 GLAUx aggregates several dependency treebanks; most are CC BY-SA, but a handful
 of source texts carry NonCommercial terms (CC BY-NC-SA / CC BY-NC-ND). For a
@@ -40,3 +40,22 @@ def nc_glaux_stems(metadata_path) -> set:
             if tlg:
                 stems.add(tlg)
     return stems
+
+
+# A TEI file's per-text license lives in the publicationStmt; PTA records it as
+# <licence target="https://creativecommons.org/licenses/by-nc-.../">. NC files
+# carry a "by-nc" target URL (the human-readable wording is inconsistent, so we
+# key on the canonical @target). Most PTA Greek editions are CC BY / BY-SA; this
+# drops the handful (currently just pta0036) that are NonCommercial.
+_TEI_NC_RE = re.compile(rb'<(?:\w+:)?licence\b[^>]*?target\s*=\s*"[^"]*by-nc',
+                        re.I)
+
+
+def tei_is_noncommercial(data: bytes) -> bool:
+    """True if a TEI file's licence/@target is a CC BY-NC variant.
+
+    Pass the raw file bytes; only the header region is scanned (the
+    publicationStmt sits near the top of teiHeader). Used by the PTA freq and
+    form-attestation readers to skip NonCommercial texts in commercial builds.
+    """
+    return bool(_TEI_NC_RE.search(data[:65536]))

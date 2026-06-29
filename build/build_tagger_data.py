@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Phase A of the Ancient-Greek tagger: assemble commercial-safe GLAUx gold for
+"""Phase A of the Ancient-Greek tagger: assemble openly licensed GLAUx gold for
 fine-tuning the GreBerta tagger + dependency parser.
 
 Morpheus-free: emits only the treebank gold (UPOS + UD features via
 convert_treebank, plus the native AGDT head + relation for the dep-parse head).
 No candidate prior (the ablation showed it adds ~1.3%, so the trained model is
 --no-prior and needs no Morpheus binary). GLAUx is CC BY-SA except a handful of
-NonCommercial texts, which are excluded so the tagger is commercial-safe.
+NonCommercial texts, which are excluded so the tagger is openly licensed.
 
 GLAUx lives at $DILEMMA_GLAUX_DIR (default ~/Documents/glaux); it is an external
 corpus input, like the kaikki dumps build_data.py reads.
@@ -112,7 +112,7 @@ def main():
                     help="process only the first N GLAUx files (smoke test)")
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
-    print(f"Reading GLAUx from {GLAUX_XML} (commercial-safe)...", flush=True)
+    print(f"Reading GLAUx from {GLAUX_XML} (openly licensed)...", flush=True)
     sents, n_nc = extract(args.limit)
     n_tok = sum(len(s["tokens"]) for s in sents)
     sp = Counter(s["split"] for s in sents)

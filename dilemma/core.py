@@ -312,6 +312,24 @@ def strip_accents(s: str) -> str:
         "".join(c for c in nfd if unicodedata.category(c) != "Mn"))
 
 
+def to_standard_sigma(s: str) -> str:
+    """Normalize lunate sigma (ϲ U+03F2 / Ϲ U+03F9) to standard σ/ς.
+
+    Lunate sigma is a pure glyph variant used throughout many ancient-Greek
+    editions (papyri, inscriptions, scholia, much of First1KGreek); it carries
+    no lexical distinction. Without this, forms like ``ὡϲ``/``τῆϲ`` never match
+    the standard-sigma lookup, so whole editions silently fail to lemmatize.
+    Map lunate -> medial σ / capital Σ, then fix word-final σ -> ς. No-op when
+    no lunate sigma is present (the overwhelmingly common case).
+    """
+    if "ϲ" not in s and "Ϲ" not in s:
+        return s
+    s = s.replace("ϲ", "σ").replace("Ϲ", "Σ")
+    if s.endswith("σ"):
+        s = s[:-1] + "ς"
+    return s
+
+
 def _is_self_map(form: str, lemma: str) -> bool:
     """Check if a lookup entry is a trivial self-map (form ≈ lemma)."""
     return (form == lemma
@@ -2408,6 +2426,8 @@ class Dilemma:
         # Pass through tokens that are purely digits/punctuation (dates, numbers)
         if word.isdigit():
             return word
+        # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
+        word = to_standard_sigma(word)
 
         # Attested-only gate: drop forms that don't occur in the corpus.
         if attested_only and self._resolve_attested_form(word) is None:
@@ -2858,6 +2878,8 @@ class Dilemma:
         if word.isdigit():
             _add(word, source="identity")
             return candidates
+        # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
+        word = to_standard_sigma(word)
 
         # 1. Article/pronoun
         if self._resolve_articles:
@@ -3061,6 +3083,8 @@ class Dilemma:
         model_words = []
 
         for i, word in enumerate(words):
+            # Lunate sigma (ϲ) -> standard σ/ς so such editions still match.
+            word = to_standard_sigma(word)
             # Article/pronoun resolution
             closed = self._resolve_closed_class(word)
             if closed is not None:

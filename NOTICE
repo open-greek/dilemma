@@ -57,16 +57,19 @@ Treebanks and annotated corpora
 
 - The Ancient Greek Dependency Treebanks (AGDT / Perseus), Perseus Project
   (G. Crane et al.). https://github.com/PerseusDL/treebank_data
-  License: CC BY-SA 3.0. (The Universal Dependencies release,
-  UD_Ancient_Greek-Perseus, is CC BY-NC-SA 3.0.)
+  License: CC BY-SA 3.0 US. Dilemma extracts form-lemma pairs from this
+  openly licensed original, NOT from the Universal Dependencies release
+  (UD_Ancient_Greek-Perseus), which is CC BY-NC-SA 3.0.
 
 - PROIEL Treebank, the PROIEL project.
   https://github.com/UniversalDependencies/UD_Ancient_Greek-PROIEL
-  License: CC BY-NC-SA 3.0  (NonCommercial).
+  License: CC BY-NC-SA 3.0  (NonCommercial) - NOT used by Dilemma; excluded
+  as NonCommercial (GLAUx independently re-annotates some of the same
+  texts under its own CC BY-SA 4.0 license, which Dilemma does use).
 
 - Gorman Treebanks, Vanessa Gorman.
-  https://github.com/UD-Greek/UD_Ancient_Greek-Gorman
-  License: CC BY-NC-SA 4.0  (NonCommercial).
+  https://github.com/perseids-publications/gorman-trees
+  License: CC BY-SA 4.0  (the authoritative TREEBANK_LICENSE).
 
 - Pedalion Trees. https://github.com/perseids-publications/pedalion-trees
   License: CC BY-SA 4.0.
@@ -76,7 +79,7 @@ Treebanks and annotated corpora
 
 - The Diorisis Ancient Greek Corpus, A. Vatri and B. McGillivray (2018).
   https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256
-  License: CC BY-SA 3.0.
+  License: CC BY 4.0  (per the figshare record).
 
 - First1KGreek, Open Greek and Latin.
   https://github.com/OpenGreekAndLatin/First1KGreek
@@ -113,13 +116,21 @@ Frequencies and assets
 - Flag icons, svg-flags. https://github.com/ciscoriordan/svg-flags
 
 
-A note on NonCommercial components
-----------------------------------
+A note on source licensing
+--------------------------
 
-A few annotated corpora carry NonCommercial terms: the PROIEL treebank, the
-Universal Dependencies Perseus release, and the Gorman treebanks, plus
-individual NonCommercial texts within GLAUx. What Dilemma extracts from
-treebanks is factual form-to-lemma annotation and aggregate token statistics,
-not the syntactic apparatus. Each source's license is recorded above, and for
-GLAUx the license is recorded per text in its metadata, so NonCommercial
-sources can be identified and excluded where a particular use requires it.
+Every source in Dilemma's shipped data and models is openly licensed: no
+NonCommercial-licensed source is included. The PROIEL treebank (CC BY-NC-SA,
+with no permissive release) is excluded entirely. The Ancient Greek Dependency
+Treebank is taken from the Perseus AGDT original (CC BY-SA 3.0 US), not the
+NonCommercial Universal Dependencies repackaging (UD_Ancient_Greek-Perseus).
+Gorman is CC BY-SA 4.0 and Diorisis is CC BY 4.0. The handful of NonCommercial
+source texts within GLAUx, and the per-file NonCommercial texts within the
+Patristic Text Archive, are filtered out at build time (see build/nc_filter.py).
+What Dilemma extracts from any treebank is factual form-to-lemma annotation and
+aggregate token statistics, not the syntactic apparatus.
+
+The shipped Modern Greek POS / dependency tagger is trained on UD_Greek-GUD
+(CC BY-SA 4.0) plus the CC BY-SA dialect treebanks, NOT on UD_Greek-GDT, which
+is CC BY-NC-SA. The Modern Greek lemmatizer is built from Wiktionary and the
+HNC Golden Corpus and is unaffected.

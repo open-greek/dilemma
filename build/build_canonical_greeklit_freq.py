@@ -28,7 +28,8 @@ REPO_ROOT = SCRIPT_DIR.parent
 DATA_DIR = REPO_ROOT / "data"
 OUT_PATH = DATA_DIR / "canonical_greeklit_freq.json"
 
-DEFAULT_REPO = Path.home() / "Documents" / "corpora" / "canonical-greekLit"
+# canonical-greekLit now lives under the corpus-of-open-greek (cog) source clones
+DEFAULT_REPO = Path.home() / "Documents" / "corpus-of-open-greek" / "sources" / "perseus"
 
 GENRE_ORDER = [
     "philosophy", "poetry", "history", "oratory", "science",
