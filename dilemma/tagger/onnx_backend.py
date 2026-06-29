@@ -11,9 +11,12 @@ weights directory, so one runtime serves both:
 - ``el``:            Greek-BERT (nlpaueb), trained on UD_Greek-GDT.
 
 Pure runtime: onnxruntime + tokenizers + numpy (no torch, no transformers). It
-does contextual UPOS + UD-feature tagging - no dependency parsing, so
-``head``/``deprel`` are ``None``. Lemmas are added downstream by ``Tagger`` via
-the Dilemma lemmatizer.
+does contextual UPOS + UD-feature tagging, and - when the model carries a
+biaffine dependency head (a non-empty ``deprels`` in ``tagger_labels.json``,
+as both the ``el`` and ``grc``/``med`` models now do) - greedy dependency
+parsing, so each token gets a ``head`` (0 = ROOT) and ``deprel``. Older
+heads-free models leave ``head``/``deprel`` as ``None``. Lemmas are added
+downstream by ``Tagger`` via the Dilemma lemmatizer.
 """
 import json
 from pathlib import Path
@@ -51,6 +54,7 @@ class OnnxMorphTagger:
         self.features = lab["features"]
         self.none = lab["none"]
         self.max_len = lab["max_len"]
+        self.deprels = lab.get("deprels", [])   # non-empty -> model has a dep head
         self.tok = Tokenizer.from_file(str(d / "tokenizer" / "tokenizer.json"))
         # pad id from the tokenizer (RoBERTa=1, BERT=0)
         pad = self.tok.token_to_id("<pad>")
@@ -74,7 +78,9 @@ class OnnxMorphTagger:
     def tag_sentences(self, sentences, bs: int = 32):
         """sentences: list[str]. Returns list (per sentence) of token dicts
         {form, raw_form, upos, feats, head, deprel} aligned to whitespace words.
-        head/deprel are None (no dependency parsing on this path)."""
+        When the model has a dep head (self.deprels non-empty), head is the
+        greedy biaffine arc (0 = ROOT, 1..n = the n words) and deprel the
+        relation label; otherwise both are None."""
         token_lists = [self._split_mwt(s.split()) for s in sentences]
         out = [None] * len(token_lists)
         order = sorted(range(len(token_lists)), key=lambda i: len(token_lists[i]))
@@ -107,18 +113,28 @@ class OnnxMorphTagger:
             res = self.sess.run(None, {"input_ids": ids, "attention_mask": mask,
                                        "sub_idx": sub})
             ups, feats = res[0], res[1:]
+            nf = len(self.features)
+            arc = res[1 + nf] if self.deprels else None   # (B, maxw, maxw+1)
+            rel = res[2 + nf] if self.deprels else None   # (B, maxw, maxw+1, R)
             for r, i in enumerate(idxs):
                 row = []
                 words = token_lists[i]
-                for w in range(nwords[r]):
+                nw = nwords[r]
+                for w in range(nw):
                     pu = self.upos_list[int(ups[r, w].argmax())]
                     pf = {}
                     for fi, f in enumerate(self.features):
                         v = self.fv_list[f][int(feats[fi][r, w].argmax())]
                         if v != self.none:
                             pf[f] = v
+                    head = deprel = None
+                    if self.deprels:
+                        # valid heads: ROOT (index 0) + the nw real words
+                        hi = int(arc[r, w, :nw + 1].argmax())   # 0=root, 1..nw
+                        head = hi
+                        deprel = self.deprels[int(rel[r, w, hi].argmax())]
                     row.append({"form": words[w], "raw_form": words[w],
                                 "upos": pu, "feats": pf,
-                                "head": None, "deprel": None})
+                                "head": head, "deprel": deprel})
                 out[i] = row
         return out

@@ -32,16 +32,24 @@ OUT_TOK = DATA / "tokenizer"
 
 class ExportTagger(nn.Module):
     """Inference-only wrapper: first-subword gather + baked prior bias + heads,
-    returning a flat tuple (ONNX has no dict outputs)."""
+    returning a flat tuple (ONNX has no dict outputs). When the model has a
+    dependency head, also returns arc (B,W,W+1) and rel (B,W,W+1,R) scores."""
     def __init__(self, model):
         super().__init__()
         self.enc = model.enc
         self.upos_head = model.upos_head
         self.feat_heads = model.feat_heads
+        self.n_deprels = model.n_deprels
         H = self.enc.config.hidden_size
         bias = (model.prior_proj.bias.detach().clone()
                 if model.use_prior else torch.zeros(H))
         self.register_buffer("prior_bias", bias)
+        if self.n_deprels:
+            self.root = model.root
+            self.arc_dep, self.arc_head = model.arc_dep, model.arc_head
+            self.arc_bi = model.arc_bi
+            self.rel_dep, self.rel_head = model.rel_dep, model.rel_head
+            self.rel_bi = model.rel_bi
 
     def forward(self, input_ids, attention_mask, sub_idx):
         out = self.enc(input_ids=input_ids,
@@ -51,7 +59,12 @@ class ExportTagger(nn.Module):
         tok = torch.gather(out, 1, idx) + self.prior_bias
         ups = self.upos_head(tok)
         feats = [self.feat_heads[f](tok) for f in T.FEATURES]
-        return (ups, *feats)
+        if not self.n_deprels:
+            return (ups, *feats)
+        tok_r = torch.cat([self.root.expand(tok.size(0), -1, -1), tok], 1)
+        arc = self.arc_bi(self.arc_dep(tok), self.arc_head(tok_r))   # (B,W,W+1)
+        rel = self.rel_bi(self.rel_dep(tok), self.rel_head(tok_r))   # (B,W,W+1,R)
+        return (ups, *feats, arc, rel)
 
 
 def main():
@@ -61,6 +74,7 @@ def main():
     ap.add_argument("--out-dir", default=str(DATA))
     args = ap.parse_args()
     out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     out_onnx = out_dir / "tagger.onnx"
     out_labels = out_dir / "tagger_labels.json"
     out_tok = out_dir / "tokenizer"
@@ -75,7 +89,11 @@ def main():
     upos_list, fv_list = ck["upos_list"], ck["fv_list"]
     prior_index = ck["prior_index"]
     nfv = {f: len(fv_list[f]) for f in T.FEATURES}
-    model = T.MorphTagger(len(upos_list), nfv, len(prior_index), ck["use_prior"])
+    deprels = ck.get("deprels", [])
+    T.ARC_DIM = ck.get("arc_dim", T.ARC_DIM)
+    T.REL_DIM = ck.get("rel_dim", T.REL_DIM)
+    model = T.MorphTagger(len(upos_list), nfv, len(prior_index), ck["use_prior"],
+                          n_deprels=len(deprels))
     model.load_state_dict(ck["state"])
     model.eval()
     wrap = ExportTagger(model).eval()
@@ -103,6 +121,10 @@ def main():
            "sub_idx": {0: "batch", 1: "words"}}
     for nm in out_names:
         dyn[nm] = {0: "batch", 1: "words"}
+    if deprels:
+        out_names += ["arc", "rel"]
+        dyn["arc"] = {0: "batch", 1: "words", 2: "heads"}
+        dyn["rel"] = {0: "batch", 1: "words", 2: "heads"}
 
     with torch.no_grad():
         ref = wrap(enc["input_ids"], enc["attention_mask"], sub_idx)
@@ -115,7 +137,8 @@ def main():
 
     out_labels.write_text(json.dumps(
         {"upos_list": upos_list, "fv_list": fv_list, "features": T.FEATURES,
-         "none": T.NONE, "model_name": T.MODEL_NAME, "max_len": max_len},
+         "none": T.NONE, "model_name": T.MODEL_NAME, "max_len": max_len,
+         "deprels": deprels},
         ensure_ascii=False), encoding="utf-8")
     tok.save_pretrained(str(out_tok))
     print(f"wrote {out_labels} + tokenizer -> {out_tok}")

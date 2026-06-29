@@ -2,36 +2,27 @@
 
     from dilemma import Tagger
 
-    tagger = Tagger(device="cuda")              # Modern Greek (default)
-    tagger = Tagger(lang="grc", device="cuda")  # Ancient Greek
+    tagger = Tagger()             # Modern Greek (default)
+    tagger = Tagger(lang="grc")   # Ancient Greek
     results = tagger.tag(["Ο Αχιλλέας πολεμά"])
+
+The runtime is torch-free: a single ONNX morphological tagger + biaffine
+dependency parser per language (onnxruntime + tokenizers), served by
+``OnnxMorphTagger``, plus the Dilemma lemmatizer. torch / transformers are
+needed only to (re)train and export the weights (``train_tagger.py`` /
+``export_tagger_onnx.py``), not to run them.
 """
 
 import os
 from pathlib import Path
 
-import torch
-from transformers import AutoModel
-
-from .model import TaggerModel
-from .labels import EL_POS_LABEL_COUNTS, EL_DP_LABEL_COUNT
-from .weights import load_weights
-from .tokenize import batch_tokenize
-from .decode import decode_batch
 from .segment import segment
-from ._revisions import BERT_REVISIONS, TAGGER_WEIGHTS_REV
+from ._revisions import TAGGER_WEIGHTS_REV
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
-# Maximum subwords per dynamic batch before flushing to GPU
+# Maximum subwords per dynamic batch before flushing through the ONNX session.
 _DEFAULT_MAX_SUBWORDS = 2048
-
-# BERT models per language
-_BERT_MODELS = {
-    "el": "nlpaueb/bert-base-greek-uncased-v1",
-    "grc": "pranaydeeps/Ancient-Greek-BERT",
-    "med": "pranaydeeps/Ancient-Greek-BERT",  # Medieval/Byzantine Greek
-}
 
 
 def _resolve_weights_dir() -> Path:
@@ -61,18 +52,46 @@ def _resolve_weights_dir() -> Path:
 _WEIGHTS_DIR = _resolve_weights_dir()
 
 
+def _download_onnx_morph(lang: str):
+    """Fetch the ONNX morph tagger weights for ``lang`` from HuggingFace and
+    return the directory holding them (``tagger.onnx`` + ``tagger_labels.json``
+    + ``tokenizer/`` [+ ``mwt.json`` for el]), or ``None`` if unavailable.
+
+    Used when the weights are not already present in ``_WEIGHTS_DIR`` (e.g. a
+    fresh install that skipped ``python -m dilemma download``). Pinned to
+    ``TAGGER_WEIGHTS_REV`` for reproducibility; downloads land in the standard
+    HuggingFace cache.
+    """
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError:  # pragma: no cover - optional dependency
+        return None
+    try:
+        root = snapshot_download(
+            repo_id="ciscoriordan/dilemma",
+            allow_patterns=[f"tagger/{lang}/*"],
+            revision=TAGGER_WEIGHTS_REV,
+        )
+    except Exception:
+        return None
+    d = Path(root) / "tagger" / lang
+    return d if d.exists() else None
+
+
 class Tagger:
     """Greek POS tagger and dependency parser with integrated lemmatization.
 
-    Supports Modern Greek (el) via gr-nlp-toolkit weights and Ancient Greek
-    (grc) via custom-trained heads on UD Perseus + PROIEL treebanks.
+    Supports Modern Greek (el, default) via Greek-BERT trained on the
+    openly licensed UD_Greek-GUD + dialect treebanks (Cretan/Lesbian/Messinian),
+    and Ancient Greek (grc) / Medieval-Byzantine Greek (med) via GreBerta
+    trained on GLAUx + AGDT. None of these use the NonCommercial UD_Greek-GDT;
+    the MG tagger was rebuilt off GUD + dialect treebanks so every training
+    source is openly licensed.
 
     Args:
-        lang: "el" (Modern Greek, default) or "grc" (Ancient Greek).
-        device: "cuda", "cpu", or None (auto-detect).
-        pos_path: Path to POS weights. None = auto-detect.
-        dp_path: Path to DP weights. None = auto-detect (MG only).
-        checkpoint: Path to a joint checkpoint (AG). Overrides pos/dp_path.
+        lang: "el" (Modern Greek, default), "grc" (Ancient Greek), or "med".
+        device: Accepted for backwards compatibility; advisory only. The ONNX
+            tagger runs on CPU (onnxruntime CPUExecutionProvider).
         max_subwords: Maximum subwords per batch before flushing.
         lemmatize: Whether to include lemmas in output (requires Dilemma).
         lemma_cache: Pre-built {form: lemma} dict. Forms found in the
@@ -88,149 +107,52 @@ class Tagger:
         self,
         lang: str = "el",
         device: str | None = None,
-        pos_path: str | None = None,
-        dp_path: str | None = None,
-        checkpoint: str | None = None,
         max_subwords: int = _DEFAULT_MAX_SUBWORDS,
         lemmatize: bool = True,
         lemma_cache: dict[str, str] | None = None,
         dialect: str | None = None,
     ):
-        if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = torch.device(device)
+        if lang not in ("el", "grc", "med"):
+            raise ValueError(
+                f"Unsupported language: {lang}. Use 'el', 'grc', or 'med'.")
+        self.device = device or "cpu"   # advisory; the ONNX runtime is CPU
         self.max_subwords = max_subwords
         self.lang = lang
         self._lemmatize = lemmatize
         self._lemma_cache = lemma_cache
         self._lemmatizer = None
         self._dialect = dialect
-        self._using_onnx_morph = False   # ONNX morphology backend (grc/med/el)
         self._morph_onnx = None
 
-        if lang == "el":
-            self._init_el(pos_path, dp_path)
-        elif lang in ("grc", "med"):
-            self._init_grc(checkpoint)
-        else:
-            raise ValueError(f"Unsupported language: {lang}. Use 'el', 'grc', or 'med'.")
-
-        # The ONNX morph backend is an onnxruntime session, not a torch module.
-        if self.model is not None:
-            self.model.to(self.device)
-            self.model.eval()
+        self._init_backend()
 
         if self._lemmatize:
             self._init_lemmatizer()
 
-    def _init_el(self, pos_path, dp_path):
-        """Initialize MG model.
+    def _init_backend(self):
+        """Load the torch-free ONNX morph backend for this language.
 
-        Prefers the torch-free ONNX morph backend (Greek-BERT, trained on
-        UD_Greek-GDT). Else a fine-tuned single-backbone checkpoint (from
-        train.py --lang el), else gr-nlp-toolkit dual-backbone weights.
+        Uses local weights from ``_WEIGHTS_DIR/<lang>`` when present, else
+        fetches them from HuggingFace. Medieval Greek (``med``) has no model of
+        its own - Byzantine literary Greek is classicizing, so it falls back to
+        the grc GreBerta weights. The same single-encoder architecture serves
+        ``el`` (Greek-BERT) and ``grc``/``med`` (GreBerta): contextual UPOS +
+        UD-feature tagging plus a biaffine dependency head.
         """
-        # Torch-free ONNX morph backend (no explicit weight paths requested)
-        if pos_path is None and dp_path is None:
-            from .onnx_backend import OnnxMorphTagger
-            el_dir = _WEIGHTS_DIR / "el"
-            if OnnxMorphTagger.available(el_dir):
-                self._morph_onnx = OnnxMorphTagger(el_dir)
-                self._using_onnx_morph = True
-                self.model = None
+        from .onnx_backend import OnnxMorphTagger
+        candidates = [self.lang, "grc"] if self.lang == "med" else [self.lang]
+        for cand in candidates:
+            gdir = _WEIGHTS_DIR / cand
+            if not OnnxMorphTagger.available(gdir):
+                gdir = _download_onnx_morph(cand)   # fetch from HF; dir|None
+            if gdir is not None and OnnxMorphTagger.available(gdir):
+                self._morph_onnx = OnnxMorphTagger(gdir)
                 return
-
-        # Prefer fine-tuned single-backbone checkpoint
-        finetuned = _WEIGHTS_DIR / "el" / "tagger_el.pt"
-        if finetuned.exists():
-            self._init_grc_from_file(str(finetuned), fallback_bert="el")
-            return
-
-        # Fall back to gr-nlp-toolkit dual-backbone weights
-        bert_name = _BERT_MODELS["el"]
-        bert_rev = BERT_REVISIONS.get(bert_name)
-        pos_bert = AutoModel.from_pretrained(bert_name, revision=bert_rev)
-        dp_bert = AutoModel.from_pretrained(bert_name, revision=bert_rev)
-        # Use MG-sized label counts for gr-nlp-toolkit weight compatibility
-        self.model = TaggerModel(
-            pos_bert, dp_bert,
-            feat_sizes=EL_POS_LABEL_COUNTS,
-            num_deprels=EL_DP_LABEL_COUNT,
+        raise FileNotFoundError(
+            f"No tagger weights for '{self.lang}' found locally ({_WEIGHTS_DIR}) "
+            f"or on HuggingFace. Run `python -m dilemma download` to fetch the "
+            f"ONNX tagger, or train one with `python train_tagger.py`."
         )
-        load_weights(self.model, pos_path=pos_path, dp_path=dp_path, device="cpu")
-
-    def _init_grc_from_file(self, checkpoint: str, fallback_bert: str = "grc"):
-        """Load a single-backbone checkpoint (shared by grc, med, and fine-tuned el)."""
-        ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
-
-        bert_name = ckpt.get("bert_model", _BERT_MODELS[fallback_bert])
-        feat_sizes = ckpt.get("feat_sizes")
-        num_deprels = ckpt.get("num_deprels")
-
-        bert = AutoModel.from_pretrained(
-            bert_name, revision=BERT_REVISIONS.get(bert_name)
-        )
-        self.model = TaggerModel(
-            bert,
-            feat_sizes=feat_sizes,
-            num_deprels=num_deprels,
-        )
-        self.model.load_state_dict(ckpt["model_state_dict"], strict=False)
-
-    def _init_grc(self, checkpoint):
-        """Initialize AG/Medieval model with single BERT (jointly trained).
-
-        Prefers the accent-preserving GreBerta ONNX backend when its weights
-        are present (grc); else the joint Ancient-Greek-BERT ONNX, else the
-        PyTorch checkpoint.
-        """
-        # Accent-preserving GreBerta ONNX backend (preferred for grc, and for med
-        # - Byzantine literary Greek is classicizing, so the AG model serves it).
-        # Only auto-selected when no explicit checkpoint was requested.
-        if checkpoint is None:
-            from .onnx_backend import OnnxMorphTagger
-            # med has no model of its own; fall back to the grc GreBerta weights.
-            candidates = [self.lang, "grc"] if self.lang == "med" else [self.lang]
-            for cand in candidates:
-                gdir = _WEIGHTS_DIR / cand
-                if OnnxMorphTagger.available(gdir):
-                    self._morph_onnx = OnnxMorphTagger(gdir)
-                    self._using_onnx_morph = True
-                    self.model = None
-                    return
-
-        # Try ONNX if explicitly requested via checkpoint="onnx"
-        onnx_dir = _WEIGHTS_DIR / self.lang / "onnx"
-        if checkpoint == "onnx" and (onnx_dir / "tagger_joint.onnx").exists():
-            try:
-                from .onnx_model import TaggerONNX
-                self.model = TaggerONNX(onnx_dir)
-                self._using_onnx = True
-                return
-            except ImportError:
-                pass  # onnxruntime not installed, fall back to PyTorch
-
-        self._using_onnx = False
-
-        if checkpoint is None:
-            default = _WEIGHTS_DIR / self.lang / f"tagger_{self.lang}.pt"
-            if default.exists():
-                checkpoint = str(default)
-            else:
-                try:
-                    from huggingface_hub import hf_hub_download
-                    checkpoint = hf_hub_download(
-                        repo_id="ciscoriordan/dilemma",
-                        filename=f"tagger/{self.lang}/tagger_{self.lang}.pt",
-                        revision=TAGGER_WEIGHTS_REV,
-                    )
-                except Exception:
-                    raise FileNotFoundError(
-                        f"Weights not found locally ({default}) or on HuggingFace. "
-                        f"Train with: python train.py --lang {self.lang}"
-                    )
-
-        self._init_grc_from_file(checkpoint)
 
     def _init_lemmatizer(self):
         """Initialize Dilemma lemmatizer."""
@@ -315,33 +237,10 @@ class Tagger:
         return all_results
 
     def _tag_batch(self, sentences: list[str]) -> list[list[dict]]:
-        """Process a single batch through the model."""
-        if self._using_onnx_morph:
-            # ONNX morph backend (grc/med/el): its own tokenization + decode,
-            # then the shared (language-agnostic) lemmatization step.
-            results = self._morph_onnx.tag_sentences(sentences)
-            self._add_lemmas(results)
-            return results
-
-        enc = batch_tokenize(sentences)
-
-        if getattr(self, "_using_onnx", False):
-            # ONNX: pass numpy arrays, get back torch tensors
-            pos_logits, arc_scores, rel_scores = self.model(
-                enc.input_ids, enc.attention_mask)
-        else:
-            with torch.inference_mode():
-                input_ids = enc.input_ids.to(self.device)
-                attention_mask = enc.attention_mask.to(self.device)
-                pos_logits, arc_scores, rel_scores = self.model(
-                    input_ids, attention_mask)
-
-        results = decode_batch(
-            pos_logits, arc_scores, rel_scores,
-            enc.word_masks, enc.subword2word, enc.word_forms,
-            raw_forms=enc.raw_forms,
-        )
-
+        """Process a single batch through the ONNX morph backend (grc/med/el):
+        its own tokenization + decode, then the shared (language-agnostic)
+        lemmatization step."""
+        results = self._morph_onnx.tag_sentences(sentences)
         self._add_lemmas(results)
         return results
 

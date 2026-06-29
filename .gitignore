@@ -60,6 +60,12 @@ data/treebanks/Greek-Dependency-Trees/
 data/treebanks/UD_Ancient_Greek-Perseus/
 data/treebanks/UD_Ancient_Greek-PROIEL/
 data/treebanks/UD_Greek-GDT/
+data/treebanks/UD_Greek-GUD/
+data/treebanks/UD_Greek-Cretan/
+data/treebanks/UD_Greek-Cypriot/
+data/treebanks/UD_Greek-Griko/
+data/treebanks/UD_Greek-Lesbian/
+data/treebanks/UD_Greek-Messinian/
 
 # Kaikki dumps
 kaikki/
