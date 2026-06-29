@@ -1067,8 +1067,8 @@ fine-tuned [GreBerta](https://huggingface.co/bowphs/GreBerta) encoder
 encoder with a Dozat-Manning biaffine dependency head:
 
 ```bash
-pip install "dilemma-nlp[tagger-onnx]"   # onnxruntime + tokenizers backend
-# or "dilemma-nlp[tagger]" to also pull torch + transformers (for training)
+pip install "dilemma-nlp[tagger-onnx]"   # torch-free runtime: onnxruntime + tokenizers
+# or "dilemma-nlp[tagger]" for the full tagger (runtime + torch + transformers, for training)
 python -m dilemma download               # also fetches the tagger weights
 ```
 
@@ -1090,7 +1090,7 @@ the tagger preloads the lemmatizer internally and returns a `lemma` field on
 every token (POS-aware, from the model's predicted UPOS).
 
 The Modern Greek (`el`) model is trained ENTIRELY on openly licensed gold
-treebanks - UD_Greek-GUD (Standard MG) plus the Cretan, Lesbian, and Messenian
+treebanks - UD_Greek-GUD (Standard MG) plus the Cretan, Lesbian, and Messinian
 dialect treebanks, all CC BY-SA 4.0 - NOT the NonCommercial UD_Greek-GDT. It
 does UPOS + UD-feature tagging AND dependency parsing (so `el` tokens carry
 `head`/`deprel`; Modern Greek multiword tokens like στο = σ + το are split
@@ -1246,12 +1246,12 @@ lookup.
 
 ```bash
 git clone https://github.com/ciscoriordan/dilemma.git && cd dilemma
-pip install -r requirements.txt
+pip install -e ".[onnx,lm,torch,dev]"  # build + train + test deps
 python build_data.py --download
 python build_lookup_db.py              # SQLite for instant startup
 python fix_selfmaps.py                 # fixes inflected forms that self-map
 python train.py                        # full scale (~45 min on RTX 2080)
-python export_onnx.py                  # optional: enable PyTorch-free inference
+python export_onnx.py                  # optional: PyTorch-free inference (also needs: pip install onnx)
 ```
 
 ### Training
@@ -1262,7 +1262,7 @@ Downloads all 5 kaikki dumps and extracts every form-lemma pair from
 inflection tables. Non-Greek characters are filtered out.
 
 ```bash
-pip install -r requirements.txt
+pip install -e ".[lm]"                       # build-data deps (lxml, betacode, pygtrie)
 python build_data.py --download             # downloads + extracts (~1.5GB total)
 ```
 

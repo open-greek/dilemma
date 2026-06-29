@@ -13,6 +13,13 @@
 See README.md at the repo root for full docs.
 """
 
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+try:
+    __version__ = _pkg_version("dilemma-nlp")
+except PackageNotFoundError:  # running from a source checkout, not installed
+    __version__ = "0.0.0+unknown"
+
 
 from .core import (
     Dilemma,
@@ -50,8 +57,9 @@ from .paradigm import (
 def __getattr__(name):
     """Lazy re-export of `Tagger` from dilemma.tagger.
 
-    Loaded on demand because importing dilemma.tagger pulls in torch and
-    transformers; users who only want the lemmatizer should not pay that cost.
+    Loaded on demand because importing dilemma.tagger pulls in the ONNX runtime
+    (onnxruntime + tokenizers); users who only want the lemmatizer should not
+    pay that import cost.
     """
     if name == "Tagger":
         from .tagger import Tagger
@@ -84,4 +92,5 @@ __all__ = [
     "ParadigmForm",
     "ParadigmSlot",
     "ParadigmSource",
+    "__version__",
 ]
