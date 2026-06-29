@@ -29,13 +29,6 @@ data/first1kgreek_freq.json
 data/pta_freq.json
 data/canonical_greeklit_freq.json
 
-# Commercial-safe build variants (--exclude-nc); on HF, not git (like the full
-# artifacts). The *_commercial.db variants are already covered by data/*.db.
-data/lemma_attestation_commercial.json
-data/glaux_pairs_commercial.json
-data/glaux_freq_commercial.json
-data/corpus_freq_commercial.json
-
 # Tagger training data + weights (built by build/build_mg_tagger_data.py +
 # train_tagger.py / export_tagger_onnx.py; weights live on HuggingFace).
 data/tagger/

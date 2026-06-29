@@ -143,7 +143,9 @@ class Tagger:
         candidates = [self.lang, "grc"] if self.lang == "med" else [self.lang]
         for cand in candidates:
             gdir = _WEIGHTS_DIR / cand
-            if not OnnxMorphTagger.available(gdir):
+            # med has no published model, so don't HF-fetch it (it would be a
+            # 0-file round-trip); a local med/ is still honored, else fall to grc.
+            if not OnnxMorphTagger.available(gdir) and cand != "med":
                 gdir = _download_onnx_morph(cand)   # fetch from HF; dir|None
             if gdir is not None and OnnxMorphTagger.available(gdir):
                 self._morph_onnx = OnnxMorphTagger(gdir)

@@ -112,25 +112,24 @@ def parse_postag(postag):
     return pos, tags
 
 
-def extract_glaux(glaux_dir, stats_only=False, exclude_nc=False, metadata_path=None):
+def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     """Extract form->lemma pairs from GLAUx XML files.
 
-    exclude_nc: drop the handful of GLAUx source texts whose license is
-    NonCommercial (for an openly licensed build); see build/nc_filter.py.
+    NonCommercial GLAUx source texts are always dropped (the build is openly
+    licensed by default); see build/nc_filter.py.
     """
     xml_files = sorted(Path(glaux_dir).glob("*.xml"))
     if not xml_files:
         print(f"No XML files found in {glaux_dir}")
         return []
 
-    if exclude_nc:
-        from nc_filter import nc_glaux_stems
-        meta = metadata_path or (Path(glaux_dir).parent / "metadata.txt")
-        nc = nc_glaux_stems(meta)
-        before = len(xml_files)
-        xml_files = [x for x in xml_files if x.stem not in nc]
-        print(f"Excluded {before - len(xml_files)} "
-              f"NonCommercial GLAUx text(s)")
+    from nc_filter import nc_glaux_stems
+    meta = metadata_path or (Path(glaux_dir).parent / "metadata.txt")
+    nc = nc_glaux_stems(meta)
+    before = len(xml_files)
+    xml_files = [x for x in xml_files if x.stem not in nc]
+    print(f"Excluded {before - len(xml_files)} "
+          f"NonCommercial GLAUx text(s)")
 
     print(f"Processing {len(xml_files)} GLAUx files...")
 
@@ -244,7 +243,7 @@ def main():
 
     # Always drop the NonCommercial GLAUx source texts: glaux_pairs.json is a
     # openly licensed artifact (see build/nc_filter.py and NOTICE).
-    pairs = extract_glaux(args.glaux, stats_only=args.stats, exclude_nc=True)
+    pairs = extract_glaux(args.glaux, stats_only=args.stats)
 
     if not args.stats and pairs:
         out = Path(args.output)
