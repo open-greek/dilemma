@@ -285,13 +285,13 @@ def _build_all(out_dir: Path, cap: int = 50) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(
         [sys.executable, str(BUILDER),
-         "--sources", "glaux,diorisis,first1k,pta,pg,byz",
+         "--sources", "glaux,diorisis,first1k,pta,pg,byzantine_vernacular",
          "--glaux", str(FX / "glaux"), "--metadata", str(FX / "metadata.txt"),
          "--diorisis", str(FX / "diorisis"),
          "--first1k", str(FX / "first1k" / "data"),
          "--pta", str(FX / "pta" / "data"),
          "--pg", str(FX / "pg"),
-         "--byz", str(FX / "byz"),
+         "--byzantine-vernacular", str(FX / "byzantine_vernacular"),
          "--profile-out", str(out_dir / "form_profile.db"),
          "--citations-out", str(out_dir / "form_citations.db"),
          "--cap", str(cap)],
@@ -323,9 +323,9 @@ def test_pta_form_attested_with_century(built_all):
 
 def test_byz_form_attested_with_line_locus(built_all):
     rec = built_all.attestation("γέρων", max_citations=None)
-    assert rec is not None and rec["source_counts"].get("byz") == 1
+    assert rec is not None and rec["source_counts"].get("byzantine_vernacular") == 1
     assert rec["by_century"] == {14: 1}           # manifest "14th century"
-    assert rec["citations"][0]["source"] == "byz"
+    assert rec["citations"][0]["source"] == "byzantine_vernacular"
     assert rec["citations"][0]["locus_scheme"] == "line"
 
 

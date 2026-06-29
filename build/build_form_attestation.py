@@ -11,7 +11,7 @@ passages (work + locus) it occurs in. Powers two runtime features (see
 
 Sources, in dedup priority order:
 
-  glaux > diorisis > first1k > pta > byz   (canonical-greekLit optional)
+  glaux > diorisis > first1k > pta > byzantine_vernacular   (canonical-greekLit optional)
 
 GLAUx + Diorisis are lemmatized treebanks (Phase A); First1KGreek, PTA and the
 byzantine-vernacular corpus are raw-text (Phase B), added for late-antique /
@@ -76,8 +76,8 @@ CITATIONS_OUT = DATA_DIR / "form_citations.db"
 DEFAULT_CAP = 200
 
 # Dedup priority + default genre bucket for a source's non-GLAUx works.
-ALL_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byz", "canonical"]
-DEFAULT_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byz"]
+ALL_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byzantine_vernacular", "canonical"]
+DEFAULT_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byzantine_vernacular"]
 TEI_GENRE = {"first1k": "other", "pta": "religion", "canonical": "other"}
 
 # Patrologia Graeca: per-volume composition century and a short work label,
@@ -484,19 +484,19 @@ def process_byzantine(byz_dir, forms, form_ids, profiles, works,
     files = sorted(f for f in byz_dir.glob("*.txt") if f.name in manifest)
     if limit:
         files = files[:limit]
-    print(f"byz: {len(files)} polytonic vernacular files")
+    print(f"byzantine_vernacular: {len(files)} polytonic vernacular files")
     for xf in files:
         data = xf.read_bytes()
         text = data.decode("utf-8", "replace")
         if _polytonic_share(text) < 0.02:   # skip the monotonic editions
-            stats["byz_monotonic_skipped"] += 1
+            stats["byzantine_vernacular_monotonic_skipped"] += 1
             continue
         fold_file_hash(h, xf.name, data)
         entry = manifest.get(xf.name, {})
         century = _byz_century(entry.get("date"))
         work_id = xf.stem
         works[work_id] = {
-            "work_id": work_id, "id_scheme": "byz", "source": "byz",
+            "work_id": work_id, "id_scheme": "byzantine_vernacular", "source": "byzantine_vernacular",
             "author": None, "title": entry.get("title"),
             "genre": "poetry", "dialect": None, "century": century,
             "start_year": century_year(century, True),
@@ -513,15 +513,15 @@ def process_byzantine(byz_dir, forms, form_ids, profiles, works,
             for m in _GREEK_RUN.finditer(line):
                 form = nfc_key(_fix_latin_homoglyphs(m.group(0)))
                 if not _is_lexical_form(form):
-                    stats["byz_nonlexical"] += 1
+                    stats["byzantine_vernacular_nonlexical"] += 1
                     continue
                 fid = _intern(form, forms, form_ids)
                 p = profiles[fid]
-                p.observe("byz", "other")
+                p.observe("byzantine_vernacular", "other")
                 p.add_deduped("poetry", century, None)
-                stats["byz_tokens"] += 1
+                stats["byzantine_vernacular_tokens"] += 1
                 file_cites[(fid, str(verse), "line")] += 1
-        sink.add([(fid, work_id, "byz", loc, sch, c, century)
+        sink.add([(fid, work_id, "byzantine_vernacular", loc, sch, c, century)
                   for (fid, loc, sch), c in file_cites.items()])
     return h.hexdigest()
 
@@ -716,7 +716,7 @@ def main():
     p.add_argument("--pta", type=Path, default=DEFAULT_PTA_DIR)
     p.add_argument("--canonical", type=Path, default=DEFAULT_CANONICAL_DIR)
     p.add_argument("--pg", type=Path, default=DEFAULT_PG_DIR)
-    p.add_argument("--byz", type=Path, default=DEFAULT_BYZ_DIR)
+    p.add_argument("--byzantine-vernacular", type=Path, default=DEFAULT_BYZ_DIR)
     p.add_argument("--sources", default=",".join(DEFAULT_SOURCES),
                    help="comma list from " + ",".join(ALL_SOURCES))
     p.add_argument("--cap", type=int, default=DEFAULT_CAP)
@@ -769,9 +769,9 @@ def main():
         source_sha["pg_txt"] = process_pg(
             args.pg, forms, form_ids, profiles, works,
             sink, claimed, args.limit, stats)
-    if "byz" in sources:
+    if "byzantine_vernacular" in sources:
         source_sha["byz_txt"] = process_byzantine(
-            args.byz, forms, form_ids, profiles, works,
+            args.byzantine_vernacular, forms, form_ids, profiles, works,
             sink, claimed, args.limit, stats)
 
     report(stats, forms, sources)
