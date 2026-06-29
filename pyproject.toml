@@ -14,7 +14,7 @@ license = { text = "MIT" }
 authors = [{ name = "Francisco Riordan" }]
 keywords = ["greek", "ancient-greek", "lemmatization", "nlp", "morphology", "byzantine", "modern-greek"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
@@ -23,6 +23,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Text Processing :: Linguistic",
 ]
@@ -35,9 +37,10 @@ onnx = ["onnxruntime>=1.15", "numpy>=1.24"]
 torch = ["torch>=2.0", "numpy>=1.24"]
 lm = ["betacode", "pygtrie", "lxml"]  # betacode.conv needs pygtrie but under-declares it; lxml for TEI loci
 dev = ["pytest>=7"]
-# Tagger: POS tagger + dependency parser. Pulls torch and transformers,
-# so it is opt-in - users who only want the lemmatizer can skip it.
-tagger = ["torch>=2.5", "transformers", "huggingface_hub>=0.20"]
+# Tagger (full): the torch-free runtime ([tagger-onnx]: onnxruntime + tokenizers)
+# PLUS torch + transformers for (re)training and ONNX export. Opt-in; users who
+# only want the lemmatizer can skip it. For inference only, prefer [tagger-onnx].
+tagger = ["dilemma-nlp[tagger-onnx]", "torch>=2.5", "transformers"]
 # Lightweight Ancient-Greek tagger: the GreBerta morphology backend runs on
 # onnxruntime + tokenizers only (no torch/transformers). Enough for
 # `Tagger(lang="grc")` accent-preserving UPOS + feature tagging.
