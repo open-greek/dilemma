@@ -41,6 +41,13 @@ from build_data import (
 )
 
 
+def _is_polytonic(s: str) -> bool:
+    """True if s carries a breathing mark or circumflex (Ancient-Greek
+    polytonic), i.e. it is not a monotonic Modern-Greek-style form."""
+    nfd = unicodedata.normalize("NFD", s)
+    return any(ord(c) in (0x0313, 0x0314, 0x0342) for c in nfd)
+
+
 def collect_form_of_targets(dump_dir: Path) -> dict:
     """Scan AG kaikki dumps for strict form_of relationships.
 
@@ -221,6 +228,13 @@ def main():
             continue
         resolved = resolve_chain(form, targets, lemma_set)
         if resolved and resolved != form:
+            # Don't turn a monotonic (Modern-Greek-style) form into a
+            # polytonic Ancient-Greek lemma - that leaks AG into MG (e.g. the
+            # MG function word ή would become ὅ). Such forms reach this
+            # AG self-map set via the combined lookup.
+            if not _is_polytonic(form) and _is_polytonic(resolved):
+                mg_protected += 1
+                continue
             fixes.append((rowid, form, resolved, lang))
     if mg_protected:
         print(f"MG-protected (skipped): {mg_protected:,}")
