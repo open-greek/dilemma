@@ -40,6 +40,7 @@ VLG_HEADWORDS_PATH = DATA_DIR / "vlg_headwords.json"
 WIP_HEADWORDS_PATH = DATA_DIR / "wip_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 LBG_HEADWORDS_PATH = DATA_DIR / "lbg_headwords.json"
+LBG_PAIRS_PATH = DATA_DIR / "lbg_pairs.json"
 MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
@@ -548,6 +549,20 @@ def build():
                 combined[h] = h
                 lbg_added += 1
         print(f"  Byzantine headwords: +{lbg_added:,} gap-fill self-maps (lang=all)")
+
+    # Byzantine inflected forms (declined/conjugated from headword + gender by
+    # build/expand_lbg.py via the grc-decl/grc-conj Lua modules): form -> lemma,
+    # also lowest-priority gap-fill so a generated form never overrides an
+    # existing AG/EL resolution. The lemma targets are the headwords added above.
+    lbg_forms_added = 0
+    if LBG_PAIRS_PATH.exists():
+        with open(LBG_PAIRS_PATH, encoding="utf-8") as f:
+            lbg_pairs = json.load(f)
+        for form, lemma in lbg_pairs.items():
+            if form and form not in combined:
+                combined[form] = lemma
+                lbg_forms_added += 1
+        print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gap-fill pairs (lang=all)")
 
     # NOTE: Corpus self-map and consensus overrides were tried here but
     # proved too aggressive, overriding correct Wiktionary entries with
