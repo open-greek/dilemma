@@ -47,6 +47,10 @@ MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
 DIORISIS_PAIRS_PATH = DATA_DIR / "diorisis_pairs.json"
+# Openly-licensed Koine NT (Nestle 1904 lowfat, macula-greek, CC BY 4.0;
+# Nestle 1904 base text is public domain). Open replacement for the dropped
+# CC BY-NC-SA PROIEL NT. Built by build/extract_nt.py.
+NT_PAIRS_PATH = DATA_DIR / "nt_pairs.json"
 GORMAN_PAIRS_PATH = DATA_DIR / "gorman_pairs.json"
 PERSEUS_PAIRS_PATH = DATA_DIR / "perseus_pairs.json"
 ETYMOLOGY_BRIDGES_PATH = DATA_DIR / "etymology_bridges.json"
@@ -410,6 +414,29 @@ def build():
               f"{dior_skipped_el:,} el conflicts skipped, "
               f"{dior_bad_lemma:,} bad lemmas rejected "
               f"({time.time()-t_d:.1f}s)")
+
+    # Koine NT (Nestle 1904 lowfat, CC BY 4.0): lowest-priority gap-fill of
+    # Koine form->lemma coverage, the open replacement for the dropped PROIEL
+    # NT. Same headword validation; only fills forms no earlier source has.
+    nt_added_ag = nt_bad_lemma = 0
+    if NT_PAIRS_PATH.exists():
+        t_n = time.time()
+        with open(NT_PAIRS_PATH, encoding="utf-8") as f:
+            nt_pairs = json.load(f)
+        ag_before_nt = dict(ag)
+        for p in nt_pairs:
+            form, lemma = p["form"], p["lemma"]
+            lemma = _normalize_corpus_lemma(lemma, ag_headwords_exact)
+            if ag_headwords_exact and lemma not in ag_headwords_exact:
+                nt_bad_lemma += 1
+                continue
+            if form not in ag:
+                ag[form] = lemma
+                nt_added_ag += 1
+            if form not in el and form not in ag_before_nt:
+                el[form] = lemma
+        print(f"  Koine NT: +{nt_added_ag:,} to AG, "
+              f"{nt_bad_lemma:,} bad lemmas rejected ({time.time()-t_n:.1f}s)")
 
     # Article and pronoun forms excluded from the lookup so that
     # resolve_articles=True/False in Dilemma controls their resolution.

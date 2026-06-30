@@ -13,6 +13,7 @@ are included. Monotonic and lowercase variants are added for lookup cascade.
 """
 
 import json
+import sqlite3
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections import defaultdict
@@ -31,6 +32,27 @@ AGDT_DIR = Path(os.environ.get(
 TREEBANK_DIRS: list = []   # no CoNLL-U sources (the NC UD treebanks are excluded)
 
 GORMAN_DIR = TREEBANKS_DIR / "Greek-Dependency-Trees" / "xml versions"
+
+# Openly-licensed lemmatized corpora (already NC-filtered): GLAUx (CC BY-SA)
+# and Diorisis (CC BY 4.0). They carry per-form POS + lemma, so they supply
+# POS-keyed disambiguations the treebanks miss (θεῶ -> NOUN θεός / VERB
+# θεάομαι, γραφῆς -> NOUN γραφή). GLAUx is weighted higher (98.8% vs 91.4%
+# lemma accuracy). Used only via lemmatize_pos (POS-gated), so this never
+# changes a bare, context-free lemmatize() result.
+DATA_DIR = TREEBANKS_DIR.parent
+GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
+DIORISIS_PAIRS_PATH = DATA_DIR / "diorisis_pairs.json"
+# Openly-licensed Koine NT (Nestle 1904 lowfat, macula-greek, CC BY 4.0) -
+# the open replacement for the dropped CC BY-NC-SA PROIEL NT.
+NT_PAIRS_PATH = DATA_DIR / "nt_pairs.json"
+LOOKUP_DB_PATH = DATA_DIR / "lookup.db"
+_CORPUS_POS_TO_UPOS = {
+    "verb": "VERB", "noun": "NOUN", "adj": "ADJ", "adv": "ADV",
+    "pron": "PRON", "num": "NUM", "prep": "ADP", "conj": "CCONJ",
+    "intj": "INTJ", "article": "DET", "particle": "PART",
+}
+# NT is gold human annotation (CC BY 4.0), weighted like GLAUx.
+_CORPUS_WEIGHT = {"glaux": 2, "diorisis": 1, "nt": 2}
 
 # AGDT POS code (position 1 of postag) -> UD UPOS
 _AGDT_TO_UPOS = {
@@ -162,28 +184,90 @@ def build_lookup():
         print(f"  Skipping Gorman trees (not found)")
 
     print(f"\nTotal tokens: {total_tokens}")
-    print(f"Unique forms: {len(form_upos_lemmas)}")
+    print(f"Unique forms (treebanks): {len(form_upos_lemmas)}")
+
+    # Openly-licensed corpus POS edges (GLAUx + Diorisis), validated against
+    # the built lemma set. Kept SEPARATE so they only fill UPOS gaps the gold
+    # treebanks don't cover - per UPOS, treebank votes always win.
+    corpus_upos_lemmas = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(int)))
+    lemma_set = set()
+    if LOOKUP_DB_PATH.exists():
+        _c = sqlite3.connect(str(LOOKUP_DB_PATH))
+        lemma_set = {r[0] for r in _c.execute("SELECT text FROM lemmas")}
+        _c.close()
+    for src, path in (("glaux", GLAUX_PAIRS_PATH),
+                      ("diorisis", DIORISIS_PAIRS_PATH),
+                      ("nt", NT_PAIRS_PATH)):
+        if not path.exists():
+            print(f"  Skipping {src} corpus ({path.name} not found)")
+            continue
+        w = _CORPUS_WEIGHT[src]
+        n = 0
+        for p in json.load(open(path, encoding="utf-8")):
+            form, lemma = p.get("form"), p.get("lemma")
+            upos = _CORPUS_POS_TO_UPOS.get(p.get("pos"))
+            if not form or not lemma or not upos:
+                continue
+            if lemma_set and lemma not in lemma_set:
+                continue
+            corpus_upos_lemmas[form][upos][lemma] += w
+            n += 1
+        print(f"  {src} corpus: +{n:,} POS edges (weight {w})")
 
     # Filter to genuinely ambiguous forms:
     # A form is ambiguous if it has multiple DISTINCT (upos -> lemma) mappings,
     # meaning different UPOS tags lead to different lemmas.
     # For each UPOS, pick the most frequent lemma.
     lookup = {}
-    for form, upos_dict in form_upos_lemmas.items():
-        # For each UPOS, pick the most frequent lemma
+    for form in set(form_upos_lemmas) | set(corpus_upos_lemmas):
+        tb = form_upos_lemmas.get(form, {})
+        co = corpus_upos_lemmas.get(form, {})
+        # For each UPOS, pick the most frequent lemma; gold treebank wins, the
+        # corpus only fills UPOS the treebank doesn't cover for this form.
         resolved = {}
-        for upos, lemma_counts in upos_dict.items():
-            best_lemma = max(lemma_counts, key=lemma_counts.get)
-            resolved[upos] = best_lemma
+        for upos in set(tb) | set(co):
+            counts = tb[upos] if upos in tb else co[upos]
+            resolved[upos] = max(counts, key=counts.get)
 
         # Only keep forms where different UPOS tags map to different lemmas
-        unique_lemmas = set(resolved.values())
-        if len(unique_lemmas) < 2:
+        if len(set(resolved.values())) < 2:
             continue
 
         lookup[form] = resolved
 
     print(f"Ambiguous forms (different UPOS -> different lemma): {len(lookup)}")
+
+    # Corpus-disagreement entries (the "kept-source-dropped" case): a form the
+    # ambiguity filter dropped (one resolved UPOS) whose well-supported corpus
+    # lemma disagrees with the current single-value lookup - e.g. γραφῆς, where
+    # the lookup kept Wiktionary's γραφεύς and discarded the corpus γραφή. Add
+    # it as a POS-keyed candidate so lemmatize_pos surfaces the corpus reading.
+    # POS-gated, so bare context-free lemmatize() is unaffected.
+    bare = {}
+    if LOOKUP_DB_PATH.exists():
+        _c = sqlite3.connect(str(LOOKUP_DB_PATH))
+        for _f, _l in _c.execute(
+                "SELECT k.form, l.text FROM lookup k "
+                "JOIN lemmas l ON k.lemma_id = l.id WHERE k.lang = 'all'"):
+            if _f not in bare:
+                bare[_f] = _l
+        _c.close()
+    disagree_added = 0
+    for form, upos_dict in corpus_upos_lemmas.items():
+        if form in lookup or form not in bare:
+            continue
+        upos = max(upos_dict, key=lambda u: max(upos_dict[u].values()))
+        counts = upos_dict[upos]
+        lemma = max(counts, key=counts.get)
+        if counts[lemma] < 2:          # require GLAUx (w=2) or GLAUx+Diorisis
+            continue
+        cur = bare[form]
+        if (lemma != cur
+                and strip_accents(lemma) != strip_accents(cur)):
+            lookup[form] = {upos: lemma}
+            disagree_added += 1
+    print(f"Corpus-disagreement POS entries added: {disagree_added}")
 
     # Add lowercase and monotonic variants
     extra = {}
