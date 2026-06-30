@@ -39,6 +39,7 @@ PD_HEADWORDS_PATH = DATA_DIR / "pd_headwords.json"
 VLG_HEADWORDS_PATH = DATA_DIR / "vlg_headwords.json"
 WIP_HEADWORDS_PATH = DATA_DIR / "wip_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
+LBG_HEADWORDS_PATH = DATA_DIR / "lbg_headwords.json"
 MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
@@ -301,6 +302,7 @@ def build():
         print(f"  LSJ10 headwords: {len(lsj10_new):,} new, "
               f"+{lsj10_lookup_added:,} self-maps to AG lookup")
 
+
     # Expand AG and Med with GLAUx corpus pairs (644K forms from
     # 8th c. BC - 4th c. AD Greek texts). These are corpus-derived
     # so lower confidence than Wiktionary, but fill coverage gaps.
@@ -527,6 +529,25 @@ def build():
         print(f"  Article forms excluded (controlled by resolve_articles): {article_excluded:,}")
     if ag_protected:
         print(f"  AG headword self-maps protected: {ag_protected:,}")
+
+    # Byzantine Greek headwords (classicizing literary vocabulary of the
+    # 9th-12th c.): single-token NFC polytonic lemmas, JSON list of
+    # {lemma, gender}. Added here, AFTER the AG/EL merge, as lowest-priority
+    # gap-fill self-maps: only forms not already resolved are added, so these
+    # can never change an existing AG/EL resolution. (Adding them to `ag`
+    # before the merge perturbed the AG/MG self-map arbitration and leaked
+    # function words like ή -> ὅ.) Gender rides along in the source for future
+    # POS use and is not consumed here.
+    lbg_added = 0
+    if LBG_HEADWORDS_PATH.exists():
+        with open(LBG_HEADWORDS_PATH, encoding="utf-8") as f:
+            lbg_raw = {e["lemma"] for e in json.load(f)
+                       if e.get("lemma") and " " not in e["lemma"]}
+        for h in lbg_raw:
+            if h not in combined:
+                combined[h] = h
+                lbg_added += 1
+        print(f"  Byzantine headwords: +{lbg_added:,} gap-fill self-maps (lang=all)")
 
     # NOTE: Corpus self-map and consensus overrides were tried here but
     # proved too aggressive, overriding correct Wiktionary entries with
