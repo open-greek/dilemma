@@ -48,11 +48,14 @@ VEC_LEN = 1 + len(GENRE_ORDER)
 SOURCES = [
     ("glaux", DATA_DIR / "glaux_freq.json", "GLAUx", None),
     ("diorisis", DATA_DIR / "diorisis_freq.json", "Diorisis", None),
-    ("pg", DATA_DIR / "pg_freq.json", "Patrologia Graeca", "religion"),
-    ("first1kgreek", DATA_DIR / "first1kgreek_freq.json", "First1KGreek", "other"),
     ("pta", DATA_DIR / "pta_freq.json", "PatristicTextArchive", "religion"),
-    ("canonical_greeklit", DATA_DIR / "canonical_greeklit_freq.json",
-     "Perseus canonical-greekLit", "other"),
+    # cog's corrected, license-filtered open-text rollup (First1KGreek +
+    # corrected Patrologia Graeca + Perseus canonical-greekLit + a Byzantine
+    # historian corpus). Replaces the three home-grown, partly-stale,
+    # uncorrected open-text builders (pg / first1kgreek / canonical_greeklit);
+    # build it with build/build_cog_public_freq.py.
+    ("cog_public", DATA_DIR / "cog_public_freq.json",
+     "cog public_lexicon (corrected)", "other"),
 ]
 
 OUTPUT_PATH = DATA_DIR / "corpus_freq.json"
