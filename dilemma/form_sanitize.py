@@ -86,4 +86,10 @@ def sanitize_form(s: str) -> str:
         else:
             out = out[:-1]
 
-    return unicodedata.normalize("NFC", out)
+    out = unicodedata.normalize("NFC", out)
+    # Canonicalize word-final sigma: Beta-Code-derived sources (e.g. Diorisis)
+    # emit medial σ word-finally (γραφῆσ, εἷσ); Greek words always end in ς, so
+    # fold so keys match standard-spelling queries.
+    if out.endswith("σ"):
+        out = out[:-1] + "ς"
+    return out

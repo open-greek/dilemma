@@ -319,12 +319,13 @@ def to_standard_sigma(s: str) -> str:
     editions (papyri, inscriptions, scholia, much of First1KGreek); it carries
     no lexical distinction. Without this, forms like ``ὡϲ``/``τῆϲ`` never match
     the standard-sigma lookup, so whole editions silently fail to lemmatize.
-    Map lunate -> medial σ / capital Σ, then fix word-final σ -> ς. No-op when
-    no lunate sigma is present (the overwhelmingly common case).
+    Map lunate -> medial σ / capital Σ, then fix word-final σ -> ς. The
+    word-final σ -> ς fix always runs (Greek words never end in medial σ), so
+    Beta-Code-derived keys/queries like ``γραφῆσ``/``εἷσ`` canonicalize to the
+    final-ς spelling and match.
     """
-    if "ϲ" not in s and "Ϲ" not in s:
-        return s
-    s = s.replace("ϲ", "σ").replace("Ϲ", "Σ")
+    if "ϲ" in s or "Ϲ" in s:
+        s = s.replace("ϲ", "σ").replace("Ϲ", "Σ")
     if s.endswith("σ"):
         s = s[:-1] + "ς"
     return s
@@ -2430,6 +2431,9 @@ class Dilemma:
         if not any(0x0370 <= ord(c) <= 0x03ff or 0x1f00 <= ord(c) <= 0x1fff
                    for c in word):
             return word
+        # NFC-normalize: some sources (e.g. DBBE) emit decomposed (NFD) forms
+        # that won't match the NFC lookup keys otherwise.
+        word = unicodedata.normalize("NFC", word)
         # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
         word = to_standard_sigma(word)
 
@@ -2478,6 +2482,15 @@ class Dilemma:
                 if lemma:
                     return self._apply_convention(lemma)
 
+        # Attested-key-gated orthographic fallbacks: editorial/manuscript
+        # surface variants (dropped iota-subscript θεῷ->θεῶ, movable-nu,
+        # dieresis). Accept a variant only if it itself resolves in the
+        # lookup, so this never invents a lemma.
+        for candidate in self._ortho_fallback_variants(word):
+            lemma = self._lookup_word(candidate)
+            if lemma:
+                return self._apply_convention(lemma)
+
         # Fall back to model
         try:
             self._load_model()
@@ -2517,6 +2530,51 @@ class Dilemma:
                 return self._apply_convention(byz_heavy)
 
         return self._apply_convention(pred)
+
+    def _ortho_fallback_variants(self, word: str):
+        """Yield editorial/manuscript orthographic spelling variants of a
+        surface form, to try against the lookup as a last resort before the
+        model. These are alternate spellings, not guesses: the caller accepts
+        a variant only if it itself resolves in the lookup.
+
+        Covers a dropped iota-subscript on a long vowel (the dat. θεῷ written
+        θεῶ; preserved-vs-not is safe because we only accept resolving
+        variants), a movable-nu (-εν/-ιν/-σιν), and a stray combining dieresis.
+        """
+        seen = {word}
+        nfd = unicodedata.normalize("NFD", word)
+
+        # Movable-nu: drop a final ν after ε/ι (3sg -ε(ν), dat./3pl -σι(ν)),
+        # never after the case-ending vowels -ων/-ην/-αν.
+        if len(word) >= 2 and word[-1] == "ν":
+            base = strip_accents(word[-2].lower())
+            if base in ("ε", "ι"):
+                v = word[:-1]
+                if v not in seen:
+                    seen.add(v)
+                    yield v
+
+        # Strip a combining dieresis (U+0308): ἀρχϊεράρχης -> ἀρχιεράρχης.
+        if "̈" in nfd:
+            v = unicodedata.normalize("NFC", nfd.replace("̈", ""))
+            if v not in seen:
+                seen.add(v)
+                yield v
+
+        # Restore a dropped iota-subscript: add U+0345 after each long vowel
+        # (α/η/ω) base + its combining marks, one position at a time.
+        chars = list(nfd)
+        for i, c in enumerate(chars):
+            if c in ("α", "η", "ω"):
+                j = i + 1
+                while j < len(chars) and unicodedata.combining(chars[j]):
+                    j += 1
+                if "ͅ" not in chars[i:j]:
+                    v = unicodedata.normalize(
+                        "NFC", "".join(chars[:j]) + "ͅ" + "".join(chars[j:]))
+                    if v not in seen:
+                        seen.add(v)
+                        yield v
 
     def _pos_table_lookup(self, word: str, upos: str) -> str | None:
         """Look up POS-specific lemma from POS disambiguation tables.
