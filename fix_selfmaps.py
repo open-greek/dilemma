@@ -22,6 +22,13 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
+CORPUS_FREQ_PATH = DATA_DIR / "corpus_freq.json"
+
+# A monotonic form whose accent-stripped surface is at least this frequent is
+# treated as a Modern-Greek function word (articles, particles) and never
+# rewritten to a polytonic AG lemma. Ordinary AG/Byzantine content words sit
+# well below this (e.g. ανάγκη ~20.6K), so their polytonic restoration is kept.
+MG_FUNCTION_FREQ = 100_000
 
 # Manual corrections for ambiguous forms where Wiktionary lists multiple
 # form_of targets and first-write-wins picks the wrong one. These are
@@ -211,6 +218,16 @@ def main():
             productive_lemmas.add(row[1])
     print(f"Productive AG lemmas: {len(productive_lemmas):,}")
 
+    # Surface frequency, for telling MG function words from AG content words.
+    corpus_freq = {}
+    if CORPUS_FREQ_PATH.exists():
+        corpus_freq = json.load(open(CORPUS_FREQ_PATH, encoding="utf-8")).get(
+            "forms", {})
+
+    def freq(form):
+        v = corpus_freq.get(strip_accents(form.lower()))
+        return v[0] if v else 0
+
     # Find fixable self-maps
     fixes = []
     mg_protected = 0
@@ -228,13 +245,19 @@ def main():
             continue
         resolved = resolve_chain(form, targets, lemma_set)
         if resolved and resolved != form:
-            # Don't turn a monotonic (Modern-Greek-style) form into a
-            # polytonic Ancient-Greek lemma - that leaks AG into MG (e.g. the
-            # MG function word ή would become ὅ). Such forms reach this
-            # AG self-map set via the combined lookup.
+            # A monotonic (Modern-Greek-style) form resolving to a polytonic
+            # Ancient-Greek lemma is only a leak when it crosses to a DIFFERENT
+            # word (e.g. ή -> ὅ, ήδη -> οἶδα, είτε -> εἰμί) or when the form is
+            # an ultra-frequent MG function word (articles). Same-word polytonic
+            # accent/breathing restoration of ordinary content words
+            # (ανάγκη -> ἀνάγκη, αἰτία ...) is legitimate and helps
+            # Ancient/Byzantine text, so it is kept.
             if not _is_polytonic(form) and _is_polytonic(resolved):
-                mg_protected += 1
-                continue
+                same_word = (strip_accents(form.lower())
+                             == strip_accents(resolved.lower()))
+                if not same_word or freq(form) >= MG_FUNCTION_FREQ:
+                    mg_protected += 1
+                    continue
             fixes.append((rowid, form, resolved, lang))
     if mg_protected:
         print(f"MG-protected (skipped): {mg_protected:,}")

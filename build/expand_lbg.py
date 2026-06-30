@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """Generate inflected forms for the Byzantine (LBG) headwords.
 
+build_lookup_db.py ingests these as lowest-priority gap-fill behind two gates
+(variant-collision + a corpus_freq ceiling): a raw exact-key gap-fill silently
+shadows real tokens, because the runtime cascade also resolves the grave/lower/
+monotonic/accent-stripped variants of a form, so a paradigm guess whose variant
+already resolves to a different, more common lemma must be dropped. The gates
+keep only the safe long tail (the ungated version was net-negative on the DBBE
+Byzantine gold).
+
+
 Reuses build/expand_lsj.py's Wiktionary grc-decl / grc-conj Lua machinery to
 decline the Byzantine nouns (headword + gender) and conjugate the regular
 Byzantine verbs (headword), so inflected Byzantine forms lemmatize back to

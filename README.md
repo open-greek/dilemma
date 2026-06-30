@@ -1336,7 +1336,7 @@ python build/expand_lsj.py --expand          # expand LSJ nouns
 python build/expand_lsj.py --expand-verbs    # expand LSJ verbs
 python build/expand_sophocles.py --expand    # expand Sophocles nouns
 python build/expand_sophocles.py --expand-verbs  # expand Sophocles verbs
-python build/expand_lbg.py                    # inflect Byzantine headwords (nouns + active verbs)
+python build/expand_lbg.py                    # inflect Byzantine headwords (gated gap-fill)
 ```
 
 This requires LSJ9 data from [lsj9](https://github.com/ciscoriordan/lsj9)

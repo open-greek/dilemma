@@ -25,6 +25,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import sanitize_form  # noqa: E402
+from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
@@ -41,6 +42,7 @@ WIP_HEADWORDS_PATH = DATA_DIR / "wip_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 LBG_HEADWORDS_PATH = DATA_DIR / "lbg_headwords.json"
 LBG_PAIRS_PATH = DATA_DIR / "lbg_pairs.json"
+CORPUS_FREQ_PATH = DATA_DIR / "corpus_freq.json"
 MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
@@ -550,19 +552,39 @@ def build():
                 lbg_added += 1
         print(f"  Byzantine headwords: +{lbg_added:,} gap-fill self-maps (lang=all)")
 
-    # Byzantine inflected forms (declined/conjugated from headword + gender by
-    # build/expand_lbg.py via the grc-decl/grc-conj Lua modules): form -> lemma,
-    # also lowest-priority gap-fill so a generated form never overrides an
-    # existing AG/EL resolution. The lemma targets are the headwords added above.
+    # Byzantine INFLECTED forms (build/expand_lbg.py -> data/lbg_pairs.json):
+    # paradigm cells declined/conjugated from the headword + gender. Added as
+    # lowest-priority gap-fill, but a raw exact-key gap-fill silently shadows
+    # real tokens, because the runtime cascade also resolves the grave/lower/
+    # monotonic/accent-stripped variants of a form. Two gates keep only the safe
+    # long tail and drop the paradigm-guess collisions:
+    #   (a) variant-collision: drop a generated form if ANY normalized variant
+    #       already resolves to a *different* lemma (the existing lexicon wins).
+    #   (b) frequency ceiling: drop ultra-common surface forms (function-word
+    #       collisions like ποτε), via corpus_freq.
     lbg_forms_added = 0
     if LBG_PAIRS_PATH.exists():
         with open(LBG_PAIRS_PATH, encoding="utf-8") as f:
             lbg_pairs = json.load(f)
+        cf = {}
+        if CORPUS_FREQ_PATH.exists():
+            cf = json.load(open(CORPUS_FREQ_PATH, encoding="utf-8")).get(
+                "forms", {})
+        LBG_FREQ_CEILING = 20_000
         for form, lemma in lbg_pairs.items():
-            if form and form not in combined:
-                combined[form] = lemma
-                lbg_forms_added += 1
-        print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gap-fill pairs (lang=all)")
+            if not form or form in combined:
+                continue
+            variants = {form, form.lower(), grave_to_acute(form),
+                        to_monotonic(form.lower()), strip_accents(form.lower())}
+            if any(v in combined and combined[v] != lemma for v in variants):
+                continue  # (a) an existing form->lemma mapping wins
+            fv = cf.get(strip_accents(form.lower()))
+            if fv and fv[0] >= LBG_FREQ_CEILING:
+                continue  # (b) ultra-common surface -> function-word collision
+            combined[form] = lemma
+            lbg_forms_added += 1
+        print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gated "
+              f"gap-fill pairs (lang=all)")
 
     # NOTE: Corpus self-map and consensus overrides were tried here but
     # proved too aggressive, overriding correct Wiktionary entries with
