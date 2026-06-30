@@ -2423,8 +2423,12 @@ class Dilemma:
         """
         if not word:
             return word
-        # Pass through tokens that are purely digits/punctuation (dates, numbers)
-        if word.isdigit():
+        # Pass through tokens with no Greek letters (punctuation, numerals,
+        # Latin) unchanged - they have no Greek lemma. Checking word.isdigit()
+        # alone missed punctuation like "." / "," / ";", which then fell through
+        # to the model and produced garbage lemmas (. -> ὅ, , -> Ϛ).
+        if not any(0x0370 <= ord(c) <= 0x03ff or 0x1f00 <= ord(c) <= 0x1fff
+                   for c in word):
             return word
         # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
         word = to_standard_sigma(word)
