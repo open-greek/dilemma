@@ -640,6 +640,12 @@ def build():
         "ἀγορῇ": "ἀγορά",        # was ἀγοράζω (noun dative, not verb subj.)
         "φρουρῇ": "φρουρά",      # was φρουρέω (noun dative, not verb subj.)
         "φανεροῦ": "φανερός",    # was φανερόω (adj genitive, not verb)
+        # AG-classical ambiguous forms: the more common noun/relative/
+        # adjective/lexicalized-adverb reading, not the verb/numeral/adverb.
+        "σκέψει": "σκέψις",      # was σκέπτομαι (noun dative, not verb fut.)
+        "ἧς": "ὅς",              # was εἷς (relative pron gen, not numeral)
+        "ἐπιφανέστερον": "ἐπιφανής",  # was ἐπιφανῶς (adj comparative, not adverb)
+        "πάντως": "πάντως",      # was πᾶς (lexicalized adverb; cf. καλῶς/οὕτως)
         "φανερῶν": "φανερός",    # was φανερόω (adj genitive pl., not verb)
         "βάθεος": "βαθύς",       # was βάθος (adj, not noun)
         "ἀσκοῦ": "ἀσκός",       # was ἀσκέω (noun genitive, not verb)

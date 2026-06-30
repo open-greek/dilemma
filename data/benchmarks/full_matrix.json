@@ -1,37 +1,37 @@
 {
   "Dilemma (no POS)": {
-    "load_time_s": 2.913,
+    "load_time_s": 2.726,
     "datasets": {
       "ag_classical": {
         "status": "ok",
         "n_tokens": 357,
-        "strict": 96.08,
-        "monotonic_normalized": 97.76,
-        "accent_stripped": 98.32,
-        "equiv_adjusted": 98.6,
-        "inference_time_s": 4.4642,
-        "tokens_per_second": 80.0,
+        "strict": 97.2,
+        "monotonic_normalized": 98.88,
+        "accent_stripped": 99.44,
+        "equiv_adjusted": 99.72,
+        "inference_time_s": 4.4137,
+        "tokens_per_second": 80.9,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 53,
-              "time_s": 0.001
+              "time_s": 0.0008
             },
             "byzantine_norm": {
               "count": 1,
-              "time_s": 0.1008
+              "time_s": 0.0896
             },
             "elision": {
               "count": 3,
-              "time_s": 0.0039
+              "time_s": 0.0037
             },
             "lookup": {
               "count": 266,
-              "time_s": 0.0186
+              "time_s": 0.0153
             },
             "model": {
               "count": 34,
-              "time_s": 2.6274
+              "time_s": 2.4685
             }
           },
           "sampled": false,
@@ -42,37 +42,41 @@
       "byzantine": {
         "status": "ok",
         "n_tokens": 8348,
-        "strict": 54.96,
-        "monotonic_normalized": 85.35,
-        "accent_stripped": 86.43,
-        "equiv_adjusted": 88.33,
-        "inference_time_s": 37.9492,
-        "tokens_per_second": 220.0,
+        "strict": 55.01,
+        "monotonic_normalized": 85.41,
+        "accent_stripped": 86.49,
+        "equiv_adjusted": 88.39,
+        "inference_time_s": 37.0854,
+        "tokens_per_second": 225.1,
         "dilemma_strategy": {
           "by_source": {
             "article": {
-              "count": 968,
-              "time_s": 0.0153
+              "count": 1101,
+              "time_s": 0.0184
+            },
+            "byzantine_norm": {
+              "count": 16,
+              "time_s": 1.6348
             },
             "compound": {
-              "count": 83,
-              "time_s": 6.9863
+              "count": 100,
+              "time_s": 8.8032
             },
             "elision": {
-              "count": 116,
-              "time_s": 0.1481
+              "count": 66,
+              "time_s": 0.0527
             },
             "identity": {
-              "count": 66,
-              "time_s": 6.3095
+              "count": 183,
+              "time_s": 16.5654
             },
             "lookup": {
-              "count": 6878,
-              "time_s": 0.5141
+              "count": 6528,
+              "time_s": 0.4796
             },
             "model": {
-              "count": 233,
-              "time_s": 19.7904
+              "count": 350,
+              "time_s": 30.1418
             }
           },
           "sampled": true,
@@ -87,8 +91,8 @@
         "monotonic_normalized": 94.34,
         "accent_stripped": 94.34,
         "equiv_adjusted": 94.34,
-        "inference_time_s": 0.7129,
-        "tokens_per_second": 446.0,
+        "inference_time_s": 0.7565,
+        "tokens_per_second": 420.4,
         "dilemma_strategy": {
           "by_source": {
             "article": {
@@ -97,23 +101,23 @@
             },
             "compound": {
               "count": 3,
-              "time_s": 0.2782
+              "time_s": 0.3192
             },
             "elision": {
               "count": 5,
-              "time_s": 0.006
+              "time_s": 0.0102
             },
             "identity": {
               "count": 11,
-              "time_s": 0.5099
+              "time_s": 0.5395
             },
             "lookup": {
               "count": 197,
-              "time_s": 0.0142
+              "time_s": 0.0158
             },
             "model": {
               "count": 36,
-              "time_s": 2.8125
+              "time_s": 2.9139
             }
           },
           "sampled": false,
@@ -128,8 +132,8 @@
         "monotonic_normalized": 76.75,
         "accent_stripped": 78.0,
         "equiv_adjusted": 79.5,
-        "inference_time_s": 0.4675,
-        "tokens_per_second": 855.6,
+        "inference_time_s": 0.5285,
+        "tokens_per_second": 756.8,
         "dilemma_strategy": {
           "by_source": {
             "article": {
@@ -138,11 +142,11 @@
             },
             "compound": {
               "count": 2,
-              "time_s": 0.2168
+              "time_s": 0.2387
             },
             "identity": {
               "count": 5,
-              "time_s": 0.2654
+              "time_s": 0.2853
             },
             "lookup": {
               "count": 277,
@@ -150,7 +154,7 @@
             },
             "model": {
               "count": 37,
-              "time_s": 2.8366
+              "time_s": 3.0815
             }
           },
           "sampled": false,
@@ -161,7 +165,7 @@
     }
   },
   "Dilemma (gold POS)": {
-    "load_time_s": 3.018,
+    "load_time_s": 2.754,
     "datasets": {
       "ag_classical": {
         "status": "N/A",
@@ -171,44 +175,40 @@
         "status": "ok",
         "n_tokens": 8348,
         "strict": 56.71,
-        "monotonic_normalized": 88.45,
-        "accent_stripped": 89.61,
-        "equiv_adjusted": 91.58,
-        "inference_time_s": 70.232,
-        "tokens_per_second": 118.9,
+        "monotonic_normalized": 88.46,
+        "accent_stripped": 89.63,
+        "equiv_adjusted": 91.59,
+        "inference_time_s": 77.4557,
+        "tokens_per_second": 107.8,
         "dilemma_strategy": {
           "by_source": {
             "article": {
-              "count": 834,
-              "time_s": 0.0159
+              "count": 985,
+              "time_s": 0.0145
             },
             "byzantine_norm": {
-              "count": 50,
-              "time_s": 3.5333
+              "count": 33,
+              "time_s": 3.2735
             },
             "compound": {
-              "count": 83,
-              "time_s": 5.9641
+              "count": 50,
+              "time_s": 4.4899
             },
             "elision": {
-              "count": 33,
-              "time_s": 0.0261
+              "count": 50,
+              "time_s": 0.0538
             },
             "identity": {
-              "count": 166,
-              "time_s": 13.4687
+              "count": 100,
+              "time_s": 7.4811
             },
             "lookup": {
-              "count": 6811,
-              "time_s": 0.5173
+              "count": 6912,
+              "time_s": 0.4996
             },
             "model": {
-              "count": 333,
-              "time_s": 27.3323
-            },
-            "verb_morphology": {
-              "count": 33,
-              "time_s": 0.0075
+              "count": 217,
+              "time_s": 17.2931
             }
           },
           "sampled": true,
@@ -227,7 +227,7 @@
     }
   },
   "Dilemma MG": {
-    "load_time_s": 4.464,
+    "load_time_s": 4.2,
     "datasets": {
       "ag_classical": {
         "status": "N/A",
@@ -244,33 +244,33 @@
         "monotonic_normalized": 88.05,
         "accent_stripped": 88.05,
         "equiv_adjusted": 89.31,
-        "inference_time_s": 4.9578,
-        "tokens_per_second": 64.1,
+        "inference_time_s": 5.006,
+        "tokens_per_second": 63.5,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 66,
-              "time_s": 0.0011
+              "time_s": 0.001
             },
             "compound": {
               "count": 3,
-              "time_s": 0.2478
+              "time_s": 0.2598
             },
             "elision": {
               "count": 5,
-              "time_s": 0.006
+              "time_s": 0.0062
             },
             "identity": {
               "count": 11,
-              "time_s": 0.4957
+              "time_s": 0.6274
             },
             "lookup": {
               "count": 197,
-              "time_s": 0.0245
+              "time_s": 0.0233
             },
             "model": {
               "count": 36,
-              "time_s": 2.669
+              "time_s": 2.7152
             }
           },
           "sampled": false,
@@ -285,29 +285,29 @@
         "monotonic_normalized": 93.5,
         "accent_stripped": 94.5,
         "equiv_adjusted": 94.75,
-        "inference_time_s": 0.4715,
-        "tokens_per_second": 848.4,
+        "inference_time_s": 0.4892,
+        "tokens_per_second": 817.7,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 96,
-              "time_s": 0.0016
+              "time_s": 0.0015
             },
             "compound": {
               "count": 2,
-              "time_s": 0.2176
+              "time_s": 0.2171
             },
             "identity": {
               "count": 5,
-              "time_s": 0.268
+              "time_s": 0.2745
             },
             "lookup": {
               "count": 260,
-              "time_s": 0.0308
+              "time_s": 0.0296
             },
             "model": {
               "count": 37,
-              "time_s": 2.8282
+              "time_s": 2.8436
             }
           },
           "sampled": false,

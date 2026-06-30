@@ -350,9 +350,9 @@ and lemma equivalence groups (see `data/benchmarks/bench_all.py`).
 | [Morpheus](https://github.com/perseids-tools/morpheus-perseids-api) (oracle) | -- | 71.1% | -- | -- |
 | [stanza](https://stanfordnlp.github.io/stanza/) `grc` | 92.2% | 71.3% | 85.2% | -- |
 | [Swaelens et al. (2025)](https://aclanthology.org/2025.acl-long.430/) | -- | ~74-75% | -- | -- |
-| **Dilemma** (best convention per period) | **98.6%** | **88.3%**‡ | **94.3%** | **94.8%**† |
+| **Dilemma** (best convention per period) | **99.7%** | **88.4%**‡ | **94.3%** | **94.8%**† |
 
-<sub>†For Demotic MG, `lang="el"` with `triantafyllidis` (94.8%) matches `lang="all"` with `triantafyllidis`. For MG-only workloads, `lang="el"` with `triantafyllidis` is recommended since it avoids AG lemmas (e.g. σπήλαιον) being returned for MG words that have an AG lookalike. ‡Byzantine is 88.3% from the static lookup alone (no POS); with per-token POS (the shipped grc tagger, or gold POS) it reaches 91.6%, since much of the residual is genuine syncretism (θεῶ = dat. θεός vs θεάομαι) that only context resolves.</sub>
+<sub>†For Demotic MG, `lang="el"` with `triantafyllidis` (94.8%) matches `lang="all"` with `triantafyllidis`. For MG-only workloads, `lang="el"` with `triantafyllidis` is recommended since it avoids AG lemmas (e.g. σπήλαιον) being returned for MG words that have an AG lookalike. ‡Byzantine is 88.4% from the static lookup alone (no POS); with per-token POS (the shipped grc tagger, or gold POS) it reaches 91.6%, since much of the residual is genuine syncretism (θεῶ = dat. θεός vs θεάομαι) that only context resolves.</sub>
 
 Cells marked `--` indicate the tool doesn't support that period or
 wasn't tested. Morpheus "oracle" picks the best candidate from all its
@@ -364,13 +364,13 @@ since it reports a different metric and no per-era breakdown.)
 
 | Lang | Convention | POS | AG Classical | Byzantine (literary) | Katharevousa | Demotic MG |
 |------|------------|-----|:--------:|:--------:|:--------:|:--------:|
-| `all` | `wiktionary` (default) | -- | 98.6% | 88.3% | 94.3% | 79.5%* |
+| `all` | `wiktionary` (default) | -- | 99.7% | 88.4% | 94.3% | 79.5%* |
 | `all` | `wiktionary` (default) | gold | -- | 91.6% | -- | -- |
-| `all` | `triantafyllidis` | -- | 87.4% | 78.4% | 89.3% | 94.8%† |
-| `grc` | `wiktionary` (default) | -- | 98.6% | 87.3% | 94.0% | 79.5%* |
-| `grc` | `triantafyllidis` | -- | 90.2% | 82.0% | 91.2% | 89.2% |
-| `el` | `wiktionary` (default) | -- | 95.0% | 83.7% | 91.2% | 90.0% |
-| `el` | `triantafyllidis` | -- | 87.4% | 78.4% | 89.3% | 94.8% |
+| `all` | `triantafyllidis` | -- | 87.7% | 78.4% | 89.3% | 94.8%† |
+| `grc` | `wiktionary` (default) | -- | 99.7% | 87.4% | 94.0% | 79.5%* |
+| `grc` | `triantafyllidis` | -- | 91.0% | 82.1% | 91.2% | 89.2% |
+| `el` | `wiktionary` (default) | -- | 95.2% | 83.7% | 91.2% | 90.0% |
+| `el` | `triantafyllidis` | -- | 87.7% | 78.4% | 89.3% | 94.8% |
 
 <sub>\*Demotic MG scores with `wiktionary` convention are convention mismatches, not real accuracy gaps: AG citation forms like `σπήλαιον` don't match the MG gold standard `σπήλαιο`. Using `convention="triantafyllidis"` fixes this. The AG and Byzantine benchmarks run with `resolve_articles=True` (the correct setting for gold that lemmatizes articles, e.g. τὸν -> ὁ); the article paradigm is otherwise excluded from the lookup so MG function words don't leak to AG forms.</sub>
 
