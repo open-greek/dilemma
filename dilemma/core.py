@@ -3145,7 +3145,15 @@ class Dilemma:
         model_words = []
 
         for i, word in enumerate(words):
-            # Lunate sigma (ϲ) -> standard σ/ς so such editions still match.
+            # Pass through tokens with no Greek letters (punctuation, digits)
+            # unchanged - matches lemmatize().
+            if not word or not any(
+                    0x0370 <= ord(c) <= 0x03ff or 0x1f00 <= ord(c) <= 0x1fff
+                    for c in word):
+                results.append(word)
+                continue
+            # NFC-normalize (sources may emit NFD), then lunate sigma -> σ/ς.
+            word = unicodedata.normalize("NFC", word)
             word = to_standard_sigma(word)
             # Article/pronoun resolution
             closed = self._resolve_closed_class(word)
@@ -3195,6 +3203,16 @@ class Dilemma:
                 if norm_hit:
                     results.append(norm_hit)
                     continue
+
+            # Attested-key-gated orthographic fallbacks (matches lemmatize()).
+            ortho_hit = None
+            for candidate in self._ortho_fallback_variants(word):
+                ortho_hit = self._lookup_word(candidate)
+                if ortho_hit:
+                    break
+            if ortho_hit:
+                results.append(ortho_hit)
+                continue
 
             results.append(None)
             model_indices.append(i)

@@ -289,7 +289,11 @@ class DilemmaWrapper:
 
     def load(self):
         from dilemma import Dilemma
-        self.d = Dilemma(convention=self.convention)
+        # resolve_articles=True is the correct invocation for the gold here:
+        # the article paradigm (τὸν->ὁ) is deliberately excluded from the
+        # lookup (MG-leak safety), so this restores article-lemma resolution
+        # that the gold annotates. Harmless for MG (resolves to the MG lemma).
+        self.d = Dilemma(convention=self.convention, resolve_articles=True)
 
     def lemmatize_dataset(self, sentences, has_pos=False):
         # Flatten all forms

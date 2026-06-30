@@ -1,29 +1,37 @@
 {
   "Dilemma (no POS)": {
-    "load_time_s": 1.535,
+    "load_time_s": 2.913,
     "datasets": {
       "ag_classical": {
         "status": "ok",
         "n_tokens": 357,
-        "strict": 94.4,
-        "monotonic_normalized": 94.68,
-        "accent_stripped": 95.8,
-        "equiv_adjusted": 96.08,
-        "inference_time_s": 7.88,
-        "tokens_per_second": 45.3,
+        "strict": 96.08,
+        "monotonic_normalized": 97.76,
+        "accent_stripped": 98.32,
+        "equiv_adjusted": 98.6,
+        "inference_time_s": 4.4642,
+        "tokens_per_second": 80.0,
         "dilemma_strategy": {
           "by_source": {
-            "identity": {
+            "article": {
+              "count": 53,
+              "time_s": 0.001
+            },
+            "byzantine_norm": {
               "count": 1,
-              "time_s": 0.1683
+              "time_s": 0.1008
+            },
+            "elision": {
+              "count": 3,
+              "time_s": 0.0039
             },
             "lookup": {
-              "count": 354,
-              "time_s": 0.817
+              "count": 266,
+              "time_s": 0.0186
             },
             "model": {
-              "count": 2,
-              "time_s": 0.3533
+              "count": 34,
+              "time_s": 2.6274
             }
           },
           "sampled": false,
@@ -34,41 +42,37 @@
       "byzantine": {
         "status": "ok",
         "n_tokens": 8348,
-        "strict": 58.82,
-        "monotonic_normalized": 89.59,
-        "accent_stripped": 90.75,
-        "equiv_adjusted": 92.03,
-        "inference_time_s": 85.8214,
-        "tokens_per_second": 97.3,
+        "strict": 54.96,
+        "monotonic_normalized": 85.35,
+        "accent_stripped": 86.43,
+        "equiv_adjusted": 88.33,
+        "inference_time_s": 37.9492,
+        "tokens_per_second": 220.0,
         "dilemma_strategy": {
           "by_source": {
-            "byzantine_norm": {
-              "count": 66,
-              "time_s": 9.4495
+            "article": {
+              "count": 968,
+              "time_s": 0.0153
             },
             "compound": {
-              "count": 100,
-              "time_s": 18.609
-            },
-            "crasis": {
-              "count": 16,
-              "time_s": 0.0005
+              "count": 83,
+              "time_s": 6.9863
             },
             "elision": {
-              "count": 66,
-              "time_s": 0.059
+              "count": 116,
+              "time_s": 0.1481
             },
             "identity": {
-              "count": 183,
-              "time_s": 25.0372
+              "count": 66,
+              "time_s": 6.3095
             },
             "lookup": {
-              "count": 7630,
-              "time_s": 0.7947
+              "count": 6878,
+              "time_s": 0.5141
             },
             "model": {
-              "count": 283,
-              "time_s": 43.6431
+              "count": 233,
+              "time_s": 19.7904
             }
           },
           "sampled": true,
@@ -79,33 +83,37 @@
       "katharevousa": {
         "status": "ok",
         "n_tokens": 318,
-        "strict": 90.88,
-        "monotonic_normalized": 92.45,
-        "accent_stripped": 93.08,
-        "equiv_adjusted": 93.08,
-        "inference_time_s": 3.5157,
-        "tokens_per_second": 90.5,
+        "strict": 92.77,
+        "monotonic_normalized": 94.34,
+        "accent_stripped": 94.34,
+        "equiv_adjusted": 94.34,
+        "inference_time_s": 0.7129,
+        "tokens_per_second": 446.0,
         "dilemma_strategy": {
           "by_source": {
-            "compound": {
-              "count": 2,
-              "time_s": 0.3583
-            },
-            "elision": {
-              "count": 1,
+            "article": {
+              "count": 66,
               "time_s": 0.0011
             },
+            "compound": {
+              "count": 3,
+              "time_s": 0.2782
+            },
+            "elision": {
+              "count": 5,
+              "time_s": 0.006
+            },
             "identity": {
-              "count": 7,
-              "time_s": 0.4044
+              "count": 11,
+              "time_s": 0.5099
             },
             "lookup": {
-              "count": 296,
-              "time_s": 0.0218
+              "count": 197,
+              "time_s": 0.0142
             },
             "model": {
-              "count": 12,
-              "time_s": 2.2253
+              "count": 36,
+              "time_s": 2.8125
             }
           },
           "sampled": false,
@@ -116,25 +124,33 @@
       "demotic": {
         "status": "ok",
         "n_tokens": 400,
-        "strict": 56.75,
-        "monotonic_normalized": 75.5,
-        "accent_stripped": 76.0,
-        "equiv_adjusted": 78.5,
-        "inference_time_s": 1.3887,
-        "tokens_per_second": 288.0,
+        "strict": 55.75,
+        "monotonic_normalized": 76.75,
+        "accent_stripped": 78.0,
+        "equiv_adjusted": 79.5,
+        "inference_time_s": 0.4675,
+        "tokens_per_second": 855.6,
         "dilemma_strategy": {
           "by_source": {
+            "article": {
+              "count": 79,
+              "time_s": 0.0014
+            },
             "compound": {
               "count": 2,
-              "time_s": 0.4772
+              "time_s": 0.2168
             },
             "identity": {
               "count": 5,
-              "time_s": 0.5655
+              "time_s": 0.2654
             },
             "lookup": {
-              "count": 393,
-              "time_s": 0.033
+              "count": 277,
+              "time_s": 0.0187
+            },
+            "model": {
+              "count": 37,
+              "time_s": 2.8366
             }
           },
           "sampled": false,
@@ -145,7 +161,7 @@
     }
   },
   "Dilemma (gold POS)": {
-    "load_time_s": 0.636,
+    "load_time_s": 3.018,
     "datasets": {
       "ag_classical": {
         "status": "N/A",
@@ -154,41 +170,45 @@
       "byzantine": {
         "status": "ok",
         "n_tokens": 8348,
-        "strict": 59.39,
-        "monotonic_normalized": 90.03,
-        "accent_stripped": 91.23,
-        "equiv_adjusted": 92.51,
-        "inference_time_s": 146.6943,
-        "tokens_per_second": 56.9,
+        "strict": 56.71,
+        "monotonic_normalized": 88.45,
+        "accent_stripped": 89.61,
+        "equiv_adjusted": 91.58,
+        "inference_time_s": 70.232,
+        "tokens_per_second": 118.9,
         "dilemma_strategy": {
           "by_source": {
+            "article": {
+              "count": 834,
+              "time_s": 0.0159
+            },
             "byzantine_norm": {
-              "count": 16,
-              "time_s": 2.9894
+              "count": 50,
+              "time_s": 3.5333
             },
             "compound": {
-              "count": 50,
-              "time_s": 7.1956
+              "count": 83,
+              "time_s": 5.9641
             },
             "elision": {
-              "count": 66,
-              "time_s": 0.075
+              "count": 33,
+              "time_s": 0.0261
             },
             "identity": {
-              "count": 183,
-              "time_s": 31.7134
+              "count": 166,
+              "time_s": 13.4687
             },
             "lookup": {
-              "count": 7797,
-              "time_s": 0.6996
+              "count": 6811,
+              "time_s": 0.5173
             },
             "model": {
-              "count": 200,
-              "time_s": 37.8592
+              "count": 333,
+              "time_s": 27.3323
             },
-            "prefix_strip": {
+            "verb_morphology": {
               "count": 33,
-              "time_s": 6.312
+              "time_s": 0.0075
             }
           },
           "sampled": true,
@@ -207,7 +227,7 @@
     }
   },
   "Dilemma MG": {
-    "load_time_s": 2.283,
+    "load_time_s": 4.464,
     "datasets": {
       "ag_classical": {
         "status": "N/A",
@@ -220,37 +240,37 @@
       "katharevousa": {
         "status": "ok",
         "n_tokens": 318,
-        "strict": 45.91,
-        "monotonic_normalized": 87.11,
-        "accent_stripped": 87.74,
+        "strict": 46.86,
+        "monotonic_normalized": 88.05,
+        "accent_stripped": 88.05,
         "equiv_adjusted": 89.31,
-        "inference_time_s": 10.9007,
-        "tokens_per_second": 29.2,
+        "inference_time_s": 4.9578,
+        "tokens_per_second": 64.1,
         "dilemma_strategy": {
           "by_source": {
             "article": {
-              "count": 63,
-              "time_s": 0.001
+              "count": 66,
+              "time_s": 0.0011
             },
             "compound": {
-              "count": 2,
-              "time_s": 0.3645
+              "count": 3,
+              "time_s": 0.2478
             },
             "elision": {
-              "count": 1,
-              "time_s": 0.0012
+              "count": 5,
+              "time_s": 0.006
             },
             "identity": {
-              "count": 7,
-              "time_s": 0.4275
+              "count": 11,
+              "time_s": 0.4957
             },
             "lookup": {
-              "count": 233,
-              "time_s": 0.769
+              "count": 197,
+              "time_s": 0.0245
             },
             "model": {
-              "count": 12,
-              "time_s": 2.2503
+              "count": 36,
+              "time_s": 2.669
             }
           },
           "sampled": false,
@@ -261,29 +281,33 @@
       "demotic": {
         "status": "ok",
         "n_tokens": 400,
-        "strict": 94.25,
-        "monotonic_normalized": 94.75,
-        "accent_stripped": 95.0,
-        "equiv_adjusted": 95.25,
-        "inference_time_s": 1.3264,
-        "tokens_per_second": 301.6,
+        "strict": 90.25,
+        "monotonic_normalized": 93.5,
+        "accent_stripped": 94.5,
+        "equiv_adjusted": 94.75,
+        "inference_time_s": 0.4715,
+        "tokens_per_second": 848.4,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 96,
-              "time_s": 0.0015
+              "time_s": 0.0016
             },
             "compound": {
               "count": 2,
-              "time_s": 0.4575
+              "time_s": 0.2176
             },
             "identity": {
               "count": 5,
-              "time_s": 0.5493
+              "time_s": 0.268
             },
             "lookup": {
-              "count": 297,
-              "time_s": 0.0382
+              "count": 260,
+              "time_s": 0.0308
+            },
+            "model": {
+              "count": 37,
+              "time_s": 2.8282
             }
           },
           "sampled": false,
@@ -294,146 +318,86 @@
     }
   },
   "stanza grc": {
-    "load_time_s": 3.28,
+    "error": "Failed to load/install",
     "datasets": {
       "ag_classical": {
-        "status": "ok",
-        "n_tokens": 357,
-        "strict": 90.2,
-        "monotonic_normalized": 90.2,
-        "accent_stripped": 92.16,
-        "equiv_adjusted": 92.16,
-        "inference_time_s": 0.3354,
-        "tokens_per_second": 1064.4
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "byzantine": {
-        "status": "ok",
-        "n_tokens": 8348,
-        "strict": 43.28,
-        "monotonic_normalized": 63.68,
-        "accent_stripped": 68.64,
-        "equiv_adjusted": 70.89,
-        "inference_time_s": 4.1188,
-        "tokens_per_second": 2026.8
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "katharevousa": {
-        "status": "ok",
-        "n_tokens": 318,
-        "strict": 83.02,
-        "monotonic_normalized": 84.28,
-        "accent_stripped": 85.22,
-        "equiv_adjusted": 85.22,
-        "inference_time_s": 0.2867,
-        "tokens_per_second": 1109.2
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "demotic": {
-        "status": "N/A",
-        "notes": "AG-only model, no Modern Greek support"
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       }
     }
   },
   "stanza el": {
-    "load_time_s": 1.544,
+    "error": "Failed to load/install",
     "datasets": {
       "ag_classical": {
-        "status": "N/A",
-        "notes": "MG-only model, no polytonic/AG support"
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "byzantine": {
-        "status": "N/A",
-        "notes": "MG-only model, no polytonic/medieval Greek support"
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "katharevousa": {
-        "status": "ok",
-        "n_tokens": 318,
-        "strict": 27.99,
-        "monotonic_normalized": 47.17,
-        "accent_stripped": 48.11,
-        "equiv_adjusted": 48.43,
-        "inference_time_s": 0.3799,
-        "tokens_per_second": 837.1
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "demotic": {
-        "status": "ok",
-        "n_tokens": 400,
-        "strict": 88.0,
-        "monotonic_normalized": 88.0,
-        "accent_stripped": 88.25,
-        "equiv_adjusted": 88.5,
-        "inference_time_s": 0.3858,
-        "tokens_per_second": 1036.8
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       }
     }
   },
   "spaCy el": {
-    "load_time_s": 1.108,
+    "error": "Failed to load/install",
     "datasets": {
       "ag_classical": {
-        "status": "N/A",
-        "notes": "MG-only model, no polytonic/AG support"
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "byzantine": {
-        "status": "N/A",
-        "notes": "MG-only model, no polytonic/medieval Greek support"
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "katharevousa": {
-        "status": "ok",
-        "n_tokens": 318,
-        "strict": 27.04,
-        "monotonic_normalized": 43.08,
-        "accent_stripped": 44.65,
-        "equiv_adjusted": 44.65,
-        "inference_time_s": 0.0884,
-        "tokens_per_second": 3596.2
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "demotic": {
-        "status": "ok",
-        "n_tokens": 400,
-        "strict": 79.25,
-        "monotonic_normalized": 81.0,
-        "accent_stripped": 81.25,
-        "equiv_adjusted": 81.5,
-        "inference_time_s": 0.0951,
-        "tokens_per_second": 4204.6
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       }
     }
   },
   "CLTK": {
-    "load_time_s": 3.801,
+    "error": "Failed to load/install",
     "datasets": {
       "ag_classical": {
-        "status": "ok",
-        "n_tokens": 357,
-        "strict": 80.11,
-        "monotonic_normalized": 80.67,
-        "accent_stripped": 80.95,
-        "equiv_adjusted": 81.23,
-        "inference_time_s": 0.0014,
-        "tokens_per_second": 247365.6
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "byzantine": {
-        "status": "ok",
-        "n_tokens": 8348,
-        "strict": 42.44,
-        "monotonic_normalized": 63.76,
-        "accent_stripped": 65.01,
-        "equiv_adjusted": 66.61,
-        "inference_time_s": 0.0249,
-        "tokens_per_second": 335445.2
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "katharevousa": {
-        "status": "ok",
-        "n_tokens": 318,
-        "strict": 71.38,
-        "monotonic_normalized": 74.21,
-        "accent_stripped": 74.84,
-        "equiv_adjusted": 74.84,
-        "inference_time_s": 0.0009,
-        "tokens_per_second": 371911.5
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       },
       "demotic": {
-        "status": "N/A",
-        "notes": "AG-only dictionary, no Modern Greek forms"
+        "status": "skipped",
+        "notes": "Tool failed to load/install"
       }
     }
   },
