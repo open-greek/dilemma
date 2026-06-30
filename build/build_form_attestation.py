@@ -526,20 +526,49 @@ def process_byzantine(byz_dir, forms, form_ids, profiles, works,
     return h.hexdigest()
 
 
+def _ingest_pg_run(text, work_id, century, locus, scheme, forms, form_ids,
+                   profiles, stats, file_cites, deferred=False):
+    """Tokenize one PG passage's text into forms / profiles / citations."""
+    for run in _GREEK_RUN.finditer(text):
+        form = nfc_key(run.group(0))
+        if not _is_lexical_form(form):
+            stats["pg_nonlexical"] += 1
+            continue
+        fid = _intern(form, forms, form_ids)
+        p = profiles[fid]
+        p.observe("pg", "other")
+        if deferred:
+            stats["pg_evidence_tokens"] += 1
+        else:
+            p.add_deduped("religion", century, None)
+            stats["pg_tokens"] += 1
+        file_cites[(fid, locus, scheme)] += 1
+
+
 def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, stats):
-    """Patrologia Graeca (calfa-co OCR): one .txt per Migne volume, with
-    ``$0=vol $8=page $9=line`` markers. Locus is the Migne page; the work is the
-    volume (no TLG id, so never deduped against the other sources - its patristic
-    overlap with PTA is kept as independent evidence in source_counts)."""
+    """Patrologia Graeca: prefer cog's CORRECTED corpus (data/corpus/
+    cogPG.<vol>.jsonl, with cog's whole-token OCR corrections already applied),
+    falling back to the RAW calfa-co OCR (sources/cgpg/PG*/PG*_text.txt,
+    ``$0=vol $8=page $9=line`` markers) for volumes cog has not corrected yet.
+    Reading the corrected text stops the attested-only gate from certifying OCR
+    garble. Locus is the Migne page; the work is the volume (no TLG id, never
+    deduped). Also ingests the CLLG-OCR'd In Matthaeum (tlg2062.tlg152) - it is
+    TLG-keyed, so it dedups by TLG id like the lemmatized sources."""
     h = hashlib.sha256()
-    files = sorted(pg_dir.glob("PG*/PG*_text.txt"))
+    corpus_dir = pg_dir.parent.parent / "data" / "corpus"
+    # cog's CORRECTED corpus (data/corpus/cogPG.<vol>.jsonl) is canonical; the
+    # raw per-volume cgpg OCR is only a fallback for volumes cog hasn't
+    # corrected (and is being phased out of cog). Prefer corrected per volume.
+    corrected = {jf.name[len("cogPG."):-len(".jsonl")]: jf
+                 for jf in corpus_dir.glob("cogPG.*.jsonl")}
+    raw = {xf.parent.name: xf for xf in pg_dir.glob("PG*/PG*_text.txt")
+           if xf.parent.name not in corrected}
+    vols = sorted(set(corrected) | set(raw))
     if limit:
-        files = files[:limit]
-    print(f"pg: {len(files)} Patrologia Graeca volumes")
-    for xf in files:
-        data = xf.read_bytes()
-        fold_file_hash(h, xf.parent.name, data)
-        vol = _pg_volume(xf.parent.name)
+        vols = vols[:limit]
+    n_corr = n_raw = 0
+    for dirname in vols:
+        vol = _pg_volume(dirname)
         century = PG_CENTURY.get(vol)
         work_id = "PG" + vol
         works[work_id] = {
@@ -550,26 +579,65 @@ def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, s
             "end_year": century_year(century, False),
         }
         claimed.add(work_id)
-        page = None
         file_cites = Counter()
-        for line in data.decode("utf-8", "replace").split("\n"):
-            m = _PG_MARKER.match(line)
-            if m:
-                page = m.group(1)
-                continue
-            for run in _GREEK_RUN.finditer(line):
-                form = nfc_key(run.group(0))
-                if not _is_lexical_form(form):
-                    stats["pg_nonlexical"] += 1
+        if dirname in corrected:
+            data = corrected[dirname].read_bytes()
+            fold_file_hash(h, corrected[dirname].name, data)
+            n_corr += 1
+            for line in data.decode("utf-8", "replace").splitlines():
+                line = line.strip()
+                if not line:
                     continue
-                fid = _intern(form, forms, form_ids)
-                p = profiles[fid]
-                p.observe("pg", "other")
-                p.add_deduped("religion", century, None)
-                stats["pg_tokens"] += 1
-                file_cites[(fid, page, "migne-page")] += 1
+                obj = json.loads(line)
+                _ingest_pg_run(obj.get("text", ""), work_id, century,
+                               obj.get("locus"), "migne-page", forms, form_ids,
+                               profiles, stats, file_cites)
+        else:
+            data = raw[dirname].read_bytes()
+            fold_file_hash(h, dirname, data)
+            n_raw += 1
+            page = None
+            for line in data.decode("utf-8", "replace").split("\n"):
+                m = _PG_MARKER.match(line)
+                if m:
+                    page = m.group(1)
+                    continue
+                _ingest_pg_run(line, work_id, century, page, "migne-page",
+                               forms, form_ids, profiles, stats, file_cites)
         sink.add([(fid, work_id, "pg", loc, sch, c, century)
                   for (fid, loc, sch), c in file_cites.items()])
+    print(f"pg: {n_corr} corrected + {n_raw} raw Patrologia Graeca volumes")
+
+    inmatt = corpus_dir / "tlg2062.tlg152.jsonl"
+    if inmatt.exists() and not limit:
+        data = inmatt.read_bytes()
+        fold_file_hash(h, inmatt.name, data)
+        work_id = "tlg2062.tlg152"
+        century = 4  # John Chrysostom (c. 349-407 AD)
+        deferred = work_id in claimed
+        if not deferred and work_id not in works:
+            works[work_id] = {
+                "work_id": work_id, "id_scheme": "tlg", "source": "pg",
+                "author": "John Chrysostom",
+                "title": "In Matthaeum homiliae (PG 57-58)",
+                "genre": "religion", "dialect": None, "century": century,
+                "start_year": century_year(century, True),
+                "end_year": century_year(century, False),
+            }
+            claimed.add(work_id)
+        file_cites = Counter()
+        for line in data.decode("utf-8", "replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            obj = json.loads(line)
+            _ingest_pg_run(obj.get("text", ""), work_id, century,
+                           obj.get("locus"), "tlg-line", forms, form_ids,
+                           profiles, stats, file_cites, deferred=deferred)
+        sink.add([(fid, work_id, "pg", loc, sch, c, century)
+                  for (fid, loc, sch), c in file_cites.items()])
+        print(f"pg: + In Matthaeum (tlg2062.tlg152, {len(file_cites):,} cites)"
+              f"{' [deferred]' if deferred else ''}")
     return h.hexdigest()
 
 
