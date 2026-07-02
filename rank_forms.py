@@ -31,7 +31,7 @@ except ImportError:
     HAS_HF_HUB = False
 
 DATA_DIR = Path(__file__).parent / "data"
-HF_REPO_ID = "ciscoriordan/dilemma-data"
+HF_REPO_ID = "open-greek/dilemma-data"
 
 # Fallback path for MG frequency data (in the lemma project)
 LEMMA_FREQ_PATH = Path.home() / "Documents" / "lemma" / "data" / "el_full.txt"

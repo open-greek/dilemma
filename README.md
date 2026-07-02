@@ -1535,7 +1535,7 @@ Additional corpora available in `--verbose` per-form breakdowns:
 - **Byzantine vernacular** (`freq_byz_vern`): 191K tokens from the [Byzantine Vernacular Corpus](https://github.com/ciscoriordan/byzantine-vernacular-corpus) (Digenes Akritas, Chronicle of Moreas, Erotokritos, etc.)
 
 By default, `rank_forms.py` downloads pre-built files from the
-[`ciscoriordan/dilemma-data`](https://huggingface.co/datasets/ciscoriordan/dilemma-data)
+[`open-greek/dilemma-data`](https://huggingface.co/datasets/open-greek/dilemma-data)
 HuggingFace dataset. Use `--rebuild` to regenerate locally from the
 lookup and frequency source files:
 
@@ -1939,7 +1939,7 @@ Form-lemma pairs come from three sources per Wiktionary entry:
 
 Generated data files (ranked form lists, form frequencies, scored
 lookups) are hosted at
-[`ciscoriordan/dilemma-data`](https://huggingface.co/datasets/ciscoriordan/dilemma-data)
+[`open-greek/dilemma-data`](https://huggingface.co/datasets/open-greek/dilemma-data)
 on HuggingFace Hub. `rank_forms.py` downloads these by default instead
 of regenerating locally.
 
