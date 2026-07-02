@@ -1,4 +1,4 @@
-# Dilemma <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/ancient-greece.svg" width="28" alt="Ancient Greece"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/languages/el.svg" width="28" alt="Greek"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/countries/cy.svg" width="28" alt="Cyprus"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/byzantine.svg" width="28" alt="Byzantine"> [![Tests](https://github.com/ciscoriordan/dilemma/actions/workflows/test.yml/badge.svg)](https://github.com/ciscoriordan/dilemma/actions/workflows/test.yml)
+# Dilemma <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/ancient-greece.svg" width="28" alt="Ancient Greece"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/languages/el.svg" width="28" alt="Greek"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/countries/cy.svg" width="28" alt="Cyprus"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/byzantine.svg" width="28" alt="Byzantine"> [![Tests](https://github.com/open-greek/dilemma/actions/workflows/test.yml/badge.svg)](https://github.com/open-greek/dilemma/actions/workflows/test.yml)
 
 <p align="center">
   <img width="640" alt="dilemma" src="scripts/social.jpg">
@@ -7,6 +7,11 @@
 Dilemma is a diachronic Greek lemmatizer spanning Ancient Greek (Classical,
 Homeric, Hellenistic), Medieval/Byzantine Greek (both vernacular and
 literary), and Modern Greek (Demotic and Katharevousa).
+
+It is part of the [Open Greek](https://github.com/open-greek) project and the
+NLP companion to the [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus),
+whose corrected open-licensed texts feed its corpus frequencies and
+form-attestation data.
 
 ### A four-layer pipeline, not a single model
 
@@ -162,11 +167,11 @@ you already have. The lookup handles 95%+ of words and needs neither.
 - [License](#license)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ciscoriordan/dilemma/main/diagram.svg" width="700" alt="Dilemma architecture">
+  <img src="https://raw.githubusercontent.com/open-greek/dilemma/main/diagram.svg" width="700" alt="Dilemma architecture">
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ciscoriordan/dilemma/main/examples.svg" width="700" alt="Lemmatization examples">
+  <img src="https://raw.githubusercontent.com/open-greek/dilemma/main/examples.svg" width="700" alt="Lemmatization examples">
 </p>
 
 ---
@@ -176,7 +181,7 @@ you already have. The lookup handles 95%+ of words and needs neither.
 ### Installation
 
 ```bash
-pip install "dilemma-nlp[onnx] @ git+https://github.com/ciscoriordan/dilemma.git"
+pip install "dilemma-nlp[onnx] @ git+https://github.com/open-greek/dilemma.git"
 python -m dilemma download
 ```
 
@@ -198,7 +203,7 @@ fresh local rebuild is never shadowed by a stale download cache. Set
 To work from a git checkout (for development or to rebuild the data):
 
 ```bash
-git clone https://github.com/ciscoriordan/dilemma.git && cd dilemma
+git clone https://github.com/open-greek/dilemma.git && cd dilemma
 pip install -e ".[onnx]"
 python -m dilemma download          # or use the build pipeline below
 ```
@@ -493,7 +498,7 @@ The lookup table combines forms from multiple sources:
 | **LSJ** (Liddell-Scott-Jones) | 4.2M | 32K nouns, 22K verbs (incl. 700+ with principal parts parsed from the entry head and ~800 athematic / irregular μι-verbs), 14K adjectives, all expanded via Wiktionary Lua modules |
 | **Sophocles Lexicon** (Byzantine/Patristic) | 1.0M | 13.5K nouns, 4.6K verbs, 1.5K adverbs from OCR'd TEI data |
 | **[GLAUx](https://github.com/alekkeersmaekers/glaux)** (Keersmaekers, 2021) | 557K | 17M-token corpus, 8th c. BC - 4th c. AD, 98.8% lemma accuracy |
-| **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Contributes to the merged 67M-token `corpus_freq.json` alongside GLAUx, PG, First1KGreek, PTA, and Perseus canonical-greekLit. |
+| **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Contributes to the merged 68.6M-token `corpus_freq.json` alongside GLAUx, PTA, and the [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) open-text rollup. |
 | **[HNC Golden Corpus](https://inventory.clarin.gr/corpus/870)** (CLARIN:EL) | 1K new | 88K-token gold-standard MG corpus, 11K unique form-lemma pairs. Low priority (only added when not in Wiktionary). Also used for MG evaluation. |
 | **[Perseus / AGDT](https://github.com/PerseusDL/treebank_data)** (CC BY-SA 3.0 US) | 81K | The 33 Greek AGDT works: Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus. Sourced from the original, not the NonCommercial UD release. |
 | **[Gorman Treebanks](https://github.com/perseids-publications/gorman-trees)** (CC BY-SA 4.0) | 79K | 687K-token corpus across Herodotus, Thucydides, Xenophon, Demosthenes, Lysias, Polybius, etc. Gold-standard single annotator. |
@@ -1040,7 +1045,10 @@ The data lives in two SQLite artifacts built by the standalone
 treebanks plus the raw-text First1KGreek, PTA, Patrologia Graeca and
 byzantine-vernacular corpora (for late-antique, patristic and Byzantine
 coverage), deduping each work once by source priority (so `total_count` is a
-deduped union while `citations` keep every source's passages). The raw-text
+deduped union while `citations` keep every source's passages). The Patrologia
+Graeca and byzantine-vernacular texts are read from the
+[Open Greek Corpus](https://github.com/open-greek/open-greek-corpus), which
+serves the Migne OCR with whole-token corrections already applied. The raw-text
 sources (especially the OCR'd Patrologia Graeca) are noisier than the treebanks,
 so a form attested only there is lower-confidence; `source_counts` tells you
 which corpora attest each form. Both artifacts are opt-in downloads, kept out of the base
@@ -1245,7 +1253,7 @@ lookup.
 ### Full installation
 
 ```bash
-git clone https://github.com/ciscoriordan/dilemma.git && cd dilemma
+git clone https://github.com/open-greek/dilemma.git && cd dilemma
 pip install -e ".[onnx,lm,torch,dev]"  # build + train + test deps
 python build_data.py --download
 python build_lookup_db.py              # SQLite for instant startup
@@ -1515,9 +1523,11 @@ For each language, the script produces:
 
 Frequency sources (used for primary ranking):
 - **MG**: [FrequencyWords/OpenSubtitles](https://github.com/hermitdave/FrequencyWords) (1.49M forms)
-- **AG**: merged `corpus_freq.json` (67M tokens, 1.10M unique forms) from
-  GLAUx + Diorisis + Patrologia Graeca + First1KGreek + PatristicTextArchive
-  + Perseus canonical-greekLit
+- **AG**: merged `corpus_freq.json` (68.6M tokens, 1.13M unique forms) from
+  GLAUx + Diorisis + PatristicTextArchive + the
+  [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus)
+  open-text rollup (First1KGreek, corrected Patrologia Graeca, Perseus
+  canonical-greekLit, byzantium.gr)
 - **Medieval**: AG corpus frequencies as proxy
 
 Additional corpora available in `--verbose` per-form breakdowns:
@@ -1832,8 +1842,8 @@ as a secondary source: its 456K form-lemma pairs add 76K new entries
 not found in GLAUx. Because Diorisis has lower lemma accuracy (91.4%),
 its pairs are only added when they don't conflict with existing entries
 from Wiktionary, LSJ, or GLAUx. For form-frequency data, GLAUx and
-Diorisis are merged with four other CC BY-SA / PD sources into the
-67M-token `corpus_freq.json` (see
+Diorisis are merged with the Patristic Text Archive and the Open Greek
+Corpus open-text rollup into the 68.6M-token `corpus_freq.json` (see
 [Form-frequency corpora](#form-frequency-corpora-and-coverage-diagnostics)
 below).
 
@@ -1862,37 +1872,39 @@ variants for fuzzy matching.
 #### Form-frequency corpora and coverage diagnostics
 
 `data/corpus_freq.json` is the merged form-frequency table consumed by
-`rank_forms.py` and `vesuvius.py`. It unions six sources (per-form
+`rank_forms.py` and `vesuvius.py`. It unions four sources (per-form
 counts summed, genre vectors element-wise added):
 
 | Source | Tokens | License | Genre breakdown |
 |---|---:|---|---|
-| GLAUx | 17M | CC BY-SA | yes (10 genres, lemma-aware) |
-| Diorisis | 10M | CC BY-SA | yes (10 genres, lemma-aware) |
-| Patrologia Graeca (Migne) | 3M | PD | bucket = religion |
-| First1KGreek | 23M | CC BY-SA | bucket = other |
-| Patristic Text Archive | 2.6M | CC BY-SA | bucket = religion |
-| Perseus canonical-greekLit | 11M | CC BY-SA | bucket = other |
-| **Total** | **67M tokens / 1.10M forms** | | |
+| GLAUx | 16.9M | CC BY-SA | yes (10 genres, lemma-aware) |
+| Diorisis | 10.2M | CC BY-SA | yes (10 genres, lemma-aware) |
+| Patristic Text Archive | 2.5M | CC BY-SA | bucket = religion |
+| [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) rollup | 38.9M | CC BY-SA | bucket = other |
+| **Total** | **68.6M tokens / 1.13M forms** | | |
+
+The Open Greek Corpus rollup (its `public_lexicon.tsv`) covers First1KGreek,
+the corrected Patrologia Graeca OCR, Perseus canonical-greekLit, byzantium.gr
+historians and the Byzantine vernacular corpus, with OCR corrections and
+license filtering already applied. It replaces the three uncorrected per-repo
+builders (PG, First1KGreek, canonical-greekLit) that Dilemma used before.
 
 Build:
 
 ```
 python build/build_glaux_freq.py              # if not already built
 python build/build_diorisis_freq.py
-python build/build_pg_freq.py
-python build/build_first1kgreek_freq.py       # needs corpus-of-open-greek/sources/first1k
-python build/build_pta_freq.py                # needs corpus-of-open-greek/sources/pta
-python build/build_canonical_greeklit_freq.py # needs corpus-of-open-greek/sources/perseus
+python build/build_pta_freq.py                # needs an Open Greek Corpus clone (sources/pta)
+python build/build_cog_public_freq.py         # needs its data/public_lexicon.tsv
 python build/merge_corpus_freq.py             # writes data/corpus_freq.json
 ```
 
-The three GitHub-hosted TEI corpora (First1KGreek, PTA, canonical-greekLit)
-are tokenised by `build/tei_tokenize.py`, which extracts text from
-`<text>` subtrees, drops apparatus / notes / bibliography, and splits on
-non-Greek characters with accent-stripped lowercase NFC keys -- the same
-shape GLAUx and Diorisis already use, so the merge is a straight
-element-wise sum.
+The PTA TEI corpus is tokenised by `build/tei_tokenize.py`, which extracts
+text from `<text>` subtrees, drops apparatus / notes / bibliography, and
+splits on non-Greek characters with accent-stripped lowercase NFC keys -- the
+same shape GLAUx and Diorisis already use, so the merge is a straight
+element-wise sum. The Open Greek Corpus rollup arrives pre-tokenised in the
+same shape from that corpus's own build.
 
 To inspect lookup coverage against the merged corpus run:
 
@@ -1900,11 +1912,11 @@ To inspect lookup coverage against the merged corpus run:
 python build/coverage_report.py
 ```
 
-As of the current pipeline, `ag_lookup.json` covers **88.05% of running
-tokens** in the merged 67M-token corpus, but only **19.66% of unique
+As of the current pipeline, `ag_lookup.json` covers **90.58% of running
+tokens** in the merged 68.6M-token corpus, but only **28.85% of unique
 forms**. The long-tail gap is dominated by elision forms (`δ’`, `ἀλλ’`,
 `δι’`, `καθ’`, ...) which Wiktionary does not index as separate
-headwords. None of the six sources is lemmatised end-to-end by Dilemma,
+headwords. None of the merged sources is lemmatised end-to-end by Dilemma,
 so they all contribute frequency and coverage signal but not new
 form-lemma pairs (lemma pairs come from Wiktionary plus the
 GLAUx/Diorisis/Gorman/Perseus treebanks).

@@ -48,8 +48,8 @@ tagger-onnx = ["onnxruntime>=1.15", "tokenizers>=0.15", "numpy>=1.24",
                "huggingface_hub>=0.20"]
 
 [project.urls]
-Homepage = "https://github.com/ciscoriordan/dilemma"
-Repository = "https://github.com/ciscoriordan/dilemma"
+Homepage = "https://github.com/open-greek/dilemma"
+Repository = "https://github.com/open-greek/dilemma"
 
 [project.scripts]
 dilemma = "dilemma.__main__:main"

@@ -36,4 +36,4 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
-[1.0.0]: https://github.com/ciscoriordan/dilemma/releases/tag/v1.0.0
+[1.0.0]: https://github.com/open-greek/dilemma/releases/tag/v1.0.0

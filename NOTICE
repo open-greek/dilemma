@@ -89,12 +89,22 @@ Treebanks and annotated corpora
   https://github.com/PatristicTextArchive/pta_data
   License: per-file Creative Commons licenses, recorded in each file's header.
 
-- Patrologia Graeca (OCR), Calfa.
-  https://github.com/calfa-co/Patrologia-Graeca
-  License: CC BY 4.0; the underlying Migne text is public domain.
+- Patrologia Graeca (Migne). Public domain. Used via the Open Greek Corpus's
+  corrected text (below), which derives from the Calfa OCR
+  (https://github.com/calfa-co/Patrologia-Graeca, CC BY 4.0).
 
 - Byzantine vernacular corpus, Francisco Riordan.
   https://github.com/ciscoriordan/byzantine-vernacular-corpus
+  Now maintained as the `byzantine` source inside the Open Greek Corpus.
+
+- Open Greek Corpus.
+  https://github.com/open-greek/open-greek-corpus
+  License: CC BY-SA 4.0, with per-work source and license recorded in its
+  corpus_editions.json. Supplies the corrected Patrologia Graeca text and
+  OCR'd editions read by the form-attestation pass, and the public_lexicon.tsv
+  open-text frequency rollup (First1KGreek, corrected Patrologia Graeca,
+  Perseus canonical-greekLit, byzantium.gr, Byzantine vernacular) merged into
+  corpus_freq.json.
 
 
 Evaluation data
