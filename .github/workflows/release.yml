@@ -33,7 +33,7 @@ jobs:
   #   1. [project].name in pyproject.toml must be an AVAILABLE PyPI name
   #      (plain "dilemma" is already taken by an unrelated package).
   #   2. Register a (pending) Trusted Publisher on PyPI for that project name,
-  #      repo ciscoriordan/dilemma, workflow release.yml. Until then this job
+  #      repo open-greek/dilemma, workflow release.yml. Until then this job
   #      fails while the test + GitHub Release jobs still succeed.
   publish:
     needs: test
