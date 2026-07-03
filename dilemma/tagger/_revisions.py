@@ -16,5 +16,8 @@ To cut a new release that tracks updated weights:
 
 # Our own trained tagger weights, shipped under ciscoriordan/dilemma at
 # tagger/<lang>/{tagger.onnx, tagger_labels.json, tokenizer/, mwt.json}. Pinned
-# to the commit that ships the grc + el biaffine dependency-parse models.
-TAGGER_WEIGHTS_REV = "15a62610727b32253b780d2492aa1b546ac66443"
+# to the commit that ships the grc tagger fine-tuned on the Iliad composite
+# gold + a GLAUx mixture (GLAUx test strict 93.6->94.1, UAS 83.6->85.1;
+# held-out Iliad books 6/22 engine-only strict 82->87.6/88.4). Also carries
+# the grc training checkpoint (tagger_model.pt) for future warm-starts.
+TAGGER_WEIGHTS_REV = "876efd48e1498c354f43742c1ba546b311006f2f"
