@@ -4,6 +4,22 @@ All notable changes to Dilemma are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The Ancient Greek (`grc`) tagger weights were fine-tuned on the Iliad
+  composite gold plus a GLAUx mixture. No regression on general Greek
+  (GLAUx test strict 93.6% -> 94.1%, UAS 83.6% -> 85.1%, LAS 78.3% ->
+  79.9%); large gains on Homeric text. Pinned revision updated; tagger
+  sub-version 0.6.0.
+- `Tagger.tag` now segments leading/trailing punctuation into standalone
+  `PUNCT` tokens ("ἄειδε," -> "ἄειδε" + ","), so the output can contain
+  more tokens than `text.split()` (as MG multiword tokens already could).
+  Elision/aphaeresis apostrophes stay attached (δ’, ῥ’, ’γώ); runs of one
+  character stay one token ("..."). Lemma lookups also improve, since the
+  lemmatizer now sees the clean word instead of "word+comma". Tagger
+  sub-version 0.7.0.
+
 ## [1.0.0] - 2026-06-29
 
 First stable release.

@@ -19,7 +19,7 @@ from pathlib import Path
 from .segment import segment
 from ._revisions import TAGGER_WEIGHTS_REV
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 # Maximum subwords per dynamic batch before flushing through the ONNX session.
 _DEFAULT_MAX_SUBWORDS = 2048

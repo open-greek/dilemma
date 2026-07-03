@@ -21,11 +21,54 @@ heads-free models leave ``head``/``deprel`` as ``None``. Lemmas are added
 downstream by ``Tagger`` via the Dilemma lemmatizer.
 """
 import json
+import unicodedata
 from pathlib import Path
 
 import numpy as np
 
 PAD_ID = 1  # RoBERTa <pad>; BERT uses 0 (set from the tokenizer below)
+
+# Apostrophe-family marks are never split off a word: word-final ones are
+# Greek elision (δ’, ἀλλ’), word-initial ones aphaeresis (’γώ), and both
+# belong to the token (the lemmatizer depends on them).
+_APOSTROPHES = frozenset("’ʼ᾿'‘΄")
+
+
+def _edge_punct_segments(word: str):
+    """Split leading/trailing punctuation runs off one whitespace token.
+
+    Returns ``[(segment, is_punct), ...]``. Runs of the same character stay
+    one segment ("..."), mixed runs split per character (»,). Apostrophes
+    stay attached (see ``_APOSTROPHES``); interior punctuation (hyphens,
+    krasis marks) is never touched.
+    """
+    def is_p(c):
+        return unicodedata.category(c).startswith("P") and c not in _APOSTROPHES
+
+    n = len(word)
+    i, j = 0, n
+    while i < j and is_p(word[i]):
+        i += 1
+    while j > i and is_p(word[j - 1]):
+        j -= 1
+    if i == 0 and j == n:
+        return [(word, False)]
+    segs = []
+
+    def emit_run(run):
+        k = 0
+        while k < len(run):
+            m = k
+            while m < len(run) and run[m] == run[k]:
+                m += 1
+            segs.append((run[k:m], True))
+            k = m
+
+    emit_run(word[:i])
+    if i < j:
+        segs.append((word[i:j], False))
+    emit_run(word[j:])
+    return segs
 
 
 class OnnxMorphTagger:
@@ -79,11 +122,31 @@ class OnnxMorphTagger:
 
     def tag_sentences(self, sentences, bs: int = 32):
         """sentences: list[str]. Returns list (per sentence) of token dicts
-        {form, raw_form, upos, feats, head, deprel} aligned to whitespace words.
+        {form, raw_form, upos, feats, head, deprel}.
+
+        Tokenization: whitespace words, with two refinements that can yield
+        more tokens than ``s.split()`` - leading/trailing punctuation is
+        segmented into its own deterministic PUNCT tokens ("ἄειδε," ->
+        "ἄειδε" + ","; elision/aphaeresis apostrophes stay attached), and
+        multiword tokens expand per ``mwt.json`` (MG στο -> σ + το).
+
         When the model has a dep head (self.deprels non-empty), head is the
         greedy biaffine arc (0 = ROOT, 1..n = the n words) and deprel the
         relation label; otherwise both are None."""
-        token_lists = [self._split_mwt(s.split()) for s in sentences]
+        token_lists, punct_lists = [], []
+        for s in sentences:
+            forms, puncts = [], []
+            for w in s.split():
+                for seg, isp in _edge_punct_segments(w):
+                    if isp:
+                        forms.append(seg)
+                        puncts.append(True)
+                    else:
+                        pieces = self._split_mwt([seg])
+                        forms.extend(pieces)
+                        puncts.extend([False] * len(pieces))
+            token_lists.append(forms)
+            punct_lists.append(puncts)
         out = [None] * len(token_lists)
         order = sorted(range(len(token_lists)), key=lambda i: len(token_lists[i]))
         for s in range(0, len(order), bs):
@@ -135,6 +198,10 @@ class OnnxMorphTagger:
                         hi = int(arc[r, w, :nw + 1].argmax())   # 0=root, 1..nw
                         head = hi
                         deprel = self.deprels[int(rel[r, w, hi].argmax())]
+                    if punct_lists[i][w]:
+                        # segmented edge punctuation is PUNCT by construction;
+                        # keep the model's arc, override its classification
+                        pu, pf = "PUNCT", {}
                     row.append({"form": words[w], "raw_form": words[w],
                                 "upos": pu, "feats": pf,
                                 "head": head, "deprel": deprel})

@@ -422,19 +422,31 @@ class TestEdgeCases:
         if results[0]:
             assert results[0][0]["upos"] == "PUNCT"
 
-    @pytest.mark.xfail(
-        reason="Known limitation: the ONNX morph backend splits on whitespace "
-        "only, so punctuation attached to a word (ἄειδε, / θεά.) is not a "
-        "separate PUNCT token. Affects all languages; needs a punctuation "
-        "pre-segmentation step in OnnxMorphTagger.tag_sentences.",
-        strict=False,
-    )
     def test_mixed_punctuation_and_words(self, tagger_grc_no_lemma):
-        """Sentence with punctuation should tag punctuation as PUNCT."""
+        """Attached punctuation is segmented into its own PUNCT tokens."""
         results = tagger_grc_no_lemma.tag(["μῆνιν ἄειδε, θεά."])
         tokens = results[0]
-        punct_tokens = [t for t in tokens if t["upos"] == "PUNCT"]
-        assert len(punct_tokens) >= 1, "Expected at least one PUNCT token"
+        assert [t["form"] for t in tokens] == ["μῆνιν", "ἄειδε", ",", "θεά", "."]
+        assert [t["upos"] for t in tokens if t["form"] in (",", ".")] == \
+            ["PUNCT", "PUNCT"]
+        assert all(t["upos"] != "PUNCT" for t in tokens
+                   if t["form"] not in (",", "."))
+
+    def test_punct_segmentation_edges(self, tagger_grc_no_lemma):
+        """Guillemets/ellipsis split; runs of one char stay one token."""
+        tokens = tagger_grc_no_lemma.tag(["«θεά», ἔφη..."])[0]
+        assert [t["form"] for t in tokens] == \
+            ["«", "θεά", "»", ",", "ἔφη", "..."]
+        assert [t["upos"] for t in tokens] == \
+            ["PUNCT", "NOUN", "PUNCT", "PUNCT", "VERB", "PUNCT"]
+
+    def test_elision_apostrophe_not_split(self, tagger_grc_no_lemma):
+        """Word-final elision apostrophes belong to the token (δ’, ῥ’)."""
+        tokens = tagger_grc_no_lemma.tag(["ἄνδρα δ’ ἐγὼ ῥ’ ἔννεπε·"])[0]
+        assert [t["form"] for t in tokens] == \
+            ["ἄνδρα", "δ’", "ἐγὼ", "ῥ’", "ἔννεπε", "·"]
+        assert tokens[-1]["upos"] == "PUNCT"
+        assert all(t["upos"] != "PUNCT" for t in tokens[:-1])
 
     def test_long_input(self, tagger_grc_no_lemma):
         """Long input should not crash (tests dynamic batching)."""

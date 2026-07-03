@@ -1097,6 +1097,12 @@ Supports `lang="el"` (Modern Greek), `lang="grc"` (Ancient), and
 the tagger preloads the lemmatizer internally and returns a `lemma` field on
 every token (POS-aware, from the model's predicted UPOS).
 
+Tokenization is whitespace-based with two refinements, so the output can
+contain more tokens than `text.split()`: leading/trailing punctuation becomes
+standalone `PUNCT` tokens (`ἄειδε,` -> `ἄειδε` + `,`; elision and aphaeresis
+apostrophes like `δ’` stay attached), and Modern Greek multiword tokens
+expand (`στο` -> `σ` + `το`).
+
 The Modern Greek (`el`) model is trained ENTIRELY on openly licensed gold
 treebanks - UD_Greek-GUD (Standard MG) plus the Cretan, Lesbian, and Messinian
 dialect treebanks, all CC BY-SA 4.0 - NOT the NonCommercial UD_Greek-GDT. It
