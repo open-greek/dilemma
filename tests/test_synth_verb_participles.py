@@ -419,11 +419,19 @@ class TestJtauberCompat:
     @pytest.fixture(scope="class")
     def jtauber(self):
         import json
-        path = Path(os.environ.get(
-            "JTAUBER_PARADIGMS",
-            Path.home() / "Documents" / "jtauber_ag_paradigms.json"))
-        if not path.exists():
-            pytest.skip(f"jtauber paradigms not found at {path}")
+        # resolve like test_paradigm.py: $JTAUBER_PARADIGMS (file), then the
+        # documented $DILEMMA_PARADIGM_DATA (dir), then a home-dir fallback
+        candidates = []
+        if os.environ.get("JTAUBER_PARADIGMS"):
+            candidates.append(Path(os.environ["JTAUBER_PARADIGMS"]))
+        if os.environ.get("DILEMMA_PARADIGM_DATA"):
+            candidates.append(Path(os.environ["DILEMMA_PARADIGM_DATA"])
+                              / "jtauber_ag_paradigms.json")
+        candidates.append(
+            Path.home() / "Documents" / "jtauber_ag_paradigms.json")
+        path = next((p for p in candidates if p.exists()), None)
+        if path is None:
+            pytest.skip(f"jtauber paradigms not found (tried {candidates})")
         with open(path) as f:
             return json.load(f)
 
