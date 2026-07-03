@@ -16,6 +16,7 @@ Usage:
   python train_tagger.py --no-prior            # ablation: plain GreBerta tagger
 """
 import argparse
+import functools
 import os
 # Fast (Rust) tokenizer + DataLoader fork workers would otherwise warn/deadlock.
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
@@ -302,6 +303,10 @@ def main():
                     help="tokenizer without add_prefix_space (BERT, not RoBERTa)")
     ap.add_argument("--dep", action="store_true",
                     help="also train a biaffine dependency-parse head (head + relation)")
+    ap.add_argument("--init-ckpt",
+                    help="warm-start from an existing checkpoint: adopts its "
+                         "label spaces, feature set, and config, loads its "
+                         "weights, then fine-tunes on --sentences")
     args = ap.parse_args()
     MODEL_NAME = args.model
     NORMALIZE = not args.no_normalize
@@ -309,25 +314,46 @@ def main():
     if args.features_auto:
         FEATURES = derive_features(args.sentences)
     use_prior = not args.no_prior
+    init_ck = None
+    if args.init_ckpt:
+        init_ck = torch.load(args.init_ckpt, map_location="cpu",
+                             weights_only=False)
+        MODEL_NAME = init_ck.get("model_name", MODEL_NAME)
+        if init_ck.get("features"):
+            FEATURES = init_ck["features"]
+        NORMALIZE = init_ck.get("normalize", NORMALIZE)
+        PREFIX_SPACE = init_ck.get("prefix_space", PREFIX_SPACE)
+        use_prior = init_ck.get("use_prior", use_prior)
     dev = ("cuda" if torch.cuda.is_available()
            else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"device={dev} model={MODEL_NAME} prior={use_prior} "
           f"features={len(FEATURES)} smoke={args.smoke}", flush=True)
 
     sents_path = Path(args.sentences)
-    print("building label space...", flush=True)
-    upos_list, fv_list = build_label_space(sents_path, limit=2000 if args.smoke else None)
+    if init_ck:
+        # adopt the checkpoint's label spaces so the state dict fits; labels
+        # in the fine-tune data outside these spaces map to -100 (ignored)
+        print("adopting label space from --init-ckpt...", flush=True)
+        upos_list = init_ck["upos_list"]
+        fv_list = init_ck["fv_list"]
+        prior_index = {(tuple(k) if isinstance(k, list) else k): i
+                       for i, k in enumerate(init_ck["prior_index"])}
+        deprel_list = init_ck.get("deprels") or []
+    else:
+        print("building label space...", flush=True)
+        upos_list, fv_list = build_label_space(sents_path, limit=2000 if args.smoke else None)
+        prior_index = {}
+        for u in upos_list:
+            prior_index[("UPOS", u)] = len(prior_index)
+        for f in FEATURES:
+            for v in fv_list[f]:
+                if v != NONE:
+                    prior_index[(f, v)] = len(prior_index)
+        deprel_list = derive_deprels(sents_path) if args.dep else []
     upos2i = {u: i for i, u in enumerate(upos_list)}
     fv2i = {f: {v: i for i, v in enumerate(fv_list[f])} for f in FEATURES}
-    prior_index = {}
-    for u in upos_list:
-        prior_index[("UPOS", u)] = len(prior_index)
-    for f in FEATURES:
-        for v in fv_list[f]:
-            if v != NONE:
-                prior_index[(f, v)] = len(prior_index)
-    deprel_list = derive_deprels(sents_path) if args.dep else []
-    deprel2i = {r: i for i, r in enumerate(deprel_list)} if args.dep else None
+    deprel2i = ({r: i for i, r in enumerate(deprel_list)}
+                if deprel_list else None)
     print(f"  upos={len(upos_list)} feat-values={ {f: len(fv_list[f]) for f in FEATURES} } "
           f"prior_dim={len(prior_index)} deprels={len(deprel_list)}")
 
@@ -357,6 +383,10 @@ def main():
     n_feat_vals = {f: len(fv_list[f]) for f in FEATURES}
     model = MorphTagger(len(upos_list), n_feat_vals, len(prior_index), use_prior,
                         n_deprels=len(deprel_list)).to(dev)
+    if init_ck:
+        model.load_state_dict(init_ck["state"])
+        print(f"warm-started from {args.init_ckpt} "
+              f"(epoch {init_ck.get('epoch')})", flush=True)
     ds_tr = TaggerData(train, tok, upos2i, fv2i, prior_index, cands, use_prior, deprel2i)
     ds_dv = TaggerData(dev_s, tok, upos2i, fv2i, prior_index, cands, use_prior, deprel2i)
     pad = tok.pad_token_id
@@ -365,12 +395,12 @@ def main():
     # the GPU fed; pin_memory + persistent_workers cut transfer + respawn cost.
     pin = (dev == "cuda")
     dl_tr = DataLoader(ds_tr, batch_size=args.bs, shuffle=True,
-                       collate_fn=lambda b: collate(b, pad),
+                       collate_fn=functools.partial(collate, pad_id=pad),
                        num_workers=args.workers, pin_memory=pin,
                        persistent_workers=args.workers > 0,
                        prefetch_factor=4 if args.workers > 0 else None)
     dl_dv = DataLoader(ds_dv, batch_size=args.bs, shuffle=False,
-                       collate_fn=lambda b: collate(b, pad),
+                       collate_fn=functools.partial(collate, pad_id=pad),
                        num_workers=min(args.workers, 4), pin_memory=pin,
                        persistent_workers=min(args.workers, 4) > 0,
                        prefetch_factor=4 if args.workers > 0 else None)
@@ -428,7 +458,9 @@ def main():
             loss = cel(ul.reshape(-1, ul.size(-1)), b["upos_y"].reshape(-1))
             for f in FEATURES:
                 loss = loss + cel(fl[f].reshape(-1, fl[f].size(-1)), b["feat_y"][f].reshape(-1))
-            if model.n_deprels:
+            # a batch with no dep-annotated tokens (e.g. all-Iliad fine-tune
+            # sentences, head = -1 everywhere) would make CE(all-ignored) NaN
+            if model.n_deprels and (b["head_y"] != -100).any():
                 arc = masked_arc(out[2], b["wmask"])
                 loss = loss + cel(arc.reshape(-1, arc.size(-1)), b["head_y"].reshape(-1))
                 ra = rel_at(out[3], b["head_y"])      # relation logits at gold head
@@ -465,7 +497,7 @@ def main():
             ds = TaggerData(eval_splits[name], tok, upos2i, fv2i, prior_index,
                             cands, use_prior, deprel2i)
             dl = DataLoader(ds, batch_size=args.bs, shuffle=False,
-                            collate_fn=lambda b: collate(b, pad), num_workers=0)
+                            collate_fn=functools.partial(collate, pad_id=pad), num_workers=0)
             u, fa, st, uas, las = run_eval(dl)
             dep_str = (f" UAS={uas*100:.1f}% LAS={las*100:.1f}%"
                        if model.n_deprels else "")
