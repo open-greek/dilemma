@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # Import package stays `dilemma`; the PyPI distribution name is dilemma-nlp
 # because plain "dilemma" is taken by an unrelated project.
 name = "dilemma-nlp"
-version = "1.1.0"
+version = "1.2.0"
 description = "Diachronic Greek lemmatizer (Ancient, Byzantine, and Modern Greek)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -71,7 +71,7 @@ markers = [
 # Excludes dilemma/tagger/__init__.py which carries its own independent
 # version for the sub-package.
 [tool.bumpver]
-current_version = "1.1.0"
+current_version = "1.2.0"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version: {old_version} -> {new_version}"
 tag_message = "v{new_version}"
