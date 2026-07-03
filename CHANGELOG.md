@@ -4,7 +4,7 @@ All notable changes to Dilemma are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-07-03
 
 ### Changed
 - `python -m dilemma download` (and `dilemma.download()`) now opts in to
@@ -61,5 +61,6 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.2.0]: https://github.com/open-greek/dilemma/releases/tag/1.2.0
 [1.1.0]: https://github.com/open-greek/dilemma/releases/tag/1.1.0
 [1.0.0]: https://github.com/open-greek/dilemma/releases/tag/1.0.0
