@@ -4,6 +4,15 @@ All notable changes to Dilemma are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- `python -m dilemma download` (and `dilemma.download()`) now opts in to
+  HuggingFace's high-performance transfer automatically: Xet
+  (`HF_XET_HIGH_PERFORMANCE=1`) on modern `huggingface_hub`, or the
+  `hf_transfer` Rust downloader on older versions when installed. An
+  explicit user setting (including `0`) is respected.
+
 ## [1.1.0] - 2026-07-03
 
 ### Changed

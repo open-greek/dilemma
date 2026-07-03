@@ -34,7 +34,28 @@ TAGGER_REPO = "ciscoriordan/dilemma"
 TAGGER_INCLUDES = ["tagger/*"]
 
 
+def _enable_fast_transfer() -> None:
+    """Opt in to the fastest transfer backend available.
+
+    Modern huggingface_hub downloads Xet-backed repos (this repo is fully
+    Xet-backed) through hf_xet, but with polite default concurrency;
+    HF_XET_HIGH_PERFORMANCE=1 lifts it to saturate the connection. Older
+    hub versions instead use the hf_transfer Rust downloader, gated behind
+    HF_HUB_ENABLE_HF_TRANSFER, which errors when the package is missing -
+    so it is only set when importable. setdefault keeps any explicit user
+    setting (including an opt-out of 0) in charge.
+    """
+    import importlib.util
+    import os
+
+    if importlib.util.find_spec("hf_xet"):
+        os.environ.setdefault("HF_XET_HIGH_PERFORMANCE", "1")
+    elif importlib.util.find_spec("hf_transfer"):
+        os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
+
+
 def _snapshot_download(*, repo_id, local_dir, allow_patterns, ignore_patterns=None):
+    _enable_fast_transfer()
     try:
         from huggingface_hub import snapshot_download
     except ImportError as e:
