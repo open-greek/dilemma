@@ -30,6 +30,11 @@ PROFILE_FILE = "data/form_profile.db"
 CITATIONS_FILE = "data/form_citations.db"
 ATTEST_FILES = [PROFILE_FILE, CITATIONS_FILE]
 
+# Legacy *_commercial twins were removed from the HF repo (2026-07-04); the
+# pattern stays excluded so a stray re-upload can never inflate the base
+# download again.
+BASE_IGNORES = ATTEST_FILES + ["*_commercial*"]
+
 TAGGER_REPO = "ciscoriordan/dilemma"
 TAGGER_INCLUDES = ["tagger/*"]
 
@@ -93,7 +98,7 @@ def download(target_dir: Path | None = None, *, tagger: bool = True,
     if dilemma:
         _snapshot_download(
             repo_id=REPO, local_dir=dest, allow_patterns=INCLUDES,
-            ignore_patterns=ATTEST_FILES,
+            ignore_patterns=BASE_IGNORES,
         )
     if attestation or citations:
         _snapshot_download(
