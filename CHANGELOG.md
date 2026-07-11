@@ -7,6 +7,15 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Device-agnostic ONNX execution: `dilemma._ort_providers` auto-selects CUDA
+  when `onnxruntime-gpu` is present (an NVIDIA box), else CPU, with a
+  `DILEMMA_ORT_PROVIDERS` override. `Tagger.on_gpu` / `Tagger.providers` report
+  the REAL execution device, and `make_session()` warns on a silent CPU
+  fallback (onnxruntime-gpu missing / CUDA-cuDNN mismatch) - the trap where a
+  GPU box runs the tagger on CPU with the card idle. README gains a "Device and
+  throughput planning" section (tagger = GPU-acceleratable, lemmatizer =
+  CPU-bound; don't open one CUDA session per worker; measure tag-only vs
+  lemma-only to find the bottleneck).
 - NON-LEXICAL token classifier (`dilemma.nonlexical`), exposed as
   `classify_nonlexical(token)` / `is_lexical(token)` (module level and as
   `Dilemma` methods). It recognizes the editorial/typographic residue that

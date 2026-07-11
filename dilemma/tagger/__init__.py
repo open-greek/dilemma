@@ -115,7 +115,9 @@ class Tagger:
         if lang not in ("el", "grc", "med"):
             raise ValueError(
                 f"Unsupported language: {lang}. Use 'el', 'grc', or 'med'.")
-        self.device = device or "cpu"   # advisory; the ONNX runtime is CPU
+        # advisory only; the real execution device is chosen by onnxruntime
+        # (CUDA if onnxruntime-gpu is present, else CPU) - see `on_gpu`.
+        self.device = device or "cpu"
         self.max_subwords = max_subwords
         self.lang = lang
         self._lemmatize = lemmatize
@@ -128,6 +130,18 @@ class Tagger:
 
         if self._lemmatize:
             self._init_lemmatizer()
+
+    @property
+    def on_gpu(self) -> bool:
+        """Whether the ONNX morph tagger is ACTUALLY running on a GPU (a real
+        execution-provider check, not a request). Verify this before a long run
+        so a silent CPU fallback doesn't turn a GPU box into a slow one."""
+        return bool(getattr(self._morph_onnx, "on_gpu", False))
+
+    @property
+    def providers(self) -> list[str]:
+        """The onnxruntime execution providers the tagger session is using."""
+        return list(getattr(self._morph_onnx, "providers", []))
 
     def _init_backend(self):
         """Load the torch-free ONNX morph backend for this language.

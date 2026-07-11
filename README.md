@@ -1186,6 +1186,38 @@ CC BY-SA dialect treebanks), with
 `convert_treebank.py` doing the AGDT postag→UD mapping. Both are Morpheus-free,
 so the taggers reproduce from the public repo plus the corpora.
 
+### Device and throughput planning (CPU vs GPU)
+
+Two very different engines sit behind the API, and a large batch job should
+plan for both:
+
+- The **tagger** (GreBerta ONNX) is a transformer and GPU-acceleratable.
+- The **lemmatizer** is CPU-bound: an 8.6M-form SQLite lookup, rule layers, and
+  a small char-transformer beam search for the tail. A GPU does not speed it up.
+
+ONNX sessions pick their device automatically: `dilemma/_ort_providers.py` uses
+CUDA when `onnxruntime-gpu` is installed (an NVIDIA box), else CPU. On a Mac the
+Mac stays on CPU. Override with `DILEMMA_ORT_PROVIDERS` (e.g.
+`CUDAExecutionProvider,CPUExecutionProvider` to force GPU, or
+`CoreMLExecutionProvider,CPUExecutionProvider` to try Apple's Neural Engine).
+
+**Verify the device before a long run.** onnxruntime silently falls back to CPU
+if `onnxruntime-gpu` is missing or CUDA/cuDNN mismatch - the model still runs,
+just slowly, with the GPU idle. `Tagger.on_gpu` / `Tagger.providers` report the
+real execution provider, and `make_session()` logs a warning on a silent CPU
+fallback. Assert `tagger.on_gpu` up front rather than discovering it from a slow
+run.
+
+**Scaling a full-corpus pass.** Do NOT spawn one tagger process per CPU core on
+a GPU box: each opens its own CUDA session with its own copy of the model, so N
+workers use N× the VRAM and thrash the card (dozens of sessions will exhaust a
+24 GB GPU and drop util to ~0). Because the lemmatizer usually dominates
+wall-clock, the throughput-optimal shape is many CPU workers doing tokenize +
+lemmatize feeding a small, bounded number of batched GPU tagger sessions - not
+one coupled tag+lemma process per shard. Measure `tag`-only throughput (GPU) vs
+`lemmatize`-only throughput (CPU) on a sample first; whichever is lower is the
+bottleneck to scale.
+
 ## Greek Coverage
 
 ### Language codes
