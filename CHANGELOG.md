@@ -4,7 +4,22 @@ All notable changes to Dilemma are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [1.2.0] - 2026-07-03
+## [1.2.1] - 2026-07-10
+
+### Fixed
+- `lemmatize_pos` / `lemmatize_batch_pos` no longer prefer a capitalized
+  proper-noun twin over the common-word lemma for a lowercase, non-PROPN
+  token. Many common lemmas have a capitalized personification/name twin
+  as a separate headword (θυμός vs Θυμός, ἔρις vs Ἔρις, τύχη vs Τύχη),
+  surfaced both by the lookup ("+case_alt") and by the POS tables; the
+  POS-matching step could return the twin whose capitalization disagreed
+  with the input. A capitalization-agreement tiebreak now runs on every
+  ranking path: a lowercase non-PROPN form gets the lowercase lemma, a
+  PROPN tag still reaches the capitalized twin, and capitalized or
+  all-caps input (sentence-initial, titles) keeps either twin reachable
+  by POS. It is a re-rank between case twins, never a filter. Measured
+  +0.76 lemma-equivalence points on the Persae gold calibration set
+  (91.83% -> 92.59%); no movement on `bench_fast.py`.
 
 ### Changed
 - `python -m dilemma download` (and `dilemma.download()`) now opts in to
