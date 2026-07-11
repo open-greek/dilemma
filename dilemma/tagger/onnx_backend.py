@@ -91,8 +91,9 @@ class OnnxMorphTagger:
             raise ImportError(
                 "The ONNX tagger needs `onnxruntime` and `tokenizers` "
                 "(`pip install onnxruntime tokenizers`).") from e
+        from .._ort_providers import ort_providers
         self.sess = ort.InferenceSession(
-            str(d / "tagger.onnx"), providers=["CPUExecutionProvider"])
+            str(d / "tagger.onnx"), providers=ort_providers())
         lab = json.loads((d / "tagger_labels.json").read_text(encoding="utf-8"))
         self.upos_list = lab["upos_list"]
         self.fv_list = lab["fv_list"]

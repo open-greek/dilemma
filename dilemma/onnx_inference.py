@@ -73,13 +73,14 @@ class OnnxLemmaModel:
     def __init__(self, model_dir: str | Path):
         import onnxruntime as ort
 
+        from ._ort_providers import ort_providers
+
         model_dir = Path(model_dir)
+        providers = ort_providers()
         self.encoder = ort.InferenceSession(
-            str(model_dir / "encoder.onnx"),
-            providers=["CPUExecutionProvider"])
+            str(model_dir / "encoder.onnx"), providers=providers)
         self.decoder = ort.InferenceSession(
-            str(model_dir / "decoder_step.onnx"),
-            providers=["CPUExecutionProvider"])
+            str(model_dir / "decoder_step.onnx"), providers=providers)
 
         # Load morphology heads (optional, exported by export_onnx.py)
         self._heads = {}
