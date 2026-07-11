@@ -29,6 +29,12 @@ from .core import (
     grave_to_acute,
     strip_accents,
 )
+from .nonlexical import (
+    classify_nonlexical,
+    is_lexical,
+    NONLEXICAL_CLASSES,
+    NONLEXICAL_POS,
+)
 from ._download import download as download_data
 from .morph_diff import (
     diff_form,
@@ -74,6 +80,10 @@ __all__ = [
     "to_monotonic",
     "grave_to_acute",
     "strip_accents",
+    "classify_nonlexical",
+    "is_lexical",
+    "NONLEXICAL_CLASSES",
+    "NONLEXICAL_POS",
     "download_data",
     "diff_form",
     "diff_paradigm",

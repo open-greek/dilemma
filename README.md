@@ -767,9 +767,45 @@ Each `LemmaCandidate` has:
 - `lemma` - the lemma string
 - `lang` - `"el"` (MG, including medieval), `"grc"` (AG), `"med"` (medieval provenance label in output)
 - `proper` - `True` if lemma is a proper noun (capitalized headword)
-- `source` - `"lookup"`, `"elision"`, `"crasis"`, `"particle_strip"`, `"verb_morphology"`, `"compound"`, `"article"`, `"normalize"`, `"byzantine_norm"`, `"prefix_strip"`, `"model"`, `"identity"`
-- `via` - how it matched: `"exact"`, `"lower"`, `"elision:ε"`, `"suffix_strip"`, `"augment_strip"`, `"θεο+φθόγγος"`, `"+case_alt"`, etc.
+- `source` - `"lookup"`, `"elision"`, `"crasis"`, `"particle_strip"`, `"verb_morphology"`, `"compound"`, `"article"`, `"normalize"`, `"byzantine_norm"`, `"prefix_strip"`, `"model"`, `"identity"`, `"nonlexical"`
+- `via` - how it matched: `"exact"`, `"lower"`, `"elision:ε"`, `"suffix_strip"`, `"augment_strip"`, `"θεο+φθόγγος"`, `"+case_alt"`, etc. For a non-lexical token, the non-lexical class label.
 - `score` - `1.0` for lookup, `0.5` for model, `0.0` for identity fallback
+- `tag` - `"X"` for a non-lexical token, `""` otherwise
+- `is_lexical` - `False` for a non-lexical token (`source == "nonlexical"`), `True` otherwise
+
+### Non-lexical tokens
+
+Real corpora - especially OCR'd lexica, scholia, and the Patrologia Graeca -
+are full of tokens that are not words: γράφεται variant marks (`γρ`), Greek
+numerals (`κζ'`, `,αφ'`), editorial references (`[76]`, `[49-59]`), Latin or
+citation abbreviations (`fr.`, `Herod.`), lone punctuation/sigla, and
+vowel-less consonant fragments. These have no lemma. Dilemma classifies them
+structurally (pure stdlib, no model) so they can be told apart from a real
+word that failed to lemmatize, and are never sent to the transformer fallback
+(which would only manufacture a spurious lemma):
+
+```python
+from dilemma import Dilemma, classify_nonlexical, is_lexical
+
+classify_nonlexical("γρ")     # -> "variant-mark"
+classify_nonlexical("κζ'")    # -> "numeral"
+classify_nonlexical("[76]")   # -> "bracket-ref"
+classify_nonlexical("fr.")    # -> "abbreviation"
+classify_nonlexical("πλ")     # -> "consonant-cluster"
+classify_nonlexical("λόγος")  # -> None  (a real word)
+is_lexical("λόγος")           # -> True
+is_lexical("γρ")              # -> False
+
+d = Dilemma()
+d.lemmatize("γρ")             # -> "γρ"  (returned unchanged, not sent to the model)
+d.lemmatize_verbose("γρ")     # -> [LemmaCandidate(source="nonlexical", via="variant-mark", tag="X")]
+```
+
+A census-style consumer filters non-words out of a failure count with
+`d.is_lexical(token)` (or the module-level `is_lexical`). The class labels are
+`dilemma.nonlexical.NONLEXICAL_CLASSES`. The classifier is conservative: an
+elided monosyllable (`δ᾿`), a word that merely resembles a numeral (`τε`), and
+any accented real word stay lexical.
 
 ### Batch processing
 

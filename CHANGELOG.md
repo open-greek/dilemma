@@ -4,6 +4,27 @@ All notable changes to Dilemma are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- NON-LEXICAL token classifier (`dilemma.nonlexical`), exposed as
+  `classify_nonlexical(token)` / `is_lexical(token)` (module level and as
+  `Dilemma` methods). It recognizes the editorial/typographic residue that
+  dominates OCR'd lexica, scholia, and the Patrologia Graeca - γράφεται
+  variant marks (`γρ`), Greek numerals (`κζ'`, `,αφ'`), bracket references
+  (`[76]`, `[49-59]`), Latin/citation abbreviations (`fr.`, `Herod.`), lone
+  punctuation/sigla, and vowel-less consonant fragments - so a caller can
+  tell "not a lexical word" from "failed to lemmatize a real word". Pure
+  stdlib, no model. `lemmatize`/`lemmatize_batch` return non-lexical tokens
+  unchanged and skip the transformer fallback (which otherwise manufactures
+  spurious lemmas); `lemmatize_verbose` returns a single candidate with
+  `source="nonlexical"`, the class label in `via`, and `tag="X"`.
+  `LemmaCandidate` gains a `tag` field and an `is_lexical` property. The
+  classifier is conservative by construction (a Greek word always has a
+  vowel; numerals are unaccented with strictly descending place-value tiers),
+  so elided monosyllables (`δ᾿`) and numeral-shaped real words (`τε`) stay
+  lexical; no movement on `bench_fast.py`.
+
 ## [1.2.1] - 2026-07-10
 
 ### Fixed

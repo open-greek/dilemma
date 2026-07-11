@@ -38,6 +38,10 @@ import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .nonlexical import classify_nonlexical as _classify_nonlexical
+from .nonlexical import is_lexical as _is_lexical
+from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
+
 
 def _newest_marker_mtime(d: Path, markers):
     """Newest mtime among `markers` (glob patterns relative to `d`), or None if
@@ -270,6 +274,15 @@ class LemmaCandidate:
     attestation: dict | None = None  # corpus attestation of the matched surface
                           # form, populated only by lemmatize_verbose(
                           # with_attestation=True); None otherwise.
+    tag: str = ""         # UD POS refinement; "X" for a NON-LEXICAL token
+                          # (apparatus mark, numeral, ref, abbreviation, siglum)
+                          # classified by dilemma.nonlexical. "" otherwise.
+
+    @property
+    def is_lexical(self) -> bool:
+        """False iff this candidate is a NON-LEXICAL token (source
+        ``nonlexical``), i.e. not a real word to be lemmatized."""
+        return self.source != "nonlexical"
 
 
 def to_monotonic(s: str) -> str:
@@ -2491,6 +2504,16 @@ class Dilemma:
             if lemma:
                 return self._apply_convention(lemma)
 
+        # Non-lexical classification (BEFORE the expensive model): apparatus
+        # marks (γρ), Greek numerals, editorial refs, abbreviations, and
+        # vowel-less sigla are not words, so don't send them to the transformer
+        # (which manufactures spurious lemmas like δτι->δ). Return the token
+        # unchanged, matching the non-Greek passthrough; callers distinguish a
+        # non-word from a failed real word via is_lexical()/classify_nonlexical()
+        # or lemmatize_verbose()'s "nonlexical" source.
+        if _classify_nonlexical(word) is not None:
+            return word
+
         # Fall back to model
         try:
             self._load_model()
@@ -2948,6 +2971,28 @@ class Dilemma:
 
         return results
 
+    @staticmethod
+    def classify_nonlexical(token: str) -> str | None:
+        """Return a NON-LEXICAL class label for ``token``, or ``None`` if it
+        looks like a real lexical word.
+
+        Recognizes the editorial/typographic residue that leaks into OCR'd
+        corpora - γράφεται variant marks (γρ), Greek numerals (κζ', ,αφ'),
+        bracket references ([76], [49-59]), Latin/citation abbreviations (fr.,
+        Herod.), lone punctuation/sigla, and vowel-less consonant fragments -
+        so a caller can exclude them from a lemmatization-failure count instead
+        of treating them as real words that failed to resolve. The label is one
+        of ``dilemma.nonlexical.NONLEXICAL_CLASSES``. Pure/stdlib, no model.
+        """
+        return _classify_nonlexical(token)
+
+    @staticmethod
+    def is_lexical(token: str) -> bool:
+        """True iff ``token`` is a candidate lexical word (not classified
+        NON-LEXICAL and not empty/whitespace). The complement of
+        ``classify_nonlexical`` for non-empty tokens."""
+        return _is_lexical(token)
+
     def lemmatize_verbose(self, word: str,
                           prev_word: str | None = None,
                           *,
@@ -3008,7 +3053,7 @@ class Dilemma:
         candidates = []
         seen = set()  # track (lemma_lower, lang) to avoid exact dupes
 
-        def _add(lemma, lang="", source="", via="", score=1.0):
+        def _add(lemma, lang="", source="", via="", score=1.0, tag=""):
             key = (lemma, lang)
             if key not in seen:
                 seen.add(key)
@@ -3019,6 +3064,7 @@ class Dilemma:
                     source=source,
                     score=score,
                     via=via,
+                    tag=tag,
                 ))
 
         # 0. Digit-only passthrough
@@ -3127,6 +3173,18 @@ class Dilemma:
                                 continue
                             _add(lemma, lang=lang, source="normalize", via=via)
                             break
+
+        # 7b. Non-lexical classification (BEFORE the model): if nothing has
+        #     resolved and the token is an apparatus mark / numeral / editorial
+        #     ref / abbreviation / vowel-less siglum, tag it NON-LEXICAL (POS X)
+        #     and stop. This keeps non-words out of the transformer and lets a
+        #     caller tell "not a word" from "failed to lemmatize a real word".
+        if not candidates:
+            nonlex = _classify_nonlexical(word)
+            if nonlex is not None:
+                _add(word, source="nonlexical", via=nonlex, score=0.0,
+                     tag=_NONLEXICAL_POS)
+                return candidates
 
         # 8. Model fallback (if no candidates yet)
         model_identity = False
@@ -3297,6 +3355,13 @@ class Dilemma:
                     break
             if ortho_hit:
                 results.append(ortho_hit)
+                continue
+
+            # Non-lexical tokens (apparatus marks, numerals, refs, sigla) are
+            # not words: return them unchanged instead of sending them to the
+            # model (matches lemmatize()).
+            if _classify_nonlexical(word) is not None:
+                results.append(word)
                 continue
 
             results.append(None)
