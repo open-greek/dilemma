@@ -619,6 +619,78 @@ class TestLanguageFiltering:
 
 
 # ===========================================================================
+# 8b. PROPER-NOUN CASE-TWIN RANKING (lemmatize_pos capitalization tiebreak)
+# ===========================================================================
+
+class TestProperNounCaseTwin:
+    """Capitalization-agreement tiebreak between a common lemma and its
+    capitalized proper-noun twin (θυμός vs Θυμός, ἔρις vs Ἔρις).
+
+    A lowercase form tagged as a common POS (NOUN/ADJ/...) must lemmatize
+    to the lowercase common lemma, not the capitalized personification
+    twin; a form tagged PROPN must still reach the capitalized twin; and
+    a capitalized (sentence-initial / all-caps) input must keep either
+    twin reachable. This is a re-rank, never a filter.
+    """
+
+    # Lowercase common-noun inputs whose personification twin used to win.
+    LOWERCASE_NOUNS = [
+        ("θυμός", "θυμός"),   # spirit, not Θυμός the personification
+        ("ἔρις", "ἔρις"),     # strife, not Ἔρις the goddess
+        ("ἔριδι", "ἔρις"),    # inflected: dat sg -> common lemma
+        ("τύχη", "τύχη"),     # fortune, not Τύχη
+        ("νίκη", "νίκη"),     # victory, not Νίκη
+        ("ἔρως", "ἔρως"),     # love, not Ἔρως
+        ("ψυχῆς", "ψυχή"),    # soul, not Ψυχή
+        ("ἄστυ", "ἄστυ"),     # city, not Ἄστυ
+        ("χθόνα", "χθών"),    # earth, not Χθών
+        ("καρδίαν", "καρδία"),  # heart, not Καρδία
+        ("αἶαν", "αἶα"),      # land, not Αἶα
+    ]
+
+    @pytest.mark.parametrize("form,expected", LOWERCASE_NOUNS)
+    def test_lowercase_noun_gets_common_lemma(self, d_all, form, expected):
+        got = d_all.lemmatize_pos(form, "NOUN")
+        assert got == expected, (
+            f"lemmatize_pos({form!r}, 'NOUN') -> {got!r}; expected the "
+            f"common-noun lemma {expected!r}, not its capitalized twin")
+
+    @pytest.mark.parametrize("form,expected", [
+        ("θυμός", "Θυμός"), ("ἔριδι", "Ἔρις"), ("τύχη", "Τύχη"),
+    ])
+    def test_propn_still_reaches_capitalized_twin(self, d_all, form, expected):
+        """A PROPN tag must still resolve the capitalized personification."""
+        got = d_all.lemmatize_pos(form, "PROPN")
+        assert got == expected, (
+            f"lemmatize_pos({form!r}, 'PROPN') -> {got!r}; expected the "
+            f"capitalized twin {expected!r}")
+
+    def test_capitalized_input_keeps_twin_reachable(self, d_all):
+        """Sentence-initial capitalized input, non-PROPN POS: the tiebreak
+        must not force it down to the lowercase twin (ambiguous case)."""
+        assert d_all.lemmatize_pos("Θυμός", "NOUN") == "Θυμός"
+        assert d_all.lemmatize_pos("Θυμός", "PROPN") == "Θυμός"
+
+    def test_allcaps_input_reaches_both_twins(self, d_all):
+        """All-caps input has no case signal of its own; POS decides."""
+        assert d_all.lemmatize_pos("ΘΥΜΟΣ", "NOUN") == "θυμός"
+        assert d_all.lemmatize_pos("ΘΥΜΟΣ", "PROPN") == "Θυμός"
+
+    @pytest.mark.parametrize("form,upos,expected", LOWERCASE_NOUNS and [
+        ("θυμός", "NOUN", "θυμός"), ("θυμός", "PROPN", "Θυμός"),
+        ("ἔριδι", "NOUN", "ἔρις"), ("ἔριδι", "PROPN", "Ἔρις"),
+        ("ΘΥΜΟΣ", "NOUN", "θυμός"), ("ΘΥΜΟΣ", "PROPN", "Θυμός"),
+    ])
+    def test_batch_matches_single(self, d_all, form, upos, expected):
+        """lemmatize_batch_pos must apply the same tiebreak as lemmatize_pos."""
+        single = d_all.lemmatize_pos(form, upos)
+        batch = d_all.lemmatize_batch_pos([form], [upos])[0]
+        assert single == batch == expected, (
+            f"parity/expectation: single={single!r} batch={batch!r} "
+            f"expected={expected!r} for {form!r}/{upos}")
+
+
+# ===========================================================================
 # 9. NORMALIZATION (normalize.py)
 # ===========================================================================
 

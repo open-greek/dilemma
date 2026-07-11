@@ -2606,6 +2606,58 @@ class Dilemma:
 
         return None
 
+    @staticmethod
+    def _prefer_case_twin(word: str, upos: str | None, lemma: str,
+                          candidates: list[LemmaCandidate],
+                          extra: tuple[str, ...] = ()) -> str:
+        """Capitalization-agreement tiebreak between case-twin lemmas.
+
+        Many common lemmas have a capitalized proper-noun twin as a
+        separate headword (θυμός "spirit" vs Θυμός the personification,
+        ἔρις vs Ἔρις). The lookup surfaces both (via "+case_alt") and
+        the POS tables may carry either spelling, so the POS-matching
+        loops can land on the twin that disagrees with the input's
+        capitalization. When the chosen ``lemma`` and a case twin of it
+        are both available, pick the twin whose capitalization agrees
+        with the input form, conditioned on the requested POS:
+
+          * ``upos == "PROPN"``: the capitalized twin wins.
+          * lowercase input with any other POS: the lowercase twin wins
+            (a token neither written nor tagged as a proper noun should
+            get the common-word lemma).
+          * capitalized or all-caps input with a non-PROPN POS:
+            ambiguous (sentence-initial, titles) - keep the incoming
+            choice, so either twin stays reachable.
+
+        This is a re-rank, not a filter: it can only swap ``lemma`` for
+        a case twin drawn from ``candidates`` or ``extra`` (the POS
+        table's own suggestion); any other input returns ``lemma``
+        unchanged.
+        """
+        if not word or not lemma:
+            return lemma
+        low = lemma.lower()
+        pool = [lemma]
+        pool.extend(c.lemma for c in candidates)
+        pool.extend(extra)
+        lower_twin = upper_twin = None
+        for t in pool:
+            if not t or t.lower() != low:
+                continue
+            if t[:1].islower():
+                if lower_twin is None:
+                    lower_twin = t
+            elif t[:1].isupper():
+                if upper_twin is None:
+                    upper_twin = t
+        if lower_twin is None or upper_twin is None:
+            return lemma  # no case-twin pair in play
+        if upos == "PROPN":
+            return upper_twin
+        if word[:1].islower():
+            return lower_twin
+        return lemma
+
     def _fix_mg_selfmap(self, word: str, candidates: list[LemmaCandidate],
                         upos: str | None = None) -> str | None:
         """Fix MG self-map problem for adjective/verb inflections.
@@ -2735,16 +2787,26 @@ class Dilemma:
         pos_lemma = self._pos_table_lookup(word, upos)
         if pos_lemma is not None:
             pos_lemma_conv = self._apply_convention(pos_lemma)
-            # Check if any candidate matches the POS-specific lemma
+            # Check if any candidate matches the POS-specific lemma.
+            # The case-twin tiebreak keeps a lowercase non-PROPN token
+            # from landing on the capitalized proper-noun twin (and
+            # vice versa for PROPN).
             for c in candidates:
                 if c.lemma == pos_lemma_conv:
-                    return c.lemma
+                    return self._prefer_case_twin(
+                        word, upos, c.lemma, candidates,
+                        extra=(pos_lemma_conv,))
             # Also check with accent-stripped comparison (POS tables and
-            # lookup tables may use slightly different accent conventions)
+            # lookup tables may use slightly different accent conventions).
+            # Stripping also erases the case distinction, so the matched
+            # candidate may be the case twin of the POS lemma - pass the
+            # POS lemma into the tiebreak so it can win the re-rank.
             pos_stripped = strip_accents(pos_lemma_conv.lower())
             for c in candidates:
                 if strip_accents(c.lemma.lower()) == pos_stripped:
-                    return c.lemma
+                    return self._prefer_case_twin(
+                        word, upos, c.lemma, candidates,
+                        extra=(pos_lemma_conv,))
             # POS lemma not among candidates (e.g., single candidate from
             # lookup maps to a different headword). Trust the POS table -
             # it comes from curated sources (treebank, GLAUx, Wiktionary).
@@ -2772,8 +2834,10 @@ class Dilemma:
             return mg_fix
 
         # No POS match among candidates - return top candidate
-        # (same result as regular lemmatize)
-        return candidates[0].lemma
+        # (same result as regular lemmatize), re-ranked between case
+        # twins so PROPN can still reach the capitalized headword.
+        return self._prefer_case_twin(word, upos, candidates[0].lemma,
+                                      candidates)
 
     def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str],
                             *, attested_only: bool = False) -> list[str | None]:
@@ -2860,6 +2924,27 @@ class Dilemma:
                     mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
                     if mg_fix is not None:
                         results[i] = mg_fix
+
+        # Step 3: capitalization-agreement tiebreak between case-twin
+        # lemmas (θυμός vs Θυμός), mirroring lemmatize_pos(). Only
+        # tokens whose result disagrees in case with the form/POS pay
+        # for the candidate list.
+        for i, (word, upos) in enumerate(zip(words, upos_tags)):
+            res = results[i]
+            if not res or not word:
+                continue
+            if upos == "PROPN":
+                need = res[:1].islower()
+            else:
+                need = word[:1].islower() and res[:1].isupper()
+            if not need:
+                continue
+            candidates = self._lemmatize_verbose_impl(word)
+            pos_lemma = self._pos_table_lookup(word, upos)
+            extra = ((self._apply_convention(pos_lemma),)
+                     if pos_lemma is not None else ())
+            results[i] = self._prefer_case_twin(word, upos, res,
+                                                candidates, extra=extra)
 
         return results
 
