@@ -68,11 +68,20 @@ def build_lookup():
     form_upos_lemmas = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     skipped = 0
 
+    _junk_finals = tuple("᾽'’ʼ`ʹ")
     for item in pairs:
         form = item.get("form", "")
         lemma = item.get("lemma", "")
         pos = item.get("pos", "")
         if not form or not lemma or not pos:
+            skipped += 1
+            continue
+        # Junk lemma values are corpus artifacts, not headwords: elided
+        # fragments (ἀλλ᾽) and abbreviation overlines (οὐδ̅, U+0305).
+        # lemmatize_pos trusts POS-table entries, so junk here becomes
+        # output (matches _clean_lemma in build_treebank_pos_lookup.py).
+        if lemma.endswith(_junk_finals) \
+                or "̅" in unicodedata.normalize("NFD", lemma):
             skipped += 1
             continue
         upos = WIKT_TO_UPOS.get(pos)

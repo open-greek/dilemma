@@ -2,7 +2,7 @@
 """Tests for recently added features in Dilemma.
 
 Covers:
-1. Gorman/AGDT treebank data integration
+1. Gorman holdout policy + Ionic coverage
 2. Dialect normalization (Ionic, Doric, Aeolic, Koine) end-to-end
 3. Particle suffix stripping end-to-end
 4. Verb morphology stripping end-to-end
@@ -77,49 +77,39 @@ def d_ionic_hellenistic():
 
 
 # ===========================================================================
-# 1. GORMAN/AGDT DATA INTEGRATION
+# 1. GORMAN HOLDOUT POLICY + IONIC COVERAGE
 # ===========================================================================
 
-class TestGormanDataFiles:
-    """Verify the Gorman (CC BY-SA) data file exists and has correct structure.
-
-    PROIEL (CC BY-NC-SA) is intentionally not ingested and not committed, so the
-    Ionic/Herodotus coverage it once contributed is checked via Gorman/AGDT.
+class TestGormanHoldout:
+    """The Gorman treebanks are the project's HELD-OUT GOLD corpus
+    (eval/eval_gorman_gold.py): no shipped artifact may derive from them.
+    PROIEL (CC BY-NC-SA) is likewise not used at all. Ionic/Herodotus
+    coverage comes from GLAUx/Diorisis/AGDT.
     """
 
-    def test_gorman_pairs_exists(self):
-        """gorman_pairs.json should exist."""
-        assert (DATA_DIR / "gorman_pairs.json").exists(), \
-            "gorman_pairs.json not found in data/"
+    def test_gorman_pairs_not_shipped(self):
+        """gorman_pairs.json must not exist: its presence means the
+        held-out gold corpus leaked back into the build inputs."""
+        assert not (DATA_DIR / "gorman_pairs.json").exists(), \
+            "gorman_pairs.json found in data/ - Gorman is held-out gold"
 
-    def test_gorman_pairs_structure(self):
-        """gorman_pairs.json should be a list of {form, lemma, pos} dicts."""
-        with open(DATA_DIR / "gorman_pairs.json", encoding="utf-8") as f:
-            data = json.load(f)
-        assert isinstance(data, list)
-        assert len(data) > 50_000, \
-            f"Expected >50K Gorman pairs, got {len(data)}"
-        entry = data[0]
-        assert "form" in entry
-        assert "lemma" in entry
-
-    def test_gorman_contains_herodotus_forms(self):
-        """Gorman should contain forms from Herodotus and other authors."""
-        with open(DATA_DIR / "gorman_pairs.json", encoding="utf-8") as f:
-            data = json.load(f)
-        forms = {p["form"] for p in data}
-        # Gorman covers Herodotus, Thucydides, Xenophon, etc.
-        expected = {"πρήγματα", "ποιέειν", "κῶς"}
-        found = expected & forms
-        assert len(found) >= 2, \
-            f"Expected forms from Gorman treebank, only found: {found}"
+    def test_builders_do_not_load_gorman_pairs(self):
+        """No build script may load gorman_pairs.json (comments are fine)."""
+        root = DATA_DIR.parent
+        for script in [root / "build_lookup_db.py",
+                       root / "build" / "build_treebank_pos_lookup.py"]:
+            for line in script.read_text(encoding="utf-8").splitlines():
+                code = line.split("#", 1)[0]
+                assert "gorman_pairs" not in code, \
+                    f"{script.name} loads gorman_pairs: {line.strip()}"
 
 
 class TestIonicFormsInLookup:
     """Verify Ionic (Herodotus) forms resolve through the main lemmatizer.
 
-    These come from the openly-licensed Gorman/AGDT treebanks; PROIEL
-    (CC BY-NC-SA) is excluded, so Ionic coverage must not depend on it.
+    These come from the openly-licensed GLAUx/Diorisis/AGDT sources;
+    PROIEL (CC BY-NC-SA) is excluded entirely and Gorman is held-out
+    gold, so Ionic coverage must not depend on either.
     """
 
     @pytest.mark.parametrize("form,expected", [

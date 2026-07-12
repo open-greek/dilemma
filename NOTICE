@@ -70,6 +70,8 @@ Treebanks and annotated corpora
 - Gorman Treebanks, Vanessa Gorman.
   https://github.com/perseids-publications/gorman-trees
   License: CC BY-SA 4.0  (the authoritative TREEBANK_LICENSE).
+  NOT ingested into any shipped artifact: held out as the project's
+  evaluation gold corpus (eval/eval_gorman_gold.py).
 
 - Pedalion Trees. https://github.com/perseids-publications/pedalion-trees
   License: CC BY-SA 4.0.
@@ -134,7 +136,8 @@ NonCommercial-licensed source is included. The PROIEL treebank (CC BY-NC-SA,
 with no permissive release) is excluded entirely. The Ancient Greek Dependency
 Treebank is taken from the Perseus AGDT original (CC BY-SA 3.0 US), not the
 NonCommercial Universal Dependencies repackaging (UD_Ancient_Greek-Perseus).
-Gorman is CC BY-SA 4.0 and Diorisis is CC BY 4.0. The handful of NonCommercial
+Diorisis is CC BY 4.0; the Gorman treebanks (CC BY-SA 4.0) are deliberately
+never ingested - they are the held-out evaluation gold corpus. The handful of NonCommercial
 source texts within GLAUx, and the per-file NonCommercial texts within the
 Patristic Text Archive, are filtered out at build time (see build/nc_filter.py).
 What Dilemma extracts from any treebank is factual form-to-lemma annotation and

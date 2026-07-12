@@ -1,10 +1,11 @@
 """Build POS-indexed disambiguation lookup from gold treebank data.
 
-Reads the AGDT originals (PerseusDL treebank_data .tb.xml, CC BY-SA) and
-Gorman XML dependency trees, plus the openly licensed lemmatized corpora
-(GLAUx, Diorisis, Nestle-1904 NT). Extracts genuinely ambiguous forms:
-same surface form maps to different lemmas depending on UPOS tag. The
-NonCommercial UD treebanks (Perseus UD repackaging, PROIEL) are not read.
+Reads the AGDT originals (PerseusDL treebank_data .tb.xml, CC BY-SA),
+plus the openly licensed lemmatized corpora (GLAUx, Diorisis,
+Nestle-1904 NT). Extracts genuinely ambiguous forms: same surface form
+maps to different lemmas depending on UPOS tag. The NonCommercial UD
+treebanks (Perseus UD repackaging, PROIEL) are not read, and the Gorman
+treebanks are excluded as the project's held-out gold corpus.
 
 Output: data/treebank_pos_lookup.json
 Format: {form: {UPOS: lemma, ...}, ...}
@@ -32,7 +33,6 @@ AGDT_DIR = Path(os.environ.get(
     "DILEMMA_AGDT_DIR", str(TREEBANKS_DIR / "treebank_data")))
 TREEBANK_DIRS: list = []   # no CoNLL-U sources (the NC UD treebanks are excluded)
 
-GORMAN_DIR = TREEBANKS_DIR / "Greek-Dependency-Trees" / "xml versions"
 
 # Openly-licensed lemmatized corpora (already NC-filtered): GLAUx (CC BY-SA)
 # and Diorisis (CC BY 4.0). They carry per-form POS + lemma, so they supply
@@ -128,6 +128,19 @@ def parse_gorman_xml(path: Path):
         yield form, lemma, upos
 
 
+_JUNK_LEMMA_FINALS = tuple("᾽'’ʼ`ʹ")
+
+
+def _clean_lemma(lemma: str) -> bool:
+    """Reject junk lemma values: elided fragments (ἀλλ᾽) and abbreviation
+    overlines (οὐδ̅, U+0305) are corpus artifacts, not headwords. A junk
+    POS edge is worse than none - lemmatize_pos trusts the table over a
+    single lookup candidate."""
+    if not lemma or lemma.endswith(_JUNK_LEMMA_FINALS):
+        return False
+    return "̅" not in unicodedata.normalize("NFD", lemma)
+
+
 def build_lookup():
     # Collect all (form, upos) -> {lemma: count} from treebanks
     # form_upos_lemmas[form][upos][lemma] = count
@@ -143,6 +156,8 @@ def build_lookup():
         for f in conllu_files:
             count = 0
             for form, lemma, upos in parse_conllu(f):
+                if not _clean_lemma(lemma):
+                    continue
                 form_upos_lemmas[form][upos][lemma] += 1
                 count += 1
             total_tokens += count
@@ -160,6 +175,8 @@ def build_lookup():
         agdt_tokens = 0
         for f in agdt_files:
             for form, lemma, upos in parse_gorman_xml(f):
+                if not _clean_lemma(lemma):
+                    continue
                 form_upos_lemmas[form][upos][lemma] += 1
                 agdt_tokens += 1
         total_tokens += agdt_tokens
@@ -168,21 +185,9 @@ def build_lookup():
     else:
         print("  Skipping AGDT (not found; set DILEMMA_AGDT_DIR)")
 
-    # Gorman AGDT XML trees
-    if GORMAN_DIR.exists():
-        gorman_tokens = 0
-        gorman_files = sorted(GORMAN_DIR.glob("*.xml"))
-        for f in gorman_files:
-            count = 0
-            for form, lemma, upos in parse_gorman_xml(f):
-                form_upos_lemmas[form][upos][lemma] += 1
-                count += 1
-            gorman_tokens += count
-        total_tokens += gorman_tokens
-        print(f"  Gorman trees: {len(gorman_files)} files, "
-              f"{gorman_tokens:,} tokens")
-    else:
-        print(f"  Skipping Gorman trees (not found)")
+    # The Gorman treebanks are deliberately NOT read: they are the
+    # project's held-out gold corpus (eval/eval_gorman_gold.py), so no
+    # shipped artifact may derive from them.
 
     print(f"\nTotal tokens: {total_tokens}")
     print(f"Unique forms (treebanks): {len(form_upos_lemmas)}")
@@ -211,6 +216,8 @@ def build_lookup():
             if not form or not lemma or not upos:
                 continue
             if lemma_set and lemma not in lemma_set:
+                continue
+            if not _clean_lemma(lemma):
                 continue
             corpus_upos_lemmas[form][upos][lemma] += w
             n += 1

@@ -51,17 +51,19 @@ DIORISIS_PAIRS_PATH = DATA_DIR / "diorisis_pairs.json"
 # Nestle 1904 base text is public domain). Open replacement for the dropped
 # CC BY-NC-SA PROIEL NT. Built by build/extract_nt.py.
 NT_PAIRS_PATH = DATA_DIR / "nt_pairs.json"
-GORMAN_PAIRS_PATH = DATA_DIR / "gorman_pairs.json"
 PERSEUS_PAIRS_PATH = DATA_DIR / "perseus_pairs.json"
 ETYMOLOGY_BRIDGES_PATH = DATA_DIR / "etymology_bridges.json"
 LSJGR_BRIDGES_PATH = DATA_DIR / "lsjgr_bridges.json"
 RELATED_LEMMAS_PATH = DATA_DIR / "related_lemmas.json"
 HNC_PAIRS_PATH = DATA_DIR / "hnc_pairs.json"
 
-# The lookup is openly licensed by default: PROIEL (CC BY-NC-SA) is excluded;
-# Gorman (CC BY-SA 4.0) and Perseus (the CC BY-SA AGDT original) are kept;
-# glaux_pairs.json is built with the NonCommercial GLAUx texts already filtered
-# out (build/nc_filter.py + build/build_glaux_pairs.py). See NOTICE.
+# The lookup is openly licensed by default: PROIEL (CC BY-NC-SA) is excluded
+# entirely (not even used for evaluation); Perseus (the CC BY-SA AGDT
+# original) is kept; the Gorman treebanks (CC BY-SA 4.0) are deliberately NOT
+# ingested - they are the project's held-out gold corpus
+# (eval/eval_gorman_gold.py); glaux_pairs.json is built with the
+# NonCommercial GLAUx texts already filtered out (build/nc_filter.py +
+# build/build_glaux_pairs.py). See NOTICE.
 
 
 def strip_accents(s):
@@ -167,26 +169,12 @@ def build():
     # PROIEL is excluded entirely: CC BY-NC-SA 3.0 (NonCommercial) at both the
     # UD release and the original proiel-treebank, with no permissive version.
 
-    # Expand AG with Gorman treebank pairs (form-lemma pairs from 687K tokens of
-    # annotated Ancient Greek: Herodotus, Thucydides, Xenophon, Demosthenes,
-    # Lysias, Polybius, etc.). Gold-standard single annotator. CC BY-SA 4.0
-    # (the authoritative perseids-publications/gorman-trees license).
-    gorman_added_ag = 0
-    if GORMAN_PAIRS_PATH.exists():
-        t_gr = time.time()
-        with open(GORMAN_PAIRS_PATH, encoding="utf-8") as f:
-            gorman_pairs = json.load(f)
-        for p in gorman_pairs:
-            form, lemma = p["form"], p["lemma"]
-            if form not in ag:
-                ag[form] = lemma
-                gorman_added_ag += 1
-        print(f"  Gorman: +{gorman_added_ag:,} to AG "
-              f"({len(gorman_pairs):,} total, "
-              f"{len(gorman_pairs) - gorman_added_ag:,} already present) "
-              f"({time.time()-t_gr:.1f}s)")
-    else:
-        print(f"  Gorman: no gorman_pairs.json found, skipping")
+    # The Gorman treebanks (CC BY-SA 4.0, hand-annotated, 18 classical
+    # authors) are deliberately NOT ingested: they are the project's
+    # HELD-OUT GOLD corpus (eval/eval_gorman_gold.py). GLAUx/Diorisis
+    # cover the same texts, so holding Gorman out costs ~135 of 9.7M
+    # lookup entries and nothing measurable on any benchmark, while
+    # keeping a genuinely independent 554K-token gold standard.
 
     # Expand AG with AGDT/Perseus treebank pairs (the 33 Greek AGDT works:
     # Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch,
@@ -660,6 +648,11 @@ def build():
         "σε": "σύ",              # was σῦς (pig!) - enclitic 2sg pronoun acc.
         "σέ": "σύ",              # was σός - accented 2sg pronoun acc.
         "ποτέ": "ποτέ",          # was ποτός (drink) - lexicalized adverb
+        # Bare elided stems (apostrophe tokenized off by corpora): the only
+        # possible reading is the elided function word, but the corpus pair
+        # is a junk self-map or accent variant.
+        "ἀλλ": "ἀλλά",           # was the self-map ἀλλ
+        "μήτ": "μήτε",           # was the grave junk μὴτ
         # NB: do NOT "fix" corpus-derived elided entries that reflect a
         # genuine ambiguity or lemmatization convention: λίπ᾽ is BOTH the
         # adverb λίπα (λίπ᾽ ἐλαίῳ) and elided λίπε (λείπω), and treebanks

@@ -13,7 +13,7 @@ Frequency bins:
   Unseen: not in GLAUx+Diorisis at all (true OOV)
 
 Test texts:
-  - Xenophon, Cyropaedia (Gorman treebank gold)
+  - Xenophon, Cyropaedia (plain text; historical dataset, may be absent)
   - Herodotus, Histories (Perseus canonical-greekLit TEI, tlg0016.tlg001,
     CC BY-SA; point HERODOTUS_TEI at your copy of the grc XML)
   - Sextus Empiricus, Pyrrhoniae Hypotyposes (AG Classical benchmark)
@@ -40,7 +40,6 @@ AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
 EQUIV_PATH = DATA_DIR / "lemma_equivalences.json"
 
 # Treebank paths
-GORMAN_DIR = DATA_DIR / "treebanks" / "Gorman"
 
 # Sextus Empiricus benchmark
 SEXTUS_GOLD = DATA_DIR / "benchmarks" / "ag_gold.tsv"

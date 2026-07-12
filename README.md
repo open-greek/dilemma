@@ -121,6 +121,8 @@ you already have. The lookup handles 95%+ of words and needs neither.
   - [Conventions](#conventions)
 - [Evaluation](#evaluation)
   - [Multi-period benchmarks](#multi-period-benchmarks)
+  - [Elided forms (AGDT Iliad)](#elided-forms-agdt-iliad)
+  - [Held-out gold: the Gorman treebanks](#held-out-gold-the-gorman-treebanks)
   - [Rare vocabulary coverage](#rare-vocabulary-coverage)
   - [DiGreC treebank](#digrec-treebank)
   - [HNC Modern Greek](#hnc-modern-greek)
@@ -355,9 +357,9 @@ and lemma equivalence groups (see `data/benchmarks/bench_all.py`).
 | [Morpheus](https://github.com/perseids-tools/morpheus-perseids-api) (oracle) | -- | 71.1% | -- | -- |
 | [stanza](https://stanfordnlp.github.io/stanza/) `grc` | 92.2% | 71.3% | 85.2% | -- |
 | [Swaelens et al. (2025)](https://aclanthology.org/2025.acl-long.430/) | -- | ~74-75% | -- | -- |
-| **Dilemma** (best convention per period) | **99.7%** | **88.9%**‡ | **94.7%** | **94.8%**† |
+| **Dilemma** (best convention per period) | **99.7%** | **89.2%**‡ | **94.7%** | **94.8%**† |
 
-<sub>†For Demotic MG, `lang="el"` with `triantafyllidis` (94.8%) matches `lang="all"` with `triantafyllidis`. For MG-only workloads, `lang="el"` with `triantafyllidis` is recommended since it avoids AG lemmas (e.g. σπήλαιον) being returned for MG words that have an AG lookalike. ‡Byzantine is 88.9% from the static lookup alone (no POS); with per-token POS (the shipped grc tagger, or gold POS) it reaches 91.8%, since much of the residual is genuine syncretism (θεῶ = dat. θεός vs θεάομαι) that only context resolves.</sub>
+<sub>†For Demotic MG, `lang="el"` with `triantafyllidis` (94.8%) matches `lang="all"` with `triantafyllidis`. For MG-only workloads, `lang="el"` with `triantafyllidis` is recommended since it avoids AG lemmas (e.g. σπήλαιον) being returned for MG words that have an AG lookalike. ‡Byzantine is 89.2% from the static lookup alone (no POS); with per-token POS (the shipped grc tagger, or gold POS) it reaches 91.8%, since much of the residual is genuine syncretism (θεῶ = dat. θεός vs θεάομαι) that only context resolves.</sub>
 
 Cells marked `--` indicate the tool doesn't support that period or
 wasn't tested. Morpheus "oracle" picks the best candidate from all its
@@ -369,13 +371,13 @@ since it reports a different metric and no per-era breakdown.)
 
 | Lang | Convention | POS | AG Classical | Byzantine (literary) | Katharevousa | Demotic MG |
 |------|------------|-----|:--------:|:--------:|:--------:|:--------:|
-| `all` | `wiktionary` (default) | -- | 99.7% | 88.9% | 94.7% | 79.5%* |
+| `all` | `wiktionary` (default) | -- | 99.7% | 89.2% | 94.7% | 79.5%* |
 | `all` | `wiktionary` (default) | gold | -- | 91.8% | -- | -- |
-| `all` | `triantafyllidis` | -- | 87.7% | 79.0% | 89.6% | 94.8%† |
-| `grc` | `wiktionary` (default) | -- | 99.7% | 88.0% | 94.3% | 79.5%* |
-| `grc` | `triantafyllidis` | -- | 91.0% | 82.7% | 91.5% | 89.2% |
-| `el` | `wiktionary` (default) | -- | 95.2% | 84.2% | 91.5% | 90.0% |
-| `el` | `triantafyllidis` | -- | 87.7% | 79.0% | 89.6% | 94.8% |
+| `all` | `triantafyllidis` | -- | 87.7% | 79.3% | 89.6% | 94.8%† |
+| `grc` | `wiktionary` (default) | -- | 99.7% | 88.2% | 94.3% | 79.5%* |
+| `grc` | `triantafyllidis` | -- | 91.0% | 82.9% | 91.5% | 89.2% |
+| `el` | `wiktionary` (default) | -- | 95.2% | 84.5% | 91.5% | 90.0% |
+| `el` | `triantafyllidis` | -- | 87.7% | 79.3% | 89.6% | 94.8% |
 
 <sub>\*Demotic MG scores with `wiktionary` convention are convention mismatches, not real accuracy gaps: AG citation forms like `σπήλαιον` don't match the MG gold standard `σπήλαιο`. Using `convention="triantafyllidis"` fixes this. The AG and Byzantine benchmarks run with `resolve_articles=True` (the correct setting for gold that lemmatizes articles, e.g. τὸν -> ὁ); the article paradigm is otherwise excluded from the lookup so MG function words don't leak to AG forms.</sub>
 
@@ -388,7 +390,7 @@ the recommended setting for Modern Greek text (see
 
 POS column: `--` means Dilemma disambiguates on its own (default).
 `gold` means gold-standard POS tags from the dataset are fed in. Only
-DBBE provides gold POS; the +2.9pp gain there (88.9% -> 91.8%) is
+DBBE provides gold POS; the +2.6pp gain there (89.2% -> 91.8%) is
 genuine syncretism that only context can resolve (θεῶ = dat. θεός vs
 θεάομαι), which the shipped grc tagger recovers without gold tags.
 
@@ -418,6 +420,33 @@ contextual: a handful of locative ὅθ' (= ὅθι) and τόθ' (= τόθι)
 readings, and AGDT tokenization quirks (οὐ + δ' with gold οὐδέ on the
 δ' token).
 
+### Held-out gold: the Gorman treebanks
+
+The [Gorman treebanks](https://github.com/perseids-publications/gorman-trees)
+(Vanessa Gorman, CC BY-SA 4.0; 554K hand-annotated tokens across 18
+classical prose authors) are deliberately never ingested into any
+Dilemma artifact - not the lookup, not the POS tables. They serve as
+the project's held-out gold standard, so agreement with their lemma
+annotation is a genuinely independent accuracy measure
+(`eval/eval_gorman_gold.py`, equiv-adjusted, same scoring as the
+multi-period benchmarks). Holding them out costs almost nothing
+(GLAUx/Diorisis cover the same texts: ~135 of 9.7M lookup entries),
+and the benchmark is diachronically broad: oratory, history,
+philosophy, and the only held-out Ionic gold.
+
+| Author (tokens) | Gold agreement |
+|---|:--:|
+| all 18 authors (554,440) | **94.1%** |
+| Herodotus, Ionic (29,327) | 92.2% |
+| Thucydides (28,923) | 93.6% |
+| Xenophon, *Cyropaedia* (36,116) | 92.4% |
+| Polybius (95,531) | 94.7% |
+| Diodorus (23,159) | 96.2% |
+
+The residual is dominated by lemmatization-convention differences
+(κεῖνος vs ἐκεῖνος, plural ethnonym lemmas, voice conventions), the
+same class the equivalence table cannot fully absorb.
+
 ### Dilemma vs the TLG lemmatizer
 
 The [Thesaurus Linguae Graecae](https://stephanus.tlg.uci.edu/history.php)
@@ -437,7 +466,7 @@ corpus (24.4M word tokens, ancient + patristic, not a Dilemma lookup source):
 | | TLG lemmatizer | Dilemma |
 |---|:--:|:--:|
 | Recognition rate (wordforms analyzed) | 98.4%¹ | 98.8%² |
-| Lemma accuracy (correct lemma chosen) | not published | 94.5%³ |
+| Lemma accuracy (correct lemma chosen) | not published | 94.6%³ |
 | Era coverage | ancient → Byzantine (to ~1669) | ancient → Byzantine → Modern (incl. Demotic) |
 | Open source | No | Yes |
 | Runs on arbitrary text | No (TLG corpus only) | Yes |
@@ -451,7 +480,7 @@ editions use it throughout). The remaining 1.2% unrecognized is almost
 entirely editorial sigla, Greek numerals, and abbreviations (γρ, ΙΙ, κζ),
 not vocabulary gaps. Enabling the neural model lifts the full pipeline to
 ~99.7%. ³ Unweighted mean of the four per-period accuracy
-scores above (token-weighted, 89.8% - the DBBE epigrams dominate the
+scores above (token-weighted, 90.0% - the DBBE epigrams dominate the
 token count) - a metric TLG does not publish.</sub>
 
 The two systems are on par on recognition. Beyond that, Dilemma additionally
@@ -481,10 +510,10 @@ TEI, tlg0016.tlg001, [CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/)
 frequency range: 99.6% for high-frequency forms down to 99.0% for
 forms attested 1-9 times, and 64/64 corpus-unseen forms. The
 Cyropaedia and Astronautilia rows and the Morpheus/Stanza columns are
-pinned to their original 2026-03 measurement; on Cyropaedia, gold
-accuracy vs Gorman treebank annotations was 93.2%, with the gap
-likewise convention differences (κτάομαι vs κτέομαι, ᾄδω vs
-ἀείδω).</sub>
+pinned to their original 2026-03 measurement. For gold-match accuracy
+against hand-annotated treebanks (including Cyropaedia at 92.4% and
+Herodotus at 92.2%, both genuinely held out), see the
+[Gorman held-out gold benchmark](#held-out-gold-the-gorman-treebanks).</sub>
 
 ### DiGreC treebank
 
@@ -534,7 +563,6 @@ The lookup table combines forms from multiple sources:
 | **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Contributes to the merged 68.6M-token `corpus_freq.json` alongside GLAUx, PTA, and the [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) open-text rollup. |
 | **[HNC Golden Corpus](https://inventory.clarin.gr/corpus/870)** (CLARIN:EL) | 1K new | 88K-token gold-standard MG corpus, 11K unique form-lemma pairs. Low priority (only added when not in Wiktionary). Also used for MG evaluation. |
 | **[Perseus / AGDT](https://github.com/PerseusDL/treebank_data)** (CC BY-SA 3.0 US) | 81K | The 33 Greek AGDT works: Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus. Sourced from the original, not the NonCommercial UD release. |
-| **[Gorman Treebanks](https://github.com/perseids-publications/gorman-trees)** (CC BY-SA 4.0) | 79K | 687K-token corpus across Herodotus, Thucydides, Xenophon, Demosthenes, Lysias, Polybius, etc. Gold-standard single annotator. |
 | **DGE** (Diccionario Griego-Espanol) | 52K | Headword filter coverage for spell-check |
 | **LGPN** (Lexicon of Greek Personal Names) | 44K | Proper noun headword coverage |
 | **Perseus Digital Library** (L&S, Pape, Bailly, etc.) | 176K | Headword filter from multiple classical lexica |
@@ -587,7 +615,7 @@ The lookup table is built from Wiktionary [kaikki dumps](https://kaikki.org/)
 (EN and EL editions for MG and AG, plus EL Medieval Greek), expanded with
 inflected forms from LSJ (via Wiktionary Lua modules) and the Sophocles
 lexicon of Roman and Byzantine Greek, then augmented with form-lemma pairs
-from gold-standard treebanks (Gorman, AGDT). Each form is indexed under
+from gold-standard treebanks (AGDT). Each form is indexed under
 its original, monotonic, and accent-stripped variants, so `θεοὶ` (polytonic
 with grave), `θεοί` (monotonic with acute), and `θεοι` (stripped) all
 resolve to `θεός`. Input can be polytonic, monotonic, or unaccented. AG
@@ -706,8 +734,8 @@ It's supervised, not self-supervised. Training data is 3.5M explicit
 and Medieval, including the LSJ verb-paradigm Lua expansion) plus the
 GLAUx morphologically-tagged corpus. Every example has a known-correct
 answer. (The LSJ/Sophocles noun expansion and the other treebanks --
-Perseus, Gorman, Diorisis, HNC -- feed the lookup table, not
-the model; DiGreC is evaluation-only.)
+Perseus, Diorisis, HNC -- feed the lookup table, not the model; the
+Gorman treebanks are held-out gold and DiGreC is evaluation-only.)
 
 The vocabulary is character-level, not subword. The encoder reads one
 Greek character at a time over a ~381-token vocabulary covering
@@ -1428,9 +1456,8 @@ much larger than the headword count suggests.
 However, Wiktionary tags are only a fraction of Dilemma's actual dialect
 coverage. Corpus-derived form-lemma pairs add substantially more:
 GLAUx contributes 76K Ionic pairs from Herodotus and the Hippocratic
-corpus, and Gorman adds
-79K pairs across Herodotus, Thucydides, Xenophon, Demosthenes, and
-others. The dialect normalization layer (Ionic, Doric, Aeolic, Koine)
+corpus, with Diorisis and AGDT adding more across Herodotus,
+Thucydides, Xenophon, Demosthenes, and others. The dialect normalization layer (Ionic, Doric, Aeolic, Koine)
 then maps remaining dialectal forms to their Attic equivalents for
 lookup, catching forms that no corpus or dictionary has catalogued.
 
@@ -1709,8 +1736,8 @@ and covers core lemmatization, particle suffix stripping, verb
 morphology stripping, article-agreement disambiguation, crasis
 resolution, elision handling, orthographic normalization, dialect
 normalization (Ionic, Doric, Aeolic, Koine), convention switching,
-language filtering, spelling suggestions, batch operations, Gorman
-treebank pairs, and edge cases. The remaining files cover
+language filtering, spelling suggestions, batch operations, and
+edge cases. The remaining files cover
 paradigm builders, athematic verb expansion, LSJ principal-parts
 extraction, the `morph_diff` annotator, and end-to-end integrity
 checks.
@@ -2036,7 +2063,6 @@ the v2 reader does not read v1 files (and vice versa).
 | LSJ noun/verb/adj expansion | 4.2M | Via Wiktionary Lua modules |
 | Sophocles lexicon expansion | 1.0M | Byzantine/Patristic vocabulary |
 | [Perseus / AGDT](https://github.com/PerseusDL/treebank_data) (CC BY-SA 3.0 US) | 81K | The 33 Greek AGDT works (Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus); the original, not the NC UD release |
-| [Gorman Treebanks](https://github.com/perseids-publications/gorman-trees) (CC BY-SA 4.0) | 79K | 687K tokens across Herodotus, Thucydides, Xenophon, Demosthenes, Lysias, Polybius, etc. |
 | GLAUx corpus | 557K | 17M tokens, 98.8% accuracy ([Keersmaekers 2021](https://github.com/alekkeersmaekers/glaux)) |
 | Diorisis corpus | 76K new | 10M tokens, 91.4% accuracy ([Vatri & McGillivray 2018](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)) |
 | HNC Golden Corpus | 1K new | 88K-token gold MG corpus ([CLARIN:EL](https://inventory.clarin.gr/corpus/870), [openUnderPSI](https://www.clarin.eu/content/licenses-and-clarin-categories)) |
@@ -2136,7 +2162,8 @@ forms**. The long-tail gap is dominated by elision forms (`δ’`, `ἀλλ’`,
 headwords. None of the merged sources is lemmatised end-to-end by Dilemma,
 so they all contribute frequency and coverage signal but not new
 form-lemma pairs (lemma pairs come from Wiktionary plus the
-GLAUx/Diorisis/Gorman/Perseus treebanks).
+GLAUx/Diorisis/Perseus treebanks; the Gorman treebanks are held out
+as evaluation gold).
 
 #### Extraction sources
 
@@ -2260,7 +2287,7 @@ tested lemmatization on unedited Byzantine Greek epigrams and found
 that classical accuracy (~95%) dropped 30+ points on Byzantine text
 due to itacism, crasis, and non-standard orthography. Their best hybrid
 method (transformer embeddings + dictionary lookup) reached 65.8%.
-Dilemma achieves 88.9% on the same dataset (91.8% with per-token POS,
+Dilemma achieves 89.2% on the same dataset (91.8% with per-token POS,
 equiv-adjusted).
 
 [Swaelens et al. (2025)](https://aclanthology.org/2025.acl-long.430/)
@@ -2370,8 +2397,9 @@ vocabulary (~381 tokens), so the same word is ~10 steps. Combined with
 
 Dilemma builds on openly licensed lexica, treebanks, and corpora - Wiktionary,
 LSJ, the Sophocles lexicon, GLAUx, Diorisis, First1KGreek, the Patristic Text
-Archive, the Patrologia Graeca, the AGDT / Gorman dependency treebanks,
-and more. The complete list, with authors, sources, and licenses, is in
+Archive, the Patrologia Graeca, the AGDT dependency treebanks,
+and more (the Gorman treebanks are deliberately not extracted from:
+they are the held-out gold corpus). The complete list, with authors, sources, and licenses, is in
 [NOTICE](NOTICE).
 
 ## License
@@ -2386,9 +2414,11 @@ Every source Dilemma ships is openly licensed; NonCommercial sources are never
 ingested, and as project policy PROIEL is not used at all, not even as
 evaluation data. PROIEL (CC BY-NC-SA, no permissive release) is dropped; the AGDT
 data is taken from the Perseus original (CC BY-SA 3.0 US) rather than the
-NonCommercial UD repackaging; Gorman (CC BY-SA 4.0) and Diorisis (CC BY 4.0)
-are kept; the few NonCommercial GLAUx texts and the per-file NonCommercial PTA
-texts are filtered out (`build/nc_filter.py`). The lemma model trains only on
+NonCommercial UD repackaging; Diorisis (CC BY 4.0) is kept; the Gorman
+treebanks (CC BY-SA 4.0) are deliberately never ingested - they are the
+project's held-out gold corpus (`eval/eval_gorman_gold.py`); the few
+NonCommercial GLAUx texts and the per-file NonCommercial PTA texts are
+filtered out (`build/nc_filter.py`). The lemma model trains only on
 Wiktionary + GLAUx pairs. The Modern Greek tagger/parser is trained on
 UD_Greek-GUD + the CC BY-SA dialect treebanks, not the NonCommercial
 UD_Greek-GDT.

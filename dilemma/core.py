@@ -2824,6 +2824,15 @@ class Dilemma:
         stripped = strip_accents(lower)
         variants = (word, lower, acute, mono, stripped)
 
+        # A POS-table VALUE that is itself a corpus artifact - an elided
+        # fragment (ἀλλ᾽) or an abbreviation overline (οὐδ̅, U+0305) - is
+        # not a headword; lemmatize_pos trusts the table over a single
+        # lookup candidate, so junk here becomes the output. Skip such
+        # entries (the builders filter them too; this guards stale data).
+        def _usable(lemma: str | None) -> bool:
+            return bool(lemma) and not _is_elided_junk_value(lemma) \
+                and "̅" not in unicodedata.normalize("NFD", lemma)
+
         # For polytonic input, try AG-only POS first
         nfd = unicodedata.normalize("NFD", word)
         has_poly = any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
@@ -2831,13 +2840,15 @@ class Dilemma:
         if has_poly and self.lang == "all" and self._pos_ag_lookup:
             for variant in variants:
                 pos_entry = self._pos_ag_lookup.get(variant)
-                if pos_entry and upos in pos_entry:
+                if pos_entry and upos in pos_entry \
+                        and _usable(pos_entry[upos]):
                     return pos_entry[upos]
 
         # Combined POS lookup
         for variant in variants:
             pos_entry = self._pos_lookup.get(variant)
-            if pos_entry and upos in pos_entry:
+            if pos_entry and upos in pos_entry \
+                    and _usable(pos_entry[upos]):
                 return pos_entry[upos]
 
         return None
