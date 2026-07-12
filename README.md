@@ -355,9 +355,9 @@ and lemma equivalence groups (see `data/benchmarks/bench_all.py`).
 | [Morpheus](https://github.com/perseids-tools/morpheus-perseids-api) (oracle) | -- | 71.1% | -- | -- |
 | [stanza](https://stanfordnlp.github.io/stanza/) `grc` | 92.2% | 71.3% | 85.2% | -- |
 | [Swaelens et al. (2025)](https://aclanthology.org/2025.acl-long.430/) | -- | ~74-75% | -- | -- |
-| **Dilemma** (best convention per period) | **99.7%** | **88.4%**‡ | **94.3%** | **94.8%**† |
+| **Dilemma** (best convention per period) | **99.7%** | **88.9%**‡ | **94.7%** | **94.8%**† |
 
-<sub>†For Demotic MG, `lang="el"` with `triantafyllidis` (94.8%) matches `lang="all"` with `triantafyllidis`. For MG-only workloads, `lang="el"` with `triantafyllidis` is recommended since it avoids AG lemmas (e.g. σπήλαιον) being returned for MG words that have an AG lookalike. ‡Byzantine is 88.4% from the static lookup alone (no POS); with per-token POS (the shipped grc tagger, or gold POS) it reaches 91.6%, since much of the residual is genuine syncretism (θεῶ = dat. θεός vs θεάομαι) that only context resolves.</sub>
+<sub>†For Demotic MG, `lang="el"` with `triantafyllidis` (94.8%) matches `lang="all"` with `triantafyllidis`. For MG-only workloads, `lang="el"` with `triantafyllidis` is recommended since it avoids AG lemmas (e.g. σπήλαιον) being returned for MG words that have an AG lookalike. ‡Byzantine is 88.9% from the static lookup alone (no POS); with per-token POS (the shipped grc tagger, or gold POS) it reaches 91.8%, since much of the residual is genuine syncretism (θεῶ = dat. θεός vs θεάομαι) that only context resolves.</sub>
 
 Cells marked `--` indicate the tool doesn't support that period or
 wasn't tested. Morpheus "oracle" picks the best candidate from all its
@@ -369,13 +369,13 @@ since it reports a different metric and no per-era breakdown.)
 
 | Lang | Convention | POS | AG Classical | Byzantine (literary) | Katharevousa | Demotic MG |
 |------|------------|-----|:--------:|:--------:|:--------:|:--------:|
-| `all` | `wiktionary` (default) | -- | 99.7% | 88.4% | 94.3% | 79.5%* |
-| `all` | `wiktionary` (default) | gold | -- | 91.6% | -- | -- |
-| `all` | `triantafyllidis` | -- | 87.7% | 78.4% | 89.3% | 94.8%† |
-| `grc` | `wiktionary` (default) | -- | 99.7% | 87.4% | 94.0% | 79.5%* |
-| `grc` | `triantafyllidis` | -- | 91.0% | 82.1% | 91.2% | 89.2% |
-| `el` | `wiktionary` (default) | -- | 95.2% | 83.7% | 91.2% | 90.0% |
-| `el` | `triantafyllidis` | -- | 87.7% | 78.4% | 89.3% | 94.8% |
+| `all` | `wiktionary` (default) | -- | 99.7% | 88.9% | 94.7% | 79.5%* |
+| `all` | `wiktionary` (default) | gold | -- | 91.8% | -- | -- |
+| `all` | `triantafyllidis` | -- | 87.7% | 79.0% | 89.6% | 94.8%† |
+| `grc` | `wiktionary` (default) | -- | 99.7% | 88.0% | 94.3% | 79.5%* |
+| `grc` | `triantafyllidis` | -- | 91.0% | 82.7% | 91.5% | 89.2% |
+| `el` | `wiktionary` (default) | -- | 95.2% | 84.2% | 91.5% | 90.0% |
+| `el` | `triantafyllidis` | -- | 87.7% | 79.0% | 89.6% | 94.8% |
 
 <sub>\*Demotic MG scores with `wiktionary` convention are convention mismatches, not real accuracy gaps: AG citation forms like `σπήλαιον` don't match the MG gold standard `σπήλαιο`. Using `convention="triantafyllidis"` fixes this. The AG and Byzantine benchmarks run with `resolve_articles=True` (the correct setting for gold that lemmatizes articles, e.g. τὸν -> ὁ); the article paradigm is otherwise excluded from the lookup so MG function words don't leak to AG forms.</sub>
 
@@ -388,12 +388,35 @@ the recommended setting for Modern Greek text (see
 
 POS column: `--` means Dilemma disambiguates on its own (default).
 `gold` means gold-standard POS tags from the dataset are fed in. Only
-DBBE provides gold POS; the negligible difference (92.7% vs 92.6%)
-confirms POS ambiguity is not a significant error source.
+DBBE provides gold POS; the +2.9pp gain there (88.9% -> 91.8%) is
+genuine syncretism that only context can resolve (θεῶ = dat. θεός vs
+θεάομαι), which the shipped grc tagger recovers without gold tags.
 
 The eval scripts (`eval/eval_dbbe.py`, `eval/eval_digrec.py`,
 `eval/eval_hnc.py`, `eval/bench_dbbe.py`) provide per-POS breakdowns
 and error categorization.
+
+### Elided forms (AGDT Iliad)
+
+Homeric Greek elides constantly, and elided forms are exactly where a
+frequency-ranked fallback picks the wrong homograph (elided ὅτ' is
+ὅτε, never the more frequent ὅτι, which does not elide in Homer).
+Measured over every elision-marked token in the AGDT Iliad treebank
+(10,312 tokens, `eval/eval_iliad_elision.py`, point `ILIAD_TREEBANK`
+at your AGDT `tlg0012.tlg001` file):
+
+| | agreement with AGDT gold |
+|---|:--:|
+| raw | 99.0% |
+| counting elided ὅτ'/ὅθ' -> ὅτε as correct | 99.3% |
+
+The adjustment is applied because AGDT itself labels its 35 elided
+ὅτ'/ὅθ' tokens as ὅτι, which Homeric phonology rules out. The result
+is independent of which apostrophe codepoint the text uses (U+2019,
+U+1FBD, U+02BC, ASCII, or combining U+0313). The residual is genuinely
+contextual: a handful of locative ὅθ' (= ὅθι) and τόθ' (= τόθι)
+readings, and AGDT tokenization quirks (οὐ + δ' with gold οὐδέ on the
+δ' token).
 
 ### Dilemma vs the TLG lemmatizer
 
@@ -414,7 +437,7 @@ corpus (24.4M word tokens, ancient + patristic, not a Dilemma lookup source):
 | | TLG lemmatizer | Dilemma |
 |---|:--:|:--:|
 | Recognition rate (wordforms analyzed) | 98.4%¹ | 98.8%² |
-| Lemma accuracy (correct lemma chosen) | not published | 96.0%³ |
+| Lemma accuracy (correct lemma chosen) | not published | 94.5%³ |
 | Era coverage | ancient → Byzantine (to ~1669) | ancient → Byzantine → Modern (incl. Demotic) |
 | Open source | No | Yes |
 | Runs on arbitrary text | No (TLG corpus only) | Yes |
@@ -428,7 +451,8 @@ editions use it throughout). The remaining 1.2% unrecognized is almost
 entirely editorial sigla, Greek numerals, and abbreviations (γρ, ΙΙ, κζ),
 not vocabulary gaps. Enabling the neural model lifts the full pipeline to
 ~99.7%. ³ Unweighted mean of the four per-period accuracy
-scores above (token-weighted, 93.2%) - a metric TLG does not publish.</sub>
+scores above (token-weighted, 89.8% - the DBBE epigrams dominate the
+token count) - a metric TLG does not publish.</sub>
 
 The two systems are on par on recognition. Beyond that, Dilemma additionally
 reports lemma accuracy, extends into Standard Modern Greek (Demotic), is open
@@ -459,11 +483,11 @@ disambiguation failures.</sub>
 
 ### DiGreC treebank
 
-On the [DiGreC treebank](https://github.com/mdm33/digrec) (~56K tokens,
-Homer through 15th century Byzantine Greek), Dilemma reaches 93.7%
-equiv-adjusted (90.3% strict). The gap accounts for convention
-differences between annotation schemes (e.g. `εἶπον`/`λέγω`,
-`ἐγώ`/`ἡμεῖς`).
+On the [DiGreC treebank](https://github.com/mdm33/digrec) (118,894
+tokens in the current release, Homer through 15th century Byzantine
+Greek), Dilemma reaches 93.5% equiv-adjusted (89.5% strict). The gap
+accounts for convention differences between annotation schemes (e.g.
+`εἶπον`/`λέγω`, `ἐγώ`/`ἡμεῖς`).
 
 ### HNC Modern Greek
 
@@ -2227,7 +2251,8 @@ tested lemmatization on unedited Byzantine Greek epigrams and found
 that classical accuracy (~95%) dropped 30+ points on Byzantine text
 due to itacism, crasis, and non-standard orthography. Their best hybrid
 method (transformer embeddings + dictionary lookup) reached 65.8%.
-Dilemma achieves 92.7% on the same dataset (equiv-adjusted).
+Dilemma achieves 88.9% on the same dataset (91.8% with per-token POS,
+equiv-adjusted).
 
 [Swaelens et al. (2025)](https://aclanthology.org/2025.acl-long.430/)
 showed that multi-task learning (joint POS + morphology + lemma

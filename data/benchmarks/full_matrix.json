@@ -1,6 +1,6 @@
 {
   "Dilemma (no POS)": {
-    "load_time_s": 2.726,
+    "load_time_s": 2.684,
     "datasets": {
       "ag_classical": {
         "status": "ok",
@@ -9,29 +9,25 @@
         "monotonic_normalized": 98.88,
         "accent_stripped": 99.44,
         "equiv_adjusted": 99.72,
-        "inference_time_s": 4.4137,
-        "tokens_per_second": 80.9,
+        "inference_time_s": 3.1039,
+        "tokens_per_second": 115.0,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 53,
-              "time_s": 0.0008
+              "time_s": 0.0005
             },
             "byzantine_norm": {
               "count": 1,
-              "time_s": 0.0896
-            },
-            "elision": {
-              "count": 3,
-              "time_s": 0.0037
+              "time_s": 0.0777
             },
             "lookup": {
-              "count": 266,
-              "time_s": 0.0153
+              "count": 269,
+              "time_s": 0.2364
             },
-            "model": {
+            "nonlexical": {
               "count": 34,
-              "time_s": 2.4685
+              "time_s": 0.0024
             }
           },
           "sampled": false,
@@ -42,41 +38,41 @@
       "byzantine": {
         "status": "ok",
         "n_tokens": 8348,
-        "strict": 55.01,
-        "monotonic_normalized": 85.41,
-        "accent_stripped": 86.49,
-        "equiv_adjusted": 88.39,
-        "inference_time_s": 37.0854,
-        "tokens_per_second": 225.1,
+        "strict": 55.46,
+        "monotonic_normalized": 85.95,
+        "accent_stripped": 87.04,
+        "equiv_adjusted": 88.94,
+        "inference_time_s": 31.7155,
+        "tokens_per_second": 263.2,
         "dilemma_strategy": {
           "by_source": {
             "article": {
-              "count": 1101,
-              "time_s": 0.0184
-            },
-            "byzantine_norm": {
-              "count": 16,
-              "time_s": 1.6348
+              "count": 818,
+              "time_s": 0.012
             },
             "compound": {
-              "count": 100,
-              "time_s": 8.8032
-            },
-            "elision": {
-              "count": 66,
-              "time_s": 0.0527
+              "count": 133,
+              "time_s": 9.9986
             },
             "identity": {
-              "count": 183,
-              "time_s": 16.5654
+              "count": 83,
+              "time_s": 5.7754
             },
             "lookup": {
-              "count": 6528,
-              "time_s": 0.4796
+              "count": 6962,
+              "time_s": 0.4817
             },
             "model": {
-              "count": 350,
-              "time_s": 30.1418
+              "count": 317,
+              "time_s": 22.9705
+            },
+            "nonlexical": {
+              "count": 16,
+              "time_s": 0.0022
+            },
+            "ortho_fallback": {
+              "count": 16,
+              "time_s": 0.0029
             }
           },
           "sampled": true,
@@ -87,37 +83,41 @@
       "katharevousa": {
         "status": "ok",
         "n_tokens": 318,
-        "strict": 92.77,
-        "monotonic_normalized": 94.34,
-        "accent_stripped": 94.34,
-        "equiv_adjusted": 94.34,
-        "inference_time_s": 0.7565,
-        "tokens_per_second": 420.4,
+        "strict": 93.08,
+        "monotonic_normalized": 94.65,
+        "accent_stripped": 94.65,
+        "equiv_adjusted": 94.65,
+        "inference_time_s": 0.597,
+        "tokens_per_second": 532.7,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 66,
-              "time_s": 0.0011
+              "time_s": 0.0008
             },
             "compound": {
               "count": 3,
-              "time_s": 0.3192
-            },
-            "elision": {
-              "count": 5,
-              "time_s": 0.0102
+              "time_s": 0.2499
             },
             "identity": {
-              "count": 11,
-              "time_s": 0.5395
+              "count": 6,
+              "time_s": 0.125
             },
             "lookup": {
-              "count": 197,
-              "time_s": 0.0158
+              "count": 202,
+              "time_s": 0.016
             },
             "model": {
-              "count": 36,
-              "time_s": 2.9139
+              "count": 4,
+              "time_s": 0.2957
+            },
+            "nonlexical": {
+              "count": 35,
+              "time_s": 0.0037
+            },
+            "ortho_fallback": {
+              "count": 2,
+              "time_s": 0.0003
             }
           },
           "sampled": false,
@@ -132,29 +132,29 @@
         "monotonic_normalized": 76.75,
         "accent_stripped": 78.0,
         "equiv_adjusted": 79.5,
-        "inference_time_s": 0.5285,
-        "tokens_per_second": 756.8,
+        "inference_time_s": 0.3548,
+        "tokens_per_second": 1127.5,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 79,
-              "time_s": 0.0014
+              "time_s": 0.001
             },
             "compound": {
               "count": 2,
-              "time_s": 0.2387
+              "time_s": 0.1924
             },
             "identity": {
-              "count": 5,
-              "time_s": 0.2853
+              "count": 4,
+              "time_s": 0.1682
             },
             "lookup": {
               "count": 277,
-              "time_s": 0.0187
+              "time_s": 0.0147
             },
-            "model": {
-              "count": 37,
-              "time_s": 3.0815
+            "nonlexical": {
+              "count": 38,
+              "time_s": 0.0037
             }
           },
           "sampled": false,
@@ -165,7 +165,7 @@
     }
   },
   "Dilemma (gold POS)": {
-    "load_time_s": 2.754,
+    "load_time_s": 2.806,
     "datasets": {
       "ag_classical": {
         "status": "N/A",
@@ -174,41 +174,37 @@
       "byzantine": {
         "status": "ok",
         "n_tokens": 8348,
-        "strict": 56.71,
-        "monotonic_normalized": 88.46,
-        "accent_stripped": 89.63,
-        "equiv_adjusted": 91.59,
-        "inference_time_s": 77.4557,
-        "tokens_per_second": 107.8,
+        "strict": 58.03,
+        "monotonic_normalized": 88.64,
+        "accent_stripped": 89.82,
+        "equiv_adjusted": 91.83,
+        "inference_time_s": 59.6554,
+        "tokens_per_second": 139.9,
         "dilemma_strategy": {
           "by_source": {
             "article": {
-              "count": 985,
-              "time_s": 0.0145
-            },
-            "byzantine_norm": {
-              "count": 33,
-              "time_s": 3.2735
+              "count": 1018,
+              "time_s": 0.0152
             },
             "compound": {
-              "count": 50,
-              "time_s": 4.4899
+              "count": 33,
+              "time_s": 2.9743
             },
             "elision": {
-              "count": 50,
-              "time_s": 0.0538
+              "count": 16,
+              "time_s": 0.0158
             },
             "identity": {
-              "count": 100,
-              "time_s": 7.4811
+              "count": 200,
+              "time_s": 13.9188
             },
             "lookup": {
-              "count": 6912,
-              "time_s": 0.4996
+              "count": 6828,
+              "time_s": 0.4731
             },
             "model": {
-              "count": 217,
-              "time_s": 17.2931
+              "count": 250,
+              "time_s": 17.3891
             }
           },
           "sampled": true,
@@ -227,7 +223,7 @@
     }
   },
   "Dilemma MG": {
-    "load_time_s": 4.2,
+    "load_time_s": 3.918,
     "datasets": {
       "ag_classical": {
         "status": "N/A",
@@ -241,36 +237,40 @@
         "status": "ok",
         "n_tokens": 318,
         "strict": 46.86,
-        "monotonic_normalized": 88.05,
-        "accent_stripped": 88.05,
-        "equiv_adjusted": 89.31,
-        "inference_time_s": 5.006,
-        "tokens_per_second": 63.5,
+        "monotonic_normalized": 88.36,
+        "accent_stripped": 88.36,
+        "equiv_adjusted": 89.62,
+        "inference_time_s": 3.7937,
+        "tokens_per_second": 83.8,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 66,
-              "time_s": 0.001
+              "time_s": 0.0008
             },
             "compound": {
               "count": 3,
-              "time_s": 0.2598
-            },
-            "elision": {
-              "count": 5,
-              "time_s": 0.0062
+              "time_s": 0.2361
             },
             "identity": {
-              "count": 11,
-              "time_s": 0.6274
+              "count": 6,
+              "time_s": 0.1149
             },
             "lookup": {
-              "count": 197,
-              "time_s": 0.0233
+              "count": 202,
+              "time_s": 0.2595
             },
             "model": {
-              "count": 36,
-              "time_s": 2.7152
+              "count": 4,
+              "time_s": 0.2737
+            },
+            "nonlexical": {
+              "count": 35,
+              "time_s": 0.005
+            },
+            "ortho_fallback": {
+              "count": 2,
+              "time_s": 0.0004
             }
           },
           "sampled": false,
@@ -285,29 +285,29 @@
         "monotonic_normalized": 93.5,
         "accent_stripped": 94.5,
         "equiv_adjusted": 94.75,
-        "inference_time_s": 0.4892,
-        "tokens_per_second": 817.7,
+        "inference_time_s": 0.3665,
+        "tokens_per_second": 1091.5,
         "dilemma_strategy": {
           "by_source": {
             "article": {
               "count": 96,
-              "time_s": 0.0015
+              "time_s": 0.0012
             },
             "compound": {
               "count": 2,
-              "time_s": 0.2171
+              "time_s": 0.179
             },
             "identity": {
-              "count": 5,
-              "time_s": 0.2745
+              "count": 4,
+              "time_s": 0.1585
             },
             "lookup": {
               "count": 260,
-              "time_s": 0.0296
+              "time_s": 0.0238
             },
-            "model": {
-              "count": 37,
-              "time_s": 2.8436
+            "nonlexical": {
+              "count": 38,
+              "time_s": 0.0057
             }
           },
           "sampled": false,
