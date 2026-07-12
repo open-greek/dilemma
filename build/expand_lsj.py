@@ -639,6 +639,12 @@ def setup_wtp():
     # expands to an error, so the expansion silently adds ~0 forms.
     print("  Analyzing templates (persists transclusion index to cache)...")
     wtp.analyze_templates()
+
+    # add_page() only INSERTs; the commit otherwise happens lazily in
+    # close_db_conn(). Without committing here, a standalone --setup exits with
+    # the transaction uncommitted and the WAL-mode db rolls back to empty.
+    wtp.db_conn.commit()
+    wtp.db_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     print("  Database ready.")
     return wtp
 
