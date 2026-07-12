@@ -971,9 +971,20 @@ cells distinctly from corpus-attested ones.
 
 Ancient Greek texts frequently elide final vowels before a following
 vowel, marking the elision with an apostrophe (U+0313 in polytonic
-encoding, U+02B9/U+02BC/U+1FBF/U+2019 in other encodings). Dilemma
-resolves these by stripping the elision mark and trying each Greek vowel
-against the lookup table:
+encoding, U+1FBD/U+02B9/U+02BC/U+1FBF/U+2019/ASCII `'`/U+0060 in other
+encodings). All of these resolve identically: the lemma never depends on
+which apostrophe codepoint the source text used.
+
+**Exact elided entries first:** the lookup table stores corpus-derived
+lemmas for elided forms under one canonical key (U+1FBD), and these win
+before any expansion heuristic: `ὅτ᾽` -> `ὅτε` (not the more frequent
+homograph ὅτι, which never elides in Homer), `μ᾽` -> `ἐγώ`, `σ᾽` -> `σύ`,
+`κ᾽` -> `ἄν`, `θ᾽` -> `τε`, `ποτ᾽` -> `ποτέ`, `αὖτ᾽` -> `αὖτε`. One
+residual static-lookup limit: a few Homeric `ὅθ᾽` tokens are the locative
+ὅθι rather than temporal ὅτε, which only syntactic context can settle.
+
+Forms without an exact entry fall through to the expander, which strips
+the elision mark and tries each Greek vowel against the lookup table:
 
 | Elided | Expanded | Lemma |
 |--------|----------|-------|
@@ -993,10 +1004,10 @@ reverses this: `καθ᾿` tries both `καθ-` and `κατ-`, `ἀφ᾿` tries 
 `ἀφ-` and `ἀπ-`, recovering prepositions like κατά and ἀπό.
 
 **Frequency ranking:** When multiple expansions match the lookup table,
-candidates are ranked by corpus frequency (from GLAUx), so common
-prepositions like κατά always beat obscure verbs like κάθω. Function
-words are further prioritized when the stem matches a known elision
-pattern, and proper nouns are deprioritized.
+candidates are ranked by lemma-keyed corpus attestation (see
+`attestation()` below), so common prepositions like κατά always beat
+obscure verbs like κάθω. Function words are further prioritized when the
+stem matches a known elision pattern, and proper nouns are deprioritized.
 
 Polytonic input automatically restricts expansion to the AG lookup
 table, avoiding false matches from MG monotonic forms.
@@ -1099,6 +1110,54 @@ python -m dilemma download --with-citations      # + form_citations.db: example 
 powers the usage-by-year graph and heatmap; `--with-citations` adds the example
 loci (and implies the profile). Without them, `attested_only` and
 `form_attestation` raise a clear "download it" error.
+
+### Saying "I don't know": guess=False
+
+By default the lemmatizer always answers: when nothing structured resolves a
+word it falls back to the transformer, and when even that fails it returns the
+input unchanged. For a dictionary-lookup caller a wrong lemma is worse than no
+lemma (a guessed headword puts a false definition in front of the reader), and
+an echoed input is indistinguishable from a successful identity lemmatization.
+All five lemmatization entry points therefore take `guess=False`, which skips
+the transformer and returns `None` (or an empty candidate list) instead of a
+guess or an echo:
+
+```python
+d.lemmatize("μάκαπ")                         # "μάκαπ" (echo - OCR junk, unresolvable)
+d.lemmatize("μάκαπ", guess=False)            # None ("I don't know")
+d.lemmatize_batch(words, guess=False)        # None at unresolvable positions
+d.lemmatize_verbose("μάκαπ", guess=False)    # [] - no identity/model candidates
+```
+
+Non-Greek and NON-LEXICAL tokens (see `classify_nonlexical`) still pass through
+unchanged: those are classifications, not lemma guesses. For a per-candidate
+confidence signal, use `lemmatize_verbose()` - each candidate's `score` (1.0
+lookup ... 0.5 model ... 0.0 identity echo) and `source` say how much to trust
+it.
+
+### Repairing corrupt lemma annotations
+
+Lemma annotations in treebanks and OCR-derived data break in learnable ways:
+OCR letter confusions (μάκαπ for μάκαρ), digamma noise (ϝέκταρ for νέκταρ,
+πρόσθεϝ for πρόσθεν), diaeresis/gemination variation (ἐυμελίης for ἐϋμμελίης),
+and truncation (ἐπιτροχάδη for ἐπιτροχάδην). `repair_lemma()` validates a lemma
+against the canonical AG headword inventory (LSJ + Cunliffe, shipped in
+`data/`) and repairs a corrupt one - preferring evidence from the surface form
+it was assigned to, which is usually correct even when the annotation is not:
+
+```python
+d.repair_lemma("μάκαρ")                      # "μάκαρ"  (already canonical)
+d.repair_lemma("μάκαπ")                      # "μάκαρ"  (edit-distance repair)
+d.repair_lemma("ϝέκταρ")                     # "νέκταρ" (digamma normalization)
+d.repair_lemma("Πειραί", form="Πειραΐδης")   # "Πειραΐδης" (form-guided)
+d.repair_lemma("διαπέταμαι", form="διέπτατο") # "διαπέτομαι"
+d.repair_lemma("ξζψχβγ")                     # None - never echoes junk back
+```
+
+The same digamma handling also works on surface forms in plain lemmatization:
+`lemmatize("πρόσθεϝ")` -> `πρόσθεν`, `lemmatize("ϝάναξ")` -> `ἄναξ` (a variant
+is accepted only if it itself resolves in the lookup, so this never invents a
+lemma).
 
 ## POS tagger and dependency parser
 

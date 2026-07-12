@@ -380,6 +380,338 @@ class TestElision:
 
 
 # ===========================================================================
+# 5b. ELIDED FUNCTION-WORD LEMMAS (codepoint-independent, correct lemma)
+# ===========================================================================
+
+# The elided form must resolve to the RIGHT lemma, not merely a valid
+# headword, and it must do so no matter which apostrophe codepoint the text
+# uses. The historic bug returned the common homograph (ὅτι/καί/ὁ/εἷς/σός)
+# for every codepoint except U+1FBD, and lemmatize_pos()/the Tagger got it
+# wrong even for U+1FBD.
+#
+# NB: ὅθ' maps to the temporal ὅτε here (a small number of Homeric ὅθ' are the
+# locative ὅθι, which only syntactic context can settle; ὅτε is the correct
+# static-lookup answer and a strict improvement over the prior ὅτι).
+_ELIDED_LEMMAS = {
+    "ὅτ": ("ὅτε", "SCONJ"),
+    "ὅθ": ("ὅτε", "SCONJ"),
+    "μ": ("ἐγώ", "PRON"),
+    "σ": ("σύ", "PRON"),
+    "κ": ("ἄν", "PART"),
+    "θ": ("τε", "CCONJ"),
+    "ποτ": ("ποτέ", "ADV"),
+    "ἠδ": ("ἠδέ", "CCONJ"),
+    "αὖτ": ("αὖτε", "ADV"),
+    "ἀμφ": ("ἀμφί", "ADP"),
+    "ἀν": ("ἀνά", "ADP"),
+}
+
+# Every apostrophe codepoint real Greek text uses as an elision mark. The four
+# the handoff requires (U+2019, U+02BC, U+1FBD, ASCII ') plus the two the
+# sibling prosodia engine also recognizes (U+0060 grave, U+02B9 prime).
+_APOS_CODEPOINTS = ["’", "ʼ", "᾽", "'", "`", "ʹ"]
+
+
+def _elided_cases():
+    """(stem, lemma, pos, apos) matrix. A SINGLE letter followed by U+02B9
+    is excluded: that codepoint is canonically the Greek numeral keraia
+    (μʹ = 40, σʹ = 200), and the nonlexical classifier claims those tokens
+    as numerals by design - elision on a lone letter is only read from a
+    true apostrophe codepoint. Multi-letter stems are unambiguous (ποτʹ
+    cannot be a numeral) and keep all six codepoints."""
+    return [(stem, lemma, pos, apos)
+            for stem, (lemma, pos) in _ELIDED_LEMMAS.items()
+            for apos in _APOS_CODEPOINTS
+            if not (len(stem) == 1 and apos == "ʹ")]
+
+
+class TestElidedFunctionWords:
+    """Regression: elided forms -> correct lemma, every apostrophe codepoint,
+    through both lemmatize() and lemmatize_pos() (the Tagger's path)."""
+
+    @pytest.mark.parametrize("stem,expected,pos,apos", _elided_cases())
+    def test_lemmatize_correct_lemma(self, d_all, stem, expected, pos, apos):
+        form = stem + apos
+        result = d_all.lemmatize(form)
+        assert result == expected, (
+            f"lemmatize({form!r}) [U+{ord(apos):04X}] -> "
+            f"expected {expected!r}, got {result!r}")
+
+    @pytest.mark.parametrize("stem,expected,pos,apos", _elided_cases())
+    def test_lemmatize_pos_correct_lemma(self, d_all, stem, expected, pos, apos):
+        """lemmatize_pos() is the path the Tagger uses; it must agree with
+        lemmatize() and never let the frequency-ranked homograph win."""
+        form = stem + apos
+        result = d_all.lemmatize_pos(form, pos)
+        assert result == expected, (
+            f"lemmatize_pos({form!r}, {pos}) [U+{ord(apos):04X}] -> "
+            f"expected {expected!r}, got {result!r}")
+
+    @pytest.mark.parametrize("stem,expected,pos,apos", _elided_cases())
+    def test_paths_agree(self, d_all, stem, expected, pos, apos):
+        """lemmatize() and lemmatize_pos() must return the same lemma."""
+        form = stem + apos
+        assert d_all.lemmatize(form) == d_all.lemmatize_pos(form, pos)
+
+    @pytest.mark.parametrize("form,expected", [
+        # Self-maps stored under U+1FBD (ἀλλ᾽->ἀλλ᾽) must still resolve to the
+        # real lemma via the expander, not surface as the elided form itself.
+        ("ἀλλ᾽", "ἀλλά"),
+        ("δ᾽", "δέ"),
+        ("ἐπ᾽", "ἐπί"),
+        ("παρ᾽", "παρά"),
+        ("μεθ᾽", "μετά"),
+    ])
+    def test_koronis_selfmap_resolves(self, d_all, form, expected):
+        assert d_all.lemmatize(form) == expected
+        assert d_all.lemmatize_pos(form, "ADP") == expected
+
+    @pytest.mark.parametrize("form,expected,pos", [
+        # A breathing on a diphthong's second vowel is NOT an elision mark;
+        # these correct lookups must not be diverted into the elision
+        # expander. Historically only lemmatize() got these right (lookup
+        # runs first there); the batch/verbose paths run elision first and
+        # returned junk expansions (εἰ -> οἰδάνω, οὐ -> οὖον).
+        ("οὐ", "οὐ", "ADV"), ("οὔ", "οὐ", "ADV"), ("οὖ", "οὖ", "ADV"),
+        ("εἰ", "εἰ", "SCONJ"), ("εἴ", "εἰ", "SCONJ"), ("εὖ", "εὖ", "ADV"),
+    ])
+    def test_diphthong_not_treated_as_elision(self, d_all, form, expected, pos):
+        assert d_all.lemmatize(form) == expected
+        assert d_all.lemmatize_batch([form]) == [expected]
+        assert d_all.lemmatize_pos(form, pos) == expected
+
+    def test_lemmatize_batch_correct_lemma(self, d_all):
+        """lemmatize_batch() (the eval's path) must agree with lemmatize().
+        It historically ran only the frequency-ranked expander, so every
+        elided form got the common homograph."""
+        cases = _elided_cases()
+        forms = [stem + apos for stem, _, _, apos in cases]
+        expected = [lemma for _, lemma, _, _ in cases]
+        results = d_all.lemmatize_batch(forms)
+        bad = [(f, r, e) for f, r, e in zip(forms, results, expected) if r != e]
+        assert not bad, f"lemmatize_batch mismatches: {bad}"
+
+    def test_lemmatize_batch_pos_correct_lemma(self, d_all):
+        """lemmatize_batch_pos() is the Tagger's actual path; the POS tables
+        have no entry for elided forms, so it must not inherit a wrong
+        baseline from lemmatize_batch()."""
+        cases = _elided_cases()
+        forms = [stem + apos for stem, _, _, apos in cases]
+        tags = [pos for _, _, pos, _ in cases]
+        expected = [lemma for _, lemma, _, _ in cases]
+        results = d_all.lemmatize_batch_pos(forms, tags)
+        bad = [(f, r, e) for f, r, e in zip(forms, results, expected) if r != e]
+        assert not bad, f"lemmatize_batch_pos mismatches: {bad}"
+
+
+# ===========================================================================
+# 5c. SAYING "I DON'T KNOW" (guess=False) AND LEMMA REPAIR
+# ===========================================================================
+
+class TestNoGuess:
+    """guess=False must return None/[] for words nothing structured can
+    resolve, instead of echoing the input or asking the transformer - a
+    wrong lemma puts a false definition in front of a dictionary reader,
+    and an echoed input is indistinguishable from a successful identity
+    lemmatization. None of these calls may load the model."""
+
+    def test_unresolvable_returns_none(self, d_all):
+        assert d_all.lemmatize("μάκαπ", guess=False) is None
+
+    def test_verbose_returns_empty(self, d_all):
+        assert d_all.lemmatize_verbose("μάκαπ", guess=False) == []
+
+    def test_pos_returns_none(self, d_all):
+        assert d_all.lemmatize_pos("μάκαπ", "NOUN", guess=False) is None
+
+    def test_batch_returns_none_positionally(self, d_all):
+        out = d_all.lemmatize_batch(["μάκαπ", "γράφω", "μάκαπ"], guess=False)
+        assert out == [None, "γράφω", None]
+
+    def test_batch_pos_returns_none_positionally(self, d_all):
+        out = d_all.lemmatize_batch_pos(["μάκαπ", "ἔριδι"], ["NOUN", "NOUN"],
+                                        guess=False)
+        assert out[0] is None
+        assert out[1] is not None
+
+    @pytest.mark.parametrize("word,expected", [
+        ("γράφω", "γράφω"),        # plain lookup
+        ("ὅτ᾽", "ὅτε"),            # elided exact entry
+        ("ἀλλ᾽", "ἀλλά"),          # elision expander + allow-list
+    ])
+    def test_resolvable_words_unaffected(self, d_all, word, expected):
+        assert d_all.lemmatize(word, guess=False) == expected
+
+    @pytest.mark.parametrize("token", ["123", ".", "γρ"])
+    def test_nonlexical_still_passes_through(self, d_all, token):
+        """Non-Greek and NON-LEXICAL tokens are classifications, not lemma
+        guesses; they pass through unchanged even with guess=False."""
+        assert d_all.lemmatize(token, guess=False) == token
+
+
+class TestDigammaNormalization:
+    """Digamma (ϝ) is a real archaic letter but in OCR'd/keyed text is most
+    often noise for ν; genuine digamma spellings are lemmatized without it.
+    Both lemmatize() and the verbose/Tagger path must resolve these."""
+
+    @pytest.mark.parametrize("form,expected,pos", [
+        ("ϝέκταρ", "νέκταρ", "NOUN"),    # ϝ-for-ν noise
+        ("πρόσθεϝ", "πρόσθεν", "ADV"),   # ϝ-for-ν noise, word-final
+        ("ϝάναξ", "ἄναξ", "NOUN"),       # genuine digamma, dropped
+    ])
+    def test_digamma_forms_resolve(self, d_all, form, expected, pos):
+        assert d_all.lemmatize(form) == expected
+        assert d_all.lemmatize_pos(form, pos) == expected
+
+
+class TestRepairLemma:
+    """repair_lemma(): validate/repair corrupt lemma annotations against the
+    canonical AG headword inventory (LSJ + Cunliffe), guided by the surface
+    form when available. It must be able to return None ("I don't know")
+    and must never echo a corrupt input back."""
+
+    # Ground-truth fixture: (corrupt lemma, surface form, correct lemma).
+    # Each target verified against Cunliffe; each surface form is the
+    # (correct) Homeric text the corrupt annotation was attached to.
+    _FIXTURE = [
+        ("μάκαπ",      "μάκαρ",       "μάκαρ"),       # π/ρ OCR confusion
+        ("ϝέκταρ",     "νέκταρ",      "νέκταρ"),      # digamma ϝ for ν
+        ("πρόσθεϝ",    "πρόσθεν",     "πρόσθεν"),     # digamma ϝ for ν
+        ("ἐυμελίης",   "ἐϋμμελίω",    "ἐϋμμελίης"),   # diaeresis + gemination
+        ("ἐπιτροχάδη", "ἐπιτροχάδην", "ἐπιτροχάδην"),  # truncated final ν
+        ("διαπέταμαι", "διέπτατο",    "διαπέτομαι"),  # non-canonical -άμαι
+        ("Πειραί",     "Πειραΐδης",   "Πειραΐδης"),   # truncated patronymic
+    ]
+
+    @pytest.mark.parametrize("hint,form,expected", _FIXTURE)
+    def test_repairs_with_form(self, d_all, hint, form, expected):
+        assert d_all.repair_lemma(hint, form=form) == expected
+
+    @pytest.mark.parametrize("hint,expected", [
+        # Without the form, the string-level repairs still land.
+        ("μάκαπ", "μάκαρ"),
+        ("ϝέκταρ", "νέκταρ"),
+        ("πρόσθεϝ", "πρόσθεν"),
+        ("ἐπιτροχάδη", "ἐπιτροχάδην"),
+        ("διαπέταμαι", "διαπέτομαι"),
+    ])
+    def test_repairs_without_form(self, d_all, hint, expected):
+        assert d_all.repair_lemma(hint) == expected
+
+    @pytest.mark.parametrize("headword", ["μάκαρ", "λόγος", "Ζεύς",
+                                          "διαπέτομαι", "ὅτε"])
+    def test_canonical_passthrough(self, d_all, headword):
+        assert d_all.repair_lemma(headword) == headword
+
+    def test_rejects_unrepairable(self, d_all):
+        assert d_all.repair_lemma("ξζψχβγ") is None
+        assert d_all.repair_lemma("") is None
+
+    def test_case_guard(self, d_all):
+        """A lowercase corrupt lemma must not be repaired onto a
+        proper-noun twin (μάκαπ -> μάκαρ, not the Lesbian king Μάκαρ)."""
+        assert d_all.repair_lemma("μάκαπ") == "μάκαρ"
+
+    def test_mg_citation_form_not_repaired(self, d_all):
+        """A valid Modern Greek citation form is not corrupt AG: it must be
+        returned unchanged, not 'repaired' onto the AG headword
+        (σπήλαιο is the correct Demotic lemma, one edit from σπήλαιον)."""
+        assert d_all.repair_lemma("σπήλαιο") == "σπήλαιο"
+
+
+class TestElidedJunkValues:
+    """Lookup VALUES that are themselves elided fragments (key ἀλλ ->
+    value \"ἀλλ'\", from corpora that tokenize the apostrophe off) are not
+    headwords. Every path must reject them, and the junk value must instead
+    route the bare stem through the elision machinery. All five entry
+    points must agree."""
+
+    @pytest.mark.parametrize("stem,expected,pos", [
+        ("ἀλλ", "ἀλλά", "CCONJ"),
+        ("οὐδ", "οὐδέ", "CCONJ"),
+        ("μηδ", "μηδέ", "CCONJ"),
+        ("μήτ", "μήτε", "CCONJ"),
+        ("ἡνίκ", "ἡνίκα", "ADV"),
+    ])
+    def test_bare_elided_stems(self, d_all, stem, expected, pos):
+        assert d_all.lemmatize(stem) == expected
+        assert d_all.lemmatize(stem, guess=False) == expected
+        assert d_all.lemmatize_batch([stem]) == [expected]
+        assert d_all.lemmatize_pos(stem, pos) == expected
+
+    def test_junk_value_never_returned(self, d_all):
+        """No path may emit a lemma ending in a spacing apostrophe/koronis."""
+        from dilemma.core import _ELISION_MARKS
+        import unicodedata
+        words = ["ἀλλ", "οὐδ", "μηδ", "ἡνίκ", "ταραχῶδ", "αὐτῇ`"]
+        outputs = [d_all.lemmatize(w) for w in words]
+        outputs += d_all.lemmatize_batch(words)
+        outputs += [d_all.lemmatize_pos(w, "X") for w in words]
+        outputs += [c.lemma for w in words for c in d_all.lemmatize_verbose(w)]
+        bad = [o for o in outputs
+               if o and o[-1] in _ELISION_MARKS
+               and unicodedata.category(o[-1]) != "Mn"]
+        assert not bad, f"apostrophe-final junk lemmas emitted: {bad}"
+
+
+class TestMarkedNumerals:
+    """Greek numerals with a keraia/apostrophe (ιβʹ = 12, κζ’ = 27) are
+    NON-LEXICAL: they must pass through unchanged in every path and never
+    be vowel-expanded into words (the historic ιβʹ -> ἶβις)."""
+
+    @pytest.mark.parametrize("numeral", ["μʹ", "σʹ", "κʹ", "θʹ"])
+    def test_single_letter_keraia_is_numeral(self, d_all, numeral):
+        """A lone letter + U+02B9 keraia is canonically a numeral (μʹ = 40,
+        σʹ = 200), not an elided monosyllable; elision is only read from a
+        true apostrophe codepoint there (μ’ -> ἐγώ, but μʹ -> μʹ)."""
+        assert d_all.lemmatize(numeral) == numeral
+        assert d_all.lemmatize_batch([numeral]) == [numeral]
+
+    @pytest.mark.parametrize("numeral", ["ιβʹ", "κζ’", "ρκʹ"])
+    def test_numeral_passthrough(self, d_all, numeral):
+        assert d_all.lemmatize(numeral) == numeral
+        assert d_all.lemmatize(numeral, guess=False) == numeral
+        assert d_all.lemmatize_batch([numeral]) == [numeral]
+        assert d_all.lemmatize_pos(numeral, "NUM") == numeral
+
+    def test_numeral_verbose_nonlexical(self, d_all):
+        cands = d_all.lemmatize_verbose("ιβʹ")
+        assert len(cands) == 1
+        assert cands[0].lemma == "ιβʹ"
+        assert cands[0].source == "nonlexical"
+
+    def test_elided_fragments_not_claimed_as_numerals(self, d_all):
+        """Combining-psili elisions (σφ̓, γ̓) must NOT be caught by the
+        numeral gate; they are real elided words."""
+        assert d_all.lemmatize("σφ̓") == "σφεῖς"
+        assert d_all.lemmatize("γ̓") == "γε"
+
+
+class TestVerboseNoDuplicates:
+    @pytest.mark.parametrize("form", ["ὅτ᾽", "μ᾽", "ποτ᾽", "ἀλλ᾽"])
+    def test_no_duplicate_lemmas(self, d_all, form):
+        """The exact-elided entry and the expander find the same lemma; the
+        candidate list must dedupe them (one ὅτε, not two)."""
+        lemmas = [(c.lemma, c.lang) for c in d_all.lemmatize_verbose(form)]
+        assert len(lemmas) == len(set(lemmas)), f"duplicates in {lemmas}"
+
+
+class TestLookupOverrides:
+    """Targeted _LOOKUP_OVERRIDES corrections (build_lookup_db.py), live in
+    the rebuilt lookup.db. Each form previously resolved to a corrupt
+    entry: σε -> σῦς (pig), σέ -> σός, ποτέ -> ποτός (drink)."""
+
+    @pytest.mark.parametrize("form,expected", [
+        ("σε", "σύ"),
+        ("σέ", "σύ"),
+        ("ποτέ", "ποτέ"),
+    ])
+    def test_override_lemmas(self, d_all, form, expected):
+        assert d_all.lemmatize(form) == expected
+        assert d_all.lemmatize_batch([form]) == [expected]
+
+
+# ===========================================================================
 # 6. CRASIS RESOLUTION
 # ===========================================================================
 

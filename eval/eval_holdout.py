@@ -109,6 +109,42 @@ def in_lsj(lemma: str, lsj_set: set) -> bool:
     return False
 
 
+# Homeric ὅτι does not elide (it is written ὅττι / ὅ τι), so an elided ὅτ'/ὅθ'
+# can only be temporal ὅτε or locative ὅθι. Some treebanks (AGDT included)
+# mislabel elided ὅτ'/ὅθ' as ὅτι; a lemmatizer that returns ὅτε is CORRECT,
+# so accept ὅτε/ὅθι for a gold ὅτι on an elided ὅτ-/ὅθ- form. Keyed by the
+# accent-stripped, monotonic base spelling (see _norm_lemma).
+_ELISION_GOLD_FIXUPS = {
+    ("οτε", "οτι"),   # pred ὅτε vs gold ὅτι
+    ("οθι", "οτι"),   # pred ὅθι vs gold ὅτι
+}
+
+
+def _norm_lemma(s: str) -> str:
+    """Normalize a lemma for gold comparison: lowercase, monotonic,
+    accent- and length-stripped. Keeps base letters (so ὅτε != ὅτι) while
+    tolerating accent/breathing/case convention differences between the
+    treebank gold and Dilemma's Wiktionary headword spellings."""
+    from dilemma import to_monotonic, strip_accents
+    return strip_accents(to_monotonic(strip_length(s).lower()))
+
+
+def gold_match(pred: str, gold: str, form: str = "") -> bool:
+    """Is the predicted lemma the RIGHT lemma (matches gold), not merely a
+    valid LSJ headword? This is the accuracy the in_lsj check cannot see:
+    ὅτι, καί, ὁ, εἷς are all valid headwords, so a wrong elision resolution
+    still passes in_lsj but fails here.
+
+    For elided ὅτ-/ὅθ- forms it accepts ὅτε/ὅθι where the gold says ὅτι,
+    because the gold, not the lemmatizer, is wrong there (_ELISION_GOLD_FIXUPS)."""
+    if pred is None:
+        return False
+    np, ng = _norm_lemma(pred), _norm_lemma(gold)
+    if np == ng:
+        return True
+    return (np, ng) in _ELISION_GOLD_FIXUPS
+
+
 def build_ag_lookup_without(holdout_author: str, all_files: dict[str, list],
                             base_lookup: dict) -> dict:
     """Build AG lookup augmented with treebank data, excluding one author."""
@@ -142,20 +178,44 @@ def build_ag_lookup_without(holdout_author: str, all_files: dict[str, list],
     return lookup, added
 
 
-def evaluate(test_pairs, lookup, lsj_set, headwords, top_n=3000):
+# Apostrophe codepoints that mark elision (matches dilemma.core._ELISION_MARKS
+# spacing members plus the combining psili); used to slice out elided forms.
+_ELISION_CHARS = set("’ʼ᾽'`ʹ̓")
+
+
+def _is_elided(form: str) -> bool:
+    return any(c in _ELISION_CHARS for c in form)
+
+
+def evaluate(test_pairs, lookup, lsj_set, headwords, top_n=3000,
+             include_frequent=False):
     """Run lemmatization on test pairs and return accuracy stats.
+
+    Reports TWO accuracies:
+      * ``pct``      - in_lsj: is the output a valid LSJ headword. Loose; it
+                       cannot see a wrong-but-valid lemma (ὅτι for ὅτε).
+      * ``gold_pct`` - gold_match: is the output the RIGHT lemma. This is the
+                       one that exposes the elision bug.
+    Plus the same two over the elided-form subset (``elided_*``), where the
+    elided function words live. Set ``include_frequent`` (or ``top_n=0``) to
+    stop excluding the most common forms, so those function words are scored.
 
     Uses lemmatize_batch for speed - all model inference happens in
     one batched forward pass instead of per-word.
     """
     from dilemma import Dilemma
 
-    form_counts = Counter(f for f, _ in test_pairs)
-    common = {f for f, _ in form_counts.most_common(top_n)}
-    uncommon = [(f, l) for f, l in test_pairs if f not in common]
+    if include_frequent or top_n <= 0:
+        uncommon = list(test_pairs)
+    else:
+        form_counts = Counter(f for f, _ in test_pairs)
+        common = {f for f, _ in form_counts.most_common(top_n)}
+        uncommon = [(f, l) for f, l in test_pairs if f not in common]
 
     if not uncommon:
-        return {"total": 0, "success": 0, "pct": 0.0}
+        return {"total": 0, "success": 0, "pct": 0.0, "gold_success": 0,
+                "gold_pct": 0.0, "elided_total": 0, "elided_lsj": 0,
+                "elided_gold": 0, "failures": [], "gold_failures": []}
 
     d = Dilemma(lang='all', resolve_articles=True)
     d._lookup = lookup
@@ -168,20 +228,36 @@ def evaluate(test_pairs, lookup, lsj_set, headwords, top_n=3000):
     forms = [f for f, _ in uncommon]
     results = d.lemmatize_batch(forms)
 
-    success = 0
+    success = gold_success = 0
+    elided_total = elided_lsj = elided_gold = 0
     failures = []
+    gold_failures = []
     for i, (form, gold) in enumerate(uncommon):
-        ok = in_lsj(results[i], lsj_set)
-        if ok:
-            success += 1
-        else:
-            failures.append((form, gold, results[i]))
+        pred = results[i]
+        lsj_ok = in_lsj(pred, lsj_set)
+        gold_ok = gold_match(pred, gold, form)
+        success += lsj_ok
+        gold_success += gold_ok
+        if not lsj_ok:
+            failures.append((form, gold, pred))
+        if not gold_ok:
+            gold_failures.append((form, gold, pred))
+        if _is_elided(form):
+            elided_total += 1
+            elided_lsj += lsj_ok
+            elided_gold += gold_ok
 
     return {
         "total": len(uncommon),
         "success": success,
         "pct": 100 * success / len(uncommon),
+        "gold_success": gold_success,
+        "gold_pct": 100 * gold_success / len(uncommon),
+        "elided_total": elided_total,
+        "elided_lsj": elided_lsj,
+        "elided_gold": elided_gold,
         "failures": failures[:10],
+        "gold_failures": gold_failures[:10],
     }
 
 
@@ -195,6 +271,12 @@ def main():
                         help="List available authors and exit")
     parser.add_argument("--failures", action="store_true",
                         help="Print failure details")
+    parser.add_argument("--include-frequent", action="store_true",
+                        help="Do not exclude the top-N most frequent forms "
+                             "(elided function words live there)")
+    parser.add_argument("--elision", action="store_true",
+                        help="Print the elided-form subset accuracy and its "
+                             "gold-mismatch failures")
     args = parser.parse_args()
 
     # Group files by author
@@ -245,8 +327,10 @@ def main():
 
     authors_to_test = [args.author] if args.author else sorted(author_files.keys())
 
-    print(f"\n{'Author':<20} {'Words':>6} {'Base':>7} {'+ treebank':>10} {'Gain':>6}")
-    print("-" * 55)
+    # Two accuracies per author: in_lsj (headword-valid) and gold (right lemma).
+    print(f"\n{'Author':<18} {'Words':>6} {'LSJ base':>9} {'LSJ+tb':>8} "
+          f"{'Gold base':>10} {'Gold+tb':>8} {'Gain':>6}")
+    print("-" * 70)
 
     for author in authors_to_test:
         if author not in author_files:
@@ -259,21 +343,33 @@ def main():
 
         # Baseline: Wiktionary + LSJ/Cunliffe headwords, no treebank
         base_result = evaluate(test_pairs, base_lookup, lsj_set, full_hw,
-                               top_n=args.top)
+                               top_n=args.top,
+                               include_frequent=args.include_frequent)
 
         # With treebank from other authors
         aug_lookup, added = build_ag_lookup_without(author, author_files,
                                                      base_lookup)
         aug_result = evaluate(test_pairs, aug_lookup, lsj_set, full_hw,
-                              top_n=args.top)
+                              top_n=args.top,
+                              include_frequent=args.include_frequent)
 
-        gain = aug_result["pct"] - base_result["pct"]
-        print(f"{author:<20} {base_result['total']:>6} "
-              f"{base_result['pct']:>6.1f}% {aug_result['pct']:>9.1f}% "
+        gain = aug_result["gold_pct"] - base_result["gold_pct"]
+        print(f"{author:<18} {base_result['total']:>6} "
+              f"{base_result['pct']:>8.1f}% {aug_result['pct']:>7.1f}% "
+              f"{base_result['gold_pct']:>9.1f}% {aug_result['gold_pct']:>7.1f}% "
               f"{gain:>+5.1f}pp")
 
-        if args.failures and aug_result["failures"]:
-            for form, gold, got in aug_result["failures"][:5]:
+        if args.elision and aug_result["elided_total"]:
+            et = aug_result["elided_total"]
+            print(f"    elided forms: {et}  "
+                  f"in_lsj {100*aug_result['elided_lsj']/et:.1f}%  "
+                  f"gold {100*aug_result['elided_gold']/et:.1f}%")
+            for form, gold, got in aug_result["gold_failures"]:
+                if _is_elided(form):
+                    print(f"      {form} -> {got} (gold: {gold})")
+
+        if args.failures and aug_result["gold_failures"]:
+            for form, gold, got in aug_result["gold_failures"][:5]:
                 print(f"  {form} -> {got} (gold: {gold})")
 
 

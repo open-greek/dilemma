@@ -506,12 +506,26 @@ def build():
             sv = sanitize_form(v) if isinstance(v, str) else v
             if not sk:
                 continue
-            # Elided forms encoded with a trailing apostrophe (U+2019 right
-            # single quote, U+0027 ascii) are resolved by the runtime elision
-            # layer, not as lookup entries. Keeping them risks a self-map -
-            # created when lemma validation rejected the source lemma (e.g.
-            # glaux ἀλλ' -> ἄλλος) - shadowing elision (ἀλλ' -> ἀλλά). Drop them.
-            if sk[-1] in ("’", "'"):
+            # Elided forms may be encoded with any of several apostrophe
+            # codepoints (U+2019 right single quote, U+02BC modifier letter,
+            # U+0027 ascii, U+0060 grave, U+02B9 modifier prime). Canonicalize
+            # the trailing mark onto the single U+1FBD GREEK KORONIS key so the
+            # runtime resolves an elided form the same way regardless of which
+            # codepoint the text used. This recognized set matches the sibling
+            # Open Greek prosodia engine's, so the two tools agree on what an
+            # elision mark is.
+            #
+            # Then drop ONLY the entries that carry no lemma evidence: a
+            # self-map (ἀλλ᾽ -> ἀλλ᾽, created when lemma validation rejected
+            # the source lemma) or a value that is itself an elided form.
+            # Those must fall through to the runtime elision expander (which
+            # settles them via its function-word allow-list, ἀλλ᾽ -> ἀλλά).
+            # Genuine mappings (ὅτ᾽ -> ὅτε, κ᾽ -> ἄν, μ᾽ -> ἐγώ) are KEPT.
+            _APOS = ("’", "'", "ʼ", "`", "ʹ")
+            if sk[-1] in _APOS:
+                sk = sk[:-1] + "᾽"          # canonicalize onto one key
+            if sk[-1] == "᾽" and (not isinstance(sv, str) or sv == sk
+                                  or sv.endswith(("᾽",) + _APOS)):
                 dropped_elided += 1
                 continue
             if sk != k:
@@ -643,6 +657,14 @@ def build():
         # AG-classical ambiguous forms: the more common noun/relative/
         # adjective/lexicalized-adverb reading, not the verb/numeral/adverb.
         "σκέψει": "σκέψις",      # was σκέπτομαι (noun dative, not verb fut.)
+        "σε": "σύ",              # was σῦς (pig!) - enclitic 2sg pronoun acc.
+        "σέ": "σύ",              # was σός - accented 2sg pronoun acc.
+        "ποτέ": "ποτέ",          # was ποτός (drink) - lexicalized adverb
+        # NB: do NOT "fix" corpus-derived elided entries that reflect a
+        # genuine ambiguity or lemmatization convention: λίπ᾽ is BOTH the
+        # adverb λίπα (λίπ᾽ ἐλαίῳ) and elided λίπε (λείπω), and treebanks
+        # lemmatize hortatory ἄγετ᾽ under the LSJ particle headword ἄγε,
+        # not ἄγω. Overriding these regressed AGDT agreement.
         "ἧς": "ὅς",              # was εἷς (relative pron gen, not numeral)
         "ἐπιφανέστερον": "ἐπιφανής",  # was ἐπιφανῶς (adj comparative, not adverb)
         "πάντως": "πάντως",      # was πᾶς (lexicalized adverb; cf. καλῶς/οὕτως)

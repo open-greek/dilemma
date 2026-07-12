@@ -145,7 +145,14 @@ _POLYTONIC_TO_ACUTE = {0x0300, 0x0342}
 # Elision mark: U+0313 COMBINING COMMA ABOVE (repurposed as apostrophe
 # in polytonic Greek text). Also handle right single quote U+2019 and
 # modifier letter apostrophe U+02BC.
-_ELISION_MARKS = {"\u0313", "\u2019", "\u02BC", "'", "\u1FBD", "\u02B9", "\u1FBF"}
+#
+# The spacing marks here cover the six apostrophe codepoints real Greek text
+# uses for elision - U+2019, ASCII ', U+02BC, U+1FBD, U+0060 grave (seen in
+# some OCR / older digitizations), U+02B9 - kept in step with the sibling Open
+# Greek prosodia engine's recognized set so the two tools agree on what an
+# elision mark is; plus dilemma's combining U+0313 and the U+1FBF psili variant.
+_ELISION_MARKS = {"\u0313", "\u2019", "\u02BC", "'", "\u1FBD",
+                  "`", "\u02B9", "\u1FBF"}
 
 # Vowels to try when expanding elision (ordered by frequency in AG text)
 _GREEK_VOWELS = "αεοιηυω"
@@ -482,6 +489,24 @@ def _weighted_levenshtein(a: str, b: str) -> float:
     return prev[-1]
 
 
+# Greek diphthongs whose second vowel may legitimately carry the breathing
+_DIPHTHONGS = {"αι", "ει", "οι", "υι", "αυ", "ευ", "ου", "ηυ", "ωυ"}
+
+
+def _psili_is_diphthong_breathing(nfd: str, base_idx: int, mark_idx: int) -> bool:
+    """True iff the combining psili at ``mark_idx`` is a genuine smooth
+    breathing on the second vowel of a word-initial diphthong (οὐ, εἰ, εὖ)
+    rather than an elision apostrophe. A real breathing is the FIRST
+    combining mark on its vowel and the diphthong opens the word; an
+    elision apostrophe instead follows any real diacritics (elided οἷ̓ has
+    rough breathing + circumflex before the psili)."""
+    if mark_idx != base_idx + 1:
+        return False  # psili after other marks = elision apostrophe
+    if base_idx != 1:
+        return False  # the diphthong must open the word
+    return (nfd[base_idx - 1].lower() + nfd[base_idx].lower()) in _DIPHTHONGS
+
+
 def _strip_elision(word: str) -> str | None:
     """Strip trailing elision mark from an elided word form.
 
@@ -492,7 +517,12 @@ def _strip_elision(word: str) -> str | None:
     IMPORTANT: U+0313 also serves as smooth breathing at the START of
     polytonic words (ἐ = ε + U+0313). We only treat it as elision when
     it appears after the first base character cluster (i.e. not on the
-    initial letter).
+    initial letter), and - via _psili_is_diphthong_breathing - not when
+    it is the genuine breathing on the second vowel of a word-initial
+    diphthong (οὐ, εἰ, εὖ). Distinguishing signal: a real breathing is
+    the FIRST combining mark on its vowel, while an elision apostrophe
+    follows any real diacritics (elided οἷ̓ = ι + rough breathing +
+    circumflex + psili).
     """
     nfd = unicodedata.normalize("NFD", word)
     if len(nfd) < 2:
@@ -528,6 +558,9 @@ def _strip_elision(word: str) -> str | None:
     # Check combining marks after the last base char for elision mark
     for i in range(last_base_idx + 1, len(nfd)):
         if nfd[i] in _ELISION_MARKS:
+            if (nfd[i] == "̓"
+                    and _psili_is_diphthong_breathing(nfd, last_base_idx, i)):
+                continue
             stem = unicodedata.normalize("NFC", nfd[:i])
             if stem:
                 return stem
@@ -540,6 +573,61 @@ def _strip_elision(word: str) -> str | None:
             return stem
 
     return None
+
+
+# The single canonical elision mark used as the lookup.db key for elided
+# forms (U+1FBD GREEK KORONIS). Every apostrophe variant a text might use
+# (U+2019, U+02BC, ASCII ', combining U+0313) is folded onto this key so
+# the resolved lemma no longer depends on which codepoint the source chose.
+_KORONIS = "᾽"
+
+_GREEK_VOWEL_BASES = set("αεηιουωΑΕΗΙΟΥΩ")
+
+
+def _is_elided_junk_value(lemma: str) -> bool:
+    """True iff a lookup VALUE is itself an elided fragment (ends in a
+    spacing apostrophe/koronis): ἀλλ᾽, μηδʼ, ἡνίκ'. A real headword never
+    ends in an elision mark, so such a value carries no lemma information -
+    but it does signal that its KEY is an elided stem, which callers use to
+    route the word through the elision machinery instead."""
+    return bool(lemma) and lemma[-1] in _ELISION_MARKS \
+        and unicodedata.category(lemma[-1]) != "Mn"
+
+
+def _is_marked_numeral(word: str) -> bool:
+    """True iff ``word`` is a NON-LEXICAL token ending in a spacing mark the
+    elision machinery would otherwise strip (ιβʹ, κζ’). These must be
+    classified before elision runs, or the expander manufactures a word from
+    the numeral (ιβʹ -> ἶβις). Combining-psili elisions (σφ̓, γ̓) never match:
+    the final-mark test requires a spacing character."""
+    return bool(word) and word[-1] in _ELISION_MARKS \
+        and unicodedata.category(word[-1]) != "Mn" \
+        and _classify_nonlexical(word) is not None
+
+
+def _is_consonant_psili_elision(word: str) -> bool:
+    """True iff ``word`` ends in a combining psili (U+0313) whose base is a
+    CONSONANT (γ̓, μ̓, ἄγετ̓). A breathing can only sit on a vowel (or
+    initial ρ), so on a final consonant U+0313 is always an elision
+    apostrophe - unlike a diphthong carrying a genuine breathing on its
+    second vowel (οὐ, εἰ), which must stay eligible for plain lookup."""
+    nfd = unicodedata.normalize("NFD", word)
+    if not nfd.endswith("̓"):
+        return False
+    for ch in reversed(nfd[:-1]):
+        if not unicodedata.combining(ch):
+            return ch not in _GREEK_VOWEL_BASES
+    return False
+
+
+def _canon_elision(word: str) -> str | None:
+    """Rewrite a trailing elision mark to the canonical U+1FBD key used by lookup.db.
+
+    Returns ``stem + U+1FBD`` (e.g. ``ὅτ᾽`` for any of ``ὅτ’``/``ὅτʼ``/``ὅτ'``),
+    or None if ``word`` carries no elision mark.
+    """
+    stem = _strip_elision(word)
+    return stem + _KORONIS if stem else None
 
 
 # LSJ9 indeclinable category -> UPOS tag mapping
@@ -887,11 +975,12 @@ class Dilemma:
         # Headword sets by convention name (lazy-loaded)
         self._headword_sets: dict[str, set[str]] = {}
 
-        # GLAUx corpus frequency: stripped_form -> token_count (lazy-loaded)
-        self._glaux_freq: dict[str, int] | None = None
-
         # Per-lemma corpus attestation profiles (lazy-loaded)
         self._attestation: dict[str, dict] | None = None
+
+        # Canonical AG headword inventory for repair_lemma():
+        # (all_headwords, stripped_index, lsj_only). Lazy-loaded.
+        self._canonical_hw: tuple[set, dict, set] | None = None
 
         # Form-keyed corpus attestation (form_profile.db / form_citations.db),
         # for the "attested only" gate + form_attestation(). Lazy-opened.
@@ -1681,6 +1770,33 @@ class Dilemma:
                 return hit
         return None
 
+    def _lookup_elided(self, word: str) -> str | None:
+        """Exact corpus-derived entry for an elided form (ὅτ᾽->ὅτε, κ᾽->ἄν, μ᾽->ἐγώ).
+
+        The lemma for an elided form is genuine corpus evidence about which
+        word was elided, so it must beat the frequency-ranked vowel expander
+        (which otherwise lets the common homograph win: ὅτι over ὅτε, καί over
+        ἄν, ὁ over τε). lookup.db stores these under one canonical U+1FBD key,
+        so any apostrophe codepoint the text uses resolves the same way.
+
+        Rejects self-maps (ἀλλ᾽->ἀλλ᾽) and entries whose value is itself an
+        elided form; those carry no lemma information and must fall through to
+        the expander, whose function-word allow-list settles them (ἀλλ᾽->ἀλλά).
+
+        Known residual (context-only, unfixable by a static lookup): elided
+        ὅθ᾽ maps to the temporal ὅτε here, but a handful of Homeric ὅθ᾽ tokens
+        are the locative ὅθι "where" (e.g. Iliad 10.520, 17.54, 2.572, 20.320,
+        4.217, 7.143). Disambiguating ὅτε vs ὅθι needs syntactic context; both
+        readings share this one surface form. This still corrects the far more
+        common prior error (ὅθ᾽ -> ὅτι, wrong for every token).
+        """
+        canon = _canon_elision(word)
+        if not canon:
+            return None
+        lemma = self._lookup.get(canon) or self._lookup.get(canon.lower())
+        if not lemma or lemma == canon or _strip_elision(lemma) is not None:
+            return None
+        return lemma
 
     def _expand_elision(self, word: str) -> str | None:
         """Try to resolve an elided form by expanding with vowels.
@@ -1797,11 +1913,26 @@ class Dilemma:
             # Deprioritize proper nouns
             is_proper = 1 if lemma and lemma[0].isupper() else 0
             # Use corpus frequency: more frequent lemmas are more likely
-            # to be the correct resolution (κατά >> κάθω)
-            freq = self._get_glaux_freq(strip_accents(lemma.lower()))
+            # to be the correct resolution (κατά >> κάθω). Ranked things are
+            # LEMMAS, so query the lemma-keyed attestation table - the
+            # form-keyed corpus_freq table would count every unrelated
+            # homograph of the accent-stripped spelling (lemma εἷς stripped
+            # to "εις" picked up the preposition εἰς's 400k tokens, which is
+            # how μ᾽ once resolved to εἷς instead of ἐγώ).
+            att = self.attestation(lemma)
+            freq = att["total"] if att else 0
             neg_freq = -freq  # negate so higher frequency sorts first
             vrank = _ACC_VOWEL_RANK.get(vowel, _VOWEL_RANK.get(vowel, 10))
-            return (is_function, is_proper, neg_freq, vrank, len(lemma))
+            # Corpus-attested lemmas before unattested ones (a lemma with
+            # zero attestation is usually a junk table entry: ῥ᾽ must not
+            # land on the ghost entry ρε when ἄρα is available), then vowel
+            # plausibility BEFORE lemma frequency: which vowel was elided is
+            # phonological evidence (ε/α/ο elide constantly, η/ω almost
+            # never), while global lemma frequency is not evidence about
+            # elision at all - ranked freq-first, γ᾽ resolved to the
+            # frequent ἐγώ (via the aphaeresis entry γώ) instead of γε.
+            return (is_function, is_proper, freq == 0, vrank, neg_freq,
+                    len(lemma))
 
         results.sort(key=_rank)
         return results
@@ -1839,6 +1970,18 @@ class Dilemma:
     def _is_proper(self, lemma: str) -> bool:
         """Check if a lemma is a proper noun (capitalized headword)."""
         return bool(lemma) and lemma[0].isupper()
+
+    def _is_mg_citation_form(self, lemma: str) -> bool:
+        """True iff ``lemma`` is a Modern Greek citation form: the MG table
+        maps the exact string to itself. Used by repair_lemma so a valid
+        Demotic lemma is never "repaired" onto an AG headword."""
+        if self._using_db:
+            row = self._lookup._conn.execute(
+                "SELECT l.text FROM lookup k JOIN lemmas l ON l.id = k.lemma_id"
+                " WHERE k.form = ? AND k.lang = 'all' AND k.src = 'el' LIMIT 1",
+                (lemma,)).fetchone()
+            return bool(row) and row[0] == lemma
+        return self._mg_lookup.get(lemma) == lemma
 
     # ---- Morphology head inference ----
 
@@ -2413,7 +2556,8 @@ class Dilemma:
                                    key=lambda c: (_gender_score(c), c.proper, -c.score))
         return candidates_sorted
 
-    def lemmatize(self, word: str, *, attested_only: bool = False) -> str | None:
+    def lemmatize(self, word: str, *, attested_only: bool = False,
+                  guess: bool = True) -> str | None:
         """Lemmatize a single Greek word.
 
         Resolution order:
@@ -2434,6 +2578,18 @@ class Dilemma:
         returns ``None`` rather than a guessed lemma. Digits and empty input are
         passed through unchanged. Needs ``form_profile.db`` (download it with
         ``python -m dilemma download``).
+
+        When ``guess=False``, the transformer fallback (step 9) is skipped and
+        a word that nothing structured can resolve returns ``None`` instead of
+        the model's unconstrained prediction or an echo of the input. For a
+        dictionary-lookup caller a wrong lemma is worse than no lemma (a
+        guessed headword puts a false definition in front of the reader), and
+        an input echoed back is indistinguishable from a successful identity
+        lemmatization - ``guess=False`` is the way to say "I don't know".
+        Non-Greek tokens and NON-LEXICAL tokens (apparatus marks, numerals,
+        refs; see ``classify_nonlexical``) still pass through unchanged: those
+        are classifications, not lemma guesses. For a per-candidate confidence
+        signal, use ``lemmatize_verbose`` and its ``score``/``source`` fields.
         """
         if not word:
             return word
@@ -2466,10 +2622,47 @@ class Dilemma:
         if crasis_result is not None:
             return self._apply_convention(crasis_result)
 
-        # Lookup: exact -> lowercase -> monotonic -> accent-stripped
-        lemma = self._lookup_word(word)
-        if lemma:
-            return self._apply_convention(lemma)
+        # Lookup: exact -> lowercase -> monotonic -> accent-stripped.
+        # Two guards divert an elided form to the elided-entry / expander
+        # path instead of accepting a junk lookup hit:
+        #   * a result that is itself an elided form (a self-map like
+        #     ἀλλ᾽->ἀλλ᾽, which build_lookup_db.py now drops but older DBs
+        #     still carry) - a real headword never ends in a spacing
+        #     apostrophe/koronis;
+        #   * a word ending in combining psili on a CONSONANT (γ̓, μ̓),
+        #     which is always an elision apostrophe and whose accent-
+        #     stripped variant false-matches letter-name headwords (γ̓->Γ).
+        # Both tests deliberately avoid _strip_elision, whose combining-mark
+        # rule misfires on diphthongs that carry a breathing on the second
+        # vowel (οὐ, εἰ) and would wrongly discard those correct lookups.
+        #
+        # Marked numerals (ιβʹ, κζ’) are classified NON-LEXICAL before any of
+        # this machinery runs: their trailing keraia/apostrophe would
+        # otherwise be stripped and vowel-expanded into a word (ιβʹ -> ἶβις).
+        if _is_marked_numeral(word):
+            return word
+        if not _is_consonant_psili_elision(word):
+            lemma = self._lookup_word(word)
+            if lemma and not _is_elided_junk_value(lemma):
+                return self._apply_convention(lemma)
+            if lemma:
+                # The junk value marks the KEY as a bare elided stem whose
+                # apostrophe was tokenized off (key ἀλλ -> value "ἀλλ'"):
+                # restore the mark and run the elided machinery, so the stem
+                # gets its real lemma (ἀλλ -> ἀλλά, οὐδ -> οὐδέ) instead of
+                # falling to the model (εἴθ -> ἔρχομαι) or echoing junk.
+                bridged = (self._lookup_elided(word + _KORONIS)
+                           or self._expand_elision(word + _KORONIS))
+                if bridged:
+                    return self._apply_convention(bridged)
+
+        # Exact elided entry (ὅτ᾽->ὅτε, μ᾽->ἐγώ): a corpus-derived lemma keyed
+        # under the canonical U+1FBD mark, so any apostrophe codepoint resolves
+        # identically. Runs before the frequency-ranked expander so the elided
+        # word's real lemma wins over the common homograph.
+        exact_elided = self._lookup_elided(word)
+        if exact_elided:
+            return self._apply_convention(exact_elided)
 
         # Elision expansion (after lookup, so known words like εἰ/οὐ
         # aren't falsely caught by smooth-breathing-as-elision)
@@ -2492,7 +2685,7 @@ class Dilemma:
         if self._normalizer:
             for candidate in self._normalizer.normalize(word):
                 lemma = self._lookup_word(candidate)
-                if lemma:
+                if lemma and not _is_elided_junk_value(lemma):
                     return self._apply_convention(lemma)
 
         # Attested-key-gated orthographic fallbacks: editorial/manuscript
@@ -2501,7 +2694,7 @@ class Dilemma:
         # lookup, so this never invents a lemma.
         for candidate in self._ortho_fallback_variants(word):
             lemma = self._lookup_word(candidate)
-            if lemma:
+            if lemma and not _is_elided_junk_value(lemma):
                 return self._apply_convention(lemma)
 
         # Non-lexical classification (BEFORE the expensive model): apparatus
@@ -2514,20 +2707,24 @@ class Dilemma:
         if _classify_nonlexical(word) is not None:
             return word
 
-        # Fall back to model
-        try:
-            self._load_model()
-            pred = self._predict([word])[0]
-        except (RuntimeError, IndexError, ImportError, FileNotFoundError):
-            # Model inference can fail on unusual inputs (empty tensors,
-            # single-char forms, etc.) or if no backend is installed.
-            # Fall through to identity fallback.
-            return self._apply_convention(word)
+        # Fall back to model (skipped with guess=False: the transformer is
+        # an unconstrained guesser, so a no-guess call must not use it).
+        pred = None
+        if guess:
+            try:
+                self._load_model()
+                pred = self._predict([word])[0]
+            except (RuntimeError, IndexError, ImportError, FileNotFoundError):
+                # Model inference can fail on unusual inputs (empty tensors,
+                # single-char forms, etc.) or if no backend is installed.
+                # Fall through to identity fallback.
+                return self._apply_convention(word)
 
-        # Fallback strategies when the model returns identity
-        # (model couldn't lemmatize). Uses accent-stripped comparison since
-        # the model may return slight accent variants of the input.
-        if strip_accents(pred.lower()) == strip_accents(word.lower()):
+        # Fallback strategies when the model returns identity (model
+        # couldn't lemmatize) or was skipped (guess=False). Uses
+        # accent-stripped comparison since the model may return slight
+        # accent variants of the input.
+        if pred is None or strip_accents(pred.lower()) == strip_accents(word.lower()):
             # 1. Light Byzantine normalization (final sigma, iota
             #    adscript, breathing, hyphen - very precise, few false
             #    positives)
@@ -2552,6 +2749,10 @@ class Dilemma:
             if byz_heavy:
                 return self._apply_convention(byz_heavy)
 
+        if pred is None:
+            # guess=False and nothing structured resolved: say "I don't know"
+            # rather than echoing the input as if it were a lemma.
+            return None
         return self._apply_convention(pred)
 
     def _ortho_fallback_variants(self, word: str):
@@ -2562,10 +2763,22 @@ class Dilemma:
 
         Covers a dropped iota-subscript on a long vowel (the dat. θεῷ written
         θεῶ; preserved-vs-not is safe because we only accept resolving
-        variants), a movable-nu (-εν/-ιν/-σιν), and a stray combining dieresis.
+        variants), a movable-nu (-εν/-ιν/-σιν), a stray combining dieresis,
+        and digamma (ϝ).
         """
         seen = {word}
         nfd = unicodedata.normalize("NFD", word)
+
+        # Digamma (ϝ/Ϝ): a real archaic letter, but in OCR'd or hand-keyed
+        # text most often noise for ν (ϝέκταρ = νέκταρ, πρόσθεϝ = πρόσθεν).
+        # Try the ν-replacement first, then dropping it entirely (genuine
+        # digamma spellings are lemmatized without it: ϝάναξ -> ἄναξ).
+        if "ϝ" in word or "Ϝ" in word:
+            for v in (word.replace("ϝ", "ν").replace("Ϝ", "Ν"),
+                      word.replace("ϝ", "").replace("Ϝ", "")):
+                if v and v not in seen:
+                    seen.add(v)
+                    yield v
 
         # Movable-nu: drop a final ν after ε/ι (3sg -ε(ν), dat./3pl -σι(ν)),
         # never after the case-ending vowels -ων/-ην/-αν.
@@ -2763,7 +2976,8 @@ class Dilemma:
         return None
 
     def lemmatize_pos(self, word: str, upos: str,
-                      *, attested_only: bool = False) -> str | None:
+                      *, attested_only: bool = False,
+                      guess: bool = True) -> str | None:
         """Lemmatize with POS-aware disambiguation.
 
         POS is used to disambiguate among multiple candidates, or to
@@ -2790,9 +3004,14 @@ class Dilemma:
             upos: Universal POS tag (NOUN, VERB, ADJ, etc.).
             attested_only: If True and the input form is unattested in the
                 corpus, return None instead of a lemma.
+            guess: If False, skip the transformer fallback and return None
+                when nothing structured resolves, instead of a model guess
+                or an echo of the input (see ``lemmatize``). A curated
+                POS-table entry still counts as evidence.
 
         Returns:
-            The lemma string, or None when gated out by ``attested_only``.
+            The lemma string, or None when gated out by ``attested_only``
+            or unresolved with ``guess=False``.
         """
         # Attested-only gate: drop forms that don't occur in the corpus.
         if attested_only and word and not word.isdigit() \
@@ -2800,11 +3019,17 @@ class Dilemma:
             return None
 
         # Get all candidates from regular lookup
-        candidates = self._lemmatize_verbose_impl(word)
+        candidates = self._lemmatize_verbose_impl(word, guess=guess)
 
         if not candidates:
-            # Should not happen (verbose always adds identity), but be safe
-            return self.lemmatize(word, attested_only=attested_only)
+            # Reachable when guess=False suppressed the model/identity
+            # candidates (with guess=True verbose always adds identity).
+            # A curated POS-table entry is still evidence, so honor it.
+            pos_lemma = self._pos_table_lookup(word, upos)
+            if pos_lemma is not None:
+                return self._apply_convention(pos_lemma)
+            return self.lemmatize(word, attested_only=attested_only,
+                                  guess=guess)
 
         # Use POS tables to disambiguate or override
         pos_lemma = self._pos_table_lookup(word, upos)
@@ -2863,7 +3088,8 @@ class Dilemma:
                                       candidates)
 
     def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str],
-                            *, attested_only: bool = False) -> list[str | None]:
+                            *, attested_only: bool = False,
+                            guess: bool = True) -> list[str | None]:
         """Lemmatize a batch of words with POS-aware disambiguation.
 
         POS is used to disambiguate among multiple candidates, or to
@@ -2896,12 +3122,17 @@ class Dilemma:
         )
 
         # Step 1: Get baseline results from regular batch lemmatization
-        results = self.lemmatize_batch(words, attested_only=attested_only)
+        results = self.lemmatize_batch(words, attested_only=attested_only,
+                                       guess=guess)
 
         # Step 2: For each word, check if POS could improve the result
         for i, (word, upos) in enumerate(zip(words, upos_tags)):
             # Don't resurrect a gated-out (None) result via POS correction.
-            if attested_only and results[i] is None:
+            # (A guess=False None is different: a curated POS-table entry is
+            # evidence, so it MAY resurrect that - re-check the gate to tell
+            # the two kinds of None apart, matching lemmatize_pos().)
+            if attested_only and results[i] is None and (
+                    guess or self._resolve_attested_form(word) is None):
                 continue
             pos_lemma = self._pos_table_lookup(word, upos)
             if pos_lemma is not None:
@@ -2912,7 +3143,7 @@ class Dilemma:
 
                 # POS suggests a different lemma than baseline. Check if
                 # the POS lemma is among the valid candidates.
-                candidates = self._lemmatize_verbose_impl(word)
+                candidates = self._lemmatize_verbose_impl(word, guess=guess)
 
                 # Check if any candidate matches the POS-specific lemma
                 pos_stripped = strip_accents(pos_lemma_conv.lower())
@@ -2942,7 +3173,7 @@ class Dilemma:
             # Also handles ADJ feminine-to-masculine fix (not a self-map
             # but still a wrong lemma form).
             if results[i] is not None and upos in ("ADJ", "VERB"):
-                candidates = self._lemmatize_verbose_impl(word)
+                candidates = self._lemmatize_verbose_impl(word, guess=guess)
                 if len(candidates) > 1:
                     mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
                     if mg_fix is not None:
@@ -2962,7 +3193,7 @@ class Dilemma:
                 need = word[:1].islower() and res[:1].isupper()
             if not need:
                 continue
-            candidates = self._lemmatize_verbose_impl(word)
+            candidates = self._lemmatize_verbose_impl(word, guess=guess)
             pos_lemma = self._pos_table_lookup(word, upos)
             extra = ((self._apply_convention(pos_lemma),)
                      if pos_lemma is not None else ())
@@ -2998,6 +3229,7 @@ class Dilemma:
                           *,
                           attested_only: bool = False,
                           with_attestation: bool = False,
+                          guess: bool = True,
                           ) -> list[LemmaCandidate]:
         """Return all candidate lemmas with metadata.
 
@@ -3020,6 +3252,10 @@ class Dilemma:
             with_attestation: If True, set each candidate's ``attestation`` to
                 the corpus attestation of the matched surface form (None when
                 the form is unattested). Needs ``form_profile.db``.
+            guess: If False, skip the transformer fallback and never append
+                the ``identity``-source echo candidate; a word that nothing
+                structured can resolve returns an empty list. Each returned
+                candidate's ``score``/``source`` are the confidence signal.
 
         Examples:
             lemmatize_verbose("ἔριδι")
@@ -3039,7 +3275,7 @@ class Dilemma:
             attest_key = self._resolve_attested_form(word)
             if attested_only and attest_key is None:
                 return []
-        candidates = self._lemmatize_verbose_impl(word, prev_word)
+        candidates = self._lemmatize_verbose_impl(word, prev_word, guess=guess)
         if with_attestation and attest_key is not None:
             payload = self.form_attestation(attest_key)
             for c in candidates:
@@ -3048,6 +3284,7 @@ class Dilemma:
 
     def _lemmatize_verbose_impl(self, word: str,
                                 prev_word: str | None = None,
+                                *, guess: bool = True,
                                 ) -> list[LemmaCandidate]:
         """Build the candidate list (no attestation gate); see lemmatize_verbose."""
         candidates = []
@@ -3088,6 +3325,26 @@ class Dilemma:
             _add(cr, source="crasis")
             return candidates
 
+        # 2.4 Marked numerals (ιβʹ, κζ’) — classified NON-LEXICAL before the
+        #     elision machinery can strip their mark and expand them into
+        #     words (ιβʹ -> ἶβις); matches lemmatize().
+        if _is_marked_numeral(word):
+            _add(word, source="nonlexical", via=_classify_nonlexical(word),
+                 score=0.0, tag=_NONLEXICAL_POS)
+            return candidates
+
+        # 2.5 Exact elided entry — the corpus-derived lemma for an elided form
+        #     (ὅτ᾽->ὅτε, κ᾽->ἄν, μ᾽->ἐγώ), keyed under the canonical U+1FBD mark.
+        #     Added BEFORE the vowel expander so it becomes candidates[0]; this
+        #     is what makes lemmatize_pos()/the Tagger agree with lemmatize()
+        #     (both otherwise let the frequency-ranked homograph, ὅτι, win).
+        #     The lang is resolved eagerly so the dedupe key matches the
+        #     expander's when both find the same lemma (no double ὅτε).
+        exact_elided = self._lookup_elided(word)
+        if exact_elided:
+            _add(exact_elided, lang=self._lang_of(exact_elided) or "grc",
+                 source="lookup", via="elision-exact")
+
         # 3. Elision expansion — collect ALL valid expansions (before
         #    lookup, since elided forms false-match letter headwords)
         elision_results = self._expand_elision_all(word)
@@ -3095,11 +3352,14 @@ class Dilemma:
             lang = self._lang_of(expanded) or self._lang_of(lemma)
             _add(lemma, lang=lang, source="elision", via=f"elision:{vowel}")
 
-        # 4. Lookup — collect from ALL language tables
+        # 4. Lookup — collect from ALL language tables. Skipped entirely for
+        #    a consonant-psili elision (γ̓, μ̓): its accent-stripped variant
+        #    false-matches letter-name headwords (γ̓ -> Γ), and the elision
+        #    candidates above are the only legitimate readings.
         lower = word.lower()
         mono = to_monotonic(lower)
         stripped = strip_accents(lower)
-        variants = [
+        variants = [] if _is_consonant_psili_elision(word) else [
             (word, "exact"), (lower, "lower"),
             (mono, "mono"), (stripped, "stripped"),
         ]
@@ -3115,6 +3375,7 @@ class Dilemma:
             _tables.append((self._med_lookup, "med"))
         if self.lang in ("all", "grc"):
             _tables.append((self._ag_lookup, "grc"))
+        junk_value_seen = False
         for table, lang in _tables:
             for variant, via in variants:
                 lemma = table.get(variant)
@@ -3122,6 +3383,12 @@ class Dilemma:
                     # Skip trivial short self-mappings (accent artifacts)
                     if len(variant) <= 2 and lemma == variant and via in ("mono", "stripped"):
                         continue
+                    # An elided junk VALUE (key ἡνίκ -> "ἡνίκ'") is not a
+                    # headword; note it for the elided-stem bridging below
+                    # and reject this table's hit, matching lemmatize().
+                    if _is_elided_junk_value(lemma):
+                        junk_value_seen = True
+                        break
                     _add(lemma, lang=lang, source="lookup", via=via)
                     # Also check if the OTHER case variant is a headword
                     # (Ἔρις the goddess vs ἔρις strife)
@@ -3136,6 +3403,22 @@ class Dilemma:
                         _add(alt, lang=lang, source="lookup",
                              via=via + "+case_alt")
                     break  # first matching variant wins per language
+
+        # 4b. Bare elided stem bridging (matches lemmatize()): a junk value
+        #     marks the key as an elided stem whose apostrophe was tokenized
+        #     off; restore the mark and collect the elided readings
+        #     (ἀλλ -> ἀλλά, οὐδ -> οὐδέ).
+        if junk_value_seen and not candidates:
+            restored = word + _KORONIS
+            bridged_exact = self._lookup_elided(restored)
+            if bridged_exact:
+                _add(bridged_exact,
+                     lang=self._lang_of(bridged_exact) or "grc",
+                     source="lookup", via="elision-exact")
+            for expanded, el_lemma, vowel in self._expand_elision_all(restored):
+                el_lang = self._lang_of(expanded) or self._lang_of(el_lemma)
+                _add(el_lemma, lang=el_lang, source="elision",
+                     via=f"elision:{vowel}")
 
         # 5. Particle suffix stripping (after lookup, before model)
         if not candidates:
@@ -3171,8 +3454,25 @@ class Dilemma:
                         if lemma:
                             if len(variant) <= 2 and lemma == variant and via.endswith(("mono", "stripped")):
                                 continue
+                            if _is_elided_junk_value(lemma):
+                                continue
                             _add(lemma, lang=lang, source="normalize", via=via)
                             break
+
+        # 7a. Attested-key-gated orthographic fallbacks, matching lemmatize():
+        #     editorial/manuscript spelling variants (dropped iota subscript,
+        #     movable nu, stray dieresis, digamma). A variant is accepted only
+        #     if it itself resolves in the lookup, so this never invents a
+        #     lemma. Before this step the verbose path (which lemmatize_pos()
+        #     and the Tagger use) silently lacked these fallbacks, so the two
+        #     paths disagreed on forms like πρόσθεϝ.
+        if not candidates:
+            for ortho_candidate in self._ortho_fallback_variants(word):
+                lemma = self._lookup_word(ortho_candidate)
+                if lemma and not _is_elided_junk_value(lemma):
+                    _add(lemma, source="ortho_fallback",
+                         via=f"variant:{ortho_candidate}", score=0.8)
+                    break
 
         # 7b. Non-lexical classification (BEFORE the model): if nothing has
         #     resolved and the token is an apparatus mark / numeral / editorial
@@ -3186,18 +3486,23 @@ class Dilemma:
                      tag=_NONLEXICAL_POS)
                 return candidates
 
-        # 8. Model fallback (if no candidates yet)
+        # 8. Model fallback (if no candidates yet). With guess=False the
+        #    transformer is skipped; the identity-fallback heuristics below
+        #    (steps 9-12, all lookup-anchored) still run.
         model_identity = False
         if not candidates:
-            try:
-                self._load_model()
-                pred = self._predict([word])[0]
-                if strip_accents(pred.lower()) != strip_accents(word.lower()):
-                    _add(pred, source="model", score=0.5)
-                else:
-                    model_identity = True
-            except (FileNotFoundError, RuntimeError, ImportError, IndexError):
+            if not guess:
                 model_identity = True
+            else:
+                try:
+                    self._load_model()
+                    pred = self._predict([word])[0]
+                    if strip_accents(pred.lower()) != strip_accents(word.lower()):
+                        _add(pred, source="model", score=0.5)
+                    else:
+                        model_identity = True
+                except (FileNotFoundError, RuntimeError, ImportError, IndexError):
+                    model_identity = True
 
         # 9. Light Byzantine normalization (only when model returned identity)
         if model_identity and not candidates:
@@ -3224,19 +3529,28 @@ class Dilemma:
             if byz_heavy:
                 _add(byz_heavy, source="byzantine_norm", score=0.5)
 
-        # If still nothing, return the word itself
+        # If still nothing, return the word itself - unless guess=False, in
+        # which case an empty list is the honest answer ("I don't know"): an
+        # identity echo is indistinguishable from a successful identity
+        # lemmatization to the caller.
         if not candidates:
+            if not guess:
+                return candidates
             _add(word, source="identity", score=0.0)
 
-        # Refine lookup candidate scores using GLAUx corpus frequency.
+        # Refine lookup candidate scores using corpus frequency.
         # Only activated when there are multiple lookup candidates to rank.
         lookup_candidates = [c for c in candidates if c.source == "lookup"]
         if len(lookup_candidates) > 1:
-            # Collect frequencies for all lookup candidates' lemmas
+            # Collect frequencies for all lookup candidates' lemmas. These
+            # are LEMMAS, so use the lemma-keyed attestation table; the
+            # form-keyed corpus_freq table would hand every candidate the
+            # summed count of all homographs of its accent-stripped spelling
+            # (and erased the Ἔρις/ἔρις case distinction entirely).
             freq_pairs = []
             for c in lookup_candidates:
-                stripped = strip_accents(c.lemma.lower())
-                freq = self._get_glaux_freq(stripped)
+                att = self.attestation(c.lemma)
+                freq = att["total"] if att else 0
                 freq_pairs.append((c, freq))
             # Only refine if at least one candidate has frequency data
             has_freq = any(f > 0 for _, f in freq_pairs)
@@ -3273,7 +3587,8 @@ class Dilemma:
         return candidates
 
     def lemmatize_batch(self, words: list[str], *,
-                        attested_only: bool = False) -> list[str | None]:
+                        attested_only: bool = False,
+                        guess: bool = True) -> list[str | None]:
         """Lemmatize a batch of words. Uses model only for unknowns.
 
         If a convention is set, all output lemmas are remapped accordingly.
@@ -3282,6 +3597,10 @@ class Dilemma:
         in the corpus (exact NFC, or via elision expansion) yields ``None`` at
         its position, preserving positional alignment with the input. Digits and
         empty strings pass through unchanged. Needs ``form_profile.db``.
+
+        When ``guess=False``, the transformer fallback is skipped and any word
+        that nothing structured can resolve yields ``None`` at its position
+        instead of a model guess or an echo of the input (see ``lemmatize``).
         """
         results = []
         model_indices = []
@@ -3311,6 +3630,21 @@ class Dilemma:
                 results.append(cr)
                 continue
 
+            # Marked numerals (ιβʹ, κζ’) pass through before the elision
+            # machinery can strip their mark and expand them into words
+            # (ιβʹ -> ἶβις) — matches lemmatize().
+            if _is_marked_numeral(word):
+                results.append(word)
+                continue
+
+            # Exact elided entry (ὅτ᾽->ὅτε, μ᾽->ἐγώ), before the expander —
+            # matches lemmatize(): the corpus-derived lemma must beat the
+            # frequency-ranked homograph (ὅτι/καί/ὁ/εἷς).
+            exact_elided = self._lookup_elided(word)
+            if exact_elided:
+                results.append(exact_elided)
+                continue
+
             # Elision expansion (before lookup — elided forms can
             # false-match letter headwords)
             elision_lemma = self._expand_elision(word)
@@ -3318,8 +3652,16 @@ class Dilemma:
                 results.append(elision_lemma)
                 continue
 
-            # Lookup
-            lemma = self._lookup_word(word)
+            # Lookup (with the same elided-form guards as lemmatize():
+            # no accent-stripped letter-name junk for consonant-psili
+            # elisions, no elided junk values; a junk value routes the bare
+            # elided stem through the elision machinery, ἀλλ -> ἀλλά)
+            lemma = None
+            if not _is_consonant_psili_elision(word):
+                lemma = self._lookup_word(word)
+                if lemma and _is_elided_junk_value(lemma):
+                    lemma = (self._lookup_elided(word + _KORONIS)
+                             or self._expand_elision(word + _KORONIS))
             if lemma:
                 results.append(lemma)
                 continue
@@ -3341,6 +3683,9 @@ class Dilemma:
                 norm_hit = None
                 for candidate in self._normalizer.normalize(word):
                     norm_hit = self._lookup_word(candidate)
+                    if norm_hit and _is_elided_junk_value(norm_hit):
+                        norm_hit = None
+                        continue
                     if norm_hit:
                         break
                 if norm_hit:
@@ -3351,6 +3696,9 @@ class Dilemma:
             ortho_hit = None
             for candidate in self._ortho_fallback_variants(word):
                 ortho_hit = self._lookup_word(candidate)
+                if ortho_hit and _is_elided_junk_value(ortho_hit):
+                    ortho_hit = None
+                    continue
                 if ortho_hit:
                     break
             if ortho_hit:
@@ -3369,14 +3717,22 @@ class Dilemma:
             model_words.append(word)
 
         if model_words:
-            try:
-                self._load_model()
-                predictions = self._predict(model_words)
-            except (RuntimeError, IndexError, ImportError, FileNotFoundError):
-                predictions = model_words  # identity fallback
+            if guess:
+                try:
+                    self._load_model()
+                    predictions = self._predict(model_words)
+                except (RuntimeError, IndexError, ImportError,
+                        FileNotFoundError):
+                    predictions = model_words  # identity fallback
+            else:
+                # guess=False: skip the transformer entirely; the structured
+                # fallbacks below still run, and a word nothing resolves
+                # yields None instead of an echo (matches lemmatize()).
+                predictions = [None] * len(model_words)
             for idx, word, pred in zip(model_indices, model_words, predictions):
-                # Fallback strategies when model returns identity
-                if strip_accents(pred.lower()) == strip_accents(word.lower()):
+                # Fallback strategies when model returns identity or was skipped
+                if pred is None or (strip_accents(pred.lower())
+                                    == strip_accents(word.lower())):
                     # 1. Light Byzantine normalization (safe/precise)
                     byz = self._normalize_byzantine(
                         word, use_normalizer=False)
@@ -3606,25 +3962,6 @@ class Dilemma:
                     self._hw_frequency = json.load(f)
         return self._hw_frequency.get(headword, 0)
 
-    def _get_glaux_freq(self, stripped_form: str) -> int:
-        """Get corpus token count for a stripped form.
-
-        Lazy-loads corpus_freq.json on first call (extracts only the total
-        count per form, discarding genre breakdowns). Returns 0 for
-        forms not in the corpus.
-        """
-        if self._glaux_freq is None:
-            self._glaux_freq = {}
-            if CORPUS_FREQ_PATH.exists():
-                with open(CORPUS_FREQ_PATH, encoding="utf-8") as f:
-                    data = json.load(f)
-                # Index 0 of each value array is the total count
-                self._glaux_freq = {
-                    form: counts[0]
-                    for form, counts in data.get("forms", {}).items()
-                }
-        return self._glaux_freq.get(stripped_form, 0)
-
     def attestation(self, lemma: str) -> dict | None:
         """Corpus attestation profile for an Ancient Greek lemma, or None.
 
@@ -3653,6 +3990,178 @@ class Dilemma:
                 with open(ATTESTATION_PATH, encoding="utf-8") as f:
                     self._attestation = json.load(f).get("lemmas", {})
         return self._attestation.get(unicodedata.normalize("NFC", lemma))
+
+    # ---- Lemma annotation repair ----
+
+    def _canonical_ag_headwords(self) -> tuple[set, dict, set]:
+        """Lazy canonical AG headword inventory for ``repair_lemma``.
+
+        Returns ``(all_headwords, stripped_index, lsj_only)`` where
+        ``all_headwords`` is the union of the LSJ and Cunliffe headword
+        sets, ``stripped_index`` maps each accent-stripped lowercase
+        skeleton to its headwords (so diaeresis/accent/breathing variants
+        and edit-distance candidates can be matched), and ``lsj_only`` is
+        the LSJ subset (used as a tiebreak toward the primary lexicon).
+        """
+        if self._canonical_hw is None:
+            hw: set[str] = set()
+            lsj: set[str] = set()
+            for path, bucket in ((LSJ_HEADWORDS_PATH, lsj),
+                                 (CUNLIFFE_HEADWORDS_PATH, None)):
+                if not path.exists():
+                    continue
+                with open(path, encoding="utf-8") as f:
+                    raw = json.load(f)
+                entries = raw if isinstance(raw, list) else list(raw)
+                hw.update(entries)
+                if bucket is not None:
+                    bucket.update(entries)
+            idx: dict[str, list[str]] = {}
+            for h in hw:
+                idx.setdefault(strip_accents(h.lower()), []).append(h)
+            self._canonical_hw = (hw, idx, lsj)
+        return self._canonical_hw
+
+    def _canonicalize_headword(self, s: str) -> str | None:
+        """Map a (possibly corrupt) lemma string onto a canonical AG headword.
+
+        Tries, in order: exact membership; digamma normalization (ϝ -> ν,
+        then ϝ dropped); an accent-stripped exact match (absorbs diaeresis,
+        breathing, and accent-convention differences, ἐυμμελίης ->
+        ἐϋμμελίης); and finally edit-distance-1 on the accent-stripped
+        skeleton (OCR-grade damage: μάκαπ -> μάκαρ, διαπέταμαι ->
+        διαπέτομαι, ἐπιτροχάδη -> ἐπιτροχάδην). Multiple matches are ranked
+        by case agreement with the input, corpus attestation, then LSJ
+        membership. Returns None when nothing canonical is within reach.
+        """
+        canon, idx, lsj = self._canonical_ag_headwords()
+        if not canon:
+            return None
+
+        def _lsj_spelling(h: str) -> str:
+            # Prefer the LSJ spelling of the same accent-stripped skeleton
+            # for a Cunliffe-only diacritic variant (ἐυμμελίης ->
+            # ἐϋμμελίης). Case must agree so a common noun is never
+            # remapped onto a proper-noun twin.
+            if h in lsj:
+                return h
+            twins = [t for t in idx.get(strip_accents(h.lower()), ())
+                     if t in lsj and t[:1].isupper() == h[:1].isupper()]
+            return min(twins) if twins else h
+
+        if s in canon:
+            return _lsj_spelling(s)
+
+        # Digamma noise (also handled for forms in _ortho_fallback_variants)
+        if "ϝ" in s or "Ϝ" in s:
+            for v in (s.replace("ϝ", "ν").replace("Ϝ", "Ν"),
+                      s.replace("ϝ", "").replace("Ϝ", "")):
+                if v in canon:
+                    return v
+                hit = self._canonicalize_headword(v) if v != s else None
+                if hit:
+                    return hit
+
+        key = strip_accents(s.lower())
+        matches = list(idx.get(key, ()))
+        if not matches and len(key) >= 4:
+            # ED1 on the stripped skeleton against the canonical inventory.
+            # Short skeletons are excluded: at 1-3 letters a single edit
+            # reaches half the particle inventory, which is noise, not repair.
+            for cand_key in self._edits1(key):
+                matches.extend(idx.get(cand_key, ()))
+        if not matches:
+            return None
+
+        def _rank(h: str) -> tuple:
+            case_mismatch = (h[:1].isupper() != s[:1].isupper())
+            att = self.attestation(h)
+            freq = att["total"] if att else 0
+            return (case_mismatch, -freq, h not in lsj, h)
+
+        return _lsj_spelling(min(matches, key=_rank))
+
+    def repair_lemma(self, lemma: str, *, form: str | None = None) -> str | None:
+        """Validate or repair a lemma annotation, optionally guided by the
+        surface form it was assigned to.
+
+        Lemma annotations in treebanks and OCR-derived data are corrupt in
+        learnable ways: OCR letter confusions (μάκαπ for μάκαρ), digamma
+        noise (ϝέκταρ for νέκταρ, πρόσθεϝ for πρόσθεν), diaeresis and
+        gemination variation (ἐυμελίης for ἐϋμμελίης), and truncation
+        (ἐπιτροχάδη for ἐπιτροχάδην). This repairs them against the
+        canonical AG headword inventory (LSJ + Cunliffe), preferring
+        evidence from the surface ``form`` - which is usually correct even
+        when the annotation is not - over the damaged ``lemma`` string.
+
+        Resolution order:
+          1. A ``lemma`` that is already a canonical headword is returned
+             directly, normalized onto its LSJ spelling when the input is a
+             Cunliffe-only diacritic variant (this API repairs damaged
+             strings; it does not second-guess a well-formed annotation -
+             use the lemmatizer for that).
+          2. With ``form`` given: the form is lemmatized without guessing
+             (``guess=False``) and each candidate is canonicalized
+             (exact / digamma / diaeresis / edit-distance-1); the first
+             canonical hit wins. A form that is itself a canonical headword
+             (indeclinables: ἐπιτροχάδην) also counts.
+          3. The ``lemma`` string itself is canonicalized the same way.
+          4. Whatever the lookup resolves ``lemma`` to is canonicalized.
+
+        Returns the canonical headword, or None when nothing trustworthy
+        resolves - never an unconstrained model guess, and never the
+        corrupt input echoed back. This is an ANCIENT GREEK repair: a valid
+        Modern Greek citation form is returned unchanged when an MG table
+        is loaded, but on a grc-only instance MG input may be "repaired"
+        onto an AG headword. Raises RuntimeError if the LSJ/Cunliffe
+        headword files are missing (``python -m dilemma download``).
+
+        Examples:
+            repair_lemma("μάκαπ")                      -> "μάκαρ"
+            repair_lemma("ϝέκταρ")                     -> "νέκταρ"
+            repair_lemma("Πειραί", form="Πειραΐδης")   -> "Πειραΐδης"
+            repair_lemma("ξζψχ")                       -> None
+        """
+        if not lemma:
+            return None
+        lemma = unicodedata.normalize("NFC", to_standard_sigma(lemma.strip()))
+        canon, _idx, _lsj = self._canonical_ag_headwords()
+        if not canon:
+            raise RuntimeError(
+                "repair_lemma needs the LSJ/Cunliffe headword files "
+                "(data/lsj_headwords.json, data/cunliffe_headwords.json). "
+                "Download them with `python -m dilemma download`.")
+        if lemma in canon:
+            # Already canonical; normalize a Cunliffe-only diacritic variant
+            # onto its LSJ spelling when one exists (ἐυμμελίης -> ἐϋμμελίης).
+            return self._canonicalize_headword(lemma)
+        # A valid Modern Greek citation form is not corrupt Ancient Greek:
+        # do not "repair" the Demotic σπήλαιο onto the AG σπήλαιον. (Only
+        # applies when MG data is loaded, i.e. lang='all'/'el'.)
+        if self.lang in ("all", "el") and self._is_mg_citation_form(lemma):
+            return lemma
+
+        if form:
+            form = unicodedata.normalize("NFC", to_standard_sigma(form.strip()))
+            for c in self._lemmatize_verbose_impl(form, guess=False):
+                if c.source == "nonlexical":
+                    continue
+                hit = self._canonicalize_headword(c.lemma)
+                if hit:
+                    return hit
+            # An indeclinable surface form can itself be the headword the
+            # annotation truncated (ἐπιτροχάδην -> ἐπιτροχάδη).
+            if form in canon:
+                return form
+
+        hit = self._canonicalize_headword(lemma)
+        if hit:
+            return hit
+
+        resolved = self._lookup_word(lemma)
+        if resolved and resolved != lemma:
+            return self._canonicalize_headword(resolved)
+        return None
 
     # ---- Form-keyed corpus attestation ("attested only" + references) ----
 
