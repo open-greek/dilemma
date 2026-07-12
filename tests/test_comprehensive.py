@@ -640,14 +640,20 @@ class TestElidedJunkValues:
         assert d_all.lemmatize_pos(stem, pos) == expected
 
     def test_junk_value_never_returned(self, d_all):
-        """No path may emit a lemma ending in a spacing apostrophe/koronis."""
+        """No path may RESOLVE a word to a lemma ending in a spacing
+        apostrophe/koronis. Uses guess=False so an unresolvable input
+        yields None rather than the (documented) identity echo - an
+        apostrophe-final input's echo would end in the mark, and whether
+        the echo is reached depends on the transformer weights being
+        installed (CI runs without the model)."""
         from dilemma.core import _ELISION_MARKS
         import unicodedata
         words = ["ἀλλ", "οὐδ", "μηδ", "ἡνίκ", "ταραχῶδ", "αὐτῇ`"]
-        outputs = [d_all.lemmatize(w) for w in words]
-        outputs += d_all.lemmatize_batch(words)
-        outputs += [d_all.lemmatize_pos(w, "X") for w in words]
-        outputs += [c.lemma for w in words for c in d_all.lemmatize_verbose(w)]
+        outputs = [d_all.lemmatize(w, guess=False) for w in words]
+        outputs += d_all.lemmatize_batch(words, guess=False)
+        outputs += [d_all.lemmatize_pos(w, "X", guess=False) for w in words]
+        outputs += [c.lemma for w in words
+                    for c in d_all.lemmatize_verbose(w, guess=False)]
         bad = [o for o in outputs
                if o and o[-1] in _ELISION_MARKS
                and unicodedata.category(o[-1]) != "Mn"]
