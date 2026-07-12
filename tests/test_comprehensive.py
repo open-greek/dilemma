@@ -711,6 +711,12 @@ class TestLookupOverrides:
         ("σε", "σύ"),
         ("σέ", "σύ"),
         ("ποτέ", "ποτέ"),
+        ("κοτέ", "ποτέ"),        # Ionic ποτέ, was ποτός
+        ("κως", "πως"),          # Ionic πως, was the island Κῶς
+        ("κου", "που"),          # Ionic που, was ποῦ
+        ("ἕως", "ἕως"),          # was ἠώς; Koine "until" and Attic "dawn"
+        ("ἑπτὰ", "ἑπτά"),        # was ἑπτάς (heptad)
+        ("οἰκίαν", "οἰκία"),     # was οἰκίον (rare diminutive)
     ])
     def test_override_lemmas(self, d_all, form, expected):
         assert d_all.lemmatize(form) == expected

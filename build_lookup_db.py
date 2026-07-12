@@ -648,6 +648,17 @@ def build():
         "σε": "σύ",              # was σῦς (pig!) - enclitic 2sg pronoun acc.
         "σέ": "σύ",              # was σός - accented 2sg pronoun acc.
         "ποτέ": "ποτέ",          # was ποτός (drink) - lexicalized adverb
+        "κοτέ": "ποτέ",          # Ionic ποτέ - was ποτός (drink)
+        "κοτε": "ποτέ",          # Ionic ποτέ, unaccented/enclitic
+        "κως": "πως",            # Ionic πως - was the island Κῶς
+        "κου": "που",            # Ionic που - was ποῦ (interrogative)
+        "ἕως": "ἕως",            # was ἠώς (Epic dawn); LSJ heads both the
+                                 # "dawn" and the far commoner "until" at ἕως
+        "ἑπτὰ": "ἑπτά",          # was ἑπτάς (heptad) - indeclinable numeral
+        "Ἑπτά": "ἑπτά",          # capitalized variant of the same bug
+        "οἰκίας": "οἰκία",       # was οἰκίον (rare diminutive; not its form)
+        "οἰκίαν": "οἰκία",       # was οἰκίον
+        "οἰκίᾳ": "οἰκία",        # was οἰκίον
         # Bare elided stems (apostrophe tokenized off by corpora): the only
         # possible reading is the elided function word, but the corpus pair
         # is a junk self-map or accent variant.

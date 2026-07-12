@@ -395,8 +395,13 @@ genuine syncretism that only context can resolve (θεῶ = dat. θεός vs
 θεάομαι), which the shipped grc tagger recovers without gold tags.
 
 The eval scripts (`eval/eval_dbbe.py`, `eval/eval_digrec.py`,
-`eval/eval_hnc.py`, `eval/bench_dbbe.py`) provide per-POS breakdowns
-and error categorization.
+`eval/eval_hnc.py`, `eval/bench_dbbe.py`, `eval/eval_iliad_elision.py`,
+`eval/eval_gorman_gold.py`, `eval/eval_ptnk.py`) provide per-POS
+breakdowns and error categorization. `eval_ptnk.py` measures Koine/LXX
+gold agreement against the manually lemmatized UD_Ancient_Greek-PTNK
+Septuagint treebank (96.8% with PTNK's lemma conventions neutralized
+locally; its text, though not its annotation, overlaps dilemma's
+corpora).
 
 ### Elided forms (AGDT Iliad)
 
