@@ -40,27 +40,18 @@ GLAUX_META = GLAUX / "metadata.txt"
 OUT = Path(__file__).resolve().parent.parent / "data" / "tagger"
 
 HELD_OUT_TEST = {"0012-001"}   # Homer, Iliad
-HELD_OUT_DEV = {"0016-001"}    # Herodotus, Histories
+# Dev was Herodotus 0016-001, whose manual trees are PROIEL-derived and now
+# excluded entirely; Epictetus (Pedalion-derived manual, Koine prose, 92K
+# tokens) replaces it. Dev metrics are NOT comparable across that change.
+HELD_OUT_DEV = {"0557-001"}    # Epictetus, Dissertationes
 
-_NC_RE = re.compile(r"BY-NC|NonCommercial", re.I)
-
-
-def nc_stems(meta_path: Path) -> set:
-    """GLAUx file stems (== TLG) whose SOURCE_LICENSE is NonCommercial."""
-    s = set()
-    if not meta_path.exists():
-        return s
-    for row in csv.DictReader(meta_path.read_text(encoding="utf-8").splitlines(),
-                              delimiter="\t"):
-        if _NC_RE.search(row.get("SOURCE_LICENSE") or ""):
-            t = (row.get("TLG") or "").strip()
-            if t:
-                s.add(t)
-    return s
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # build/ (nc_filter)
+from nc_filter import excluded_glaux_stems, gorman_glaux_stems
 
 
 def extract(limit: int = 0):
-    nc = nc_stems(GLAUX_META)
+    nc = excluded_glaux_stems(GLAUX_META)
+    gorman = gorman_glaux_stems(GLAUX_META)
     files = sorted(GLAUX_XML.glob("*.xml"))
     if limit:
         files = files[:limit]
@@ -77,7 +68,12 @@ def extract(limit: int = 0):
             root = ET.parse(xf).getroot()
         except ET.ParseError:
             continue
+        # Gorman-derived works: the manual sentences ARE Gorman's trees
+        # (held-out gold, never ingested); the auto sentences pass.
+        skip_manual = stem in gorman
         for sent in root.findall(".//sentence"):
+            if skip_manual and sent.get("analysis") == "manual":
+                continue
             # First pass: keep real surface words (drop "z" artificial ellipsis
             # nodes), assigning each a 1-based position; map word id -> position.
             kept = []
@@ -117,8 +113,8 @@ def main():
     n_tok = sum(len(s["tokens"]) for s in sents)
     sp = Counter(s["split"] for s in sents)
     rel = Counter(t["deprel"] for s in sents for t in s["tokens"])
-    print(f"  {len(sents):,} sentences, {n_tok:,} tokens; {n_nc} NonCommercial "
-          f"text(s) excluded")
+    print(f"  {len(sents):,} sentences, {n_tok:,} tokens; {n_nc} text(s) "
+          f"excluded (NonCommercial or PROIEL-derived)")
     print(f"  splits (sentences): {dict(sp)}")
     print(f"  {len(rel)} deprels; top: {[r for r, _ in rel.most_common(12)]}")
     with (OUT / "sentences.jsonl").open("w", encoding="utf-8") as f:

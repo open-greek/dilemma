@@ -123,13 +123,16 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
         print(f"No XML files found in {glaux_dir}")
         return []
 
-    from nc_filter import nc_glaux_stems
+    from nc_filter import excluded_glaux_stems, gorman_glaux_stems
     meta = metadata_path or (Path(glaux_dir).parent / "metadata.txt")
-    nc = nc_glaux_stems(meta)
+    nc = excluded_glaux_stems(meta)
+    gorman = gorman_glaux_stems(meta)
     before = len(xml_files)
     xml_files = [x for x in xml_files if x.stem not in nc]
     print(f"Excluded {before - len(xml_files)} "
-          f"NonCommercial GLAUx text(s)")
+          f"GLAUx text(s) (NonCommercial or PROIEL-derived)")
+    print(f"Skipping manual (Gorman-derived) sentences in "
+          f"{sum(1 for x in xml_files if x.stem in gorman)} text(s)")
 
     print(f"Processing {len(xml_files)} GLAUx files...")
 
@@ -152,59 +155,68 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
         except ET.ParseError:
             continue
 
-        for word in tree.findall(".//word"):
-            form = word.get("form", "")
-            lemma = word.get("lemma", "")
-            postag = word.get("postag", "")
-
-            total_tokens += 1
-
-            # Skip punctuation
-            if postag and postag[0] == "u":
-                skipped_punct += 1
+        # Gorman-derived works: the manual sentences ARE Gorman's trees
+        # (held-out gold, never ingested); only the auto sentences pass.
+        skip_manual = xml_file.stem in gorman
+        for sentence in tree.findall(".//sentence"):
+            if skip_manual and sentence.get("analysis") == "manual":
                 continue
-
-            if not form or not lemma:
-                skipped_no_lemma += 1
+            words = sentence.findall(".//word")
+            if not words:
                 continue
+            for word in words:
+                form = word.get("form", "")
+                lemma = word.get("lemma", "")
+                postag = word.get("postag", "")
 
-            # NFC normalize (GLAUx uses NFD)
-            form = nfc(form)
-            lemma = nfc(lemma)
+                total_tokens += 1
 
-            if not is_greek(form):
-                skipped_non_greek += 1
-                continue
+                # Skip punctuation
+                if postag and postag[0] == "u":
+                    skipped_punct += 1
+                    continue
 
-            # Parse morphological tag
-            pos, tags = parse_postag(postag)
+                if not form or not lemma:
+                    skipped_no_lemma += 1
+                    continue
 
-            # Dedup
-            key = (form, lemma)
-            if key in seen:
-                skipped_dup += 1
-                continue
-            seen.add(key)
+                # NFC normalize (GLAUx uses NFD)
+                form = nfc(form)
+                lemma = nfc(lemma)
 
-            entry = {"form": form, "lemma": lemma}
-            if pos:
-                entry["pos"] = pos
-                pos_counts[pos] += 1
-            if tags:
-                entry["tags"] = tags
+                if not is_greek(form):
+                    skipped_non_greek += 1
+                    continue
 
-                # Count morphological coverage
-                tag_set = set(tags)
-                if tag_set & {"masculine", "feminine", "neuter"}:
-                    has_nominal += 1
-                if tag_set & {"present", "imperfect", "aorist", "future",
-                              "perfect", "pluperfect"}:
-                    has_verbal += 1
-                    for t in tag_set & {"present", "imperfect", "aorist",
-                                        "future", "perfect", "pluperfect"}:
-                        tense_counts[t] += 1
+                # Parse morphological tag
+                pos, tags = parse_postag(postag)
 
-            pairs.append(entry)
+                # Dedup
+                key = (form, lemma)
+                if key in seen:
+                    skipped_dup += 1
+                    continue
+                seen.add(key)
+
+                entry = {"form": form, "lemma": lemma}
+                if pos:
+                    entry["pos"] = pos
+                    pos_counts[pos] += 1
+                if tags:
+                    entry["tags"] = tags
+
+                    # Count morphological coverage
+                    tag_set = set(tags)
+                    if tag_set & {"masculine", "feminine", "neuter"}:
+                        has_nominal += 1
+                    if tag_set & {"present", "imperfect", "aorist", "future",
+                                  "perfect", "pluperfect"}:
+                        has_verbal += 1
+                        for t in tag_set & {"present", "imperfect", "aorist",
+                                            "future", "perfect", "pluperfect"}:
+                            tense_counts[t] += 1
+
+                pairs.append(entry)
 
         if (i + 1) % 200 == 0:
             print(f"  {i+1}/{len(xml_files)} files, {len(pairs):,} pairs", flush=True)

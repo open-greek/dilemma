@@ -119,8 +119,9 @@ def main():
     print(f"{len(tlg_to_genre)} texts")
 
     # Openly licensed by default: always drop the NonCommercial GLAUx texts.
-    from nc_filter import nc_glaux_stems
-    nc_stems = nc_glaux_stems(args.metadata)
+    from nc_filter import excluded_glaux_stems, gorman_glaux_stems
+    nc_stems = excluded_glaux_stems(args.metadata)
+    gorman_stems = gorman_glaux_stems(args.metadata)
 
     genre_to_idx = {g: i for i, g in enumerate(GENRE_ORDER)}
     n_genres = len(GENRE_ORDER)
@@ -151,20 +152,26 @@ def main():
         except ET.ParseError:
             continue
 
-        for word in tree.findall(".//word"):
-            postag = word.get("postag", "")
-            if postag and postag[0] == "u":
-                continue  # skip punctuation
-
-            form = word.get("form", "")
-            if not form or not is_greek(form):
+        # Gorman-derived works: the manual sentences ARE Gorman's trees
+        # (held-out gold, never ingested); the auto sentences pass.
+        skip_manual = tlg in gorman_stems
+        for sent in tree.getroot().iter("sentence"):
+            if skip_manual and sent.get("analysis") == "manual":
                 continue
+            for word in sent.findall(".//word"):
+                postag = word.get("postag", "")
+                if postag and postag[0] == "u":
+                    continue  # skip punctuation
 
-            stripped = strip_accents(
-                unicodedata.normalize("NFC", form).lower())
-            form_counts[stripped][0] += 1           # total
-            form_counts[stripped][1 + genre_idx] += 1  # genre-specific
-            total_tokens += 1
+                form = word.get("form", "")
+                if not form or not is_greek(form):
+                    continue
+
+                stripped = strip_accents(
+                    unicodedata.normalize("NFC", form).lower())
+                form_counts[stripped][0] += 1           # total
+                form_counts[stripped][1 + genre_idx] += 1  # genre-specific
+                total_tokens += 1
 
         if (i + 1) % 200 == 0:
             print(f"  {i+1}/{len(xml_files)} files, "

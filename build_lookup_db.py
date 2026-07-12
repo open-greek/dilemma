@@ -703,7 +703,13 @@ def build():
         DB_PATH.unlink()
 
     conn = sqlite3.connect(str(DB_PATH))
-    conn.execute("PRAGMA journal_mode=DELETE")
+    # Build-time only: the DB is regenerated from scratch, so crash
+    # consistency buys nothing. journal_mode=OFF avoids the multi-GB
+    # rollback journal whose final fsync intermittently fails with
+    # "disk I/O error" on large builds; synchronous=OFF for the same
+    # reason. The finished file is fully synced on close.
+    conn.execute("PRAGMA journal_mode=OFF")
+    conn.execute("PRAGMA synchronous=OFF")
     conn.execute("PRAGMA page_size=4096")
 
     # Deduplicated lemma table

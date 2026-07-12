@@ -302,7 +302,8 @@ def diorisis_work_id(root, filename):
     return None
 
 
-def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset()):
+def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset(),
+                  gorman_stems=frozenset()):
     glaux_hash = hashlib.sha256()
     work_ids = set()  # GLAUx file stems = TLG work ids, for the Diorisis dedup
     files = sorted(glaux_dir.glob("*.xml"))
@@ -310,7 +311,7 @@ def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset())
         before = len(files)
         files = [f for f in files if f.stem not in nc_stems]
         print(f"  Excluded {before - len(files)} "
-              f"NonCommercial GLAUx text(s)")
+              f"GLAUx text(s) (NonCommercial or PROIEL-derived)")
     if limit:
         files = files[:limit]
     print(f"GLAUx: {len(files)} files")
@@ -325,23 +326,29 @@ def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset())
             stats["parse_errors"] += 1
             continue
         work_ids.add(stem)
-        for w in root.iter("word"):
-            postag = w.get("postag", "")
-            if postag and postag[0] == "u":
-                continue  # punctuation
-            lemma = w.get("lemma", "")
-            if not lemma:
-                stats["glaux_unlemmatized"] += 1
+        # Gorman-derived works: the manual sentences ARE Gorman's trees
+        # (held-out gold, never ingested); the auto sentences pass.
+        skip_manual = stem in gorman_stems
+        for sent in root.iter("sentence"):
+            if skip_manual and sent.get("analysis") == "manual":
                 continue
-            lemma = unicodedata.normalize("NFC", lemma)
-            if not is_lexical_greek(lemma):
-                stats["glaux_nonlexical_lemma"] += 1
-                continue
-            pos = GLAUX_POS_MAP.get(postag[0] if postag else "", "other")
-            p = profiles[lemma]
-            p.observe("glaux", pos)
-            p.add_deduped(genre, century, dialect)  # GLAUx preferred everywhere
-            stats["glaux_tokens"] += 1
+            for w in sent.findall(".//word"):
+                postag = w.get("postag", "")
+                if postag and postag[0] == "u":
+                    continue  # punctuation
+                lemma = w.get("lemma", "")
+                if not lemma:
+                    stats["glaux_unlemmatized"] += 1
+                    continue
+                lemma = unicodedata.normalize("NFC", lemma)
+                if not is_lexical_greek(lemma):
+                    stats["glaux_nonlexical_lemma"] += 1
+                    continue
+                pos = GLAUX_POS_MAP.get(postag[0] if postag else "", "other")
+                p = profiles[lemma]
+                p.observe("glaux", pos)
+                p.add_deduped(genre, century, dialect)  # GLAUx preferred everywhere
+                stats["glaux_tokens"] += 1
         if (i + 1) % 200 == 0:
             print(f"  {i+1}/{len(files)} files, "
                   f"{stats['glaux_tokens']:,} tokens, "
@@ -544,8 +551,9 @@ def main():
 
     # Openly licensed by default: always drop the NonCommercial GLAUx texts
     # (this pass uses only GLAUx + Diorisis, both otherwise permissive).
-    from nc_filter import nc_glaux_stems
-    nc_stems = nc_glaux_stems(args.metadata)
+    from nc_filter import excluded_glaux_stems, gorman_glaux_stems
+    nc_stems = excluded_glaux_stems(args.metadata)
+    gorman_stems = gorman_glaux_stems(args.metadata)
 
     t0 = time.time()
     stats = Counter()
@@ -558,7 +566,8 @@ def main():
     print(f"  {len(glaux_meta)} texts, dialects: {sorted(observed_dialects)}")
 
     source_sha["glaux_xml"], glaux_work_ids = process_glaux(
-        args.glaux, glaux_meta, profiles, args.limit, stats, nc_stems)
+        args.glaux, glaux_meta, profiles, args.limit, stats, nc_stems,
+        gorman_stems)
     source_sha["diorisis_xml"] = process_diorisis(
         args.diorisis, profiles, args.limit, stats, glaux_work_ids)
 

@@ -429,18 +429,20 @@ Dilemma artifact - not the lookup, not the POS tables. They serve as
 the project's held-out gold standard, so agreement with their lemma
 annotation is a genuinely independent accuracy measure
 (`eval/eval_gorman_gold.py`, equiv-adjusted, same scoring as the
-multi-period benchmarks). Holding them out costs almost nothing
-(GLAUx/Diorisis cover the same texts: ~135 of 9.7M lookup entries),
-and the benchmark is diachronically broad: oratory, history,
-philosophy, and the only held-out Ionic gold.
+multi-period benchmarks). The holdout runs deep: GLAUx sentences whose
+manual trees were sourced from Gorman are skipped at build time too
+(`build/nc_filter.py`), and holding all of it out costs nothing
+measurable - every other benchmark is unchanged. The benchmark is
+diachronically broad: oratory, history, philosophy, and the only
+held-out Ionic gold.
 
 | Author (tokens) | Gold agreement |
 |---|:--:|
-| all 18 authors (554,440) | **94.1%** |
+| all 18 authors (554,440) | **94.0%** |
 | Herodotus, Ionic (29,327) | 92.2% |
 | Thucydides (28,923) | 93.6% |
 | Xenophon, *Cyropaedia* (36,116) | 92.4% |
-| Polybius (95,531) | 94.7% |
+| Polybius (95,531) | 94.6% |
 | Diodorus (23,159) | 96.2% |
 
 The residual is dominated by lemmatization-convention differences
@@ -2416,9 +2418,12 @@ evaluation data. PROIEL (CC BY-NC-SA, no permissive release) is dropped; the AGD
 data is taken from the Perseus original (CC BY-SA 3.0 US) rather than the
 NonCommercial UD repackaging; Diorisis (CC BY 4.0) is kept; the Gorman
 treebanks (CC BY-SA 4.0) are deliberately never ingested - they are the
-project's held-out gold corpus (`eval/eval_gorman_gold.py`); the few
-NonCommercial GLAUx texts and the per-file NonCommercial PTA texts are
-filtered out (`build/nc_filter.py`). The lemma model trains only on
+project's held-out gold corpus (`eval/eval_gorman_gold.py`), and GLAUx
+sentences whose manual trees GLAUx sourced from Gorman are skipped for
+the same reason; the few NonCommercial GLAUx texts, the 25 GLAUx works
+whose trees derive from the PROIEL treebank (the NT books and
+Herodotus), and the per-file NonCommercial PTA texts are filtered out
+(`build/nc_filter.py`). The lemma model trains only on
 Wiktionary + GLAUx pairs. The Modern Greek tagger/parser is trained on
 UD_Greek-GUD + the CC BY-SA dialect treebanks, not the NonCommercial
 UD_Greek-GDT.

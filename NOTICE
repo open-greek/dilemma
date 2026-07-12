@@ -137,7 +137,11 @@ with no permissive release) is excluded entirely. The Ancient Greek Dependency
 Treebank is taken from the Perseus AGDT original (CC BY-SA 3.0 US), not the
 NonCommercial Universal Dependencies repackaging (UD_Ancient_Greek-Perseus).
 Diorisis is CC BY 4.0; the Gorman treebanks (CC BY-SA 4.0) are deliberately
-never ingested - they are the held-out evaluation gold corpus. The handful of NonCommercial
+never ingested - they are the held-out evaluation gold corpus, and the GLAUx
+sentences whose manual trees were sourced from Gorman are skipped for the same
+reason. The 25 GLAUx works whose treebank annotations derive from the PROIEL
+treebank (CC BY-NC-SA: the New Testament books and Herodotus) are excluded
+entirely. The handful of NonCommercial
 source texts within GLAUx, and the per-file NonCommercial texts within the
 Patristic Text Archive, are filtered out at build time (see build/nc_filter.py).
 What Dilemma extracts from any treebank is factual form-to-lemma annotation and

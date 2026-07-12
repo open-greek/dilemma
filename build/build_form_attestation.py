@@ -271,14 +271,15 @@ class CiteSink:
 
 
 def process_glaux(glaux_dir, glaux_works, forms, form_ids, profiles, works,
-                  sink, claimed, limit, stats, nc_stems=frozenset()):
+                  sink, claimed, limit, stats, nc_stems=frozenset(),
+                  gorman_stems=frozenset()):
     h = hashlib.sha256()
     files = sorted(glaux_dir.glob("*.xml"))
     if nc_stems:
         before = len(files)
         files = [f for f in files if f.stem not in nc_stems]
         print(f"  Excluded {before - len(files)} "
-              f"NonCommercial GLAUx text(s)")
+              f"GLAUx text(s) (NonCommercial or PROIEL-derived)")
     if limit:
         files = files[:limit]
     print(f"GLAUx: {len(files)} files")
@@ -297,22 +298,28 @@ def process_glaux(glaux_dir, glaux_works, forms, form_ids, profiles, works,
             continue
         claimed.add(stem)  # GLAUx is top priority: claims every work it has
         file_cites = Counter()
-        for w in root.iter("word"):
-            postag = w.get("postag", "")
-            if postag and postag[0] == "u":
+        # Gorman-derived works: the manual sentences ARE Gorman's trees
+        # (held-out gold, never ingested); the auto sentences pass.
+        skip_manual = stem in gorman_stems
+        for sent in root.iter("sentence"):
+            if skip_manual and sent.get("analysis") == "manual":
                 continue
-            form = nfc_key(w.get("form", ""))
-            if not _is_lexical_form(form):
-                stats["glaux_nonlexical"] += 1
-                continue
-            fid = _intern(form, forms, form_ids)
-            pos = GLAUX_POS_MAP.get(postag[0] if postag else "", "other")
-            p = profiles[fid]
-            p.observe("glaux", pos)
-            p.add_deduped(genre, century, dialect)
-            locus, scheme = glaux_locus(w.attrib)
-            file_cites[(fid, locus, scheme)] += 1
-            stats["glaux_tokens"] += 1
+            for w in sent.findall(".//word"):
+                postag = w.get("postag", "")
+                if postag and postag[0] == "u":
+                    continue
+                form = nfc_key(w.get("form", ""))
+                if not _is_lexical_form(form):
+                    stats["glaux_nonlexical"] += 1
+                    continue
+                fid = _intern(form, forms, form_ids)
+                pos = GLAUX_POS_MAP.get(postag[0] if postag else "", "other")
+                p = profiles[fid]
+                p.observe("glaux", pos)
+                p.add_deduped(genre, century, dialect)
+                locus, scheme = glaux_locus(w.attrib)
+                file_cites[(fid, locus, scheme)] += 1
+                stats["glaux_tokens"] += 1
         sink.add([(fid, stem, "glaux", loc, sch, c, century)
                   for (fid, loc, sch), c in file_cites.items()])
         if (i + 1) % 200 == 0:
@@ -798,8 +805,9 @@ def main():
     # Openly licensed by default: always drop the NonCommercial GLAUx source
     # texts (process_tei additionally drops NonCommercial PTA texts per-file).
     # See build/nc_filter.py and NOTICE.
-    from nc_filter import nc_glaux_stems
-    nc_stems = nc_glaux_stems(args.metadata)
+    from nc_filter import excluded_glaux_stems, gorman_glaux_stems
+    nc_stems = excluded_glaux_stems(args.metadata)
+    gorman_stems = gorman_glaux_stems(args.metadata)
 
     t0 = time.time()
     stats = Counter()
@@ -822,7 +830,7 @@ def main():
     if "glaux" in sources:
         source_sha["glaux_xml"] = process_glaux(
             args.glaux, glaux_works, forms, form_ids, profiles, works,
-            sink, claimed, args.limit, stats, nc_stems)
+            sink, claimed, args.limit, stats, nc_stems, gorman_stems)
     if "diorisis" in sources:
         source_sha["diorisis_xml"] = process_diorisis(
             args.diorisis, forms, form_ids, profiles, works,
