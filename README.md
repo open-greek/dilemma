@@ -1188,35 +1188,86 @@ so the taggers reproduce from the public repo plus the corpora.
 
 ### Device and throughput planning (CPU vs GPU)
 
-Two very different engines sit behind the API, and a large batch job should
-plan for both:
+Two engines sit behind the API and they scale very differently:
 
-- The **tagger** (GreBerta ONNX) is a transformer and GPU-acceleratable.
-- The **lemmatizer** is CPU-bound: an 8.6M-form SQLite lookup, rule layers, and
-  a small char-transformer beam search for the tail. A GPU does not speed it up.
+- The **lemmatizer** is the workload: an 8.6M-form SQLite lookup, the rule
+  layers, and a small char-transformer beam search for the tail. It is
+  CPU-bound and, in aggregate, memory-bandwidth-bound. A GPU does not speed it
+  up.
+- The **tagger** (GreBerta ONNX) is a batched encoder forward pass. GPU-
+  acceleratable in principle, but it is a small fraction of the per-token cost
+  and runs fast on CPU, so it is not where a full-corpus pass spends its time.
 
-ONNX sessions pick their device automatically: `dilemma/_ort_providers.py` uses
-CUDA when `onnxruntime-gpu` is installed (an NVIDIA box), else CPU. On a Mac the
-Mac stays on CPU. Override with `DILEMMA_ORT_PROVIDERS` (e.g.
+**Verdict: a full-corpus annotation pass is CPU + memory-bandwidth bound, not
+GPU-bound.** Measured directly (`greek-annotations/scripts/bench_devices.py`)
+over a fixed ~50k-token Ancient Greek sample on two boxes:
+
+| Box | lemma, 1 worker | lemma saturation | tag (CPU, 1 proc) | coupled tag+lemma per shard on GPU |
+|---|--:|--:|--:|--:|
+| EPYC 7B12 (64c / 2.5-3.3 GHz, DDR4) | 54 tok/s | ~1,100 tok/s @ ~32 workers | 745 tok/s | 361 tok/s (12 shards, 90% GPU util) — **worse** |
+| Threadripper PRO 7995WX (96c/192t, 5.39 GHz, DDR5 8-ch) | 110 tok/s | ~2,460 tok/s @ ~48-61 workers | 2,531 tok/s | not run (proven counterproductive) |
+
+The lemmatizer scales with cores until it hits a memory-bandwidth wall, then
+flattens. On the 7B12, per-worker throughput fell 54 → 38 (16w) → 31 (32w) → 18
+(61w), so aggregate peaked near ~1,100 tok/s around 32 workers and more workers
+bought almost nothing. The 7995WX starts at 2x the per-worker rate and, with
+DDR5 8-channel bandwidth, pushes the wall out: 110 (1w) → 995 (16w) → 1,728
+(32w) → 2,327 (48w) → 2,460 (61w), with per-worker sliding 110 → 62 → 54 → 40 as
+the wall is approached. Aggregate peaked near ~2,460 tok/s at ~48-61 workers
+(2.2x the 7B12). Tag-on-CPU also scales with cores (745 tok/s on the 7B12 vs
+2,531 on the 7995WX), so it never becomes the bottleneck.
+
+**The GPU is nearly irrelevant, and coupling the two engines on it is an
+anti-pattern.** Running the pipeline as N sharded processes on a GPU box gives
+each shard its own GreBerta CUDA session, so scaling the CPU-lemma parallelism to
+the core count spawns dozens of CUDA sessions, exhausts VRAM (util collapses
+toward 0), and the run tops out *below* the CPU-only rate — it measured 361 tok/s
+(12 shards maxing a 24 GB card) versus 1,100 tok/s for the same box's CPU
+lemmatizer. **Never run one GPU tagger session per worker.**
+
+**Recommended shape: decoupled, pure-CPU scale-out.** Run N CPU workers that each
+tokenize + tag + lemmatize (equivalently, many CPU lemmatize workers fed by a few
+batched CPU tagger processes), tagger on CPU, no per-shard GPU session at all.
+Set the worker count at the box's memory-bandwidth knee — the point where
+per-worker throughput has fallen off but aggregate is still near its max (~32 on
+the 7B12, ~48-64 on the 7995WX). Do not exceed it: past the knee you pay for
+cache/bandwidth contention with no throughput gain.
+
+**Picking hardware for a large pass: buy cores and memory bandwidth, not a GPU.**
+A high-clock, many-DDR5-channel CPU (Threadripper PRO / EPYC Genoa) beats a GPU
+box for this job, and a low-end GPU (or none) is fine.
+
+**Device selection and verification.** ONNX sessions pick their device
+automatically (`dilemma/_ort_providers.py`): CUDA when `onnxruntime-gpu` is
+installed, else CPU; override with `DILEMMA_ORT_PROVIDERS` (e.g.
 `CUDAExecutionProvider,CPUExecutionProvider` to force GPU, or
-`CoreMLExecutionProvider,CPUExecutionProvider` to try Apple's Neural Engine).
+`CoreMLExecutionProvider,CPUExecutionProvider` for Apple's Neural Engine). A
+pure-CPU box (plain `onnxruntime`) correctly reports `Tagger.on_gpu=False` /
+`Tagger.providers=['CPUExecutionProvider']` and runs at full speed. Watch out
+for the silent trap: onnxruntime falls back to CPU if `onnxruntime-gpu` is
+missing or CUDA/cuDNN mismatches, so if you *intend* to use a GPU, assert
+`tagger.on_gpu` up front (`make_session()` also warns) rather than discovering a
+CPU fallback from a slow run.
 
-**Verify the device before a long run.** onnxruntime silently falls back to CPU
-if `onnxruntime-gpu` is missing or CUDA/cuDNN mismatch - the model still runs,
-just slowly, with the GPU idle. `Tagger.on_gpu` / `Tagger.providers` report the
-real execution provider, and `make_session()` logs a warning on a silent CPU
-fallback. Assert `tagger.on_gpu` up front rather than discovering it from a slow
-run.
-
-**Scaling a full-corpus pass.** Do NOT spawn one tagger process per CPU core on
-a GPU box: each opens its own CUDA session with its own copy of the model, so N
-workers use N× the VRAM and thrash the card (dozens of sessions will exhaust a
-24 GB GPU and drop util to ~0). Because the lemmatizer usually dominates
-wall-clock, the throughput-optimal shape is many CPU workers doing tokenize +
-lemmatize feeding a small, bounded number of batched GPU tagger sessions - not
-one coupled tag+lemma process per shard. Measure `tag`-only throughput (GPU) vs
-`lemmatize`-only throughput (CPU) on a sample first; whichever is lower is the
-bottleneck to scale.
+**Rule of thumb, and the one caveat.** The saturation numbers above are an
+*upper* bound measured on ordinary running text, where the lookup resolves ~95%
+of tokens and the char model only fires on the tail. Real throughput tracks how
+often the expensive char-model beam search fires, which is a property of the
+text: lookup-heavy prose runs near the box's saturation rate, but dense
+rare-vocabulary material - OCR'd lexica (Suda, Hesychius), scholia, and
+Patrologia Graeca commentary, where a large share of tokens are unseen
+headwords/forms - drives the beam search far more and runs several times slower
+per token. Plan with the mix you actually have. Scaling still comes from cores:
+because the beam search is compute-bound (not bandwidth-bound like the lookup),
+a beam-heavy pass keeps scaling with workers past the lookup knee, so use ~1
+worker per hardware thread for it. One more structural limit: a single work runs
+on one worker, so a run's wall-clock is floored by its largest work; split giant
+lexica/scholia across workers if that tail dominates. ETA ≈ (remaining word
+tokens) / (measured tok/s on that text) - e.g. the ~45M-token, beam-heavy
+lexica/scholia tail of the Open Greek Corpus measured ~1,150 tok/s aggregate at
+96 pure-CPU workers on the 7995WX and scaled up with more workers (the run used
+~160, since a beam-heavy pass keeps scaling past the lookup knee), well under
+the ~2,460 tok/s the same box hits on ordinary prose.
 
 ## Greek Coverage
 

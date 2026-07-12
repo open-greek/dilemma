@@ -12,10 +12,17 @@ All notable changes to Dilemma are documented here. The format follows
   `DILEMMA_ORT_PROVIDERS` override. `Tagger.on_gpu` / `Tagger.providers` report
   the REAL execution device, and `make_session()` warns on a silent CPU
   fallback (onnxruntime-gpu missing / CUDA-cuDNN mismatch) - the trap where a
-  GPU box runs the tagger on CPU with the card idle. README gains a "Device and
-  throughput planning" section (tagger = GPU-acceleratable, lemmatizer =
-  CPU-bound; don't open one CUDA session per worker; measure tag-only vs
-  lemma-only to find the bottleneck).
+  GPU box runs the tagger on CPU with the card idle. README's "Device and
+  throughput planning" section now carries measured numbers: a full-corpus pass
+  is CPU + memory-bandwidth bound, not GPU-bound. A 64-core EPYC 7B12 saturates
+  the lemmatizer at ~1,100 tok/s around 32 workers (tag-on-CPU 745 tok/s/proc),
+  and coupling tag+lemma as one CUDA session per shard is *worse* (361 tok/s,
+  VRAM-bound) than the CPU lemmatizer alone; a Threadripper PRO 7995WX
+  (96c/192t, DDR5 8-ch) hits ~2,460 tok/s at ~48-61 workers (2.2x). Verdict:
+  buy cores + memory bandwidth, not a GPU; use a decoupled pure-CPU scale-out
+  (never one GPU tagger session per worker); real throughput drops on
+  beam-search-heavy text (lexica/scholia) and a run's wall-clock is floored by
+  its largest single work.
 - NON-LEXICAL token classifier (`dilemma.nonlexical`), exposed as
   `classify_nonlexical(token)` / `is_lexical(token)` (module level and as
   `Dilemma` methods). It recognizes the editorial/typographic residue that
