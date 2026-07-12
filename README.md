@@ -1199,7 +1199,7 @@ Two engines sit behind the API and they scale very differently:
   and runs fast on CPU, so it is not where a full-corpus pass spends its time.
 
 **Verdict: a full-corpus annotation pass is CPU + memory-bandwidth bound, not
-GPU-bound.** Measured directly (`greek-annotations/scripts/bench_devices.py`)
+GPU-bound.** Measured directly (`open-greek-corpus-annotations/scripts/bench_devices.py`)
 over a fixed ~50k-token Ancient Greek sample on two boxes:
 
 | Box | lemma, 1 worker | lemma saturation | tag (CPU, 1 proc) | coupled tag+lemma per shard on GPU |
