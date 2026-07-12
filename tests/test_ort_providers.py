@@ -1,6 +1,8 @@
 """Device-agnostic onnxruntime provider selection + silent-fallback warning."""
 import logging
 
+import pytest
+
 from dilemma._ort_providers import GPU_PROVIDERS, ort_providers
 
 
@@ -29,20 +31,23 @@ def test_make_session_warns_on_silent_cpu_fallback(monkeypatch, caplog, tmp_path
     # Force a GPU request; onnxruntime on a CPU-only box will fall back to CPU.
     monkeypatch.setenv("DILEMMA_ORT_PROVIDERS",
                        "CUDAExecutionProvider,CPUExecutionProvider")
-    ort = __import__("onnxruntime")
+    ort = pytest.importorskip("onnxruntime")
     if "CUDAExecutionProvider" in ort.get_available_providers():
         return  # a real GPU host: no fallback to warn about
     from dilemma._ort_providers import make_session
     # a trivial identity ONNX model so we exercise real session creation
-    try:
-        import numpy as np
-        from onnx import TensorProto, helper
-    except Exception:  # noqa: BLE001 - onnx not installed in this env
-        return
+    pytest.importorskip("onnx")
+    from onnx import TensorProto, helper
     x = helper.make_tensor_value_info("x", TensorProto.FLOAT, [1])
     y = helper.make_tensor_value_info("y", TensorProto.FLOAT, [1])
     node = helper.make_node("Identity", ["x"], ["y"])
-    model = helper.make_model(helper.make_graph([node], "g", [x], [y]))
+    # Pin a released opset and IR version: a fresh `onnx` stamps its own
+    # latest (e.g. opset 27), which an older onnxruntime rejects at model
+    # load, before the fallback warning under test can be exercised.
+    model = helper.make_model(
+        helper.make_graph([node], "g", [x], [y]),
+        opset_imports=[helper.make_opsetid("", 17)])
+    model.ir_version = min(model.ir_version, 10)
     p = tmp_path / "id.onnx"
     p.write_bytes(model.SerializeToString())
     with caplog.at_level(logging.WARNING, logger="dilemma.onnx"):
