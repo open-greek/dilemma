@@ -46,14 +46,18 @@ def raw():
 def test_meta_schema(raw):
     m = raw["_meta"]
     assert m["schema_version"] == 1
-    assert m["sources"] == ["glaux", "diorisis"]
+    assert m["sources"] == ["glaux", "diorisis", "oga"]
     assert len(m["genres"]) == 10
     assert m["n_lemmas"] == len(raw["lemmas"])
-    # Union of works (~17.5M), not the ~27M naive GLAUx+Diorisis sum.
-    assert 15_000_000 < m["total_tokens"] < 22_000_000
+    # Union of works, not the naive sum: GLAUx + Diorisis-only works
+    # (~17M) plus the ~16M tokens of works only cog's OGA export covers.
+    assert 28_000_000 < m["total_tokens"] < 42_000_000
     assert "dedup" in m
     assert set(m["source_sha"]) == {
-        "glaux_metadata", "glaux_xml", "diorisis_xml"}
+        "glaux_metadata", "glaux_xml", "diorisis_xml",
+        "oga_export", "oga_pin"}
+    # dilemma pins cog's export, not OGA upstream (cog pins upstream).
+    assert m["source_sha"]["oga_pin"].startswith("cog export oga-")
 
 
 def test_dedup_total_is_union_not_sum(raw):
@@ -61,13 +65,15 @@ def test_dedup_total_is_union_not_sum(raw):
     source_counts holds each source's INDEPENDENT count (overlapping). So the
     deduped total sits between GLAUx alone and the naive GLAUx+Diorisis sum, and
     both sources' evidence is preserved."""
-    total = sc_glaux = sc_diorisis = 0
+    total = sc_glaux = sc_diorisis = sc_oga = 0
     for e in raw["lemmas"].values():
         total += e["total"]
         sc_glaux += e["source_counts"].get("glaux", 0)
         sc_diorisis += e["source_counts"].get("diorisis", 0)
+        sc_oga += e["source_counts"].get("oga", 0)
     assert total == raw["_meta"]["total_tokens"]
-    assert sc_glaux < total < sc_glaux + sc_diorisis          # union, not sum
+    # union, not sum
+    assert sc_glaux < total < sc_glaux + sc_diorisis + sc_oga
     assert sc_glaux > 10_000_000 and sc_diorisis > 5_000_000  # both preserved
 
 
@@ -139,8 +145,8 @@ def test_common_lemma_is_frequent(d):
     assert a is not None
     assert a["total"] > 1000
     assert a["dominant_pos"] == "noun"
-    # attested independently by both corpora (agreement = confidence)
-    assert set(a["source_counts"]) == {"glaux", "diorisis"}
+    # attested independently by all three sources (agreement = confidence)
+    assert set(a["source_counts"]) == {"glaux", "diorisis", "oga"}
 
 
 def test_homeric_lemma_century_and_dialect(d):

@@ -52,8 +52,9 @@ _CORPUS_POS_TO_UPOS = {
     "pron": "PRON", "num": "NUM", "prep": "ADP", "conj": "CCONJ",
     "intj": "INTJ", "article": "DET", "particle": "PART",
 }
-# NT is gold human annotation (CC BY 4.0), weighted like GLAUx.
-_CORPUS_WEIGHT = {"glaux": 2, "diorisis": 1, "nt": 2}
+# NT is gold human annotation (CC BY 4.0), weighted like GLAUx. OGA is
+# all-auto model output (cog export): lowest weight, gap-fill only.
+_CORPUS_WEIGHT = {"glaux": 2, "diorisis": 1, "nt": 2, "oga": 1}
 
 # AGDT POS code (position 1 of postag) -> UD UPOS
 _AGDT_TO_UPOS = {
@@ -222,6 +223,13 @@ def build_lookup():
             corpus_upos_lemmas[form][upos][lemma] += w
             n += 1
         print(f"  {src} corpus: +{n:,} POS edges (weight {w})")
+
+    # OGA edges were evaluated and REJECTED (2026-07-12): even gap-fill-only,
+    # lowercase-form-only edges from cog's OGA export cost 0.3pp on the
+    # Byzantine gold-POS benchmark (91.8 -> 91.5) and gained nothing
+    # measurable elsewhere - all-auto annotation is too noisy for a table
+    # that lemmatize_pos trusts over lookup candidates. OGA participates in
+    # the attestation artifacts only.
 
     # Filter to genuinely ambiguous forms:
     # A form is ambiguous if it has multiple DISTINCT (upos -> lemma) mappings,

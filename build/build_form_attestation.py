@@ -77,7 +77,7 @@ DEFAULT_CAP = 200
 
 # Dedup priority + default genre bucket for a source's non-GLAUx works.
 ALL_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byzantine_vernacular", "canonical"]
-DEFAULT_SOURCES = ["glaux", "diorisis", "first1k", "pta", "pg", "byzantine_vernacular"]
+DEFAULT_SOURCES = ["glaux", "diorisis", "oga", "first1k", "pta", "pg", "byzantine_vernacular"]
 TEI_GENRE = {"first1k": "other", "pta": "religion", "canonical": "other"}
 
 # Patrologia Graeca: per-volume composition century and a short work label,
@@ -393,6 +393,94 @@ def process_diorisis(diorisis_dir, forms, form_ids, profiles, works,
                   for (fid, loc, sch), c in file_cites.items()])
         if (i + 1) % 100 == 0:
             print(f"  {i+1}/{len(files)}, {stats['diorisis_tokens']:,} tokens, "
+                  f"{len(forms):,} forms", flush=True)
+    return h.hexdigest()
+
+
+def process_oga(forms, form_ids, profiles, works, sink, claimed, limit,
+                stats, glaux_works):
+    """cog's standardized OGA export (all-auto Trankit/GreTa annotation) as
+    a lemma-backed evidence source. Dedup priority sits after diorisis and
+    before the raw-text sources: an OGA claim upgrades a work that only
+    First1K/PTA raw text used to cover into POS-bearing evidence, without
+    double counting. Gorman-annotated works are skipped entirely (OGA's
+    models trained on Gorman; see build/cog_annotations.py). A form
+    attested only in oga is lower-confidence - same policy as pg/first1k;
+    check source_counts.
+    """
+    import cog_annotations as C
+    manifest = C.load_manifest()
+    if manifest is None:
+        print(f"oga: cog export not found ({C.DEFAULT_EXPORT}), skipping; "
+              "set DILEMMA_COG_OGA")
+        return None
+    gorman = C.gorman_work_ids()
+    dating = C.load_oga_dating()
+    dating_meta = {}
+    try:
+        import json as _json
+        dp = (Path(C.DEFAULT_EXPORT).parent.parent.parent / "oga_dating.json")
+        if dp.exists():
+            dating_meta = _json.load(open(dp, encoding="utf-8")).get("works", {})
+    except Exception:
+        dating_meta = {}
+    h = hashlib.sha256()
+    works_list = manifest["works"]
+    if limit:
+        works_list = works_list[:limit]
+    print(f"oga ({manifest['export']['release_id']}): {len(works_list)} works")
+    for i, w in enumerate(works_list):
+        stem = C.work_tlg_stem(w["work_id"])
+        if stem and stem in gorman:
+            stats["oga_gorman_skipped_works"] += 1
+            continue
+        fold_file_hash(h, w["work_id"], w["sha256"].encode())
+        wid = stem or w["work_id"]
+        deferred = wid in claimed
+        dot_key = ".".join(w["work_id"].split(".")[:2])
+        if stem and stem in glaux_works:
+            meta = glaux_works[stem]
+            genre = meta["genre"]
+            century = meta["century"]
+        else:
+            genre = "other"
+            century = dating.get(dot_key)
+        if not deferred and wid not in works:
+            info = dating_meta.get(dot_key) or {}
+            works[wid] = {
+                "work_id": wid,
+                "id_scheme": "tlg" if stem else "cts",
+                "source": "oga",
+                "author": info.get("author"),
+                "title": info.get("title"),
+                "genre": genre, "dialect": None, "century": century,
+                "start_year": century_year(century, lo=True),
+                "end_year": century_year(century, lo=False),
+            }
+        if not deferred:
+            claimed.add(wid)
+        file_cites = Counter()
+        for rec in C.iter_work_tokens(C.DEFAULT_EXPORT, w):
+            if (rec.get("pos") or "") == "u":
+                continue
+            form = rec.get("form") or ""
+            if not _is_lexical_form(form):
+                stats["oga_nonlexical"] += 1
+                continue
+            pos = GLAUX_POS_MAP.get(rec.get("pos") or "", "other")
+            fid = _intern(form, forms, form_ids)
+            pr = profiles[fid]
+            pr.observe("oga", pos)
+            if deferred:
+                stats["oga_evidence_tokens"] += 1
+            else:
+                pr.add_deduped(genre, century, None)
+                stats["oga_tokens"] += 1
+            file_cites[(fid, rec.get("locus") or None, "cts")] += 1
+        sink.add([(fid2, wid, "oga", loc, sch, c, century)
+                  for (fid2, loc, sch), c in file_cites.items()])
+        if (i + 1) % 100 == 0:
+            print(f"  {i+1}/{len(works_list)}, {stats['oga_tokens']:,} tokens, "
                   f"{len(forms):,} forms", flush=True)
     return h.hexdigest()
 
@@ -835,6 +923,11 @@ def main():
         source_sha["diorisis_xml"] = process_diorisis(
             args.diorisis, forms, form_ids, profiles, works,
             sink, claimed, args.limit, stats)
+    if "oga" in sources:
+        oga_sha = process_oga(forms, form_ids, profiles, works, sink,
+                              claimed, args.limit, stats, glaux_works)
+        if oga_sha:
+            source_sha["oga_export"] = oga_sha
     for src, d in (("first1k", args.first1k), ("pta", args.pta),
                    ("canonical", args.canonical)):
         if src in sources:

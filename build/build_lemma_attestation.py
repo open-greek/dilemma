@@ -53,7 +53,7 @@ GENRE_ORDER = [
     "narrative", "epistles", "religion", "commentary", "other",
 ]
 
-SOURCE_ORDER = ["glaux", "diorisis"]
+SOURCE_ORDER = ["glaux", "diorisis", "oga"]
 
 GLAUX_GENRE_MAP = {
     "Philosophy": "philosophy",
@@ -359,6 +359,7 @@ def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset(),
 def process_diorisis(diorisis_dir, profiles, limit, stats, glaux_work_ids):
     dio_hash = hashlib.sha256()
     files = sorted(diorisis_dir.glob("*.xml"))
+    kept_wids = set()
     if limit:
         files = files[:limit]
     print(f"Diorisis: {len(files)} files")
@@ -375,6 +376,8 @@ def process_diorisis(diorisis_dir, profiles, limit, stats, glaux_work_ids):
         # NOT added to the deduped frequency stream -- GLAUx is preferred there.
         wid = diorisis_work_id(root, xf.name)
         deferred = wid is not None and wid in glaux_work_ids
+        if not deferred and wid is not None:
+            kept_wids.add(wid)
         if deferred:
             stats["diorisis_deferred_works"] += 1
             genre = "other"
@@ -417,7 +420,78 @@ def process_diorisis(diorisis_dir, profiles, limit, stats, glaux_work_ids):
             print(f"  {i+1}/{len(files)} files, "
                   f"{stats['diorisis_tokens']:,} tokens, "
                   f"{len(profiles):,} lemmas", flush=True)
-    return dio_hash.hexdigest()
+    return dio_hash.hexdigest(), kept_wids
+
+
+def process_oga(profiles, stats, claimed_wids, glaux_meta, limit=0):
+    """Third attestation source: cog's standardized OGA export (all-auto
+    Trankit/GreTa annotation - acceptable-but-dispreferred evidence).
+
+    Work-level dedup priority glaux > diorisis > oga: an OGA work already
+    claimed by either contributes only source_counts (independent evidence),
+    not the deduped frequency stream. Gorman-annotated works are skipped
+    entirely (OGA's models trained on Gorman; see build/cog_annotations.py).
+    Century/genre: inherited from GLAUx metadata for TLG works it knows,
+    else century from cog's OGA dating artifact with genre "other".
+    Homograph digits (λέγω3) are stripped from the attestation key.
+    """
+    import cog_annotations as C
+    manifest = C.load_manifest()
+    if manifest is None:
+        print("OGA: cog export not found, skipping "
+              f"({C.DEFAULT_EXPORT}); set DILEMMA_COG_OGA")
+        return None, ""
+    gorman = C.gorman_work_ids()
+    dating = C.load_oga_dating()
+    oga_hash = hashlib.sha256()
+    works = manifest["works"]
+    if limit:
+        works = works[:limit]
+    print(f"OGA ({manifest['export']['release_id']}): {len(works)} works")
+    for i, w in enumerate(works):
+        stem = C.work_tlg_stem(w["work_id"])
+        if stem and stem in gorman:
+            stats["oga_gorman_skipped_works"] += 1
+            continue
+        fold_file_hash(oga_hash, w["work_id"], w["sha256"].encode())
+        deferred = stem is not None and stem in claimed_wids
+        if deferred:
+            stats["oga_deferred_works"] += 1
+            genre = "other"
+            century = None
+        else:
+            stats["oga_kept_works"] += 1
+            if stem and stem in glaux_meta:
+                century, genre, _dialect = glaux_meta[stem]
+            else:
+                genre = "other"
+                dot_key = ".".join(w["work_id"].split(".")[:2])
+                century = dating.get(dot_key)
+        for rec in C.iter_work_tokens(C.DEFAULT_EXPORT, w):
+            if (rec.get("pos") or "") == "u":
+                continue
+            lemma = rec.get("lemma") or ""
+            if not lemma:
+                stats["oga_unlemmatized"] += 1
+                continue
+            lemma = C.strip_homograph_digits(
+                unicodedata.normalize("NFC", lemma))
+            if not is_lexical_greek(lemma):
+                stats["oga_nonlexical_lemma"] += 1
+                continue
+            pos = GLAUX_POS_MAP.get(rec.get("pos") or "", "other")
+            p = profiles[lemma]
+            p.observe("oga", pos)
+            if deferred:
+                stats["oga_evidence_tokens"] += 1
+            else:
+                p.add_deduped(genre, century, None)
+                stats["oga_tokens"] += 1
+        if (i + 1) % 200 == 0:
+            print(f"  {i+1}/{len(works)} works, "
+                  f"{stats['oga_tokens']:,} tokens, "
+                  f"{len(profiles):,} lemmas", flush=True)
+    return oga_hash.hexdigest(), C.pin_line(manifest)
 
 
 def build_output(profiles, observed_dialects, total_tokens, source_sha):
@@ -511,15 +585,22 @@ def report(stats, profiles, total_tokens):
     print(f"  glaux:    {stats['glaux_tokens']:,}")
     print(f"  diorisis: {stats['diorisis_tokens']:,} "
           f"(from {stats['diorisis_kept_works']:,} GLAUx-absent works)")
+    print(f"  oga:      {stats['oga_tokens']:,} "
+          f"(from {stats['oga_kept_works']:,} previously uncovered works; "
+          f"{stats['oga_gorman_skipped_works']:,} Gorman works skipped)")
     print(f"Independent evidence in source_counts (not summed into total):")
     print(f"  diorisis on {stats['diorisis_deferred_works']:,} shared works: "
           f"{stats['diorisis_evidence_tokens']:,} tokens")
+    print(f"  oga on {stats['oga_deferred_works']:,} shared works: "
+          f"{stats['oga_evidence_tokens']:,} tokens")
     print("Skipped / dropped:")
     print(f"  glaux unlemmatized:        {stats['glaux_unlemmatized']:,}")
     print(f"  glaux non-lexical lemma:   {stats['glaux_nonlexical_lemma']:,}")
     print(f"  diorisis unlemmatized:     {stats['diorisis_unlemmatized']:,}")
     print(f"  diorisis non-lexical lemma:{stats['diorisis_nonlexical_lemma']:,}")
     print(f"  diorisis bad date:        {stats['diorisis_bad_date']:,}")
+    print(f"  oga unlemmatized:         {stats['oga_unlemmatized']:,}")
+    print(f"  oga non-lexical lemma:    {stats['oga_nonlexical_lemma']:,}")
     print(f"  parse errors:             {stats['parse_errors']:,}")
 
     # Coverage: fraction of tokens assigned each dimension.
@@ -568,10 +649,17 @@ def main():
     source_sha["glaux_xml"], glaux_work_ids = process_glaux(
         args.glaux, glaux_meta, profiles, args.limit, stats, nc_stems,
         gorman_stems)
-    source_sha["diorisis_xml"] = process_diorisis(
+    source_sha["diorisis_xml"], diorisis_wids = process_diorisis(
         args.diorisis, profiles, args.limit, stats, glaux_work_ids)
+    oga_sha, oga_pin = process_oga(
+        profiles, stats, glaux_work_ids | diorisis_wids, glaux_meta,
+        args.limit)
+    if oga_sha:
+        source_sha["oga_export"] = oga_sha
+        source_sha["oga_pin"] = oga_pin
 
-    total_tokens = stats["glaux_tokens"] + stats["diorisis_tokens"]
+    total_tokens = (stats["glaux_tokens"] + stats["diorisis_tokens"]
+                    + stats["oga_tokens"])
     report(stats, profiles, total_tokens)
 
     if args.stats:

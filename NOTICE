@@ -83,6 +83,14 @@ Treebanks and annotated corpora
   https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256
   License: CC BY 4.0  (per the figshare record).
 
+- Opera Graeca Adnotata (OGA) v0.2.0, Giuseppe G. A. Celano.
+  https://github.com/OperaGraecaAdnotata/OGA
+  Data: https://doi.org/10.5281/zenodo.14206061 (version DOI).
+  License: CC BY-SA 4.0. All annotation is automatic (Trankit + GreTa).
+  Consumed via the Open Greek Corpus standardized export (cog export
+  oga-v1); the one NonCommercial PTA file (pta0036) and all works
+  annotated by the Gorman treebanks are excluded.
+
 - First1KGreek, Open Greek and Latin.
   https://github.com/OpenGreekAndLatin/First1KGreek
   License: CC BY-SA 4.0.

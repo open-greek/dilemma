@@ -93,6 +93,16 @@ class TestGormanHoldout:
         assert not (DATA_DIR / "gorman_pairs.json").exists(), \
             "gorman_pairs.json found in data/ - Gorman is held-out gold"
 
+    def test_gorman_work_ids_list(self):
+        """The committed Gorman work-id list drives the exclusion of
+        Gorman-annotated works from third-party model-annotated sources
+        (e.g. cog's OGA export, whose models trained on Gorman)."""
+        with open(DATA_DIR / "gorman_work_ids.json", encoding="utf-8") as f:
+            ids = set(json.load(f)["work_ids"])
+        assert len(ids) >= 40
+        # Herodotus and Thucydides are Gorman staples
+        assert "0016-001" in ids and "0003-001" in ids
+
     def test_builders_do_not_load_gorman_pairs(self):
         """No build script may load gorman_pairs.json (comments are fine)."""
         root = DATA_DIR.parent

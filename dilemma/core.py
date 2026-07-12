@@ -1919,8 +1919,17 @@ class Dilemma:
             # homograph of the accent-stripped spelling (lemma εἷς stripped
             # to "εις" picked up the preposition εἰς's 400k tokens, which is
             # how μ᾽ once resolved to εἷς instead of ἐγώ).
+            #
+            # Count only the HAND-CHECKED corpora (GLAUx, Diorisis): the
+            # all-auto OGA source attests its own lemmatizer's junk (ρε,
+            # μηνιν), so including it lets ghost entries escape the
+            # unattested tier - exactly how ῥ᾽ regressed onto ρε instead
+            # of ἄρα when OGA first joined the attestation artifact.
             att = self.attestation(lemma)
-            freq = att["total"] if att else 0
+            freq = 0
+            if att:
+                sc = att.get("source_counts") or {}
+                freq = sc.get("glaux", 0) + sc.get("diorisis", 0)
             neg_freq = -freq  # negate so higher frequency sorts first
             vrank = _ACC_VOWEL_RANK.get(vowel, _VOWEL_RANK.get(vowel, 10))
             # Corpus-attested lemmas before unattested ones (a lemma with
@@ -3560,8 +3569,14 @@ class Dilemma:
             # (and erased the Ἔρις/ἔρις case distinction entirely).
             freq_pairs = []
             for c in lookup_candidates:
+                # Hand-checked corpora only (GLAUx, Diorisis): the all-auto
+                # OGA source lowercases every lemma, so counting it would
+                # bias case-twin scoring toward the lowercase twin.
                 att = self.attestation(c.lemma)
-                freq = att["total"] if att else 0
+                freq = 0
+                if att:
+                    sc = att.get("source_counts") or {}
+                    freq = sc.get("glaux", 0) + sc.get("diorisis", 0)
                 freq_pairs.append((c, freq))
             # Only refine if at least one candidate has frequency data
             has_freq = any(f > 0 for _, f in freq_pairs)
