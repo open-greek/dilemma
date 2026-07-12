@@ -462,24 +462,32 @@ subscription corpus.
 ### Rare vocabulary coverage
 
 Following [SIGMORPHON](https://sigmorphon.github.io/) shared task
-methodology for out-of-vocabulary evaluation, we exclude the 3,000 most
-frequent Greek forms and capitalized words, then check whether the output
-lemma is a valid LSJ/Wiktionary headword. This tests the hard tail that
-matters for real texts.
+methodology for out-of-vocabulary evaluation, we take every distinct
+non-capitalized word of a text, stratify by corpus frequency, and check
+whether the output lemma is a valid LSJ/Wiktionary headword
+(`bench_rare.py`). This tests the hard tail that matters for real
+texts.
 
 | Text | Period | Morpheus | Stanza | Dilemma |
 |------|--------|:--------:|:------:|:-------:|
 | Xenophon, *Cyropaedia* | Attic | 99.5% | 84% | **99.6%** |
 | Kresadlo, *Astronautilia* 13 | Epic | 74% | 74% | **84%** |
-| Herodotus, *Histories* | Ionic | 99.5% | 88% | **99.9%** |
+| Herodotus, *Histories* | Ionic | 99.5% | 88% | **99.3%** |
 
-<sub>On Cyropaedia, gold accuracy vs Gorman treebank annotations is
-93.2%. The remaining gap is convention differences (e.g. κτάομαι vs
-κτέομαι, ᾄδω vs ἀείδω), not missing forms. Herodotus gold-match
-accuracy (vs PROIEL annotations) is 95.3%, where the gap is almost
-entirely convention differences (Ionic vs Attic spelling, plural
-ethnonym lemmas, voice conventions), not missing forms or
-disambiguation failures.</sub>
+<sub>Herodotus (14,334 distinct forms) is measured against the PROIEL
+treebank, which is EVALUATION-ONLY data: PROIEL is CC BY-NC-SA, so
+since the openly-licensed-by-default builds (2026-06) it is never
+ingested into any shipped artifact. The figure holds across the
+frequency range: 99.5% for high-frequency forms down to 98.8% for
+forms attested 1-9 times. Gold-match agreement with PROIEL's own lemma
+annotations on uncommon Herodotus forms (Crowell-style selection) is
+92.3%, where the gap is mostly convention differences (Ionic vs Attic
+spelling, κεῖνος vs ἐκεῖνος, plural ethnonym lemmas), not missing
+forms. The Cyropaedia and Astronautilia rows and the Morpheus/Stanza
+columns are pinned to their original 2026-03 measurement; on
+Cyropaedia, gold accuracy vs Gorman treebank annotations was 93.2%,
+with the gap likewise convention differences (κτάομαι vs κτέομαι,
+ᾄδω vs ἀείδω).</sub>
 
 ### DiGreC treebank
 
