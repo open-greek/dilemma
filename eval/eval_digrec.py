@@ -114,6 +114,7 @@ def parse_digrec(xml_path):
     for source in root.findall(".//source"):
         sid = source.get("id", "")
         period = classify_period(source)
+        author = (source.findtext("author") or "").strip()
 
         for token in source.findall(".//token"):
             form = token.get("form", "")
@@ -126,6 +127,7 @@ def parse_digrec(xml_path):
                     "pos": pos,
                     "source": sid,
                     "period": period,
+                    "author": author,
                 })
 
     return tokens
@@ -225,6 +227,14 @@ def main():
                         help="Dilemma model scale")
     parser.add_argument("--period", type=str, default=None,
                         help="Filter by period (classical, late_antique, byzantine, etc.)")
+    parser.add_argument("--author", type=str, default=None,
+                        help="Filter by source author (e.g. Herodotus)")
+    parser.add_argument("--exclude-author", action="append", default=[],
+                        help="Drop sources by author; repeatable. Used to "
+                             "exclude the PROIEL-derived sections (Herodotus, "
+                             "New Testament, Septuagint, Pseudo-Sphrantzes): "
+                             "the PROIEL treebank is CC BY-NC-SA and project "
+                             "policy avoids it entirely, evaluation included.")
     parser.add_argument("--errors", type=int, default=20,
                         help="Number of error examples to show")
     args = parser.parse_args()
@@ -242,6 +252,16 @@ def main():
     if args.period:
         tokens = [t for t in tokens if t["period"] == args.period]
         print(f"\nFiltered to {args.period}: {len(tokens)} tokens")
+
+    if args.author:
+        tokens = [t for t in tokens
+                  if t["author"].lower() == args.author.lower()]
+        print(f"\nFiltered to author {args.author}: {len(tokens)} tokens")
+
+    if args.exclude_author:
+        drop = {a.lower() for a in args.exclude_author}
+        tokens = [t for t in tokens if t["author"].lower() not in drop]
+        print(f"\nExcluded {sorted(drop)}: {len(tokens)} tokens remain")
 
     if not tokens:
         print("No tokens to evaluate.")

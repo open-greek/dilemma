@@ -2,7 +2,7 @@
 """Tests for recently added features in Dilemma.
 
 Covers:
-1. PROIEL/Gorman treebank data integration
+1. Gorman/AGDT treebank data integration
 2. Dialect normalization (Ionic, Doric, Aeolic, Koine) end-to-end
 3. Particle suffix stripping end-to-end
 4. Verb morphology stripping end-to-end
@@ -77,7 +77,7 @@ def d_ionic_hellenistic():
 
 
 # ===========================================================================
-# 1. PROIEL/GORMAN DATA INTEGRATION
+# 1. GORMAN/AGDT DATA INTEGRATION
 # ===========================================================================
 
 class TestGormanDataFiles:
@@ -163,7 +163,7 @@ class TestDialectIonicE2E:
     """End-to-end tests for Ionic dialect normalization via Dilemma."""
 
     @pytest.mark.parametrize("form,expected", [
-        ("πρήγματα", "πρᾶγμα"),     # lookup hit (PROIEL form in DB)
+        ("πρήγματα", "πρᾶγμα"),     # lookup hit (Ionic form in DB)
         ("ἱστορίης", "ἱστορία"),     # lookup hit
         ("μοῦνος", "μόνος"),         # word-level map
     ])

@@ -255,7 +255,7 @@ By default, articles and pronoun clitics self-map (e.g. `τῆς` returns
 `τῆς`). This is better for alignment pipelines where you want
 surface-form matching. Set `resolve_articles=True` to resolve them
 to canonical lemmas (`ὁ`, `ἐγώ`, `σύ`), matching treebank conventions
-(AGDT, DiGreC, PROIEL). The `triantafyllidis` convention auto-enables
+(AGDT, DiGreC). The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
 
@@ -474,28 +474,29 @@ texts.
 | Kresadlo, *Astronautilia* 13 | Epic | 74% | 74% | **84%** |
 | Herodotus, *Histories* | Ionic | 99.5% | 88% | **99.3%** |
 
-<sub>Herodotus (14,334 distinct forms) is measured against the PROIEL
-treebank, which is EVALUATION-ONLY data: PROIEL is CC BY-NC-SA, so
-since the openly-licensed-by-default builds (2026-06) it is never
-ingested into any shipped artifact. The figure holds across the
-frequency range: 99.5% for high-frequency forms down to 98.8% for
-forms attested 1-9 times. Gold-match agreement with PROIEL's own lemma
-annotations on uncommon Herodotus forms (Crowell-style selection) is
-92.3%, where the gap is mostly convention differences (Ionic vs Attic
-spelling, κεῖνος vs ἐκεῖνος, plural ethnonym lemmas), not missing
-forms. The Cyropaedia and Astronautilia rows and the Morpheus/Stanza
-columns are pinned to their original 2026-03 measurement; on
-Cyropaedia, gold accuracy vs Gorman treebank annotations was 93.2%,
-with the gap likewise convention differences (κτάομαι vs κτέομαι,
-ᾄδω vs ἀείδω).</sub>
+<sub>Herodotus is measured over the full *Histories* text
+([Perseus canonical-greekLit](https://github.com/PerseusDL/canonical-greekLit)
+TEI, tlg0016.tlg001, [CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/);
+24,862 distinct non-capitalized forms). The figure holds across the
+frequency range: 99.6% for high-frequency forms down to 99.0% for
+forms attested 1-9 times, and 64/64 corpus-unseen forms. The
+Cyropaedia and Astronautilia rows and the Morpheus/Stanza columns are
+pinned to their original 2026-03 measurement; on Cyropaedia, gold
+accuracy vs Gorman treebank annotations was 93.2%, with the gap
+likewise convention differences (κτάομαι vs κτέομαι, ᾄδω vs
+ἀείδω).</sub>
 
 ### DiGreC treebank
 
-On the [DiGreC treebank](https://github.com/mdm33/digrec) (118,894
-tokens in the current release, Homer through 15th century Byzantine
-Greek), Dilemma reaches 93.5% equiv-adjusted (89.5% strict). The gap
-accounts for convention differences between annotation schemes (e.g.
-`εἶπον`/`λέγω`, `ἐγώ`/`ἡμεῖς`).
+On the [DiGreC treebank](https://github.com/mdm33/digrec) (Homer
+through 15th century Byzantine Greek), Dilemma reaches 93.3%
+equiv-adjusted (89.3% strict) over 87,672 tokens. The gap accounts for
+convention differences between annotation schemes (e.g.
+`εἶπον`/`λέγω`, `ἐγώ`/`ἡμεῖς`). DiGreC's Herodotus, New Testament,
+Septuagint, and Sphrantzes sections derive from the PROIEL treebank
+(CC BY-NC-SA), which this project avoids entirely, evaluation
+included, so those sections are excluded
+(`eval/eval_digrec.py --exclude-author ...`).
 
 ### HNC Modern Greek
 
@@ -2382,7 +2383,8 @@ The data artifacts Dilemma builds - the lookup database, the trained model, the
 frequency tables, and the corpus-attestation databases - are derived from
 third-party data and remain under their upstream licenses; see [NOTICE](NOTICE).
 Every source Dilemma ships is openly licensed; NonCommercial sources are never
-ingested. PROIEL (CC BY-NC-SA, no permissive release) is dropped; the AGDT
+ingested, and as project policy PROIEL is not used at all, not even as
+evaluation data. PROIEL (CC BY-NC-SA, no permissive release) is dropped; the AGDT
 data is taken from the Perseus original (CC BY-SA 3.0 US) rather than the
 NonCommercial UD repackaging; Gorman (CC BY-SA 4.0) and Diorisis (CC BY 4.0)
 are kept; the few NonCommercial GLAUx texts and the per-file NonCommercial PTA

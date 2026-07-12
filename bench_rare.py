@@ -14,7 +14,8 @@ Frequency bins:
 
 Test texts:
   - Xenophon, Cyropaedia (Gorman treebank gold)
-  - Herodotus, Histories (PROIEL treebank gold)
+  - Herodotus, Histories (Perseus canonical-greekLit TEI, tlg0016.tlg001,
+    CC BY-SA; point HERODOTUS_TEI at your copy of the grc XML)
   - Sextus Empiricus, Pyrrhoniae Hypotyposes (AG Classical benchmark)
 
 Reference: Novak & Cavar (2025), "Corpus Frequencies in Morphological
@@ -22,6 +23,7 @@ Inflection: Do They Matter?", ITAT 2025 (arXiv:2510.23131).
 """
 
 import json
+import os
 import re
 import sys
 import unicodedata
@@ -38,7 +40,6 @@ AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
 EQUIV_PATH = DATA_DIR / "lemma_equivalences.json"
 
 # Treebank paths
-PROIEL_DIR = DATA_DIR / "treebanks" / "UD_Ancient_Greek-PROIEL"
 GORMAN_DIR = DATA_DIR / "treebanks" / "Gorman"
 
 # Sextus Empiricus benchmark
@@ -146,35 +147,24 @@ def load_cyropaedia_words() -> list[str]:
 
 
 def load_herodotus_words() -> list[str]:
-    """Load Herodotus words from PROIEL, excluding proper nouns."""
-    words = []
-    for split in ["train", "dev", "test"]:
-        path = PROIEL_DIR / f"grc_proiel-ud-{split}.conllu"
-        if not path.exists():
-            continue
-        in_herodotus = False
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.rstrip("\n")
-                if line.startswith("# source"):
-                    in_herodotus = "Histories" in line
-                    continue
-                if not line or line.startswith("#"):
-                    continue
-                if not in_herodotus:
-                    continue
-                fields = line.split("\t")
-                if len(fields) < 4:
-                    continue
-                if "-" in fields[0] or "." in fields[0]:
-                    continue
-                form, upos = fields[1], fields[3]
-                if upos in SKIP_UPOS:
-                    continue
-                if not form or is_capitalized(form):
-                    continue
-                words.append(form)
-    return words
+    """Load Herodotus words from an openly licensed text of the Histories,
+    excluding capitalized words (proper-noun proxy, matching the other
+    text loaders). Point HERODOTUS_TEI at a Perseus canonical-greekLit
+    TEI XML (tlg0016.tlg001.perseus-grc2.xml, CC BY-SA); this is a plain
+    word source for the headword-validity metric, so no annotations are
+    needed."""
+    tei_path = Path(os.environ.get("HERODOTUS_TEI", ""))
+    if not tei_path.is_file():
+        print("  [SKIP] Herodotus TEI not found; set HERODOTUS_TEI to a "
+              "canonical-greekLit tlg0016.tlg001 grc XML")
+        return []
+    xml = tei_path.read_text(encoding="utf-8")
+    # Drop the TEI header (edition metadata), then strip tags; the Greek
+    # tokenizer ignores any Latin/markup residue.
+    xml = re.sub(r"(?s)<teiHeader.*?</teiHeader>", " ", xml)
+    text = re.sub(r"<[^>]+>", " ", xml)
+    words = tokenize_greek(text)
+    return [w for w in words if not is_capitalized(w)]
 
 
 def load_sextus_words() -> list[str]:

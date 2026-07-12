@@ -1,9 +1,10 @@
 """Build POS-indexed disambiguation lookup from gold treebank data.
 
-Reads CoNLL-U files from UD_Ancient_Greek-Perseus, UD_Ancient_Greek-PROIEL,
-DiGreC treebanks, and Gorman AGDT XML dependency trees. Extracts genuinely
-ambiguous forms: same surface form maps to different lemmas depending on
-UPOS tag.
+Reads the AGDT originals (PerseusDL treebank_data .tb.xml, CC BY-SA) and
+Gorman XML dependency trees, plus the openly licensed lemmatized corpora
+(GLAUx, Diorisis, Nestle-1904 NT). Extracts genuinely ambiguous forms:
+same surface form maps to different lemmas depending on UPOS tag. The
+NonCommercial UD treebanks (Perseus UD repackaging, PROIEL) are not read.
 
 Output: data/treebank_pos_lookup.json
 Format: {form: {UPOS: lemma, ...}, ...}
