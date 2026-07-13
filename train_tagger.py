@@ -465,7 +465,12 @@ def main():
                 loss = loss + cel(arc.reshape(-1, arc.size(-1)), b["head_y"].reshape(-1))
                 ra = rel_at(out[3], b["head_y"])      # relation logits at gold head
                 loss = loss + cel(ra.reshape(-1, ra.size(-1)), b["deprel_y"].reshape(-1))
-            opt.zero_grad(); loss.backward(); opt.step()
+            opt.zero_grad(); loss.backward()
+            # Without clipping, one pathological batch can blow up the
+            # weights unrecoverably (observed 2026-07-12: loss 0.27 -> 8.3
+            # in the last 500 iterations of epoch 2, dev UPOS 99.6 -> 53.0).
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
             tot += loss.item()
             if it % 200 == 0:
                 print(f"  ep{ep} it{it}/{len(dl_tr)} loss={loss.item():.3f} "
