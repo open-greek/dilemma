@@ -374,8 +374,8 @@ since it reports a different metric and no per-era breakdown.)
 | `all` | `wiktionary` (default) | -- | 99.7% | 89.2% | 94.7% | 79.5%* |
 | `all` | `wiktionary` (default) | gold | -- | 91.8% | -- | -- |
 | `all` | `triantafyllidis` | -- | 87.7% | 79.3% | 89.6% | 94.8%† |
-| `grc` | `wiktionary` (default) | -- | 99.7% | 88.2% | 94.3% | 79.5%* |
-| `grc` | `triantafyllidis` | -- | 91.0% | 82.9% | 91.5% | 89.2% |
+| `grc` | `wiktionary` (default) | -- | 99.7% | 88.7% | 94.7% | 79.5%* |
+| `grc` | `triantafyllidis` | -- | 91.0% | 83.3% | 91.8% | 89.2% |
 | `el` | `wiktionary` (default) | -- | 95.2% | 84.5% | 91.5% | 90.0% |
 | `el` | `triantafyllidis` | -- | 87.7% | 79.3% | 89.6% | 94.8% |
 
