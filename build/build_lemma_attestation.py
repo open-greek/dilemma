@@ -53,7 +53,17 @@ GENRE_ORDER = [
     "narrative", "epistles", "religion", "commentary", "other",
 ]
 
-SOURCE_ORDER = ["glaux", "diorisis", "oga"]
+SOURCE_ORDER = ["glaux", "diorisis", "oga", "pedalion"]
+
+# Pedalion example-sentence collections are CONSTRUCTED teaching sentences, not
+# attested running text, so they feed lookup/POS pairs (extract_pedalion.py) but
+# are kept OUT of the attestation frequency stream. mimn/semonides are genuine
+# poetic fragments and DO count.
+_PEDALION_CONSTRUCTED = {
+    "pedalion-chilia-sentences",
+    "pedalion-example-sentences",
+    "pedalion-external-examplesentences",
+}
 
 GLAUX_GENRE_MAP = {
     "Philosophy": "philosophy",
@@ -494,6 +504,76 @@ def process_oga(profiles, stats, claimed_wids, glaux_meta, limit=0):
     return oga_hash.hexdigest(), C.pin_line(manifest)
 
 
+def process_pedalion(profiles, stats, claimed_wids, glaux_meta, limit=0):
+    """Fourth attestation source: cog's standardized Pedalion export (manual-
+    gold AGDT trees; PROIEL already dropped by cog). Gorman-tagged rows are
+    skipped (held-out gold), and the constructed example-sentence collections
+    are skipped (not attested text). Work-level dedup priority puts pedalion
+    last: a literary work already claimed by GLAUx/Diorisis/OGA contributes
+    only source_counts. Papyri (tm*) and poetic fragments (mimn/semonides) are
+    always-novel evidence; their genre is bucketed here (papyri->other, since
+    there is no documentary bucket in GENRE_ORDER), century inherited from
+    GLAUx for known TLG works, else None (cog carries no per-papyrus date).
+    """
+    import cog_annotations as C
+    export = C.export_dir("pedalion")
+    if export is None:
+        print("Pedalion: cog export not found, skipping "
+              f"({C.ANNOTATIONS_ROOT}/pedalion)")
+        return None, ""
+    gorman = C.gorman_work_ids()
+    manifest = C.load_manifest(export)
+    ped_hash = hashlib.sha256()
+    works = manifest["works"]
+    if limit:
+        works = works[:limit]
+    print(f"Pedalion ({manifest['export']['release_id']}): {len(works)} works")
+    for w in works:
+        key = C.work_key(w)
+        if key in _PEDALION_CONSTRUCTED:
+            stats["pedalion_constructed_skipped_works"] += 1
+            continue
+        stem = C.work_tlg_stem(key or "")
+        if stem and stem in gorman:
+            stats["pedalion_gorman_skipped_works"] += 1
+            continue
+        fold_file_hash(ped_hash, key, w["sha256"].encode())
+        deferred = stem is not None and stem in claimed_wids
+        if deferred:
+            stats["pedalion_deferred_works"] += 1
+            genre = "other"
+            century = None
+        else:
+            stats["pedalion_kept_works"] += 1
+            if stem and stem in glaux_meta:
+                century, genre, _dialect = glaux_meta[stem]
+            elif key and key.startswith("pedalion-"):   # mimn / semonides
+                genre, century = "poetry", None
+            else:                                        # papyri (tm*)
+                genre, century = "other", None
+        for rec in C.iter_work_tokens(export, w):
+            if rec.get("provenance_tag") == "gorman":
+                continue
+            lemma = rec.get("lemma") or ""
+            if not lemma:
+                stats["pedalion_unlemmatized"] += 1
+                continue
+            lemma = C.strip_homograph_digits(
+                unicodedata.normalize("NFC", lemma))
+            if not is_lexical_greek(lemma):
+                stats["pedalion_nonlexical_lemma"] += 1
+                continue
+            pos = GLAUX_POS_MAP.get(rec.get("pos") or "", "other")
+            p = profiles[lemma]
+            p.observe("pedalion", pos)
+            if deferred:
+                stats["pedalion_evidence_tokens"] += 1
+            else:
+                p.add_deduped(genre, century, None)
+                stats["pedalion_tokens"] += 1
+    return ped_hash.hexdigest(), C.pin_line(manifest)
+
+
 def build_output(profiles, observed_dialects, total_tokens, source_sha):
     genre_idx = {g: i for i, g in enumerate(GENRE_ORDER)}
     source_idx = {s: i for i, s in enumerate(SOURCE_ORDER)}
@@ -588,11 +668,17 @@ def report(stats, profiles, total_tokens):
     print(f"  oga:      {stats['oga_tokens']:,} "
           f"(from {stats['oga_kept_works']:,} previously uncovered works; "
           f"{stats['oga_gorman_skipped_works']:,} Gorman works skipped)")
+    print(f"  pedalion: {stats['pedalion_tokens']:,} "
+          f"(from {stats['pedalion_kept_works']:,} previously uncovered works; "
+          f"{stats['pedalion_gorman_skipped_works']:,} Gorman + "
+          f"{stats['pedalion_constructed_skipped_works']:,} constructed skipped)")
     print(f"Independent evidence in source_counts (not summed into total):")
     print(f"  diorisis on {stats['diorisis_deferred_works']:,} shared works: "
           f"{stats['diorisis_evidence_tokens']:,} tokens")
     print(f"  oga on {stats['oga_deferred_works']:,} shared works: "
           f"{stats['oga_evidence_tokens']:,} tokens")
+    print(f"  pedalion on {stats['pedalion_deferred_works']:,} shared works: "
+          f"{stats['pedalion_evidence_tokens']:,} tokens")
     print("Skipped / dropped:")
     print(f"  glaux unlemmatized:        {stats['glaux_unlemmatized']:,}")
     print(f"  glaux non-lexical lemma:   {stats['glaux_nonlexical_lemma']:,}")
@@ -657,9 +743,15 @@ def main():
     if oga_sha:
         source_sha["oga_export"] = oga_sha
         source_sha["oga_pin"] = oga_pin
+    ped_sha, ped_pin = process_pedalion(
+        profiles, stats, glaux_work_ids | diorisis_wids, glaux_meta,
+        args.limit)
+    if ped_sha:
+        source_sha["pedalion_export"] = ped_sha
+        source_sha["pedalion_pin"] = ped_pin
 
     total_tokens = (stats["glaux_tokens"] + stats["diorisis_tokens"]
-                    + stats["oga_tokens"])
+                    + stats["oga_tokens"] + stats["pedalion_tokens"])
     report(stats, profiles, total_tokens)
 
     if args.stats:

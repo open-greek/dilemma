@@ -74,10 +74,29 @@ Treebanks and annotated corpora
   evaluation gold corpus (eval/eval_gorman_gold.py).
 
 - Pedalion Trees. https://github.com/perseids-publications/pedalion-trees
-  License: CC BY-SA 4.0.
+  License: CC BY-SA 4.0. Consumed via the Open Greek Corpus standardized
+  export (cog export pedalion-v1) for lookup gap-fill, treebank POS edges,
+  and lemma attestation. cog drops the re-exported PROIEL (PRO1/PRO2) rows;
+  Dilemma additionally skips the Gorman-provenance rows (held-out gold) and
+  keeps the constructed example-sentence collections out of attestation.
 
 - Harrington Trees. https://github.com/perseids-publications/harrington-trees
   License: CC BY-SA 4.0.
+
+- UD_Ancient_Greek-PTNK (Septuagint: Genesis, Ruth, per Codex Alexandrinus).
+  https://github.com/UniversalDependencies/UD_Ancient_Greek-PTNK
+  License: CC BY-SA 4.0. Manual native lemma + morphology (syntax projected
+  from the parallel Ancient Hebrew treebank, not PROIEL). Consumed via the
+  Open Greek Corpus standardized export (cog export ptnk-v1) for lookup
+  gap-fill and treebank POS edges; only the train split is ingested (dev +
+  test are held out for eval/eval_ptnk.py).
+
+- STEPBible TAGNT (Translators Amalgamated Greek New Testament).
+  Tyndale House Cambridge / STEP Bible -> https://www.STEPBible.org
+  https://github.com/STEPBible/STEPBible-Data
+  License: CC BY 4.0. Consumed via the Open Greek Corpus standardized export
+  (cog export tagnt-v1) for lookup gap-fill only (NT variant spellings and
+  proper nouns); its Robinson tagset is not used for POS edges.
 
 - The Diorisis Ancient Greek Corpus, A. Vatri and B. McGillivray (2018).
   https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256

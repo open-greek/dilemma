@@ -26,12 +26,18 @@ import gzip
 import json
 import os
 import re
+import unicodedata
 from pathlib import Path
 
 DEFAULT_EXPORT = Path(os.environ.get(
     "DILEMMA_COG_OGA",
     str(Path.home() / "Documents" / "corpus-of-open-greek" / "data"
         / "annotations" / "oga" / "oga-v1")))
+
+# The annotations root holds one directory per source (oga/ptnk/tagnt/pedalion),
+# each containing a versioned export subdir (<name>-vN) with manifest.json.
+ANNOTATIONS_ROOT = Path(os.environ.get(
+    "DILEMMA_COG_ANNOTATIONS", str(DEFAULT_EXPORT.parent.parent)))
 
 GORMAN_WORK_IDS_PATH = (Path(__file__).resolve().parent.parent
                         / "data" / "gorman_work_ids.json")
@@ -42,12 +48,34 @@ _TRAILING_DIGITS = re.compile(r"\d+$")
 _ELLIPSIS_RE = re.compile(r"^\[\d+\]$")
 
 
+def export_dir(name, root=None) -> Path | None:
+    """Resolve the versioned export subdir for a source, e.g.
+    export_dir('ptnk') -> <root>/ptnk/ptnk-v1. Picks the highest-numbered
+    <name>-vN that has a manifest.json. None if the source is absent."""
+    base = Path(root or ANNOTATIONS_ROOT) / name
+    if not base.is_dir():
+        return None
+    cands = sorted(
+        (d for d in base.glob(f"{name}-v*")
+         if d.is_dir() and (d / "manifest.json").exists()),
+        key=lambda d: int(re.search(r"-v(\d+)$", d.name).group(1))
+        if re.search(r"-v(\d+)$", d.name) else 0)
+    return cands[-1] if cands else None
+
+
 def load_manifest(export_dir=DEFAULT_EXPORT) -> dict | None:
     p = Path(export_dir) / "manifest.json"
     if not p.exists():
         return None
     with open(p, encoding="utf-8") as f:
         return json.load(f)
+
+
+def work_key(work_entry) -> str | None:
+    """A work's identity key, tolerating the per-export field name: OGA/PTNK/
+    TAGNT use 'work_id', Pedalion uses 'work_key' (with work_id=None for its
+    papyri/collections)."""
+    return work_entry.get("work_id") or work_entry.get("work_key")
 
 
 def pin_line(manifest: dict) -> str:
@@ -76,6 +104,19 @@ def gorman_work_ids() -> set:
 
 def strip_homograph_digits(lemma: str) -> str:
     return _TRAILING_DIGITS.sub("", lemma)
+
+
+# Lemmas ending in an elision/koronis mark (δώδεκ᾽) or carrying an
+# abbreviation overline (U+0305) are annotation artifacts, not dictionary
+# headwords. Mirrors build/build_treebank_pos_lookup.py::_clean_lemma so the
+# extractors drop them before they reach any artifact.
+_JUNK_LEMMA_FINALS = tuple("᾽'’ʼ`ʹ")
+
+
+def is_clean_lemma(lemma: str) -> bool:
+    if not lemma or lemma.endswith(_JUNK_LEMMA_FINALS):
+        return False
+    return "̅" not in unicodedata.normalize("NFD", lemma)
 
 
 def iter_work_tokens(export_dir, work_entry):

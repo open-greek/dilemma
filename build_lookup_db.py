@@ -51,6 +51,14 @@ DIORISIS_PAIRS_PATH = DATA_DIR / "diorisis_pairs.json"
 # Nestle 1904 base text is public domain). Open replacement for the dropped
 # CC BY-NC-SA PROIEL NT. Built by build/extract_nt.py.
 NT_PAIRS_PATH = DATA_DIR / "nt_pairs.json"
+# Lowest-priority manual-gold gap-fill from cog's standardized exports
+# (extract_ptnk.py / extract_tagnt.py / extract_pedalion.py). Each only fills
+# forms no earlier source has; none can override Wiktionary/LSJ/GLAUx/Diorisis.
+COG_GAPFILL_PATHS = [
+    ("PTNK", DATA_DIR / "ptnk_pairs.json"),
+    ("TAGNT", DATA_DIR / "tagnt_pairs.json"),
+    ("Pedalion", DATA_DIR / "pedalion_pairs.json"),
+]
 PERSEUS_PAIRS_PATH = DATA_DIR / "perseus_pairs.json"
 ETYMOLOGY_BRIDGES_PATH = DATA_DIR / "etymology_bridges.json"
 LSJGR_BRIDGES_PATH = DATA_DIR / "lsjgr_bridges.json"
@@ -425,6 +433,31 @@ def build():
                 el[form] = lemma
         print(f"  Koine NT: +{nt_added_ag:,} to AG, "
               f"{nt_bad_lemma:,} bad lemmas rejected ({time.time()-t_n:.1f}s)")
+
+    # Manual-gold gap-fill from cog's standardized exports (PTNK / TAGNT /
+    # Pedalion). Same headword validation and gap-fill-only guard as NT; placed
+    # last so they are strictly lowest priority (never override earlier sources).
+    for label, path in COG_GAPFILL_PATHS:
+        if not path.exists():
+            continue
+        t_g = time.time()
+        with open(path, encoding="utf-8") as f:
+            gap_pairs = json.load(f)
+        ag_before = dict(ag)
+        added_ag = bad_lemma = 0
+        for p in gap_pairs:
+            form, lemma = p["form"], p["lemma"]
+            lemma = _normalize_corpus_lemma(lemma, ag_headwords_exact)
+            if ag_headwords_exact and lemma not in ag_headwords_exact:
+                bad_lemma += 1
+                continue
+            if form not in ag:
+                ag[form] = lemma
+                added_ag += 1
+            if form not in el and form not in ag_before:
+                el[form] = lemma
+        print(f"  {label}: +{added_ag:,} to AG, "
+              f"{bad_lemma:,} bad lemmas rejected ({time.time()-t_g:.1f}s)")
 
     # Article and pronoun forms excluded from the lookup so that
     # resolve_articles=True/False in Dilemma controls their resolution.

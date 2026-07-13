@@ -46,6 +46,12 @@ DIORISIS_PAIRS_PATH = DATA_DIR / "diorisis_pairs.json"
 # Openly-licensed Koine NT (Nestle 1904 lowfat, macula-greek, CC BY 4.0) -
 # the open replacement for the dropped CC BY-NC-SA PROIEL NT.
 NT_PAIRS_PATH = DATA_DIR / "nt_pairs.json"
+# Manual-gold POS edges from cog's standardized exports. PTNK (UD, Koine LXX)
+# and Pedalion (AGDT, classical) are hand-annotated, so - unlike all-auto OGA
+# (rejected below) - their POS edges are trustworthy. TAGNT is intentionally
+# absent: its Robinson tagset is not the AGDT/UD tagset this table trusts.
+PTNK_PAIRS_PATH = DATA_DIR / "ptnk_pairs.json"
+PEDALION_PAIRS_PATH = DATA_DIR / "pedalion_pairs.json"
 LOOKUP_DB_PATH = DATA_DIR / "lookup.db"
 _CORPUS_POS_TO_UPOS = {
     "verb": "VERB", "noun": "NOUN", "adj": "ADJ", "adv": "ADV",
@@ -54,7 +60,8 @@ _CORPUS_POS_TO_UPOS = {
 }
 # NT is gold human annotation (CC BY 4.0), weighted like GLAUx. OGA is
 # all-auto model output (cog export): lowest weight, gap-fill only.
-_CORPUS_WEIGHT = {"glaux": 2, "diorisis": 1, "nt": 2, "oga": 1}
+_CORPUS_WEIGHT = {"glaux": 2, "diorisis": 1, "nt": 2, "oga": 1,
+                  "ptnk": 2, "pedalion": 2}
 
 # AGDT POS code (position 1 of postag) -> UD UPOS
 _AGDT_TO_UPOS = {
@@ -205,7 +212,9 @@ def build_lookup():
         _c.close()
     for src, path in (("glaux", GLAUX_PAIRS_PATH),
                       ("diorisis", DIORISIS_PAIRS_PATH),
-                      ("nt", NT_PAIRS_PATH)):
+                      ("nt", NT_PAIRS_PATH),
+                      ("ptnk", PTNK_PAIRS_PATH),
+                      ("pedalion", PEDALION_PAIRS_PATH)):
         if not path.exists():
             print(f"  Skipping {src} corpus ({path.name} not found)")
             continue

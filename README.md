@@ -1083,9 +1083,9 @@ table, avoiding false matches from MG monotonic forms.
 ### Corpus attestation
 
 `Dilemma.attestation(lemma)` returns a per-lemma diachronic profile built from
-the GLAUx and Diorisis corpora plus the OGA corpus consumed via the
+the GLAUx and Diorisis corpora plus the OGA and Pedalion corpora consumed via the
 [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus)
-standardized annotation export (34M deduped tokens, 303K lemmas): how often,
+standardized annotation export (34M deduped tokens, 304K lemmas): how often,
 when, where, and in what genre a lemma is attested. It is keyed by the corpora's
 own NFC polytonic lemma annotation and returns `None` for an unattested lemma.
 
@@ -1105,12 +1105,16 @@ The artifact is `data/lemma_attestation.json`, built by the standalone
 `build/build_lemma_attestation.py` pass. The three sources annotate many of
 the same texts, so the frequency (`total` and the `by_*` breakdowns) is
 deduplicated at the work level by TLG id (each work counted once, with
-priority GLAUx > Diorisis > OGA; GLAUx preferred for its dialect and richer
-metadata) - a union, not a sum. OGA is all-automatic annotation (a form of
+priority GLAUx > Diorisis > OGA > Pedalion; GLAUx preferred for its dialect and
+richer metadata) - a union, not a sum. OGA is all-automatic annotation (a form of
 model output), so it is the lowest-priority source; its ~17M tokens cover
 795 works - the Suda, the Iliad scholia, Eusebius, patristic homilies -
 that no hand-checked treebank annotates, and works the Gorman treebanks
 annotate are excluded from it entirely (Gorman is the held-out gold).
+Pedalion (manual-gold AGDT trees, PROIEL already dropped by cog) adds ~39K
+deduped tokens from works no other source covers (Sextus Empiricus, Menander,
+papyri, poetic fragments); its Gorman-provenance rows are skipped and its
+constructed example-sentence collections feed only lookup/POS, not attestation.
 `source_counts` separately keeps each lemmatizer's full independent count
 (overlapping, never summed): agreement is a confidence signal, and a lemma seen
 only in a non-preferred source's reading of a shared work has `total` 0 but a

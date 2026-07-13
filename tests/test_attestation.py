@@ -46,18 +46,20 @@ def raw():
 def test_meta_schema(raw):
     m = raw["_meta"]
     assert m["schema_version"] == 1
-    assert m["sources"] == ["glaux", "diorisis", "oga"]
+    assert m["sources"] == ["glaux", "diorisis", "oga", "pedalion"]
     assert len(m["genres"]) == 10
     assert m["n_lemmas"] == len(raw["lemmas"])
     # Union of works, not the naive sum: GLAUx + Diorisis-only works
-    # (~17M) plus the ~16M tokens of works only cog's OGA export covers.
+    # (~17M) plus the ~16M tokens of works only cog's OGA export covers,
+    # plus Pedalion's ~39K novel manual-gold tokens.
     assert 28_000_000 < m["total_tokens"] < 42_000_000
     assert "dedup" in m
     assert set(m["source_sha"]) == {
         "glaux_metadata", "glaux_xml", "diorisis_xml",
-        "oga_export", "oga_pin"}
-    # dilemma pins cog's export, not OGA upstream (cog pins upstream).
+        "oga_export", "oga_pin", "pedalion_export", "pedalion_pin"}
+    # dilemma pins cog's exports, not the upstream treebanks (cog pins those).
     assert m["source_sha"]["oga_pin"].startswith("cog export oga-")
+    assert m["source_sha"]["pedalion_pin"].startswith("cog export pedalion-")
 
 
 def test_dedup_total_is_union_not_sum(raw):
@@ -145,8 +147,9 @@ def test_common_lemma_is_frequent(d):
     assert a is not None
     assert a["total"] > 1000
     assert a["dominant_pos"] == "noun"
-    # attested independently by all three sources (agreement = confidence)
-    assert set(a["source_counts"]) == {"glaux", "diorisis", "oga"}
+    # attested independently by every treebank source (agreement = confidence);
+    # a common word also turns up in Pedalion's literary works.
+    assert {"glaux", "diorisis", "oga"} <= set(a["source_counts"])
 
 
 def test_homeric_lemma_century_and_dialect(d):
