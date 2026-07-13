@@ -21,6 +21,7 @@ import os
 # Fast (Rust) tokenizer + DataLoader fork workers would otherwise warn/deadlock.
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -307,7 +308,10 @@ def main():
                     help="warm-start from an existing checkpoint: adopts its "
                          "label spaces, feature set, and config, loads its "
                          "weights, then fine-tunes on --sentences")
+    ap.add_argument("--seed", type=int, default=42,
+                    help="torch seed (reproducible shuffle order)")
     args = ap.parse_args()
+    torch.manual_seed(args.seed)
     MODEL_NAME = args.model
     NORMALIZE = not args.no_normalize
     PREFIX_SPACE = not args.no_prefix_space
@@ -448,6 +452,19 @@ def main():
                 uas / max(dep_tot, 1), las / max(dep_tot, 1))
 
     print("training...", flush=True)
+    # Linear warmup + decay-to-zero. Late in training AdamW's second moments
+    # are tiny, so a single hot batch produces a catastrophic effective step
+    # even under grad clipping (two runs collapsed near it~55K: dev UPOS
+    # 99.6 -> 53.0 / 52.5). Decaying LR shrinks late-training steps; the
+    # spike-skip guard below drops any batch whose loss is wildly above the
+    # running average instead of letting it move the weights.
+    total_steps = len(dl_tr) * args.epochs
+    warmup = min(500, total_steps // 20) if total_steps else 0
+    sched = torch.optim.lr_scheduler.LambdaLR(
+        opt, lambda s: ((s + 1) / max(warmup, 1) if s < warmup
+                        else (total_steps - s) / max(total_steps - warmup, 1)))
+    loss_ema = None
+    n_skipped = 0
     for ep in range(args.epochs):
         model.train(); t0 = time.time(); tot = 0.0
         for it, b in enumerate(dl_tr):
@@ -465,15 +482,21 @@ def main():
                 loss = loss + cel(arc.reshape(-1, arc.size(-1)), b["head_y"].reshape(-1))
                 ra = rel_at(out[3], b["head_y"])      # relation logits at gold head
                 loss = loss + cel(ra.reshape(-1, ra.size(-1)), b["deprel_y"].reshape(-1))
+            li = loss.item()
+            if not math.isfinite(li) or (loss_ema is not None
+                                         and li > 10 * max(loss_ema, 0.05)):
+                n_skipped += 1
+                print(f"  ep{ep} it{it}: skipped spike batch loss={li:.3f} "
+                      f"(ema={loss_ema:.3f}, {n_skipped} skipped)", flush=True)
+                opt.zero_grad(); sched.step()
+                continue
+            loss_ema = li if loss_ema is None else 0.99 * loss_ema + 0.01 * li
             opt.zero_grad(); loss.backward()
-            # Without clipping, one pathological batch can blow up the
-            # weights unrecoverably (observed 2026-07-12: loss 0.27 -> 8.3
-            # in the last 500 iterations of epoch 2, dev UPOS 99.6 -> 53.0).
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            opt.step()
-            tot += loss.item()
+            opt.step(); sched.step()
+            tot += li
             if it % 200 == 0:
-                print(f"  ep{ep} it{it}/{len(dl_tr)} loss={loss.item():.3f} "
+                print(f"  ep{ep} it{it}/{len(dl_tr)} loss={li:.3f} "
                       f"({time.time()-t0:.0f}s)", flush=True)
         u, fa, st, uas, las = run_eval(dl_dv)
         dep_str = f" UAS={uas*100:.1f}% LAS={las*100:.1f}%" if model.n_deprels else ""
