@@ -115,10 +115,15 @@ AG_POS_LOOKUP_PATH = DATA_DIR / "ag_pos_lookup.json"
 TREEBANK_POS_LOOKUP_PATH = DATA_DIR / "treebank_pos_lookup.json"
 GLAUX_POS_LOOKUP_PATH = DATA_DIR / "glaux_pos_lookup.json"
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
+LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
 MG_HEADWORDS_PATH = DATA_DIR / "mg_headwords.json"
 AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
 DGE_HEADWORDS_PATH = DATA_DIR / "dge_headwords.json"
+LBG_HEADWORDS_PATH = DATA_DIR / "lbg_headwords.json"
+VLG_HEADWORDS_PATH = DATA_DIR / "vlg_headwords.json"
+PD_HEADWORDS_PATH = DATA_DIR / "pd_headwords.json"
+WIP_HEADWORDS_PATH = DATA_DIR / "wip_headwords.json"
 LGPN_NAMES_PATH = DATA_DIR / "lgpn_names.json"
 LEMMA_EQUIVALENCES_PATH = DATA_DIR / "lemma_equivalences.json"
 CORPUS_FREQ_PATH = DATA_DIR / "corpus_freq.json"
@@ -137,6 +142,16 @@ _CONVENTION_HEADWORDS = {
 
 # Conventions that output monotonic Greek (apply to_monotonic to all results).
 _MONOTONIC_CONVENTIONS = {"triantafyllidis"}
+
+# Independent ancient/Byzantine lexicon inventories used to prove that a
+# grave-accented lookup value can be normalized to a real citation form. Do not
+# include AG_HEADWORDS_PATH: that file is Wiktionary-derived and is known to
+# contain the same grave-headword contamination this gate is meant to block.
+_TRUSTED_AG_HEADWORD_PATHS = (
+    LSJ_HEADWORDS_PATH, LSJ10_HEADWORDS_PATH, LBG_HEADWORDS_PATH,
+    DGE_HEADWORDS_PATH, VLG_HEADWORDS_PATH, CUNLIFFE_HEADWORDS_PATH,
+    PD_HEADWORDS_PATH, WIP_HEADWORDS_PATH,
+)
 
 
 _POLYTONIC_STRIP = {0x0313, 0x0314, 0x0345, 0x0306, 0x0304}
@@ -981,6 +996,7 @@ class Dilemma:
         # Canonical AG headword inventory for repair_lemma():
         # (all_headwords, stripped_index, lsj_only). Lazy-loaded.
         self._canonical_hw: tuple[set, dict, set] | None = None
+        self._trusted_grave_targets: set[str] | None = None
 
         # Form-keyed corpus attestation (form_profile.db / form_citations.db),
         # for the "attested only" gate + form_attestation(). Lazy-opened.
@@ -1046,10 +1062,14 @@ class Dilemma:
         cache: dict[str, str] = {}
         if self._using_db:
             for form, lemma in self._lookup.items():
-                cache[form] = self._apply_convention(lemma)
+                out = self._apply_convention(lemma)
+                if out:
+                    cache[form] = out
         else:
             for form, lemma in self._lookup.items():
-                cache[form] = self._apply_convention(lemma)
+                out = self._apply_convention(lemma)
+                if out:
+                    cache[form] = out
         return cache
 
     def _load_lookups(self, skip_pos=False):
@@ -1328,7 +1348,54 @@ class Dilemma:
 
         return remap
 
-    def _apply_convention(self, lemma: str) -> str:
+    def _trusted_grave_citation_targets(self) -> set[str]:
+        """Headwords allowed as targets for grave-to-acute citation repair.
+
+        The lookup table itself is not a trustworthy authority here: its lemma
+        values are the source of the contamination. This uses independent
+        lexicon headword lists, and also indexes macron/breve-stripped spellings
+        so LSJ quantity marks do not block a plain Dilemma lemma spelling.
+        """
+        if self._trusted_grave_targets is not None:
+            return self._trusted_grave_targets
+
+        targets: set[str] = set()
+        for path in _TRUSTED_AG_HEADWORD_PATHS:
+            if not path.exists():
+                continue
+            with open(path, encoding="utf-8") as f:
+                raw = json.load(f)
+            entries = raw.values() if isinstance(raw, dict) else raw
+            for entry in entries:
+                word = entry.get("lemma") if isinstance(entry, dict) else entry
+                if not isinstance(word, str) or not word:
+                    continue
+                word = unicodedata.normalize("NFC", word)
+                targets.add(word)
+                nfd = unicodedata.normalize("NFD", word)
+                stripped = unicodedata.normalize("NFC", "".join(
+                    c for c in nfd if ord(c) not in (0x0304, 0x0306)))
+                targets.add(stripped)
+
+        self._trusted_grave_targets = targets
+        return targets
+
+    def _normalize_grave_citation_lemma(self, lemma: str) -> str | None:
+        """Return a citation-safe lemma, or None for an unproven grave value.
+
+        A grave accent is positional in running text and should not survive in a
+        dictionary citation form. We only rewrite it to an acute when that exact
+        acute spelling is a headword in an independent lexicon inventory.
+        Otherwise the candidate is treated as a bad lookup/model value.
+        """
+        if "\u0300" not in unicodedata.normalize("NFD", lemma):
+            return lemma
+        acute = grave_to_acute(lemma)
+        if acute != lemma and acute in self._trusted_grave_citation_targets():
+            return acute
+        return None
+
+    def _apply_convention(self, lemma: str) -> str | None:
         """Remap a lemma according to the active convention.
 
         For monotonic conventions (e.g. triantafyllidis), the result is
@@ -1339,13 +1406,16 @@ class Dilemma:
         (-ον/-όν) that aren't LSJ headwords are mapped to their adjective
         headword, since LSJ files these as sub-entries under the adjective.
         """
+        lemma = self._normalize_grave_citation_lemma(lemma)
+        if lemma is None:
+            return None
         if self._convention_map:
             lemma = self._convention_map.get(lemma, lemma)
         if self._convention_name == "lsj":
             lemma = self._lsj_adverb_neuter_remap(lemma)
         if self._convention_monotonic:
             lemma = to_monotonic(lemma)
-        return lemma
+        return self._normalize_grave_citation_lemma(lemma)
 
     def _lsj_adverb_neuter_remap(self, lemma: str) -> str:
         """Map adverbs and neuter adjectives to LSJ adjective headwords.
@@ -1719,11 +1789,13 @@ class Dilemma:
         if _prefer_mg and self._mg_lookup:
             tbl = self._mg_lookup
             hit = tbl.get(word) or tbl.get(word.lower())
+            hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
                 mono = to_monotonic(word.lower())
                 stripped = strip_accents(word.lower())
                 for variant in [mono, stripped]:
                     hit = tbl.get(variant)
+                    hit = self._normalize_grave_citation_lemma(hit) if hit else None
                     if hit and not (len(variant) <= 2 and hit == variant):
                         break
                     hit = None
@@ -1739,14 +1811,17 @@ class Dilemma:
         if has_poly and self.lang == "all" and self._ag_lookup:
             tbl = self._ag_lookup
             hit = tbl.get(word) or tbl.get(word.lower())
+            hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
                 acute = grave_to_acute(word)
                 if acute != word:
                     hit = tbl.get(acute) or tbl.get(acute.lower())
+                    hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
                 for variant in [to_monotonic(word.lower()),
                                 strip_accents(word.lower())]:
                     hit = tbl.get(variant)
+                    hit = self._normalize_grave_citation_lemma(hit) if hit else None
                     if hit and not (len(variant) <= 2 and hit == variant):
                         break
                     hit = None
@@ -1754,18 +1829,21 @@ class Dilemma:
                 return hit
 
         lemma = self._lookup.get(word) or self._lookup.get(word.lower())
+        lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
         if lemma:
             return lemma
         # Grave → acute (lightest normalization, preserves breathings)
         acute = grave_to_acute(word)
         if acute != word:
             lemma = self._lookup.get(acute) or self._lookup.get(acute.lower())
+            lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
             if lemma:
                 return lemma
         mono = to_monotonic(word.lower())
         stripped = strip_accents(word.lower())
         for variant in [mono, stripped]:
             hit = self._lookup.get(variant)
+            hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if hit and not (len(variant) <= 2 and hit == variant):
                 return hit
         return None
@@ -1796,7 +1874,7 @@ class Dilemma:
         lemma = self._lookup.get(canon) or self._lookup.get(canon.lower())
         if not lemma or lemma == canon or _strip_elision(lemma) is not None:
             return None
-        return lemma
+        return self._normalize_grave_citation_lemma(lemma)
 
     def _expand_elision(self, word: str) -> str | None:
         """Try to resolve an elided form by expanding with vowels.
@@ -1876,6 +1954,8 @@ class Dilemma:
                                     to_monotonic(expanded.lower()),
                                     strip_accents(expanded.lower())):
                         lemma = table.get(variant)
+                        lemma = (self._normalize_grave_citation_lemma(lemma)
+                                 if lemma else None)
                         if lemma:
                             break
                     if lemma and lemma not in seen_lemmas:
@@ -3055,42 +3135,45 @@ class Dilemma:
         pos_lemma = self._pos_table_lookup(word, upos)
         if pos_lemma is not None:
             pos_lemma_conv = self._apply_convention(pos_lemma)
-            # Check if any candidate matches the POS-specific lemma.
-            # The case-twin tiebreak keeps a lowercase non-PROPN token
-            # from landing on the capitalized proper-noun twin (and
-            # vice versa for PROPN).
-            for c in candidates:
-                if c.lemma == pos_lemma_conv:
-                    return self._prefer_case_twin(
-                        word, upos, c.lemma, candidates,
-                        extra=(pos_lemma_conv,))
-            # Also check with accent-stripped comparison (POS tables and
-            # lookup tables may use slightly different accent conventions).
-            # Stripping also erases the case distinction, so the matched
-            # candidate may be the case twin of the POS lemma - pass the
-            # POS lemma into the tiebreak so it can win the re-rank.
-            pos_stripped = strip_accents(pos_lemma_conv.lower())
-            for c in candidates:
-                if strip_accents(c.lemma.lower()) == pos_stripped:
-                    return self._prefer_case_twin(
-                        word, upos, c.lemma, candidates,
-                        extra=(pos_lemma_conv,))
-            # POS lemma not among candidates (e.g., single candidate from
-            # lookup maps to a different headword). Trust the POS table -
-            # it comes from curated sources (treebank, GLAUx, Wiktionary).
-            if len(candidates) == 1:
-                return pos_lemma_conv
-            # Also trust the POS table when every candidate is just a
-            # case/accent variant of the input form (i.e. nothing in
-            # the candidate list disagrees with the POS table). This
-            # catches forms like αυτού (homograph: pronoun gen sg of
-            # αυτός vs adverb "there") where the lookup has only the
-            # adverb's self-map and the αυτός pron form-of resolution
-            # got hidden under it.
-            word_stripped = strip_accents(word.lower())
-            if all(strip_accents(c.lemma.lower()) == word_stripped
-                   for c in candidates):
-                return pos_lemma_conv
+            if pos_lemma_conv is None:
+                pos_lemma = None
+            else:
+                # Check if any candidate matches the POS-specific lemma.
+                # The case-twin tiebreak keeps a lowercase non-PROPN token
+                # from landing on the capitalized proper-noun twin (and
+                # vice versa for PROPN).
+                for c in candidates:
+                    if c.lemma == pos_lemma_conv:
+                        return self._prefer_case_twin(
+                            word, upos, c.lemma, candidates,
+                            extra=(pos_lemma_conv,))
+                # Also check with accent-stripped comparison (POS tables and
+                # lookup tables may use slightly different accent conventions).
+                # Stripping also erases the case distinction, so the matched
+                # candidate may be the case twin of the POS lemma - pass the
+                # POS lemma into the tiebreak so it can win the re-rank.
+                pos_stripped = strip_accents(pos_lemma_conv.lower())
+                for c in candidates:
+                    if strip_accents(c.lemma.lower()) == pos_stripped:
+                        return self._prefer_case_twin(
+                            word, upos, c.lemma, candidates,
+                            extra=(pos_lemma_conv,))
+                # POS lemma not among candidates (e.g., single candidate from
+                # lookup maps to a different headword). Trust the POS table -
+                # it comes from curated sources (treebank, GLAUx, Wiktionary).
+                if len(candidates) == 1:
+                    return pos_lemma_conv
+                # Also trust the POS table when every candidate is just a
+                # case/accent variant of the input form (i.e. nothing in
+                # the candidate list disagrees with the POS table). This
+                # catches forms like αυτού (homograph: pronoun gen sg of
+                # αυτός vs adverb "there") where the lookup has only the
+                # adverb's self-map and the αυτός pron form-of resolution
+                # got hidden under it.
+                word_stripped = strip_accents(word.lower())
+                if all(strip_accents(c.lemma.lower()) == word_stripped
+                       for c in candidates):
+                    return pos_lemma_conv
 
         if len(candidates) == 1:
             return candidates[0].lemma
@@ -3157,6 +3240,8 @@ class Dilemma:
             pos_lemma = self._pos_table_lookup(word, upos)
             if pos_lemma is not None:
                 pos_lemma_conv = self._apply_convention(pos_lemma)
+                if pos_lemma_conv is None:
+                    continue
                 if pos_lemma_conv == results[i]:
                     # POS agrees with baseline - no change needed
                     continue
@@ -3215,8 +3300,9 @@ class Dilemma:
                 continue
             candidates = self._lemmatize_verbose_impl(word, guess=guess)
             pos_lemma = self._pos_table_lookup(word, upos)
-            extra = ((self._apply_convention(pos_lemma),)
-                     if pos_lemma is not None else ())
+            extra_lemma = (self._apply_convention(pos_lemma)
+                           if pos_lemma is not None else None)
+            extra = (extra_lemma,) if extra_lemma is not None else ()
             results[i] = self._prefer_case_twin(word, upos, res,
                                                 candidates, extra=extra)
 
@@ -3311,6 +3397,9 @@ class Dilemma:
         seen = set()  # track (lemma_lower, lang) to avoid exact dupes
 
         def _add(lemma, lang="", source="", via="", score=1.0, tag=""):
+            lemma = self._normalize_grave_citation_lemma(lemma)
+            if lemma is None:
+                return
             key = (lemma, lang)
             if key not in seen:
                 seen.add(key)
@@ -3599,6 +3688,8 @@ class Dilemma:
             remapped = []
             for c in candidates:
                 c.lemma = self._apply_convention(c.lemma)
+                if c.lemma is None:
+                    continue
                 key = (c.lemma, c.lang)
                 if key not in seen_remapped:
                     seen_remapped.add(key)
@@ -3778,9 +3869,10 @@ class Dilemma:
                             pred = byz_heavy
                 results[idx] = pred
 
-        # Apply convention remapping to all results
-        if self._convention_map:
-            results = [self._apply_convention(r) if r else r for r in results]
+        # Apply convention remapping and citation-form validation to all
+        # results. This always runs, even without a named convention, because
+        # lookup/model artifacts can contain non-citation grave lemmas.
+        results = [self._apply_convention(r) if r else r for r in results]
 
         # Attested-only gate: null out words whose surface form is unattested.
         # (Digits / empty pass through; they are not Greek forms.)

@@ -16,6 +16,7 @@ Run with:
 import json
 import sqlite3
 import sys
+import unicodedata
 import pytest
 from pathlib import Path
 
@@ -76,9 +77,49 @@ def d_ionic_hellenistic():
     return Dilemma(dialect="ionic", period="hellenistic")
 
 
+def _has_grave(s):
+    return "\u0300" in unicodedata.normalize("NFD", s)
+
+
 # ===========================================================================
 # 1. GORMAN HOLDOUT POLICY + IONIC COVERAGE
 # ===========================================================================
+
+class TestGraveCitationLemmas:
+    """Grave accents are positional in running text, not citation lemmas."""
+
+    def test_backed_grave_lookup_normalizes_to_headword(self):
+        d = Dilemma(lang="grc")
+        assert d.lemmatize("οὐρανοστεγῆ", guess=False) == "οὐρανοστεγής"
+        assert d.lemmatize("δακτύλι", guess=False) == "δακτυλεύς"
+        assert d.lemmatize_batch(
+            ["οὐρανοστεγῆ", "δακτύλι"], guess=False
+        ) == ["οὐρανοστεγής", "δακτυλεύς"]
+        for form, expected in [
+            ("οὐρανοστεγῆ", "οὐρανοστεγής"),
+            ("δακτύλι", "δακτυλεύς"),
+        ]:
+            candidates = d.lemmatize_verbose(form, guess=False)
+            assert candidates[0].lemma == expected
+            assert all(not _has_grave(c.lemma) for c in candidates)
+
+    def test_unbacked_grave_lookup_is_not_emitted(self):
+        d = Dilemma(lang="grc")
+        forms = ["σύγ", "κό", "Παντὸς"]
+        outputs = [
+            d.lemmatize(form, guess=False) for form in forms
+        ]
+        outputs += d.lemmatize_batch_pos(
+            forms, ["ADV", "ADV", "NOUN"], guess=False
+        )
+        assert all(lemma is None or not _has_grave(lemma)
+                   for lemma in outputs)
+        for lemma in d.lemmatize_batch(forms, guess=False):
+            assert lemma is None or not _has_grave(lemma)
+        for form in forms:
+            assert all(not _has_grave(c.lemma)
+                       for c in d.lemmatize_verbose(form, guess=False))
+
 
 class TestGormanHoldout:
     """The Gorman treebanks are the project's HELD-OUT GOLD corpus

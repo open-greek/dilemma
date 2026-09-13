@@ -6,6 +6,14 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Ancient Greek lemmatization no longer emits grave-accented citation lemmas
+  from contaminated lookup, model, or POS-table values. Grave values are
+  normalized to acute only when the acute form is backed by an independent
+  lexicon headword inventory; otherwise that candidate is dropped. The
+  validation is applied consistently across single-word, batch, verbose, and
+  POS-aware entry points.
+
 ### Added
 - Device-agnostic ONNX execution: `dilemma._ort_providers` auto-selects CUDA
   when `onnxruntime-gpu` is present (an NVIDIA box), else CPU, with a
