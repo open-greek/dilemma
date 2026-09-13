@@ -6,13 +6,7 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
-### Fixed
-- Ancient Greek lemmatization no longer emits grave-accented citation lemmas
-  from contaminated lookup, model, or POS-table values. Grave values are
-  normalized to acute only when the acute form is backed by an independent
-  lexicon headword inventory; otherwise that candidate is dropped. The
-  validation is applied consistently across single-word, batch, verbose, and
-  POS-aware entry points.
+## [1.2.1] - 2026-09-13
 
 ### Added
 - Device-agnostic ONNX execution: `dilemma._ort_providers` auto-selects CUDA
@@ -49,9 +43,13 @@ All notable changes to Dilemma are documented here. The format follows
   so elided monosyllables (`δ᾿`) and numeral-shaped real words (`τε`) stay
   lexical; no movement on `bench_fast.py`.
 
-## [1.2.1] - 2026-07-10
-
 ### Fixed
+- Ancient Greek lemmatization no longer emits grave-accented citation lemmas
+  from contaminated lookup, model, or POS-table values. Grave values are
+  normalized to acute only when the acute form is backed by an independent
+  lexicon headword inventory; otherwise that candidate is dropped. The
+  validation is applied consistently across single-word, batch, verbose, and
+  POS-aware entry points.
 - `lemmatize_pos` / `lemmatize_batch_pos` no longer prefer a capitalized
   proper-noun twin over the common-word lemma for a lowercase, non-PROPN
   token. Many common lemmas have a capitalized personification/name twin
@@ -121,6 +119,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.2.1]: https://github.com/open-greek/dilemma/releases/tag/1.2.1
 [1.2.0]: https://github.com/open-greek/dilemma/releases/tag/1.2.0
 [1.1.0]: https://github.com/open-greek/dilemma/releases/tag/1.1.0
 [1.0.0]: https://github.com/open-greek/dilemma/releases/tag/1.0.0
