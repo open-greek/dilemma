@@ -132,6 +132,35 @@ class TestGraveCitationLemmas:
         assert unbacked["normalized"] is None
         assert unbacked["reason"] == "untrusted_grave"
 
+        lbg_single_token = d.citation_status("αὐτοβασιλεὺς", lang="grc")
+        assert lbg_single_token["ok"] is True
+        assert lbg_single_token["normalized"] == "αὐτοβασιλεύς"
+        assert lbg_single_token["reason"] == "grave_to_trusted_headword"
+
+        lbg_multiword = d.citation_status("χορὸς ἀφροδίσιος", lang="grc")
+        assert lbg_multiword["ok"] is False
+        assert lbg_multiword["normalized"] is None
+        assert lbg_multiword["reason"] == "untrusted_grave"
+
+    def test_citation_status_rejects_artifact_marks(self):
+        d = Dilemma(lang="grc", skip_pos=True)
+
+        overline = d.citation_status("α̅", lang="grc")
+        assert overline["ok"] is False
+        assert overline["normalized"] is None
+        assert overline["reason"] == "overline"
+
+        leading = d.citation_status("́πολω", lang="grc")
+        assert leading["ok"] is False
+        assert leading["normalized"] is None
+        assert leading["reason"] == "leading_combining"
+
+        numeral = d.citation_status("͵αʹ", lang="grc",
+                                    source="nonlexical")
+        assert numeral["ok"] is True
+        assert numeral["normalized"] == "͵αʹ"
+        assert numeral["reason"] == "nonlexical"
+
     def test_strict_ag_policy_constrains_model_outputs(self, monkeypatch):
         d = Dilemma(lang="grc", citation_policy="strict_ag", skip_pos=True)
         assert d.lemmatize("Μαθουσάλα", guess=False) is None

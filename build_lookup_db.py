@@ -109,6 +109,17 @@ def _normalize_grave_citation_lemma(lemma: str,
     return None
 
 
+def _citation_artifact_reason(lemma: str) -> str | None:
+    """Return why a lemma value is not a citation-form candidate, if any."""
+    if not isinstance(lemma, str) or not lemma:
+        return None
+    if unicodedata.combining(lemma[0]):
+        return "leading_combining"
+    if "\u0305" in unicodedata.normalize("NFD", lemma):
+        return "overline"
+    return None
+
+
 def _load_from_sqlite(table: str) -> dict:
     """Load a lookup table from raw_lookups.db."""
     if not RAW_DB_PATH.exists():
@@ -557,10 +568,17 @@ def build():
         dropped_elided = 0
         grave_normalized = 0
         grave_dropped = 0
+        artifact_dropped = {}
         for k, v in table.items():
             sk = sanitize_form(k)
             sv = sanitize_form(v) if isinstance(v, str) else v
             if not sk:
+                continue
+            artifact_reason = (_citation_artifact_reason(sv)
+                               if isinstance(sv, str) else None)
+            if artifact_reason:
+                artifact_dropped[artifact_reason] = (
+                    artifact_dropped.get(artifact_reason, 0) + 1)
                 continue
             if trusted_grave_targets and isinstance(sv, str) and _has_grave(sv):
                 safe = _normalize_grave_citation_lemma(
@@ -611,6 +629,8 @@ def build():
         if grave_dropped:
             print(f"  Dropped {grave_dropped:,} {name} untrusted grave "
                   f"citation lemmas")
+        for reason, count in sorted(artifact_dropped.items()):
+            print(f"  Dropped {count:,} {name} {reason} citation artifacts")
         return out
 
     print("\nSanitising form-and-lemma tables...")
@@ -654,15 +674,41 @@ def build():
     # function words like ή -> ὅ.) Gender rides along in the source for future
     # POS use and is not consumed here.
     lbg_added = 0
+    lbg_grave_normalized = 0
+    lbg_grave_dropped = 0
+    lbg_artifact_dropped = {}
     if LBG_HEADWORDS_PATH.exists():
         with open(LBG_HEADWORDS_PATH, encoding="utf-8") as f:
-            lbg_raw = {e["lemma"] for e in json.load(f)
+            lbg_raw = {sanitize_form(e["lemma"]) for e in json.load(f)
                        if e.get("lemma") and " " not in e["lemma"]}
         for h in lbg_raw:
+            artifact_reason = _citation_artifact_reason(h)
+            if artifact_reason:
+                lbg_artifact_dropped[artifact_reason] = (
+                    lbg_artifact_dropped.get(artifact_reason, 0) + 1)
+                continue
+            if trusted_grave_targets and _has_grave(h):
+                safe = _normalize_grave_citation_lemma(
+                    h, trusted_grave_targets)
+                if safe is None:
+                    lbg_grave_dropped += 1
+                    continue
+                if safe != h:
+                    h = safe
+                    lbg_grave_normalized += 1
             if h not in combined:
                 combined[h] = h
                 lbg_added += 1
         print(f"  Byzantine headwords: +{lbg_added:,} gap-fill self-maps (lang=all)")
+        if lbg_grave_normalized:
+            print(f"  Byzantine headwords: normalized "
+                  f"{lbg_grave_normalized:,} grave citation headwords")
+        if lbg_grave_dropped:
+            print(f"  Byzantine headwords: dropped {lbg_grave_dropped:,} "
+                  f"untrusted grave citation headwords")
+        for reason, count in sorted(lbg_artifact_dropped.items()):
+            print(f"  Byzantine headwords: dropped {count:,} {reason} "
+                  f"citation artifacts")
 
     # Byzantine INFLECTED forms (build/expand_lbg.py -> data/lbg_pairs.json):
     # paradigm cells declined/conjugated from the headword + gender. Added as
@@ -675,6 +721,9 @@ def build():
     #   (b) frequency ceiling: drop ultra-common surface forms (function-word
     #       collisions like ποτε), via corpus_freq.
     lbg_forms_added = 0
+    lbg_pair_grave_normalized = 0
+    lbg_pair_grave_dropped = 0
+    lbg_pair_artifact_dropped = {}
     if LBG_PAIRS_PATH.exists():
         with open(LBG_PAIRS_PATH, encoding="utf-8") as f:
             lbg_pairs = json.load(f)
@@ -684,8 +733,24 @@ def build():
                 "forms", {})
         LBG_FREQ_CEILING = 20_000
         for form, lemma in lbg_pairs.items():
+            form = sanitize_form(form)
+            lemma = sanitize_form(lemma)
             if not form or form in combined:
                 continue
+            artifact_reason = _citation_artifact_reason(lemma)
+            if artifact_reason:
+                lbg_pair_artifact_dropped[artifact_reason] = (
+                    lbg_pair_artifact_dropped.get(artifact_reason, 0) + 1)
+                continue
+            if trusted_grave_targets and _has_grave(lemma):
+                safe = _normalize_grave_citation_lemma(
+                    lemma, trusted_grave_targets)
+                if safe is None:
+                    lbg_pair_grave_dropped += 1
+                    continue
+                if safe != lemma:
+                    lemma = safe
+                    lbg_pair_grave_normalized += 1
             variants = {form, form.lower(), grave_to_acute(form),
                         to_monotonic(form.lower()), strip_accents(form.lower())}
             if any(v in combined and combined[v] != lemma for v in variants):
@@ -697,6 +762,15 @@ def build():
             lbg_forms_added += 1
         print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gated "
               f"gap-fill pairs (lang=all)")
+        if lbg_pair_grave_normalized:
+            print(f"  Byzantine inflected forms: normalized "
+                  f"{lbg_pair_grave_normalized:,} grave citation lemmas")
+        if lbg_pair_grave_dropped:
+            print(f"  Byzantine inflected forms: dropped "
+                  f"{lbg_pair_grave_dropped:,} untrusted grave citation lemmas")
+        for reason, count in sorted(lbg_pair_artifact_dropped.items()):
+            print(f"  Byzantine inflected forms: dropped {count:,} {reason} "
+                  f"citation artifacts")
 
     # NOTE: Corpus self-map and consensus overrides were tried here but
     # proved too aggressive, overriding correct Wiktionary entries with

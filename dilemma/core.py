@@ -161,6 +161,14 @@ def _without_quantity_marks(word: str) -> str:
         c for c in nfd if ord(c) not in (0x0304, 0x0306)))
 
 
+def _starts_with_combining_mark(word: str) -> bool:
+    return bool(word) and bool(unicodedata.combining(word[0]))
+
+
+def _has_overline_mark(word: str) -> bool:
+    return "\u0305" in unicodedata.normalize("NFD", word)
+
+
 def trusted_ag_citation_headwords(
         paths: tuple[Path, ...] = _TRUSTED_AG_HEADWORD_PATHS) -> set[str]:
     """Independent AG/Byzantine citation forms trusted for output validation.
@@ -183,6 +191,11 @@ def trusted_ag_citation_headwords(
             word = unicodedata.normalize("NFC", word)
             targets.add(word)
             targets.add(_without_quantity_marks(word))
+            if (not any(ch.isspace() for ch in word)
+                    and "\u0300" in unicodedata.normalize("NFD", word)):
+                acute = grave_to_acute(word)
+                targets.add(acute)
+                targets.add(_without_quantity_marks(acute))
     return targets
 
 
@@ -1435,10 +1448,12 @@ class Dilemma:
                               ) -> _CitationLemmaCheck:
         """Validate/normalize a candidate citation lemma.
 
-        The default policy only blocks grave-accented citation forms unless the
+        The default policy blocks citation-form artifacts that are never
+        dictionary headwords: stranded leading combining marks, overline
+        abbreviation marks, and grave-accented citation forms unless the
         corresponding acute spelling is independently attested as a headword.
-        The strict AG policy also requires Greek citation lemmas to be backed by
-        the same independent AG/Byzantine headword inventory.
+        The strict AG policy also requires Greek citation lemmas to be backed
+        by the same independent AG/Byzantine headword inventory.
         """
         if not lemma:
             return _CitationLemmaCheck(None, "empty")
@@ -1446,6 +1461,17 @@ class Dilemma:
         original = unicodedata.normalize("NFC", lemma)
         checked = original
         reason = "unchanged"
+
+        if source == "nonlexical":
+            return _CitationLemmaCheck(checked, "nonlexical")
+
+        if _starts_with_combining_mark(checked):
+            return _CitationLemmaCheck(
+                None, "leading_combining", normalized_from=original)
+
+        if _has_overline_mark(checked):
+            return _CitationLemmaCheck(
+                None, "overline", normalized_from=original)
 
         if "\u0300" in unicodedata.normalize("NFD", checked):
             acute = grave_to_acute(checked)
@@ -1463,13 +1489,13 @@ class Dilemma:
                 checked, reason,
                 normalized_from=original if checked != original else "")
 
-        # Non-Greek passthrough and explicit nonlexical classifications are not
-        # citation lemmas, so strict AG headword validation does not apply.
+        # Non-Greek passthrough is not an AG citation lemma, so strict AG
+        # headword validation does not apply.
         has_greek = any(0x0370 <= ord(c) <= 0x03ff
                         or 0x1f00 <= ord(c) <= 0x1fff for c in checked)
-        if not has_greek or source == "nonlexical":
+        if not has_greek:
             return _CitationLemmaCheck(
-                checked, "nonlexical" if source == "nonlexical" else "non_greek",
+                checked, "non_greek",
                 normalized_from=original if checked != original else "")
 
         if self.lang in ("all", "el") and self._is_mg_citation_form(checked):

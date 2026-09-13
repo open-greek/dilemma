@@ -119,6 +119,7 @@ you already have. The lookup handles 95%+ of words and needs neither.
   - [Installation](#installation)
   - [Basic Usage](#basic-usage)
   - [Conventions](#conventions)
+  - [Citation-Form Hygiene](#citation-form-hygiene)
 - [Evaluation](#evaluation)
   - [Multi-period benchmarks](#multi-period-benchmarks)
   - [Elided forms (AGDT Iliad)](#elided-forms-agdt-iliad)
@@ -327,6 +328,36 @@ d_mg.lemmatize("Είναι")                       # "είμαι" (not εἰμί
 d_mg.lemmatize("εργαλεία")                    # "εργαλείο" (not ἐργαλεῖον)
 d_mg.lemmatize("τα")                          # "ο" (not ὁ)
 ```
+
+### Citation-Form Hygiene
+
+Ancient Greek grave accents are positional in running text, not dictionary
+citation accents. By default, Dilemma rejects grave-accented citation lemmas
+unless replacing the grave with an acute produces an independently attested
+Ancient/Byzantine headword. It also rejects citation candidates with overline
+abbreviation marks or stranded leading combining marks. These are treated as
+bad lemma evidence, not spelling variants to normalize blindly.
+
+For downstream dictionary/headword audits, use `citation_policy="strict_ag"`.
+That policy keeps the default artifact checks and additionally requires AG
+outputs to be backed by the independent headword inventory:
+
+```python
+d = Dilemma(lang="grc", citation_policy="strict_ag")
+
+d.citation_status("οὐρανοστεγὴς", lang="grc")
+# {"normalized": "οὐρανοστεγής", "ok": True, "reason": "grave_to_trusted_headword", ...}
+
+d.citation_status("Παντὸς", lang="grc")
+# {"normalized": None, "ok": False, "reason": "untrusted_grave", ...}
+
+d.citation_status("α̅", lang="grc")
+# {"normalized": None, "ok": False, "reason": "overline", ...}
+```
+
+`strict_ag` can reduce coverage because an unverified candidate becomes
+`None` rather than a guessed headword. It is intended for audit pipelines and
+dictionary lookup surfaces where no lemma is safer than a false citation form.
 
 In the benchmark table, the first two Dilemma rows use the Wiktionary
 convention. The `convention="triantafyllidis"` row auto-enables article
@@ -636,11 +667,9 @@ an additional AG-only lookup pass runs first.
 
 When the transformer handles an unseen form, beam search generates
 multiple candidates and picks the first that matches a known headword
-from the combined filter (Wiktionary self-maps -- which include the
-VLG, Words-in-Progress, and LSJ10 headwords added as self-maps at build
-time -- plus [LSJ9](https://github.com/ciscoriordan/lsj9) headwords
-(119K) and
-[Cunliffe's Homeric Lexicon](https://archive.org/details/lexiconofhomeric0000cunn) (12K)).
+from the citation-safe filter. In default mode that includes validated lookup
+self-maps plus independent Ancient/Byzantine lexicon headwords; with
+`citation_policy="strict_ag"` it uses only the independent headword inventory.
 If nothing matches, the input is returned unchanged. (DGE, LGPN, and the
 Perseus Digital Library lexica feed the build-time lemma-validation and
 spell-check filters, not this runtime output filter.)
@@ -765,8 +794,7 @@ augment patterns (`ἔλυσε` → `λύω`) and MG stem transformations
 `εσκότωσε` have both signals to draw from.
 
 At inference time the decoder runs beam search and the first candidate
-that matches a known headword (Wiktionary self-maps, LSJ9, Cunliffe)
-wins. If nothing matches,
+that matches the citation-safe headword filter wins. If nothing matches,
 the input is returned unchanged rather than guessed at. Inference uses
 ONNX Runtime (~50 MB) by default, with PyTorch as an optional
 alternative; both backends produce identical outputs.
@@ -790,6 +818,9 @@ d_cun = Dilemma(convention="cunliffe")
 
 # Triantafyllidis convention (recommended for MG)
 d_mg = Dilemma(convention="triantafyllidis")
+
+# Strict AG citation validation for audit/dictionary surfaces
+d_audit = Dilemma(lang="grc", citation_policy="strict_ag")
 ```
 
 ### Verbose mode
@@ -839,6 +870,7 @@ Each `LemmaCandidate` has:
 - `via` - how it matched: `"exact"`, `"lower"`, `"elision:ε"`, `"suffix_strip"`, `"augment_strip"`, `"θεο+φθόγγος"`, `"+case_alt"`, etc. For a non-lexical token, the non-lexical class label.
 - `score` - `1.0` for lookup, `0.5` for model, `0.0` for identity fallback
 - `tag` - `"X"` for a non-lexical token, `""` otherwise
+- `citation` - citation-form validation note such as `"trusted_headword"`, `"grave_to_trusted_headword"`, `"modern_greek"`, or `"unchanged"`
 - `is_lexical` - `False` for a non-lexical token (`source == "nonlexical"`), `True` otherwise
 
 ### Non-lexical tokens

@@ -6,6 +6,29 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-09-13
+
+### Fixed
+- Reject overline abbreviation marks and stranded leading combining marks as
+  invalid citation lemmas, matching the existing proof-based grave-accent gate.
+- Apply the same citation-form hygiene while rebuilding `lookup.db`, including
+  late LBG headword and generated-pair additions, so rebuilt lookup artifacts no
+  longer carry grave, overline, or leading-combining citation lemmas.
+- Allow grave-to-acute normalization for trusted single-token independent
+  lexicon headwords only; unproven graves, including multiword grave phrases,
+  remain rejected rather than blindly normalized.
+
+### Changed
+- `scripts/audit_citation_hygiene.py` now separates Greek numeral and final
+  keraia/prime residue from true final elision marks, and reports
+  accepted/rejected citation-status reason counts.
+- Refreshed HuggingFace-pinned `lookup.db` and `spell_index.db` artifacts in
+  `data/hf_manifest.json`.
+
+### Documentation
+- Document `citation_policy="strict_ag"`, `citation_status()`, and the
+  `LemmaCandidate.citation` validation note.
+
 ## [1.2.1] - 2026-09-13
 
 ### Added
@@ -119,6 +142,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.2.2]: https://github.com/open-greek/dilemma/releases/tag/1.2.2
 [1.2.1]: https://github.com/open-greek/dilemma/releases/tag/1.2.1
 [1.2.0]: https://github.com/open-greek/dilemma/releases/tag/1.2.0
 [1.1.0]: https://github.com/open-greek/dilemma/releases/tag/1.1.0
