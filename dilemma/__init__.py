@@ -28,6 +28,7 @@ from .core import (
     to_monotonic,
     grave_to_acute,
     strip_accents,
+    trusted_ag_citation_headwords,
 )
 from .nonlexical import (
     classify_nonlexical,
@@ -80,6 +81,7 @@ __all__ = [
     "to_monotonic",
     "grave_to_acute",
     "strip_accents",
+    "trusted_ag_citation_headwords",
     "classify_nonlexical",
     "is_lexical",
     "NONLEXICAL_CLASSES",

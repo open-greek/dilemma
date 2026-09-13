@@ -26,6 +26,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import sanitize_form  # noqa: E402
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
+from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
 
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
@@ -33,6 +34,8 @@ SPELL_DB_PATH = DATA_DIR / "spell_index.db"
 RAW_DB_PATH = DATA_DIR / "raw_lookups.db"
 
 AG_PATH = DATA_DIR / "ag_lookup.json"
+LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
+CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
 AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
 DGE_HEADWORDS_PATH = DATA_DIR / "dge_headwords.json"
 LGPN_NAMES_PATH = DATA_DIR / "lgpn_names.json"
@@ -65,6 +68,12 @@ LSJGR_BRIDGES_PATH = DATA_DIR / "lsjgr_bridges.json"
 RELATED_LEMMAS_PATH = DATA_DIR / "related_lemmas.json"
 HNC_PAIRS_PATH = DATA_DIR / "hnc_pairs.json"
 
+_TRUSTED_BUILD_HEADWORD_PATHS = (
+    LSJ_HEADWORDS_PATH, LSJ10_HEADWORDS_PATH, LBG_HEADWORDS_PATH,
+    DGE_HEADWORDS_PATH, VLG_HEADWORDS_PATH, CUNLIFFE_HEADWORDS_PATH,
+    PD_HEADWORDS_PATH, WIP_HEADWORDS_PATH,
+)
+
 # The lookup is openly licensed by default: PROIEL (CC BY-NC-SA) is excluded
 # entirely (not even used for evaluation); Perseus (the CC BY-SA AGDT
 # original) is kept; the Gorman treebanks (CC BY-SA 4.0) are deliberately NOT
@@ -83,6 +92,21 @@ def strip_accents(s):
 def _is_self_map(form, lemma):
     return (form == lemma
             or strip_accents(form.lower()) == strip_accents(lemma.lower()))
+
+
+def _has_grave(s: str) -> bool:
+    return "\u0300" in unicodedata.normalize("NFD", s)
+
+
+def _normalize_grave_citation_lemma(lemma: str,
+                                    trusted_targets: set[str]) -> str | None:
+    """Return a citation-safe lemma, or None for an unproven grave value."""
+    if not isinstance(lemma, str) or not _has_grave(lemma):
+        return lemma
+    acute = grave_to_acute(lemma)
+    if acute != lemma and acute in trusted_targets:
+        return acute
+    return None
 
 
 def _load_from_sqlite(table: str) -> dict:
@@ -512,6 +536,15 @@ def build():
         # when the lemma is polytonic AG (ὁ, ὁ̓, ὅ, etc).
         return _has_polytonic(lemma)
 
+    trusted_grave_targets = trusted_ag_citation_headwords(
+        _TRUSTED_BUILD_HEADWORD_PATHS)
+    if trusted_grave_targets:
+        print(f"  Trusted citation headwords for grave repair: "
+              f"{len(trusted_grave_targets):,}")
+    else:
+        print("  Trusted citation headwords unavailable; "
+              "leaving grave lemma validation to runtime")
+
     # Sanitise every form and lemma so a stray combining breathing mark
     # (leading U+0313/U+0314/U+1FBF/U+1FFE, or trailing U+0313/U+0314 used
     # as an apostrophe) cannot leak into lookup.db from any upstream source.
@@ -522,11 +555,22 @@ def build():
         out: dict = {}
         changed = 0
         dropped_elided = 0
+        grave_normalized = 0
+        grave_dropped = 0
         for k, v in table.items():
             sk = sanitize_form(k)
             sv = sanitize_form(v) if isinstance(v, str) else v
             if not sk:
                 continue
+            if trusted_grave_targets and isinstance(sv, str) and _has_grave(sv):
+                safe = _normalize_grave_citation_lemma(
+                    sv, trusted_grave_targets)
+                if safe is None:
+                    grave_dropped += 1
+                    continue
+                if safe != sv:
+                    sv = safe
+                    grave_normalized += 1
             # Elided forms may be encoded with any of several apostrophe
             # codepoints (U+2019 right single quote, U+02BC modifier letter,
             # U+0027 ascii, U+0060 grave, U+02B9 modifier prime). Canonicalize
@@ -561,6 +605,12 @@ def build():
         if dropped_elided:
             print(f"  Dropped {dropped_elided:,} {name} trailing-apostrophe "
                   f"elided forms (resolved via elision layer)")
+        if grave_normalized:
+            print(f"  Normalized {grave_normalized:,} {name} grave citation "
+                  f"lemmas to trusted acute headwords")
+        if grave_dropped:
+            print(f"  Dropped {grave_dropped:,} {name} untrusted grave "
+                  f"citation lemmas")
         return out
 
     print("\nSanitising form-and-lemma tables...")

@@ -35,7 +35,7 @@ import os
 import re
 import sqlite3
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from .nonlexical import classify_nonlexical as _classify_nonlexical
@@ -131,6 +131,7 @@ ATTESTATION_PATH = DATA_DIR / "lemma_attestation.json"
 CONVENTION_DIR = DATA_DIR
 
 _VALID_CONVENTIONS = {None, "lsj", "cunliffe", "triantafyllidis", "wiktionary"}
+_VALID_CITATION_POLICIES = {"default", "strict_ag"}
 
 # Map convention name -> headword file path for auto-derivation.
 # Conventions not listed here use LSJ headwords as fallback.
@@ -152,6 +153,37 @@ _TRUSTED_AG_HEADWORD_PATHS = (
     DGE_HEADWORDS_PATH, VLG_HEADWORDS_PATH, CUNLIFFE_HEADWORDS_PATH,
     PD_HEADWORDS_PATH, WIP_HEADWORDS_PATH,
 )
+
+
+def _without_quantity_marks(word: str) -> str:
+    nfd = unicodedata.normalize("NFD", word)
+    return unicodedata.normalize("NFC", "".join(
+        c for c in nfd if ord(c) not in (0x0304, 0x0306)))
+
+
+def trusted_ag_citation_headwords(
+        paths: tuple[Path, ...] = _TRUSTED_AG_HEADWORD_PATHS) -> set[str]:
+    """Independent AG/Byzantine citation forms trusted for output validation.
+
+    This deliberately excludes the Wiktionary-derived AG headword list: that
+    source is useful for coverage, but it can carry the same citation-form
+    contamination the validator is meant to catch.
+    """
+    targets: set[str] = set()
+    for path in paths:
+        if not path.exists():
+            continue
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        entries = raw.values() if isinstance(raw, dict) else raw
+        for entry in entries:
+            word = entry.get("lemma") if isinstance(entry, dict) else entry
+            if not isinstance(word, str) or not word:
+                continue
+            word = unicodedata.normalize("NFC", word)
+            targets.add(word)
+            targets.add(_without_quantity_marks(word))
+    return targets
 
 
 _POLYTONIC_STRIP = {0x0313, 0x0314, 0x0345, 0x0306, 0x0304}
@@ -299,12 +331,21 @@ class LemmaCandidate:
     tag: str = ""         # UD POS refinement; "X" for a NON-LEXICAL token
                           # (apparatus mark, numeral, ref, abbreviation, siglum)
                           # classified by dilemma.nonlexical. "" otherwise.
+    citation: str = ""    # Citation-form validation note, e.g.
+                          # "trusted_headword", "grave_to_trusted_headword".
 
     @property
     def is_lexical(self) -> bool:
         """False iff this candidate is a NON-LEXICAL token (source
         ``nonlexical``), i.e. not a real word to be lemmatized."""
         return self.source != "nonlexical"
+
+
+@dataclass(frozen=True)
+class _CitationLemmaCheck:
+    lemma: str | None
+    reason: str
+    normalized_from: str = ""
 
 
 def to_monotonic(s: str) -> str:
@@ -904,7 +945,8 @@ class LookupDB:
 class Dilemma:
     def __init__(self, lang="all", device=None, scale=None,
                  resolve_articles=False, normalize=False, period=None,
-                 dialect=None, convention=None, skip_pos=False):
+                 dialect=None, convention=None, skip_pos=False,
+                 citation_policy: str = "default"):
         """Initialize Dilemma.
 
         Args:
@@ -947,15 +989,27 @@ class Dilemma:
                   "triantafyllidis" (remap to Modern Greek monotonic
                   dictionary forms, using MG Wiktionary headwords as
                   reference).
+            citation_policy: "default" preserves Dilemma's broad lookup/model
+                  coverage while rejecting unproven grave-accent citation
+                  lemmas. "strict_ag" additionally requires Ancient/Byzantine
+                  Greek citation outputs to be independently headword-backed;
+                  use it for dictionary/headword audits where no lemma is
+                  better than an unverified guessed citation form.
         """
         if convention not in _VALID_CONVENTIONS:
             raise ValueError(
                 f"Unknown convention {convention!r}. "
                 f"Valid values: {sorted(c for c in _VALID_CONVENTIONS if c)}, or None."
             )
+        if citation_policy not in _VALID_CITATION_POLICIES:
+            raise ValueError(
+                f"Unknown citation_policy {citation_policy!r}. "
+                f"Valid values: {sorted(_VALID_CITATION_POLICIES)}."
+            )
         if lang == "both":
             lang = "all"
         self.lang = lang
+        self._citation_policy = citation_policy
         self._scale = scale
         # Triantafyllidis convention always needs article resolution:
         # MG text lemmatizes articles to ο, pronouns to αυτός, etc.
@@ -1359,26 +1413,79 @@ class Dilemma:
         if self._trusted_grave_targets is not None:
             return self._trusted_grave_targets
 
-        targets: set[str] = set()
-        for path in _TRUSTED_AG_HEADWORD_PATHS:
-            if not path.exists():
-                continue
-            with open(path, encoding="utf-8") as f:
-                raw = json.load(f)
-            entries = raw.values() if isinstance(raw, dict) else raw
-            for entry in entries:
-                word = entry.get("lemma") if isinstance(entry, dict) else entry
-                if not isinstance(word, str) or not word:
-                    continue
-                word = unicodedata.normalize("NFC", word)
-                targets.add(word)
-                nfd = unicodedata.normalize("NFD", word)
-                stripped = unicodedata.normalize("NFC", "".join(
-                    c for c in nfd if ord(c) not in (0x0304, 0x0306)))
-                targets.add(stripped)
+        self._trusted_grave_targets = trusted_ag_citation_headwords()
+        return self._trusted_grave_targets
 
-        self._trusted_grave_targets = targets
-        return targets
+    def _strict_ag_citation_applies(self, lang: str = "",
+                                    source: str = "") -> bool:
+        """Whether this candidate must be independently AG-headword-backed."""
+        if self._citation_policy != "strict_ag":
+            return False
+        if source == "nonlexical":
+            return False
+        if self._convention_name == "triantafyllidis":
+            return False
+        if self.lang == "el" or lang == "el":
+            return False
+        return self.lang in ("all", "grc")
+
+    def _check_citation_lemma(self, lemma: str | None, *,
+                              lang: str = "", source: str = "",
+                              strict: bool | None = None
+                              ) -> _CitationLemmaCheck:
+        """Validate/normalize a candidate citation lemma.
+
+        The default policy only blocks grave-accented citation forms unless the
+        corresponding acute spelling is independently attested as a headword.
+        The strict AG policy also requires Greek citation lemmas to be backed by
+        the same independent AG/Byzantine headword inventory.
+        """
+        if not lemma:
+            return _CitationLemmaCheck(None, "empty")
+
+        original = unicodedata.normalize("NFC", lemma)
+        checked = original
+        reason = "unchanged"
+
+        if "\u0300" in unicodedata.normalize("NFD", checked):
+            acute = grave_to_acute(checked)
+            if acute != checked and acute in self._trusted_grave_citation_targets():
+                checked = acute
+                reason = "grave_to_trusted_headword"
+            else:
+                return _CitationLemmaCheck(
+                    None, "untrusted_grave", normalized_from=original)
+
+        if strict is None:
+            strict = self._strict_ag_citation_applies(lang, source)
+        if not strict:
+            return _CitationLemmaCheck(
+                checked, reason,
+                normalized_from=original if checked != original else "")
+
+        # Non-Greek passthrough and explicit nonlexical classifications are not
+        # citation lemmas, so strict AG headword validation does not apply.
+        has_greek = any(0x0370 <= ord(c) <= 0x03ff
+                        or 0x1f00 <= ord(c) <= 0x1fff for c in checked)
+        if not has_greek or source == "nonlexical":
+            return _CitationLemmaCheck(
+                checked, "nonlexical" if source == "nonlexical" else "non_greek",
+                normalized_from=original if checked != original else "")
+
+        if self.lang in ("all", "el") and self._is_mg_citation_form(checked):
+            return _CitationLemmaCheck(
+                checked, "modern_greek",
+                normalized_from=original if checked != original else "")
+
+        if checked in self._trusted_grave_citation_targets():
+            strict_reason = (reason if reason != "unchanged"
+                             else "trusted_headword")
+            return _CitationLemmaCheck(
+                checked, strict_reason,
+                normalized_from=original if checked != original else "")
+
+        return _CitationLemmaCheck(
+            None, "untrusted_headword", normalized_from=original)
 
     def _normalize_grave_citation_lemma(self, lemma: str) -> str | None:
         """Return a citation-safe lemma, or None for an unproven grave value.
@@ -1388,14 +1495,45 @@ class Dilemma:
         acute spelling is a headword in an independent lexicon inventory.
         Otherwise the candidate is treated as a bad lookup/model value.
         """
-        if "\u0300" not in unicodedata.normalize("NFD", lemma):
-            return lemma
-        acute = grave_to_acute(lemma)
-        if acute != lemma and acute in self._trusted_grave_citation_targets():
-            return acute
-        return None
+        return self._check_citation_lemma(lemma, strict=False).lemma
 
-    def _apply_convention(self, lemma: str) -> str | None:
+    def _apply_convention_check(self, lemma: str | None, *,
+                                lang: str = "", source: str = ""
+                                ) -> _CitationLemmaCheck:
+        """Apply convention remapping and citation-form validation."""
+        check = self._check_citation_lemma(
+            lemma, lang=lang, source=source, strict=False)
+        if check.lemma is None:
+            return check
+
+        lemma = check.lemma
+        convention_changed = False
+        before = lemma
+        if self._convention_map:
+            lemma = self._convention_map.get(lemma, lemma)
+        if self._convention_name == "lsj":
+            lemma = self._lsj_adverb_neuter_remap(lemma)
+        if self._convention_monotonic:
+            lemma = to_monotonic(lemma)
+        convention_changed = lemma != before
+
+        final = self._check_citation_lemma(lemma, lang=lang, source=source)
+        if final.lemma is None:
+            return final
+        if check.reason != "unchanged" and final.reason in (
+                "unchanged", "trusted_headword"):
+            return _CitationLemmaCheck(
+                final.lemma, check.reason,
+                normalized_from=check.normalized_from)
+        if convention_changed and final.reason in ("unchanged",
+                                                   "trusted_headword"):
+            return _CitationLemmaCheck(
+                final.lemma, "convention",
+                normalized_from=check.normalized_from or before)
+        return final
+
+    def _apply_convention(self, lemma: str | None, *,
+                          lang: str = "", source: str = "") -> str | None:
         """Remap a lemma according to the active convention.
 
         For monotonic conventions (e.g. triantafyllidis), the result is
@@ -1406,16 +1544,26 @@ class Dilemma:
         (-ον/-όν) that aren't LSJ headwords are mapped to their adjective
         headword, since LSJ files these as sub-entries under the adjective.
         """
-        lemma = self._normalize_grave_citation_lemma(lemma)
-        if lemma is None:
-            return None
-        if self._convention_map:
-            lemma = self._convention_map.get(lemma, lemma)
-        if self._convention_name == "lsj":
-            lemma = self._lsj_adverb_neuter_remap(lemma)
-        if self._convention_monotonic:
-            lemma = to_monotonic(lemma)
-        return self._normalize_grave_citation_lemma(lemma)
+        return self._apply_convention_check(
+            lemma, lang=lang, source=source).lemma
+
+    def citation_status(self, lemma: str, *, lang: str = "",
+                        source: str = "") -> dict[str, str | bool | None]:
+        """Explain whether a lemma is safe to emit as a citation form.
+
+        The returned ``normalized`` value is the lemma Dilemma would emit after
+        grave repair and convention mapping, or ``None`` if this instance's
+        citation policy would reject it.
+        """
+        check = self._apply_convention_check(lemma, lang=lang, source=source)
+        return {
+            "lemma": lemma,
+            "normalized": check.lemma,
+            "ok": check.lemma is not None,
+            "reason": check.reason,
+            "normalized_from": check.normalized_from or None,
+            "policy": self._citation_policy,
+        }
 
     def _lsj_adverb_neuter_remap(self, lemma: str) -> str:
         """Map adverbs and neuter adjectives to LSJ adjective headwords.
@@ -2919,6 +3067,7 @@ class Dilemma:
         # lookup candidate, so junk here becomes the output. Skip such
         # entries (the builders filter them too; this guards stale data).
         def _usable(lemma: str | None) -> bool:
+            lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
             return bool(lemma) and not _is_elided_junk_value(lemma) \
                 and "̅" not in unicodedata.normalize("NFD", lemma)
 
@@ -2931,14 +3080,14 @@ class Dilemma:
                 pos_entry = self._pos_ag_lookup.get(variant)
                 if pos_entry and upos in pos_entry \
                         and _usable(pos_entry[upos]):
-                    return pos_entry[upos]
+                    return self._normalize_grave_citation_lemma(pos_entry[upos])
 
         # Combined POS lookup
         for variant in variants:
             pos_entry = self._pos_lookup.get(variant)
             if pos_entry and upos in pos_entry \
                     and _usable(pos_entry[upos]):
-                return pos_entry[upos]
+                return self._normalize_grave_citation_lemma(pos_entry[upos])
 
         return None
 
@@ -3397,9 +3546,11 @@ class Dilemma:
         seen = set()  # track (lemma_lower, lang) to avoid exact dupes
 
         def _add(lemma, lang="", source="", via="", score=1.0, tag=""):
-            lemma = self._normalize_grave_citation_lemma(lemma)
-            if lemma is None:
+            check = self._apply_convention_check(
+                lemma, lang=lang, source=source)
+            if check.lemma is None:
                 return
+            lemma = check.lemma
             key = (lemma, lang)
             if key not in seen:
                 seen.add(key)
@@ -3411,6 +3562,7 @@ class Dilemma:
                     score=score,
                     via=via,
                     tag=tag,
+                    citation=check.reason,
                 ))
 
         # 0. Digit-only passthrough
@@ -3682,14 +3834,19 @@ class Dilemma:
         # Sort: non-proper before proper, then by score descending
         candidates.sort(key=lambda c: (c.proper, -c.score))
 
-        # Apply convention remapping
-        if self._convention_map:
+        # Dedupe after convention/citation normalization. _add() already applies
+        # this, but the pass is cheap and keeps older in-place mutations honest.
+        if self._convention_map or self._convention_name == "lsj" \
+                or self._convention_monotonic or self._citation_policy != "default":
             seen_remapped = set()
             remapped = []
             for c in candidates:
-                c.lemma = self._apply_convention(c.lemma)
-                if c.lemma is None:
+                check = self._apply_convention_check(
+                    c.lemma, lang=c.lang, source=c.source)
+                if check.lemma is None:
                     continue
+                c.lemma = check.lemma
+                c.citation = check.reason
                 key = (c.lemma, c.lang)
                 if key not in seen_remapped:
                     seen_remapped.add(key)
@@ -4382,28 +4539,63 @@ class Dilemma:
                            -self._get_frequency(x[0]), x[0]),
         )
 
+    def _model_headword_set(self) -> set[str]:
+        """Headword inventory used to constrain model fallback candidates."""
+        strict = self._strict_ag_citation_applies(source="model")
+        cache_name = ("_strict_model_headwords" if strict
+                      else "_model_headwords")
+        cached = getattr(self, cache_name, None)
+        if cached is not None:
+            return cached
+
+        if strict:
+            headwords = set(self._trusted_grave_citation_targets())
+        else:
+            headwords = set(self._trusted_grave_citation_targets())
+            # Broad default mode keeps Wiktionary/self-map coverage, but still
+            # runs every lookup-derived headword through the grave citation gate.
+            for k, v in self._lookup.items():
+                if k != v:
+                    continue
+                checked = self._normalize_grave_citation_lemma(v)
+                if checked:
+                    headwords.add(checked)
+
+        setattr(self, cache_name, headwords)
+        return headwords
+
+    def _accepted_model_candidate(self, candidate: str) -> str | None:
+        """Return the validated headword spelling for a model beam, if any."""
+        if not candidate:
+            return None
+        headwords = self._model_headword_set()
+        strict = self._strict_ag_citation_applies(source="model")
+        variants = (
+            candidate,
+            candidate.lower(),
+            to_monotonic(candidate),
+            to_monotonic(candidate).lower(),
+            candidate[0].upper() + candidate[1:],
+        )
+        for variant in variants:
+            check = self._check_citation_lemma(
+                variant, source="model", strict=strict)
+            if check.lemma and check.lemma in headwords:
+                return check.lemma
+        return None
+
     def _predict(self, words: list[str], num_beams=4) -> list[str]:
         """Run model inference with beam search + headword filtering.
 
         Generates multiple candidates via beam search. Picks the
-        highest-scoring candidate that is a known headword in the
-        lookup table. If no candidate is a headword, returns the
-        input word unchanged (better than a confidently wrong answer).
+        highest-scoring candidate that validates as a known citation
+        headword. If no candidate is a headword, returns the input word
+        unchanged (better than a confidently wrong answer).
 
         Works with both PyTorch and ONNX backends transparently.
         """
         if not words:
             return []
-
-        # Build headword set on first use (Wiktionary self-maps + LSJ + Cunliffe)
-        if not hasattr(self, "_headwords") or self._headwords is None:
-            self._headwords = {k for k, v in self._lookup.items() if k == v}
-            if LSJ_HEADWORDS_PATH.exists():
-                with open(LSJ_HEADWORDS_PATH, encoding="utf-8") as f:
-                    self._headwords |= set(json.load(f))
-            if CUNLIFFE_HEADWORDS_PATH.exists():
-                with open(CUNLIFFE_HEADWORDS_PATH, encoding="utf-8") as f:
-                    self._headwords |= set(json.load(f))
 
         max_len = max(len(w) for w in words) + 1
         src_ids = []
@@ -4448,12 +4640,8 @@ class Dilemma:
                 decoded = [self._vocab.decode(ids) for ids, score in candidates]
             chosen = None
             for d in decoded:
-                # Check headword with normalization cascade
-                if any(v in self._headwords for v in (
-                    d, d.lower(), to_monotonic(d), to_monotonic(d).lower(),
-                    d[0].upper() + d[1:] if d else d,
-                ) if v):
-                    chosen = d
+                chosen = self._accepted_model_candidate(d)
+                if chosen:
                     break
             if chosen is None:
                 chosen = words[i]

@@ -120,6 +120,37 @@ class TestGraveCitationLemmas:
             assert all(not _has_grave(c.lemma)
                        for c in d.lemmatize_verbose(form, guess=False))
 
+    def test_citation_status_reports_grave_proof(self):
+        d = Dilemma(lang="grc", skip_pos=True)
+        backed = d.citation_status("οὐρανοστεγὴς", lang="grc")
+        assert backed["ok"] is True
+        assert backed["normalized"] == "οὐρανοστεγής"
+        assert backed["reason"] == "grave_to_trusted_headword"
+
+        unbacked = d.citation_status("Παντὸς", lang="grc")
+        assert unbacked["ok"] is False
+        assert unbacked["normalized"] is None
+        assert unbacked["reason"] == "untrusted_grave"
+
+    def test_strict_ag_policy_constrains_model_outputs(self, monkeypatch):
+        d = Dilemma(lang="grc", citation_policy="strict_ag", skip_pos=True)
+        assert d.lemmatize("Μαθουσάλα", guess=False) is None
+        assert d.lemmatize_batch(["Μαθουσάλα"], guess=False) == [None]
+        assert d.lemmatize_verbose("Μαθουσάλα", guess=False) == []
+
+        monkeypatch.setattr(d, "_load_model", lambda: None)
+
+        monkeypatch.setattr(d, "_predict", lambda words: ["ξζψχβγ"])
+        assert d.lemmatize("ξυζβαρκω") is None
+
+        monkeypatch.setattr(d, "_predict", lambda words: ["λόγος"])
+        assert d.lemmatize("ξυζβαρκω") == "λόγος"
+
+        candidates = d.lemmatize_verbose("ξυζβαρκω")
+        assert candidates[0].lemma == "λόγος"
+        assert candidates[0].source == "model"
+        assert candidates[0].citation == "trusted_headword"
+
 
 class TestGormanHoldout:
     """The Gorman treebanks are the project's HELD-OUT GOLD corpus
