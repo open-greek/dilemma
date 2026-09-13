@@ -857,6 +857,12 @@ def build():
         if form in combined and combined[form] != lemma:
             combined[form] = lemma
             override_count += 1
+        elif form == "μήτ" and form not in combined:
+            # The citation-hygiene sanitizer drops the dirty μὴτ value before
+            # overrides run. Keep the clean bare elided stem as an explicit
+            # bridge to μήτε, matching the other apostrophe-tokenized stems.
+            combined[form] = lemma
+            override_count += 1
         # Also fix in ag dict for the grc-only table
         if form in ag and ag[form] != lemma:
             ag[form] = lemma
