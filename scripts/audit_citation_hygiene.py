@@ -43,11 +43,15 @@ def _flags(lemma: str) -> list[str]:
     if lemma and lemma[-1] in KERAIA_OR_PRIME_MARKS:
         if nonlexical == "numeral":
             flags.append("greek_numeral")
+        elif nonlexical:
+            flags.append("nonlexical_keraia_or_prime")
         else:
             flags.append("final_keraia_or_prime")
     elif lemma and lemma[-1] in SPACING_ELISION_MARKS:
         if nonlexical == "numeral":
             flags.append("greek_numeral")
+        elif nonlexical:
+            flags.append("nonlexical_elision_mark")
         else:
             flags.append("final_elision_mark")
     if "\u0305" in nfd:

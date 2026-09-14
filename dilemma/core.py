@@ -41,6 +41,7 @@ from pathlib import Path
 from .nonlexical import classify_nonlexical as _classify_nonlexical
 from .nonlexical import is_lexical as _is_lexical
 from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
+from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 
 
 def _newest_marker_mtime(d: Path, markers):
@@ -167,6 +168,21 @@ def _starts_with_combining_mark(word: str) -> bool:
 
 def _has_overline_mark(word: str) -> bool:
     return "\u0305" in unicodedata.normalize("NFD", word)
+
+
+_CITATION_FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",
+                                 "\u1fbf", "\u0313", "\u0314"}
+_CITATION_FINAL_KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
+
+
+def _citation_final_mark_reason(word: str) -> str | None:
+    if not word:
+        return None
+    if word[-1] in _CITATION_FINAL_KERAIA_OR_PRIME_MARKS:
+        return "final_keraia_or_prime"
+    if word[-1] in _CITATION_FINAL_ELISION_MARKS:
+        return "final_elision_mark"
+    return None
 
 
 def trusted_ag_citation_headwords(
@@ -663,15 +679,13 @@ def _is_elided_junk_value(lemma: str) -> bool:
         and unicodedata.category(lemma[-1]) != "Mn"
 
 
-def _is_marked_numeral(word: str) -> bool:
-    """True iff ``word`` is a NON-LEXICAL token ending in a spacing mark the
-    elision machinery would otherwise strip (ιβʹ, κζ’). These must be
-    classified before elision runs, or the expander manufactures a word from
-    the numeral (ιβʹ -> ἶβις). Combining-psili elisions (σφ̓, γ̓) never match:
-    the final-mark test requires a spacing character."""
-    return bool(word) and word[-1] in _ELISION_MARKS \
-        and unicodedata.category(word[-1]) != "Mn" \
-        and _classify_nonlexical(word) is not None
+def _is_explicit_numeral(word: str) -> bool:
+    """True iff ``word`` is structurally an explicitly marked Greek numeral.
+
+    This includes lower-keraia thousands forms (͵α) that do not end in a mark
+    but still must be claimed before elision expansion can invent a word.
+    """
+    return _classify_nonlexical(word) == _NONLEXICAL_NUMERAL
 
 
 def _is_consonant_psili_elision(word: str) -> bool:
@@ -1472,6 +1486,11 @@ class Dilemma:
         if _has_overline_mark(checked):
             return _CitationLemmaCheck(
                 None, "overline", normalized_from=original)
+
+        final_mark_reason = _citation_final_mark_reason(checked)
+        if final_mark_reason:
+            return _CitationLemmaCheck(
+                None, final_mark_reason, normalized_from=original)
 
         if "\u0300" in unicodedata.normalize("NFD", checked):
             acute = grave_to_acute(checked)
@@ -2899,10 +2918,10 @@ class Dilemma:
         # rule misfires on diphthongs that carry a breathing on the second
         # vowel (οὐ, εἰ) and would wrongly discard those correct lookups.
         #
-        # Marked numerals (ιβʹ, κζ’) are classified NON-LEXICAL before any of
-        # this machinery runs: their trailing keraia/apostrophe would
-        # otherwise be stripped and vowel-expanded into a word (ιβʹ -> ἶβις).
-        if _is_marked_numeral(word):
+        # Explicit numerals (͵α, ιβʹ, κζ’) are classified NON-LEXICAL before
+        # any of this machinery runs: their thousands/keraia/apostrophe marks
+        # would otherwise be stripped or vowel-expanded into a word.
+        if _is_explicit_numeral(word):
             return word
         if not _is_consonant_psili_elision(word):
             lemma = self._lookup_word(word)
@@ -3612,10 +3631,10 @@ class Dilemma:
             _add(cr, source="crasis")
             return candidates
 
-        # 2.4 Marked numerals (ιβʹ, κζ’) — classified NON-LEXICAL before the
-        #     elision machinery can strip their mark and expand them into
-        #     words (ιβʹ -> ἶβις); matches lemmatize().
-        if _is_marked_numeral(word):
+        # 2.4 Explicit numerals (͵α, ιβʹ, κζ’) — classified NON-LEXICAL before
+        #     elision can strip/expand their marks into words; matches
+        #     lemmatize().
+        if _is_explicit_numeral(word):
             _add(word, source="nonlexical", via=_classify_nonlexical(word),
                  score=0.0, tag=_NONLEXICAL_POS)
             return candidates
@@ -3930,10 +3949,9 @@ class Dilemma:
                 results.append(cr)
                 continue
 
-            # Marked numerals (ιβʹ, κζ’) pass through before the elision
-            # machinery can strip their mark and expand them into words
-            # (ιβʹ -> ἶβις) — matches lemmatize().
-            if _is_marked_numeral(word):
+            # Explicit numerals (͵α, ιβʹ, κζ’) pass through before elision can
+            # strip/expand their marks into words; matches lemmatize().
+            if _is_explicit_numeral(word):
                 results.append(word)
                 continue
 
@@ -4055,7 +4073,20 @@ class Dilemma:
         # Apply convention remapping and citation-form validation to all
         # results. This always runs, even without a named convention, because
         # lookup/model artifacts can contain non-citation grave lemmas.
-        results = [self._apply_convention(r) if r else r for r in results]
+        remapped_results = []
+        for original, result in zip(words, results):
+            if not result:
+                remapped_results.append(result)
+                continue
+            source = ""
+            normalized_original = unicodedata.normalize("NFC", original)
+            normalized_original = to_standard_sigma(normalized_original)
+            if (result == normalized_original
+                    and _classify_nonlexical(normalized_original) is not None):
+                source = "nonlexical"
+            remapped_results.append(
+                self._apply_convention(result, source=source))
+        results = remapped_results
 
         # Attested-only gate: null out words whose surface form is unattested.
         # (Digits / empty pass through; they are not Greek forms.)

@@ -673,7 +673,7 @@ class TestMarkedNumerals:
         assert d_all.lemmatize(numeral) == numeral
         assert d_all.lemmatize_batch([numeral]) == [numeral]
 
-    @pytest.mark.parametrize("numeral", ["ιβʹ", "κζ’", "ρκʹ"])
+    @pytest.mark.parametrize("numeral", ["͵α", "͵αʹ", "ιβʹ", "κζ’", "ρκʹ"])
     def test_numeral_passthrough(self, d_all, numeral):
         assert d_all.lemmatize(numeral) == numeral
         assert d_all.lemmatize(numeral, guess=False) == numeral

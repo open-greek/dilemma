@@ -27,6 +27,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import sanitize_form  # noqa: E402
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
+from dilemma.nonlexical import classify_nonlexical  # noqa: E402
 
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
@@ -98,6 +99,11 @@ def _has_grave(s: str) -> bool:
     return "\u0300" in unicodedata.normalize("NFD", s)
 
 
+_FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",
+                        "\u1fbf", "\u0313", "\u0314"}
+_FINAL_KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
+
+
 def _normalize_grave_citation_lemma(lemma: str,
                                     trusted_targets: set[str]) -> str | None:
     """Return a citation-safe lemma, or None for an unproven grave value."""
@@ -117,6 +123,16 @@ def _citation_artifact_reason(lemma: str) -> str | None:
         return "leading_combining"
     if "\u0305" in unicodedata.normalize("NFD", lemma):
         return "overline"
+    if lemma[-1] in _FINAL_KERAIA_OR_PRIME_MARKS:
+        nonlexical = classify_nonlexical(lemma)
+        if nonlexical:
+            return f"nonlexical_{nonlexical}"
+        return "final_keraia_or_prime"
+    if lemma[-1] in _FINAL_ELISION_MARKS:
+        nonlexical = classify_nonlexical(lemma)
+        if nonlexical:
+            return f"nonlexical_{nonlexical}"
+        return "final_elision_mark"
     return None
 
 

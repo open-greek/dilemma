@@ -155,6 +155,16 @@ class TestGraveCitationLemmas:
         assert leading["normalized"] is None
         assert leading["reason"] == "leading_combining"
 
+        final_elision = d.citation_status("Δ᾽", lang="grc")
+        assert final_elision["ok"] is False
+        assert final_elision["normalized"] is None
+        assert final_elision["reason"] == "final_elision_mark"
+
+        final_keraia = d.citation_status("Αμηνʹ", lang="grc")
+        assert final_keraia["ok"] is False
+        assert final_keraia["normalized"] is None
+        assert final_keraia["reason"] == "final_keraia_or_prime"
+
         numeral = d.citation_status("͵αʹ", lang="grc",
                                     source="nonlexical")
         assert numeral["ok"] is True

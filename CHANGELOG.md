@@ -6,6 +6,22 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Reject final elision marks and final keraia/prime marks as citation lemmas,
+  while preserving explicit numeral and other nonlexical pass-through tokens.
+- Rebuild lookup artifacts without final-elision, final-keraia/prime, or
+  nonlexical numeral/siglum values in the lemma table.
+
+### Changed
+- `scripts/audit_citation_hygiene.py` now separates nonlexical mark-bearing
+  tokens from rejected citation-lemma residue, so the final-keraia bucket only
+  reports unresolved citation artifacts.
+
+### Tests
+- Add a citation-hygiene audit guard for the generated lookup artifact so
+  grave, overline, leading-combining, final-elision, and final-keraia citation
+  residue cannot silently re-enter CI.
+
 ## [1.2.2] - 2026-09-13
 
 ### Fixed
