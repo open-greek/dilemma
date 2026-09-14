@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-09-14
+
 ### Fixed
 - Reject final elision marks and final keraia/prime marks as citation lemmas,
   while preserving explicit numeral and other nonlexical pass-through tokens.
@@ -158,6 +160,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.2.3]: https://github.com/open-greek/dilemma/releases/tag/1.2.3
 [1.2.2]: https://github.com/open-greek/dilemma/releases/tag/1.2.2
 [1.2.1]: https://github.com/open-greek/dilemma/releases/tag/1.2.1
 [1.2.0]: https://github.com/open-greek/dilemma/releases/tag/1.2.0
