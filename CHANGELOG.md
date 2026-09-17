@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-09-16
+
 ### Fixed
 - Reject citation lemmas whose tonal accents are structurally impossible:
   duplicate tonal marks on one vowel or tonal marks attached to a non-vowel.
@@ -175,6 +177,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.2.4]: https://github.com/open-greek/dilemma/releases/tag/1.2.4
 [1.2.3]: https://github.com/open-greek/dilemma/releases/tag/1.2.3
 [1.2.2]: https://github.com/open-greek/dilemma/releases/tag/1.2.2
 [1.2.1]: https://github.com/open-greek/dilemma/releases/tag/1.2.1
