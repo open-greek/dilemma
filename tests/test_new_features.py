@@ -165,6 +165,26 @@ class TestGraveCitationLemmas:
         assert final_keraia["normalized"] is None
         assert final_keraia["reason"] == "final_keraia_or_prime"
 
+        duplicate_tonal = d.citation_status("Λεοντί́δης", lang="grc")
+        assert duplicate_tonal["ok"] is False
+        assert duplicate_tonal["normalized"] is None
+        assert duplicate_tonal["reason"] == "duplicate_tonal_marks"
+
+        orphaned_tonal = d.citation_status("Λασθέ ́νεια", lang="grc")
+        assert orphaned_tonal["ok"] is False
+        assert orphaned_tonal["normalized"] is None
+        assert orphaned_tonal["reason"] == "orphaned_tonal_mark"
+
+        legitimate_multiple = d.citation_status(
+            "Γοργόνωτος ἀσπίδος κύκλος", lang="grc")
+        assert legitimate_multiple["ok"] is True
+        assert legitimate_multiple["normalized"] == (
+            "Γοργόνωτος ἀσπίδος κύκλος")
+
+        latin_accent = d.citation_status("café", lang="grc")
+        assert latin_accent["ok"] is True
+        assert latin_accent["normalized"] == "café"
+
         numeral = d.citation_status("͵αʹ", lang="grc",
                                     source="nonlexical")
         assert numeral["ok"] is True

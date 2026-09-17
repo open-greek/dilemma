@@ -42,6 +42,7 @@ from .nonlexical import classify_nonlexical as _classify_nonlexical
 from .nonlexical import is_lexical as _is_lexical
 from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
+from .citation import malformed_tonal_reason as _malformed_tonal_reason
 
 
 def _newest_marker_mtime(d: Path, markers):
@@ -1486,6 +1487,11 @@ class Dilemma:
         if _has_overline_mark(checked):
             return _CitationLemmaCheck(
                 None, "overline", normalized_from=original)
+
+        tonal_reason = _malformed_tonal_reason(checked)
+        if tonal_reason:
+            return _CitationLemmaCheck(
+                None, tonal_reason, normalized_from=original)
 
         final_mark_reason = _citation_final_mark_reason(checked)
         if final_mark_reason:

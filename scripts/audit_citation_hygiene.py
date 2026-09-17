@@ -24,10 +24,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from dilemma.core import DATA_DIR, LOOKUP_DB_PATH, Dilemma  # noqa: E402
+from dilemma.citation import TONAL_MARKS, malformed_tonal_reason  # noqa: E402
 from dilemma.nonlexical import classify_nonlexical  # noqa: E402
 
 
-TONAL_MARKS = {"\u0301", "\u0300", "\u0342"}
 SPACING_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`"}
 KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
 
@@ -56,6 +56,9 @@ def _flags(lemma: str) -> list[str]:
             flags.append("final_elision_mark")
     if "\u0305" in nfd:
         flags.append("overline")
+    malformed_tonal = malformed_tonal_reason(lemma)
+    if malformed_tonal:
+        flags.append(malformed_tonal)
     if sum(1 for ch in nfd if ch in TONAL_MARKS) > 1:
         flags.append("multiple_tonal_accents")
     return flags

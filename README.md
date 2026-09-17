@@ -335,8 +335,11 @@ Ancient Greek grave accents are positional in running text, not dictionary
 citation accents. By default, Dilemma rejects grave-accented citation lemmas
 unless replacing the grave with an acute produces an independently attested
 Ancient/Byzantine headword. It also rejects citation candidates with overline
-abbreviation marks or stranded leading combining marks. These are treated as
-bad lemma evidence, not spelling variants to normalize blindly.
+abbreviation marks, stranded combining marks, final elision/keraia marks, or
+structurally impossible accent placement (a tonal mark on a non-vowel or two
+tonal marks on one vowel). Multiple accents across a phrase or
+enclitic-bearing form are not rejected merely for being multiple. These are
+treated as bad lemma evidence, not spelling variants to normalize blindly.
 
 For downstream dictionary/headword audits, use `citation_policy="strict_ag"`.
 That policy keeps the default artifact checks and additionally requires AG
@@ -358,6 +361,10 @@ d.citation_status("α̅", lang="grc")
 `strict_ag` can reduce coverage because an unverified candidate becomes
 `None` rather than a guessed headword. It is intended for audit pipelines and
 dictionary lookup surfaces where no lemma is safer than a false citation form.
+`python scripts/audit_citation_hygiene.py` audits the built database. Each
+lookup rebuild also writes `data/citation_hygiene_rejections.tsv`, whose
+entries retain the source input, table, form, lemma, and rejection reason for
+every citation value removed by the build-time gate.
 
 In the benchmark table, the first two Dilemma rows use the Wiktionary
 convention. The `convention="triantafyllidis"` row auto-enables article

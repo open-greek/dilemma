@@ -15,6 +15,7 @@ Usage:
     python build_lookup_db.py
 """
 
+import csv
 import json
 import sqlite3
 import sys
@@ -25,6 +26,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import sanitize_form  # noqa: E402
+from dilemma.citation import malformed_tonal_reason  # noqa: E402
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
 from dilemma.nonlexical import classify_nonlexical  # noqa: E402
@@ -33,6 +35,7 @@ DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
 SPELL_DB_PATH = DATA_DIR / "spell_index.db"
 RAW_DB_PATH = DATA_DIR / "raw_lookups.db"
+CITATION_REJECTIONS_PATH = DATA_DIR / "citation_hygiene_rejections.tsv"
 
 AG_PATH = DATA_DIR / "ag_lookup.json"
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
@@ -123,6 +126,9 @@ def _citation_artifact_reason(lemma: str) -> str | None:
         return "leading_combining"
     if "\u0305" in unicodedata.normalize("NFD", lemma):
         return "overline"
+    tonal_reason = malformed_tonal_reason(lemma)
+    if tonal_reason:
+        return tonal_reason
     if lemma[-1] in _FINAL_KERAIA_OR_PRIME_MARKS:
         nonlexical = classify_nonlexical(lemma)
         if nonlexical:
@@ -158,7 +164,8 @@ def _load_from_json(path: Path) -> dict:
         return json.load(f)
 
 
-def _load_lookup(table: str, json_path: Path, label: str) -> dict:
+def _load_lookup(table: str, json_path: Path,
+                 label: str) -> tuple[dict, str]:
     """Load lookup, preferring whichever source has more entries.
 
     raw_lookups.db has base Wiktionary entries (~2.36M AG), while the
@@ -175,28 +182,53 @@ def _load_lookup(table: str, json_path: Path, label: str) -> dict:
             print(f"  {label}: {len(json_data):,} entries from JSON "
                   f"(preferred over SQLite's {len(sqlite_data):,}) "
                   f"({time.time()-t0:.1f}s)")
-            return json_data
+            return json_data, json_path.name
         else:
             print(f"  {label}: {len(sqlite_data):,} entries from SQLite ({time.time()-t0:.1f}s)")
-            return sqlite_data
+            return sqlite_data, f"{RAW_DB_PATH.name}:{table}"
     elif sqlite_data:
         print(f"  {label}: {len(sqlite_data):,} entries from SQLite ({time.time()-t0:.1f}s)")
-        return sqlite_data
+        return sqlite_data, f"{RAW_DB_PATH.name}:{table}"
     elif json_data:
         print(f"  {label}: {len(json_data):,} entries from JSON ({time.time()-t0:.1f}s)")
-        return json_data
+        return json_data, json_path.name
     else:
         print(f"  {label}: no data found")
-        return {}
+        return {}, f"{RAW_DB_PATH.name}:{table}|{json_path.name}"
+
+
+def _write_citation_rejection_report(rejections: list[dict],
+                                     path: Path = CITATION_REJECTIONS_PATH
+                                     ) -> None:
+    """Write deterministic source-aware diagnostics for rejected lemmas."""
+    ordered = sorted(
+        rejections,
+        key=lambda item: (
+            item["source"], item["reason"], item["table"],
+            item["lemma"], item["form"],
+        ),
+    )
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=("table", "source", "reason", "form", "lemma"),
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(ordered)
 
 
 def build():
     t0 = time.time()
 
     print("Loading lookup tables...")
-    ag = _load_lookup("ag", AG_PATH, "AG")
-    el = _load_lookup("mg", MG_PATH, "MG")
-    med = _load_lookup("med", MED_PATH, "Med")
+    ag, ag_default_source = _load_lookup("ag", AG_PATH, "AG")
+    el, el_default_source = _load_lookup("mg", MG_PATH, "MG")
+    med, med_default_source = _load_lookup("med", MED_PATH, "Med")
+    ag_source_overrides: dict[str, str] = {}
+    el_source_overrides: dict[str, str] = {}
+    citation_rejections: list[dict] = []
 
     # Merge med into el: vernacular medieval Greek is the ancestor of
     # Modern Greek, and EL Wiktionary's "Medieval Greek" category contains
@@ -205,6 +237,7 @@ def build():
     for k, v in med.items():
         if k not in el:
             el[k] = v
+            el_source_overrides[k] = med_default_source
             med_merged += 1
     print(f"  Merged {med_merged:,} med entries into el ({len(el):,} total)")
 
@@ -218,6 +251,7 @@ def build():
         for form, lemma in hnc_pairs.items():
             if form not in el:
                 el[form] = lemma
+                el_source_overrides[form] = HNC_PAIRS_PATH.name
                 hnc_added += 1
         print(f"  HNC: +{hnc_added:,} to el "
               f"({len(hnc_pairs):,} total, {len(hnc_pairs) - hnc_added:,} already present) "
@@ -248,6 +282,7 @@ def build():
             form, lemma = p["form"], p["lemma"]
             if form not in ag:
                 ag[form] = lemma
+                ag_source_overrides[form] = PERSEUS_PAIRS_PATH.name
                 perseus_added_ag += 1
         print(f"  Perseus (AGDT): +{perseus_added_ag:,} to AG "
               f"({len(perseus_pairs):,} total, "
@@ -314,6 +349,7 @@ def build():
         for h in vlg_raw:
             if h not in ag:
                 ag[h] = h
+                ag_source_overrides[h] = VLG_HEADWORDS_PATH.name
                 vlg_lookup_added += 1
         print(f"  VLG headwords: {len(vlg_new):,} new, "
               f"+{vlg_lookup_added:,} self-maps to AG lookup")
@@ -333,6 +369,7 @@ def build():
         for h in wip_raw:
             if h not in ag:
                 ag[h] = h
+                ag_source_overrides[h] = WIP_HEADWORDS_PATH.name
                 wip_lookup_added += 1
         print(f"  WiP headwords: {len(wip_new):,} new, "
               f"+{wip_lookup_added:,} self-maps to AG lookup")
@@ -352,6 +389,7 @@ def build():
         for h in lsj10_raw:
             if h not in ag:
                 ag[h] = h
+                ag_source_overrides[h] = LSJ10_HEADWORDS_PATH.name
                 lsj10_lookup_added += 1
         print(f"  LSJ10 headwords: {len(lsj10_new):,} new, "
               f"+{lsj10_lookup_added:,} self-maps to AG lookup")
@@ -397,15 +435,18 @@ def build():
             # Add to AG if not already present
             if form not in ag:
                 ag[form] = lemma
+                ag_source_overrides[form] = GLAUX_PAIRS_PATH.name
                 glaux_added_ag += 1
             # Selectively add to el: only when the pair won't cause
             # a priority override conflict in the combined merge.
             if form not in el:
                 if form not in ag_original:
                     el[form] = lemma
+                    el_source_overrides[form] = GLAUX_PAIRS_PATH.name
                     glaux_added_med += 1
                 elif ag_original[form] == lemma:
                     el[form] = lemma
+                    el_source_overrides[form] = GLAUX_PAIRS_PATH.name
                     glaux_added_med += 1
                 else:
                     glaux_skipped_med += 1
@@ -442,6 +483,7 @@ def build():
             # Add to AG if not already present from any source
             if form not in ag:
                 ag[form] = lemma
+                ag_source_overrides[form] = DIORISIS_PAIRS_PATH.name
                 dior_added_ag += 1
             else:
                 dior_skipped_ag += 1
@@ -450,9 +492,11 @@ def build():
             if form not in el:
                 if form not in ag_before_dior:
                     el[form] = lemma
+                    el_source_overrides[form] = DIORISIS_PAIRS_PATH.name
                     dior_added_el += 1
                 elif ag_before_dior[form] == lemma:
                     el[form] = lemma
+                    el_source_overrides[form] = DIORISIS_PAIRS_PATH.name
                     dior_added_el += 1
                 else:
                     dior_skipped_el += 1
@@ -479,9 +523,11 @@ def build():
                 continue
             if form not in ag:
                 ag[form] = lemma
+                ag_source_overrides[form] = NT_PAIRS_PATH.name
                 nt_added_ag += 1
             if form not in el and form not in ag_before_nt:
                 el[form] = lemma
+                el_source_overrides[form] = NT_PAIRS_PATH.name
         print(f"  Koine NT: +{nt_added_ag:,} to AG, "
               f"{nt_bad_lemma:,} bad lemmas rejected ({time.time()-t_n:.1f}s)")
 
@@ -504,9 +550,11 @@ def build():
                 continue
             if form not in ag:
                 ag[form] = lemma
+                ag_source_overrides[form] = path.name
                 added_ag += 1
             if form not in el and form not in ag_before:
                 el[form] = lemma
+                el_source_overrides[form] = path.name
         print(f"  {label}: +{added_ag:,} to AG, "
               f"{bad_lemma:,} bad lemmas rejected ({time.time()-t_g:.1f}s)")
 
@@ -578,7 +626,19 @@ def build():
     # LSJ paradigm expansion produces leading combining-psili forms like
     # `̓Αβαρικός`, and treebank exports encode elision as trailing psili
     # (`μετ̓`). See form_sanitize.sanitize_form for the rules.
-    def _sanitize_table(name: str, table: dict) -> dict:
+    def _record_citation_rejection(*, table: str, source: str,
+                                   form: str, lemma: str,
+                                   reason: str) -> None:
+        citation_rejections.append({
+            "table": table,
+            "source": source,
+            "form": form,
+            "lemma": lemma,
+            "reason": reason,
+        })
+
+    def _sanitize_table(name: str, table: dict, *, default_source: str,
+                        source_overrides: dict[str, str]) -> dict:
         out: dict = {}
         changed = 0
         dropped_elided = 0
@@ -586,6 +646,7 @@ def build():
         grave_dropped = 0
         artifact_dropped = {}
         for k, v in table.items():
+            source = source_overrides.get(k, default_source)
             sk = sanitize_form(k)
             sv = sanitize_form(v) if isinstance(v, str) else v
             if not sk:
@@ -595,12 +656,18 @@ def build():
             if artifact_reason:
                 artifact_dropped[artifact_reason] = (
                     artifact_dropped.get(artifact_reason, 0) + 1)
+                _record_citation_rejection(
+                    table=name, source=source, form=k, lemma=sv,
+                    reason=artifact_reason)
                 continue
             if trusted_grave_targets and isinstance(sv, str) and _has_grave(sv):
                 safe = _normalize_grave_citation_lemma(
                     sv, trusted_grave_targets)
                 if safe is None:
                     grave_dropped += 1
+                    _record_citation_rejection(
+                        table=name, source=source, form=k, lemma=sv,
+                        reason="untrusted_grave")
                     continue
                 if safe != sv:
                     sv = safe
@@ -650,8 +717,12 @@ def build():
         return out
 
     print("\nSanitising form-and-lemma tables...")
-    ag = _sanitize_table("AG", ag)
-    el = _sanitize_table("EL", el)
+    ag = _sanitize_table(
+        "AG", ag, default_source=ag_default_source,
+        source_overrides=ag_source_overrides)
+    el = _sanitize_table(
+        "EL", el, default_source=el_default_source,
+        source_overrides=el_source_overrides)
 
     # Build combined lookup (AG-first priority)
     print("\nBuilding combined lookup (AG-first)...")
@@ -702,12 +773,18 @@ def build():
             if artifact_reason:
                 lbg_artifact_dropped[artifact_reason] = (
                     lbg_artifact_dropped.get(artifact_reason, 0) + 1)
+                _record_citation_rejection(
+                    table="combined", source=LBG_HEADWORDS_PATH.name,
+                    form=h, lemma=h, reason=artifact_reason)
                 continue
             if trusted_grave_targets and _has_grave(h):
                 safe = _normalize_grave_citation_lemma(
                     h, trusted_grave_targets)
                 if safe is None:
                     lbg_grave_dropped += 1
+                    _record_citation_rejection(
+                        table="combined", source=LBG_HEADWORDS_PATH.name,
+                        form=h, lemma=h, reason="untrusted_grave")
                     continue
                 if safe != h:
                     h = safe
@@ -757,12 +834,18 @@ def build():
             if artifact_reason:
                 lbg_pair_artifact_dropped[artifact_reason] = (
                     lbg_pair_artifact_dropped.get(artifact_reason, 0) + 1)
+                _record_citation_rejection(
+                    table="combined", source=LBG_PAIRS_PATH.name,
+                    form=form, lemma=lemma, reason=artifact_reason)
                 continue
             if trusted_grave_targets and _has_grave(lemma):
                 safe = _normalize_grave_citation_lemma(
                     lemma, trusted_grave_targets)
                 if safe is None:
                     lbg_pair_grave_dropped += 1
+                    _record_citation_rejection(
+                        table="combined", source=LBG_PAIRS_PATH.name,
+                        form=form, lemma=lemma, reason="untrusted_grave")
                     continue
                 if safe != lemma:
                     lemma = safe
@@ -787,6 +870,10 @@ def build():
         for reason, count in sorted(lbg_pair_artifact_dropped.items()):
             print(f"  Byzantine inflected forms: dropped {count:,} {reason} "
                   f"citation artifacts")
+
+    _write_citation_rejection_report(citation_rejections)
+    print(f"  Citation rejection report: {CITATION_REJECTIONS_PATH} "
+          f"({len(citation_rejections):,} rows)")
 
     # NOTE: Corpus self-map and consensus overrides were tried here but
     # proved too aggressive, overriding correct Wiktionary entries with

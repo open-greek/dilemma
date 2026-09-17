@@ -100,6 +100,31 @@ DIALECT_PREFIXES = {
     "Homeric", "Laconian", "Boeotian", "Arcadocypriot",
 }
 
+# Tense labels found in verb table headers. Kaikki keeps the header as a
+# synthetic ``table-tags`` form but often omits its tense from the cells.
+VERB_TENSE_LABELS = {
+    "present": "present",
+    "imperfect": "imperfect",
+    "future": "future",
+    "aorist": "aorist",
+    "perfect": "perfect",
+    "pluperfect": "pluperfect",
+    "future perfect": "future-perfect",
+    "contracted present": "present",
+    "contracted imperfect": "imperfect",
+    "contracted future": "future",
+    "contracted aorist": "aorist",
+    "contracted perfect": "perfect",
+    "contracted pluperfect": "pluperfect",
+}
+
+_VERB_AXES = {
+    "active", "middle", "passive", "mediopassive",
+    "indicative", "subjunctive", "optative", "imperative",
+    "infinitive", "participle",
+    "first-person", "second-person", "third-person",
+}
+
 # Wiktionary POS field -> UPOS mapping (for POS-indexed lookup tables)
 WIKT_TO_UPOS = {
     "noun": "NOUN", "verb": "VERB", "adj": "ADJ", "name": "PROPN",
@@ -172,6 +197,26 @@ def _parse_dialect(table_tag: str) -> str:
     for dialect in DIALECT_PREFIXES:
         if table_tag.startswith(dialect):
             return dialect
+    return ""
+
+
+def _parse_verb_tense(table_tag: str) -> str:
+    """Extract a canonical tense from a Wiktionary table header."""
+    if not table_tag:
+        return ""
+    rest = table_tag
+    for dialect in DIALECT_PREFIXES:
+        if rest.startswith(dialect + " "):
+            rest = rest[len(dialect) + 1:]
+            break
+        if rest == dialect:
+            return ""
+    normalized = rest.lower()
+    if normalized in VERB_TENSE_LABELS:
+        return VERB_TENSE_LABELS[normalized]
+    for word in normalized.split():
+        if word in VERB_TENSE_LABELS:
+            return VERB_TENSE_LABELS[word]
     return ""
 
 
@@ -658,6 +703,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if page_dialect:
                     break
             current_dialect = page_dialect
+            current_tense = ""
 
             for f_entry in forms:
                 tags = f_entry.get("tags", [])
@@ -686,6 +732,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if "table-tags" in tags:
                     parsed = _parse_dialect(form_text)
                     current_dialect = page_dialect or parsed
+                    current_tense = (
+                        _parse_verb_tense(form_text)
+                        if pos == "verb" else ""
+                    )
                     continue
 
                 if any(t in skip_tags for t in tags):
@@ -738,6 +788,11 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if current_dialect and current_dialect not in morph_tags:
                     morph_tags.append(current_dialect)
                     dialect_tagged += 1
+
+                if (pos == "verb" and current_tense
+                        and current_tense not in morph_tags
+                        and any(tag in _VERB_AXES for tag in tags)):
+                    morph_tags.append(current_tense)
 
                 pairs.append({
                     "form": form,

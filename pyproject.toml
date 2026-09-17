@@ -10,14 +10,13 @@ version = "1.2.3"
 description = "Diachronic Greek lemmatizer (Ancient, Byzantine, and Modern Greek)"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "Francisco Riordan" }]
 keywords = ["greek", "ancient-greek", "lemmatization", "nlp", "morphology", "byzantine", "modern-greek"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: Greek",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",

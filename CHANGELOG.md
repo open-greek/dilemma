@@ -6,6 +6,21 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Reject citation lemmas whose tonal accents are structurally impossible:
+  duplicate tonal marks on one vowel or tonal marks attached to a non-vowel.
+  Legitimate multi-accent phrases and enclitic-bearing forms remain allowed.
+- Restore propagation of Ancient Greek verb tense from Wiktionary table
+  headers onto individual morphology pairs, completing work that had remained
+  isolated on the stale `grc-verb-tense-tags` branch.
+
+### Changed
+- Split structurally malformed tonal residue from the broad multi-accent audit
+  bucket and preserve source-file provenance for build-time citation rejects.
+- Add installed-wheel smoke tests across every declared Python version
+  (3.10-3.14), while retaining the full artifact-backed test run on 3.12;
+  modernize the package's SPDX license metadata for current setuptools.
+
 ## [1.2.3] - 2026-09-14
 
 ### Fixed
