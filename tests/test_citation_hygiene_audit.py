@@ -25,6 +25,23 @@ def test_lookup_has_no_rejected_citation_artifact_buckets():
         assert report["counts"].get(flag, 0) == 0, flag
 
 
+def test_lookup_audit_applies_strict_policy_only_to_ag_sources():
+    """Shared MG lemmas must not be audited as Ancient Greek headwords."""
+    report = audit(LOOKUP_DB_PATH, example_limit=0)
+    grc = report["by_language"]["grc"]
+    el = report["by_language"]["el"]
+
+    assert grc["counts"].get("multiple_tonal_accents", 0) > 0
+    assert el["counts"].get("multiple_tonal_accents", 0) > 0
+    assert el["rejected_counts"].get("multiple_tonal_accents", 0) == 0
+    assert "untrusted_headword" not in el["reason_counts"].get(
+        "multiple_tonal_accents", {}
+    )
+    assert sum(
+        item["count"] for item in grc["multiple_tonal_classes"].values()
+    ) == grc["counts"]["multiple_tonal_accents"]
+
+
 def test_build_rejection_report_preserves_source_provenance():
     with CITATION_REJECTIONS_PATH.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))

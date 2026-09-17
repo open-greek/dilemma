@@ -6,6 +6,25 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Add a deterministic Dilemma-only benchmark regression gate for the
+  committed Classical, Katharevousa, and Demotic gold sets. The gate pins
+  fixture hashes and token predictions, reports token-level changes, and
+  fails CI on strict or equivalence-adjusted accuracy regressions.
+- Add `scripts/release.py` as the single release command. It updates version
+  metadata and the changelog, waits for the exact release commit to pass main
+  CI, creates the numeric tag, and watches GitHub and PyPI publication.
+
+### Changed
+- Make the citation-hygiene audit lookup-source-aware, reporting Ancient and
+  Modern Greek residue separately and classifying broad multi-accent results
+  as single-token or multiword/punctuated diagnostics.
+- Reuse successful main CI when publishing a tag instead of running the full
+  artifact-backed suite twice, and update `actions/setup-python` to v7.
+- Document that additive voice-aware Modern Greek canonical cells are owned
+  by Klisy's canonical producer, while its legacy collapsed cells remain
+  backward compatible; Dilemma does not duplicate that downstream exporter.
+
 ## [1.2.4] - 2026-09-16
 
 ### Fixed

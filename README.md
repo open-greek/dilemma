@@ -366,6 +366,14 @@ lookup rebuild also writes `data/citation_hygiene_rejections.tsv`, whose
 entries retain the source input, table, form, lemma, and rejection reason for
 every citation value removed by the build-time gate.
 
+The audit reports lookup-source-aware `grc` and `el` sections because both
+languages share the database's deduplicated lemma table. Ancient Greek strict
+headword validation is applied only to AG-sourced lemmas; valid Modern Greek
+multiword names are not misclassified as untrusted AG headwords. The broad
+multi-accent diagnostic is also split into single-token and
+multiword/punctuated classes, but neither class is rejected without an
+independent structural or headword-backed reason.
+
 In the benchmark table, the first two Dilemma rows use the Wiktionary
 convention. The `convention="triantafyllidis"` row auto-enables article
 resolution (articles to `ο`, the `αυτός` demonstrative to `αυτός`) and outputs
@@ -1776,19 +1784,16 @@ skips it.
 
 ### Release
 
-Releases are cut by bumping the version and pushing the resulting tag.
-`bumpver` (configured in `pyproject.toml`'s `[tool.bumpver]`) rewrites
-`VERSION` and `pyproject.toml` in lockstep, commits, tags `v{version}`,
-and pushes both -- which fires `.github/workflows/release.yml`. That
-workflow re-runs the same test job that gates `main` (via `workflow_call`
-on `test.yml`, so install deps can never drift between the two) and only
-then publishes a GitHub Release with auto-generated notes.
+Releases are cut with `scripts/release.py`. It requires a clean, synchronized
+`main`, updates `VERSION`, `pyproject.toml`, and `CHANGELOG.md` in lockstep,
+commits and pushes `main`, and waits for the Tests workflow on that exact SHA.
+Only after CI succeeds does it create and push the numeric annotated tag. The
+tag workflow verifies that successful main run, then publishes the GitHub
+Release and PyPI artifacts without running the full suite a second time.
 
 ```bash
-bumpver update --patch          # 0.7.0 -> 0.7.1
-bumpver update --minor          # 0.7.0 -> 0.8.0
-bumpver update --major          # 0.7.0 -> 1.0.0
-bumpver update --patch --dry    # preview without committing
+python3 scripts/release.py 1.3.0 --dry-run
+python3 scripts/release.py 1.3.0
 ```
 
 Before bumping, regenerate and HF-upload any data outputs the new
@@ -1798,14 +1803,15 @@ HuggingFace.
 
 ### Testing
 
-Tests run automatically via GitHub Actions on push and pull request to
-`main`, using a self-hosted runner with GPU access. CI downloads data
+Tests run automatically on GitHub-hosted runners for pushes and pull requests
+to `main`. CI downloads data
 files from HuggingFace (`lookup.db`, `spell_index.db`,
 `lemma_attestation.json`), pinned by sha256 in `data/hf_manifest.json`
 (see [Shipping rebuilt data artifacts](#shipping-rebuilt-data-artifacts)).
 
 ```bash
 python -m pytest tests/ -v                  # run all tests via pytest (recommended)
+python scripts/check_benchmark_regressions.py  # deterministic accuracy gate
 python tests/test_integrity.py              # data integrity + model inference checks
 python tests/test_dilemma.py                # lookup table + end-to-end lemmatization tests
 python tests/test_dilemma.py --lookup-only  # skip model tests
@@ -2415,18 +2421,15 @@ A first-class fix would add a per-verb `passive_subject` tag
 Wiktionary semantic categories, gloss-text patterns, or a one-shot LLM
 annotation pass over the headword set.
 
-#### Voice-aware MG inflection cells
+### Downstream MG paradigms
 
-MG conjugation tables in canonical entries collapse active and
-mediopassive forms into the same `tense_person` cell as a list (e.g.
-`present.3sg = [λέει, λέγεται]`). Consumers that show one English
-translation per cell can only render one voice, so the mediopassive
-reading ("it is said") gets dropped on the table view even when the
-runtime conjugator handles it correctly per-card. A voice-keyed
-inflection shape (matching the AG canonical pattern of
-`active_present_indicative_3sg` / `mediopassive_present_indicative_3sg`)
-would let downstream apps emit the right English row alongside each
-form.
+Modern Greek canonical paradigms are produced by
+[Klisy](https://github.com/ciscoriordan/Klisy) rather than Dilemma. Klisy
+preserves its legacy collapsed `inflections` cells and adds a parallel
+`inflections_voiced` view with `active_*` and `mediopassive_*` keys. This gives
+voice-aware consumers stable cells without breaking frequency, export, or
+existing canonical consumers. Dilemma's paradigm generator remains scoped to
+Ancient Greek and does not duplicate Klisy's source-aware MG classifier.
 
 ## Architecture
 

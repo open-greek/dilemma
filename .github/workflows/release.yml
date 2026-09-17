@@ -2,21 +2,45 @@ name: Release
 
 on:
   push:
-    # Accept legacy v-prefixed tags (v0.7.0) and bumpver's default style
-    # (0.7.1) so `bumpver update --patch` can fire this without needing
-    # a wrapper script to add the v.
+    # Numeric tags are created by scripts/release.py after main CI succeeds.
+    # Legacy v-prefixed tags remain accepted for old release lines.
     tags:
       - "v*"
       - "[0-9]*"
 
 jobs:
-  test:
-    # Inherit the exact same job that gates main, including install steps.
-    # Prevents the dep-drift class of bug that bit the v0.7.0 first attempt.
-    uses: ./.github/workflows/test.yml
+  verify-main-ci:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Require successful main CI for the tagged commit
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const response = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event: "push",
+              head_sha: context.sha,
+              status: "success",
+              per_page: 100,
+            });
+            const run = response.data.workflow_runs.find(
+              candidate => candidate.path === ".github/workflows/test.yml"
+            );
+            if (!run) {
+              core.setFailed(
+                `No successful Tests workflow found for tagged SHA ${context.sha}. ` +
+                "Create releases with scripts/release.py."
+              );
+              return;
+            }
+            core.info(`Verified Tests workflow: ${run.html_url}`);
 
   release:
-    needs: test
+    needs: verify-main-ci
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -28,22 +52,16 @@ jobs:
         with:
           generate_release_notes: true
 
-  # Auto-publish to PyPI on tag via Trusted Publishing (OIDC; no stored token).
-  # Two one-time steps are required before this can succeed:
-  #   1. [project].name in pyproject.toml must be an AVAILABLE PyPI name
-  #      (plain "dilemma" is already taken by an unrelated package).
-  #   2. Register a (pending) Trusted Publisher on PyPI for that project name,
-  #      repo open-greek/dilemma, workflow release.yml. Until then this job
-  #      fails while the test + GitHub Release jobs still succeed.
+  # Auto-publish dilemma-nlp to PyPI via Trusted Publishing (OIDC; no token).
   publish:
-    needs: test
+    needs: verify-main-ci
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Build sdist and wheel

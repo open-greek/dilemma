@@ -150,7 +150,15 @@ Uncertain lemmas are marked with `?` suffix on the lemma (e.g., `περιθρυ�
    - Knowledge of Greek morphology (declension/conjugation patterns)
 3. Ambiguous cases where the lemma depends on interpretation are resolved from context
 4. Genuinely uncertain cases (rare words, unclear etymology) are marked with `?`
-5. **Final human verification is still needed** - the user should review all entries
+5. The committed fixtures received a complete token-by-token manual review
+   during creation. Four deliberately unresolved annotations retain a trailing
+   `?` (three Katharevousa, one Demotic) so uncertainty is explicit rather than
+   silently converted into a score claim. An independent second review remains
+   welcome.
+6. `scripts/check_benchmark_regressions.py` validates UTF-8/NFC TSV structure,
+   pins each fixture's SHA-256 and Dilemma's token predictions, and reports any
+   prediction change before failing on an accuracy regression. Gold edits must
+   be reviewed before refreshing the baseline with `--update`.
 
 ## Token count summary
 

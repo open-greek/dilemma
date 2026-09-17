@@ -64,11 +64,55 @@ def _flags(lemma: str) -> list[str]:
     return flags
 
 
-def _iter_lemmas(db_path: Path):
+def _multiple_tonal_shape(lemma: str) -> str:
+    """Classify broad multi-accent diagnostics without declaring them invalid."""
+    for char in lemma:
+        if char.isspace() or unicodedata.category(char).startswith("P"):
+            return "multiword_or_punctuated"
+    return "single_token"
+
+
+def _flagged_lemmas(db_path: Path) -> tuple[int, list[dict]]:
+    """Return flagged lemmas with the lookup-source languages that expose them.
+
+    ``lemmas`` is shared by the AG and MG lookup tables, so auditing every row
+    as Ancient Greek misclassifies valid monotonic multiword MG headwords.  The
+    lookup's ``src`` column records which language supplied each mapping.  A
+    temporary ID table lets SQLite recover that provenance with one scan of the
+    large lookup table without adding a runtime index to the shipped artifact.
+    """
     conn = sqlite3.connect(str(db_path))
     try:
-        for (lemma,) in conn.execute("SELECT text FROM lemmas"):
-            yield lemma
+        total = conn.execute("SELECT COUNT(*) FROM lemmas").fetchone()[0]
+        flagged = []
+        for lemma_id, lemma in conn.execute("SELECT id, text FROM lemmas"):
+            flags = _flags(lemma)
+            if flags:
+                flagged.append({
+                    "id": lemma_id,
+                    "lemma": lemma,
+                    "flags": flags,
+                    "languages": set(),
+                })
+
+        if flagged:
+            conn.execute(
+                "CREATE TEMP TABLE audit_lemma_ids "
+                "(id INTEGER PRIMARY KEY) WITHOUT ROWID"
+            )
+            conn.executemany(
+                "INSERT INTO audit_lemma_ids (id) VALUES (?)",
+                ((item["id"],) for item in flagged),
+            )
+            by_id = {item["id"]: item for item in flagged}
+            for lemma_id, source in conn.execute(
+                "SELECT DISTINCT k.lemma_id, k.src "
+                "FROM lookup k JOIN audit_lemma_ids a ON a.id = k.lemma_id"
+            ):
+                if source in {"grc", "el"}:
+                    by_id[lemma_id]["languages"].add(source)
+
+        return total, flagged
     finally:
         conn.close()
 
@@ -80,31 +124,106 @@ def audit(db_path: Path, example_limit: int) -> dict:
     rejected: Counter[str] = Counter()
     reasons: dict[str, Counter[str]] = defaultdict(Counter)
     examples: dict[str, list[dict]] = defaultdict(list)
-    total = 0
+    language_reports = {
+        language: {
+            "counts": Counter(),
+            "accepted_counts": Counter(),
+            "rejected_counts": Counter(),
+            "reason_counts": defaultdict(Counter),
+            "examples": defaultdict(list),
+            "multiple_tonal_classes": defaultdict(Counter),
+        }
+        for language in ("grc", "el")
+    }
+    total, flagged_lemmas = _flagged_lemmas(db_path)
 
-    for lemma in _iter_lemmas(db_path):
-        total += 1
+    for item in flagged_lemmas:
+        lemma = item["lemma"]
         nonlexical = classify_nonlexical(lemma)
-        for flag in _flags(lemma):
-            counts[flag] += 1
+        status_by_language = {}
+        for language in sorted(item["languages"]):
             status = d.citation_status(
                 lemma,
-                lang="grc",
+                lang=language,
                 source="nonlexical" if nonlexical else "",
             )
-            if status["ok"]:
+            status_by_language[language] = status
+
+        # Unreferenced lemma rows cannot be emitted by lookup, but retaining
+        # them in the global structural counts exposes artifact bloat.  Their
+        # citation status is deliberately neutral rather than guessed as AG.
+        statuses = list(status_by_language.values())
+        globally_ok = all(status["ok"] for status in statuses)
+        if statuses:
+            failed_reasons = sorted({
+                status["reason"] for status in statuses if not status["ok"]
+            })
+            successful_reasons = sorted({
+                status["reason"] for status in statuses if status["ok"]
+            })
+            global_reason = ",".join(failed_reasons or successful_reasons)
+        else:
+            global_reason = "unreferenced"
+
+        for flag in item["flags"]:
+            counts[flag] += 1
+            if globally_ok:
                 accepted[flag] += 1
             else:
                 rejected[flag] += 1
-            reasons[flag][status["reason"]] += 1
+            reasons[flag][global_reason] += 1
             if len(examples[flag]) < example_limit:
                 examples[flag].append({
                     "lemma": lemma,
-                    "normalized": status["normalized"],
-                    "ok": status["ok"],
-                    "reason": status["reason"],
+                    "ok": globally_ok,
+                    "reason": global_reason,
                     "nonlexical": nonlexical,
+                    "languages": sorted(item["languages"]),
+                    "status_by_language": status_by_language,
                 })
+
+            for language, status in status_by_language.items():
+                language_report = language_reports[language]
+                language_report["counts"][flag] += 1
+                outcome = ("accepted_counts" if status["ok"]
+                           else "rejected_counts")
+                language_report[outcome][flag] += 1
+                language_report["reason_counts"][flag][status["reason"]] += 1
+                if flag == "multiple_tonal_accents":
+                    shape = _multiple_tonal_shape(lemma)
+                    shape_counts = language_report["multiple_tonal_classes"][shape]
+                    shape_counts["count"] += 1
+                    shape_counts["accepted" if status["ok"] else "rejected"] += 1
+                    shape_counts[f"reason:{status['reason']}"] += 1
+                if len(language_report["examples"][flag]) < example_limit:
+                    language_report["examples"][flag].append({
+                        "lemma": lemma,
+                        "normalized": status["normalized"],
+                        "ok": status["ok"],
+                        "reason": status["reason"],
+                        "nonlexical": nonlexical,
+                    })
+
+    by_language = {}
+    for language, language_report in language_reports.items():
+        by_language[language] = {
+            "counts": dict(sorted(language_report["counts"].items())),
+            "accepted_counts": dict(sorted(
+                language_report["accepted_counts"].items())),
+            "rejected_counts": dict(sorted(
+                language_report["rejected_counts"].items())),
+            "reason_counts": {
+                flag: dict(sorted(reason_counts.items()))
+                for flag, reason_counts in sorted(
+                    language_report["reason_counts"].items())
+            },
+            "examples": dict(language_report["examples"]),
+            "multiple_tonal_classes": {
+                shape: dict(sorted(shape_counts.items()))
+                for shape, shape_counts in sorted(
+                    language_report["multiple_tonal_classes"].items())
+            },
+        }
 
     return {
         "lookup_db": str(db_path),
@@ -118,6 +237,7 @@ def audit(db_path: Path, example_limit: int) -> dict:
             for flag, reason_counts in sorted(reasons.items())
         },
         "examples": dict(examples),
+        "by_language": by_language,
     }
 
 
@@ -148,11 +268,18 @@ def main() -> int:
         if reasons:
             print(f"  reasons: {reasons}")
         for item in report["examples"].get(flag, []):
-            normalized = item["normalized"] or "<rejected>"
             nonlex = (f", nonlexical={item['nonlexical']}"
                       if item.get("nonlexical") else "")
-            print(f"  {item['lemma']} -> {normalized} "
-                  f"({item['reason']}{nonlex})")
+            languages = ",".join(item.get("languages", [])) or "unreferenced"
+            print(f"  {item['lemma']} ({item['reason']}; "
+                  f"languages={languages}{nonlex})")
+    for language, language_report in report["by_language"].items():
+        print(f"{language} source:")
+        for flag, count in language_report["counts"].items():
+            rejected = language_report["rejected_counts"].get(flag, 0)
+            accepted = language_report["accepted_counts"].get(flag, 0)
+            print(f"  {flag}: {count:,} ({rejected:,} rejected, "
+                  f"{accepted:,} accepted/classified)")
     return 0
 
 
