@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-16
+
 ### Added
 - Add a deterministic Dilemma-only benchmark regression gate for the
   committed Classical, Katharevousa, and Demotic gold sets. The gate pins
@@ -196,6 +198,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.0]: https://github.com/open-greek/dilemma/releases/tag/1.3.0
 [1.2.4]: https://github.com/open-greek/dilemma/releases/tag/1.2.4
 [1.2.3]: https://github.com/open-greek/dilemma/releases/tag/1.2.3
 [1.2.2]: https://github.com/open-greek/dilemma/releases/tag/1.2.2
