@@ -640,7 +640,7 @@ The lookup table combines forms from multiple sources:
 | **Wiktionary** (EN + EL, all periods) | 5.2M | Baseline from kaikki.org dumps |
 | **LSJ + Sophocles expansion** | 6.4M net AG additions | Current Wiktionary-Lua expansion plus the marked surface forms from the revision-pinned historical expansion delta; 32K LSJ nouns, 22K verbs, 14K adjectives, and 13.5K Sophocles nouns + 4.6K verbs |
 | **[GLAUx](https://github.com/alekkeersmaekers/glaux)** (Keersmaekers, 2021) | 557K | 17M-token corpus, 8th c. BC - 4th c. AD, 98.8% lemma accuracy |
-| **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Contributes to the merged 68.6M-token `corpus_freq.json` alongside GLAUx, PTA, and the [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) open-text rollup. |
+| **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Contributes to the merged 94.0M-token `corpus_freq.json` alongside GLAUx, PTA, and the [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) open-text rollup. |
 | **[HNC Golden Corpus](https://inventory.clarin.gr/corpus/870)** (CLARIN:EL) | 1K new | 88K-token gold-standard MG corpus, 11K unique form-lemma pairs. Low priority (only added when not in Wiktionary). Also used for MG evaluation. |
 | **[Perseus / AGDT](https://github.com/PerseusDL/treebank_data)** (CC BY-SA 3.0 US) | 81K | The 33 Greek AGDT works: Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus. Sourced from the original, not the NonCommercial UD release. |
 | **DGE** (Diccionario Griego-Espanol) | 52K | Headword filter coverage for spell-check |
@@ -1908,7 +1908,7 @@ For each language, the script produces:
 
 Frequency sources (used for primary ranking):
 - **MG**: [FrequencyWords/OpenSubtitles](https://github.com/hermitdave/FrequencyWords) (1.49M forms)
-- **AG**: merged `corpus_freq.json` (68.6M tokens, 1.13M unique forms) from
+- **AG**: merged `corpus_freq.json` (94.0M tokens, 1.99M unique forms) from
   GLAUx + Diorisis + PatristicTextArchive + the
   [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus)
   open-text rollup (First1KGreek, corrected Patrologia Graeca, Perseus
@@ -1952,9 +1952,11 @@ ancient topics could boost forms with high `freq_glaux`).
 [Tonos](https://tonospolytonic.com/) iOS polytonic keyboard)
 where the full 1.07 GB `lookup.db` and 560 MB `spell_index.db` do not
 fit inside the ~48 MB memory ceiling of a keyboard extension. Affix
-compression collapses each inflection class to a single SFX rule group. The
-repaired AG export applies its corpus gate and emits 1,618,505 dictionary
-entries plus 26,522 suffix rules while preserving exact-match acceptance.
+compression uses a zero-strip SFX rule only when its dictionary base is itself
+a real member of the paradigm. A mechanical common prefix such as `λόγ` or
+`ἀνθρώπ` is inlined instead, because both Hunspell and Tonos accept every
+`.dic` base as a word. The repaired AG export emits 1,284,405 dictionary
+entries plus 105 suffix rules; every flagged base has an identity rule.
 Editorial brackets and parentheses are excluded before affix compression, so
 the generated `.aff` remains loadable by consumers that compile affixes as
 regular expressions, including `spylls`.
@@ -1966,7 +1968,7 @@ monotonic) is retained for other downstream consumers via
 
 | Variant | Script name | Lang tag | Contents |
 |--------|------------|---------|---------|
-| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms (breathings, circumflex, iota subscript, grave). Acute-only fallback keys are dropped unless corpus-attested. An elided or aphaeresized form counts as marked even when its only mark is a spacing character, either U+1FBD koronis (`δ᾽`, `κατ᾽`, `μηδ᾽`) or a spacing breathing (`κατ᾿`), since elision carries the accent off with the elided syllable. A spacing mark counts only on a form that opens on a Greek consonant, the way an elided or aphaeresized word does, because polytonic Greek writes a breathing over every word-initial vowel: the Milesian numerals a source wrote with a koronis (`ε᾽`, `α᾽`, `ο᾽`) and stripped keys such as `ημειβετ᾿` are dropped on that rule. Fully unaccented spellings such as `μη` and `και` are still dropped too. AG function words (definite article, 1st/2nd person pronouns) are injected because `dilemma.py` resolves those via hardcoded rules rather than the lookup table. |
+| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. Acute-only forms require exact, accent-preserving attestation from the pinned full LM, so `αὐτός` cannot lend its frequency to `αυτός`. A vowel- or rho-initial form without a breathing is rejected. Valid elisions normalize their final textual apostrophe to U+1FBD koronis. A bare spelling whose marked counterpart dominates exact corpus evidence is excluded unless DGE or Cunliffe independently establishes it as a headword, so tolerant lookup stems remain lemmatizer-only while `ἄν` survives. The closed Homeric apocope set preserves `κὰτ`/`κάτ` through `κὰγ`/`κάγ` and `ἂμ`/`ἄμ`. A closed grammatical list preserves legitimate unaccented enclitics including `τε`, `γε`, the `τις` paradigm, `φημί` enclitics, `κε/κεν`, and poetic pronouns; `του` and `τῳ` are deliberately excluded. |
 | `el_GR_monotonic.{dic,aff,version}` | `el` | `el_GR` | Modern Greek monotonic forms, including MG-relevant vocabulary drawn from the AG side of `lookup.db` (articles, common verbs, proper names). Not shipped in Tonos. |
 
 Each dictionary entry carries a morphological field `fr:<bucket>` where
@@ -2002,6 +2004,43 @@ python export_hunspell.py                 # grc polytonic (default)
 python export_hunspell.py --variant both  # grc + el
 python export_hunspell.py --variant el    # el monotonic only
 python export_hunspell.py --sanity 10000  # 10K-lemma sanity pass
+```
+
+The corpus-head coverage gate loads the expanded `.dic`/`.aff` pair with
+`spylls` and audits the 1,000 most frequent Greek-bearing tokens after
+contextual grave and final elision marks are normalized. The reviewed fixture
+requires 971 real forms to be accepted and 29 Modern spellings, fragments,
+numerals, and bare stems to remain rejected; together they represent
+16,543,630 LM tokens. The same audit expands every emitted zero-strip rule and
+fails if a flagged base lacks an identity rule or any emitted vowel-/rho-
+initial form lacks a breathing.
+
+The fixture and `data/hunspell_grc_form_freq.json.gz` are pinned to the
+format-v2 Dilemma 1.3.3 full LM artifact: 30,933,396 training tokens, not a
+`train_lm.py --sanity` output. JSON fixture regeneration reads `stats.json`
+and fails unless `"sanity": false`; the binary route reads the exact vocabulary
+and unigram counts embedded by `export_lm.py`.
+
+```bash
+# Audit a fresh Hunspell export against the committed full-run fixture.
+python scripts/audit_hunspell_frequency.py --source fixture
+
+# Regenerate after a full train_lm.py run; refuses sanity outputs.
+python scripts/audit_hunspell_frequency.py --source json --write-fixture
+
+# Or regenerate from a format-v2 binary and its provenance sidecar.
+python scripts/audit_hunspell_frequency.py --source binary \
+  --lm-binary build/lm/grc_ngram.bin \
+  --lm-version build/lm/grc_ngram.version \
+  --write-fixture \
+  --attestation-out data/hunspell_grc_form_freq.json.gz
+
+# Produce the full LM-weighted review against a previously shipped artifact.
+python scripts/audit_hunspell_frequency.py --source binary \
+  --lm-binary build/lm/grc_ngram.bin \
+  --lm-version build/lm/grc_ngram.version \
+  --baseline-dictionary /path/to/shipped/grc_polytonic \
+  --comparison-report build/hunspell/baseline_comparison.json
 ```
 
 Output layout, with one sidecar `.version` file per variant so the
@@ -2197,6 +2236,13 @@ Expectations, honest:
   consonant encoded as `)` rather than `'` (e.g. `par)` for παρ’).
   Elision-after-vowel (`ou)` = οὐ with smooth breathing) stays
   untouched.
+- **Corpus frequency keys preserve elision.** GLAUx, Diorisis, PTA, and the
+  OGC public-lexicon adapter use `build/corpus_freq_key.py` to strip accents
+  while canonicalizing textual apostrophes and trailing combining psili to
+  U+2019. `merge_corpus_freq.py` applies the same normalization again, so
+  source-specific spellings cannot split counts across parallel keys. After a
+  tokenizer change, regenerate that source's frequency artifact before
+  merging; a lost apostrophe cannot be reconstructed from an old bare key.
 
 Reader contract for Tonos: the binary format is versioned in the
 header (`format_version = 2`) and in `grc_ngram.version`. Any on-disk
@@ -2241,7 +2287,7 @@ not found in GLAUx. Because Diorisis has lower lemma accuracy (91.4%),
 its pairs are only added when they don't conflict with existing entries
 from Wiktionary, LSJ, or GLAUx. For form-frequency data, GLAUx and
 Diorisis are merged with the Patristic Text Archive and the Open Greek
-Corpus open-text rollup into the 68.6M-token `corpus_freq.json` (see
+Corpus open-text rollup into the 94.0M-token `corpus_freq.json` (see
 [Form-frequency corpora](#form-frequency-corpora-and-coverage-diagnostics)
 below).
 
@@ -2275,11 +2321,11 @@ counts summed, genre vectors element-wise added):
 
 | Source | Tokens | License | Genre breakdown |
 |---|---:|---|---|
-| GLAUx | 16.9M | CC BY-SA | yes (10 genres, lemma-aware) |
+| GLAUx | 16.2M | CC BY-SA | yes (10 genres, lemma-aware) |
 | Diorisis | 10.2M | CC BY-SA | yes (10 genres, lemma-aware) |
 | Patristic Text Archive | 2.5M | CC BY-SA | bucket = religion |
-| [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) rollup | 38.9M | CC BY-SA | bucket = other |
-| **Total** | **68.6M tokens / 1.13M forms** | | |
+| [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) rollup | 65.1M | CC BY-SA | bucket = other |
+| **Total** | **94.0M tokens / 1.99M forms** | | |
 
 The Open Greek Corpus rollup (its `public_lexicon.tsv`) covers First1KGreek,
 the corrected Patrologia Graeca OCR, Perseus canonical-greekLit, byzantium.gr
@@ -2293,9 +2339,15 @@ Build:
 python build/build_glaux_freq.py              # if not already built
 python build/build_diorisis_freq.py
 python build/build_pta_freq.py                # needs an Open Greek Corpus clone (sources/pta)
-python build/build_cog_public_freq.py         # needs its data/public_lexicon.tsv
+python build/build_cog_public_freq.py /path/to/pinned-ogc/data/public_lexicon.tsv
 python build/merge_corpus_freq.py             # writes data/corpus_freq.json
 ```
+
+The OGC adapter auto-detects the input checkout commit, hashes the generated
+`public_lexicon.tsv`, and records both values in `cog_public_freq.json`.
+`merge_corpus_freq.py` carries that source string into `corpus_freq.json`.
+The current rollup uses OGC commit `f4062a50` and public-lexicon SHA-256
+`02d6de7181e8a108abe224081352d817c2064edf6234a51ecc63a5b8c83e6c2d`.
 
 The PTA TEI corpus is tokenised by `build/tei_tokenize.py`, which extracts
 text from `<text>` subtrees, drops apparatus / notes / bibliography, and
@@ -2310,11 +2362,12 @@ To inspect lookup coverage against the merged corpus run:
 python build/coverage_report.py
 ```
 
-As of the current pipeline, `ag_lookup.json` covers **90.58% of running
-tokens** in the merged 68.6M-token corpus, but only **28.85% of unique
-forms**. The long-tail gap is dominated by elision forms (`δ’`, `ἀλλ’`,
-`δι’`, `καθ’`, ...) which Wiktionary does not index as separate
-headwords. None of the merged sources is lemmatised end-to-end by Dilemma,
+As of the current pipeline, accent-relaxed `ag_lookup.json` coverage is
+**96.57% of running tokens** in the merged 94.0M-token corpus and **36.77%
+of unique forms**. `coverage_report.py` uses the same canonical elision key as
+the frequency builders, so U+2019 corpus apostrophes and U+1FBD lookup
+koronides compare correctly. None of the merged sources is lemmatised
+end-to-end by Dilemma,
 so they all contribute frequency and coverage signal but not new
 form-lemma pairs (lemma pairs come from Wiktionary plus the
 GLAUx/Diorisis/Perseus treebanks; the Gorman treebanks are held out

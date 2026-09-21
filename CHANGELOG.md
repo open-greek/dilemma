@@ -6,6 +6,51 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-09-21
+
+### Fixed
+- Restore common Ancient Greek spellings in the `grc` Hunspell export. The
+  selector admits language-shared rows only for lemmas with `grc` evidence,
+  uses a revision-pinned accent-preserving full-LM map for acute-only forms,
+  rejects vowel- or rho-initial spellings without a breathing, and preserves a
+  reviewed closed list of correctly unaccented enclitics. Bare lemmatizer
+  fallbacks for elision remain excluded. The resulting export has 1,284,405
+  entries and 105 zero-strip suffix rules.
+- Stop emitting truncated common prefixes as flagged Hunspell entries. Affix
+  compression now occurs only when the base is itself a paradigm form; all
+  other paradigms are inlined, requiring neither `NEEDAFFIX` nor nonzero-strip
+  support from Tonos.
+- Restore high-frequency valid forms that Dilemma resolves through grammar or
+  POS authorities but which lookup source collisions hid from the exporter,
+  including `τ᾽`, `μεθ᾽`, `δῑ`, `εἶνε`, `μαῦρον`, `μαῦροι`, and
+  `ἑκατέρως`. `ἀνάμεσα` is retained through exact LM attestation, while
+  `του`, `τῳ`, monotonic `ότι`/`αυτός`, and unrelated Modern forms remain
+  rejected.
+- Normalize elision marks through one shared corpus-frequency key in the
+  GLAUx, Diorisis, Patristic Text Archive, and OGC rollup builders, and again
+  at merge time. Diorisis no longer deletes the apostrophe and decomposed TEI
+  psili is preserved before accents are stripped, preventing parallel `δ` and
+  `δ’` keys. The rebuilt OGC rollup is pinned to commit `f4062a50` and
+  public-lexicon SHA-256 `02d6de71...`; merge provenance retains both values.
+- Generalize the Hunspell bare-elision rejection beyond a finite stem list.
+  A bare spelling with a more frequent marked counterpart is excluded unless
+  DGE or Cunliffe independently establishes it as a headword, preserving
+  genuine collisions such as `ἄν`. Preserve the closed set of Homeric
+  shortened prepositions (`κὰτ`/`κάτ` through `κὰγ`/`κάγ`, `ἂμ`/`ἄμ`).
+
+### Added
+- Add a revision-pinned Hunspell frequency auditor and CI regression fixture.
+  It loads the expanded dictionary with `spylls`, folds contextual grave and
+  final elision marks, and checks the top 1,000 Greek-bearing LM tokens:
+  971 required forms accepted and 29 reviewed nonwords rejected, representing
+  16,543,630 tokens. It also rejects synthetic flagged bases and emitted forms
+  without required initial breathings. JSON fixture generation hard-fails on
+  sanity runs; format-v2 LM binaries supply exact vocabulary and counts. An
+  optional full-vocabulary comparison produces a reviewable LM-weighted delta
+  against a previously shipped dictionary. The current candidate gains 4,510
+  full-LM forms (1,232,520 tokens) and loses 213 (73,046 tokens) against the
+  April Tonos artifact; the newly removed forms are reviewed elision fragments.
+
 ## [1.3.4] - 2026-09-21
 
 ### Fixed
@@ -369,6 +414,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.5]: https://github.com/open-greek/dilemma/releases/tag/1.3.5
 [1.3.4]: https://github.com/open-greek/dilemma/releases/tag/1.3.4
 [1.3.3]: https://github.com/open-greek/dilemma/releases/tag/1.3.3
 [1.3.2]: https://github.com/open-greek/dilemma/releases/tag/1.3.2

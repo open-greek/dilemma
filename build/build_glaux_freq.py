@@ -18,10 +18,11 @@ import argparse
 import csv
 import json
 import time
-import unicodedata
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
+
+from corpus_freq_key import corpus_freq_key
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
@@ -77,12 +78,6 @@ GENRE_ORDER = [
     "philosophy", "poetry", "history", "oratory", "science",
     "narrative", "epistles", "religion", "commentary", "other",
 ]
-
-
-def strip_accents(s):
-    nfd = unicodedata.normalize("NFD", s)
-    return unicodedata.normalize("NFC",
-        "".join(c for c in nfd if unicodedata.category(c) != "Mn"))
 
 
 def is_greek(s):
@@ -167,8 +162,7 @@ def main():
                 if not form or not is_greek(form):
                     continue
 
-                stripped = strip_accents(
-                    unicodedata.normalize("NFC", form).lower())
+                stripped = corpus_freq_key(form)
                 form_counts[stripped][0] += 1           # total
                 form_counts[stripped][1 + genre_idx] += 1  # genre-specific
                 total_tokens += 1

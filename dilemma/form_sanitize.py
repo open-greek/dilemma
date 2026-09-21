@@ -40,11 +40,27 @@ _SPACING_PSILI = 0x1FBF
 _SPACING_DASIA = 0x1FFE
 _GREEK_KORONIS = "\u1FBD"
 EDITORIAL_SIGLA = frozenset("[]()")
+# Textual apostrophes used for Greek elision. U+02B9 MODIFIER LETTER PRIME is
+# deliberately absent: in the LM vocabulary it normally marks a numeral
+# (alpha-prime, beta-prime), not an elision.
+FINAL_ELISION_APOSTROPHES = frozenset("'`\u02BC\u1FBD\u1FBF\u2019")
 
 
 def has_editorial_sigla(s: str) -> bool:
     """Return whether *s* still carries bracket/parenthesis notation."""
     return any(char in EDITORIAL_SIGLA for char in s)
+
+
+def canonicalize_final_elision(s: str) -> str:
+    """Fold a word-final textual apostrophe onto the Greek koronis.
+
+    Lookup and exported morphology use U+1FBD as their storage spelling,
+    while corpora commonly use ASCII apostrophe, U+2019, U+02BC, or spacing
+    psili. Numeral primes are intentionally not folded here.
+    """
+    if s and s[-1] in FINAL_ELISION_APOSTROPHES:
+        return s[:-1] + _GREEK_KORONIS
+    return s
 
 
 def resolve_editorial_form(s: str) -> tuple[str, ...]:

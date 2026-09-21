@@ -9,28 +9,28 @@ runs out-of-the-box on a partial build.
 Default sources:
     data/glaux_freq.json              GLAUx (17M, 10 genres)
     data/diorisis_freq.json           Diorisis (10M, 10 genres)
-    data/pg_freq.json                 Patrologia Graeca / Migne
-    data/first1kgreek_freq.json       First1KGreek
     data/pta_freq.json                Patristic Text Archive
-    data/canonical_greeklit_freq.json Perseus canonical-greekLit
+    data/cog_public_freq.json         OGC corrected public-text rollup
 
-The post-GLAUx-Diorisis sources don't carry a genre breakdown, so their
-counts all land in their build-time default bucket (PG/PTA in religion,
-First1KGreek + canonical-greekLit in other). The genre-aware ranking
-that consumers do via GLAUx/Diorisis still works -- they just see extra
-ungenred volume from the unlemmatized corpora.
+PTA and the OGC rollup don't carry a genre breakdown, so their counts land in
+religion and other respectively. The genre-aware ranking that consumers do
+via GLAUx/Diorisis still works -- it just sees extra ungenred volume from the
+unlemmatized corpora. Every input key is normalized again during merge so
+apostrophe variants cannot split elision counts.
 
 Output: data/corpus_freq.json (drop-in replacement for old GLAUx+Diorisis-only file)
 
 Usage:
     python build/merge_corpus_freq.py
-    python build/merge_corpus_freq.py --include glaux diorisis pg
+    python build/merge_corpus_freq.py --include glaux diorisis pta
 """
 
 import argparse
 import json
 import time
 from pathlib import Path
+
+from corpus_freq_key import corpus_freq_key
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
@@ -67,9 +67,10 @@ def load_freq(path: Path):
     total = data.get("_total_tokens", 0)
     forms = data.get("forms", {})
     genres = data.get("_genres", [])
+    sources = data.get("_sources", [])
     if genres and genres != GENRE_ORDER:
         print(f"  WARN: genre order mismatch in {path.name}: {genres}")
-    return total, forms
+    return total, forms, sources
 
 
 def main() -> int:
@@ -98,14 +99,20 @@ def main() -> int:
         if not path.exists():
             print(f"skip: {path.name} not found")
             continue
-        n, forms = load_freq(path)
+        n, forms, artifact_sources = load_freq(path)
         print(f"  {label:30s}  {n:>12,} tokens  {len(forms):>8,} forms"
               f"{f'  -> {default_bucket}' if default_bucket else ''}")
-        sources_used.append(f"{label} ({n // 1_000_000}M tokens)")
+        if artifact_sources:
+            sources_used.extend(str(source) for source in artifact_sources)
+        else:
+            sources_used.append(f"{label} ({n // 1_000_000}M tokens)")
         total_tokens += n
         bucket_offset = (1 + GENRE_ORDER.index(default_bucket)
                          if default_bucket else None)
-        for form, vec in forms.items():
+        for raw_form, vec in forms.items():
+            form = corpus_freq_key(raw_form)
+            if not form:
+                continue
             existing = merged.get(form)
             if existing is None:
                 existing = [0] * VEC_LEN

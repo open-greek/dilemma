@@ -28,6 +28,11 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from beta_code import beta_code_to_greek
+from corpus_freq_key import (
+    ELISION_MARKS,
+    beta_trailing_paren_is_elision,
+    corpus_freq_key,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
@@ -56,22 +61,16 @@ GENRE_ORDER = [
 ]
 
 
-def strip_accents(s):
-    """Remove all combining marks (accents, breathings) from Greek text."""
-    nfd = unicodedata.normalize("NFD", s)
-    return unicodedata.normalize("NFC",
-        "".join(c for c in nfd if unicodedata.category(c) != "Mn"))
-
-
 def is_greek(s):
     """Check if string contains at least one Greek character."""
     return any('\u0370' <= c <= '\u03FF' or '\u1F00' <= c <= '\u1FFF' for c in s)
 
 
 def strip_non_greek(s):
-    """Remove non-Greek, non-combining-mark characters (quotes, apostrophes)."""
+    """Remove non-Greek residue while preserving Greek elision marks."""
     return "".join(c for c in s
                    if unicodedata.category(c).startswith("M")
+                   or c in ELISION_MARKS
                    or ('\u0370' <= c <= '\u03FF')
                    or ('\u1F00' <= c <= '\u1FFF'))
 
@@ -80,13 +79,16 @@ def betacode_to_unicode(bc):
     """Convert Beta Code form to NFC-normalized Unicode Greek.
 
     Diorisis stores token forms in Beta Code (e.g. 'qeou\\s' for 'θεούς').
-    Strips non-Greek residue (apostrophes from elision, quotes).
+    Strips non-Greek residue while retaining apostrophes used for elision.
     Returns empty string on conversion failure.
     """
     try:
-        uni = beta_code_to_greek(bc)
+        trailing_elision = beta_trailing_paren_is_elision(bc)
+        uni = beta_code_to_greek(bc[:-1] if trailing_elision else bc)
         uni = unicodedata.normalize("NFC", uni)
         cleaned = strip_non_greek(uni)
+        if trailing_elision and cleaned:
+            cleaned += "\u1fbd"
         return cleaned if cleaned else ""
     except Exception:
         return ""
@@ -156,7 +158,7 @@ def main():
                 skipped_non_greek += 1
                 continue
 
-            stripped = strip_accents(uni_form.lower())
+            stripped = corpus_freq_key(uni_form)
             form_counts[stripped][0] += 1           # total
             form_counts[stripped][1 + genre_idx] += 1  # genre-specific
             total_tokens += 1

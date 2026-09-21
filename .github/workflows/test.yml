@@ -45,7 +45,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -q --upgrade pip
-          pip install -q pytest huggingface_hub betacode pygtrie lxml
+          pip install -q pytest spylls huggingface_hub betacode pygtrie lxml
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q transformers
 
@@ -66,6 +66,11 @@ jobs:
 
       - name: Run all tests
         run: python3 -m pytest tests/ -x -v
+
+      - name: Build and audit Ancient Greek Hunspell coverage
+        run: |
+          python3 export_hunspell.py --variant grc
+          python3 scripts/audit_hunspell_frequency.py --source fixture
 
       - name: Check deterministic benchmark baselines
         run: python3 scripts/check_benchmark_regressions.py
