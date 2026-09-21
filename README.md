@@ -1710,6 +1710,11 @@ other bracketed forms or lemmas are rejected rather than guessed. The final
 overlay also cleans an already-expanded target, and `build_lookup_db.py` plus
 the Hunspell exporter repeat the rejection as defense in depth.
 
+The GLAUx pair builder applies the same rejection before its shared tagged
+artifact is written. `export_morphology.py` repeats the check while deriving
+both movable-nu and elision tables, so `grc_morph.json` remains clean even
+when it is built from an older local pair file.
+
 `--expand-verbs` does three things:
 
 1. Classifies the headword via `_classify_verb` (suffix dispatch for

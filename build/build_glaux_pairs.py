@@ -20,6 +20,7 @@ Usage:
 
 import argparse
 import json
+import sys
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections import Counter
@@ -28,6 +29,11 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_GLAUX = Path.home() / "Documents" / "glaux" / "xml"
+
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from dilemma.form_sanitize import has_editorial_sigla  # noqa: E402
 
 # What GLAUx puts in the lemma field of an editorial gap, where the manuscript
 # is damaged or unreadable. The surviving letters stay in the form, so the
@@ -151,6 +157,7 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     skipped_punct = 0
     skipped_no_lemma = 0
     skipped_gap = 0
+    skipped_editorial = 0
     skipped_non_greek = 0
     skipped_dup = 0
 
@@ -226,6 +233,14 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
                 form = nfc(form)
                 lemma = nfc(lemma)
 
+                # Leiden brackets and parentheses describe an editor's
+                # reconstruction; they are not part of the Greek spelling.
+                # Reject both fields here so every consumer of the shared
+                # GLAUx pair artifact inherits the same hygiene policy.
+                if has_editorial_sigla(form) or has_editorial_sigla(lemma):
+                    skipped_editorial += 1
+                    continue
+
                 if not is_greek(form):
                     skipped_non_greek += 1
                     continue
@@ -265,6 +280,7 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
 
     print(f"\nTotal tokens: {total_tokens:,}")
     print(f"Skipped: {skipped_punct:,} punct, {skipped_gap:,} editorial gaps, "
+          f"{skipped_editorial:,} editorial sigla, "
           f"{skipped_no_lemma:,} no lemma, "
           f"{skipped_non_greek:,} non-Greek, {skipped_dup:,} duplicates")
     print(f"Unique pairs: {len(pairs):,}")

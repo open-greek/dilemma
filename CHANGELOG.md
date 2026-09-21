@@ -6,6 +6,12 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Reject editorial square brackets and parentheses at GLAUx pair ingestion
+  and again in both movable-nu and elision morphology derivation. This keeps
+  contaminated corpus forms such as `)λπίζουσι` out of `grc_morph.json` and
+  protects morphology exports made from older pair artifacts.
+
 ## [1.3.3] - 2026-09-21
 
 ### Fixed

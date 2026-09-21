@@ -64,6 +64,8 @@ import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
+from dilemma.form_sanitize import has_editorial_sigla
+
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
 OUT = ROOT / "build" / "hunspell"
@@ -227,7 +229,7 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
             entries = json.load(f)
         for entry in entries:
             form = _nfc(entry.get("form", "").strip())
-            if not form or len(form) < 2:
+            if not form or len(form) < 2 or has_editorial_sigla(form):
                 continue
             # Trailing nu never needs a second movable nu. Skip.
             if form.endswith("ν") or form.endswith("Ν"):
@@ -307,8 +309,11 @@ def _load_lemma_forms(
             entries = json.load(f)
         for entry in entries:
             form = _nfc(entry.get("form", "").strip())
-            lemma = entry.get("lemma", "")
-            if not form or any(c in form for c in "[](){}<>\n"):
+            lemma = _nfc(entry.get("lemma", "").strip())
+            if (not form or not lemma
+                    or has_editorial_sigla(form)
+                    or has_editorial_sigla(lemma)
+                    or any(c in form or c in lemma for c in "{}<>\n")):
                 continue
             lemma_to_forms[lemma].add(form)
 
@@ -321,9 +326,13 @@ def _load_lemma_forms(
         )
         for form, lemma in rows:
             nfc = _nfc(form)
-            if not nfc or any(c in nfc for c in "[](){}<>\n"):
+            lemma_nfc = _nfc(lemma)
+            if (not nfc or not lemma_nfc
+                    or has_editorial_sigla(nfc)
+                    or has_editorial_sigla(lemma_nfc)
+                    or any(c in nfc or c in lemma_nfc for c in "{}<>\n")):
                 continue
-            lemma_to_forms[lemma].add(nfc)
+            lemma_to_forms[lemma_nfc].add(nfc)
         conn.close()
 
     return lemma_to_forms
@@ -355,11 +364,13 @@ def _derive_elision_pairs(
     """
     pairs: dict[str, str] = {}
 
-    for _lemma, forms in lemma_to_forms.items():
+    for lemma, forms in lemma_to_forms.items():
+        if has_editorial_sigla(lemma):
+            continue
         elideds = set()
         fulls: list[str] = []
         for f in forms:
-            if not f:
+            if not f or has_editorial_sigla(f):
                 continue
             if f[-1] in ELISION_GLYPHS:
                 elideds.add(_canon_elided(f))

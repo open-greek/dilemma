@@ -82,6 +82,17 @@ class TestGlauxEditorialGaps:
         assert got == {("θεός", "θεός"), ("ἀρχόμενος", "ἄρχω"),
                        ("ζῷον", "ζῷον")}
 
+    def test_editorial_sigla_are_not_ingested(self, tmp_path):
+        got = _extract(tmp_path, [
+            {"form": ")λπίζουσι", "lemma": ")λπίζω",
+             "postag": "v3ppia---"},
+            {"form": "ἐλπίζουσι", "lemma": ")λπίζω",
+             "postag": "v3ppia---"},
+            {"form": "ἐλπίζουσι", "lemma": "ἐλπίζω",
+             "postag": "v3ppia---"},
+        ])
+        assert got == {("ἐλπίζουσι", "ἐλπίζω")}
+
     def test_the_character_test_alone_would_not_have_caught_it(self):
         # Why the annotation is read rather than the characters: `is_greek`
         # asks whether ANY character is Greek, and the surviving letters of a
