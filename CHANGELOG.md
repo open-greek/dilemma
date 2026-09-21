@@ -14,6 +14,15 @@ All notable changes to Dilemma are documented here. The format follows
   checksums with aggregate audit counts. The Triantafyllidis convention now
   unions that dictionary authority with the existing Modern Greek Wiktionary
   inventory for broader coverage.
+- Add a revision- and byte-pinned GlossAPI coverage auditor for nine
+  permissively licensed candidate corpora. It reports `guess=False` coverage,
+  unknown forms, conservative Unicode/OCR defects, and Modern/Ancient lookup
+  conflicts, and can build a balanced Modern Greek frequency experiment
+  without modifying `mg_freq.txt`. Historical candidates remain audit-only
+  until Open Greek Corpus admits cleaned, identified, and deduplicated text.
+- Add a separate optional evaluation for GlossAPI's Greek variety classifier.
+  GreekBERT and Transformers remain outside Dilemma's core dependencies, and
+  supplied Gutenberg variety labels are not treated as independent gold data.
 
 ### Fixed
 - Stop ingesting the placeholders a treebank uses for "not a word". GLAUx

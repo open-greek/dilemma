@@ -1820,8 +1820,8 @@ tag workflow verifies that successful main run, then publishes the GitHub
 Release and PyPI artifacts without running the full suite a second time.
 
 ```bash
-python3 scripts/release.py 1.3.0 --dry-run
-python3 scripts/release.py 1.3.0
+python3 scripts/release.py 1.3.1 --dry-run
+python3 scripts/release.py 1.3.1
 ```
 
 Before bumping, regenerate and HF-upload any data outputs the new
