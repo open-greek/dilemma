@@ -1,9 +1,9 @@
 """Greek-token extractor for TEI XML files.
 
 Walks each `<TEI>/<text>` subtree, joins text nodes, splits on anything
-that isn't a Greek letter or an apostrophe (so elision forms like δ',
-ἀλλ' stay intact), and returns a Counter keyed by NFC accent-stripped
-lowercase tokens — the same key shape `corpus_freq.json` uses.
+that isn't a Greek letter, combining mark, or apostrophe (so elision forms
+like δ' and ἀλλ' stay intact), and returns a Counter keyed by NFC
+accent-stripped lowercase tokens with U+2019 as the canonical elision mark.
 
 Skips elements that hold non-text or editorial content (`teiHeader`,
 `note`, `app`, `rdg`, `witDetail`, `bibl`, `cit/bibl`). Inside the body
@@ -14,11 +14,12 @@ Used by build_first1kgreek_freq.py and build_pta_freq.py.
 """
 
 import re
-import unicodedata
 from collections import Counter
 from pathlib import Path
 
 from lxml import etree
+
+from corpus_freq_key import corpus_freq_key
 
 TEI_NS = "http://www.tei-c.org/ns/1.0"
 NS = {"tei": TEI_NS}
@@ -33,30 +34,20 @@ SKIP_TAGS = {
 
 GREEK_RUN = re.compile(
     r"["
+    r"\u0300-\u036f"  # combining marks in decomposed source text
     r"Ͱ-Ͽ"   # Greek and Coptic
     r"ἀ-῿"   # Greek Extended
-    r"'’ʼ"   # apostrophes (elision)
+    r"'`’ʼ᾽᾿"  # apostrophes (elision)
     r"]+"
 )
 HAS_GREEK_LETTER = re.compile(r"[Ͱ-Ͽἀ-῿]")
 
 
-def strip_accents(s: str) -> str:
-    return "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
-
-
 def normalize_key(token: str) -> str:
-    """Match the corpus_freq.json key convention: lowercase, accent-stripped,
-    NFC. Trailing/leading apostrophes that don't sit between two letters get
-    dropped (those are usually OCR/quotation marks, not elision)."""
-    t = strip_accents(token).lower()
-    t = unicodedata.normalize("NFC", t)
+    """Match the shared accentless corpus key without losing elision."""
+    t = corpus_freq_key(token)
     if not t or not HAS_GREEK_LETTER.search(t):
         return ""
-    # Normalize all apostrophe-like marks to U+2019 (right single quote),
-    # which is what GLAUx and Diorisis store for elision. Keeps merge keys
-    # aligned with the existing corpora.
-    t = t.replace("'", "’").replace("ʼ", "’").replace("᾽", "’")
     return t
 
 

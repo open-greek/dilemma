@@ -62,6 +62,7 @@ from export_hunspell import (
     filter_grc_orthography,
     has_any_diacritic,
     has_required_initial_breathing,
+    is_bare_elision_fallback,
     sanitize_export_pairs,
     select_forms,
 )
@@ -470,6 +471,24 @@ def test_affix_compression_does_not_accept_bare_elision_stems():
     assert not (emitted_words & BARE_ELISION_STEMS)
     assert not any(" 0 0 ." in block for block in aff_blocks)
     assert {"παρά", "παρὰ", "παρ᾽", "κατά", "κατὰ", "κατ᾽"} <= emitted_words
+
+
+def test_data_driven_bare_elision_filter_keeps_independent_headword():
+    elided_bases = {exact_form_key(form) for form in ("ἀφ", "ταῦτ", "ἄν")}
+    freq = {
+        exact_form_key("ἀφ"): 10,
+        exact_form_key("ἀφ᾽"): 100,
+        exact_form_key("ταῦτ"): 1,
+        exact_form_key("ταῦτ᾽"): 100,
+        exact_form_key("ἄν"): 1000,
+        exact_form_key("ἄν᾽"): 1,
+    }
+
+    assert is_bare_elision_fallback("ἀφ", elided_bases, freq, set())
+    assert is_bare_elision_fallback("ταῦτ", elided_bases, freq, set())
+    assert not is_bare_elision_fallback(
+        "ἄν", elided_bases, freq, {exact_form_key("ἄν")}
+    )
 
 
 def test_affix_compression_uses_only_real_forms_as_flagged_bases():

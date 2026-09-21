@@ -12,7 +12,7 @@ All notable changes to Dilemma are documented here. The format follows
   uses a revision-pinned accent-preserving full-LM map for acute-only forms,
   rejects vowel- or rho-initial spellings without a breathing, and preserves a
   reviewed closed list of correctly unaccented enclitics. Bare lemmatizer
-  fallbacks for elision remain excluded. The resulting export has 1,236,323
+  fallbacks for elision remain excluded. The resulting export has 1,284,405
   entries and 105 zero-strip suffix rules.
 - Stop emitting truncated common prefixes as flagged Hunspell entries. Affix
   compression now occurs only when the base is itself a paradigm form; all
@@ -24,6 +24,17 @@ All notable changes to Dilemma are documented here. The format follows
   `ἑκατέρως`. `ἀνάμεσα` is retained through exact LM attestation, while
   `του`, `τῳ`, monotonic `ότι`/`αυτός`, and unrelated Modern forms remain
   rejected.
+- Normalize elision marks through one shared corpus-frequency key in the
+  GLAUx, Diorisis, Patristic Text Archive, and OGC rollup builders, and again
+  at merge time. Diorisis no longer deletes the apostrophe and decomposed TEI
+  psili is preserved before accents are stripped, preventing parallel `δ` and
+  `δ’` keys. The rebuilt OGC rollup is pinned to commit `f4062a50` and
+  public-lexicon SHA-256 `02d6de71...`; merge provenance retains both values.
+- Generalize the Hunspell bare-elision rejection beyond a finite stem list.
+  A bare spelling with a more frequent marked counterpart is excluded unless
+  DGE or Cunliffe independently establishes it as a headword, preserving
+  genuine collisions such as `ἄν`. Preserve the closed set of Homeric
+  shortened prepositions (`κὰτ`/`κάτ` through `κὰγ`/`κάγ`, `ἂμ`/`ἄμ`).
 
 ### Added
 - Add a revision-pinned Hunspell frequency auditor and CI regression fixture.
@@ -34,7 +45,9 @@ All notable changes to Dilemma are documented here. The format follows
   without required initial breathings. JSON fixture generation hard-fails on
   sanity runs; format-v2 LM binaries supply exact vocabulary and counts. An
   optional full-vocabulary comparison produces a reviewable LM-weighted delta
-  against a previously shipped dictionary.
+  against a previously shipped dictionary. The current candidate gains 4,510
+  full-LM forms (1,232,520 tokens) and loses 213 (73,046 tokens) against the
+  April Tonos artifact; the newly removed forms are reviewed elision fragments.
 
 ## [1.3.4] - 2026-09-21
 

@@ -19,8 +19,9 @@ Output:
 import argparse
 import json
 import sys
-import unicodedata
 from pathlib import Path
+
+from corpus_freq_key import corpus_freq_key
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
@@ -28,10 +29,6 @@ DEFAULT_FREQ = DATA_DIR / "corpus_freq.json"
 LOOKUP_PATH = DATA_DIR / "ag_lookup.json"
 OUT_PATH = DATA_DIR / "coverage_report.json"
 TOP_MISSING = 200
-
-
-def strip_accents(s: str) -> str:
-    return "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
 
 
 def main() -> int:
@@ -59,14 +56,14 @@ def main() -> int:
     print(f"Loading {args.lookup.name} ...")
     lookup = json.load(args.lookup.open())
     lookup_keys = set(lookup.keys())
-    lookup_stripped = {strip_accents(k) for k in lookup_keys}
+    lookup_stripped = {corpus_freq_key(k) for k in lookup_keys}
     print(f"  {len(lookup_keys):,} keys ({len(lookup_stripped):,} accent-stripped)")
 
     n_exact = n_relaxed = tok_exact = tok_relaxed = 0
     missing: list[tuple[str, int]] = []
     for form, count in forms.items():
         in_exact = form in lookup_keys
-        in_relaxed = in_exact or strip_accents(form) in lookup_stripped
+        in_relaxed = in_exact or corpus_freq_key(form) in lookup_stripped
         if in_exact:
             n_exact += 1
             tok_exact += count

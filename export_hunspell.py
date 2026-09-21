@@ -162,6 +162,19 @@ AG_EXPORT_OVERRIDES = {
     "κατάβα": "καταβαίνω",
 }
 
+# Homeric prepositions shortened by apocope and subsequent assimilation.
+# These are complete words despite ending in consonants that usually signal
+# an elision fallback. Keep both acute and contextual-grave spellings.
+HOMERIC_SHORT_PREPOSITIONS = {
+    "κὰτ": "κατά", "κάτ": "κατά",
+    "κὰδ": "κατά", "κάδ": "κατά",
+    "κὰκ": "κατά", "κάκ": "κατά",
+    "κὰπ": "κατά", "κάπ": "κατά",
+    "κὰμ": "κατά", "κάμ": "κατά",
+    "κὰγ": "κατά", "κάγ": "κατά",
+    "ἂμ": "ἀνά", "ἄμ": "ἀνά",
+}
+
 # These lookup forms are not acceptable polytonic spellings. In particular,
 # tau + omega + iota-subscript is not an unaccented variant of τῷ.
 GRC_REJECT_FORMS = frozenset({"του", "τῳ"})
@@ -174,6 +187,15 @@ BARE_ELISION_STEMS = frozenset({
     "δ", "ἀλλ", "δι", "καθ", "κατ", "παρ", "ἐπ", "ἐφ", "οὐδ", "ὑπ",
     "ἀπ", "μεθ",
 })
+
+# DGE and Cunliffe are independently edited headword inventories rather than
+# generated paradigm tables. Their overlap is not required: either is enough
+# to prove that a spelling which also resembles an elision stem is a real
+# standalone headword (notably ἄν).
+INDEPENDENT_AG_HEADWORD_PATHS = (
+    DATA / "dge_headwords.json",
+    DATA / "cunliffe_headwords.json",
+)
 
 LOOKUP_DB = DATA / "lookup.db"
 CORPUS_FREQ = DATA / "corpus_freq.json"
@@ -528,6 +550,48 @@ def load_grc_form_freq() -> dict[str, int]:
     return {form: int(count) for form, count in raw.get("forms", {}).items()}
 
 
+def load_independent_ag_headwords() -> set[str]:
+    """Load exact-form keys that independently establish AG headwords."""
+    headwords: set[str] = set()
+    for path in INDEPENDENT_AG_HEADWORD_PATHS:
+        if not path.exists():
+            continue
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        values = raw if isinstance(raw, list) else raw.keys()
+        headwords.update(
+            exact_form_key(value)
+            for value in values
+            if isinstance(value, str) and value
+        )
+    return headwords
+
+
+def is_bare_elision_fallback(
+    form: str,
+    elided_base_keys: set[str],
+    attestation_freq: dict[str, int],
+    independent_headwords: set[str],
+) -> bool:
+    """Return whether *form* is an apostrophe-less elision fallback.
+
+    The lookup intentionally accepts tolerant stems such as ``ἀφ`` for
+    ``ἀφ᾽``. They are unsuitable dictionary words. A bare spelling is rejected
+    when lookup also contains its marked counterpart, the marked spelling is
+    more frequent in the pinned accent-preserving LM, and neither DGE nor
+    Cunliffe establishes the bare spelling as a headword. This keeps genuine
+    collisions such as ``ἄν`` while covering the class beyond a fixed list.
+    """
+    clean = canonicalize_final_elision(sanitize_form(form))
+    if not clean or clean.endswith("\u1fbd"):
+        return False
+    key = exact_form_key(clean)
+    if key not in elided_base_keys or key in independent_headwords:
+        return False
+    return exact_freq_lookup(clean + "\u1fbd", attestation_freq) > (
+        exact_freq_lookup(clean, attestation_freq)
+    )
+
+
 def get_git_commit() -> str:
     try:
         out = subprocess.check_output(
@@ -639,7 +703,11 @@ def select_forms(
             """
         )
         by_lemma: dict[str, list[str]] = defaultdict(list)
+        elided_base_keys: set[str] = set()
         for form, lemma in rows:
+            canonical_form = canonicalize_final_elision(sanitize_form(form))
+            if canonical_form.endswith("\u1fbd"):
+                elided_base_keys.add(exact_form_key(canonical_form[:-1]))
             if form in BARE_ELISION_STEMS:
                 continue
             if not has_any_diacritic(form):
@@ -649,6 +717,9 @@ def select_forms(
         seen: set[tuple[str, str]] = set()
         out: list[tuple[str, str]] = []
         keep = keep_lemmas or set()
+        independent_headwords = (
+            load_independent_ag_headwords() if attestation_freq else set()
+        )
         for lemma, forms in by_lemma.items():
             is_canonical_keep = lemma in keep
             is_attested_keep = (
@@ -662,6 +733,14 @@ def select_forms(
                 if not has_any_diacritic(lemma):
                     continue
             for f in forms:
+                if (attestation_freq is not None
+                        and is_bare_elision_fallback(
+                            f,
+                            elided_base_keys,
+                            attestation_freq,
+                            independent_headwords,
+                        )):
+                    continue
                 key = (f, lemma)
                 if key in seen:
                     continue
@@ -1133,7 +1212,11 @@ def run_export(sanity: int | None, variants: list[str],
             # cannot silently remove them.
             existing_forms = {f for f, _ in form_lemma}
             added = 0
-            export_overrides = AG_FUNCTION_WORDS | AG_EXPORT_OVERRIDES
+            export_overrides = (
+                AG_FUNCTION_WORDS
+                | AG_EXPORT_OVERRIDES
+                | HOMERIC_SHORT_PREPOSITIONS
+            )
             for form, lemma in export_overrides.items():
                 if form not in existing_forms:
                     form_lemma.append((form, lemma))

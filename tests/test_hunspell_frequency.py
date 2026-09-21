@@ -22,6 +22,7 @@ from export_hunspell import (
     AG_FUNCTION_WORDS,
     BARE_ELISION_STEMS,
     GRC_FORM_FREQ,
+    HOMERIC_SHORT_PREPOSITIONS,
     LOOKUP_DB,
     exact_form_key,
     filter_by_lemma_freq,
@@ -47,6 +48,11 @@ REPORTED_REGRESSIONS = {
     "εἰκότως", "πόθεν", "ὅλως", "λέων", "εἰκός", "βασιλεύς", "μηκέτι",
     "παρά", "δώδεκα", "φέρω", "χώρα", "δύναμις", "τε", "τις", "ποτε",
     "πάλιν", "σήμερον", "χάριν", "χάρις", "χάριτος", "χάριτι",
+}
+
+REPORTED_BARE_ELISION_FALLBACKS = {
+    "ἀφ", "ὑφ", "ἵν", "τοῦτ", "ταῦτ", "ὅτ", "ἀνθ", "οὔτ", "μήτ",
+    "ἔπειτ", "εἶτ", "ἀντ", "μετ", "γ", "μ", "σ", "θ",
 }
 
 
@@ -172,7 +178,11 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
     existing = {form for form, _lemma in pairs}
     pairs.extend(
         (form, lemma)
-        for form, lemma in (AG_FUNCTION_WORDS | AG_EXPORT_OVERRIDES).items()
+        for form, lemma in (
+            AG_FUNCTION_WORDS
+            | AG_EXPORT_OVERRIDES
+            | HOMERIC_SHORT_PREPOSITIONS
+        ).items()
         if form not in existing
     )
     pairs, _changed, _dropped = sanitize_export_pairs(pairs)
@@ -201,6 +211,11 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
     assert missing == []
     assert not any(dictionary.lookup(lookup_form(form)) for form in exclusions)
     assert not any(dictionary.lookup(stem) for stem in BARE_ELISION_STEMS)
+    assert not any(
+        dictionary.lookup(stem) for stem in REPORTED_BARE_ELISION_FALLBACKS
+    )
+    assert dictionary.lookup("ἄν")
+    assert all(dictionary.lookup(form) for form in HOMERIC_SHORT_PREPOSITIONS)
 
     missing, accepted_exclusions = audit_dictionary(
         tmp_path / "coverage", fixture, exclusions
