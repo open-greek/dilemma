@@ -7,6 +7,11 @@ from pathlib import Path
 
 import pytest
 
+from export_lm import write_binary
+from scripts.audit_hunspell_frequency import (
+    fixture_payload_from_binary,
+    fixture_payload_from_json,
+)
 from export_hunspell import (
     AG_FUNCTION_WORDS,
     BARE_ELISION_STEMS,
@@ -45,6 +50,49 @@ def test_frequency_fixture_is_well_formed():
     assert [row["count"] for row in rows] == sorted(
         (row["count"] for row in rows), reverse=True
     )
+    assert fixture["training"]["sanity"] is False
+    assert fixture["training"]["total_tokens"] == 30_933_396
+    assert next(row for row in rows if row["form"] == "γε")["count"] == 43_741
+
+
+def test_json_fixture_rejects_sanity_lm_run(tmp_path):
+    vocab = tmp_path / "vocab.json"
+    unigrams = tmp_path / "unigrams.json"
+    stats = tmp_path / "stats.json"
+    vocab.write_text('["<PAD>", "λόγος"]', encoding="utf-8")
+    unigrams.write_text('{"1": 10}', encoding="utf-8")
+    stats.write_text('{"sanity": true, "n_train_tokens": 10}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="requires a full LM run"):
+        fixture_payload_from_json(vocab, unigrams, stats, top_n=1)
+
+
+def test_binary_fixture_reads_embedded_vocabulary_counts(tmp_path):
+    path = tmp_path / "grc_ngram.bin"
+    vocab = ["</s>", "<PAD>", "<UNK>", "<s>", "γε", "λόγος"]
+    write_binary(
+        path,
+        id2tok=vocab,
+        vocab_counts=[0, 0, 0, 0, 12, 20],
+        unigram_topk=[],
+        bigram_ctx=[],
+        trigram_ctx=[],
+        total_tokens=32,
+        reserved_ids={
+            "</s>": 0,
+            "<PAD>": 1,
+            "<UNK>": 2,
+            "<s>": 3,
+        },
+    )
+
+    fixture = fixture_payload_from_binary(path, None, top_n=2)
+
+    assert fixture["training"]["total_tokens"] == 32
+    assert fixture["forms"] == [
+        {"form": "λόγος", "count": 20},
+        {"form": "γε", "count": 12},
+    ]
 
 
 @pytest.mark.skipif(not LOOKUP_DB.exists(), reason="lookup.db not downloaded")

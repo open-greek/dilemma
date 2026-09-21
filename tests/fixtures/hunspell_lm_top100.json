@@ -3,414 +3,423 @@
   "top_n": 100,
   "selection": "Greek letters and combining marks only; nonlexical tokens excluded",
   "normalization": "NFC; combining grave U+0300 folded to acute U+0301; counts aggregated",
+  "training": {
+    "kind": "full-format-v2-artifact",
+    "sanity": false,
+    "format_version": 2,
+    "total_tokens": 30933396,
+    "vocab_size": 80000,
+    "dilemma_commit": "79b83f66a241",
+    "semver": "1.3.3"
+  },
   "sources": {
-    "vocab.json": {
-      "sha256": "834cc0df15c5ac2ba99026d319f367803448b70f6c4fc8b02cdc2492238e6c55"
+    "grc_ngram.bin": {
+      "sha256": "862a104d5fde6795259b11852fa0fafc084534e9bce6fad9377b1c8e8dfd70e7"
     },
-    "unigrams.json": {
-      "sha256": "6c4a2e58ee1c0a35cbe3b8672794cc249b7f8cc3a71ff6a45b1a6c154d0c495d"
+    "grc_ngram.version": {
+      "sha256": "c06f719a36e5b478fdf53b06fa84c2ba6218a31e39ed9d77328c5a237545dbda"
     }
   },
   "forms": [
     {
       "form": "καί",
-      "count": 58559
+      "count": 1552383
     },
     {
       "form": "δέ",
-      "count": 25905
-    },
-    {
-      "form": "τήν",
-      "count": 12078
-    },
-    {
-      "form": "τῶν",
-      "count": 11961
-    },
-    {
-      "form": "μέν",
-      "count": 11806
+      "count": 630615
     },
     {
       "form": "τό",
-      "count": 11275
+      "count": 441421
     },
     {
-      "form": "τε",
-      "count": 9556
+      "form": "τῶν",
+      "count": 410263
     },
     {
-      "form": "τόν",
-      "count": 9406
-    },
-    {
-      "form": "ἐν",
-      "count": 9297
-    },
-    {
-      "form": "ὁ",
-      "count": 9210
+      "form": "τήν",
+      "count": 377130
     },
     {
       "form": "τοῦ",
-      "count": 8362
+      "count": 331147
     },
     {
-      "form": "ἐς",
-      "count": 8192
+      "form": "μέν",
+      "count": 302155
     },
     {
       "form": "τῆς",
-      "count": 8110
+      "count": 285472
     },
     {
-      "form": "γάρ",
-      "count": 7834
+      "form": "ἐν",
+      "count": 281723
+    },
+    {
+      "form": "τόν",
+      "count": 258411
+    },
+    {
+      "form": "ὁ",
+      "count": 248249
     },
     {
       "form": "τά",
-      "count": 7457
+      "count": 243946
     },
     {
-      "form": "οἱ",
-      "count": 6809
+      "form": "γάρ",
+      "count": 231007
     },
     {
-      "form": "τούς",
-      "count": 6654
-    },
-    {
-      "form": "ὡς",
-      "count": 6387
-    },
-    {
-      "form": "οὐ",
-      "count": 5499
-    },
-    {
-      "form": "τοῖς",
-      "count": 5228
-    },
-    {
-      "form": "ἐπί",
-      "count": 5150
-    },
-    {
-      "form": "μή",
-      "count": 5039
+      "form": "τε",
+      "count": 185766
     },
     {
       "form": "τῷ",
-      "count": 5032
+      "count": 169679
+    },
+    {
+      "form": "τούς",
+      "count": 167457
     },
     {
       "form": "πρός",
-      "count": 4834
-    },
-    {
-      "form": "ἤ",
-      "count": 4267
-    },
-    {
-      "form": "οὐκ",
-      "count": 4221
-    },
-    {
-      "form": "περί",
-      "count": 4003
-    },
-    {
-      "form": "ἐκ",
-      "count": 3848
-    },
-    {
-      "form": "τῇ",
-      "count": 3652
-    },
-    {
-      "form": "ἄν",
-      "count": 3600
-    },
-    {
-      "form": "ἡ",
-      "count": 3331
-    },
-    {
-      "form": "τάς",
-      "count": 3311
+      "count": 162316
     },
     {
       "form": "εἰς",
-      "count": 3185
+      "count": 161426
+    },
+    {
+      "form": "ἡ",
+      "count": 160527
+    },
+    {
+      "form": "τοῖς",
+      "count": 157967
+    },
+    {
+      "form": "ὡς",
+      "count": 152473
+    },
+    {
+      "form": "οὐ",
+      "count": 149858
+    },
+    {
+      "form": "οἱ",
+      "count": 145978
+    },
+    {
+      "form": "ἤ",
+      "count": 145956
+    },
+    {
+      "form": "ἐπί",
+      "count": 136239
+    },
+    {
+      "form": "μή",
+      "count": 133155
+    },
+    {
+      "form": "περί",
+      "count": 113043
     },
     {
       "form": "κατά",
-      "count": 2800
+      "count": 112101
     },
     {
-      "form": "εἰ",
-      "count": 2723
+      "form": "ἄν",
+      "count": 112011
     },
     {
-      "form": "ἦν",
-      "count": 2649
+      "form": "τῇ",
+      "count": 106353
     },
     {
-      "form": "αὐτόν",
-      "count": 2583
+      "form": "τάς",
+      "count": 106245
     },
     {
-      "form": "οὖν",
-      "count": 2547
-    },
-    {
-      "form": "εἶναι",
-      "count": 2467
-    },
-    {
-      "form": "ἀλλά",
-      "count": 2330
-    },
-    {
-      "form": "διά",
-      "count": 2305
-    },
-    {
-      "form": "ὑπό",
-      "count": 2252
-    },
-    {
-      "form": "τι",
-      "count": 2156
-    },
-    {
-      "form": "δή",
-      "count": 2154
-    },
-    {
-      "form": "αὐτῷ",
-      "count": 2099
+      "form": "οὐκ",
+      "count": 99526
     },
     {
       "form": "ὅτι",
-      "count": 2062
+      "count": 94566
     },
     {
-      "form": "ὦ",
-      "count": 1958
+      "form": "διά",
+      "count": 93342
+    },
+    {
+      "form": "ἐκ",
+      "count": 90574
+    },
+    {
+      "form": "εἰ",
+      "count": 83331
+    },
+    {
+      "form": "εἶναι",
+      "count": 81265
+    },
+    {
+      "form": "οὖν",
+      "count": 80588
+    },
+    {
+      "form": "ἀλλά",
+      "count": 76658
     },
     {
       "form": "ἀπό",
-      "count": 1875
-    },
-    {
-      "form": "τις",
-      "count": 1844
-    },
-    {
-      "form": "αὐτοῖς",
-      "count": 1840
-    },
-    {
-      "form": "ἔτι",
-      "count": 1801
+      "count": 71889
     },
     {
       "form": "αὐτοῦ",
-      "count": 1784
-    },
-    {
-      "form": "αὐτῶν",
-      "count": 1734
-    },
-    {
-      "form": "μοι",
-      "count": 1620
-    },
-    {
-      "form": "ἐγώ",
-      "count": 1575
-    },
-    {
-      "form": "τί",
-      "count": 1572
-    },
-    {
-      "form": "μετά",
-      "count": 1570
+      "count": 69627
     },
     {
       "form": "τοῦτο",
-      "count": 1533
+      "count": 63628
+    },
+    {
+      "form": "ὑπό",
+      "count": 62287
+    },
+    {
+      "form": "τι",
+      "count": 60010
+    },
+    {
+      "form": "αὐτῶν",
+      "count": 59937
+    },
+    {
+      "form": "δή",
+      "count": 58196
+    },
+    {
+      "form": "αὐτόν",
+      "count": 57197
     },
     {
       "form": "ταῦτα",
-      "count": 1511
+      "count": 55594
     },
     {
-      "form": "γε",
-      "count": 1478
+      "form": "ἐς",
+      "count": 55223
     },
     {
-      "form": "αὐτούς",
-      "count": 1468
+      "form": "τις",
+      "count": 51157
     },
     {
-      "form": "ἤδη",
-      "count": 1457
+      "form": "ἦν",
+      "count": 50863
     },
     {
-      "form": "νῦν",
-      "count": 1419
+      "form": "μετά",
+      "count": 49088
     },
     {
-      "form": "ἐξ",
-      "count": 1364
-    },
-    {
-      "form": "ὅ",
-      "count": 1345
-    },
-    {
-      "form": "αὐτός",
-      "count": 1299
+      "form": "αὐτῷ",
+      "count": 48922
     },
     {
       "form": "παρά",
-      "count": 1275
+      "count": 44240
+    },
+    {
+      "form": "γε",
+      "count": 43741
     },
     {
       "form": "ταῖς",
-      "count": 1239
+      "count": 41218
     },
     {
-      "form": "οὐδέν",
-      "count": 1234
+      "form": "τί",
+      "count": 41074
     },
     {
-      "form": "ὧν",
-      "count": 1135
-    },
-    {
-      "form": "οὔ",
-      "count": 1086
-    },
-    {
-      "form": "πόλιν",
-      "count": 1072
-    },
-    {
-      "form": "αἱ",
-      "count": 1058
-    },
-    {
-      "form": "ἐπεί",
-      "count": 1044
-    },
-    {
-      "form": "σύ",
-      "count": 1029
-    },
-    {
-      "form": "ὑπέρ",
-      "count": 1025
-    },
-    {
-      "form": "οἵ",
-      "count": 1010
-    },
-    {
-      "form": "μάλιστα",
-      "count": 994
-    },
-    {
-      "form": "με",
-      "count": 986
-    },
-    {
-      "form": "μᾶλλον",
-      "count": 981
-    },
-    {
-      "form": "εἴ",
-      "count": 970
-    },
-    {
-      "form": "σύν",
-      "count": 960
+      "form": "ἐξ",
+      "count": 39610
     },
     {
       "form": "τούτων",
-      "count": 929
+      "count": 39147
     },
     {
-      "form": "ἄρα",
-      "count": 927
+      "form": "ἐστιν",
+      "count": 39063
     },
     {
-      "form": "πάντα",
-      "count": 925
+      "form": "αἱ",
+      "count": 38021
     },
     {
       "form": "νά",
-      "count": 911
+      "count": 37505
     },
     {
-      "form": "οὐδέ",
-      "count": 863
+      "form": "αὐτοῖς",
+      "count": 36535
     },
     {
-      "form": "τότε",
-      "count": 863
+      "form": "οὕτως",
+      "count": 35151
     },
     {
-      "form": "ἔφη",
-      "count": 858
+      "form": "ἔτι",
+      "count": 34976
     },
     {
-      "form": "πολλά",
-      "count": 839
-    },
-    {
-      "form": "ἅ",
-      "count": 813
-    },
-    {
-      "form": "ἅμα",
-      "count": 801
-    },
-    {
-      "form": "ἐστι",
-      "count": 800
-    },
-    {
-      "form": "οὐχ",
-      "count": 784
-    },
-    {
-      "form": "πρῶτον",
-      "count": 771
-    },
-    {
-      "form": "αὐτήν",
-      "count": 756
+      "form": "ὅ",
+      "count": 34551
     },
     {
       "form": "ὥσπερ",
-      "count": 744
+      "count": 34391
     },
     {
-      "form": "ὅς",
-      "count": 741
+      "form": "ὧν",
+      "count": 33712
     },
     {
-      "form": "οὔτε",
-      "count": 734
+      "form": "οὐδέν",
+      "count": 32956
+    },
+    {
+      "form": "νῦν",
+      "count": 32872
+    },
+    {
+      "form": "οὔ",
+      "count": 32861
+    },
+    {
+      "form": "ὦ",
+      "count": 32688
+    },
+    {
+      "form": "πάντα",
+      "count": 32418
+    },
+    {
+      "form": "ἐγώ",
+      "count": 32301
+    },
+    {
+      "form": "ἐστι",
+      "count": 31587
+    },
+    {
+      "form": "αὐτός",
+      "count": 31439
+    },
+    {
+      "form": "αὐτούς",
+      "count": 30679
+    },
+    {
+      "form": "μᾶλλον",
+      "count": 29536
+    },
+    {
+      "form": "μοι",
+      "count": 28669
+    },
+    {
+      "form": "μόνον",
+      "count": 26795
+    },
+    {
+      "form": "ὥστε",
+      "count": 26655
+    },
+    {
+      "form": "μου",
+      "count": 26594
+    },
+    {
+      "form": "ἤδη",
+      "count": 26541
+    },
+    {
+      "form": "οὕτω",
+      "count": 26271
+    },
+    {
+      "form": "ὑπέρ",
+      "count": 25134
     },
     {
       "form": "ἔχει",
-      "count": 720
+      "count": 24989
+    },
+    {
+      "form": "ἐπεί",
+      "count": 24872
+    },
+    {
+      "form": "οὐχ",
+      "count": 24343
+    },
+    {
+      "form": "αὐτήν",
+      "count": 23770
+    },
+    {
+      "form": "αὐτό",
+      "count": 23714
+    },
+    {
+      "form": "ὅταν",
+      "count": 23437
+    },
+    {
+      "form": "ἐστίν",
+      "count": 23269
+    },
+    {
+      "form": "μάλιστα",
+      "count": 23077
+    },
+    {
+      "form": "ἡμῖν",
+      "count": 23072
+    },
+    {
+      "form": "σου",
+      "count": 23048
+    },
+    {
+      "form": "αὐτῆς",
+      "count": 22430
+    },
+    {
+      "form": "ἄρα",
+      "count": 22412
+    },
+    {
+      "form": "ἐάν",
+      "count": 22221
+    },
+    {
+      "form": "εἴ",
+      "count": 21602
+    },
+    {
+      "form": "ἔφη",
+      "count": 20731
     }
   ]
 }

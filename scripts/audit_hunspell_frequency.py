@@ -9,13 +9,16 @@ a separate consumer concern and is deliberately outside this fixture.
 
 The committed fixture lets CI enforce the coverage invariant without shipping
 the complete LM build. Its source hashes make regeneration against a different
-vocabulary or unigram table explicit.
+vocabulary or unigram table explicit. JSON sources require a non-sanity
+``stats.json``. The format-v2 LM binary is also accepted because it embeds the
+exact exported vocabulary and unigram counts.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import struct
 import sys
 import unicodedata
 from collections import Counter
@@ -30,6 +33,7 @@ from dilemma.nonlexical import classify_nonlexical  # noqa: E402
 
 DEFAULT_VOCAB = ROOT / "build" / "lm" / "vocab.json"
 DEFAULT_UNIGRAMS = ROOT / "build" / "lm" / "unigrams.json"
+DEFAULT_STATS = ROOT / "build" / "lm" / "stats.json"
 DEFAULT_DICTIONARY = ROOT / "build" / "hunspell" / "grc_polytonic"
 DEFAULT_FIXTURE = ROOT / "tests" / "fixtures" / "hunspell_lm_top100.json"
 DEFAULT_TOP_N = 100
@@ -61,15 +65,9 @@ def normalize_form(form: str) -> str:
     return grave_to_acute(unicodedata.normalize("NFC", form))
 
 
-def ranked_forms(vocab_path: Path, unigrams_path: Path) -> list[tuple[str, int]]:
-    vocab = json.loads(vocab_path.read_text(encoding="utf-8"))
-    unigrams = json.loads(unigrams_path.read_text(encoding="utf-8"))
-    if not isinstance(vocab, list) or not isinstance(unigrams, dict):
-        raise ValueError("vocab must be a list and unigrams must be an object")
-
+def _ranked_forms(vocab: list[str], unigrams: dict[int, int]) -> list[tuple[str, int]]:
     counts: Counter[str] = Counter()
-    for raw_index, raw_count in unigrams.items():
-        index = int(raw_index)
+    for index, raw_count in unigrams.items():
         if index < 0 or index >= len(vocab):
             raise ValueError(f"unigram index {index} is outside the vocabulary")
         form = vocab[index]
@@ -79,25 +77,117 @@ def ranked_forms(vocab_path: Path, unigrams_path: Path) -> list[tuple[str, int]]
     return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
 
 
-def fixture_payload(
-    vocab_path: Path,
-    unigrams_path: Path,
-    top_n: int = DEFAULT_TOP_N,
-) -> dict:
-    forms = ranked_forms(vocab_path, unigrams_path)[:top_n]
-    if len(forms) != top_n:
-        raise ValueError(f"only {len(forms)} lexical forms available for top {top_n}")
+def ranked_forms(vocab_path: Path, unigrams_path: Path) -> list[tuple[str, int]]:
+    vocab = json.loads(vocab_path.read_text(encoding="utf-8"))
+    raw_unigrams = json.loads(unigrams_path.read_text(encoding="utf-8"))
+    if not isinstance(vocab, list) or not isinstance(raw_unigrams, dict):
+        raise ValueError("vocab must be a list and unigrams must be an object")
+    return _ranked_forms(vocab, {
+        int(index): int(count) for index, count in raw_unigrams.items()
+    })
+
+
+def _payload(forms: list[tuple[str, int]], top_n: int, sources: dict,
+             training: dict) -> dict:
+    selected = forms[:top_n]
+    if len(selected) != top_n:
+        raise ValueError(f"only {len(selected)} lexical forms available for top {top_n}")
     return {
         "schema_version": 1,
         "top_n": top_n,
         "selection": "Greek letters and combining marks only; nonlexical tokens excluded",
         "normalization": "NFC; combining grave U+0300 folded to acute U+0301; counts aggregated",
-        "sources": {
+        "training": training,
+        "sources": sources,
+        "forms": [{"form": form, "count": count} for form, count in selected],
+    }
+
+
+def fixture_payload_from_json(
+    vocab_path: Path,
+    unigrams_path: Path,
+    stats_path: Path,
+    top_n: int = DEFAULT_TOP_N,
+) -> dict:
+    stats = json.loads(stats_path.read_text(encoding="utf-8"))
+    if stats.get("sanity") is not False:
+        raise ValueError(
+            f"{stats_path} is a sanity or unclassified run; "
+            "the Hunspell frequency gate requires a full LM run"
+        )
+    return _payload(
+        ranked_forms(vocab_path, unigrams_path),
+        top_n,
+        {
             "vocab.json": {"sha256": sha256(vocab_path)},
             "unigrams.json": {"sha256": sha256(unigrams_path)},
+            "stats.json": {"sha256": sha256(stats_path)},
         },
-        "forms": [{"form": form, "count": count} for form, count in forms],
+        {
+            "kind": "full-json-run",
+            "sanity": False,
+            "total_tokens": int(stats["n_train_tokens"]),
+        },
+    )
+
+
+def _read_lm_binary(path: Path) -> tuple[list[str], dict[int, int], dict]:
+    data = path.read_bytes()
+    if len(data) < 128 or data[:4] != b"GNLM":
+        raise ValueError(f"{path} is not a Dilemma GNLM artifact")
+    format_version = struct.unpack_from("<I", data, 4)[0]
+    if format_version < 2:
+        raise ValueError("LM binary must be format version 2 or newer")
+    vocab_size = struct.unpack_from("<I", data, 16)[0]
+    total_tokens = struct.unpack_from("<Q", data, 40)[0]
+    offsets_at, pool_at, pool_size = struct.unpack_from("<QQQ", data, 48)
+    offsets_end = offsets_at + 4 * (vocab_size + 1)
+    pool_end = pool_at + pool_size
+    counts_end = pool_end + 4 * vocab_size
+    if offsets_end > len(data) or pool_end > len(data) or counts_end > len(data):
+        raise ValueError(f"{path} has out-of-range vocabulary sections")
+
+    offsets = struct.unpack_from(f"<{vocab_size + 1}I", data, offsets_at)
+    if offsets[0] != 0 or offsets[-1] != pool_size:
+        raise ValueError(f"{path} has invalid vocabulary offsets")
+    pool = data[pool_at:pool_end]
+    vocab = [
+        pool[offsets[index]:offsets[index + 1]].decode("utf-8")
+        for index in range(vocab_size)
+    ]
+    dense_counts = struct.unpack_from(f"<{vocab_size}I", data, pool_end)
+    unigrams = {
+        index: count for index, count in enumerate(dense_counts) if count
     }
+    return vocab, unigrams, {
+        "format_version": format_version,
+        "total_tokens": total_tokens,
+        "vocab_size": vocab_size,
+    }
+
+
+def fixture_payload_from_binary(
+    binary_path: Path,
+    version_path: Path | None,
+    top_n: int = DEFAULT_TOP_N,
+) -> dict:
+    vocab, unigrams, metadata = _read_lm_binary(binary_path)
+    sources = {"grc_ngram.bin": {"sha256": sha256(binary_path)}}
+    training = {
+        "kind": "full-format-v2-artifact",
+        "sanity": False,
+        **metadata,
+    }
+    if version_path is not None:
+        version = json.loads(version_path.read_text(encoding="utf-8"))
+        if int(version["total_tokens"]) != metadata["total_tokens"]:
+            raise ValueError("LM binary and version sidecar disagree on total_tokens")
+        sources["grc_ngram.version"] = {"sha256": sha256(version_path)}
+        training["dilemma_commit"] = version.get("dilemma_commit")
+        training["semver"] = version.get("semver")
+    return _payload(
+        _ranked_forms(vocab, unigrams), top_n, sources, training
+    )
 
 
 def audit_dictionary(dictionary_base: Path, fixture: dict) -> list[str]:
@@ -114,15 +204,39 @@ def audit_dictionary(dictionary_base: Path, fixture: dict) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source", choices=("json", "binary", "fixture"), default="json",
+        help="frequency source; JSON mode rejects sanity runs",
+    )
     parser.add_argument("--vocab", type=Path, default=DEFAULT_VOCAB)
     parser.add_argument("--unigrams", type=Path, default=DEFAULT_UNIGRAMS)
+    parser.add_argument("--stats", type=Path, default=DEFAULT_STATS)
+    parser.add_argument("--lm-binary", type=Path)
+    parser.add_argument("--lm-version", type=Path)
     parser.add_argument("--dictionary", type=Path, default=DEFAULT_DICTIONARY)
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
     parser.add_argument("--write-fixture", action="store_true")
     args = parser.parse_args()
 
-    generated = fixture_payload(args.vocab, args.unigrams, args.top_n)
+    try:
+        if args.source == "fixture":
+            if args.write_fixture:
+                parser.error("--write-fixture cannot be used with --source fixture")
+            generated = json.loads(args.fixture.read_text(encoding="utf-8"))
+        elif args.source == "binary":
+            if args.lm_binary is None:
+                parser.error("--lm-binary is required with --source binary")
+            generated = fixture_payload_from_binary(
+                args.lm_binary, args.lm_version, args.top_n
+            )
+        else:
+            generated = fixture_payload_from_json(
+                args.vocab, args.unigrams, args.stats, args.top_n
+            )
+    except (OSError, UnicodeError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
     if args.write_fixture:
         args.fixture.parent.mkdir(parents=True, exist_ok=True)
         args.fixture.write_text(
@@ -130,7 +244,7 @@ def main() -> int:
             encoding="utf-8",
         )
         print(f"wrote {args.fixture}")
-    else:
+    elif args.source != "fixture":
         committed = json.loads(args.fixture.read_text(encoding="utf-8"))
         if generated != committed:
             print("ERROR: frequency fixture is stale; regenerate with --write-fixture",
