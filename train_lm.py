@@ -23,6 +23,18 @@ Currently registered:
     - Polytonic MG      (``extract_polytonic_mg.iter_polytonic_mg_sentences``)
     - Byzantine         (``extract_byzantine.iter_byzantine_sentences``)
 
+Licensing
+---------
+
+Every build is openly licensed by default, so the GLAUx reader applies
+the same filter as every other GLAUx reader in this project
+(``build/nc_filter.py``): the NonCommercial source texts and the
+PROIEL-derived works are dropped whole, and the works GLAUx homogenized
+from the Gorman treebanks contribute only their automatic sentences,
+because their ``analysis="manual"`` sentences are the held-out gold
+trees. See the License section of the README and NOTICE for the full
+source and license list.
+
 Pipeline
 --------
 
@@ -64,6 +76,7 @@ Usage
     python train_lm.py --no-polytonic-mg      # drop the Katharevousa slice
     python train_lm.py --glaux /path/to/xml   # custom GLAUx location
     python train_lm.py --diorisis /path       # custom Diorisis location
+    python train_lm.py --glaux-metadata /path/to/metadata.txt
 
 The sanity pass is deliberately small so the rest of the pipeline
 (``export_lm.py``, ``eval_lm.py``) can be exercised end-to-end in under
@@ -85,6 +98,9 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BUILD_DIR = SCRIPT_DIR / "build" / "lm"
+sys.path.insert(0, str(SCRIPT_DIR / "build"))  # build/ (nc_filter)
+from nc_filter import excluded_glaux_stems, gorman_glaux_stems  # noqa: E402
+
 DEFAULT_GLAUX = Path.home() / "Documents" / "glaux" / "xml"
 # Diorisis lives under dilemma/data/diorisis/xml in the canonical
 # checkout. Fall back to that checkout if this script runs from a
@@ -133,18 +149,60 @@ def sentence_goes_to_dev(sent_id: str) -> bool:
     return bucket < int(DEV_FRACTION * 10_000)
 
 
-def iter_glaux_sentences(glaux_dir: Path, max_files: int | None = None):
+def glaux_metadata_path(glaux_dir, metadata_path=None) -> Path:
+    """Locate GLAUx's metadata.txt, the license filter's only input.
+
+    GLAUx ships it one level above the xml/ directory, so it follows
+    --glaux unless the caller overrides it.
+    """
+    if metadata_path:
+        return Path(metadata_path)
+    return Path(glaux_dir).parent / "metadata.txt"
+
+
+def iter_glaux_sentences(glaux_dir: Path, max_files: int | None = None,
+                         metadata_path: str | Path | None = None):
     """Yield (sent_id, [token, ...]) for every sentence in GLAUx.
 
     Punctuation is converted: sentence-enders -> ``</s>``, everything
     else is dropped. ``<s>`` is prepended; ``</s>`` appended if the
     sentence did not already end with a sentence-ender.
+
+    The license filter runs first, with the semantics the other GLAUx
+    readers use: works in ``excluded_glaux_stems`` (NonCommercial source
+    texts plus PROIEL-derived annotations) are dropped whole, while works
+    in ``gorman_glaux_stems`` lose only their manual sentences, which are
+    the held-out gold trees. Filtering precedes the ``max_files`` cut so
+    the sanity pass reads 40 usable files rather than 40 candidates.
     """
     xml_files = sorted(glaux_dir.glob("*.xml"))
     if not xml_files:
         raise SystemExit(f"No GLAUx XML files found at {glaux_dir}")
-    if max_files is not None:
-        xml_files = xml_files[:max_files]
+
+    meta = glaux_metadata_path(glaux_dir, metadata_path)
+    if not meta.exists():
+        # nc_filter answers a missing metadata file with empty exclusion
+        # sets, which here would quietly train on the NonCommercial and
+        # PROIEL-derived texts. Refuse the run instead.
+        raise SystemExit(
+            f"No GLAUx metadata.txt at {meta}. It carries the "
+            f"SOURCE_LICENSE and TREEBANK_ANNOTATIONS columns the "
+            f"exclusion filter reads; pass --glaux-metadata to point at it."
+        )
+    excluded = excluded_glaux_stems(meta)
+    gorman = gorman_glaux_stems(meta)
+    usable = [x for x in xml_files if x.stem not in excluded]
+    n_excluded = len(xml_files) - len(usable)
+    # Take the max_files cut before counting Gorman-derived texts, so the
+    # line below describes the files this run reads. Counted over the
+    # whole post-exclusion list, a two-file sanity pass claimed all 40
+    # Gorman-derived works of the corpus.
+    xml_files = usable if max_files is None else usable[:max_files]
+    n_gorman = sum(1 for x in xml_files if x.stem in gorman)
+    print(f"  GLAUx: reading {len(xml_files)} of {len(usable)} usable "
+          f"text(s), having dropped {n_excluded} (NonCommercial or "
+          f"PROIEL-derived); keeping only the automatic sentences of "
+          f"{n_gorman} Gorman-derived text(s)", flush=True)
 
     for xml_file in xml_files:
         try:
@@ -153,7 +211,13 @@ def iter_glaux_sentences(glaux_dir: Path, max_files: int | None = None):
             continue
 
         doc_id = xml_file.stem
+        # The manual sentences of a Gorman-derived work ARE Gorman's
+        # trees (held-out gold, never ingested); its automatic sentences
+        # are model output and stay in.
+        skip_manual = doc_id in gorman
         for sent in tree.findall(".//sentence"):
+            if skip_manual and sent.get("analysis") == "manual":
+                continue
             sid = sent.get("id") or sent.get("struct_id") or "?"
             global_sid = f"{doc_id}:{sid}"
             tokens: list[str] = [BOS_TOK]
@@ -267,7 +331,8 @@ def build_corpus_sources(args, max_files):
     sources: list[tuple[str, object]] = []
 
     glaux = Path(args.glaux)
-    sources.append(("glaux", iter_glaux_sentences(glaux, max_files)))
+    sources.append(("glaux", iter_glaux_sentences(
+        glaux, max_files, args.glaux_metadata)))
 
     if not args.no_diorisis:
         # Imported lazily so GLAUx-only runs don't require the betacode
@@ -320,6 +385,11 @@ def build_corpus_sources(args, max_files):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--glaux", type=str, default=str(DEFAULT_GLAUX))
+    ap.add_argument("--glaux-metadata", type=str, default=None,
+                    help="GLAUx metadata.txt, which carries the license "
+                         "and treebank-provenance columns the exclusion "
+                         "filter reads (default: metadata.txt next to "
+                         "the --glaux directory).")
     ap.add_argument("--diorisis", type=str, default=str(DEFAULT_DIORISIS))
     ap.add_argument("--no-diorisis", action="store_true",
                     help="Skip the Diorisis corpus; GLAUx only "
@@ -336,7 +406,7 @@ def main():
     ap.add_argument("--byzantine-dir", type=str, default=None,
                     help="Override the Byzantine corpus directory "
                          "(defaults to "
-                         "~/Documents/corpus-of-open-greek/sources/byzantine).")
+                         "~/Documents/open-greek-corpus/sources/byzantine).")
     ap.add_argument("--out", type=str, default=str(BUILD_DIR))
     ap.add_argument("--vocab-size", type=int, default=80_000)
     ap.add_argument("--min-count-bi", type=int, default=1)
@@ -453,6 +523,10 @@ def main():
 
     stats = {
         "glaux_dir": str(Path(args.glaux)),
+        # Provenance of the license filter, so a stats.json is enough to
+        # tell which exclusion lists a given artifact was built under.
+        "glaux_metadata": str(
+            glaux_metadata_path(args.glaux, args.glaux_metadata)),
         "diorisis_dir": (
             None if args.no_diorisis else str(Path(args.diorisis))
         ),
