@@ -45,6 +45,16 @@ Lexica and dictionaries
 - Lexicon of Greek Personal Names (LGPN), University of Oxford (proper names
   only). https://www.lgpn.ox.ac.uk/
 
+- Dictionary of Standard Modern Greek (Triantafyllidis), Institute for Modern
+  Greek Studies, via the Greek Language Portal and the glossAPI/EELLAK export
+  on Mozilla Data Collective.
+  https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/triantafyllides/
+  https://mozilladatacollective.com/datasets/cmo1sklpo00d0mk07taoepe1a
+  The dataset listing declares CC BY-NC-ND 4.0 for the packaged export.
+  Dilemma reads and ships only the factual bare headword strings from its
+  `lemma` column; it does not read or redistribute definitions, examples,
+  pronunciation, grammatical information, etymology, or source-page content.
+
 
 Treebanks and annotated corpora
 -------------------------------
@@ -158,9 +168,12 @@ Frequencies and assets
 A note on source licensing
 --------------------------
 
-Every source in Dilemma's shipped data and models is openly licensed: no
-NonCommercial-licensed source is included. The PROIEL treebank (CC BY-NC-SA,
-with no permissive release) is excluded entirely. The Ancient Greek Dependency
+Every source of copyright-bearing text or annotation in Dilemma's shipped data
+and models is openly licensed: no NonCommercial text, dictionary entries, or
+treebank annotation is included. The Triantafyllidis reference inventory above
+is limited to factual bare headword strings; the source's CC BY-NC-ND packaged
+dictionary content is not ingested. The PROIEL treebank (CC BY-NC-SA, with no
+permissive release) is excluded entirely. The Ancient Greek Dependency
 Treebank is taken from the Perseus AGDT original (CC BY-SA 3.0 US), not the
 NonCommercial Universal Dependencies repackaging (UD_Ancient_Greek-Perseus).
 Diorisis is CC BY 4.0; the Gorman treebanks (CC BY-SA 4.0) are deliberately
@@ -176,5 +189,6 @@ aggregate token statistics, not the syntactic apparatus.
 
 The shipped Modern Greek POS / dependency tagger is trained on UD_Greek-GUD
 (CC BY-SA 4.0) plus the CC BY-SA dialect treebanks, NOT on UD_Greek-GDT, which
-is CC BY-NC-SA. The Modern Greek lemmatizer is built from Wiktionary and the
-HNC Golden Corpus and is unaffected.
+is CC BY-NC-SA. The Modern Greek lemmatizer model is built from Wiktionary and
+the HNC Golden Corpus; the Triantafyllidis headwords affect convention
+validation/remapping only and do not train that model.

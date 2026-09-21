@@ -120,6 +120,7 @@ LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
 MG_HEADWORDS_PATH = DATA_DIR / "mg_headwords.json"
+TRIANTAFYLLIDIS_HEADWORDS_PATH = DATA_DIR / "triantafyllidis_headwords.json"
 AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
 DGE_HEADWORDS_PATH = DATA_DIR / "dge_headwords.json"
 LBG_HEADWORDS_PATH = DATA_DIR / "lbg_headwords.json"
@@ -138,9 +139,11 @@ _VALID_CITATION_POLICIES = {"default", "strict_ag"}
 # Map convention name -> headword file path for auto-derivation.
 # Conventions not listed here use LSJ headwords as fallback.
 _CONVENTION_HEADWORDS = {
-    "lsj": LSJ_HEADWORDS_PATH,
-    "cunliffe": CUNLIFFE_HEADWORDS_PATH,
-    "triantafyllidis": MG_HEADWORDS_PATH,
+    "lsj": (LSJ_HEADWORDS_PATH,),
+    "cunliffe": (CUNLIFFE_HEADWORDS_PATH,),
+    # The dictionary list is the convention authority. Wiktionary remains an
+    # additive fallback for Modern Greek coverage outside that dictionary.
+    "triantafyllidis": (TRIANTAFYLLIDIS_HEADWORDS_PATH, MG_HEADWORDS_PATH),
 }
 
 # Conventions that output monotonic Greek (apply to_monotonic to all results).
@@ -214,6 +217,26 @@ def trusted_ag_citation_headwords(
                 targets.add(acute)
                 targets.add(_without_quantity_marks(acute))
     return targets
+
+
+def _load_convention_headwords(convention: str) -> set[str]:
+    """Load and union every headword inventory for a lemma convention."""
+    headwords: set[str] = set()
+    for path in _CONVENTION_HEADWORDS.get(convention, ()):
+        if not path.exists():
+            continue
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        headwords.update(raw)
+        # LSJ-family lists may carry vowel quantity. Keeping the plain form
+        # beside the display headword also makes comparison source-neutral.
+        for headword in raw:
+            nfd = unicodedata.normalize("NFD", headword)
+            stripped = "".join(
+                ch for ch in nfd if ord(ch) not in (0x0304, 0x0306)
+            )
+            headwords.add(unicodedata.normalize("NFC", stripped))
+    return headwords
 
 
 _POLYTONIC_STRIP = {0x0313, 0x0314, 0x0345, 0x0306, 0x0304}
@@ -1308,10 +1331,11 @@ class Dilemma:
         first member that appears in the convention's headword list. All
         other members map to it.
 
-        For "triantafyllidis", the headword set is the MG lookup lemmas
-        (Modern Greek Wiktionary forms). Members are also checked after
-        to_monotonic() conversion. The _convention_monotonic flag ensures
-        all output is converted to monotonic in _apply_convention().
+        For "triantafyllidis", the headword set combines the dictionary's
+        bare lemma column with Modern Greek Wiktionary coverage. Members are
+        also checked after to_monotonic() conversion. The
+        _convention_monotonic flag ensures all output is converted to
+        monotonic in _apply_convention().
 
         For None or "wiktionary", returns an empty dict (no remapping).
 
@@ -1324,26 +1348,8 @@ class Dilemma:
 
         remap = {}
 
-        # Load the headword set for this convention.
-        # For triantafyllidis, derive from MG lookup lemmas.
-        # For lsj/cunliffe, load from the dedicated headword file.
-        headwords = set()
-        hw_path = _CONVENTION_HEADWORDS.get(convention)
-        if hw_path and hw_path.exists():
-            with open(hw_path, encoding="utf-8") as f:
-                raw = json.load(f)
-            headwords = set(raw)
-            # LSJ/Cunliffe headwords may include vowel-length marks
-            # (macron U+0304, breve U+0306) like βᾰρύς. Strip these
-            # so they match our plain equivalence group members.
-            for h in raw:
-                nfd = unicodedata.normalize("NFD", h)
-                stripped = "".join(
-                    c for c in nfd if ord(c) not in (0x0304, 0x0306))
-                stripped = unicodedata.normalize("NFC", stripped)
-                if stripped != h:
-                    headwords.add(stripped)
-        elif convention == "triantafyllidis" and not headwords:
+        headwords = _load_convention_headwords(convention)
+        if convention == "triantafyllidis" and not headwords:
             # Fallback: derive from MG lookup JSON if no headword file.
             if LOOKUP_PATH.exists():
                 with open(LOOKUP_PATH, encoding="utf-8") as f:
@@ -1673,20 +1679,7 @@ class Dilemma:
         if convention in self._headword_sets:
             return self._headword_sets[convention]
 
-        hw_path = _CONVENTION_HEADWORDS.get(convention)
-        headwords: set[str] = set()
-        if hw_path and hw_path.exists():
-            with open(hw_path, encoding="utf-8") as f:
-                raw = json.load(f)
-            headwords = set(raw)
-            # Strip vowel-length marks (macron U+0304, breve U+0306)
-            for h in raw:
-                nfd = unicodedata.normalize("NFD", h)
-                stripped = "".join(
-                    c for c in nfd if ord(c) not in (0x0304, 0x0306))
-                stripped = unicodedata.normalize("NFC", stripped)
-                if stripped != h:
-                    headwords.add(stripped)
+        headwords = _load_convention_headwords(convention)
 
         self._headword_sets[convention] = headwords
         return headwords

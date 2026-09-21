@@ -284,7 +284,11 @@ Cunliffe workflow, and a Triantafyllidis workflow without retraining.
 
 The mapping is built automatically from `data/lemma_equivalences.json`
 cross-referenced against the convention's headword list, with explicit
-overrides in `data/convention_{name}.json`. Lemma equivalences also
+overrides in `data/convention_{name}.json`. The Triantafyllidis inventory uses
+only the source dictionary's bare citation headwords and unions them with the
+existing Modern Greek Wiktionary inventory for words outside the dictionary;
+definitions, examples, pronunciation, grammar, etymology, and source-page
+content are neither read nor shipped. Lemma equivalences also
 group valid alternative lemmatizations (comparative/positive adjective
 forms, active/deponent pairs, spelling variants) so that benchmarks
 score them as correct rather than penalizing convention disagreements.

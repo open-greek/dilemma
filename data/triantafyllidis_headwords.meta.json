@@ -1,0 +1,33 @@
+{
+  "dataset_id": "cmo1sklpo00d0mk07taoepe1a",
+  "dataset_url": "https://mozilladatacollective.com/datasets/cmo1sklpo00d0mk07taoepe1a",
+  "fields_read": [
+    "lemma"
+  ],
+  "homoglyph_validation": {
+    "sha256": "0bfac633e457212efdd93ac389e202919d4e2d1fd33642398d125ac645c5dd66",
+    "source": "mg_headwords.json"
+  },
+  "source": "Modern Greek Dictionary (Triantafyllidis)",
+  "source_filename": "modern-greek-dictionary-88bde7ff.tar.gz",
+  "source_license": "CC BY-NC-ND 4.0 (as declared by the dataset provider)",
+  "source_sha256": "7905b55117e68dccd6250ef71d02feced8c7bc0f1afe353150782af9696298d2",
+  "stats": {
+    "clean_headwords": 44428,
+    "distinct_raw_lemmas": 46682,
+    "dropped_by_reason": {
+      "ambiguous_multiword": 265,
+      "bound_form": 1209,
+      "non_greek_residue": 26
+    },
+    "dropped_total": 1500,
+    "duplicate_clean_headwords": 817,
+    "repaired_by_reason": {
+      "display_index_removed": 1610,
+      "inflection_tail_removed": 11839,
+      "validated_latin_homoglyph": 109
+    },
+    "repaired_total": 13558,
+    "source_rows": 46745
+  }
+}

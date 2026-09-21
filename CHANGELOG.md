@@ -6,6 +6,15 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Add a reproducible, headword-only importer for the Mozilla Data Collective
+  export of the Triantafyllidis dictionary. The Parquet read projects only the
+  `lemma` column, recognizes only audited display conventions, rejects
+  ambiguous headings rather than guessing, and records source and validation
+  checksums with aggregate audit counts. The Triantafyllidis convention now
+  unions that dictionary authority with the existing Modern Greek Wiktionary
+  inventory for broader coverage.
+
 ### Fixed
 - Stop ingesting the placeholders a treebank uses for "not a word". GLAUx
   marks an editorial gap, where the manuscript is damaged or unreadable, with
