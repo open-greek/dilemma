@@ -53,6 +53,13 @@ except ImportError:
     print("ERROR: spylls not installed. pip install spylls", file=sys.stderr)
     sys.exit(1)
 
+# The exporter's own inclusion rule, imported rather than restated.
+# The sample below is only meaningful if it picks target words the
+# shipped dictionary actually accepts, so the two must not drift: a
+# restated copy that tested only combining marks would report elided
+# forms such as 'δ᾽' as unmarked and quietly skip them.
+from export_hunspell import has_any_diacritic
+
 
 def strip_accents(s: str) -> str:
     nfd = unicodedata.normalize("NFD", s)
@@ -74,13 +81,6 @@ POLYTONIC = {0x0313, 0x0314, 0x0342, 0x0345, 0x0300}
 
 def has_polytonic(s: str) -> bool:
     return any(ord(c) in POLYTONIC for c in unicodedata.normalize("NFD", s))
-
-
-def has_any_diacritic(s: str) -> bool:
-    return any(
-        unicodedata.category(c) == "Mn"
-        for c in unicodedata.normalize("NFD", s)
-    )
 
 
 GREEK_LETTERS = "αβγδεζηθικλμνξοπρστυφχψωάέήίόύώϊϋΐΰᾳῃῳ"

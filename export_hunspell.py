@@ -125,6 +125,91 @@ POLYTONIC_MARKS = {0x0313, 0x0314, 0x0342, 0x0345}
 # treat it as polytonic for classification purposes.
 POLYTONIC_MARKS_EXT = POLYTONIC_MARKS | {0x0300}
 
+# Spacing (non-combining) characters that Greek orthography uses as a
+# genuine mark on a word. Unicode files them as Sk (modifier symbol),
+# not Mn (nonspacing mark), so a combining-category test on its own
+# reports a fully marked form such as 'δ᾽' as bare. Members:
+#   U+1FBD GREEK KORONIS - the elision and crasis apostrophe. Now that
+#     build_lookup_db.py runs sanitize_form at ingestion, a trailing
+#     combining psili used as an apostrophe is rewritten to this
+#     character before the exporter ever sees it, so elided forms that
+#     lose their accent along with the elided syllable (δ᾽, κατ᾽, μετ᾽,
+#     μηδ᾽) reach this gate carrying no combining mark at all.
+#   U+1FBF GREEK PSILI and U+1FFE GREEK DASIA - the spacing breathings.
+#     sanitize_form reattaches a leading one to its base letter but
+#     leaves a trailing one alone, so a source that writes elision with
+#     a spacing psili (κατ᾿, μετ᾿) reaches the exporter carrying it.
+#     Dasia does not currently occur in that position in lookup.db; it
+#     is listed so the pair stays symmetric if a source emits one.
+# Excluded on purpose, because accepting them would defeat this gate
+# rather than repair it:
+#   U+00B4 ACUTE ACCENT and U+0384 GREEK TONOS - no Greek word is
+#     spelled with a free-standing acute. Where one turns up it is
+#     either an accent that failed to combine or the numeral sign
+#     keraia, as in the Milesian numerals 'τ΄' and 'ϟ΄'; accepting it
+#     would ship both as correct polytonic spellings.
+#   U+0375 GREEK LOWER NUMERAL SIGN - a numeral marker, not a mark on
+#     a word.
+#   U+2019 RIGHT SINGLE QUOTATION MARK and U+02BC MODIFIER LETTER
+#     APOSTROPHE - ordinary punctuation and a modifier letter. Some
+#     sources do write elision with them, but they are also what a
+#     stray quotation mark in noisy text looks like, and neither
+#     carries Greek-specific meaning the way the koronis does. A form
+#     that needs one should have it normalized to U+1FBD at ingestion.
+SPACING_DIACRITICS = {0x1FBD, 0x1FBF, 0x1FFE}
+
+# Greek vowel letters, both cases. Final sigma is a consonant, so the
+# aphaeresized '᾽ς' is not affected by the rule below.
+GREEK_VOWELS = frozenset("αεηιουωΑΕΗΙΟΥΩ")
+
+# Leaving the three characters above out of SPACING_DIACRITICS does not
+# by itself keep numerals out of the artifact, because a source that
+# prints the keraia as a koronis writes the Milesian numerals with a
+# character that IS in the set: lookup.db holds 'α᾽' (1) under lemma
+# α, 'ε᾽' (5) under πέντε and 'ο᾽' (70) under lemma ο. It also holds
+# vowel-initial spellings that simply lost their breathing on the way
+# in, such as 'ημειβετ᾿' beside the correct 'ἠμείβετ᾿'.
+#
+# What separates those from a real elision is the first letter, not the
+# length - 'δ᾽', 'μ᾽', 'σ᾽', 'κ᾽' and 'ν᾽' are one-letter elisions
+# that have to keep passing. Polytonic Greek writes a breathing over
+# every word-initial vowel, and neither elision, which drops the end of
+# a word, nor aphaeresis, whose koronis stands in front of the letters
+# that survive, can take that breathing away. sanitize_form has already
+# reattached any leading spacing breathing to its vowel before a form
+# reaches this gate, so a form whose only mark is a spacing one and
+# whose first letter is a bare vowel is not an elided word at all.
+#
+# A numeral whose letters start with a consonant still passes, and must:
+# 'δ᾽' is the numeral 4 as well as the elided δέ, 'κ᾽' is 20 as well as
+# the elided κε, and no rule on the spelling can tell those apart. That
+# costs nothing, because the keyboard has to accept the string either
+# way.
+
+
+def _first_letter(s: str) -> str:
+    """Return the first letter of s, decomposed so a precomposed vowel
+    is reported by its base letter, or '' if s has no letter at all."""
+    for c in unicodedata.normalize("NFD", s):
+        if unicodedata.category(c)[0] == "L":
+            return c
+    return ""
+
+
+def _is_greek_letter(c: str) -> bool:
+    return "Ͱ" <= c <= "Ͽ" or "ἀ" <= c <= "῿"
+
+
+def marked_by_spacing_diacritic(s: str) -> bool:
+    """True if s is spelled the way an elided or aphaeresized word is:
+    its only mark is a spacing koronis or breathing, and it opens on a
+    Greek consonant rather than on a bare vowel. See the comment above
+    SPACING_DIACRITICS for why the opening letter is the test."""
+    if not any(ord(c) in SPACING_DIACRITICS for c in s):
+        return False
+    first = _first_letter(s)
+    return bool(first) and _is_greek_letter(first) and first not in GREEK_VOWELS
+
 
 def has_polytonic(s: str) -> bool:
     """True if the string carries any mark exclusive to polytonic script
@@ -134,13 +219,20 @@ def has_polytonic(s: str) -> bool:
 
 
 def has_any_diacritic(s: str) -> bool:
-    """True if the string has any combining mark at all, including acute.
+    """True if the string carries a mark that makes it AG orthography.
     Used to decide whether a form is 'accented enough' to ship in the
     AG polytonic variant. We keep acute-only forms (e.g. 'ζωή') because
-    they are the canonical AG lexicon entries, but we drop fully-stripped
-    fallback keys the DB carries for case-insensitive lookup."""
+    they are the canonical AG lexicon entries, and elided or
+    aphaeresized forms whose only mark is a spacing koronis or
+    breathing (e.g. 'δ᾽', 'κατ᾿', '᾽ς'), but we drop fully-stripped
+    fallback keys the DB carries for case-insensitive lookup. A
+    combining mark settles it on its own; a spacing mark counts only on
+    a form spelled the way an elided word is, which is what
+    marked_by_spacing_diacritic decides."""
     nfd = unicodedata.normalize("NFD", s)
-    return any(unicodedata.category(c) == "Mn" for c in nfd)
+    if any(unicodedata.category(c) == "Mn" for c in nfd):
+        return True
+    return marked_by_spacing_diacritic(s)
 
 
 def strip_accents(s: str) -> str:
