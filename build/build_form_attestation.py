@@ -65,7 +65,7 @@ from dilemma._attest_db import nfc_key, norm_key, SCHEMA_VERSION  # noqa: E402
 DEFAULT_GLAUX_DIR = Path.home() / "Documents" / "glaux" / "xml"
 DEFAULT_METADATA = Path.home() / "Documents" / "glaux" / "metadata.txt"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"
-COG_SOURCES = Path.home() / "Documents" / "corpus-of-open-greek" / "sources"
+COG_SOURCES = Path.home() / "Documents" / "open-greek-corpus" / "sources"
 DEFAULT_FIRST1K_DIR = COG_SOURCES / "first1k" / "data"
 DEFAULT_PTA_DIR = COG_SOURCES / "pta" / "data"
 DEFAULT_CANONICAL_DIR = COG_SOURCES / "perseus" / "data"

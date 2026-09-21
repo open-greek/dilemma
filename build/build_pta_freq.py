@@ -31,7 +31,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 DATA_DIR = REPO_ROOT / "data"
 OUT_PATH = DATA_DIR / "pta_freq.json"
 
-DEFAULT_REPO = Path.home() / "Documents" / "corpus-of-open-greek" / "sources" / "pta"
+DEFAULT_REPO = Path.home() / "Documents" / "open-greek-corpus" / "sources" / "pta"
 
 GENRE_ORDER = [
     "philosophy", "poetry", "history", "oratory", "science",

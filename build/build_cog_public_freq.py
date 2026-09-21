@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build data/cog_public_freq.json from cog's corrected, license-filtered
-open-text frequency rollup (corpus-of-open-greek/data/public_lexicon.tsv).
+open-text frequency rollup (open-greek-corpus/data/public_lexicon.tsv).
 
 This is the openly-licensed replacement for dilemma's three home-grown
 open-text frequency builders (build_first1kgreek_freq / build_pg_freq /
@@ -12,7 +12,7 @@ form. We fold each form to corpus_freq's accent-stripped lowercase key and sum.
 Replacing those three sources (not adding alongside) in merge_corpus_freq.py
 avoids double-counting and picks up cog's corrected PG + Byzantine vocabulary.
 
-Input:  ~/Documents/corpus-of-open-greek/data/public_lexicon.tsv  (form<TAB>count)
+Input:  ~/Documents/open-greek-corpus/data/public_lexicon.tsv  (form<TAB>count)
 Output: data/cog_public_freq.json  (consumed by build/merge_corpus_freq.py)
 Run:    python build/build_cog_public_freq.py [public_lexicon.tsv]
 """
@@ -23,7 +23,7 @@ from collections import defaultdict
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-DEFAULT_LEXICON = (Path.home() / "Documents" / "corpus-of-open-greek"
+DEFAULT_LEXICON = (Path.home() / "Documents" / "open-greek-corpus"
                    / "data" / "public_lexicon.tsv")
 OUT = DATA_DIR / "cog_public_freq.json"
 

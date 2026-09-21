@@ -31,7 +31,7 @@ from pathlib import Path
 
 DEFAULT_EXPORT = Path(os.environ.get(
     "DILEMMA_COG_OGA",
-    str(Path.home() / "Documents" / "corpus-of-open-greek" / "data"
+    str(Path.home() / "Documents" / "open-greek-corpus" / "data"
         / "annotations" / "oga" / "oga-v1")))
 
 # The annotations root holds one directory per source (oga/ptnk/tagnt/pedalion),
@@ -113,7 +113,18 @@ def strip_homograph_digits(lemma: str) -> str:
 _JUNK_LEMMA_FINALS = tuple("᾽'’ʼ`ʹ")
 
 
+PLACEHOLDER_LEMMAS = frozenset({"_", "...", "G"})
+
+
 def is_clean_lemma(lemma: str) -> bool:
+    # Annotation placeholders, not lemmas: the CoNLL-U marker for a field
+    # the annotator left empty, an ellipsis, and the gap marker a treebank
+    # uses where the manuscript is damaged. Each reaches us as a plain
+    # string, so every other gate here passes it. The Pedalion export alone
+    # carried 1,108 empty-field pairs, including metrical scansion patterns
+    # that are not words at all.
+    if lemma in PLACEHOLDER_LEMMAS:
+        return False
     if not lemma or lemma.endswith(_JUNK_LEMMA_FINALS):
         return False
     return "̅" not in unicodedata.normalize("NFD", lemma)
