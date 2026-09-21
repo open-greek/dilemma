@@ -1952,9 +1952,11 @@ ancient topics could boost forms with high `freq_glaux`).
 [Tonos](https://tonospolytonic.com/) iOS polytonic keyboard)
 where the full 1.07 GB `lookup.db` and 560 MB `spell_index.db` do not
 fit inside the ~48 MB memory ceiling of a keyboard extension. Affix
-compression collapses each inflection class to a single SFX rule group. The
-repaired AG export applies its corpus gate and emits 1,726,220 dictionary
-entries plus 28,078 suffix rules while preserving exact-match acceptance.
+compression uses a zero-strip SFX rule only when its dictionary base is itself
+a real member of the paradigm. A mechanical common prefix such as `λόγ` or
+`ἀνθρώπ` is inlined instead, because both Hunspell and Tonos accept every
+`.dic` base as a word. The repaired AG export emits 1,236,323 dictionary
+entries plus 105 suffix rules; every flagged base has an identity rule.
 Editorial brackets and parentheses are excluded before affix compression, so
 the generated `.aff` remains loadable by consumers that compile affixes as
 regular expressions, including `spylls`.
@@ -1966,7 +1968,7 @@ monotonic) is retained for other downstream consumers via
 
 | Variant | Script name | Lang tag | Contents |
 |--------|------------|---------|---------|
-| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms (breathings, circumflex, iota subscript, grave). Rows owned by `src='grc'` and language-shared rows are eligible: the latter preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` when an identical Modern spelling caused `lookup.db` to assign the self-mapping to `src='el'`. Acute-only forms are kept only with corpus attestation. An elided or aphaeresized form counts as marked even when its only mark is a spacing character, either U+1FBD koronis (`δ᾽`, `κατ᾽`, `μηδ᾽`) or a spacing breathing (`κατ᾿`), since elision carries the accent off with the elided syllable. A spacing mark counts only on a form that opens on a Greek consonant, the way an elided or aphaeresized word does, because polytonic Greek writes a breathing over every word-initial vowel: the Milesian numerals a source wrote with a koronis (`ε᾽`, `α᾽`, `ο᾽`) and stripped keys such as `ημειβετ᾿` are dropped on that rule. Fully unaccented spellings such as `μη` and `και` are still dropped, while a closed grammatical list preserves legitimate unaccented enclitics such as `τε`, `γε`, `τις`, and `περ`. Bare elision fallbacks such as `ἀλλ`, `κατ`, and `παρ` remain available to the lemmatizer but are excluded from both explicit dictionary entries and synthetic compression stems. |
+| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. Acute-only forms require exact, accent-preserving attestation from the pinned full LM, so `αὐτός` cannot lend its frequency to `αυτός`. A vowel- or rho-initial form without a breathing is rejected. Valid elisions normalize their final textual apostrophe to U+1FBD koronis, while bare tokenization fallbacks such as `ἀλλ`, `κατ`, and `παρ` remain lemmatizer-only. A closed grammatical list preserves legitimate unaccented enclitics including `τε`, `γε`, the `τις` paradigm, `φημί` enclitics, `κε/κεν`, and poetic pronouns; `του` and `τῳ` are deliberately excluded. |
 | `el_GR_monotonic.{dic,aff,version}` | `el` | `el_GR` | Modern Greek monotonic forms, including MG-relevant vocabulary drawn from the AG side of `lookup.db` (articles, common verbs, proper names). Not shipped in Tonos. |
 
 Each dictionary entry carries a morphological field `fr:<bucket>` where
@@ -2005,13 +2007,19 @@ python export_hunspell.py --sanity 10000  # 10K-lemma sanity pass
 ```
 
 The corpus-head coverage gate loads the expanded `.dic`/`.aff` pair with
-`spylls` and requires all 100 most frequent lexical forms to be accepted after
-contextual grave is folded to acute. The committed fixture is pinned to the
+`spylls` and audits the 1,000 most frequent Greek-bearing tokens after
+contextual grave and final elision marks are normalized. The reviewed fixture
+requires 971 real forms to be accepted and 29 Modern spellings, fragments,
+numerals, and bare stems to remain rejected; together they represent
+16,543,630 LM tokens. The same audit expands every emitted zero-strip rule and
+fails if a flagged base lacks an identity rule or any emitted vowel-/rho-
+initial form lacks a breathing.
+
+The fixture and `data/hunspell_grc_form_freq.json.gz` are pinned to the
 format-v2 Dilemma 1.3.3 full LM artifact: 30,933,396 training tokens, not a
-`train_lm.py --sanity` output. It represents 11,111,858 tokens at the frequency
-head. JSON fixture regeneration reads `stats.json` and fails unless
-`"sanity": false`; the binary route reads the exact vocabulary and unigram
-counts embedded by `export_lm.py`.
+`train_lm.py --sanity` output. JSON fixture regeneration reads `stats.json`
+and fails unless `"sanity": false`; the binary route reads the exact vocabulary
+and unigram counts embedded by `export_lm.py`.
 
 ```bash
 # Audit a fresh Hunspell export against the committed full-run fixture.
@@ -2024,7 +2032,15 @@ python scripts/audit_hunspell_frequency.py --source json --write-fixture
 python scripts/audit_hunspell_frequency.py --source binary \
   --lm-binary build/lm/grc_ngram.bin \
   --lm-version build/lm/grc_ngram.version \
-  --write-fixture
+  --write-fixture \
+  --attestation-out data/hunspell_grc_form_freq.json.gz
+
+# Produce the full LM-weighted review against a previously shipped artifact.
+python scripts/audit_hunspell_frequency.py --source binary \
+  --lm-binary build/lm/grc_ngram.bin \
+  --lm-version build/lm/grc_ngram.version \
+  --baseline-dictionary /path/to/shipped/grc_polytonic \
+  --comparison-report build/hunspell/baseline_comparison.json
 ```
 
 Output layout, with one sidecar `.version` file per variant so the

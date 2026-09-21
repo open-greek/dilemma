@@ -46,17 +46,22 @@ import unicodedata
 import pytest
 
 from dilemma.form_sanitize import (
+    canonicalize_final_elision,
     has_editorial_sigla,
     resolve_editorial_form,
     sanitize_form,
 )
 from export_hunspell import (
     AG_FUNCTION_WORDS,
+    AG_EXPORT_OVERRIDES,
     BARE_ELISION_STEMS,
     SPACING_DIACRITICS,
     build_sfx_rules,
+    exact_form_key,
     filter_by_lemma_freq,
+    filter_grc_orthography,
     has_any_diacritic,
+    has_required_initial_breathing,
     sanitize_export_pairs,
     select_forms,
 )
@@ -74,6 +79,12 @@ def test_editorial_forms_resolve_only_optional_final_nu():
     assert resolve_editorial_form("λη(νοῦ)") == ()
     assert has_editorial_sigla("[δηρ]ιάζομαι") is True
     assert has_editorial_sigla("δηριάζομαι") is False
+
+
+def test_final_elision_canonicalization_does_not_fold_numeral_prime():
+    assert canonicalize_final_elision("μηδ’") == "μηδ᾽"
+    assert canonicalize_final_elision("μεθʼ") == "μεθ᾽"
+    assert canonicalize_final_elision("αʹ") == "αʹ"
 
 
 def test_export_guard_drops_editorial_forms_and_lemmas():
@@ -312,11 +323,32 @@ def test_select_forms_includes_language_shared_headwords_owned_by_el():
     admitted = set(select_forms(
         conn,
         "grc",
-        attestation_freq={"λεγω": 100, "γη": 100},
+        attestation_freq={
+            exact_form_key("λέγω"): 100,
+            exact_form_key("γῆ"): 100,
+        },
     ))
 
     assert ("λέγω", "λέγω") in admitted
     assert ("γῆ", "γῆ") in admitted
+
+
+def test_select_forms_rejects_el_only_language_shared_lemma():
+    conn = _lookup_db([
+        ("επικοινωνεί", "επικοινωνώ", "el"),
+        ("ηπειρώτικου", "ηπειρώτικος", "el"),
+    ])
+
+    admitted = select_forms(
+        conn,
+        "grc",
+        attestation_freq={
+            exact_form_key("επικοινωνεί"): 100,
+            exact_form_key("ηπειρώτικου"): 100,
+        },
+    )
+
+    assert admitted == []
 
 
 def test_select_forms_keeps_corpus_attested_acute_only_lemma():
@@ -326,12 +358,21 @@ def test_select_forms_keeps_corpus_attested_acute_only_lemma():
         ("χάριτι", "χάρις", "grc"),
         ("χάριν", "χάρις", "grc"),
     ])
-    freq = {"χαρις": 10, "χαριτος": 8, "χαριτι": 6, "χαριν": 7}
+    freq = {
+        exact_form_key("χάρις"): 10,
+        exact_form_key("χάριτος"): 8,
+        exact_form_key("χάριτι"): 6,
+        exact_form_key("χάριν"): 7,
+    }
 
     selected = select_forms(conn, "grc", attestation_freq=freq)
     admitted = {
         form for form, _lemma in filter_by_lemma_freq(
-            selected, freq, min_lemma_count=3, strict_acute_min=1
+            selected,
+            {"χαρις": 10, "χαριτος": 8, "χαριτι": 6, "χαριν": 7},
+            min_lemma_count=3,
+            strict_acute_min=1,
+            strict_form_freq_map=freq,
         )
     }
 
@@ -339,9 +380,75 @@ def test_select_forms_keeps_corpus_attested_acute_only_lemma():
 
 
 def test_unaccented_ag_exceptions_are_a_closed_function_word_list():
-    expected = {"τε", "γε", "τις", "τι", "ποτε", "που", "πως", "περ", "τοι"}
+    expected = {
+        "τε", "γε", "τις", "τι", "τινος", "τινι", "τινα", "τινε",
+        "τινοιν", "τινες", "τινων", "τισι", "τισιν", "τινας",
+        "φημι", "φησι", "φησιν", "φαμεν", "φατε", "φασι", "φασιν",
+        "μιν", "νιν", "σφε", "σφι", "σφιν", "σφων", "σφας",
+        "σφισι", "σφισιν", "πω", "πη", "ποθι", "ποθεν", "νυν",
+        "νυ", "θην", "κε", "ποτε", "που", "πως", "περ", "τοι",
+        "κεν",
+    }
     assert expected <= set(AG_FUNCTION_WORDS)
     assert not any(has_any_diacritic(form) for form in expected)
+    assert "του" not in AG_FUNCTION_WORDS
+    assert "τῳ" not in AG_FUNCTION_WORDS
+
+
+def test_export_overrides_are_narrow_runtime_resolved_forms():
+    assert {
+        "τ᾽": "τε",
+        "μεθ᾽": "μετά",
+        "δῑ": "Ζεύς",
+        "εἶνε": "εἵνω",
+        "μαῦρον": "μαυρός",
+        "μαῦροι": "μαυρός",
+        "ἑκατέρως": "ἑκάτερος",
+    }.items() <= AG_EXPORT_OVERRIDES.items()
+    assert AG_EXPORT_OVERRIDES["ἀγαποῦσα"] == "ἀγαπάω"
+    assert AG_EXPORT_OVERRIDES["τοιονδί"] == "τοιόσδε"
+    assert AG_EXPORT_OVERRIDES["λυχνίας"] == "λυχνία"
+    assert AG_EXPORT_OVERRIDES["πληρέστατα"] == "πλήρης"
+    assert len(AG_EXPORT_OVERRIDES) == 21
+
+
+def test_exact_form_key_preserves_iota_subscript_and_folds_elision():
+    assert exact_form_key("Τῼ") == "τῳ"
+    assert exact_form_key("τῳ") != exact_form_key("τωι")
+    assert exact_form_key("μηδ’") == exact_form_key("μηδ᾽")
+
+
+@pytest.mark.parametrize("form", [
+    "ἀνήρ", "ἄνθρωπος", "αὐτός", "εἰμί", "οὐ", "ηὐλόγει",
+    "ῥήτωρ", "Ῥώμη", "λόγος", "᾽στι", "τε",
+])
+def test_grc_initial_breathing_accepts_well_formed_words(form):
+    assert has_required_initial_breathing(form)
+
+
+@pytest.mark.parametrize("form", [
+    "ανήρ", "άνθρωπος", "αυτός", "είναι", "ότι", "εγώ", "ήταν",
+    "αλλά", "Ρώμη", "ρητωρ", "ηπειρώτικου", "Οκτωβρίου",
+])
+def test_grc_initial_breathing_rejects_unmarked_vowels_and_rho(form):
+    assert not has_required_initial_breathing(form)
+
+
+def test_grc_orthography_filter_reports_rejected_pairs():
+    kept, rejected = filter_grc_orthography([
+        ("αὐτός", "αὐτός"),
+        ("αυτός", "αὐτός"),
+        ("ῥήτωρ", "ῥήτωρ"),
+        ("ρητωρ", "ῥήτωρ"),
+        ("λόγος", "λόγος"),
+        ("τῳ", "τις"),
+    ])
+
+    assert kept == [("αὐτός", "αὐτός"), ("ῥήτωρ", "ῥήτωρ"),
+                    ("λόγος", "λόγος")]
+    assert rejected == [
+        ("αυτός", "αὐτός"), ("ρητωρ", "ῥήτωρ"), ("τῳ", "τις")
+    ]
 
 
 def test_affix_compression_does_not_accept_bare_elision_stems():
@@ -363,6 +470,28 @@ def test_affix_compression_does_not_accept_bare_elision_stems():
     assert not (emitted_words & BARE_ELISION_STEMS)
     assert not any(" 0 0 ." in block for block in aff_blocks)
     assert {"παρά", "παρὰ", "παρ᾽", "κατά", "κατὰ", "κατ᾽"} <= emitted_words
+
+
+def test_affix_compression_uses_only_real_forms_as_flagged_bases():
+    pairs = [
+        ("τι", "τις"), ("τινα", "τις"), ("τινος", "τις"),
+        ("μι", "μις"), ("μινα", "μις"), ("μινος", "μις"),
+        ("λόγος", "λόγος"), ("λόγου", "λόγος"),
+        ("ἄνθρωπος", "ἄνθρωπος"), ("ἀνθρώπου", "ἄνθρωπος"),
+    ]
+
+    aff_blocks, dic_lines = build_sfx_rules(pairs, {})
+    real_forms = {form for form, _lemma in pairs}
+    flagged_bases = {
+        line.split("/", 1)[0] for line in dic_lines if "/" in line.split("\t", 1)[0]
+    }
+
+    assert aff_blocks
+    assert flagged_bases == {"τι", "μι"}
+    assert flagged_bases <= real_forms
+    assert {"λόγος", "λόγου", "ἄνθρωπος", "ἀνθρώπου"} <= {
+        line.split("\t", 1)[0] for line in dic_lines
+    }
 
 
 def test_select_forms_keeps_elided_and_drops_unaccented():

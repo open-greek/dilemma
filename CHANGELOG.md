@@ -8,24 +8,33 @@ All notable changes to Dilemma are documented here. The format follows
 
 ### Fixed
 - Restore common Ancient Greek spellings in the `grc` Hunspell export. The
-  selector now admits corpus-attested language-shared rows even when an
-  identical Modern spelling owns the `src='el'` self-mapping, preserves a
-  closed list of correctly unaccented enclitics, and keeps corpus-attested
-  acute-only paradigms such as `χάρις`. Bare lemmatizer fallbacks for elision
-  (`ἀλλ`, `κατ`, `παρ`, and peers) are excluded as both entries and synthetic
-  compression stems. Against the same lookup and frequency data, the export
-  grows from 1,618,505 entries / 26,522 suffix rules to 1,726,220 / 28,078.
-  The full 30,933,396-token LM frequency gate improves from 96/100 to 100/100
-  accepted forms; all 34 independently reported regressions are restored and
-  all 12 audited bare stems are rejected.
+  selector admits language-shared rows only for lemmas with `grc` evidence,
+  uses a revision-pinned accent-preserving full-LM map for acute-only forms,
+  rejects vowel- or rho-initial spellings without a breathing, and preserves a
+  reviewed closed list of correctly unaccented enclitics. Bare lemmatizer
+  fallbacks for elision remain excluded. The resulting export has 1,236,323
+  entries and 105 zero-strip suffix rules.
+- Stop emitting truncated common prefixes as flagged Hunspell entries. Affix
+  compression now occurs only when the base is itself a paradigm form; all
+  other paradigms are inlined, requiring neither `NEEDAFFIX` nor nonzero-strip
+  support from Tonos.
+- Restore high-frequency valid forms that Dilemma resolves through grammar or
+  POS authorities but which lookup source collisions hid from the exporter,
+  including `τ᾽`, `μεθ᾽`, `δῑ`, `εἶνε`, `μαῦρον`, `μαῦροι`, and
+  `ἑκατέρως`. `ἀνάμεσα` is retained through exact LM attestation, while
+  `του`, `τῳ`, monotonic `ότι`/`αυτός`, and unrelated Modern forms remain
+  rejected.
 
 ### Added
 - Add a revision-pinned Hunspell frequency auditor and CI regression fixture.
-  It loads the expanded dictionary with `spylls`, folds contextual grave to
-  acute, and checks the 100 most frequent lexical forms representing
-  11,111,858 full-run LM tokens. JSON fixture generation hard-fails when
-  `stats.json` identifies a sanity run; format-v2 LM binaries can supply the
-  exact embedded vocabulary and unigram counts directly.
+  It loads the expanded dictionary with `spylls`, folds contextual grave and
+  final elision marks, and checks the top 1,000 Greek-bearing LM tokens:
+  971 required forms accepted and 29 reviewed nonwords rejected, representing
+  16,543,630 tokens. It also rejects synthetic flagged bases and emitted forms
+  without required initial breathings. JSON fixture generation hard-fails on
+  sanity runs; format-v2 LM binaries supply exact vocabulary and counts. An
+  optional full-vocabulary comparison produces a reviewable LM-weighted delta
+  against a previously shipped dictionary.
 
 ## [1.3.4] - 2026-09-21
 

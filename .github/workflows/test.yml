@@ -67,5 +67,10 @@ jobs:
       - name: Run all tests
         run: python3 -m pytest tests/ -x -v
 
+      - name: Build and audit Ancient Greek Hunspell coverage
+        run: |
+          python3 export_hunspell.py --variant grc
+          python3 scripts/audit_hunspell_frequency.py --source fixture
+
       - name: Check deterministic benchmark baselines
         run: python3 scripts/check_benchmark_regressions.py
