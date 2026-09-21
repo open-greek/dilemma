@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "purpose": "Recover the known-good LSJ/Sophocles expansion layer without restoring superseded Wiktionary base mappings.",
+  "reference": {
+    "repo": "ciscoriordan/dilemma",
+    "revision": "d0276c41a4910056a321132ca0df307365c649c9",
+    "path": "data/ag_lookup.json",
+    "size": 489103249,
+    "sha256": "b9f149dbe70b06cb21c7891c1be268aefde7b6ba5c0ac1f59ec8a5b8545602fb"
+  },
+  "reference_base": {
+    "path": "data/ag_lookup_wikt.json",
+    "size": 96750373,
+    "sha256": "dea6b3abb3d7480f33ec8a96f55064ed16b2d2b5e543833472588327c9d04da8"
+  },
+  "behavior_baseline": {
+    "repo": "ciscoriordan/dilemma",
+    "revision": "38e9c2e861085af64420d828cc2f6a3f3dde4f69",
+    "path": "data/lookup.db",
+    "size": 811302912,
+    "sha256": "8f4c275f52bf0b448283ec4fbd421eb9a75a598178c73ffffb173b86b9ab6282"
+  },
+  "exclusions": {
+    "path": "data/ag_expansion_exclusions.json",
+    "size": 1466351,
+    "sha256": "1430b0ca66b7dc01546412c8ff6a5c58ba4965bcd7f4e696b57435128e7b2b4e"
+  },
+  "expected_counts": {
+    "reference_entries": 9947605,
+    "reference_base_entries": 2366139,
+    "expansion_entries": 7581466,
+    "unmarked_entries": 3839827,
+    "excluded_entries": 36839
+  },
+  "artifact_floor": {
+    "grc_source_rows": 10000000
+  },
+  "merge_policy": "Only keys present in the reference but absent from its exact base are expansion entries. Restore marked surface forms only, excluding generated accent-stripped fallback keys as well as mappings that conflict with the pinned 1.3.1 resolved lookup or current nonlexical classifications. Add remaining missing keys to the target and preserve every existing target mapping.",
+  "sentinels": {
+    "ἐκφευξομένην": "ἐκφεύγω",
+    "ἀειδόντοιν": "ἀείδω",
+    "ὑπουρανίαιν": "ὑπουράνιος",
+    "μεσολαβοῦνται": "μεσολαβέω",
+    "ῥαψόντων": "ῥάπτω",
+    "ῥαψάμενοι": "ῥάπτω",
+    "ἀχύμῳ": "ἄχυμος",
+    "ὀξυγωνίης": "ὀξυγώνιος"
+  }
+}

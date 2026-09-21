@@ -8,15 +8,18 @@ echo "=== Step 1: build_data.py ==="
 python build_data.py --kaikki kaikki
 
 echo ""
-echo "=== Step 2: LSJ overlay (into JSON) ==="
-python overlay_lsj.py /tmp/ag_lookup_reference.json data/ag_lookup.json
+echo "=== Step 2: current LSJ/Sophocles expansion ==="
+python build/expand_lsj.py --expand
+python build/expand_lsj.py --expand-verbs
+python build/expand_sophocles.py --expand
+python build/expand_sophocles.py --expand-verbs
 
 echo ""
-echo "=== Step 3: Delete raw_lookups.db so build_lookup_db.py reads from JSON ==="
-rm -f data/raw_lookups.db
+echo "=== Step 3: pinned historical expansion recovery ==="
+python overlay_lsj.py
 
 echo ""
-echo "=== Step 4: build_lookup_db.py ==="
+echo "=== Step 4: build_lookup_db.py (prefers the larger expanded JSON) ==="
 python build_lookup_db.py
 
 echo ""

@@ -6,6 +6,17 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Restore the revision-pinned historical LSJ/Sophocles expansion layer after
+  current expansion runs. The recovery derives only forms absent from the
+  exact historical Wiktionary base, preserves all current mapping conflicts,
+  and guards representative polytonic paradigms in the shipped lookup. On the
+  1.3.1 inputs this restores 3,551,231 marked AG mappings while deliberately
+  omitting 3,839,827 generated accent-stripped fallback keys
+  (`ag_lookup.json` grows from 5,314,819 to 8,866,050 entries). The repaired
+  `grc` Hunspell export contains 1,617,436 dictionary entries and 26,521 affix
+  rules, up from 1,157,778 and 7,816 in 1.3.1.
+
 ## [1.3.1] - 2026-09-20
 
 ### Added

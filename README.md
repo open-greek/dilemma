@@ -22,7 +22,7 @@ about the design.
 
 | # | Layer | Resolves | Speed |
 |---|-------|----------|-------|
-| 1 | **8.6M-form SQLite lookup** | known forms (Wiktionary + LSJ + Sophocles + GLAUx + treebanks) | `O(1)` hash, microseconds |
+| 1 | **12.8M-form SQLite lookup** | known forms (Wiktionary + LSJ + Sophocles + GLAUx + treebanks) | `O(1)` hash, microseconds |
 | 2 | **Rule-based fallback** | augment / reduplication stripping, elision, crasis, enclitic particles, compound decomposition | `O(1)` per rule |
 | 3 | **Dialect normalization** | Ionic, Doric, Aeolic, Koine -> Attic, so the (Attic-heavy) lookup can match | `O(k)` candidates |
 | 4 | **Character-level transformer** | unseen forms the other three layers miss | beam search, `O(b·n²)` |
@@ -39,7 +39,7 @@ every sub-rule (particle stripping, BK-tree spell correction, etc.).
 
 ### Three distinctive choices within the pipeline
 
-**An 8.6M-form lookup driven by Wiktionary's own Lua modules.** The
+**A 12.8M-form lookup driven by Wiktionary's own Lua modules.** The
 biggest contributor to layer 1's coverage is running
 [`Module:grc-decl`](https://en.wiktionary.org/wiki/Module:grc-decl) and
 [`Module:grc-conj`](https://en.wiktionary.org/wiki/Module:grc-conj)
@@ -48,10 +48,10 @@ inflection tables -- via
 [wikitextprocessor](https://github.com/tatuylonen/wikitextprocessor)
 over the LSJ headword set (32K nouns + 22K verbs + 14K adjectives) and
 the Sophocles Byzantine/Patristic lexicon (13.5K nouns + 4.6K verbs).
-That generates ~2.9M extra inflected AG forms no editor has touched,
-lifting the AG lookup from 2.4M Wiktionary-only entries to 5.3M, and the
-full lookup to 8.6M forms across all languages -- the largest compiled
-for Greek. This single mechanism closes the
+The current expansion plus the pinned, known-good historical expansion layer
+generate about 6.4M additional AG entries no editor has touched, lifting the
+AG input from 2.47M Wiktionary entries to 8.87M and the combined lookup to
+12.82M forms across all languages. This mechanism closes the
 classical and Byzantine vocabulary gap that every other tool has. See
 [LSJ/Sophocles expansion](#lsjsophocles-expansion).
 
@@ -193,9 +193,9 @@ inference). If you already have PyTorch installed, use `dilemma-nlp[torch]`
 instead, or just plain `dilemma-nlp` to skip the model backend and rely on the
 lookup table alone. The second line downloads the lookup tables, ONNX
 model files, and tagger weights from HuggingFace into `~/.cache/dilemma/`
-(~5.5 GB: lemma data ~4.5 GB + model ~0.07 GB + tagger weights ~1.0 GB; add
-`--no-tagger` for the ~4.5 GB lemma-only download). The two opt-in
-form-attestation DBs add ~1.2 GB more.
+(~4.3 GB: lemma and model data ~2.8 GB + tagger weights ~1.5 GB; add
+`--no-tagger` for the ~2.8 GB lemma-only download). The two opt-in
+form-attestation DBs add ~1.36 GB more.
 
 Dilemma uses `$DILEMMA_DATA_DIR` if set; otherwise it picks whichever of
 `~/.cache/dilemma/data/` (the download), `<repo-root>/data/` (a clone), or a
@@ -620,7 +620,7 @@ of gold-standard Modern Greek from CLARIN:EL).
 
 | Layer | Speed | Coverage | Source |
 |-------|-------|----------|--------|
-| **Lookup table** | hash lookup `O(1)` | 8.6M known forms | Wiktionary + LSJ + Sophocles + GLAUx + treebanks |
+| **Lookup table** | hash lookup `O(1)` | 12.8M known forms | Wiktionary + LSJ + Sophocles + GLAUx + treebanks |
 | **Normalizer** | k candidates `O(k)` | Byzantine orthographic variants | Rule-based candidate generation |
 | **Elision expansion** | v=7 vowels `O(v)` | AG elided forms | Vowel expansion against lookup |
 | **Crasis table** | hash lookup `O(1)` | ~40 common crasis forms | Hand-curated |
@@ -638,8 +638,7 @@ The lookup table combines forms from multiple sources:
 | Source | Forms | Notes |
 |--------|------:|-------|
 | **Wiktionary** (EN + EL, all periods) | 5.2M | Baseline from kaikki.org dumps |
-| **LSJ** (Liddell-Scott-Jones) | 4.2M | 32K nouns, 22K verbs (incl. 700+ with principal parts parsed from the entry head and ~800 athematic / irregular μι-verbs), 14K adjectives, all expanded via Wiktionary Lua modules |
-| **Sophocles Lexicon** (Byzantine/Patristic) | 1.0M | 13.5K nouns, 4.6K verbs, 1.5K adverbs from OCR'd TEI data |
+| **LSJ + Sophocles expansion** | 6.4M net AG additions | Current Wiktionary-Lua expansion plus the marked surface forms from the revision-pinned historical expansion delta; 32K LSJ nouns, 22K verbs, 14K adjectives, and 13.5K Sophocles nouns + 4.6K verbs |
 | **[GLAUx](https://github.com/alekkeersmaekers/glaux)** (Keersmaekers, 2021) | 557K | 17M-token corpus, 8th c. BC - 4th c. AD, 98.8% lemma accuracy |
 | **[Diorisis](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)** (Vatri & McGillivray, 2018) | 76K new | 10M-token corpus, Homer - 5th c. AD, 91.4% lemma accuracy. Low-priority pairs (only added when no conflict with existing sources). Contributes to the merged 68.6M-token `corpus_freq.json` alongside GLAUx, PTA, and the [Open Greek Corpus](https://github.com/open-greek/open-greek-corpus) open-text rollup. |
 | **[HNC Golden Corpus](https://inventory.clarin.gr/corpus/870)** (CLARIN:EL) | 1K new | 88K-token gold-standard MG corpus, 11K unique form-lemma pairs. Low priority (only added when not in Wiktionary). Also used for MG evaluation. |
@@ -665,7 +664,7 @@ headwords an editor has manually written up. Running the modules over
 the 32K nouns + 22K verbs + 14K adjectives in LSJ and the 13.5K nouns +
 4.6K verbs in Sophocles produces millions of inflected forms for
 classical and Byzantine vocabulary that no editor has touched, which
-is what lifts the lookup table from 5.2M Wiktionary-only forms to 8.6M
+is what lifts the lookup table from 5.3M Wiktionary-only forms to 12.8M
 total and is why rare-vocabulary coverage on classical and Patristic
 texts is competitive with rule-based morphological analyzers. Cunliffe's
 Homeric Lexicon (~12K headwords) isn't expanded this way because its
@@ -966,7 +965,7 @@ for word in corpus:
 
 `preload()` is safe to call multiple times (idempotent) and does not
 change output - it only affects performance. It caches query results
-on demand rather than loading the full 8.6M-entry table into memory.
+on demand rather than loading the full 12.8M-entry table into memory.
 
 ### POS-aware disambiguation
 
@@ -1018,7 +1017,7 @@ d.suggest_spelling("θδός")       # [("θεός", 1), ...]  (letter-level ED1
 ```
 
 The approach works in two layers. First, diacritics are stripped from both
-the input and the dictionary, collapsing the 8.6M-entry lookup into ~1-3M
+the input and the dictionary, collapsing the 12.8M-entry lookup into 7.22M
 unique base forms. ED0/ED1/ED2 matches are found on these stripped forms,
 then expanded back to their original polytonic variants and ranked by true
 Levenshtein distance. This means accent and breathing errors (wrong accent,
@@ -1403,7 +1402,7 @@ so the taggers reproduce from the public repo plus the corpora.
 
 Two engines sit behind the API and they scale very differently:
 
-- The **lemmatizer** is the workload: an 8.6M-form SQLite lookup, the rule
+- The **lemmatizer** is the workload: a 12.8M-form SQLite lookup, the rule
   layers, and a small char-transformer beam search for the tail. It is
   CPU-bound and, in aggregate, memory-bandwidth-bound. A GPU does not speed it
   up.
@@ -1681,12 +1680,27 @@ python build/expand_lsj.py --expand          # expand LSJ nouns
 python build/expand_lsj.py --expand-verbs    # expand LSJ verbs
 python build/expand_sophocles.py --expand    # expand Sophocles nouns
 python build/expand_sophocles.py --expand-verbs  # expand Sophocles verbs
+python overlay_lsj.py                        # recover pinned historical expansion gaps
 python build/expand_lbg.py                    # inflect Byzantine headwords (gated gap-fill)
 ```
 
 This requires LSJ9 data from [lsj9](https://github.com/ciscoriordan/lsj9)
 (included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`) and
 the Sophocles TEI data (included in `data/sophocles/`).
+
+The final overlay is intentional. A May 2026 base-data refresh replaced the
+9,947,605-entry expanded AG table with a 2,354,300-entry Wiktionary base, and
+the June re-expansion recovered only part of the prior paradigms. The overlay
+derives only the expansion delta from the known-good, revision- and
+SHA-256-pinned March artifact in `data/ag_expansion_reference.json`; it never
+restores a historical base mapping and never overrides a current mapping.
+It restores marked surface spellings only, not the generated accent-stripped
+fallback keys that can shadow unrelated analyses sharing the same bare
+skeleton. The generated `data/ag_expansion_exclusions.json` also removes
+historical rows that conflict with the pinned 1.3.1 resolved lookup or with
+Dilemma's nonlexical classifier. Its generator is
+`build/build_ag_expansion_exclusions.py`.
+Running it without `--reference` downloads and verifies that exact artifact.
 
 `--expand-verbs` does three things:
 
@@ -1923,11 +1937,11 @@ ancient topics could boost forms with high `freq_glaux`).
 `export_hunspell.py` produces compact Hunspell `.dic` + `.aff` pairs from
 `lookup.db`, aimed at mobile consumers (primarily the
 [Tonos](https://tonospolytonic.com/) iOS polytonic keyboard)
-where the full 672 MB `lookup.db` and 345 MB `spell_index.db` do not
+where the full 1.07 GB `lookup.db` and 560 MB `spell_index.db` do not
 fit inside the ~48 MB memory ceiling of a keyboard extension. Affix
-compression collapses each inflection class to a single SFX rule
-group, so ~8.6M forms compress to ~2M dictionary entries while
-preserving exact-match acceptance.
+compression collapses each inflection class to a single SFX rule group. The
+repaired AG export applies its corpus gate and emits 1,617,436 dictionary
+entries plus 26,521 suffix rules while preserving exact-match acceptance.
 
 Default output is the **grc** variant (Ancient + Medieval polytonic),
 which is what Tonos ships. An optional **el** variant (Modern Greek
@@ -2186,8 +2200,7 @@ the v2 reader does not read v1 files (and vice versa).
 | EN + EL Wiktionary (MG) | 2.8M | From kaikki.org dumps |
 | EN + EL Wiktionary (AG) | 2.4M | From kaikki.org dumps |
 | EL Wiktionary (Medieval) | 6.9K | From kaikki.org dumps |
-| LSJ noun/verb/adj expansion | 4.2M | Via Wiktionary Lua modules |
-| Sophocles lexicon expansion | 1.0M | Byzantine/Patristic vocabulary |
+| LSJ + Sophocles expansion | 6.4M net AG additions | Current Wiktionary-Lua expansion plus marked, revision-pinned historical recovery |
 | [Perseus / AGDT](https://github.com/PerseusDL/treebank_data) (CC BY-SA 3.0 US) | 81K | The 33 Greek AGDT works (Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus); the original, not the NC UD release |
 | GLAUx corpus | 557K | 17M tokens, 98.8% accuracy ([Keersmaekers 2021](https://github.com/alekkeersmaekers/glaux)) |
 | Diorisis corpus | 76K new | 10M tokens, 91.4% accuracy ([Vatri & McGillivray 2018](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)) |
@@ -2195,7 +2208,7 @@ the v2 reader does not read v1 files (and vice versa).
 | DGE headwords | 52K | Headword filter coverage from Diccionario Griego-Espanol |
 | LGPN names | 44K | Proper noun coverage from Lexicon of Greek Personal Names |
 | Perseus Digital Library headwords | 176K | Headword filter from L&S, Pape, Bailly, etc. |
-| **Total lookup** | **8.6M** | Deduped union (rows above overlap; the total is unique `(form, lang)` rows) |
+| **Total lookup** | **12.8M** | Deduped combined lookup rows (source rows above overlap) |
 
 All Wiktionary data is extracted automatically from
 [kaikki.org](https://kaikki.org/) JSONL dumps. LSJ and Sophocles
@@ -2433,7 +2446,7 @@ blinded evaluation by expert readers. They found that methods using
 large lexica combined with POS tagging (CLTK backoff lemmatizer,
 Diorisis corpus) consistently outperformed pure ML approaches with
 smaller lexica. Dilemma follows the same principle: a large lookup
-table (8.6M forms) handles the vast majority of words, with a small
+table (12.8M forms) handles the vast majority of words, with a small
 model as fallback.
 
 [Celano (2025)](https://aclanthology.org/2025.lm4dh-1.5/) presented
