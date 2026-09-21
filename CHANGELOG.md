@@ -6,6 +6,27 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Restore common Ancient Greek spellings in the `grc` Hunspell export. The
+  selector now admits corpus-attested language-shared rows even when an
+  identical Modern spelling owns the `src='el'` self-mapping, preserves a
+  closed list of correctly unaccented enclitics, and keeps corpus-attested
+  acute-only paradigms such as `χάρις`. Bare lemmatizer fallbacks for elision
+  (`ἀλλ`, `κατ`, `παρ`, and peers) are excluded as both entries and synthetic
+  compression stems. Against the same lookup and frequency data, the export
+  grows from 1,618,505 entries / 26,522 suffix rules to 1,726,220 / 28,078.
+  The full 30,933,396-token LM frequency gate improves from 96/100 to 100/100
+  accepted forms; all 34 independently reported regressions are restored and
+  all 12 audited bare stems are rejected.
+
+### Added
+- Add a revision-pinned Hunspell frequency auditor and CI regression fixture.
+  It loads the expanded dictionary with `spylls`, folds contextual grave to
+  acute, and checks the 100 most frequent lexical forms representing
+  11,111,858 full-run LM tokens. JSON fixture generation hard-fails when
+  `stats.json` identifies a sanity run; format-v2 LM binaries can supply the
+  exact embedded vocabulary and unigram counts directly.
+
 ## [1.3.4] - 2026-09-21
 
 ### Fixed
