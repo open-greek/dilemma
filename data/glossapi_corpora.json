@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "description": "Revision- and byte-pinned GlossAPI candidates for Dilemma coverage audits. Historical corpora are audit-only and must flow through Open Greek Corpus before any lexicon data reaches Dilemma.",
+  "frequency_experiment": {
+    "description": "Equal caps for the three broad Modern Greek sources, with smaller caps for repetitive legal sources. This is an experiment and does not replace data/mg_freq.txt.",
+    "core_token_cap": 1000000,
+    "legal_token_cap": 250000
+  },
+  "variety_model": {
+    "repo": "glossAPI/Kategoriopoiitis_Ellinikon_Poikilion",
+    "revision": "7150a4f6fc566bf004b662fab93524feba34f2d0",
+    "implementation_reference": {
+      "repo": "https://github.com/eellak/glossAPI",
+      "revision": "8693894ee8066a31ef8625dbcf47e712348a2afb",
+      "path": "Greek_variety_classification/Greek_variety_classifier.ipynb"
+    },
+    "weights": {
+      "path": "pytorch_model.bin",
+      "size": 452560502,
+      "sha256": "083edfb7ee9f81efd55bb7ff4d9757bc48f3fa415549092ce1c8bd9083d1a79a"
+    },
+    "labels": {
+      "0": "ancient_or_pre_medieval",
+      "1": "standard_modern_or_literary",
+      "2": "demotic",
+      "3": "katharevousa"
+    }
+  },
+  "corpora": [
+    {
+      "key": "opengov",
+      "repo": "glossAPI/opengov-deliberations-v2",
+      "revision": "67b01a847f79cb81a178a38ef79ffd82587b75c4",
+      "license": "CC-BY-4.0",
+      "role": "mg_core",
+      "lookup_lang": "el",
+      "audit_token_cap": 1000000,
+      "frequency_token_cap": 1000000,
+      "files": [
+        {
+          "path": "opengov_deliberations_v2.parquet",
+          "size": 375085231,
+          "sha256": "5f4b3ca08de3488d685ad2eb6e6c6a3fb265ec758517b2aafd3de56021f4e0f6"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "title", "format": "plain"},
+          {"path": "start_minister_message", "format": "plain"},
+          {"path": "end_minister_message", "format": "plain"},
+          {"path": "ministry.name", "format": "plain"},
+          {"path": "articles[].title", "format": "plain"},
+          {"path": "articles[].body_text", "format": "plain"},
+          {"path": "articles[].comments[].content", "format": "plain"},
+          {"path": "documents[].title", "format": "plain"}
+        ]
+      }
+    },
+    {
+      "key": "mitos",
+      "repo": "glossAPI/mitos",
+      "revision": "5b958e5b7660aca9ecc33b48691b16b31980654f",
+      "license": "CC-BY-SA-4.0",
+      "role": "mg_core",
+      "lookup_lang": "el",
+      "audit_token_cap": 1000000,
+      "frequency_token_cap": 1000000,
+      "files": [
+        {
+          "path": "mitos-gov.parquet",
+          "size": 18330432,
+          "sha256": "41ddc6bb9b5146c091e7bbb06312057ce710468cc4f8fc32a698d7eaa2b134da"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "title_el", "format": "plain"},
+          {"path": "Σημεία εξυπηρέτησης", "format": "json_values"},
+          {"path": "Ψηφιακά σημεία παροχής", "format": "json_values"},
+          {"path": "Αριθμός δικαιολογητικών", "format": "plain"},
+          {"path": "Κόστος", "format": "plain"},
+          {"path": "Εκτιμώμενος χρόνος", "format": "plain"},
+          {"path": "Περιγραφή", "format": "plain"},
+          {"path": "Θεσμικός φορέας", "format": "json_values"},
+          {"path": "Παρατηρήσεις", "format": "plain"},
+          {"path": "Αίτηση", "format": "json_values"},
+          {"path": "Προϋποθέσεις", "format": "json_values"},
+          {"path": "Σχετικά", "format": "json_values"},
+          {"path": "Εξερχόμενα", "format": "json_values"},
+          {"path": "Βήματα", "format": "json_values"},
+          {"path": "Άλλες πληροφορίες", "format": "json_values"},
+          {"path": "Νομοθεσία", "format": "json_values"}
+        ]
+      }
+    },
+    {
+      "key": "eellak_articles",
+      "repo": "glossAPI/eellak-articles",
+      "revision": "053f92c5a9d796007980ab810add684ba3d9e658",
+      "license": "CC-BY-SA-4.0",
+      "role": "mg_core",
+      "lookup_lang": "el",
+      "audit_token_cap": 1000000,
+      "frequency_token_cap": 1000000,
+      "files": [
+        {
+          "path": "eellak.parquet",
+          "size": 26312988,
+          "sha256": "7a22756102fe1f04c8896331e641343b1c82472822c45e612849b272c9af3619"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "content", "format": "plain"}
+        ]
+      }
+    },
+    {
+      "key": "diavgeia",
+      "repo": "glossAPI/diavgeia",
+      "revision": "c8e04d313af71180666ad75260945cdc0e757399",
+      "license": "CC-BY-4.0",
+      "role": "mg_legal",
+      "lookup_lang": "el",
+      "audit_token_cap": 250000,
+      "frequency_token_cap": 250000,
+      "files": [
+        {
+          "path": "diavgeia_2010_2013.parquet",
+          "size": 11735495799,
+          "sha256": "cf09e7fa6ec582a9c0192a3e868d220def5eff96224b7fe0950efda43a9f5513"
+        },
+        {
+          "path": "diavgeia_2014_2026.parquet",
+          "size": 26272883977,
+          "sha256": "acaae14e6e8d81ccb901303e4972ff9570db438e724f95f9f2e5d16b23ee617d"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "markdown_text", "format": "plain"}
+        ]
+      }
+    },
+    {
+      "key": "european_parliament",
+      "repo": "glossAPI/ellinika_dedomena_europaikou_koinovouliou",
+      "revision": "6fd5e8031ed9cd7e011516751d55baf7cdf2dfcb",
+      "license": "CC-BY-SA-4.0",
+      "role": "mg_legal",
+      "lookup_lang": "el",
+      "audit_token_cap": 250000,
+      "frequency_token_cap": 250000,
+      "files": [
+        {
+          "path": "ellhnika_dedomena_europaikou_koinovouliou.parquet",
+          "size": 1172008146,
+          "sha256": "9dc1f3018be26d3f625516bda8d26ef815b13541ea9a863c7662621cb0d5f59e"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "*", "format": "plain"}
+        ],
+        "exclude_fields": ["id", "url", "document_url", "pdf_url", "source_url"]
+      }
+    },
+    {
+      "key": "eurlex",
+      "repo": "glossAPI/eurlex-greek-legislation",
+      "revision": "6311e979d0319acd4344e78cdc4ae14b2591c2fe",
+      "license": "EUPL-1.2",
+      "role": "mg_legal",
+      "lookup_lang": "el",
+      "audit_token_cap": 250000,
+      "frequency_token_cap": 250000,
+      "files": [
+        {
+          "path": "cleaned_dataset_md.zip",
+          "size": 771399833,
+          "sha256": "fcc6e33b64fa350d796f07b4116e7fc90e3011e765f0c3e9ba1d4d5ca2f06083"
+        }
+      ],
+      "reader": {
+        "kind": "zip_text",
+        "member_suffixes": [".md"]
+      }
+    },
+    {
+      "key": "gutenberg_greek",
+      "repo": "glossAPI/Ellinika_Keimena_Project_Gutenberg",
+      "revision": "9d729e130a473cd68c43ac0201abcee42a76e246",
+      "license": "CC-BY-4.0",
+      "role": "ogc_candidate",
+      "lookup_lang": "all",
+      "audit_token_cap": 500000,
+      "frequency_token_cap": 0,
+      "ogc_decision": "Route public-domain Ancient/Medieval rows through OGC document deduplication and provenance review; do not ingest classifier labels or raw Dilemma frequency data directly.",
+      "files": [
+        {
+          "path": "gutenberg_clean.parquet",
+          "size": 40842245,
+          "sha256": "327c993fedcd8b817098f8744e1faf82c7a33342f335320ab85099452fe58bd2"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "Text", "format": "plain"}
+        ]
+      }
+    },
+    {
+      "key": "ekklisiastika",
+      "repo": "glossAPI/Ekklisiastika_Keimena",
+      "revision": "e3e66c08c7a51beb96dc642e012c5ed3de946100",
+      "license": "CC-BY-4.0",
+      "role": "ogc_candidate",
+      "lookup_lang": "grc",
+      "audit_token_cap": 500000,
+      "frequency_token_cap": 0,
+      "ogc_decision": "Route through OGC with source-level deduplication against biblical and liturgical witnesses; retain work/title provenance and admit only public deduplicated lexicon evidence. Strip structural rubrics, detect run-together OCR tokens, and near-deduplicate repeated hymn cycles before counting language evidence; never use raw token or n-gram frequencies.",
+      "known_quality_risks": [
+        "structural rubrics and page identifiers",
+        "run-together sentence and section boundaries",
+        "heavy repetition across Oktoechos tone cycles"
+      ],
+      "files": [
+        {
+          "path": "litourgical_texts.parquet",
+          "size": 17520011,
+          "sha256": "ec4d18951392d90650f96fe5232d2527aa4deed2164b171a8501e50b408593ae"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "texts", "format": "plain"}
+        ]
+      }
+    },
+    {
+      "key": "archetai",
+      "repo": "glossAPI/archetai",
+      "revision": "e527ae6ba9688991c56ce2c928ebaadb47b54650",
+      "license": "CC-BY-4.0",
+      "role": "ogc_candidate",
+      "lookup_lang": "all",
+      "audit_token_cap": 500000,
+      "frequency_token_cap": 0,
+      "ogc_decision": "Quarantine as OCR evidence in OGC. Require document identity, date/series provenance, language segmentation, and OCR-quality thresholds before forms can contribute to the public lexicon.",
+      "files": [
+        {
+          "path": "archetai.parquet",
+          "size": 146836353,
+          "sha256": "75a9c6698ee603be8edd532d88e625e01474fb382879686ebb889db94a6da98d"
+        }
+      ],
+      "reader": {
+        "kind": "parquet",
+        "text_fields": [
+          {"path": "content", "format": "plain"}
+        ]
+      }
+    }
+  ]
+}

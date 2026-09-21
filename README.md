@@ -2291,6 +2291,41 @@ form-lemma pairs (lemma pairs come from Wiktionary plus the
 GLAUx/Diorisis/Perseus treebanks; the Gorman treebanks are held out
 as evaluation gold).
 
+#### GlossAPI corpus audits
+
+`data/glossapi_corpora.json` pins nine permissively licensed GlossAPI
+candidates by Hub commit, byte size, and SHA-256. The audit measures
+`guess=False` lookup coverage, unknown forms, conservative Unicode/OCR
+defects, and forms whose effective `el` and `grc` lookup rows disagree:
+
+```bash
+pip install -e '.[glossapi-audit]'
+python scripts/audit_glossapi_coverage.py --source stream
+```
+
+Large sources can be deferred explicitly, without making a partial frequency
+experiment look complete:
+
+```bash
+python scripts/audit_glossapi_coverage.py --source stream \
+  --exclude-corpus diavgeia
+```
+
+The generated coverage and frequency reports are diagnostics and never
+overwrite `data/mg_freq.txt`. Gutenberg, Ekklisiastika, and Archetai are
+audit-only: historical evidence must first pass through Open Greek Corpus
+provenance, language, OCR-quality, and deduplication gates. In particular,
+raw Ekklisiastika rubrics, joined tokens, and repeated hymn cycles must not
+feed language-model or frequency counts.
+
+The GlossAPI variety classifier has a separate optional evaluation so
+GreekBERT does not become a Dilemma runtime dependency:
+
+```bash
+pip install -e '.[variety-eval]'
+python eval/eval_glossapi_variety.py
+```
+
 #### Extraction sources
 
 Form-lemma pairs come from three sources per Wiktionary entry:

@@ -36,6 +36,10 @@ onnx = ["onnxruntime>=1.15", "numpy>=1.24"]
 torch = ["torch>=2.0", "numpy>=1.24"]
 lm = ["betacode", "pygtrie", "lxml"]  # betacode.conv needs pygtrie but under-declares it; lxml for TEI loci
 dev = ["pytest>=7"]
+glossapi-audit = ["pyarrow>=18"]
+# The GlossAPI variety classifier is evaluated by an external script only.
+# It is deliberately not part of Dilemma's core or tagger runtime.
+variety-eval = ["torch>=2.0", "transformers>=4.35"]
 # Tagger (full): the torch-free runtime ([tagger-onnx]: onnxruntime + tokenizers)
 # PLUS torch + transformers for (re)training and ONNX export. Opt-in; users who
 # only want the lemmatizer can skip it. For inference only, prefer [tagger-onnx].
