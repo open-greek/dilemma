@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-09-21
+
 ### Fixed
 - Reject editorial square brackets and parentheses at GLAUx pair ingestion
   and again in both movable-nu and elision morphology derivation. This keeps
@@ -367,6 +369,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.4]: https://github.com/open-greek/dilemma/releases/tag/1.3.4
 [1.3.3]: https://github.com/open-greek/dilemma/releases/tag/1.3.3
 [1.3.2]: https://github.com/open-greek/dilemma/releases/tag/1.3.2
 [1.3.1]: https://github.com/open-greek/dilemma/releases/tag/1.3.1
