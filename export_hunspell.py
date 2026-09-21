@@ -83,7 +83,7 @@ import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
-from dilemma.form_sanitize import sanitize_form
+from dilemma.form_sanitize import has_editorial_sigla, sanitize_form
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -575,6 +575,38 @@ def filter_by_lemma_freq(
     return out
 
 
+def sanitize_export_pairs(
+    form_lemma: list[tuple[str, str]],
+) -> tuple[list[tuple[str, str]], int, int]:
+    """Sanitize and deduplicate pairs before affix compression.
+
+    Returns ``(pairs, changed_forms, editorial_dropped)``. Editorial notation
+    is never meaningful Hunspell input and can make regex-based consumers
+    reject the complete affix file.
+    """
+    sanitized: list[tuple[str, str]] = []
+    changed_forms = 0
+    editorial_dropped = 0
+    dedup: set[tuple[str, str]] = set()
+    for form, lemma in form_lemma:
+        clean_form = sanitize_form(form)
+        clean_lemma = sanitize_form(lemma)
+        if not clean_form:
+            continue
+        if (has_editorial_sigla(clean_form)
+                or has_editorial_sigla(clean_lemma)):
+            editorial_dropped += 1
+            continue
+        pair = (clean_form, clean_lemma)
+        if pair in dedup:
+            continue
+        dedup.add(pair)
+        if clean_form != form:
+            changed_forms += 1
+        sanitized.append(pair)
+    return sanitized, changed_forms, editorial_dropped
+
+
 def build_sfx_rules(
     form_lemma: list[tuple[str, str]],
     freq_map: dict[str, int],
@@ -922,23 +954,15 @@ def run_export(sanity: int | None, variants: list[str],
         # an apostrophe) never reaches the .dic. See form_sanitize.sanitize_form
         # for the full rules. Lemmas are sanitized too so that two lemma
         # spellings that differ only by this bug collapse onto one paradigm.
-        sanitized: list[tuple[str, str]] = []
-        changed_forms = 0
-        dedup: set[tuple[str, str]] = set()
-        for f, l in form_lemma:
-            sf = sanitize_form(f)
-            sl = sanitize_form(l)
-            if not sf:
-                continue
-            if (sf, sl) in dedup:
-                continue
-            dedup.add((sf, sl))
-            if sf != f:
-                changed_forms += 1
-            sanitized.append((sf, sl))
+        sanitized, changed_forms, editorial_dropped = sanitize_export_pairs(
+            form_lemma
+        )
         if changed_forms:
             print(f"  Guard: sanitized {changed_forms:,} forms "
                   f"(misplaced/orphan breathing marks)")
+        if editorial_dropped:
+            print(f"  Guard: dropped {editorial_dropped:,} "
+                  "editorial-notation pairs")
         form_lemma = sanitized
 
         if variant == "el":

@@ -40,6 +40,10 @@ sys.path[:0] = [str(ROOT / "build"), str(ROOT)]
 
 import lupa.lua53  # noqa: F401  force Lua 5.3 before expand_lsj imports the sandbox
 import expand_lsj as E  # applies the 8 idempotent Lua-sandbox fixes on import
+from dilemma.form_sanitize import (  # noqa: E402
+    has_editorial_sigla,
+    resolve_editorial_form,
+)
 
 LBG_HEADWORDS = ROOT / "data" / "lbg_headwords.json"
 LBG_PAIRS = ROOT / "data" / "lbg_pairs.json"
@@ -66,23 +70,6 @@ def _forms_err(ret):
     return (ret or set()), ""
 
 
-def _expand_optional(form):
-    """Expand a single ``(...)`` optional segment (the grc optional-nu, e.g.
-    ``λύουσι(ν)`` -> {λύουσι, λύουσιν}; also handles the unclosed ``...σι(ν``
-    artifact). Returns the clean variants; drops anything with leftover parens."""
-    if "(" not in form:
-        return {form} if ")" not in form else set()
-    i = form.index("(")
-    prefix, rest = form[:i], form[i + 1:]
-    if ")" in rest:
-        j = rest.index(")")
-        inner, suffix = rest[:j], rest[j + 1:]
-    else:
-        inner, suffix = rest, ""
-    out = {prefix + suffix, prefix + inner + suffix}
-    return {f for f in out if "(" not in f and ")" not in f}
-
-
 def main():
     data = json.load(open(LBG_HEADWORDS, encoding="utf-8"))
     print(f"Loaded {len(data):,} LBG headwords")
@@ -95,7 +82,7 @@ def main():
     for i, e in enumerate(data):
         lemma = e.get("lemma")
         gender = e.get("gender")
-        if not lemma:
+        if not lemma or has_editorial_sigla(lemma):
             n_skip += 1
             continue
         try:
@@ -118,7 +105,8 @@ def main():
         n_noun += kind == "noun"
         n_verb += kind == "verb"
         for raw in forms:
-            for f in _expand_optional(unicodedata.normalize("NFC", raw).strip()):
+            raw = unicodedata.normalize("NFC", raw).strip()
+            for f in resolve_editorial_form(raw):
                 # inflected forms only (the headword self-map is added
                 # separately); first writer wins on collisions (kept as
                 # lowest-priority gap-fill).

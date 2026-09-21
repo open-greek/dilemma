@@ -45,10 +45,15 @@ import unicodedata
 
 import pytest
 
-from dilemma.form_sanitize import sanitize_form
+from dilemma.form_sanitize import (
+    has_editorial_sigla,
+    resolve_editorial_form,
+    sanitize_form,
+)
 from export_hunspell import (
     SPACING_DIACRITICS,
     has_any_diacritic,
+    sanitize_export_pairs,
     select_forms,
 )
 
@@ -56,6 +61,28 @@ KORONIS = "᾽"
 SPACING_PSILI = "᾿"
 SPACING_DASIA = "῾"
 COMBINING_PSILI = "̓"
+
+
+def test_editorial_forms_resolve_only_optional_final_nu():
+    assert resolve_editorial_form("καθᾶσι(ν") == ("καθᾶσι", "καθᾶσιν")
+    assert resolve_editorial_form("καθᾶσι(ν)") == ("καθᾶσι", "καθᾶσιν")
+    assert resolve_editorial_form("ἀ[ζηχὲς") == ()
+    assert resolve_editorial_form("λη(νοῦ)") == ()
+    assert has_editorial_sigla("[δηρ]ιάζομαι") is True
+    assert has_editorial_sigla("δηριάζομαι") is False
+
+
+def test_export_guard_drops_editorial_forms_and_lemmas():
+    pairs, changed, dropped = sanitize_export_pairs([
+        ("κατεβρεχθῶσι(ν", "βρέχω"),
+        ("ἀ[ζηχὲς", "ἀζηχής"),
+        ("καθαρός", "[καθ]αρός"),
+        ("γραφῆσ", "γραφή"),
+    ])
+
+    assert pairs == [("γραφῆς", "γραφή")]
+    assert changed == 1
+    assert dropped == 3
 
 
 def nfc(s: str) -> str:

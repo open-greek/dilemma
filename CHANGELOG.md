@@ -6,6 +6,16 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Resolve terminal Wiktionary movable-nu notation (`(ν` / `(ν)`) into both
+  conventional spellings while rejecting every other square-bracket or
+  parenthesis siglum in expansion forms and citation lemmas. The final overlay
+  removes 93,084 contaminated target rows, adds 159,083 clean movable-nu
+  spellings, skips 247 contaminated historical-reference rows, and applies the
+  same guard to Byzantine gap-fill data and Hunspell export. The rebuilt
+  `lookup.db` and `grc_polytonic` files contain no such delimiters, and the
+  Hunspell dictionary now loads in regex-based consumers such as `spylls`.
+
 ## [1.3.2] - 2026-09-21
 
 ### Fixed

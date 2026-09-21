@@ -28,7 +28,11 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from dilemma.form_sanitize import sanitize_form  # noqa: E402
+from dilemma.form_sanitize import (  # noqa: E402
+    has_editorial_sigla,
+    resolve_editorial_form,
+    sanitize_form,
+)
 from lsj_principal_parts import (  # noqa: E402
     parse_principal_parts, derive_grc_conj_args,
 )
@@ -1631,6 +1635,8 @@ def expand_all():
     # Find LSJ-only nouns with gender
     candidates = []
     for hw, entry in lsj_entries.items():
+        if has_editorial_sigla(hw):
+            continue
         if hw in wikt:
             continue  # already covered by Wiktionary
         if not entry["gender"]:
@@ -1663,24 +1669,22 @@ def expand_all():
         # reattaches the breathing to the base letter and NFC-composes.
         hw_clean = sanitize_form(hw)
         for raw_form in forms:
-            form = sanitize_form(raw_form)
-            if not form:
-                continue
-            # Accented version
-            if form not in lookup:
-                lookup[form] = hw_clean
-                stats["new_forms"] += 1
-            elif lookup[form] != hw_clean:
-                stats["collisions"] += 1
-
-            # Accent-stripped version
-            plain = strip_diacritics(form)
-            if plain != form:
-                if plain not in lookup:
-                    lookup[plain] = hw_clean
+            for form in resolve_editorial_form(raw_form):
+                # Accented version
+                if form not in lookup:
+                    lookup[form] = hw_clean
                     stats["new_forms"] += 1
-                elif lookup[plain] != hw_clean:
+                elif lookup[form] != hw_clean:
                     stats["collisions"] += 1
+
+                # Accent-stripped version
+                plain = strip_diacritics(form)
+                if plain != form:
+                    if plain not in lookup:
+                        lookup[plain] = hw_clean
+                        stats["new_forms"] += 1
+                    elif lookup[plain] != hw_clean:
+                        stats["collisions"] += 1
 
         if (i + 1) % 1000 == 0:
             elapsed = time.time() - t0
@@ -1727,6 +1731,8 @@ def expand_verbs():
     # Find LSJ-only verbs (entries without gender = likely verbs)
     candidates = []
     for hw, entry in lsj_entries.items():
+        if has_editorial_sigla(hw):
+            continue
         if hw in wikt:
             continue
         if entry["gender"]:
@@ -1764,22 +1770,20 @@ def expand_verbs():
         # See sanitize_form() rationale in expand_all() above.
         hw_clean = sanitize_form(hw)
         for raw_form in forms:
-            form = sanitize_form(raw_form)
-            if not form:
-                continue
-            if form not in lookup:
-                lookup[form] = hw_clean
-                stats["new_forms"] += 1
-            elif lookup[form] != hw_clean:
-                stats["collisions"] += 1
-
-            plain = strip_diacritics(form)
-            if plain != form:
-                if plain not in lookup:
-                    lookup[plain] = hw_clean
+            for form in resolve_editorial_form(raw_form):
+                if form not in lookup:
+                    lookup[form] = hw_clean
                     stats["new_forms"] += 1
-                elif lookup[plain] != hw_clean:
+                elif lookup[form] != hw_clean:
                     stats["collisions"] += 1
+
+                plain = strip_diacritics(form)
+                if plain != form:
+                    if plain not in lookup:
+                        lookup[plain] = hw_clean
+                        stats["new_forms"] += 1
+                    elif lookup[plain] != hw_clean:
+                        stats["collisions"] += 1
 
         if (i + 1) % 500 == 0:
             elapsed = time.time() - t0

@@ -27,6 +27,8 @@ import tempfile
 import unicodedata
 from pathlib import Path
 
+from dilemma.form_sanitize import has_editorial_sigla, resolve_editorial_form
+
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_MANIFEST = ROOT / "data" / "ag_expansion_reference.json"
@@ -122,6 +124,7 @@ def overlay_expansion(
         "target_entries_before": len(target),
         "expansion_entries": 0,
         "unmarked_entries": 0,
+        "editorial_entries": 0,
         "excluded_entries": 0,
         "already_present": 0,
         "conflicts_preserved": 0,
@@ -137,6 +140,9 @@ def overlay_expansion(
         if form in excluded_forms:
             stats["excluded_entries"] += 1
             continue
+        if has_editorial_sigla(form) or has_editorial_sigla(lemma):
+            stats["editorial_entries"] += 1
+            continue
         if form in target:
             stats["already_present"] += 1
             if target[form] != lemma:
@@ -145,6 +151,46 @@ def overlay_expansion(
         target[form] = lemma
         stats["added"] += 1
     stats["target_entries_after"] = len(target)
+    return stats
+
+
+def resolve_target_editorial_entries(target: dict[str, str]) -> dict[str, int]:
+    """Remove notation from a built target without guessing at restorations.
+
+    Terminal movable-nu notation expands to its two real spellings. All other
+    bracketed forms, and every bracketed lemma, are discarded. Existing target
+    mappings always win when a resolved spelling collides.
+    """
+    contaminated = [
+        (form, lemma)
+        for form, lemma in target.items()
+        if has_editorial_sigla(form) or has_editorial_sigla(lemma)
+    ]
+    stats = {
+        "target_editorial_removed": len(contaminated),
+        "target_movable_nu_entries": 0,
+        "target_movable_nu_added": 0,
+        "target_movable_nu_present": 0,
+        "target_movable_nu_conflicts": 0,
+    }
+    for form, _lemma in contaminated:
+        del target[form]
+
+    for form, lemma in contaminated:
+        if has_editorial_sigla(lemma):
+            continue
+        resolved = resolve_editorial_form(form)
+        if not resolved:
+            continue
+        stats["target_movable_nu_entries"] += 1
+        for spelling in resolved:
+            if spelling not in target:
+                target[spelling] = lemma
+                stats["target_movable_nu_added"] += 1
+            else:
+                stats["target_movable_nu_present"] += 1
+                if target[spelling] != lemma:
+                    stats["target_movable_nu_conflicts"] += 1
     return stats
 
 
@@ -222,6 +268,15 @@ def main() -> None:
         target = json.load(handle)
     print(f"  {len(target):,} entries")
 
+    target_editorial_stats = resolve_target_editorial_entries(target)
+    print(
+        "Resolved target editorial notation: "
+        f"{target_editorial_stats['target_movable_nu_added']:,} movable-nu "
+        f"spellings added; "
+        f"{target_editorial_stats['target_editorial_removed']:,} notation "
+        "entries removed"
+    )
+
     stats = overlay_expansion(
         reference, reference_base, target, excluded_forms=excluded_forms
     )
@@ -235,6 +290,7 @@ def main() -> None:
 
     print(f"Historical expansion layer: {stats['expansion_entries']:,}")
     print(f"Unmarked fallback keys skipped: {stats['unmarked_entries']:,}")
+    print(f"Editorial-notation entries skipped: {stats['editorial_entries']:,}")
     print(f"Pinned exclusions: {stats['excluded_entries']:,}")
     print(f"Already present: {stats['already_present']:,}")
     print(f"Current mapping conflicts preserved: {stats['conflicts_preserved']:,}")

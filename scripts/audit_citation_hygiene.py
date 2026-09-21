@@ -4,9 +4,9 @@
 This is a Dilemma-side artifact audit: it scans data/lookup.db's distinct lemma
 strings and reports marks that should not normally appear in dictionary
 citation forms (grave accent, final elision marks, overline abbreviations,
-leading combining marks, and multiple tonal accents). Numeral/keraia residue
-is classified separately from true elision marks. This script does not read OGC
-cache files.
+leading combining marks, editorial sigla, and multiple tonal accents).
+Numeral/keraia residue is classified separately from true elision marks. This
+script does not read OGC cache files.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from dilemma.nonlexical import classify_nonlexical  # noqa: E402
 
 SPACING_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`"}
 KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
+EDITORIAL_SIGLA = frozenset("[]()")
 
 
 def _flags(lemma: str) -> list[str]:
@@ -56,6 +57,8 @@ def _flags(lemma: str) -> list[str]:
             flags.append("final_elision_mark")
     if "\u0305" in nfd:
         flags.append("overline")
+    if any(char in lemma for char in EDITORIAL_SIGLA):
+        flags.append("editorial_siglum")
     malformed_tonal = malformed_tonal_reason(lemma)
     if malformed_tonal:
         flags.append(malformed_tonal)
@@ -72,7 +75,7 @@ def _multiple_tonal_shape(lemma: str) -> str:
     return "single_token"
 
 
-def _flagged_lemmas(db_path: Path) -> tuple[int, list[dict]]:
+def _flagged_lemmas(db_path: Path) -> tuple[int, list[dict], int]:
     """Return flagged lemmas with the lookup-source languages that expose them.
 
     ``lemmas`` is shared by the AG and MG lookup tables, so auditing every row
@@ -112,7 +115,12 @@ def _flagged_lemmas(db_path: Path) -> tuple[int, list[dict]]:
                 if source in {"grc", "el"}:
                     by_id[lemma_id]["languages"].add(source)
 
-        return total, flagged
+        editorial_forms = conn.execute(
+            "SELECT COUNT(DISTINCT form) FROM lookup "
+            "WHERE instr(form, '[') OR instr(form, ']') "
+            "OR instr(form, '(') OR instr(form, ')')"
+        ).fetchone()[0]
+        return total, flagged, editorial_forms
     finally:
         conn.close()
 
@@ -135,7 +143,7 @@ def audit(db_path: Path, example_limit: int) -> dict:
         }
         for language in ("grc", "el")
     }
-    total, flagged_lemmas = _flagged_lemmas(db_path)
+    total, flagged_lemmas, editorial_forms = _flagged_lemmas(db_path)
 
     for item in flagged_lemmas:
         lemma = item["lemma"]
@@ -229,6 +237,7 @@ def audit(db_path: Path, example_limit: int) -> dict:
         "lookup_db": str(db_path),
         "data_dir": str(DATA_DIR),
         "total_lemmas": total,
+        "editorial_form_count": editorial_forms,
         "counts": dict(sorted(counts.items())),
         "accepted_counts": dict(sorted(accepted.items())),
         "rejected_counts": dict(sorted(rejected.items())),
@@ -256,6 +265,7 @@ def main() -> int:
 
     print(f"lookup_db: {report['lookup_db']}")
     print(f"total lemmas: {report['total_lemmas']:,}")
+    print(f"editorial surface forms: {report['editorial_form_count']:,}")
     for flag, count in report["counts"].items():
         rejected = report["rejected_counts"].get(flag, 0)
         accepted = report["accepted_counts"].get(flag, 0)

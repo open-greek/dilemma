@@ -23,6 +23,12 @@ This module is imported by `export_hunspell.py` (final guard before the
 Hunspell .dic is written), `build_lookup_db.py` (ingestion guard before
 forms land in lookup.db), and the per-source extract_*.py scripts so that
 each stage of the pipeline is self-consistent.
+
+Lexicon and paradigm sources also use square brackets and parentheses as
+editorial notation. Those delimiters are not Greek spelling. The one safe
+mechanical resolution is a terminal ``(nu)`` marker, written ``(nu`` or
+``(nu)`` in source data, which represents forms both without and with movable
+nu. All other bracketed material remains ambiguous and is rejected.
 """
 from __future__ import annotations
 
@@ -33,6 +39,34 @@ _COMBINING_DASIA = 0x0314
 _SPACING_PSILI = 0x1FBF
 _SPACING_DASIA = 0x1FFE
 _GREEK_KORONIS = "\u1FBD"
+EDITORIAL_SIGLA = frozenset("[]()")
+
+
+def has_editorial_sigla(s: str) -> bool:
+    """Return whether *s* still carries bracket/parenthesis notation."""
+    return any(char in EDITORIAL_SIGLA for char in s)
+
+
+def resolve_editorial_form(s: str) -> tuple[str, ...]:
+    """Resolve safe editorial notation in a surface form.
+
+    A final ``(nu`` or ``(nu)`` is Wiktionary's optional movable-nu marker,
+    so both conventional spellings are returned. Any other square bracket or
+    parenthesis is ambiguous Leiden notation and yields no spelling.
+    """
+    form = sanitize_form(s)
+    if not has_editorial_sigla(form):
+        return (form,) if form else ()
+
+    if form.endswith("(\u03bd)"):
+        stem = form[:-3]
+    elif form.endswith("(\u03bd"):
+        stem = form[:-2]
+    else:
+        return ()
+    if not stem or has_editorial_sigla(stem):
+        return ()
+    return (stem, stem + "\u03bd")
 
 
 def sanitize_form(s: str) -> str:

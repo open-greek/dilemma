@@ -7,7 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from overlay_lsj import overlay_expansion, verify_file, verify_sentinels
+from overlay_lsj import (
+    overlay_expansion,
+    resolve_target_editorial_entries,
+    verify_file,
+    verify_sentinels,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +27,7 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
         "ἀποκλείεται": "historical-lemma",
         "ῥαψάμενοι": "new-historical-lemma",
         "δακτύλι": "historical-lemma",
+        "κατεβρεχθῶσι(ν": "βρέχω",
         "unmarked": "generated-fallback",
     }
     target = {
@@ -40,11 +46,36 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
         "new": "new-lemma",
         "ῥαψάμενοι": "new-historical-lemma",
     }
-    assert stats["expansion_entries"] == 4
+    assert stats["expansion_entries"] == 5
     assert stats["unmarked_entries"] == 1
+    assert stats["editorial_entries"] == 1
     assert stats["excluded_entries"] == 1
     assert stats["added"] == 1
     assert stats["conflicts_preserved"] == 1
+
+
+def test_target_editorial_cleanup_resolves_only_movable_nu():
+    target = {
+        "κατεβρεχθῶσι(ν": "βρέχω",
+        "κατεβρεχθῶσι": "current-lemma",
+        "ἀ[ζηχὲς": "ἀζηχής",
+        "plain": "plain",
+    }
+
+    stats = resolve_target_editorial_entries(target)
+
+    assert target == {
+        "κατεβρεχθῶσι": "current-lemma",
+        "plain": "plain",
+        "κατεβρεχθῶσιν": "βρέχω",
+    }
+    assert stats == {
+        "target_editorial_removed": 2,
+        "target_movable_nu_entries": 1,
+        "target_movable_nu_added": 1,
+        "target_movable_nu_present": 1,
+        "target_movable_nu_conflicts": 1,
+    }
 
 
 def test_pin_verification_rejects_changed_bytes(tmp_path):
@@ -70,6 +101,7 @@ def test_manifest_pins_reference_base_and_traced_forms():
     assert len(manifest["exclusions"]["sha256"]) == 64
     assert manifest["expected_counts"]["expansion_entries"] == 7_581_466
     assert manifest["expected_counts"]["unmarked_entries"] == 3_839_827
+    assert manifest["expected_counts"]["editorial_entries"] == 247
     assert manifest["expected_counts"]["excluded_entries"] == 36_839
     assert manifest["artifact_floor"]["grc_source_rows"] == 10_000_000
     assert manifest["sentinels"]["ῥαψάμενοι"] == "ῥάπτω"
@@ -93,5 +125,22 @@ def test_shipped_lookup_contains_recovered_expansion_sentinels():
                 (form,),
             ).fetchall()
             assert (lemma,) in rows, f"missing {form} -> {lemma}"
+    finally:
+        connection.close()
+
+
+@pytest.mark.skipif(not LOOKUP_DB.exists(), reason="lookup.db not downloaded")
+def test_shipped_lookup_contains_no_editorial_sigla():
+    connection = sqlite3.connect(f"file:{LOOKUP_DB}?mode=ro", uri=True)
+    try:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM lookup k "
+            "JOIN lemmas l ON l.id = k.lemma_id "
+            "WHERE instr(k.form, '[') OR instr(k.form, ']') "
+            "OR instr(k.form, '(') OR instr(k.form, ')') "
+            "OR instr(l.text, '[') OR instr(l.text, ']') "
+            "OR instr(l.text, '(') OR instr(l.text, ')')"
+        ).fetchone()[0]
+        assert count == 0
     finally:
         connection.close()

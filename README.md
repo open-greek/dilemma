@@ -1702,6 +1702,14 @@ Dilemma's nonlexical classifier. Its generator is
 `build/build_ag_expansion_exclusions.py`.
 Running it without `--reference` downloads and verifies that exact artifact.
 
+Expansion sources sometimes encode restored letters with Leiden square
+brackets or spelling alternatives with parentheses. These delimiters are
+metadata, not Greek spelling. The build resolves only the structurally safe
+terminal movable-nu notation (`(ν` or `(ν)`) into both real spellings; all
+other bracketed forms or lemmas are rejected rather than guessed. The final
+overlay also cleans an already-expanded target, and `build_lookup_db.py` plus
+the Hunspell exporter repeat the rejection as defense in depth.
+
 `--expand-verbs` does three things:
 
 1. Classifies the headword via `_classify_verb` (suffix dispatch for
@@ -1940,8 +1948,11 @@ ancient topics could boost forms with high `freq_glaux`).
 where the full 1.07 GB `lookup.db` and 560 MB `spell_index.db` do not
 fit inside the ~48 MB memory ceiling of a keyboard extension. Affix
 compression collapses each inflection class to a single SFX rule group. The
-repaired AG export applies its corpus gate and emits 1,617,436 dictionary
-entries plus 26,521 suffix rules while preserving exact-match acceptance.
+repaired AG export applies its corpus gate and emits 1,618,505 dictionary
+entries plus 26,522 suffix rules while preserving exact-match acceptance.
+Editorial brackets and parentheses are excluded before affix compression, so
+the generated `.aff` remains loadable by consumers that compile affixes as
+regular expressions, including `spylls`.
 
 Default output is the **grc** variant (Ancient + Medieval polytonic),
 which is what Tonos ships. An optional **el** variant (Modern Greek

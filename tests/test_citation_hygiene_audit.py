@@ -13,6 +13,7 @@ def test_lookup_has_no_rejected_citation_artifact_buckets():
     """The generated lookup must not ship known non-citation lemma residue."""
     assert Path(LOOKUP_DB_PATH).exists()
     report = audit(LOOKUP_DB_PATH, example_limit=0)
+    assert report["editorial_form_count"] == 0
     for flag in (
         "grave",
         "overline",
@@ -21,6 +22,7 @@ def test_lookup_has_no_rejected_citation_artifact_buckets():
         "final_keraia_or_prime",
         "duplicate_tonal_marks",
         "orphaned_tonal_mark",
+        "editorial_siglum",
     ):
         assert report["counts"].get(flag, 0) == 0, flag
 

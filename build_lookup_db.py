@@ -25,7 +25,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from dilemma.form_sanitize import sanitize_form  # noqa: E402
+from dilemma.form_sanitize import has_editorial_sigla, sanitize_form  # noqa: E402
 from dilemma.citation import malformed_tonal_reason  # noqa: E402
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
@@ -714,6 +714,14 @@ def build():
             sv = sanitize_form(v) if isinstance(v, str) else v
             if not sk:
                 continue
+            if (has_editorial_sigla(sk)
+                    or (isinstance(sv, str) and has_editorial_sigla(sv))):
+                artifact_dropped["editorial_siglum"] = (
+                    artifact_dropped.get("editorial_siglum", 0) + 1)
+                _record_citation_rejection(
+                    table=name, source=source, form=k, lemma=sv,
+                    reason="editorial_siglum")
+                continue
             artifact_reason = (_citation_artifact_reason(sv)
                                if isinstance(sv, str) else None)
             if artifact_reason:
@@ -832,6 +840,13 @@ def build():
             lbg_raw = {sanitize_form(e["lemma"]) for e in json.load(f)
                        if e.get("lemma") and " " not in e["lemma"]}
         for h in lbg_raw:
+            if has_editorial_sigla(h):
+                lbg_artifact_dropped["editorial_siglum"] = (
+                    lbg_artifact_dropped.get("editorial_siglum", 0) + 1)
+                _record_citation_rejection(
+                    table="combined", source=LBG_HEADWORDS_PATH.name,
+                    form=h, lemma=h, reason="editorial_siglum")
+                continue
             artifact_reason = _citation_artifact_reason(h)
             if artifact_reason:
                 lbg_artifact_dropped[artifact_reason] = (
@@ -892,6 +907,14 @@ def build():
             form = sanitize_form(form)
             lemma = sanitize_form(lemma)
             if not form or form in combined:
+                continue
+            if has_editorial_sigla(form) or has_editorial_sigla(lemma):
+                lbg_pair_artifact_dropped["editorial_siglum"] = (
+                    lbg_pair_artifact_dropped.get(
+                        "editorial_siglum", 0) + 1)
+                _record_citation_rejection(
+                    table="combined", source=LBG_PAIRS_PATH.name,
+                    form=form, lemma=lemma, reason="editorial_siglum")
                 continue
             artifact_reason = _citation_artifact_reason(lemma)
             if artifact_reason:

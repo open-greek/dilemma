@@ -25,6 +25,10 @@ from expand_lsj import (
     get_wtp, expand_noun, expand_verb, strip_length_marks, strip_diacritics,
     mark_alpha_length, AG_LOOKUP, DATA_DIR, ARTICLES,
 )
+from dilemma.form_sanitize import (  # noqa: E402
+    has_editorial_sigla,
+    resolve_editorial_form,
+)
 
 SOPH_DIR = DATA_DIR / "sophocles" / "chunks"
 
@@ -265,6 +269,8 @@ def analyze():
     VERB_ENDINGS = ("ω", "ομαι", "μαι", "μι", "ειμι")
 
     for hw, entry in entries.items():
+        if has_editorial_sigla(hw):
+            continue
         plain = strip_diacritics(hw)
         if hw in lookup or plain in lookup:
             already_covered += 1
@@ -353,20 +359,21 @@ def expand_all():
 
         stats["expanded"] += 1
 
-        for form in forms:
-            if form not in lookup:
-                lookup[form] = hw
-                stats["new_forms"] += 1
-            elif lookup[form] != hw:
-                stats["collisions"] += 1
-
-            plain = strip_diacritics(form)
-            if plain != form:
-                if plain not in lookup:
-                    lookup[plain] = hw
+        for raw_form in forms:
+            for form in resolve_editorial_form(raw_form):
+                if form not in lookup:
+                    lookup[form] = hw
                     stats["new_forms"] += 1
-                elif lookup[plain] != hw:
+                elif lookup[form] != hw:
                     stats["collisions"] += 1
+
+                plain = strip_diacritics(form)
+                if plain != form:
+                    if plain not in lookup:
+                        lookup[plain] = hw
+                        stats["new_forms"] += 1
+                    elif lookup[plain] != hw:
+                        stats["collisions"] += 1
 
         if (i + 1) % 500 == 0:
             elapsed = time.time() - t0
@@ -388,6 +395,8 @@ def expand_all():
     # Add adverbs directly (no inflection needed)
     adv_added = 0
     for hw in adverb_list:
+        if has_editorial_sigla(hw):
+            continue
         if hw not in lookup:
             lookup[hw] = hw
             adv_added += 1
@@ -410,6 +419,8 @@ def find_verb_candidates(entries, lookup):
     candidates = []
 
     for hw, entry in entries.items():
+        if has_editorial_sigla(hw):
+            continue
         plain = strip_diacritics(hw)
         # Skip if already covered
         if hw in lookup or plain in lookup:
@@ -455,20 +466,21 @@ def expand_verbs():
 
         stats["expanded"] += 1
 
-        for form in forms:
-            if form not in lookup:
-                lookup[form] = hw
-                stats["new_forms"] += 1
-            elif lookup[form] != hw:
-                stats["collisions"] += 1
-
-            plain = strip_diacritics(form)
-            if plain != form:
-                if plain not in lookup:
-                    lookup[plain] = hw
+        for raw_form in forms:
+            for form in resolve_editorial_form(raw_form):
+                if form not in lookup:
+                    lookup[form] = hw
                     stats["new_forms"] += 1
-                elif lookup[plain] != hw:
+                elif lookup[form] != hw:
                     stats["collisions"] += 1
+
+                plain = strip_diacritics(form)
+                if plain != form:
+                    if plain not in lookup:
+                        lookup[plain] = hw
+                        stats["new_forms"] += 1
+                    elif lookup[plain] != hw:
+                        stats["collisions"] += 1
 
         if (i + 1) % 500 == 0:
             elapsed = time.time() - t0
