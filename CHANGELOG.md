@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-20
+
 ### Added
 - Add a reproducible, headword-only importer for the Mozilla Data Collective
   export of the Triantafyllidis dictionary. The Parquet read projects only the
@@ -334,6 +336,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.1]: https://github.com/open-greek/dilemma/releases/tag/1.3.1
 [1.3.0]: https://github.com/open-greek/dilemma/releases/tag/1.3.0
 [1.2.4]: https://github.com/open-greek/dilemma/releases/tag/1.2.4
 [1.2.3]: https://github.com/open-greek/dilemma/releases/tag/1.2.3
