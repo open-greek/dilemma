@@ -51,7 +51,11 @@ from dilemma.form_sanitize import (
     sanitize_form,
 )
 from export_hunspell import (
+    AG_FUNCTION_WORDS,
+    BARE_ELISION_STEMS,
     SPACING_DIACRITICS,
+    build_sfx_rules,
+    filter_by_lemma_freq,
     has_any_diacritic,
     sanitize_export_pairs,
     select_forms,
@@ -295,6 +299,70 @@ def _lookup_db(rows):
         )
     conn.commit()
     return conn
+
+
+def test_select_forms_includes_language_shared_headwords_owned_by_el():
+    conn = _lookup_db([
+        ("λέγω", "λέγω", "el"),
+        ("λέγει", "λέγω", "grc"),
+        ("γῆ", "γῆ", "el"),
+        ("γῆς", "γῆ", "grc"),
+    ])
+
+    admitted = set(select_forms(
+        conn,
+        "grc",
+        attestation_freq={"λεγω": 100, "γη": 100},
+    ))
+
+    assert ("λέγω", "λέγω") in admitted
+    assert ("γῆ", "γῆ") in admitted
+
+
+def test_select_forms_keeps_corpus_attested_acute_only_lemma():
+    conn = _lookup_db([
+        ("χάρις", "χάρις", "grc"),
+        ("χάριτος", "χάρις", "grc"),
+        ("χάριτι", "χάρις", "grc"),
+        ("χάριν", "χάρις", "grc"),
+    ])
+    freq = {"χαρις": 10, "χαριτος": 8, "χαριτι": 6, "χαριν": 7}
+
+    selected = select_forms(conn, "grc", attestation_freq=freq)
+    admitted = {
+        form for form, _lemma in filter_by_lemma_freq(
+            selected, freq, min_lemma_count=3, strict_acute_min=1
+        )
+    }
+
+    assert admitted == {"χάρις", "χάριτος", "χάριτι", "χάριν"}
+
+
+def test_unaccented_ag_exceptions_are_a_closed_function_word_list():
+    expected = {"τε", "γε", "τις", "τι", "ποτε", "που", "πως", "περ", "τοι"}
+    assert expected <= set(AG_FUNCTION_WORDS)
+    assert not any(has_any_diacritic(form) for form in expected)
+
+
+def test_affix_compression_does_not_accept_bare_elision_stems():
+    pairs = [
+        ("παρά", "παρά"),
+        ("παρὰ", "παρά"),
+        ("παρ᾽", "παρά"),
+        ("παρ", "παρά"),
+        ("κατά", "κατά"),
+        ("κατὰ", "κατά"),
+        ("κατ᾽", "κατά"),
+        ("κατ", "κατά"),
+    ]
+
+    aff_blocks, dic_lines = build_sfx_rules(pairs, {})
+    emitted_words = {line.split("/", 1)[0].split("\t", 1)[0]
+                     for line in dic_lines}
+
+    assert not (emitted_words & BARE_ELISION_STEMS)
+    assert not any(" 0 0 ." in block for block in aff_blocks)
+    assert {"παρά", "παρὰ", "παρ᾽", "κατά", "κατὰ", "κατ᾽"} <= emitted_words
 
 
 def test_select_forms_keeps_elided_and_drops_unaccented():

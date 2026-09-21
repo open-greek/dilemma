@@ -89,10 +89,10 @@ ROOT = Path(__file__).parent
 DATA = ROOT / "data"
 OUT = ROOT / "build" / "hunspell"
 
-# AG function-word forms that dilemma.py resolves via hardcoded rules
-# rather than via the lookup table. These need to be added to the AG
-# polytonic artifact explicitly or the keyboard will reject extremely
-# common words like τὸ, τὴν, μοι. Mapping: form -> lemma.
+# AG function-word forms that dilemma.py resolves via hardcoded rules or that
+# are conventionally written without an accent in enclitic use. These need to
+# be added to the AG polytonic artifact explicitly or the keyboard will reject
+# extremely common words like τὸ, τὴν, μοι, τε, and γε. Mapping: form -> lemma.
 AG_FUNCTION_WORDS = {
     # Definite article (ὁ)
     "ὁ": "ὁ", "ἡ": "ὁ", "τό": "ὁ", "τοῦ": "ὁ", "τῆς": "ὁ",
@@ -109,7 +109,20 @@ AG_FUNCTION_WORDS = {
     "σοι": "σύ", "σοί": "σύ", "σου": "σύ", "σε": "σύ",
     "σοῦ": "σύ", "σύ": "σύ",
     "ὑμεῖς": "σύ", "ὑμῶν": "σύ", "ὑμῖν": "σύ", "ὑμᾶς": "σύ",
+    # Orthographically unaccented enclitic particles and pronouns. This is a
+    # closed grammatical list, not a general exception for stripped forms.
+    "τε": "τε", "γε": "γε", "τις": "τις", "τι": "τις", "ποτε": "ποτε",
+    "που": "που", "πως": "πως", "περ": "περ", "τοι": "τοι",
 }
+
+# lookup.db deliberately keeps these bare stems as tolerant lemmatizer
+# fallbacks for elided words. They are not standalone spellings. They must not
+# enter the word list or become accepted synthetic stems during affix
+# compression.
+BARE_ELISION_STEMS = frozenset({
+    "δ", "ἀλλ", "δι", "καθ", "κατ", "παρ", "ἐπ", "ἐφ", "οὐδ", "ὑπ",
+    "ἀπ", "μεθ",
+})
 
 LOOKUP_DB = DATA / "lookup.db"
 CORPUS_FREQ = DATA / "corpus_freq.json"
@@ -420,6 +433,7 @@ def select_forms(
     conn: sqlite3.Connection,
     variant: str,
     keep_lemmas: set[str] | None = None,
+    attestation_freq: dict[str, int] | None = None,
 ) -> list[tuple[str, str]]:
     """Return [(form, lemma_text)] for the given variant.
 
@@ -431,10 +445,12 @@ def select_forms(
                      side with src='grc' even though it is perfectly
                      valid Modern Greek. Excluding those would miss
                      words like 'δεν', 'καί', 'σκύλος'.
-    variant='grc' -> all src='grc' rows containing polytonic marks.
-                     This is the Ancient + Medieval vocabulary with
-                     diacritics. We exclude the stripped monotonic
-                     duplicate keys the DB carries as fallback.
+    variant='grc' -> all src='grc' or language-shared rows containing
+                     orthographic marks. This is the Ancient + Medieval
+                     vocabulary with diacritics. Language-shared rows matter
+                     because a headword spelling shared with Modern Greek can
+                     be owned by src='el' even when its inflections are grc.
+                     We exclude stripped fallback keys.
                      If keep_lemmas is provided, any lemma whose text
                      is in that set is kept even if none of its forms
                      carry a breathing/circumflex/grave/iota-subscript
@@ -442,6 +458,8 @@ def select_forms(
                      spellings are entirely acute-only (e.g. Πλάτων,
                      Μένανδρος, πόλεμος) which would otherwise be
                      excluded as 'pure-monotonic, not AG'.
+                     If attestation_freq is provided, a corpus-attested lemma
+                     is also kept when all its forms are acute-only.
     """
     cur = conn.cursor()
 
@@ -467,7 +485,7 @@ def select_forms(
         return out
 
     if variant == "grc":
-        # AG vocabulary. The DB stores, per src='grc' lemma, three
+        # AG vocabulary. The DB stores, per AG lemma, three
         # parallel copies of each form: truly-polytonic, acute-only,
         # and fully-stripped. For the AG keyboard artifact we want:
         #
@@ -483,11 +501,13 @@ def select_forms(
             """
             SELECT k.form, l.text
             FROM lookup k JOIN lemmas l ON k.lemma_id = l.id
-            WHERE k.src = 'grc'
+            WHERE k.src = 'grc' OR k.lang = 'all'
             """
         )
         by_lemma: dict[str, list[str]] = defaultdict(list)
         for form, lemma in rows:
+            if form in BARE_ELISION_STEMS:
+                continue
             if not has_any_diacritic(form):
                 continue
             by_lemma[lemma].append(form)
@@ -497,7 +517,11 @@ def select_forms(
         keep = keep_lemmas or set()
         for lemma, forms in by_lemma.items():
             is_canonical_keep = lemma in keep
-            if not is_canonical_keep:
+            is_attested_keep = (
+                attestation_freq is not None
+                and any(freq_lookup(f, attestation_freq) > 0 for f in forms)
+            )
+            if not is_canonical_keep and not is_attested_keep:
                 if not any(has_polytonic(f) for f in forms):
                     continue  # pure-monotonic lemma, not AG
                 # also require lemma text itself is diacritic-bearing
@@ -638,6 +662,8 @@ def build_sfx_rules(
     # Group by lemma
     by_lemma: dict[str, set[str]] = defaultdict(set)
     for form, lemma in form_lemma:
+        if form in BARE_ELISION_STEMS:
+            continue
         by_lemma[lemma].add(form)
 
     # Singletons: emit as plain words.
@@ -652,6 +678,14 @@ def build_sfx_rules(
             singletons.append((flist[0], lemma))
             continue
         stem = longest_common_prefix(flist)
+        if stem in BARE_ELISION_STEMS:
+            # Hunspell accepts a flagged dictionary stem even when none of
+            # its suffix rules has an empty ending. Inline these few
+            # paradigms so δ, κατ, παρ, etc. cannot become words merely as a
+            # compression detail.
+            for f in flist:
+                singletons.append((f, lemma))
+            continue
         # If stem is empty, the lemma's forms share no prefix; this
         # happens with suppletive verbs (e.g. λέγω/εἶπον). Skip
         # compression and emit as individual words.
@@ -875,7 +909,12 @@ def run_export(sanity: int | None, variants: list[str],
     for variant in variants:
         print(f"=== Variant: {variant} ===")
         keep = canonical_lemmas if variant == "grc" else None
-        form_lemma = select_forms(conn, variant, keep_lemmas=keep)
+        form_lemma = select_forms(
+            conn,
+            variant,
+            keep_lemmas=keep,
+            attestation_freq=ag_freq if variant == "grc" else None,
+        )
         print(f"  {len(form_lemma):,} raw (form, lemma) pairs from lookup.db")
 
         if variant == "grc":
