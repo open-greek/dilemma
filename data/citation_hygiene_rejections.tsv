@@ -1588,14 +1588,10 @@ AG	glaux_pairs.json	final_elision_mark	Δἰ	Δ᾽
 AG	glaux_pairs.json	final_elision_mark	Καφαραθ’	Καφαραθ’
 AG	glaux_pairs.json	final_elision_mark	Ξάνθῳ’	Ξάνθῳ’
 AG	glaux_pairs.json	final_elision_mark	Σύντριβ’	Σύντριβ’
-AG	glaux_pairs.json	final_elision_mark	Φερσεφόνεια`	Φερσεφόνεια`
-AG	glaux_pairs.json	final_elision_mark	αλλ’	αλλ’
-AG	glaux_pairs.json	final_elision_mark	αὐτῇ`	αὐτῇ`
 AG	glaux_pairs.json	final_elision_mark	δήπου’	δήπου’
 AG	glaux_pairs.json	final_elision_mark	δ’’	δ’’
 AG	glaux_pairs.json	final_elision_mark	εἶ’	εἶ’
 AG	glaux_pairs.json	final_elision_mark	θάνατοσ’	θάνατοσ’
-AG	glaux_pairs.json	final_elision_mark	κην’	κην’
 AG	glaux_pairs.json	final_elision_mark	λύχνοιδ’	λύχνοιδ’
 AG	glaux_pairs.json	final_elision_mark	μεγάλῃ’	μέγῃ’
 AG	glaux_pairs.json	final_elision_mark	τοιᾳδί	οιᾳδ᾽
@@ -1606,7 +1602,6 @@ AG	glaux_pairs.json	final_elision_mark	πορφύρεοσ’	πορφύρεοσ�
 AG	glaux_pairs.json	final_elision_mark	ποώποτ’	ποώποτ’
 AG	glaux_pairs.json	final_elision_mark	τοῖνδ’	τόνδ’
 AG	glaux_pairs.json	final_elision_mark	υεθ’	υεθ’
-AG	glaux_pairs.json	final_elision_mark	φησιν’	φησιν’
 AG	glaux_pairs.json	final_elision_mark	ἀλλαιχ’	ἀλλαιχ’
 AG	glaux_pairs.json	final_elision_mark	ἀμελεῖν’	ἀμελεῖν’
 AG	glaux_pairs.json	final_elision_mark	ἀπῶσαι’	ἀπῶσαι’
@@ -1615,26 +1610,19 @@ AG	glaux_pairs.json	final_elision_mark	ἐνγεταῦθ’	ἐνγεταῦθ�
 AG	glaux_pairs.json	final_elision_mark	ὦταῖρ’	ἐτάῖρ’
 AG	glaux_pairs.json	final_elision_mark	ἐἴτ’	ἐἴτ’
 AG	glaux_pairs.json	final_elision_mark	ἑφ’	ἑφ’
-AG	glaux_pairs.json	final_elision_mark	ἧττον’	ἧττον’
 AG	glaux_pairs.json	final_elision_mark	Ἵπταμ’	Ἵπταμ’
 AG	glaux_pairs.json	final_elision_mark	ὥ’	ὣ’
 AG	glaux_pairs.json	final_elision_mark	τῷῦ	ῷ᾽
-AG	glaux_pairs.json	final_elision_mark	–⏑–––⏑ὑφ’	–⏑–––⏑ὑφ’
-AG	glaux_pairs.json	final_elision_mark	–⏑⏑ρ’	–⏑⏑ρ’
 EL	glaux_pairs.json	final_elision_mark	·ἐπ’	·ἐπ’
 EL	glaux_pairs.json	final_elision_mark	Διονύσῳ’	Διονύσῳ’
 EL	glaux_pairs.json	final_elision_mark	Δἰ	Δ᾽
 EL	glaux_pairs.json	final_elision_mark	Καφαραθ’	Καφαραθ’
 EL	glaux_pairs.json	final_elision_mark	Ξάνθῳ’	Ξάνθῳ’
 EL	glaux_pairs.json	final_elision_mark	Σύντριβ’	Σύντριβ’
-EL	glaux_pairs.json	final_elision_mark	Φερσεφόνεια`	Φερσεφόνεια`
-EL	glaux_pairs.json	final_elision_mark	αλλ’	αλλ’
-EL	glaux_pairs.json	final_elision_mark	αὐτῇ`	αὐτῇ`
 EL	glaux_pairs.json	final_elision_mark	δήπου’	δήπου’
 EL	glaux_pairs.json	final_elision_mark	δ’’	δ’’
 EL	glaux_pairs.json	final_elision_mark	εἶ’	εἶ’
 EL	glaux_pairs.json	final_elision_mark	θάνατοσ’	θάνατοσ’
-EL	glaux_pairs.json	final_elision_mark	κην’	κην’
 EL	glaux_pairs.json	final_elision_mark	λύχνοιδ’	λύχνοιδ’
 EL	glaux_pairs.json	final_elision_mark	μεγάλῃ’	μέγῃ’
 EL	glaux_pairs.json	final_elision_mark	τοιᾳδί	οιᾳδ᾽
@@ -1645,7 +1633,6 @@ EL	glaux_pairs.json	final_elision_mark	πορφύρεοσ’	πορφύρεοσ�
 EL	glaux_pairs.json	final_elision_mark	ποώποτ’	ποώποτ’
 EL	glaux_pairs.json	final_elision_mark	τοῖνδ’	τόνδ’
 EL	glaux_pairs.json	final_elision_mark	υεθ’	υεθ’
-EL	glaux_pairs.json	final_elision_mark	φησιν’	φησιν’
 EL	glaux_pairs.json	final_elision_mark	ἀλλαιχ’	ἀλλαιχ’
 EL	glaux_pairs.json	final_elision_mark	ἀμελεῖν’	ἀμελεῖν’
 EL	glaux_pairs.json	final_elision_mark	ἀπῶσαι’	ἀπῶσαι’
@@ -1654,12 +1641,9 @@ EL	glaux_pairs.json	final_elision_mark	ἐνγεταῦθ’	ἐνγεταῦθ�
 EL	glaux_pairs.json	final_elision_mark	ὦταῖρ’	ἐτάῖρ’
 EL	glaux_pairs.json	final_elision_mark	ἐἴτ’	ἐἴτ’
 EL	glaux_pairs.json	final_elision_mark	ἑφ’	ἑφ’
-EL	glaux_pairs.json	final_elision_mark	ἧττον’	ἧττον’
 EL	glaux_pairs.json	final_elision_mark	Ἵπταμ’	Ἵπταμ’
 EL	glaux_pairs.json	final_elision_mark	ὥ’	ὣ’
 EL	glaux_pairs.json	final_elision_mark	τῷῦ	ῷ᾽
-EL	glaux_pairs.json	final_elision_mark	–⏑–––⏑ὑφ’	–⏑–––⏑ὑφ’
-EL	glaux_pairs.json	final_elision_mark	–⏑⏑ρ’	–⏑⏑ρ’
 AG	glaux_pairs.json	final_keraia_or_prime	ʹα	ʹαʹ
 AG	glaux_pairs.json	final_keraia_or_prime	͵ας	͵αςʹ
 AG	glaux_pairs.json	final_keraia_or_prime	͵ασʹ	͵αςʹ
@@ -2443,7 +2427,6 @@ AG	glaux_pairs.json	nonlexical_consonant-cluster	βψμδ	βψμδʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	βϛʹ	βϛʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	βϠκβ	βϠκβʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	βϠκγ	βϠκγʹ
-AG	glaux_pairs.json	nonlexical_consonant-cluster	β𐅵ʹʹ	β𐅵ʹʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	γʹγʹʹ	γʹγʹʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	γʹϛ	γʹϛʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	γγ	γγʹ
@@ -2516,7 +2499,6 @@ AG	glaux_pairs.json	nonlexical_consonant-cluster	θϠνς	θϠνςʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	θϠνϛ	θϠνϛʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	θ𐅵ʹʹ	θ𐅵ʹʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	θ𐅵δʹ	θ𐅵δʹ
-AG	glaux_pairs.json	nonlexical_consonant-cluster	κθ𐅵ʹ	κθ𐅵ʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	κμγʹ	κμγʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	κστʹ	κστʹ
 AG	glaux_pairs.json	nonlexical_consonant-cluster	κϚϚγʹ	κϚϚγʹ
@@ -2658,7 +2640,6 @@ EL	glaux_pairs.json	nonlexical_consonant-cluster	βψμδ	βψμδʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	βϛʹ	βϛʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	βϠκβ	βϠκβʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	βϠκγ	βϠκγʹ
-EL	glaux_pairs.json	nonlexical_consonant-cluster	β𐅵ʹʹ	β𐅵ʹʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	γʹγʹʹ	γʹγʹʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	γʹϛ	γʹϛʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	γγʹ	γγʹ
@@ -2727,7 +2708,6 @@ EL	glaux_pairs.json	nonlexical_consonant-cluster	θϠνς	θϠνςʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	θϠνϛ	θϠνϛʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	θ𐅵ʹʹ	θ𐅵ʹʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	θ𐅵δʹ	θ𐅵δʹ
-EL	glaux_pairs.json	nonlexical_consonant-cluster	κθ𐅵ʹ	κθ𐅵ʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	κμγʹ	κμγʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	κστʹ	κστʹ
 EL	glaux_pairs.json	nonlexical_consonant-cluster	κϚϚγʹ	κϚϚγʹ
@@ -3426,7 +3406,6 @@ AG	glaux_pairs.json	nonlexical_numeral	υϞηʹ	υϞηʹ
 AG	glaux_pairs.json	nonlexical_numeral	υϟεʹ	υϟεʹ
 AG	glaux_pairs.json	nonlexical_numeral	υϟθʹ	υϟθʹ
 AG	glaux_pairs.json	nonlexical_numeral	υϟϚ	υϟϚʹ
-AG	glaux_pairs.json	nonlexical_numeral	φαʹ	φαʹ
 AG	glaux_pairs.json	nonlexical_numeral	φιβ	φιβʹ
 AG	glaux_pairs.json	nonlexical_numeral	φιβʹ	φιβʹ
 AG	glaux_pairs.json	nonlexical_numeral	φῑβ	φιβʹ
@@ -4115,7 +4094,6 @@ EL	glaux_pairs.json	nonlexical_numeral	υϞηʹ	υϞηʹ
 EL	glaux_pairs.json	nonlexical_numeral	υϟεʹ	υϟεʹ
 EL	glaux_pairs.json	nonlexical_numeral	υϟθʹ	υϟθʹ
 EL	glaux_pairs.json	nonlexical_numeral	υϟϚ	υϟϚʹ
-EL	glaux_pairs.json	nonlexical_numeral	φαʹ	φαʹ
 EL	glaux_pairs.json	nonlexical_numeral	φιβ	φιβʹ
 EL	glaux_pairs.json	nonlexical_numeral	φιβʹ	φιβʹ
 EL	glaux_pairs.json	nonlexical_numeral	φῑβ	φιβʹ
@@ -4242,7 +4220,6 @@ AG	glaux_pairs.json	orphaned_tonal_mark	Κλαύσῳ	Κλ́σαυσος
 AG	glaux_pairs.json	orphaned_tonal_mark	Κορίλλῃ	Κοριλ ́λα
 AG	glaux_pairs.json	orphaned_tonal_mark	Κυπέως	Κυπ͂ος
 AG	glaux_pairs.json	orphaned_tonal_mark	Λασθένειά	Λασθέ ́νεια
-AG	glaux_pairs.json	orphaned_tonal_mark	Λεργητῶν	Λεργητóς
 AG	glaux_pairs.json	orphaned_tonal_mark	Λημνιάδεσσιν	Λημν́ιαυς
 AG	glaux_pairs.json	orphaned_tonal_mark	Λυγγός	Λυγ́ξ
 AG	glaux_pairs.json	orphaned_tonal_mark	Λυγγὶ	Λυγ́ξ
@@ -4647,7 +4624,6 @@ AG	glaux_pairs.json	orphaned_tonal_mark	ἀρειστέρῃσιν	ἀρεισ́
 AG	glaux_pairs.json	orphaned_tonal_mark	ἀρρέσιν	ἀρρ́ες
 AG	glaux_pairs.json	orphaned_tonal_mark	ἀρσσκόμενοι	ἀρσ́ͅσκω
 AG	glaux_pairs.json	orphaned_tonal_mark	ἀρτηριοτμηθέντες	ἀρτηριοτ́μω
-AG	glaux_pairs.json	orphaned_tonal_mark	ἀσιτὶ	ἀσιτí
 AG	glaux_pairs.json	orphaned_tonal_mark	ἀσχέτουτε	ἀσχ́τωυ
 AG	glaux_pairs.json	orphaned_tonal_mark	ἀφίεναι	ἀφ́ερχομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἀφιένα	ἀφ́ιι
@@ -4789,13 +4765,6 @@ AG	glaux_pairs.json	orphaned_tonal_mark	ᾐρκότας	ᾀρ́ζω
 AG	glaux_pairs.json	orphaned_tonal_mark	ᾅμα	ᾁ̈νμ́αμαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ᾗἀδικεῖται	ᾗἀδικ́ζομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ᾠδίνουσα	ᾠδιπ́ω
-AG	glaux_pairs.json	orphaned_tonal_mark	῍Η	῎Η
-AG	glaux_pairs.json	orphaned_tonal_mark	῎Υμμιν	῎Υμμιν
-AG	glaux_pairs.json	orphaned_tonal_mark	῎λαβές	῎λαβε
-AG	glaux_pairs.json	orphaned_tonal_mark	῎τεκον	῎τεκον
-AG	glaux_pairs.json	orphaned_tonal_mark	῎ἔστωσαν	῎ἐστωσαν
-AG	glaux_pairs.json	orphaned_tonal_mark	῏Η	῏Η
-AG	glaux_pairs.json	orphaned_tonal_mark	῝Α	῞Α
 AG	glaux_pairs.json	orphaned_tonal_mark	ῥρεύματος	ῥ́ρευμα
 AG	glaux_pairs.json	orphaned_tonal_mark	ῥυέντης	ῥ͂υτη
 AG	glaux_pairs.json	orphaned_tonal_mark	ῥιγέστατα	ῥιγ͂ος
@@ -4827,7 +4796,6 @@ EL	glaux_pairs.json	orphaned_tonal_mark	Κλαύσῳ	Κλ́σαυσος
 EL	glaux_pairs.json	orphaned_tonal_mark	Κορίλλῃ	Κοριλ ́λα
 EL	glaux_pairs.json	orphaned_tonal_mark	Κυπέως	Κυπ͂ος
 EL	glaux_pairs.json	orphaned_tonal_mark	Λασθένειά	Λασθέ ́νεια
-EL	glaux_pairs.json	orphaned_tonal_mark	Λεργητῶν	Λεργητóς
 EL	glaux_pairs.json	orphaned_tonal_mark	Λημνιάδεσσιν	Λημν́ιαυς
 EL	glaux_pairs.json	orphaned_tonal_mark	Λυγγὶ	Λυγ́ξ
 EL	glaux_pairs.json	orphaned_tonal_mark	Λυγγὸς	Λυγ́ξ
@@ -5229,7 +5197,6 @@ EL	glaux_pairs.json	orphaned_tonal_mark	ἀρειστέρῃσιν	ἀρεισ́
 EL	glaux_pairs.json	orphaned_tonal_mark	ἀρρέσιν	ἀρρ́ες
 EL	glaux_pairs.json	orphaned_tonal_mark	ἀρσσκόμενοι	ἀρσ́ͅσκω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἀρτηριοτμηθέντες	ἀρτηριοτ́μω
-EL	glaux_pairs.json	orphaned_tonal_mark	ἀσιτὶ	ἀσιτí
 EL	glaux_pairs.json	orphaned_tonal_mark	ἀσχέτουτε	ἀσχ́τωυ
 EL	glaux_pairs.json	orphaned_tonal_mark	ἀφίεναι	ἀφ́ερχομαι
 EL	glaux_pairs.json	orphaned_tonal_mark	ἀφιένα	ἀφ́ιι
@@ -5372,13 +5339,6 @@ EL	glaux_pairs.json	orphaned_tonal_mark	ᾐρκότας	ᾀρ́ζω
 EL	glaux_pairs.json	orphaned_tonal_mark	ᾅμα	ᾁ̈νμ́αμαι
 EL	glaux_pairs.json	orphaned_tonal_mark	ᾗἀδικεῖται	ᾗἀδικ́ζομαι
 EL	glaux_pairs.json	orphaned_tonal_mark	ᾠδίνουσα	ᾠδιπ́ω
-EL	glaux_pairs.json	orphaned_tonal_mark	῍Η	῎Η
-EL	glaux_pairs.json	orphaned_tonal_mark	῎Υμμιν	῎Υμμιν
-EL	glaux_pairs.json	orphaned_tonal_mark	῎λαβές	῎λαβε
-EL	glaux_pairs.json	orphaned_tonal_mark	῎τεκον	῎τεκον
-EL	glaux_pairs.json	orphaned_tonal_mark	῎ἔστωσαν	῎ἐστωσαν
-EL	glaux_pairs.json	orphaned_tonal_mark	῏Η	῏Η
-EL	glaux_pairs.json	orphaned_tonal_mark	῝Α	῞Α
 EL	glaux_pairs.json	orphaned_tonal_mark	ῥρεύματος	ῥ́ρευμα
 EL	glaux_pairs.json	orphaned_tonal_mark	ῥυέντης	ῥ͂υτη
 EL	glaux_pairs.json	orphaned_tonal_mark	ῥιγέστατα	ῥιγ͂ος
@@ -5886,6 +5846,14 @@ combined	lbg_pairs.json	untrusted_grave	χορος αφροδισιους	χορ
 combined	lbg_pairs.json	untrusted_grave	χορος αφροδισιω	χορὸς ἀφροδίσιος
 combined	lbg_pairs.json	untrusted_grave	χορος αφροδισιων	χορὸς ἀφροδίσιος
 AG	lsj10_headwords.json	duplicate_tonal_marks	πενθερά́ς	πενθερά́ς
+AG	perseus_pairs.json	corpus_word_tail_of_βαρύνοντ	νοντ᾽	βαρύνω
+combined	perseus_pairs.json	corpus_word_tail_of_βαρύνοντ	νοντ᾽	βαρύνω
+AG	perseus_pairs.json	corpus_word_tail_of_γαμήλευμ	λευμ᾽	γαμήλευμα
+combined	perseus_pairs.json	corpus_word_tail_of_γαμήλευμ	λευμ᾽	γαμήλευμα
+AG	perseus_pairs.json	corpus_word_tail_of_πυκάεντ	εντ᾽	πευκήεις
+combined	perseus_pairs.json	corpus_word_tail_of_πυκάεντ	εντ᾽	πευκήεις
+AG	perseus_pairs.json	corpus_word_tail_of_ἠργάσασθ	γάσασθ᾽	ἐργάζομαι
+combined	perseus_pairs.json	corpus_word_tail_of_ἠργάσασθ	γάσασθ᾽	ἐργάζομαι
 AG	perseus_pairs.json	duplicate_tonal_marks	Πρώνακτος	Πρώ͂ναξ
 AG	perseus_pairs.json	final_elision_mark	β᾽	β᾽
 AG	perseus_pairs.json	final_elision_mark	ζ᾽	ζ᾽
@@ -5937,7 +5905,6 @@ AG	vlg_headwords.json	final_elision_mark	ἔσχ’	ἔσχ’
 AG	vlg_headwords.json	final_elision_mark	ἤρα’	ἤρα’
 AG	vlg_headwords.json	final_elision_mark	ἵν’	ἵν’
 AG	vlg_headwords.json	final_elision_mark	ῥ’	ῥ’
-AG	vlg_headwords.json	orphaned_tonal_mark	ἐκπτυḯσκω	ἐκπτυḯσκω
 AG	vlg_headwords.json	untrusted_grave	Αἰγὸς ποταμοί	Αἰγὸς ποταμοί
 AG	vlg_headwords.json	untrusted_grave	Αἰνιακὴ χώρα	Αἰνιακὴ χώρα
 AG	vlg_headwords.json	untrusted_grave	Δρυὸς κεφαλαί	Δρυὸς κεφαλαί
@@ -5955,4 +5922,3 @@ AG	vlg_headwords.json	untrusted_grave	ἐπεὶ ἦ	ἐπεὶ ἦ
 AG	vlg_headwords.json	untrusted_grave	ὂ μικρόν	ὂ μικρόν
 AG	vlg_headwords.json	untrusted_grave	ὃ δέ	ὃ δέ
 AG	vlg_headwords.json	untrusted_grave	ὓ ὗ	ὓ ὗ
-AG	wip_headwords.json	orphaned_tonal_mark	λιρóς	λιρóς

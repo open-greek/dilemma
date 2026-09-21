@@ -29,6 +29,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_GLAUX = Path.home() / "Documents" / "glaux" / "xml"
 
+# What GLAUx puts in the lemma field of an editorial gap, where the manuscript
+# is damaged or unreadable. The surviving letters stay in the form, so the
+# token still reads as Greek.
+GAP_LEMMA = "G"
+
+# Lemma values that are annotation placeholders rather than lemmas: the gap
+# marker above, the CoNLL-U empty field, an ellipsis, and the empty string.
+PLACEHOLDER_LEMMAS = frozenset({GAP_LEMMA, "_", "...", ""})
+
 # AGDT position 1 -> Wiktionary POS
 AGDT_POS = {
     "n": "noun", "v": "verb", "a": "adj", "p": "pron",
@@ -141,6 +150,7 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     total_tokens = 0
     skipped_punct = 0
     skipped_no_lemma = 0
+    skipped_gap = 0
     skipped_non_greek = 0
     skipped_dup = 0
 
@@ -176,7 +186,39 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
                     skipped_punct += 1
                     continue
 
-                if not form or not lemma:
+                # Skip the gaps the treebank marks itself. Where a
+                # manuscript is damaged or unreadable the editor records a
+                # lacuna, and the annotation says so three ways at once:
+                # relation="GAP", postag "z" (unanalyzable), and the lemma
+                # field set to the gap marker. The surviving letters are
+                # still carried in `form`, so "Gdou" below is what is left
+                # of an occurrence of the genitive of Hades after its first
+                # two letters were lost.
+                #
+                # The `is_greek` test further down does not catch these,
+                # because it asks whether ANY character is Greek and the
+                # surviving letters are. Reading the annotation is both
+                # exact and cheaper than guessing from the characters.
+                # The lemma field is checked as well as the relation and the
+                # postag, because an annotator sometimes assigns a part of
+                # speech to a token whose text is mostly gap: `τGῆς` is tagged
+                # a feminine genitive numeral and `G?ἔπλει` a verb. Both still
+                # carry the gap marker as their lemma, and all 113 such rows
+                # in GLAUx do, so the lemma is the reliable signal. Real Greek
+                # proper nouns transliterated from Latin keep Latin homoglyphs
+                # in their own lemmas (`Σιλουίαν` under `σιλvια`, `Οὐολουμνίαν`
+                # under `Vολυμνια`), so a blanket Latin-letter test would throw
+                # those away; this one does not touch them.
+                if (postag[:1] == "z" or word.get("relation") == "GAP"
+                        or lemma in PLACEHOLDER_LEMMAS):
+                    skipped_gap += 1
+                    continue
+
+                # "_" is the CoNLL-U marker for a field left empty. It is a
+                # plain string, so a bare truthiness test lets it through:
+                # GLAUx carries one such row, for διατείνας, and Diorisis has
+                # the same form under its real lemma διατείνω.
+                if not form or lemma in PLACEHOLDER_LEMMAS:
                     skipped_no_lemma += 1
                     continue
 
@@ -222,7 +264,8 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
             print(f"  {i+1}/{len(xml_files)} files, {len(pairs):,} pairs", flush=True)
 
     print(f"\nTotal tokens: {total_tokens:,}")
-    print(f"Skipped: {skipped_punct:,} punct, {skipped_no_lemma:,} no lemma, "
+    print(f"Skipped: {skipped_punct:,} punct, {skipped_gap:,} editorial gaps, "
+          f"{skipped_no_lemma:,} no lemma, "
           f"{skipped_non_greek:,} non-Greek, {skipped_dup:,} duplicates")
     print(f"Unique pairs: {len(pairs):,}")
 

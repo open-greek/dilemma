@@ -6,6 +6,124 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Stop ingesting the placeholders a treebank uses for "not a word". GLAUx
+  marks an editorial gap, where the manuscript is damaged or unreadable, with
+  `relation="GAP"`, postag `z` (unanalyzable) and the gap character in the
+  lemma field, leaving the surviving letters in `form`: `Gδου` is what is left
+  of the genitive of Hades in Plutarch's Comparatio Cimonis et Luculli after
+  its first two letters were lost. `build_glaux_pairs.py` read those as
+  ordinary form-and-lemma pairs, and `is_greek` did not stop them because it
+  asks whether ANY character is Greek and the surviving letters are, so bare
+  `G` was rejected while `Gδου` and `μάχηG` were not. The reader now skips a
+  token the annotation itself marks as a gap, which removes 1,868 of the
+  624,822 pairs in `glaux_pairs.json`. Separately, the cog standardized
+  exports use the CoNLL-U convention of `_` for a field the annotator left
+  empty; `is_clean_lemma` accepted it as a lemma string, so 1,108 of the
+  18,552 Pedalion pairs carried it, metrical scansion patterns among them.
+  `_` is now rejected for every cog export, not just Pedalion. Measured on
+  the shipped artifacts before the fix: 1,019 `lookup.db` rows resolved to
+  the lemma `_` and nothing else, so `Dilemma().lemmatize("διατείνας")`
+  answered `"_"` for a real aorist participle of διατείνω, and `Gδου`
+  answered `"G"`. Both fall through to the rule and model layers instead
+  after a rebuild.
+- Reject the corpus word-tails that entered `lookup.db` as words of their
+  own. A corpus tokenizer split one printed word at its elision mark and gave
+  the second half the whole word's lemma, so the ending arrived at ingestion
+  looking exactly like an elided word: `νοντ᾽` under βαρύνω (the end of
+  `βαρύνοντ᾽`), `εντ᾽` under πευκήεις, `λευμ᾽` under γαμήλευμα, `γάσασθ᾽`
+  under ἐργάζομαι. Nothing about the pair alone gives one away, so no per-pair
+  filter can catch it; what gives it away is the rest of the lemma's paradigm,
+  which makes this a whole-table check. `build_lookup_db.py` now runs one
+  (`drop_corpus_word_tails`, the rule in `dilemma/elision_tails.py`) over the
+  merged table and both per-language tables, after every ingestion path has
+  contributed and before any row is written. Every rejection is recorded in
+  `data/citation_hygiene_rejections.tsv` with the form it was cut from as its
+  evidence.
+
+  Measured against `data/lookup.db` and `data/form_profile.db`: 10,814 of the
+  7,097,421 Ancient Greek rows end in an elision mark; 234 of those are also
+  the ending of another form of the same lemma (228 once the six single-letter
+  stems are set aside); 8 of those 234 have no corpus attestation; and 4 of
+  those 8 are cut from their sibling by two or more characters. Those 4 are
+  exactly the tails above, and the rule rejects nothing else - not `μ᾽ σ᾽ ν᾽
+  κ᾽ τιν᾽ ποτ᾽ φησ᾽ σφ᾽ ᾽ς ᾽ν κατ᾽ δ᾽ ἀλλ᾿ γράψατ᾽ φης᾽ βούλεσθ᾽`, and nothing
+  at all on the Modern Greek side.
+
+  The last two conditions carry different work, because Ancient Greek builds
+  two word-pairs that look like a word and its tail. The augment makes a
+  one-character pair: `γράψατ᾽` is `ἐγράψατ᾽` minus `ἐ` and `φης᾽` is `έφης`
+  minus its augment, both real words that no corpus wrote, so only the cut
+  length saves them. Reduplication makes a two-character pair that the cut
+  length cannot separate: `δοῦσ᾽` is `διδοῦσ᾽` minus `δι`, `μνήσομ᾽` is
+  `μεμνήσομ` minus `με`, `θεῖσ᾽` is `τιθεῖσ᾽` minus `τι`. Of the 23 rows cut by
+  two or more characters, 4 are the tails and the other 19 are real words held
+  only by their corpus attestation; reduplication is the commonest reason one
+  lands there, with crasis and an augment before a doubled consonant giving
+  the same two-character cut. The stem is looked up with the mark attached and never
+  bare, because the same tokenizer error left the bare stem in the corpus it
+  annotated (`νοντ` occurs 4 times). The elision mark is recognized in all
+  eight spellings a source can use, including U+0313 COMBINING COMMA ABOVE,
+  which is how treebank exports write it; U+1FFE GREEK DASIA is excluded
+  because it is the rough breathing and elision leaves a smooth one.
+
+  Rebuild impact, computed read-only against the current `data/lookup.db`: 4
+  of 9,854,919 rows go, all four keys disappear entirely (each had exactly one
+  row), and no surviving key changes lemma. The runtime does not start
+  answering "no lemma" for them - only `λευμ᾽` does. `νοντ᾽` becomes μιαίνω
+  and `εντ᾽` becomes εἰμί from the elision expander, and `γάσασθ᾽` falls to
+  the transformer, whose answer depends on the model version and is not
+  recorded here. What the fix removes is the lookup's
+  high-confidence assertion that these are words, and with it their place in
+  `spell_index.db` and their candidacy for the Ancient Greek Hunspell
+  dictionary, which three of the four currently clear the diacritic gate for.
+
+  Two residues remain and want a different rule: `G2α᾽` (lemma `G`) and `G?᾽`
+  (lemma `_`) are optical-character-recognition placeholders, not tails. They
+  are cut from their siblings by one character, so the cut-length test lets
+  them through. They need a test on the characters themselves - a form or
+  lemma that is not Greek - which belongs with the other per-pair checks in
+  `build_lookup_db._citation_artifact_reason`.
+- Stop the Hunspell exporter from dropping every Ancient Greek form whose
+  only mark is a spacing elision or breathing character. `has_any_diacritic`
+  tested for Unicode combining marks (category Mn), while U+1FBD GREEK
+  KORONIS and the spacing breathings are Sk, so `δ᾽`, `κατ᾽`, `μετ᾽` and
+  `μηδ᾽` were rejected although `lookup.db` holds them. They passed
+  before `build_lookup_db.py` started running `sanitize_form` at ingestion,
+  which rewrites a trailing combining psili to the koronis. A spacing mark
+  counts only on a form that opens on a Greek consonant, the way an elided
+  or aphaeresized word does, because polytonic Greek writes a breathing over
+  every word-initial vowel. That keeps out the Milesian numerals a source
+  wrote with a koronis in place of the keraia (`ε᾽` five, `α᾽` one, `ο᾽`
+  seventy) and the accent-stripped lookup keys of vowel-initial words
+  (`ημειβετ᾿` beside `ἠμείβετ᾿`). Stranded acutes, the numeral
+  signs U+00B4, U+0384 and U+0375, and quotation-mark apostrophes are still
+  not read as marks at all, and unaccented spellings are still rejected.
+  Measured against `data/lookup.db`, the Ancient Greek variant gains 45
+  (form, lemma) pairs and loses none. Three kinds of residue still get
+  through, none separable from a real spelling by any rule on the string:
+  a numeral whose letters open on a consonant (`δ᾽` is four as well as the
+  elided δέ), the accent-stripped lookup key of an accented elision
+  (`ταυτ᾽` beside `ταῦτ᾽`, the same shape as the correct `κατ᾽`), and
+  word-tails that entered the lookup as rows of their own (`νοντ᾽` under
+  βαρύνω, the end of βαρύνοντ᾽; `μα᾽` under μής, a lemma whose other
+  forms are OCR residue). The second belongs to `build_data.py`'s
+  `_add_lookup`, whose stripped key drops the accent but keeps the elision
+  mark. The third is a corpus tokenization error; `νοντ᾽` is now rejected at
+  ingestion by the word-tail filter described above, while `μα᾽` is not,
+  because it is the ending of no other form of μής - that lemma's whole
+  paradigm is residue, which is a different defect.
+- Apply the GLAUx license filter (`build/nc_filter.py`) to the corpus behind
+  the next-word prediction language model. `train_lm.iter_glaux_sentences`
+  read every GLAUx file, so the n-gram counts and the held-out dev sentences
+  carried the 7 NonCommercial and 25 PROIEL-derived works, plus the manual
+  sentences of the 40 Gorman-derived works that are the project's held-out
+  gold: 841,551 of the 17.0M tokens GLAUx contributes, 4.95%. Excluded works
+  are now dropped whole and Gorman-derived works keep only their automatic
+  sentences, matching every other GLAUx reader. `--glaux-metadata` says where
+  the filter reads GLAUx's metadata.txt, and a run stops rather than proceed
+  without it. The shipped `grc_ngram.bin` has not been rebuilt.
+
 ## [1.3.0] - 2026-09-16
 
 ### Added

@@ -366,6 +366,30 @@ lookup rebuild also writes `data/citation_hygiene_rejections.tsv`, whose
 entries retain the source input, table, form, lemma, and rejection reason for
 every citation value removed by the build-time gate.
 
+One rejection cannot be made per pair. A corpus tokenizer that splits a
+printed word at its elision mark and gives the second half the whole word's
+lemma leaves an ending that looks exactly like an elided word - `νοντ᾽` under
+βαρύνω, which is the end of `βαρύνοντ᾽`. What gives it away is the rest of the
+lemma's paradigm, so `build_lookup_db.py` runs one whole-table pass
+(`dilemma/elision_tails.py`) over the merged and per-language tables once
+every source has contributed. A form is rejected only when all four hold: it
+ends in an elision mark, it is the ending of a longer form of the same lemma,
+no corpus in `form_profile.db` wrote it, and it is cut from that longer form
+by two or more characters. The last two conditions are what keep real words:
+an unaugmented form such as `γράψατ᾽` is its augmented sibling minus one
+character, and an unreduplicated form such as `δοῦσ᾽` is its reduplicated
+sibling minus two but is written by the corpus. Rejections go into the same
+`citation_hygiene_rejections.tsv`, carrying the form each tail was cut from as
+the evidence, so the build is reversible from the report.
+
+That pass needs `data/form_profile.db`, which is an opt-in download
+(`python -m dilemma download --with-attestation`) and is not a step of the
+rebuild order above. Rebuild without it and the filter does nothing: the
+word-tails are written to `lookup.db` as though they were words, and the same
+code over the same corpora produces a different artifact depending on what is
+on disk. The build prints a banner when that happens, and the per-table
+"Dropped N corpus word-tails" line is absent.
+
 The audit reports lookup-source-aware `grc` and `el` sections because both
 languages share the database's deduplicated lemma table. Ancient Greek strict
 headword validation is applied only to AG-sourced lemmas; valid Modern Greek
@@ -1797,9 +1821,8 @@ python3 scripts/release.py 1.3.0
 ```
 
 Before bumping, regenerate and HF-upload any data outputs the new
-version is meant to ship (see CLAUDE.md and the section above), so the
-release tag points at a SHA whose data files match what's on
-HuggingFace.
+version is meant to ship (see the section above), so the release tag
+points at a SHA whose data files match what's on HuggingFace.
 
 ### Testing
 
@@ -1909,7 +1932,7 @@ monotonic) is retained for other downstream consumers via
 
 | Variant | Script name | Lang tag | Contents |
 |--------|------------|---------|---------|
-| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms (breathings, circumflex, iota subscript, grave). Acute-only fallback keys are dropped unless corpus-attested. AG function words (definite article, 1st/2nd person pronouns) are injected because `dilemma.py` resolves those via hardcoded rules rather than the lookup table. |
+| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms (breathings, circumflex, iota subscript, grave). Acute-only fallback keys are dropped unless corpus-attested. An elided or aphaeresized form counts as marked even when its only mark is a spacing character, either U+1FBD koronis (`δ᾽`, `κατ᾽`, `μηδ᾽`) or a spacing breathing (`κατ᾿`), since elision carries the accent off with the elided syllable. A spacing mark counts only on a form that opens on a Greek consonant, the way an elided or aphaeresized word does, because polytonic Greek writes a breathing over every word-initial vowel: the Milesian numerals a source wrote with a koronis (`ε᾽`, `α᾽`, `ο᾽`) and stripped keys such as `ημειβετ᾿` are dropped on that rule. Fully unaccented spellings such as `μη` and `και` are still dropped too. AG function words (definite article, 1st/2nd person pronouns) are injected because `dilemma.py` resolves those via hardcoded rules rather than the lookup table. |
 | `el_GR_monotonic.{dic,aff,version}` | `el` | `el_GR` | Modern Greek monotonic forms, including MG-relevant vocabulary drawn from the AG side of `lookup.db` (articles, common verbs, proper names). Not shipped in Tonos. |
 
 Each dictionary entry carries a morphological field `fr:<bucket>` where
@@ -2015,6 +2038,18 @@ another Ancient Greek corpus, write a loader that yields
 ``(sentence_id, [<s>, ...NFC tokens..., </s>])`` and append one
 entry to ``build_corpus_sources`` in ``train_lm.py``; the counting,
 vocab, split, and eval stages do not need any changes.
+
+The GLAUx loader reads through the license filter in
+`build/nc_filter.py`, the same one the pair, frequency, attestation
+and tagger builders use: the 7 NonCommercial and 25 PROIEL-derived
+works are dropped whole, and the 40 Gorman-derived works contribute
+only their automatic sentences, since their manual sentences are the
+project's held-out gold. That removes 841,551 of the 17.0M tokens
+GLAUx contributes, so the counts above, measured before the filter
+reached this loader, fall by that much on the next rebuild. The
+filter reads GLAUx's `metadata.txt`, which the loader expects next
+to the `--glaux` directory; `--glaux-metadata` points it elsewhere,
+and a run stops rather than proceed without it.
 
 Output layout:
 

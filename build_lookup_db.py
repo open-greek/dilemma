@@ -30,6 +30,11 @@ from dilemma.citation import malformed_tonal_reason  # noqa: E402
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
 from dilemma.nonlexical import classify_nonlexical  # noqa: E402
+from dilemma.elision_tails import (  # noqa: E402
+    REASON as ELISION_TAIL_REASON,
+    find_elision_tails,
+    open_profile_attestation,
+)
 
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
@@ -50,6 +55,10 @@ LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 LBG_HEADWORDS_PATH = DATA_DIR / "lbg_headwords.json"
 LBG_PAIRS_PATH = DATA_DIR / "lbg_pairs.json"
 CORPUS_FREQ_PATH = DATA_DIR / "corpus_freq.json"
+# Surface-form corpus attestation (build/build_form_attestation.py). An
+# opt-in download, so the corpus word-tail filter below states plainly when
+# it is missing rather than silently changing what the build ships.
+FORM_PROFILE_PATH = DATA_DIR / "form_profile.db"
 MG_PATH = DATA_DIR / "mg_lookup.json"
 MED_PATH = DATA_DIR / "med_lookup.json"
 GLAUX_PAIRS_PATH = DATA_DIR / "glaux_pairs.json"
@@ -116,6 +125,12 @@ def _normalize_grave_citation_lemma(lemma: str,
     if acute != lemma and acute in trusted_targets:
         return acute
     return None
+
+
+# Annotation placeholders that corpus exports put in the lemma field where no
+# lemma was assigned: the CoNLL-U empty marker, an ellipsis, and the gap
+# marker a treebank uses for a damaged or unreadable passage. None is a lemma.
+PLACEHOLDER_LEMMAS = frozenset({"_", "...", "G"})
 
 
 def _citation_artifact_reason(lemma: str) -> str | None:
@@ -217,6 +232,47 @@ def _write_citation_rejection_report(rejections: list[dict],
         )
         writer.writeheader()
         writer.writerows(ordered)
+
+
+def drop_corpus_word_tails(tables, *, is_attested, record):
+    """Strip corpus word-tails from every assembled table, in place.
+
+    `tables` is an ordered sequence of `(name, table, source_of)`, where
+    `table` maps form to lemma and `source_of` names the ingestion path a form
+    arrived by. Every table is filtered, not just the merged one: `lookup.db`
+    writes grc-only and el-only rows from the `ag` and `el` tables wherever
+    those differ from `combined`, so dropping a tail from `combined` alone
+    would put it straight back as a row of its own.
+
+    Each table is judged against the forms in ALL of them, not only its own,
+    so a tail cannot survive by having its full word in a different table.
+
+    `record` receives one audit row per rejection, with the sibling the tail
+    was cut from as its evidence. Returns `{name: {form: sibling}}`.
+
+    The rule and the measurements behind it live in `dilemma/elision_tails.py`.
+    """
+    dropped = {}
+    # Every table is also a sibling source for every other one. A tail in `ag`
+    # whose full word is only in `el` is judged against that full word, so it
+    # cannot be dropped from `combined` and then written back by the
+    # Ancient-Greek-only row pass.
+    sibling_tables = [table for _, table, _ in tables]
+    for name, table, source_of in tables:
+        tails = find_elision_tails(table, is_attested=is_attested,
+                                   sibling_tables=sibling_tables)
+        for form, sibling in sorted(tails.items()):
+            record(table=name, source=source_of(form), form=form,
+                   lemma=table[form],
+                   reason=f"{ELISION_TAIL_REASON}_of_{sibling}")
+            del table[form]
+        if tails:
+            listed = ", ".join(f"{f} (end of {t})"
+                               for f, t in sorted(tails.items()))
+            print(f"  Dropped {len(tails):,} {name} corpus word-tails: "
+                  f"{listed}")
+        dropped[name] = tails
+    return dropped
 
 
 def build():
@@ -544,6 +600,13 @@ def build():
         added_ag = bad_lemma = 0
         for p in gap_pairs:
             form, lemma = p["form"], p["lemma"]
+            # "_" is the CoNLL-U marker for a field the annotator left empty,
+            # not a lemma. The extractors reject it now, but a pair file
+            # written before that fix is still on disk and would put it back,
+            # so the guard lives here as well as at extraction.
+            if lemma in PLACEHOLDER_LEMMAS:
+                bad_lemma += 1
+                continue
             lemma = _normalize_corpus_lemma(lemma, ag_headwords_exact)
             if ag_headwords_exact and lemma not in ag_headwords_exact:
                 bad_lemma += 1
@@ -870,6 +933,57 @@ def build():
         for reason, count in sorted(lbg_pair_artifact_dropped.items()):
             print(f"  Byzantine inflected forms: dropped {count:,} {reason} "
                   f"citation artifacts")
+
+    # Corpus word-tails: forms that are the END of another form of the same
+    # lemma, which a corpus tokenizer split off at an elision mark and then
+    # annotated with the whole word's lemma (νοντ᾽ under βαρύνω, the end of
+    # βαρύνοντ᾽). Deciding this needs the lemma's other forms, so it cannot run
+    # at each pair's point of entry the way the citation-hygiene checks above
+    # do. It runs here instead, once per assembled table, after every ingestion
+    # path has contributed and before anything is written.
+    def _merge_source(form: str) -> str:
+        """Best-known provenance label for a form in the merged table."""
+        if form in ag_source_overrides:
+            return ag_source_overrides[form]
+        if form in el_source_overrides:
+            return el_source_overrides[form]
+        if form in ag:
+            return ag_default_source
+        if form in el:
+            return el_default_source
+        # Only the two Byzantine (LBG) blocks write straight into `combined`,
+        # and only the headword one writes self-maps.
+        return (LBG_HEADWORDS_PATH.name if combined.get(form) == form
+                else LBG_PAIRS_PATH.name)
+
+    if FORM_PROFILE_PATH.exists():
+        drop_corpus_word_tails(
+            [
+                ("combined", combined, _merge_source),
+                ("AG", ag, lambda f: ag_source_overrides.get(
+                    f, ag_default_source)),
+                ("EL", el, lambda f: el_source_overrides.get(
+                    f, el_default_source)),
+            ],
+            is_attested=open_profile_attestation(FORM_PROFILE_PATH),
+            record=_record_citation_rejection,
+        )
+    else:
+        # Loud on purpose. form_profile.db is a 361 MB OPT-IN download: it is
+        # not fetched by `python -m dilemma download`, it is not in
+        # scripts/hf_data.py TRACKED, and it is not a step of the documented
+        # rebuild order. Without it this filter is a no-op and the build
+        # quietly ships the word-tails, so the same code and the same corpora
+        # produce two different artifacts depending on what is on disk. A
+        # single line in a build log that runs for hours is not enough notice.
+        banner = "!" * 72
+        print(f"\n{banner}")
+        print("  CORPUS WORD-TAIL FILTER INACTIVE")
+        print(f"  {FORM_PROFILE_PATH.name} is missing, so corpus tokenizer "
+              f"word-tails will be")
+        print("  written to lookup.db as if they were words.")
+        print("  Fix: python -m dilemma download --with-attestation")
+        print(f"{banner}\n")
 
     _write_citation_rejection_report(citation_rejections)
     print(f"  Citation rejection report: {CITATION_REJECTIONS_PATH} "
