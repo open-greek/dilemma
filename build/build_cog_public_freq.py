@@ -35,6 +35,16 @@ def _key(s: str) -> str:
         "NFC", "".join(c for c in nfd if not unicodedata.combining(c)))
 
 
+# A source form with a detached/lost elision mark must never become frequency
+# evidence for its bare stem after accent stripping. This is intentionally the
+# same finite class guarded by the Hunspell exporter, expressed in this
+# builder's stripped-key convention. It does not include valid unaccented words
+# such as τε or περ.
+BARE_ELISION_KEYS = frozenset(_key(form) for form in (
+    "δ", "ἀλλ", "δι", "καθ", "κατ", "παρ", "ἐπ", "ἐφ", "οὐδ", "ὑπ", "ἀπ", "μεθ", "τ",
+))
+
+
 def main() -> int:
     lex = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_LEXICON
     if not lex.exists():
@@ -49,7 +59,7 @@ def main() -> int:
         if not form or not cnt.isdigit():
             continue
         k = _key(form)
-        if not k:
+        if not k or k in BARE_ELISION_KEYS:
             continue
         c = int(cnt)
         forms[k] += c
