@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-09-21
+
 ### Fixed
 - Restore the revision-pinned historical LSJ/Sophocles expansion layer after
   current expansion runs. The recovery derives only forms absent from the
@@ -347,6 +349,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.2]: https://github.com/open-greek/dilemma/releases/tag/1.3.2
 [1.3.1]: https://github.com/open-greek/dilemma/releases/tag/1.3.1
 [1.3.0]: https://github.com/open-greek/dilemma/releases/tag/1.3.0
 [1.2.4]: https://github.com/open-greek/dilemma/releases/tag/1.2.4
