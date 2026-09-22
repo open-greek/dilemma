@@ -105,23 +105,23 @@ def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
     forms, dominant, treebank, metadata = load_form_profile_freq()
 
     assert metadata["content_hash"] == (
-        "d95ed61d0ef76dafb022df75ccb7014722e8d048af59b51f3f4298ca3f6578c0"
+        "73fcccfe5b58bc022101c5f7ed4b383fc5d144474af9fc6889ecaefcc79fca03"
     )
-    assert len(forms) == 1_266_209
+    assert len(forms) == 1_229_963
     # The larger of the work-deduplicated total and any single source's own
     # count: a spelling found only in a lower-priority copy of a work still
     # counts as attested.
-    assert forms["λέγω"] == 12_227
+    assert forms["λέγω"] == 12_313
     assert forms["λεγω"] == 3
-    assert forms["αὐτός"] == 46_239
+    assert forms["αὐτός"] == 45_490
     assert forms["αυτός"] == 15
     assert forms["μηδ᾽"] == 3_179
     assert exact_form_key("τῳ") in forms
     assert forms[exact_form_key("τῳ")] != forms[exact_form_key("τωι")]
     # Dominance keys drop every combining mark but keep case-folded letters.
-    assert dominant["αυτος"] == 46_239
-    assert dominant["εγω"] == 32_025
-    assert dominant["ταις"] == 56_821
+    assert dominant["αυτος"] == 45_490
+    assert dominant["εγω"] == 31_880
+    assert dominant["ταις"] == 55_578
     # Treebank support separates Doric τᾷ from OCR respellings of common words.
     assert treebank[exact_form_key("τᾷ")] == 731
     assert treebank[exact_form_key("ἑγώ")] == 1
@@ -164,13 +164,13 @@ def test_textbook_paradigm_fixture_is_pinned_and_complete():
     forms, fixture = load_grc_textbook_forms()
 
     assert fixture["source"]["sha256"] == (
-        "cdd36c0c9a0222fb3b09b859253a8092174ac07d527d737175d3f63d697839c3"
+        "4b09d9736060335672db4b25475557a9d5ce9ad3c185a4139bfdf6a931b72fa2"
     )
     assert fixture["review"]["sha256"] == (
-        "7cfceb90cd5c4678fb7c3fb27e5776c670ed55ce33603c6f679f28ccff95cf68"
+        "21dc3490f174a3a684abeb6d6764323986a05dce3af11f2f6fc8eae1b173e41b"
     )
     assert set(fixture["paradigms"]) == GRC_COMPLETE_PARADIGM_LEMMAS
-    assert len(forms) == 2_170
+    assert len(forms) == 2_154
     assert {"λύω", "λύοιμι", "παιδεύω", "τίθημι", "δίδωμι",
             "ἵστημι", "τιμάω", "ποιέω", "δηλόω"} <= forms
     # Reviewed corrections: generator garbage is gone, standard cells the
@@ -178,6 +178,11 @@ def test_textbook_paradigm_fixture_is_pinned_and_complete():
     assert not {"λύ", "λύσαν", "λύε", "ἵστω", "εἶτε", "ἔδων"} & forms
     assert {"λύεις", "λῦσαν", "λῦε", "δίδωσι", "τίθησι", "ἔδωκα",
             "ποιεῖσθαι"} <= forms
+    # The generator keeps the accent that tells λύω's aorist optative 3sg
+    # from its infinitive, and no longer reads a collapsed kaikki table row
+    # as six spellings of τιμάω's first-person singular.
+    assert {"λύσαι", "λῦσαι", "τιμῶ", "τιμᾷς"} <= forms
+    assert "τιμάς" not in forms
     assert not any(
         ord(char) in (0x0304, 0x0306)
         for form in forms for char in unicodedata.normalize("NFD", form)

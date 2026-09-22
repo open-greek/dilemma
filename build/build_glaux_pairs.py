@@ -19,11 +19,12 @@ Usage:
 """
 
 import argparse
+import csv
 import json
 import sys
 import unicodedata
 import xml.etree.ElementTree as ET
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
@@ -127,6 +128,38 @@ def parse_postag(postag):
     return pos, tags
 
 
+# GLAUx's DIALECT column against the dialect tag the paradigm builders read.
+# Attic, Attic/Koine and Koine stay in the default (Attic) slice: Koine is the
+# continuation of Attic and textbook paradigms include its forms. The marked
+# dialects are the ones whose forms must not fill an Attic paradigm slot
+# (Doric δωσῶ, Ionic τιθεῖς, Epic λῦσε).
+GLAUX_DIALECT_TAGS = {
+    "Ionic/Epic": "Epic",
+    "Ionic": "Ionic",
+    "Doric": "Doric",
+    "Aeolic": "Aeolic",
+    "Attic": "Attic",
+    "Attic/Koine": "Attic",
+    "Koine": "Attic",
+}
+
+
+def glaux_dialects(metadata_path) -> dict:
+    """Map GLAUx file stem to a dialect tag, '' for the Attic default."""
+    path = Path(metadata_path)
+    if not path.exists():
+        return {}
+    out = {}
+    text = path.read_text(encoding="utf-8")
+    for row in csv.DictReader(text.splitlines(), delimiter="\t"):
+        stem = (row.get("TLG") or "").strip()
+        if stem:
+            out[stem] = GLAUX_DIALECT_TAGS.get(
+                (row.get("DIALECT") or "").strip(), ""
+            )
+    return out
+
+
 def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     """Extract form->lemma pairs from GLAUx XML files.
 
@@ -142,6 +175,7 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     meta = metadata_path or (Path(glaux_dir).parent / "metadata.txt")
     nc = excluded_glaux_stems(meta)
     gorman = gorman_glaux_stems(meta)
+    dialects = glaux_dialects(meta)
     before = len(xml_files)
     xml_files = [x for x in xml_files if x.stem not in nc]
     print(f"Excluded {before - len(xml_files)} "
@@ -153,6 +187,8 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
 
     pairs = []
     seen = set()  # (form, lemma) dedup
+    entry_by_key = {}
+    dialect_votes = defaultdict(set)
     total_tokens = 0
     skipped_punct = 0
     skipped_no_lemma = 0
@@ -175,6 +211,7 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
         # Gorman-derived works: the manual sentences ARE Gorman's trees
         # (held-out gold, never ingested); only the auto sentences pass.
         skip_manual = xml_file.stem in gorman
+        file_dialect = dialects.get(xml_file.stem, "")
         for sentence in tree.findall(".//sentence"):
             if skip_manual and sentence.get("analysis") == "manual":
                 continue
@@ -248,8 +285,10 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
                 # Parse morphological tag
                 pos, tags = parse_postag(postag)
 
-                # Dedup
+                # Dedup. A (form, lemma) pair is written once, but every
+                # work that attests it votes on its dialect below.
                 key = (form, lemma)
+                dialect_votes[key].add(file_dialect)
                 if key in seen:
                     skipped_dup += 1
                     continue
@@ -274,9 +313,29 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
                             tense_counts[t] += 1
 
                 pairs.append(entry)
+                entry_by_key[key] = entry
 
         if (i + 1) % 200 == 0:
             print(f"  {i+1}/{len(xml_files)} files, {len(pairs):,} pairs", flush=True)
+
+    # A form keeps the Attic default if any work attesting it is explicitly
+    # Attic, Attic/Koine or Koine, or if no work attesting it records a
+    # dialect at all. A form attested only in dialect works carries that
+    # dialect, so the paradigm builders route it to that dialect's slice.
+    dialect_counts = Counter()
+    for key, votes in dialect_votes.items():
+        entry = entry_by_key.get(key)
+        if entry is None or "Attic" in votes or votes == {""}:
+            continue
+        marked = [d for d in ("Epic", "Ionic", "Doric", "Aeolic")
+                  if d in votes]
+        if not marked:
+            continue
+        entry.setdefault("tags", []).append(marked[0])
+        dialect_counts[marked[0]] += 1
+    if dialect_counts:
+        print("\nDialect-tagged pairs (attested only in that dialect): "
+              + ", ".join(f"{d} {n:,}" for d, n in dialect_counts.most_common()))
 
     print(f"\nTotal tokens: {total_tokens:,}")
     print(f"Skipped: {skipped_punct:,} punct, {skipped_gap:,} editorial gaps, "

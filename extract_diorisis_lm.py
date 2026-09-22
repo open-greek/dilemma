@@ -84,6 +84,11 @@ _BETA_SANITY_CHECKS = [
     ("qea/", "θεά"),
     ("a)/eide", "ἄειδε"),
     ("tw=nd'", "τῶνδ’"),
+    # Elision after an unaccented α, ι or υ, which the package would
+    # otherwise read as a macron (δῑ for δι’).
+    ("di'", "δι’"),
+    ("*di'", "Δι’"),
+    ("le/gous'", "λέγουσ’"),
 ]
 
 _SANITY_DONE = False
@@ -93,10 +98,9 @@ def _run_sanity_checks() -> None:
     global _SANITY_DONE
     if _SANITY_DONE:
         return
-    conv = _get_beta_conv()
     failures = []
     for beta, expected in _BETA_SANITY_CHECKS:
-        got = unicodedata.normalize("NFC", conv(beta))
+        got = beta_to_nfc(beta)
         if got != expected:
             failures.append((beta, got, expected))
     if failures:
@@ -127,9 +131,23 @@ def _fix_elision_artifact(beta: str) -> str:
 
 
 def beta_to_nfc(beta: str) -> str:
-    """Convert a single beta-code token to polytonic Unicode (NFC)."""
+    """Convert a single beta-code token to polytonic Unicode (NFC).
+
+    A trailing apostrophe marks elision. After an unaccented α, ι or υ the
+    ``betacode`` package reads it as a macron on that vowel (``di'`` became
+    ``δῑ`` for 8,136 Diorisis tokens of δι’), so the word is converted without
+    it and the elision mark U+2019 appended, which is what the package
+    already produces after a consonant (``par'`` -> ``παρ’``).
+    """
     conv = _get_beta_conv()
     beta = _fix_elision_artifact(beta)
+    if len(beta) > 1 and beta.endswith("'"):
+        core = unicodedata.normalize("NFC", conv(beta[:-1]))
+        # The converter writes a word-final sigma as ς; before an elision
+        # mark the medial form is the one Greek uses (λέγουσ’, πᾶσ’).
+        if core.endswith("ς"):
+            core = core[:-1] + "σ"
+        return core + "\u2019"
     return unicodedata.normalize("NFC", conv(beta))
 
 
