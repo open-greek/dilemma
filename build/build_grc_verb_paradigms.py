@@ -111,8 +111,44 @@ def grave_to_acute(s: str) -> str:
 
 
 def has_polytonic(s: str) -> bool:
+    # Breathing, circumflex, iota subscript: the marks a monotonic or
+    # simplified spelling of the same word would lack.
     nfd = unicodedata.normalize("NFD", s)
-    return any(c in nfd for c in ("̓", "̔", "͂"))
+    return any(c in nfd for c in ("̓", "̔", "͂", "ͅ"))
+
+
+_CORPUS_COUNTS: dict | None = None
+
+
+def corpus_counts() -> dict:
+    """Exact-form corpus counts from data/form_profile.db, or {}.
+
+    Candidates for one paradigm cell are each attested once in the pair
+    files, so without this a two-letter annotation error (``λὺ`` tagged as
+    the present 2sg of λύω) beats the real form on the shorter-is-better
+    tie-break. Corpus frequency settles those.
+    """
+    global _CORPUS_COUNTS
+    if _CORPUS_COUNTS is None:
+        try:
+            from export_hunspell import load_form_profile_freq
+            _CORPUS_COUNTS = load_form_profile_freq().exact
+        except Exception as exc:  # pragma: no cover - optional input
+            print(f"  corpus frequency unavailable ({exc}); "
+                  f"falling back to length tie-break")
+            _CORPUS_COUNTS = {}
+    return _CORPUS_COUNTS
+
+
+def corpus_count(form: str) -> int:
+    counts = corpus_counts()
+    if not counts:
+        return 0
+    try:
+        from export_hunspell import exact_form_key
+        return counts.get(exact_form_key(form), 0)
+    except Exception:  # pragma: no cover - optional input
+        return 0
 
 
 def is_stripped(s: str) -> bool:
@@ -220,7 +256,63 @@ def has_augment(form: str, lemma: str) -> bool:
     return False
 
 
-def pick_best_form(forms, key: str | None = None, lemma: str | None = None):
+# Endings a Greek subjunctive cannot have, by voice and person-number.
+# The subjunctive lengthens the thematic vowel (ε/ο -> η/ω), so the short
+# vowel of the corresponding indicative rules a form out of a subjunctive
+# cell: GLAUx labels the future indicative κολακεύσεις an aorist
+# subjunctive, and on corpus frequency it then beats the real κολακεύσῃς.
+# Endings that the two moods genuinely share are not listed: the alpha
+# contracts write τιμᾶτε, τιμᾶται and τιμᾶσθε for both, and the middle 2sg
+# is -ῃ either way. Accents are stripped before matching; the iota
+# subscript, which is what carries the length in -ῃς / -ᾷς, is not.
+_NON_SUBJUNCTIVE_ENDINGS = {
+    ("active", "2sg"): ("εις", "ας", "κας"),
+    ("active", "3sg"): ("ει", "εν"),
+    ("active", "1pl"): ("ομεν", "ουμεν", "αμεν", "καμεν"),
+    ("active", "2pl"): ("ετε", "ειτε"),
+    ("active", "3pl"): ("ουσι", "ουσιν", "αν", "κασι", "κασιν"),
+    ("middle", "1sg"): ("ομαι", "ουμαι"),
+    ("middle", "2sg"): ("εσαι",),
+    ("middle", "3sg"): ("εται", "ειται", "ουται"),
+    ("middle", "1pl"): ("ομεθα", "ουμεθα"),
+    ("middle", "2pl"): ("εσθε", "εισθε"),
+    ("middle", "3pl"): ("ονται", "ουνται"),
+}
+_ACCENTS = ("́", "̀", "͂")
+
+
+def strip_tonal_accents(s: str) -> str:
+    """Drop acute, grave and circumflex, keeping breathings and the iota.
+
+    Unlike ``strip_accents`` above, which drops every combining mark, this
+    keeps the iota subscript, because that is what carries the length the
+    subjunctive rule turns on (-ῃς against -εις).
+    """
+    nfd = unicodedata.normalize("NFD", strip_vowel_length(s))
+    for mark in _ACCENTS:
+        nfd = nfd.replace(mark, "")
+    return unicodedata.normalize("NFC", nfd)
+
+
+def has_subjunctive_shape(form: str, key: str | None) -> bool:
+    """False only for a form whose ending rules out the subjunctive cell.
+
+    Every other cell, and every form whose ending the subjunctive and the
+    indicative share, answers True, so this only ever breaks a tie against
+    a form that cannot belong where a corpus tagger put it.
+    """
+    if not key or "_subjunctive_" not in key:
+        return True
+    parts = key.split("_")
+    voice = "middle" if parts[0] in ("middle", "passive") else "active"
+    bad = _NON_SUBJUNCTIVE_ENDINGS.get((voice, parts[-1]))
+    if not bad:
+        return True
+    return not strip_tonal_accents(form).endswith(bad)
+
+
+def pick_best_form(forms, key: str | None = None, lemma: str | None = None,
+                   wiktionary_letters: set | None = None):
     """Pick the canonical surface form from a list of variants.
 
     For past-indicative cells (aorist / imperfect / pluperfect) where
@@ -235,20 +327,37 @@ def pick_best_form(forms, key: str | None = None, lemma: str | None = None):
         return None
     if isinstance(forms, set):
         forms = list(forms)
-    polyt = [f for f in forms if has_polytonic(f)]
+    # Keep any spelling that carries diacritics over a stripped one. This
+    # used to keep only spellings with a breathing, circumflex or iota
+    # subscript, which threw away the Attic form whenever a rival carried a
+    # circumflex: δίδως lost to Ionic διδοῖς, θήσω to Doric θησῶ.
     diacr = [f for f in forms if not is_stripped(f)]
-    pool = polyt or diacr or list(forms)
+    pool = diacr or list(forms)
     no_elide = [f for f in pool if not is_elided(f)]
     if no_elide:
         pool = no_elide
+    # Movable nu: ἐστί and ἐστίν are the same cell, and the paradigm's
+    # citation spelling is the shorter one, whichever the corpus prefers.
+    pool = [f for f in pool
+            if not (f.endswith("ν") and f[:-1] in pool)]
     counts = Counter(forms)
     prefer_augment = bool(lemma) and is_past_indicative_key(key or "")
+    wiki = wiktionary_letters or set()
+
+    def in_wiktionary(form: str) -> bool:
+        # Wiktionary lists λύεις as a form of λύω and never λὺ, the
+        # two-letter corpus annotation error that outranks it on frequency.
+        return bool(wiki) and (lemma, accent_type_skeleton(form)) in wiki
+
     return max(pool, key=lambda f: (
+        has_subjunctive_shape(f, key),  # a subjunctive cell needs a long vowel
         counts[f],          # most attested wins
         # Past-indicative cells: augment-bearing forms win over un-
         # augmented variants regardless of count, so we never emit
         # λῦσε / λῦσαν over ἔλυσε / ἔλυσαν for the canonical 3sg / 3pl.
         has_augment(f, lemma) if prefer_augment else False,
+        in_wiktionary(f),   # a form Wiktionary lists for this verb
+        corpus_count(f),    # the spelling the corpora actually attest
         has_polytonic(f),   # break ties by polytonic richness
         -len(f),            # shorter wins (ἐστί over ἐστίν)
         f,                  # alphabetical for determinism
@@ -305,6 +414,35 @@ def verb_key_from_tags(tags):
         f"{voice}_{tense}_{mood}_"
         f"{PERSON_SHORT[person]}{NUMBER_SHORT[number]}"
     )
+
+
+# A real paradigm cell holds one form, sometimes two or three spellings of
+# it. Four or more distinct letter-sequences means the table lost its
+# person-number axis on the way into kaikki: τιμάω's present active
+# indicative arrives with τιμᾷς, τιμᾷ, τιμῶμεν, τιμᾶτε and τιμῶσι all tagged
+# first-person singular, and on corpus frequency τιμάς then takes the 1sg
+# cell from τιμῶ. The forms are right and only their labels are wrong, so
+# the whole group goes and the corpus or the synthesiser fills those cells.
+COLLAPSED_CELL_FORMS = 4
+
+
+def drop_collapsed_cells(verb_pairs) -> tuple:
+    """Drop Wiktionary cells that hold too many forms to be one cell."""
+    by_cell = defaultdict(set)
+    for p in verb_pairs:
+        key = verb_key_from_tags(set(p.get("tags") or []))
+        form = (p.get("form") or "").strip()
+        if not key or not form or not p.get("lemma"):
+            continue
+        letters = accent_type_skeleton(form)
+        # ἐστί and ἐστίν are one form, not two.
+        by_cell[(p["lemma"], key)].add(letters.rstrip("ν") or letters)
+    collapsed = {cell for cell, forms in by_cell.items()
+                 if len(forms) >= COLLAPSED_CELL_FORMS}
+    kept = [p for p in verb_pairs
+            if (p.get("lemma"),
+                verb_key_from_tags(set(p.get("tags") or []))) not in collapsed]
+    return kept, len(collapsed), len(verb_pairs) - len(kept)
 
 
 def extract_dialect(tags):
@@ -785,6 +923,135 @@ def is_homeric_root_aorist_passive(
     return any(fb.endswith(ending) for ending in _ROOT_AORIST_MIDDLE_ENDINGS)
 
 
+# Forms of εἰμί that Wiktionary's periphrastic cells contribute to the verb
+# they conjugate: "τετιμηκότες εἶτε" leaves εἶτε tagged as a perfect optative
+# of τιμάω. Every one is a subjunctive, optative, imperative or infinitive of
+# εἰμί, so under any other lemma the pair is the auxiliary, not a cell.
+EIMI_AUXILIARY_FORMS = {
+    "ὦ", "ᾖς", "ᾖ", "ὦμεν", "ἦτε", "ὦσι", "ὦσιν",
+    "εἴην", "εἴης", "εἴη", "εἶμεν", "εἴημεν", "εἶτε", "εἴητε",
+    "εἶεν", "εἴησαν", "εἶναι", "ἔστω", "ἔστων", "ὄντων",
+}
+
+_LENGTH_MARKS = ("̄", "̆")  # combining macron, breve
+_ACUTE_OR_CIRCUMFLEX = ("́", "͂")
+
+
+def accent_type_skeleton(form: str) -> str:
+    """Key that separates spellings differing only in acute vs circumflex.
+
+    λῦσαν and λύσαν share it, so Wiktionary's spelling can correct the one
+    the synthesiser guessed. τιμᾷς and τιμάς do not (iota subscript), nor do
+    λυσόμενα and Doric λυσομένα (the accent sits on a different syllable),
+    so those stay distinct words.
+    """
+    nfd = unicodedata.normalize("NFD", strip_vowel_length(form)).lower()
+    return "".join("^" if c in _ACUTE_OR_CIRCUMFLEX else c for c in nfd)
+
+
+def strip_vowel_length(s: str) -> str:
+    """Drop macron and breve: Wiktionary's quantity notation, not spelling."""
+    nfd = unicodedata.normalize("NFD", s)
+    for mark in _LENGTH_MARKS:
+        nfd = nfd.replace(mark, "")
+    return unicodedata.normalize("NFC", nfd)
+
+
+# Everything in a Wiktionary tag set that names a cell. Tense is left out
+# on purpose: the tables often omit it (λύσαι is tagged only "active,
+# optative, singular, third-person"), and what matters here is whether two
+# spellings sit in the same cell, not which tense that cell is.
+_CELL_TAGS = (VOICE_TAGS | MOOD_TAGS | PERSON_TAGS | NUMBER_TAGS
+              | CASE_TAGS | GENDER_TAGS)
+
+
+_SHORT_TO_TAG = {v: k for short in
+                 (NUMBER_SHORT, PERSON_SHORT, CASE_SHORT, GENDER_SHORT)
+                 for k, v in short.items()}
+
+
+def key_cell_tags(key: str) -> frozenset:
+    """The cell tags a paradigm key names, in Wiktionary's vocabulary.
+
+    ``active_aorist_optative_3sg`` -> {active, optative, third-person,
+    singular}. Tense is left out to match ``wiktionary_cells``.
+    """
+    parts = key.split("_")
+    tags = {parts[0]}
+    if "_participle_" in key:
+        tags.add("participle")
+        tags.update(_SHORT_TO_TAG.get(p, p) for p in parts[-3:])
+    elif key.endswith("_infinitive"):
+        tags.add("infinitive")
+    elif len(parts) > 3:
+        tags.add(parts[2])
+        tags.add(_SHORT_TO_TAG.get(parts[-1][:1], parts[-1][:1]))
+        tags.add(_SHORT_TO_TAG.get(parts[-1][1:], parts[-1][1:]))
+    return frozenset(tags)
+
+
+def wiktionary_cells(verb_pairs) -> tuple:
+    """Where Wiktionary puts each spelling, and which spellings share letters.
+
+    Returns ``(cells, by_letters)``: ``cells`` maps (lemma, spelling) to the
+    set of cells Wiktionary gives that spelling, and ``by_letters`` maps
+    (lemma, accent skeleton) to the spellings sharing those letters. Quantity
+    marks are dropped from every spelling, so λῦσᾰν and λύσαν are one key, and
+    entries carrying no cell tags are skipped, because an empty cell would
+    match every other spelling's.
+    """
+    cells = defaultdict(set)
+    by_letters = defaultdict(set)
+    for p in verb_pairs:
+        lemma, form = p.get("lemma"), (p.get("form") or "").strip()
+        if not lemma or not form:
+            continue
+        tags = set(p.get("tags") or [])
+        if "mediopassive" in tags:
+            tags = (tags - {"mediopassive"}) | {"middle"}
+        cell = frozenset(tags & _CELL_TAGS)
+        if not cell:
+            continue
+        unmarked = strip_vowel_length(form)
+        cells[(lemma, unmarked)].add(cell)
+        by_letters[(lemma, accent_type_skeleton(form))].add(unmarked)
+    return dict(cells), dict(by_letters)
+
+
+def wiktionary_spellings(verb_pairs) -> tuple:
+    """Map (lemma, letters) to Wiktionary's spelling of those letters.
+
+    Wiktionary's conjugation tables mark vowel quantity (``λῦσᾰν``), and the
+    same page also lists unmarked variants (``λύσαν``). The marked spelling is
+    the table cell, so it decides the accent; the quantity marks themselves
+    are dropped. Used to correct cells that a corpus token or the synthesis
+    pass spelled with a different accent.
+    """
+    by_letters = defaultdict(set)
+    for p in verb_pairs:
+        lemma, form = p.get("lemma"), (p.get("form") or "").strip()
+        if not lemma or not form or not is_pure_greek(form):
+            continue
+        by_letters[(lemma, accent_type_skeleton(form))].add(form)
+    out = {}
+    for key, forms in by_letters.items():
+        marked = [f for f in forms
+                  if any(m in unicodedata.normalize("NFD", f)
+                         for m in _LENGTH_MARKS)]
+        chosen = {strip_vowel_length(f) for f in (marked or forms)}
+        if len(chosen) == 1:
+            out[key] = chosen.pop()
+            continue
+        # Wiktionary lists both λῦσαν and λύσαν for the same letters and
+        # marks neither for quantity. The corpus decides, when it clearly
+        # does: λῦσαν 18 against λύσαν 2. A tie leaves the cell alone,
+        # because the accent then turns on a vowel length nothing records.
+        ranked = sorted(chosen, key=lambda f: (-corpus_count(f), f))
+        if len(ranked) > 1 and corpus_count(ranked[0]) > corpus_count(ranked[1]):
+            out[key] = ranked[0]
+    return out, set(by_letters)
+
+
 def load_pairs(path: Path):
     if not path.exists():
         print(f"  skipping {path.name} (not present)", flush=True)
@@ -1050,6 +1317,11 @@ def build_paradigms(only_lemmas=None):
                           and p.get("pos") == "verb"]
         else:
             verb_pairs = []
+        if name == "ag_pairs.json":
+            verb_pairs, n_cells, n_pairs = drop_collapsed_cells(verb_pairs)
+            if n_cells:
+                print(f"  dropped {n_pairs:,} pairs in {n_cells:,} Wiktionary "
+                      f"cells that had lost their person-number tags")
         print(f"  {name}: {len(verb_pairs)} verb pairs")
         sources.append((name, verb_pairs))
     # ag_lsj_verb_pairs.json is already merged into ag_pairs.json by
@@ -1108,6 +1380,7 @@ def build_paradigms(only_lemmas=None):
     # Group by lemma, then by dialect, then by paradigm key
     by_lemma_dialect_key = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     dropped_internal_capital = 0
+    dropped_auxiliary = 0
     dropped_crasis = 0
     dropped_enclitic = 0
     dropped_iota_dropped = 0
@@ -1149,6 +1422,11 @@ def build_paradigms(only_lemmas=None):
             if only_lemmas is not None and lemma not in only_lemmas:
                 continue
             if "form-of" in tags or "alt-of" in tags or "alternative" in tags:
+                continue
+            # Periphrastic cells ("τετιμηκότες εἶτε") leave the auxiliary
+            # tagged as a cell of the verb it conjugates.
+            if form in EIMI_AUXILIARY_FORMS and lemma not in ("εἰμί", "εἶμι"):
+                dropped_auxiliary += 1
                 continue
             key = verb_key_from_tags(tags)
             if not key:
@@ -1206,6 +1484,9 @@ def build_paradigms(only_lemmas=None):
     if dropped_internal_capital:
         print(f"  dropped (internal capitals / mojibake): "
               f"{dropped_internal_capital:,}")
+    if dropped_auxiliary:
+        print(f"  dropped (εἰμί auxiliary of a periphrastic cell): "
+              f"{dropped_auxiliary:,}")
     if dropped_crasis:
         print(f"  dropped (crasis / sandhi): {dropped_crasis:,}")
     if dropped_enclitic:
@@ -1230,6 +1511,17 @@ def build_paradigms(only_lemmas=None):
 
     print(f"  candidate lemmas: {len(by_lemma_dialect_key)}")
 
+    # Letters Wiktionary lists for each verb, used to rank candidates and,
+    # below, to fix the accentuation of the cells that win.
+    # spellings: unambiguous letters only (used to re-accent a cell);
+    # letters: everything Wiktionary lists (used to rank candidates).
+    wiki_pairs = [p for name, pairs in sources
+                  if name == "ag_pairs.json" for p in pairs]
+    wiki_spellings, wiki_letters = wiktionary_spellings(wiki_pairs)
+    wiki_cells, wiki_letters_spellings = wiktionary_cells(wiki_pairs)
+    print(f"  Wiktionary spellings: {len(wiki_letters):,}"
+          f" ({len(wiki_cells):,} with a cell)")
+
     results = {}
     for lemma in sorted(by_lemma_dialect_key.keys()):
         by_dialect = by_lemma_dialect_key[lemma]
@@ -1237,7 +1529,8 @@ def build_paradigms(only_lemmas=None):
         # Pick the best form for each key in the Attic slice
         attic_forms = {}
         for key, variants in attic_forms_raw.items():
-            best = pick_best_form(variants, key=key, lemma=lemma)
+            best = pick_best_form(variants, key=key, lemma=lemma,
+                                  wiktionary_letters=wiki_letters)
             if best:
                 attic_forms[key] = grave_to_acute(best)
 
@@ -1254,7 +1547,23 @@ def build_paradigms(only_lemmas=None):
                     "middle_present_indicative_1sg", lemma)
 
         if not attic_forms:
-            continue
+            # A verb attested only in Epic, Ionic or Doric works (ἐκμολεῖν
+            # and 106 of its cells) keeps its largest dialect slice as its
+            # paradigm rather than dropping out of the file.
+            by_size = sorted(
+                ((d, kv) for d, kv in by_dialect.items() if d and kv),
+                key=lambda item: (-len(item[1]), item[0]),
+            )
+            if not by_size:
+                continue
+            dialect, kv = by_size[0]
+            for key, variants in kv.items():
+                best = pick_best_form(variants, key=key,
+                                      wiktionary_letters=wiki_letters)
+                if best:
+                    attic_forms[key] = grave_to_acute(best)
+            if not attic_forms:
+                continue
 
         paradigm = {
             "forms": attic_forms,
@@ -1272,7 +1581,8 @@ def build_paradigms(only_lemmas=None):
                 continue
             picked = {}
             for key, variants in kv.items():
-                best = pick_best_form(variants, key=key)
+                best = pick_best_form(variants, key=key,
+                                      wiktionary_letters=wiki_letters)
                 if best:
                     picked[key] = grave_to_acute(best)
             if picked:
@@ -1304,6 +1614,41 @@ def build_paradigms(only_lemmas=None):
     # declension. Like the mood pass, only fills empty cells.
     print("  synthesising missing participles from principal parts ...")
     synthesize_missing_participles(results)
+
+    # Wiktionary's conjugation tables decide the accent wherever a corpus
+    # token or a synthesised cell spelled the same letters differently
+    # (λύσαν for λῦσαν, λύε for λῦε): the synthesiser cannot know whether an
+    # α, ι or υ in the stem is long, and the corpus carries misaccented
+    # tokens. Attic slice only; dialect slices keep their own spellings.
+    # Where Wiktionary keeps the two accentuations in different cells, the
+    # accent is the distinction and not an error: λύσαι is λύω's aorist
+    # optative 3sg and λῦσαι its aorist middle imperative, so re-accenting
+    # the first to the second erases the optative. Where it gives both
+    # spellings the same cell (βαίνον beside βαῖνον, the neuter present
+    # participle), the marked one is the table's and the other is the
+    # variant it also lists, so the rewrite is exactly what is wanted.
+    wiki = wiki_spellings
+    renormalized = 0
+    for lemma, paradigm in results.items():
+        forms = paradigm.get("forms", {})
+        for key, form in list(forms.items()):
+            canonical = wiki.get((lemma, accent_type_skeleton(form)))
+            if not canonical or canonical == form:
+                continue
+            # Where two spellings share the letters, prefer the one
+            # Wiktionary files under this very cell.
+            want = key_cell_tags(key)
+            fitting = {sp for sp
+                       in wiki_letters_spellings.get(
+                           (lemma, accent_type_skeleton(form)), ())
+                       if any(c <= want for c in wiki_cells.get((lemma, sp), ()))}
+            if len(fitting) == 1:
+                canonical = fitting.pop()
+                if canonical == form:
+                    continue
+            forms[key] = canonical
+            renormalized += 1
+    print(f"  re-accented from Wiktionary spellings: {renormalized:,} cells")
     if results:
         counts = sorted(v["form_count"] for v in results.values())
         n = len(counts)

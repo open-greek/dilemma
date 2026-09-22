@@ -1808,6 +1808,46 @@ where the augment is internal (ἐκμολεῖν → ἐξέμολεν), and le
 long-vowel initials (η-, ω-) are skipped because their temporal
 augment is morphologically invisible.
 
+GLAUx does record a dialect per work, which `build/build_glaux_pairs.py`
+now carries onto the pairs: a form attested only in works marked Ionic,
+Epic, Doric or Aeolic is tagged with that dialect, so it fills that
+dialect's slice instead of competing for the Attic one. Works marked
+Attic, Attic/Koine or Koine share the default slice.
+
+#### Choosing the form that fills a cell
+
+Several sources can offer a form for the same cell, and the sources
+disagree. The pass ranks the candidates and, before ranking, discards
+two kinds of evidence that are wrong rather than merely weaker:
+
+- A Wiktionary table row that reaches kaikki with its person and number
+  collapsed onto the first cell. A real cell holds one form and at most
+  a few spellings of it, so four or more distinct letter-sequences in
+  one cell means the row lost its person-number axis. This affects 637
+  of the 918 fully tagged cells, across 117 verbs: τιμάω's entire
+  present active indicative arrives tagged first-person singular, and
+  `τιμάς` — far commoner as the accusative plural of the noun τιμή —
+  then wins the cell on corpus frequency.
+- In a subjunctive cell, a form whose ending belongs to the
+  corresponding indicative. The subjunctive lengthens the thematic
+  vowel, so `-εις`, `-ομεν` and `-ονται` rule a form out where `-ῃς`,
+  `-ωμεν` and `-ωνται` are required. Endings the two moods genuinely
+  share, such as the alpha contracts' `-ᾶτε` and the middle `-ῃ`, are
+  left alone.
+
+What survives is ranked by how many sources assign it to the cell,
+then (in a past indicative cell) whether it carries the augment, then
+whether Wiktionary lists it for this verb, then its corpus count in
+`form_profile.db`.
+
+Finally, Wiktionary's conjugation tables decide the accent of any cell
+that a corpus token or the synthesiser spelled the same letters
+differently. That pass reads which cell Wiktionary puts each spelling
+in, so an accent that is the only thing telling two cells apart
+survives — `λύσαι` is λύω's aorist optative third-person singular and
+`λῦσαι` its aorist middle imperative — while a spelling both cells
+share is still corrected, as `βαίνον` is to `βαῖνον`.
+
 ### Export to ONNX
 
 Generates ONNX model files so inference works without PyTorch.

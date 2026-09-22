@@ -31,6 +31,7 @@ from collections import Counter
 from pathlib import Path
 
 from beta_code import beta_code_to_greek
+from corpus_freq_key import beta_trailing_paren_is_elision
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
@@ -87,9 +88,14 @@ def strip_non_greek(s):
 def betacode_to_unicode(bc):
     """Convert Beta Code form to NFC-normalized Unicode Greek.
 
-    Strips any non-Greek residue (apostrophes from elision, quotes).
+    Strips any non-Greek residue (apostrophes from elision, quotes). A final
+    ``)`` that Diorisis writes for elision (``di)``, ``par)``) is dropped
+    before conversion; converted, it would be a breathing on the last vowel
+    or consonant (``δἰ`` for δι’).
     """
     try:
+        if beta_trailing_paren_is_elision(bc):
+            bc = bc[:-1]
         uni = beta_code_to_greek(bc)
         uni = nfc(uni)
         # Strip non-Greek characters (apostrophes, quotes from elision)

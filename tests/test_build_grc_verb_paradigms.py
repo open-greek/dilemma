@@ -337,19 +337,23 @@ class TestPickBestFormPreservesNonPast:
         assert got == "λύσας"
 
     def test_no_lemma_falls_back_to_length(self, b):
-        # When the caller doesn't pass a lemma (e.g. dialect slice),
-        # the augment-preference rule is disabled and we fall back to
-        # the original `-len(f)` tie-breaker. λῦσε wins over ἔλυσε on
-        # length alone.
+        # Without a lemma (a dialect slice) the augment-preference rule is
+        # disabled, and corpus frequency decides: ἔλυσε is the spelling the
+        # corpora attest. Length only breaks a tie, as below.
         forms = ["λῦσε", "ἔλυσε"]
         got = b.pick_best_form(
             forms, key="active_aorist_indicative_3sg")
-        assert got == "λῦσε"
+        assert got == "ἔλυσε"
+        # Forms no corpus attests still fall back to the shorter spelling.
+        assert b.pick_best_form(
+            ["ζζυσεν", "ζζυσε"], key="active_aorist_indicative_3sg"
+        ) == "ζζυσε"
 
     def test_no_key_falls_back_to_length(self, b):
-        forms = ["λῦσε", "ἔλυσε"]
-        got = b.pick_best_form(forms)
-        assert got == "λῦσε"
+        # No key either: corpus frequency still ranks the attested spelling
+        # first, and length decides only among forms no corpus attests.
+        assert b.pick_best_form(["λῦσε", "ἔλυσε"]) == "ἔλυσε"
+        assert b.pick_best_form(["ζζυσεν", "ζζυσε"]) == "ζζυσε"
 
     def test_count_still_dominates(self, b):
         # If one variant is attested twice and the other once, the
@@ -1043,3 +1047,237 @@ class TestThematicVerbsPastIndicativeAccents:
         got = entry["forms"].get(key)
         assert got == expected, \
             f"{lemma} {key} = {got!r} (expected {expected!r})"
+
+
+class TestAccentTypeSkeleton:
+    """The key that decides when Wiktionary's spelling may correct a cell."""
+
+    def test_acute_and_circumflex_on_the_same_vowel_share_a_key(self, b):
+        assert (b.accent_type_skeleton("λῦσαν")
+                == b.accent_type_skeleton("λύσαν"))
+        # Vowel-length marks are notation, not spelling.
+        assert (b.accent_type_skeleton("λῦσᾰν")
+                == b.accent_type_skeleton("λῦσαν"))
+
+    def test_other_differences_keep_words_apart(self, b):
+        # Iota subscript: τιμᾷς is the verb, τιμάς the noun's accusative.
+        assert (b.accent_type_skeleton("τιμᾷς")
+                != b.accent_type_skeleton("τιμάς"))
+        # Accent position: λυσόμενα is Attic, λυσομένα Doric.
+        assert (b.accent_type_skeleton("λυσόμενα")
+                != b.accent_type_skeleton("λυσομένα"))
+        # Breathing.
+        assert (b.accent_type_skeleton("ἑστός")
+                != b.accent_type_skeleton("ἐστός"))
+
+
+class TestWiktionarySpellings:
+    def test_quantity_marked_cell_decides_the_accent(self, b):
+        pairs = [
+            {"form": "λῦσᾰν", "lemma": "λύω", "pos": "verb", "tags": []},
+            {"form": "λύσαν", "lemma": "λύω", "pos": "verb", "tags": []},
+        ]
+        spellings, letters = b.wiktionary_spellings(pairs)
+        assert spellings[("λύω", b.accent_type_skeleton("λύσαν"))] == "λῦσαν"
+        assert ("λύω", b.accent_type_skeleton("λῦσαν")) in letters
+
+    def test_unmarked_disagreement_is_left_alone(self, b):
+        # Neither spelling carries quantity and the corpus attests neither:
+        # the accent turns on a vowel length nothing records.
+        pairs = [
+            {"form": "ζζῦσαν", "lemma": "ζζύω", "pos": "verb", "tags": []},
+            {"form": "ζζύσαν", "lemma": "ζζύω", "pos": "verb", "tags": []},
+        ]
+        spellings, _letters = b.wiktionary_spellings(pairs)
+        assert ("ζζύω", b.accent_type_skeleton("ζζύσαν")) not in spellings
+
+
+class TestAuxiliaryForms:
+    def test_eimi_forms_are_the_auxiliary_of_a_periphrastic_cell(self, b):
+        # "τετιμηκότες εἶτε" leaves εἶτε tagged as a cell of τιμάω.
+        assert "εἶτε" in b.EIMI_AUXILIARY_FORMS
+        assert "εἴην" in b.EIMI_AUXILIARY_FORMS
+        assert "ὦ" in b.EIMI_AUXILIARY_FORMS
+
+
+class TestPolytonicPoolNoLongerDropsAtticForms:
+    def test_circumflex_does_not_eliminate_an_acute_rival(self, b):
+        # δίδως (Attic, 171 corpus tokens) against Ionic διδοῖς (16): the
+        # circumflex used to remove δίδως from the pool before ranking.
+        assert b.pick_best_form(["δίδως", "διδοῖς"],
+                                key="active_present_indicative_2sg",
+                                lemma="δίδωμι") == "δίδως"
+
+    def test_stripped_spellings_still_lose_to_accented_ones(self, b):
+        assert b.pick_best_form(["λυω", "λύω"]) == "λύω"
+
+
+class TestSubjunctiveShape:
+    def test_a_short_vowel_ending_cannot_be_a_subjunctive(self, b):
+        for form, key in [
+            ("κολακεύσεις", "active_aorist_subjunctive_2sg"),
+            ("σῴσει", "active_aorist_subjunctive_3sg"),
+            ("δράσομεν", "active_aorist_subjunctive_1pl"),
+            ("λύουσιν", "active_present_subjunctive_3pl"),
+            ("αἰδέσεται", "middle_aorist_subjunctive_3sg"),
+            ("λυόμεθα", "middle_present_subjunctive_1pl"),
+        ]:
+            assert not b.has_subjunctive_shape(form, key), form
+
+    def test_real_subjunctives_pass(self, b):
+        for form, key in [
+            ("κολακεύσῃς", "active_aorist_subjunctive_2sg"),
+            ("δῷς", "active_aorist_subjunctive_2sg"),
+            ("δηλοῖς", "active_present_subjunctive_2sg"),
+            ("λύσωμεν", "active_aorist_subjunctive_1pl"),
+            ("λύωσι", "active_present_subjunctive_3pl"),
+            ("αἰδέσηται", "middle_aorist_subjunctive_3sg"),
+            ("ᾖ", "active_present_subjunctive_3sg"),
+        ]:
+            assert b.has_subjunctive_shape(form, key), form
+
+    def test_endings_the_two_moods_share_are_left_alone(self, b):
+        # The alpha contracts spell the indicative and the subjunctive the
+        # same, so the rule must not touch them.
+        for form, key in [
+            ("τιμᾶτε", "active_present_subjunctive_2pl"),
+            ("τιμᾶται", "middle_present_subjunctive_3sg"),
+            ("τιμᾶσθε", "middle_present_subjunctive_2pl"),
+            ("τιμᾷς", "active_present_subjunctive_2sg"),
+        ]:
+            assert b.has_subjunctive_shape(form, key), form
+
+    def test_every_other_cell_is_untouched(self, b):
+        assert b.has_subjunctive_shape("κολακεύσεις",
+                                       "active_future_indicative_2sg")
+        assert b.has_subjunctive_shape("λύει", None)
+
+    def test_it_only_breaks_a_tie(self, b):
+        # GLAUx tags both as the aorist subjunctive 2sg; without the shape
+        # rule the commoner future indicative takes the cell.
+        assert b.pick_best_form(
+            ["κολακεύσεις", "κολακεύσῃς"],
+            key="active_aorist_subjunctive_2sg", lemma="κολακεύω",
+        ) == "κολακεύσῃς"
+
+    def test_a_cell_with_no_well_formed_candidate_still_fills(self, b):
+        assert b.pick_best_form(
+            ["κολακεύσεις"], key="active_aorist_subjunctive_2sg",
+            lemma="κολακεύω",
+        ) == "κολακεύσεις"
+
+
+class TestStripTonalAccents:
+    def test_the_iota_subscript_and_breathing_survive(self, b):
+        assert b.strip_tonal_accents("κολακεύσῃς") == "κολακευσῃς"
+        assert b.strip_tonal_accents("ᾧ") == "ᾡ"
+        assert b.strip_tonal_accents("λῦσαι") == "λυσαι"
+        # The other strip_accents drops the iota with everything else.
+        assert b.strip_accents("ᾧ") == "ω"
+
+
+class TestKeyCellTags:
+    def test_finite_participle_and_infinitive_keys(self, b):
+        assert b.key_cell_tags("active_aorist_optative_3sg") == frozenset(
+            {"active", "optative", "third-person", "singular"})
+        assert b.key_cell_tags("middle_aorist_imperative_2sg") == frozenset(
+            {"middle", "imperative", "second-person", "singular"})
+        assert b.key_cell_tags("active_present_participle_nom_n_sg") == (
+            frozenset({"active", "participle", "nominative", "neuter",
+                       "singular"}))
+        assert b.key_cell_tags("active_aorist_infinitive") == frozenset(
+            {"active", "infinitive"})
+
+
+class TestWiktionaryCells:
+    # λύω's tables give the two accentuations of these letters to two
+    # different cells; βαίνω's give both spellings of the neuter participle
+    # to the same one.
+    PAIRS = [
+        {"form": "λύσαι", "lemma": "λύω", "pos": "verb",
+         "tags": ["active", "optative", "singular", "third-person"]},
+        {"form": "λῦσαι", "lemma": "λύω", "pos": "verb",
+         "tags": ["imperative", "middle", "second-person", "singular"]},
+        {"form": "βαῖνον", "lemma": "βαίνω", "pos": "verb",
+         "tags": ["active", "neuter", "participle"]},
+        {"form": "βαίνον", "lemma": "βαίνω", "pos": "verb",
+         "tags": ["active", "neuter", "participle"]},
+        {"form": "βαίνον", "lemma": "βαίνω", "pos": "verb", "tags": []},
+    ]
+
+    def test_spellings_are_grouped_by_cell_and_by_letters(self, b):
+        cells, by_letters = b.wiktionary_cells(self.PAIRS)
+        assert cells[("λύω", "λύσαι")] == {
+            frozenset({"active", "optative", "singular", "third-person"})}
+        assert cells[("βαίνω", "βαίνον")] == cells[("βαίνω", "βαῖνον")]
+        assert by_letters[("λύω", b.accent_type_skeleton("λύσαι"))] == {
+            "λύσαι", "λῦσαι"}
+
+    def test_a_tagless_entry_contributes_no_cell(self, b):
+        cells, _ = b.wiktionary_cells(
+            [{"form": "λύσαι", "lemma": "λύω", "pos": "verb", "tags": []}])
+        assert cells == {}
+
+    def test_mediopassive_is_read_as_middle(self, b):
+        cells, _ = b.wiktionary_cells([
+            {"form": "λύεται", "lemma": "λύω", "pos": "verb",
+             "tags": ["mediopassive", "indicative", "third-person",
+                      "singular"]}])
+        cell = next(iter(cells[("λύω", "λύεται")]))
+        assert "middle" in cell and "mediopassive" not in cell
+
+    def test_quantity_marks_are_dropped_from_the_key(self, b):
+        cells, by_letters = b.wiktionary_cells([
+            {"form": "λῦσᾰν", "lemma": "λύω", "pos": "verb",
+             "tags": ["active", "neuter", "participle"]}])
+        assert ("λύω", "λῦσαν") in cells
+
+
+class TestDropCollapsedCells:
+    # kaikki delivers τιμάω's whole present active indicative row tagged
+    # first-person singular, so one cell holds six different forms.
+    COLLAPSED = [
+        {"form": f, "lemma": "τιμάω", "pos": "verb",
+         "tags": ["active", "present", "indicative", "first-person",
+                  "singular"]}
+        for f in ("τιμῶ", "τιμᾷς", "τιμᾷ", "τιμῶμεν", "τιμᾶτε", "τιμῶσι")
+    ]
+    GOOD = [
+        {"form": "λύω", "lemma": "λύω", "pos": "verb",
+         "tags": ["active", "present", "indicative", "first-person",
+                  "singular"]},
+        {"form": "λύεις", "lemma": "λύω", "pos": "verb",
+         "tags": ["active", "present", "indicative", "second-person",
+                  "singular"]},
+    ]
+
+    def test_a_cell_holding_a_whole_row_is_dropped(self, b):
+        kept, cells, pairs = b.drop_collapsed_cells(self.COLLAPSED)
+        assert kept == []
+        assert (cells, pairs) == (1, 6)
+
+    def test_well_tagged_cells_survive(self, b):
+        kept, cells, pairs = b.drop_collapsed_cells(self.GOOD)
+        assert kept == self.GOOD
+        assert (cells, pairs) == (0, 0)
+
+    def test_only_the_collapsed_cell_goes(self, b):
+        kept, cells, _ = b.drop_collapsed_cells(self.COLLAPSED + self.GOOD)
+        assert [p["form"] for p in kept] == ["λύω", "λύεις"]
+        assert cells == 1
+
+    def test_spelling_variants_of_one_form_are_not_a_collapsed_cell(self, b):
+        # Movable nu and Wiktionary's quantity marks are the same form.
+        pairs = [
+            {"form": f, "lemma": "λύω", "pos": "verb",
+             "tags": ["active", "present", "indicative", "third-person",
+                      "plural"]}
+            for f in ("λύουσι", "λύουσιν", "λύουσῐ", "λύουσῐν")
+        ]
+        kept, cells, _ = b.drop_collapsed_cells(pairs)
+        assert cells == 0 and len(kept) == 4
+
+    def test_entries_with_no_cell_are_left_alone(self, b):
+        pairs = [{"form": "τιμῶ", "lemma": "τιμάω", "pos": "verb",
+                  "tags": ["active", "indicative"]}]
+        assert b.drop_collapsed_cells(pairs)[0] == pairs

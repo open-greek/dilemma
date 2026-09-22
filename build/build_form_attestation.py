@@ -621,6 +621,47 @@ def process_byzantine(byz_dir, forms, form_ids, profiles, works,
     return h.hexdigest()
 
 
+_COG_PG_LOCUS = re.compile(r"^(PG\d+(?:_\d+)?)\.(.+)$")
+
+
+def _cog_pg_rows_by_volume(corpus_dir, h, exclude=frozenset()):
+    """Group cog's per-work Patrologia Graeca rows by Migne volume.
+
+    Returns ``{"PG006": [(page, text), ...]}`` in file then row order. A row
+    whose locus is not ``PG<vol>.<page>`` (a work's own section numbering)
+    belongs to the volume of the file's preceding row. Every file read is
+    folded into ``h``.
+    """
+    by_volume = defaultdict(list)
+    for path in sorted(corpus_dir.glob("*.jsonl")):
+        if path.name.startswith("cogPG."):
+            continue
+        with open(path, "rb") as fh:
+            first = fh.readline()
+        try:
+            if json.loads(first).get("source") != "cgpg":
+                continue
+        except (ValueError, AttributeError):
+            continue
+        data = path.read_bytes()
+        fold_file_hash(h, path.name, data)
+        volume = None
+        for line in data.decode("utf-8", "replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            obj = json.loads(line)
+            locus = str(obj.get("locus") or "")
+            match = _COG_PG_LOCUS.match(locus)
+            if match:
+                volume, page = match.group(1), match.group(2)
+            else:
+                page = locus
+            if volume and volume not in exclude:
+                by_volume[volume].append((page, obj.get("text", "")))
+    return dict(by_volume)
+
+
 def _ingest_pg_run(text, work_id, century, locus, scheme, forms, form_ids,
                    profiles, stats, file_cites, deferred=False):
     """Tokenize one PG passage's text into forms / profiles / citations."""
@@ -651,14 +692,16 @@ def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, s
     TLG-keyed, so it dedups by TLG id like the lemmatized sources."""
     h = hashlib.sha256()
     corpus_dir = pg_dir.parent.parent / "data" / "corpus"
-    # cog's CORRECTED corpus (data/corpus/cogPG.<vol>.jsonl) is canonical; the
-    # raw per-volume cgpg OCR is only a fallback for volumes cog hasn't
-    # corrected (and is being phased out of cog). Prefer corrected per volume.
+    # cog's CORRECTED corpus is canonical. It now stores the Patrologia
+    # Graeca per work (rows with source "cgpg" and loci "PG<vol>.<page>");
+    # older checkouts stored it per volume (cogPG.<vol>.jsonl). The raw
+    # per-volume cgpg OCR is only a fallback for volumes cog hasn't corrected.
     corrected = {jf.name[len("cogPG."):-len(".jsonl")]: jf
                  for jf in corpus_dir.glob("cogPG.*.jsonl")}
+    per_work = _cog_pg_rows_by_volume(corpus_dir, h, exclude=set(corrected))
     raw = {xf.parent.name: xf for xf in pg_dir.glob("PG*/PG*_text.txt")
-           if xf.parent.name not in corrected}
-    vols = sorted(set(corrected) | set(raw))
+           if xf.parent.name not in corrected and xf.parent.name not in per_work}
+    vols = sorted(set(corrected) | set(per_work) | set(raw))
     if limit:
         vols = vols[:limit]
     n_corr = n_raw = 0
@@ -675,7 +718,12 @@ def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, s
         }
         claimed.add(work_id)
         file_cites = Counter()
-        if dirname in corrected:
+        if dirname in per_work:
+            n_corr += 1
+            for page, text in per_work[dirname]:
+                _ingest_pg_run(text, work_id, century, page, "migne-page",
+                               forms, form_ids, profiles, stats, file_cites)
+        elif dirname in corrected:
             data = corrected[dirname].read_bytes()
             fold_file_hash(h, corrected[dirname].name, data)
             n_corr += 1
@@ -703,7 +751,12 @@ def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, s
                   for (fid, loc, sch), c in file_cites.items()])
     print(f"pg: {n_corr} corrected + {n_raw} raw Patrologia Graeca volumes")
 
-    inmatt = corpus_dir / "tlg2062.tlg152.jsonl"
+    # In Matthaeum (PG 57-58), OCR'd outside the cgpg corpus; cog has stored
+    # it under its TLG id and, since, under its author/work slug.
+    inmatt = next((path for path in (
+        corpus_dir / "tlg2062.tlg152.jsonl",
+        corpus_dir / "joannes-chrysostomus.in-matthaeum-homiliae-1-90.jsonl",
+    ) if path.exists()), corpus_dir / "tlg2062.tlg152.jsonl")
     if inmatt.exists() and not limit:
         data = inmatt.read_bytes()
         fold_file_hash(h, inmatt.name, data)

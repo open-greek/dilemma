@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "description": "Corrections applied to data/ag_verb_paradigms.json before its cells are pinned as textbook forms. Removed cells are wrong for Attic (truncated, misaccented, garbled, or a non-Attic dialect form in a standard slot); a removed form that is a real dialect or later spelling can still enter the dictionary through corpus evidence. Added cells are standard forms the generator lacks, each corroborated by lookup.db listing it under the lemma or by corpus attestation in form_profile.db.",
+ "description": "Corrections applied to data/ag_verb_paradigms.json before its cells are pinned as textbook forms. Removed cells are wrong for Attic (truncated, misaccented, garbled, or a non-Attic dialect form in a standard slot); a removed form that is a real dialect or later spelling can still enter the dictionary through corpus evidence. Added cells are standard forms the generator lacks, each corroborated by lookup.db listing it under the lemma or by corpus attestation in form_profile.db. A `withdrawn` block records review entries later found to be wrong, with the evidence that overturned them.",
  "remove": {
   "δίδωμι": {
    "δίδωνται": "Wrong accent and vowel; present middle 3pl is δίδονται (subjunctive would be διδῶνται)",
@@ -34,7 +34,8 @@
    "λύον": "Neuter present participle, long ῡ before short ultima: λῦον",
    "λύσαν": "Wrong accent: long accented penult before short ultima needs a circumflex.",
    "λύσεο": "Epic-style form, not Attic; Attic aorist middle imperative 2sg is λῦσαι.",
-   "λύσον": "Wrong accent: future participle neuter (and aorist imperative) is λῦσον, circumflex."
+   "λύσον": "Wrong accent: future participle neuter (and aorist imperative) is λῦσον, circumflex.",
+   "λυέσθωσαν": "Post-classical 3pl middle imperative, the counterpart of λυέτωσαν below; standard Attic (Smyth paradigm) form is λυέσθων"
   },
   "παιδεύω": {
    "παιδεύον": "Wrong accent: long diphthong penult before short ultima takes circumflex",
@@ -67,14 +68,7 @@
    "θησῶ": "Wrong accent: sigmatic future, so the accent is recessive.",
    "θώμεσθα": "Poetic -μεσθα ending. The Attic aorist middle subjunctive 1pl is θώμεθα.",
    "θῆαι": "Not a real form. The aorist middle subjunctive 2sg contracts to θῇ.",
-   "τέθεικα": "Post-classical perfect active with ει stem; the Attic form is τέθηκα",
    "τίθου": "Poetic or later contracted present middle imperative (doubtful); the Attic form is τίθεσο",
-   "τεθείκασι": "Post-classical perfect active; the Attic form is τεθήκασι",
-   "τεθεικότα": "Post-classical perfect participle; the Attic form is τεθηκότα",
-   "τεθεικότες": "Post-classical perfect participle; the Attic form is τεθηκότες",
-   "τεθεικότι": "Post-classical perfect participle; the Attic form is τεθηκότι",
-   "τεθεικότος": "Post-classical perfect participle; the Attic form is τεθηκότος",
-   "τεθεικότων": "Post-classical perfect participle; the Attic form is τεθηκότων",
    "τιθέσθωσαν": "Later -σθωσαν imperative (doubtful); Smyth's Attic paradigm form is τιθέσθων",
    "τιθήμενον": "Epic metrical lengthening, not Attic. The present middle participle is τιθέμενον.",
    "τιθεῖ": "Ionic/late thematic form. The Attic present 3sg is τίθησι(ν).",
@@ -82,8 +76,7 @@
    "τιθᾶσι": "Not an Attic form of this verb. The present 3pl is τιθέασι, and 1sg τίθημι is already listed.",
    "ἐτίθη": "Athematic 3sg is non-Attic. The Attic imperfect 3sg is ἐτίθει.",
    "ἐτίθης": "Athematic 2sg is non-Attic. The Attic imperfect 2sg is ἐτίθεις.",
-   "ἐτίθουν": "Koine contract imperfect. The Attic imperfect 3pl is ἐτίθεσαν.",
-   "ἐτεθείκειν": "Post-classical pluperfect with ει stem; the Attic form is ἐτεθήκειν (or ἐτεθήκη)"
+   "ἐτίθουν": "Koine contract imperfect. The Attic imperfect 3pl is ἐτίθεσαν."
   },
   "τιμάω": {
    "εἶτε": "Not a form of τιμάω; unrelated word (εἶτα/εἴτε), generator garbage",
@@ -536,6 +529,22 @@
    "ἵσταται": "lookup.db, form_profile.db",
    "ἵστατο": "lookup.db, form_profile.db",
    "ἵστην": "lookup.db, form_profile.db"
+  }
+ },
+ "withdrawn": {
+  "τίθημι": {
+   "forms": [
+    "τέθεικα",
+    "τεθείκασι",
+    "τεθεικότα",
+    "τεθεικότες",
+    "τεθεικότι",
+    "τεθεικότος",
+    "τεθεικότων",
+    "ἐτεθείκειν"
+   ],
+   "reason": "Reviewed as post-classical ει-stem spellings of the perfect, which is wrong: τέθεικα is the Attic perfect of τίθημι (Smyth 777, LSJ s.v.). form_profile.db attests τέθεικα 46 times and τέθηκα 5, τεθείκασι 21 and τεθήκασι not at all. The generator now fills these cells with the ει stem and the removals would have taken the correct forms out of the pinned gate.",
+   "withdrawn_on": "2026-09-22"
   }
  }
 }

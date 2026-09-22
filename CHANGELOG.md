@@ -6,6 +6,63 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Diorisis beta code read the elision apostrophe after an unaccented alpha,
+  iota or upsilon as a macron on that vowel, so `di'` became `δῑ` instead of
+  `δι’` for 8,136 tokens. `extract_diorisis_lm.beta_to_nfc` now converts the
+  word without the apostrophe and appends the elision mark U+2019, and writes
+  the medial sigma a Greek word takes before it (`λέγουσ’`, `πᾶσ’`). Forms
+  carrying a spurious quantity mark in `data/form_profile.db` fall from 1,537
+  to 445, and the next-word language model is rebuilt from the corrected text.
+  `build/build_diorisis_pairs.py` separately dropped the trailing `)` that
+  Diorisis writes for the same elision, which the converter turned into a
+  breathing (`δἰ`).
+- The open-greek-corpus repository now stores the Patrologia Graeca one file
+  per work, with a locus of the form `PG<volume>.<page>`, rather than one file
+  per volume, and stores In Matthaeum under its author and work slug rather
+  than its TLG identifier. `build/build_form_attestation.py` looked only for
+  the old layout, so with the raw per-volume OCR clone no longer on disk it
+  ingested no Patrologia Graeca at all. It now groups the per-work rows back
+  into their Migne volumes, recovering 4,212,976 tokens and In Matthaeum's
+  212,906 citations.
+- GLAUx records a dialect for each work but `build/build_glaux_pairs.py`
+  dropped it, so Epic, Ionic, Doric and Aeolic forms competed for the Attic
+  cells of a verb paradigm. A form attested only in works of one of those
+  dialects now carries that dialect tag, which routes it to that dialect's
+  paradigm slice. Works marked Attic, Attic/Koine or Koine share the default
+  slice.
+
+### Changed
+- `build/build_grc_verb_paradigms.py` picks the cell forms of
+  `data/ag_verb_paradigms.json` on more evidence, which corrects 64 of the 88
+  cells the textbook review in `data/hunspell_grc_textbook_review.json` had
+  recorded as wrong:
+  - A Wiktionary table row that reaches kaikki with its person and number
+    collapsed onto the first cell is dropped. 637 of 918 fully tagged cells
+    across 117 verbs were affected: τιμάω's whole present active indicative
+    arrived tagged first-person singular, and on corpus frequency `τιμάς`
+    (far commoner as the accusative plural of τιμή) then took the cell from
+    `τιμῶ`.
+  - A subjunctive cell rejects a form whose ending belongs to the
+    corresponding indicative, since the subjunctive lengthens the thematic
+    vowel. GLAUx labels the future indicative `κολακεύσεις` an aorist
+    subjunctive, and on frequency it beat the real `κολακεύσῃς`.
+  - The pass that takes a cell's accent from Wiktionary now reads which cell
+    Wiktionary puts each spelling in, so it keeps an accent that is the only
+    thing telling two cells apart (`λύσαι` is λύω's aorist optative
+    third-person singular, `λῦσαι` its aorist middle imperative) while still
+    correcting a spelling both cells share (`βαίνον` to `βαῖνον`).
+  - A form is ranked on its corpus attestation, an augment in a past
+    indicative cell, and whether Wiktionary lists it for the verb; forms of
+    εἰμί left behind by a periphrastic cell are dropped; and the filter that
+    kept only polytonic spellings no longer discards an Attic form whose
+    rival happens to carry a circumflex (`δίδως` against Ionic `διδοῖς`).
+- The textbook review withdraws its eight entries against the ει stem of the
+  perfect of τίθημι. `τέθεικα` is the Attic perfect (Smyth 777, LSJ s.v.), and
+  `data/form_profile.db` attests `τεθείκασι` 21 times against none at all for
+  the `τεθήκασι` the review proposed. The `withdrawn` block records the
+  evidence.
+
 ## [1.3.6] - 2026-09-22
 
 ### Fixed
