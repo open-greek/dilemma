@@ -1819,7 +1819,8 @@ python export_onnx.py                  # exports encoder.onnx + decoder_step.onn
 ### Shipping rebuilt data artifacts
 
 The artifacts CI tests against (`lookup.db`, `spell_index.db`,
-`lemma_attestation.json`) live on HuggingFace, not in git, so the two
+`lemma_attestation.json`, `form_profile.db`) live on HuggingFace, not in
+git, so the two
 have to be kept in step by hand. `data/hf_manifest.json` pins their
 sha256 and `scripts/hf_data.py` does the bookkeeping:
 
@@ -1860,7 +1861,8 @@ points at a SHA whose data files match what's on HuggingFace.
 Tests run automatically on GitHub-hosted runners for pushes and pull requests
 to `main`. CI downloads data
 files from HuggingFace (`lookup.db`, `spell_index.db`,
-`lemma_attestation.json`), pinned by sha256 in `data/hf_manifest.json`
+`lemma_attestation.json`, and `form_profile.db` for the Hunspell export),
+pinned by sha256 in `data/hf_manifest.json`
 (see [Shipping rebuilt data artifacts](#shipping-rebuilt-data-artifacts)).
 
 ```bash
@@ -1955,8 +1957,7 @@ fit inside the ~48 MB memory ceiling of a keyboard extension. Affix
 compression uses a zero-strip SFX rule only when its dictionary base is itself
 a real member of the paradigm. A mechanical common prefix such as `λόγ` or
 `ἀνθρώπ` is inlined instead, because both Hunspell and Tonos accept every
-`.dic` base as a word. The repaired AG export emits 1,284,405 dictionary
-entries plus 105 suffix rules; every flagged base has an identity rule.
+`.dic` base as a word. Every flagged base therefore has an identity rule.
 Editorial brackets and parentheses are excluded before affix compression, so
 the generated `.aff` remains loadable by consumers that compile affixes as
 regular expressions, including `spylls`.
@@ -1968,7 +1969,7 @@ monotonic) is retained for other downstream consumers via
 
 | Variant | Script name | Lang tag | Contents |
 |--------|------------|---------|---------|
-| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. Acute-only forms require exact, accent-preserving attestation from the pinned full LM, so `αὐτός` cannot lend its frequency to `αυτός`. A vowel- or rho-initial form without a breathing is rejected. Valid elisions normalize their final textual apostrophe to U+1FBD koronis. A bare spelling whose marked counterpart dominates exact corpus evidence is excluded unless DGE or Cunliffe independently establishes it as a headword, so tolerant lookup stems remain lemmatizer-only while `ἄν` survives. The closed Homeric apocope set preserves `κὰτ`/`κάτ` through `κὰγ`/`κάγ` and `ἂμ`/`ἄμ`. A closed grammatical list preserves legitimate unaccented enclitics including `τε`, `γε`, the `τις` paradigm, `φημί` enclitics, `κε/κεν`, and poetic pronouns; `του` and `τῳ` are deliberately excluded. |
+| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. New post-April forms require exact evidence from the complete accent-preserving `form_profile.db`, including hapaxes, or membership in a pinned citation, textbook-paradigm, grammar, or productive second-accent class; arbitrary unattested generator output is not admitted. A productive second accent needs a proparoxytone or properispomenon host (`θάλασσάν`, `δῶρόν`, but not `λύκοί`). A new spelling that differs only in accent, breathing, diaeresis, or iota subscript from a well-formed spelling with at least 1,000 corpus tokens (`ἑγώ` beside `ἐγώ`, `ταΐς` beside `ταῖς`) must also be attested in the GLAUx or Diorisis treebanks: at least 25 tokens when it has under 1% of the common spelling's count, at least 5 when it has under 5%. This keeps genuine dialect spellings such as Doric `τᾷ` and `τῶ`. Outside the reviewed April surface (see the release audit below), a vowel- or rho-initial form without a breathing is rejected, and so are a grave accent before the final syllable (`καὶτοὺς`, `ὓστερον`) or on an elided word (`γὰρ᾽`), and a second accent anywhere but on the ultima of a proparoxytone or properispomenon, or before a fused enclitic (`Αἴγυπτόνδε`). Valid elisions normalize their final textual apostrophe to U+1FBD koronis. Same-lemma bare elision fallbacks are excluded unless an independent DGE/Cunliffe headword proves the collision, while the reviewed historical fallback set catches malformed self-headwords and preserves genuine `ἄν`. The closed Homeric apocope set preserves `κὰτ`/`κάτ` through `κὰγ`/`κάγ` and `ἂμ`/`ἄμ`. A closed grammatical list preserves legitimate unaccented words: enclitics including the `τις`, `φημί`, and `εἰμί` forms, dialect proclitics (`ἁ`, `αἰ`), and crasis with a proclitic (`κἀν`, `χὠ`), while `του` and `τῳ` remain deliberately excluded. Reviewed lists keep crasis with a later coronis (`ἐγᾦμαι`, `καλοκἀγαθία`, `ὦνθρωπε`) and complete words that end in a consonant (`ἔκ`, `παρέκ`, `ὑπέκ`, `χερουβίμ`); a fused enclitic's host keeps its own accent window (`οὗτινος`). Every retained contextual grave receives its citation/before-pause acute twin unless the twin fails a structural rule. |
 | `el_GR_monotonic.{dic,aff,version}` | `el` | `el_GR` | Modern Greek monotonic forms, including MG-relevant vocabulary drawn from the AG side of `lookup.db` (articles, common verbs, proper names). Not shipped in Tonos. |
 
 Each dictionary entry carries a morphological field `fr:<bucket>` where
@@ -1982,7 +1983,12 @@ The bucket is chosen from three signals, in priority order:
    polytonic surface forms to `C` (Iliad/Odyssey/Herodotus incipits,
    Olympians, Homeric heroes). These are low-token-count forms whose
    cultural weight exceeds their corpus frequency - `ἄειδε` appears
-   only 71 times in corpus but is the opening word of the Iliad.
+   only 71 times in corpus but is the opening word of the Iliad. The
+   grc export also pins the citation forms of the 2,000 most frequent
+   LSJ9 headwords and the 971 reviewed forms of the language-model head,
+   so unaccented `λυω` ranks `λύω` first. Textbook paradigm cells and
+   closed-list forms are exempt from the evidence filters but keep their
+   corpus bucket.
 2. **Canonical lemmas.** ~168 famous lemmas (`ἀείδω`, `μῆνις`, `Πλάτων`,
    etc.) promote any polytonic-marked form of theirs to `C`. This
    catches canonical inflections beyond what the seed enumerates.
@@ -2003,23 +2009,71 @@ otherwise tie.
 python export_hunspell.py                 # grc polytonic (default)
 python export_hunspell.py --variant both  # grc + el
 python export_hunspell.py --variant el    # el monotonic only
-python export_hunspell.py --sanity 10000  # 10K-lemma sanity pass
+python export_hunspell.py --sanity 10000  # 10K-lemma sanity pass (no April surface)
 ```
 
-The corpus-head coverage gate loads the expanded `.dic`/`.aff` pair with
-`spylls` and audits the 1,000 most frequent Greek-bearing tokens after
-contextual grave and final elision marks are normalized. The reviewed fixture
-requires 971 real forms to be accepted and 29 Modern spellings, fragments,
-numerals, and bare stems to remain rejected; together they represent
-16,543,630 LM tokens. The same audit expands every emitted zero-strip rule and
-fails if a flagged base lacks an identity rule or any emitted vowel-/rho-
-initial form lacks a breathing.
+The release audit loads the expanded `.dic`/`.aff` pair with `spylls` and
+checks both the corpus head and the complete artifact. The LM fixture requires
+971 real forms among the 1,000 most frequent Greek-bearing tokens to be
+accepted and 29 reviewed Modern spellings, fragments, numerals, bare stems,
+and a conversion artifact to remain rejected (16,543,630 LM tokens); the
+exporter pins the 971 required forms. The whole-artifact gates additionally
+require every one of 1,179,659 reviewed forms of the dictionary Tonos shipped
+in April (the Dilemma 0.4.1 export, commit `1ac4f62`, as the keyboard compiled
+it, minus the forms Tonos's candidate gate classes as structural junk,
+must-reject, accepted losses, or respellings of common words), all 1,995
+valid citation spellings among the top 2,000 LSJ9 lemmas, and all 2,170
+pinned cells of the textbook paradigms for `λύω`, `παιδεύω`, `τίθημι`,
+`δίδωμι`, `ἵστημι`, `τιμάω`, `ποιέω`, and `δηλόω`. They also reject
+punctuation, internal breathings, impossible accent placement, synthetic
+flagged bases, bare elision stems, and new weak respellings of common
+spellings, and require an acute twin for every contextual grave whose acute
+spelling passes the structural rules.
 
-The fixture and `data/hunspell_grc_form_freq.json.gz` are pinned to the
-format-v2 Dilemma 1.3.3 full LM artifact: 30,933,396 training tokens, not a
-`train_lm.py --sanity` output. JSON fixture regeneration reads `stats.json`
-and fails unless `"sanity": false`; the binary route reads the exact vocabulary
-and unigram counts embedded by `export_lm.py`.
+The reviewed April surface is exempt from Dilemma's structural rules, and
+984 of its forms fail them: 404 have a grave before the final syllable
+(`Ξὲρξης`), 338 an accent before the antepenult, 115 a circumflex before the
+penult, 71 an internal breathing, 43 a character that is not a Greek letter,
+and 13 no initial breathing (`ωὐτός`). Dropping them would count as losses in
+Tonos's gate, so they stay until they are reviewed there. The acute twin of a
+reviewed grave inherits its review.
+
+A content-hashed fixture measures rejection counts over the New Testament
+(Perseus), the Septuagint (First1KGreek), Iliad 1, Herodotus 1, and a
+Katharevousa sample. These are regression corpora, not held-out text:
+`form_profile.db` contains the same works, so the exact-attestation rule
+admits almost all of their forms. Candidate token and type rejection counts,
+measured with `spylls`, may not exceed those of the April `.dic`/`.aff` read
+the same way. `data/hunspell_grc_april_compat.json.gz` records the reviewed
+baseline surface; `data/hunspell_grc_textbook.json.gz` pins the textbook
+paradigms, taken from `data/ag_verb_paradigms.json` (built by
+`build/build_grc_verb_paradigms.py`; the fixture records its SHA-256);
+`tests/fixtures/hunspell_heldout.json.gz` records only exact form counts and
+source hashes, not source prose. The compatibility fixture is built from files
+that ship with Tonos, not with Dilemma: its compiled dictionary and language
+model, and its candidate gate with the gate's review lists, each recorded by
+SHA-256. Rebuild the fixtures only when deliberately changing the baseline or
+source revisions:
+
+```bash
+python scripts/build_hunspell_compatibility_fixture.py \
+  --baseline /path/to/shipped/grc_polytonic \
+  --lm /path/to/shipped/grc_ngram.bin \
+  --gate /path/to/candidate_gate.py
+python scripts/build_hunspell_textbook_fixture.py
+python scripts/build_hunspell_heldout_fixture.py \
+  --baseline /path/to/shipped/grc_polytonic \
+  --ogc-root /path/to/open-greek-corpus
+```
+
+The corpus-head fixture remains pinned to the format-v2 Dilemma 1.3.3 full LM
+artifact: 30,933,396 training tokens, not a `train_lm.py --sanity` output.
+JSON fixture regeneration reads `stats.json` and fails unless
+`"sanity": false`; the binary route reads the exact vocabulary and unigram
+counts embedded by `export_lm.py`. The exporter itself uses
+`data/form_profile.db` (`python -m dilemma download --with-attestation`) for
+sparse exact-form evidence; `data/hunspell_grc_form_freq.json.gz` is retained
+only as an auditable LM artifact and is not an admission boundary.
 
 ```bash
 # Audit a fresh Hunspell export against the committed full-run fixture.

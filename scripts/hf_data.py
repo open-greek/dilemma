@@ -44,6 +44,8 @@ TRACKED = [
     "data/lookup.db",
     "data/spell_index.db",
     "data/lemma_attestation.json",
+    # Exact-form attestation for the grc Hunspell export and its audit.
+    "data/form_profile.db",
 ]
 
 _CHUNK = 1 << 20

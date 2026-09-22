@@ -81,8 +81,9 @@ import sqlite3
 import subprocess
 import sys
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
+from typing import NamedTuple
 
 from dilemma.form_sanitize import (
     canonicalize_final_elision,
@@ -126,9 +127,31 @@ AG_FUNCTION_WORDS = {
     "σφιν": "σφεῖς", "σφων": "σφεῖς", "σφας": "σφεῖς",
     "σφισι": "σφεῖς", "σφισιν": "σφεῖς",
     "ποτε": "ποτε", "που": "που", "πως": "πως", "πω": "πω",
-    "πη": "πη", "ποθι": "ποθι", "ποθεν": "ποθεν",
+    "πη": "πη", "πῃ": "πῃ", "κῃ": "πῃ", "ποθι": "ποθι", "ποθεν": "ποθεν",
     "περ": "περ", "τοι": "τοι", "νυν": "νυν", "νυ": "νυ",
     "θην": "θην", "κε": "κε", "κεν": "κε",
+    # Enclitic forms of εἰμί. These are legitimately accentless in
+    # connected text; the accented spellings remain in the ordinary paradigm.
+    "ἐν": "ἐν", "εἰς": "εἰς", "ἐς": "ἐς", "ἐκ": "ἐκ", "ἐξ": "ἐξ",
+    "οὐ": "οὐ", "ὡς": "ὡς", "εἰ": "εἰ",
+    "εἰμι": "εἰμί", "ἐστι": "εἰμί", "ἐστιν": "εἰμί",
+    "ἐσμεν": "εἰμί", "ἐστε": "εἰμί", "εἰσι": "εἰμί", "εἰσιν": "εἰμί",
+    "ποι": "ποι", "οὑ": "οὑ", "ἑ": "ἑ", "σφεας": "σφεῖς",
+    "σφωε": "σφεῖς", "σφωϊν": "σφεῖς", "ῥα": "ῥα", "κα": "κα",
+    "μευ": "ἐγώ", "σευ": "σύ", "τευ": "σύ", "τυ": "σύ",
+    "κοτε": "ποτε", "κου": "που", "κως": "πως", "κω": "πω",
+    "ποκα": "ποτε",
+    # The consonant-final contextual forms of οὐ are complete words, not
+    # bare elision fallbacks, even though marked οὐκ᾽/οὐχ᾽ also occur.
+    "οὐκ": "οὐ", "οὐχ": "οὐ",
+    # Dialect proclitics (Doric article ἁ, Doric/Aeolic αἰ for εἰ, epic
+    # εἰν), dialect enclitic forms of εἰμί, and crasis of καί or the article
+    # with a proclitic, which stays unaccented (κἀν = καὶ ἐν/ἄν).
+    "ἁ": "ὁ", "αἰ": "εἰ", "εἰν": "ἐν",
+    "ἐντι": "εἰμί", "ἐσσι": "εἰμί", "εἰμεν": "εἰμί", "ἐστον": "εἰμί",
+    "κἀν": "καί", "κᾀν": "καί", "κἀκ": "καί", "κἀξ": "καί",
+    "κοὐ": "καί", "κοὐκ": "καί", "κοὐχ": "καί",
+    "κεἰ": "καί", "κεἰς": "καί", "χὠ": "καί", "τἀν": "ὁ",
 }
 
 # High-frequency spellings resolved by Dilemma's grammatical/POS layers but
@@ -138,10 +161,17 @@ AG_EXPORT_OVERRIDES = {
     # Runtime grammar/POS forms absent from lookup.db.
     "τ᾽": "τε",
     "μεθ᾽": "μετά",
-    "δῑ": "Ζεύς",
+    # The shipped dictionary has this acute twin of a reviewed grave form;
+    # keep it even though the source compatibility fixture excludes it as a
+    # respelling and the initial smooth upsilon is only a heuristic warning.
+    "ὐπό": "ὑπό",
     "εἶνε": "εἵνω",
     "μαῦρον": "μαυρός",
     "μαῦροι": "μαυρός",
+    "ἦτο": "εἰμί",
+    "χἠ": "καί",
+    "μιάν": "μία",
+    "μιάς": "μία",
     "ἑκατέρως": "ἑκάτερος",
     # Exact mappings retained in authoritative AG source artifacts but lost
     # from lookup.db through source collisions or rejection of a malformed
@@ -175,9 +205,59 @@ HOMERIC_SHORT_PREPOSITIONS = {
     "ἂμ": "ἀνά", "ἄμ": "ἀνά",
 }
 
+# Complete words, not elision fallbacks, that end in a consonant no other
+# Greek word ends in: ἔκ is ἐκ with the accent of anastrophe, and παρέκ is the
+# adverb and preposition "beside, beyond".
+CONSONANT_FINAL_WORDS = {
+    "ἔκ": "ἐκ", "παρέκ": "παρέκ", "παρὲκ": "παρέκ",
+    # Homeric double prepositions.
+    "ὑπέκ": "ὑπέκ", "ὑπὲκ": "ὑπέκ", "διέκ": "διέκ", "διὲκ": "διέκ",
+    # Indeclinable Hebrew loanwords of the Septuagint.
+    "χερουβίμ": "χερουβίμ", "χερουβὶμ": "χερουβίμ",
+    "χερουβείμ": "χερουβίμ", "χερουβεὶμ": "χερουβίμ",
+    "σεραφίμ": "σεραφίμ", "σεραφὶμ": "σεραφίμ", "σεραφεὶμ": "σεραφίμ",
+    "ἐφούδ": "ἐφούδ", "ἐφοὺδ": "ἐφούδ", "φασέκ": "φασέκ", "φασὲκ": "φασέκ",
+    "αἰλάμ": "αἰλάμ", "αἰλὰμ": "αἰλάμ", "σαβαώθ": "σαβαώθ",
+    "σαβαὼθ": "σαβαώθ", "ναθινίμ": "ναθινίμ", "ναθινὶμ": "ναθινίμ",
+}
+
+# Crasis whose coronis or accent falls where the structural rules do not
+# expect one: after the first syllable (ἐγᾦμαι = ἐγὼ οἶμαι, μέντἄν =
+# μέντοι ἄν, καλοκἀγαθία) or on vocative ὦ (ὦνθρωπε = ὦ ἄνθρωπε); and the
+# Homeric demonstratives of ὅδε, whose fused -δε leaves one accent.
+GRC_CRASIS_EXCEPTIONS = {
+    "τοῖσιδε": "ὅδε", "τοιοῖσιδε": "τοιόσδε", "τοῖσδεσσι": "ὅδε",
+    "ἐγᾦμαι": "οἴομαι", "ἐγᾦδα": "οἶδα",
+    "μέντἄν": "μέντοι", "μεντἄν": "μέντοι",
+    "μέντἂν": "μέντοι", "μεντἂν": "μέντοι",
+    "ταὧς": "ταὧς",
+    "καλοκἀγαθία": "καλοκἀγαθία", "καλοκἀγαθίας": "καλοκἀγαθία",
+    "καλοκἀγαθίαν": "καλοκἀγαθία", "καλοκἀγαθίᾳ": "καλοκἀγαθία",
+    "καλοκἀγαθίαι": "καλοκἀγαθία", "καλοκἀγαθίαις": "καλοκἀγαθία",
+    "καλοκἀγαθιῶν": "καλοκἀγαθία", "Καλοκἀγαθία": "καλοκἀγαθία",
+    "ὦνθρωπε": "ἄνθρωπος", "ὦνδρες": "ἀνήρ", "ὦγαθέ": "ἀγαθός",
+    "ὦγαθοί": "ἀγαθός", "Ὦπολλον": "Ἀπόλλων",
+}
+
+# Every closed-list grc form, added after the lookup and frequency gates.
+GRC_CLOSED_LIST_FORMS = (
+    AG_FUNCTION_WORDS | AG_EXPORT_OVERRIDES | HOMERIC_SHORT_PREPOSITIONS
+    | CONSONANT_FINAL_WORDS | GRC_CRASIS_EXCEPTIONS
+)
+
 # These lookup forms are not acceptable polytonic spellings. In particular,
 # tau + omega + iota-subscript is not an unaccented variant of τῷ.
-GRC_REJECT_FORMS = frozenset({"του", "τῳ"})
+GRC_REJECT_FORMS = frozenset({
+    # Unaccented article spellings must remain misspellings so Tonos can
+    # correct them to the polytonic forms.
+    "του", "τῳ",
+    # Corpus/editorial errors which collide with very common words and rank
+    # ahead of the correct spelling in downstream suggestions.  These are not
+    # merely unattested generated cells: each was traced to a bad lookup row
+    # or noisy corpus spelling, so the exporter must not treat it as proof.
+    "τού", "τῷν", "τής", "αὐτου", "ταίς", "πᾶντα", "εἴπε", "ἆλλος",
+    "ἵσον", "στό", "στά",
+})
 
 # lookup.db deliberately keeps these bare stems as tolerant lemmatizer
 # fallbacks for elided words. They are not standalone spellings. They must not
@@ -186,6 +266,12 @@ GRC_REJECT_FORMS = frozenset({"του", "τῳ"})
 BARE_ELISION_STEMS = frozenset({
     "δ", "ἀλλ", "δι", "καθ", "κατ", "παρ", "ἐπ", "ἐφ", "οὐδ", "ὑπ",
     "ἀπ", "μεθ",
+    # Additional historical fallbacks observed in the 1.3.4 candidate. The
+    # mechanism in is_bare_elision_fallback covers same-lemma cases; this
+    # reviewed set also catches malformed self-headwords such as ἵν.
+    "ἀφ", "ὑφ", "ἵν", "τοῦτ", "ταῦτ", "ὅτ", "ἀνθ", "οὔτ", "μήτ",
+    "ἔπειτ", "εἶτ", "ἀντ", "μετ", "γ", "μ", "σ", "θ",
+    "ἄπ", "δῖ", "λόγ",
 })
 
 # DGE and Cunliffe are independently edited headword inventories rather than
@@ -200,17 +286,67 @@ INDEPENDENT_AG_HEADWORD_PATHS = (
 LOOKUP_DB = DATA / "lookup.db"
 CORPUS_FREQ = DATA / "corpus_freq.json"
 MG_FORM_FREQ = DATA / "mg_form_freq.json"
-GRC_FORM_FREQ = DATA / "hunspell_grc_form_freq.json.gz"
+FORM_PROFILE_DB = DATA / "form_profile.db"
+LSJ9_FREQUENCY = DATA / "lsj9_frequency.json"
+GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_april_compat.json.gz"
+GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # Curated iconic AG polytonic surface forms and lemmas that are always
 # promoted to bucket C, regardless of raw corpus token count. See the
 # file's own _comment field for rationale.
 CANONICAL_AG_FORMS = DATA / "canonical_ag_forms.json"
+# The reviewed head of the language-model vocabulary: its 1,000 most frequent
+# Greek forms, minus reviewed nonwords. The release audit requires every one,
+# so the exporter pins them. This includes polytonic Modern spellings such as
+# the article τή, which the Ancient Greek corpora behind form_profile.db
+# barely attest.
+LM_HEAD_FIXTURE = ROOT / "tests" / "fixtures" / "hunspell_lm_top1000.json"
+LM_HEAD_EXCLUSIONS = (
+    ROOT / "tests" / "fixtures" / "hunspell_lm_top1000_exclusions.json"
+)
+
+# Complete paradigms used as a stable textbook morphology gate.  Sparse cells
+# of these paradigms are useful even when no corpus in form_profile.db happens
+# to contain the exact surface form.  The set covers a regular omega verb,
+# three athematic types, and one contract verb of each class.
+GRC_COMPLETE_PARADIGM_LEMMAS = frozenset({
+    "λύω", "παιδεύω", "τίθημι", "δίδωμι", "ἵστημι",
+    "τιμάω", "ποιέω", "δηλόω",
+})
+
+# A new (post-April) spelling that differs only in its marks from a more
+# common well-formed spelling needs treebank support, rising as its share of
+# the common spelling's count falls: (share below, GLAUx or Diorisis tokens
+# required). Only a dominant spelling with at least
+# PROFILE_VARIANT_DOMINANCE_MIN tokens triggers the check. Greek has many
+# genuine pairs that differ only in accent or iota subscript (φυγή/φυγῇ,
+# βεβαία/βέβαια), and beside a rare word the rarer spelling is about as often
+# a real word as a typo; beside a common word it is usually a typo, and one a
+# keyboard user is likely to type. The check is not applied to the shipped
+# compatibility baseline, pinned forms, or productive enclitic second accents.
+PROFILE_VARIANT_DOMINANCE_MIN = 1000
+PROFILE_VARIANT_TREEBANK_FLOORS = ((0.01, 25), (0.05, 5))
+# Sources in form_profile.db that are lemmatized treebanks of edited texts,
+# as opposed to digitized or OCR editions.
+TREEBANK_PROFILE_SOURCES = ("glaux", "diorisis")
 
 # Greek combining marks considered polytonic (absent in monotonic text)
 POLYTONIC_MARKS = {0x0313, 0x0314, 0x0342, 0x0345}
 # Grave accent (U+0300) is technically monotonic-absent too, but we
 # treat it as polytonic for classification purposes.
 POLYTONIC_MARKS_EXT = POLYTONIC_MARKS | {0x0300}
+TONAL_MARKS = frozenset({0x0300, 0x0301, 0x0342})
+# Characters of the Greek blocks that are editorial or numeral signs, not
+# letters of a normalized spelling: the numeral sign, the spacing iota
+# subscript, and lunate sigma (ϲφόδρα for σφόδρα).
+GREEK_EDITORIAL_SIGNS = frozenset({0x0374, 0x037A, 0x03F2, 0x03F9})
+BREATHING_MARKS = frozenset({0x0313, 0x0314})
+ALLOWED_GREEK_COMBINING_MARKS = frozenset({
+    0x0300, 0x0301, 0x0304, 0x0306, 0x0308,
+    0x0313, 0x0314, 0x0342, 0x0345,
+})
+GREEK_DIPHTHONGS = frozenset({
+    "αι", "ει", "οι", "υι", "αυ", "ευ", "ηυ", "ου", "ωυ",
+})
 
 # Spacing (non-combining) characters that Greek orthography uses as a
 # genuine mark on a word. Unicode files them as Sk (modifier symbol),
@@ -344,32 +480,676 @@ def has_required_initial_breathing(form: str) -> bool:
 
     if not bases:
         return True
-    first = bases[0][0]
+    first, first_marks = bases[0]
     if first.lower() == "ρ":
-        return bool(bases[0][1] & {0x0313, 0x0314})
+        return bool(first_marks & BREATHING_MARKS)
     if first not in GREEK_VOWELS:
         return True
-    for base, marks in bases:
+    if first_marks & BREATHING_MARKS:
+        return True
+    if len(bases) < 2:
+        return False
+    second, second_marks = bases[1]
+    first_blocks_diphthong = first_marks & (
+        TONAL_MARKS | {0x0308, 0x0345}
+    )
+    return bool(
+        (first + second).lower() in GREEK_DIPHTHONGS
+        and not first_blocks_diphthong
+        and second_marks & BREATHING_MARKS
+    )
+
+
+def _greek_bases(form: str) -> list[tuple[str, frozenset[int]]]:
+    """Return Greek base letters with the combining marks on each base."""
+    bases: list[tuple[str, set[int]]] = []
+    for char in unicodedata.normalize("NFD", form):
+        if unicodedata.category(char) == "Mn":
+            if bases:
+                bases[-1][1].add(ord(char))
+            continue
+        if _is_greek_letter(char):
+            bases.append((char, set()))
+    return [(base, frozenset(marks)) for base, marks in bases]
+
+
+def _syllable_base_indexes(
+    bases: list[tuple[str, frozenset[int]]],
+) -> list[tuple[int, ...]]:
+    """Return the base-letter indexes belonging to each Greek syllable.
+
+    This intentionally needs only enough syllabification for the universal
+    three-syllable accent window.  A recognised diphthong is one nucleus unless
+    the second vowel carries diaeresis.
+    """
+    syllables: list[tuple[int, ...]] = []
+    index = 0
+    while index < len(bases):
+        base, _marks = bases[index]
         if base not in GREEK_VOWELS:
-            break
-        if marks & {0x0313, 0x0314}:
-            return True
-    return False
+            index += 1
+            continue
+        members = [index]
+        if index + 1 < len(bases):
+            next_base, next_marks = bases[index + 1]
+            pair = (base + next_base).lower()
+            diphthong = (
+                pair in GREEK_DIPHTHONGS
+                and not (_marks & (TONAL_MARKS | BREATHING_MARKS
+                                   | frozenset({0x0345})))
+            )
+            # Iota adscript after a long α, η or ω: the marks sit on the
+            # long vowel and the ι carries none (ζῶια, τῆιδε, ῥάιδιον).
+            adscript = (
+                base.lower() in "αηω"
+                and next_base.lower() == "ι"
+                and not next_marks
+            )
+            if (next_base in GREEK_VOWELS
+                    and (diphthong or adscript)
+                    and 0x0308 not in next_marks):
+                members.append(index + 1)
+                index += 1
+        syllables.append(tuple(members))
+        index += 1
+    return syllables
 
 
-def filter_grc_orthography(
+def mark_skeleton(form: str) -> str:
+    """Return the letters of ``form`` with every combining mark removed.
+
+    The key is built from :func:`exact_form_key`, so case and contextual grave
+    are already folded. Accents, breathings, diaeresis, iota subscript, and
+    vowel-length marks are then all removed, while the spacing elision mark
+    stays: ``ἑγώ``, ``ἐγώ``, and ``ἐγὼ`` share a key, but ``Ἀπόλλων᾽`` (elided
+    ``Ἀπόλλωνα``) does not compete with ``Ἀπόλλων``.
+    """
+    nfd = unicodedata.normalize("NFD", exact_form_key(form))
+    return unicodedata.normalize(
+        "NFC", "".join(char for char in nfd if not unicodedata.combining(char))
+    )
+
+
+def grc_orthography_reason(form: str) -> str | None:
+    """Return why ``form`` cannot be a standalone polytonic word.
+
+    The checks are structural, not corpus-frequency heuristics.  They reject
+    punctuation-bearing tokens and generator joins which leave a simplex
+    breathing inside a compound, while retaining initial diphthongs and the
+    common crasis shapes (``κἀγώ``, ``τοὔνομα``).
+    """
+    nfd = unicodedata.normalize("NFD", form)
+    acute_form = unicodedata.normalize(
+        "NFC", "".join("\u0301" if char == "\u0300" else char for char in nfd)
+    )
+    # A grave is not itself a rejected spelling.  It is the contextual form
+    # of an oxytone and must remain available (for example στὸ/στὰ); only its
+    # acute twin may be an explicitly reviewed rejection (στό/στά).
+    if form in GRC_REJECT_FORMS:
+        return "explicit_reject"
+    if form in GRC_CRASIS_EXCEPTIONS:
+        return None
+    if form in BARE_ELISION_STEMS or acute_form in BARE_ELISION_STEMS:
+        return "bare_elision"
+    if not form:
+        return "empty"
+
+    for index, char in enumerate(form):
+        if _is_greek_letter(char) and ord(char) not in GREEK_EDITORIAL_SIGNS:
+            continue
+        if (unicodedata.category(char) == "Mn"
+                and ord(char) in ALLOWED_GREEK_COMBINING_MARKS):
+            continue
+        if (ord(char) in SPACING_DIACRITICS
+                and index in {0, len(form) - 1}):
+            continue
+        return "nonword_character"
+
+    if not has_required_initial_breathing(form):
+        return "missing_initial_breathing"
+
+    bases = _greek_bases(form)
+    if not bases:
+        return "no_greek_letters"
+    for index, (base, _marks) in enumerate(bases):
+        if base == "ς" and index != len(bases) - 1:
+            return "medial_final_sigma"
+    if bases[-1][0] == "σ":
+        return "final_nonfinal_sigma"
+
+    syllables = _syllable_base_indexes(bases)
+    first_nucleus = set(syllables[0]) if syllables else set()
+    breathing_indexes = [
+        index for index, (_base, marks) in enumerate(bases)
+        if marks & BREATHING_MARKS
+    ]
+    # A breathing may occur on the first syllable's nucleus: on its first
+    # vowel, on the second vowel of an initial diphthong, or on the first
+    # vowel after a consonant in crasis. Anything later is a joined-word
+    # artifact. This also rejects a second breathing rather than allowing a
+    # stale simplex mark to survive a generated compound.
+    allowed_breathing_indexes = first_nucleus
+    if bases[0][0].lower() == "ρ":
+        allowed_breathing_indexes = allowed_breathing_indexes | {0}
+    if (len(breathing_indexes) > 1
+            or any(index not in allowed_breathing_indexes
+                   for index in breathing_indexes)):
+        return "internal_breathing"
+
+    base_to_syllable = {
+        base_index: syllable_index
+        for syllable_index, members in enumerate(syllables)
+        for base_index in members
+    }
+    tonal_syllables: list[tuple[int, set[int]]] = []
+    tonal_per_syllable: dict[int, int] = defaultdict(int)
+    for base_index, (_base, marks) in enumerate(bases):
+        tonal = set(marks & TONAL_MARKS)
+        if not tonal:
+            continue
+        if len(tonal) > 1:
+            return "duplicate_tonal_marks"
+        syllable_index = base_to_syllable.get(base_index)
+        if syllable_index is None:
+            return "tonal_mark_on_consonant"
+        tonal_syllables.append((syllable_index, tonal))
+        tonal_per_syllable[syllable_index] += len(tonal)
+    if any(count > 1 for count in tonal_per_syllable.values()):
+        return "duplicate_tonal_marks_on_syllable"
+    # A grave is the contextual form of a final acute, so it is written only
+    # on the ultima. Earlier graves come from joined words (καὶτοὺς) or from
+    # a rough breathing misread as a grave (ὓστερον for ὕστερον).
+    if any(0x0300 in tonal and syllable_index != len(syllables) - 1
+           for syllable_index, tonal in tonal_syllables):
+        return "grave_before_ultima"
+    # An elided oxytone throws its accent back as an acute, and elided
+    # prepositions and conjunctions lose it (Smyth 174): never γὰρ᾽ or ἂλλ᾽.
+    if (ord(form[-1]) in SPACING_DIACRITICS
+            and any(0x0300 in tonal for _index, tonal in tonal_syllables)):
+        return "grave_on_elided_word"
+
+    if (not tonal_syllables
+            and not any(ord(char) in SPACING_DIACRITICS for char in form)
+            and form.lower() not in AG_FUNCTION_WORDS):
+        if not syllables:
+            return "no_vowel"
+        return "missing_tonal_accent"
+    if len(tonal_syllables) > 1:
+        if not has_enclitic_second_accent(bases, syllables, tonal_syllables):
+            return "misplaced_second_accent"
+        return None
+    fused = fused_enclitic_syllables(bases, syllables)
+    for syllable_index, tonal in tonal_syllables:
+        syllables_after = len(syllables) - syllable_index - 1
+        if form and ord(form[-1]) in SPACING_DIACRITICS:
+            syllables_after += 1
+        # A fused enclitic leaves the host's own accent in place, so the
+        # window is measured on the host: οὗτινος, ᾧτινι, τοῖσιδε.
+        if fused and syllable_index < len(syllables) - fused:
+            syllables_after -= fused
+        if syllables_after > 2:
+            return "accent_before_antepenult"
+        if 0x0342 in tonal and syllables_after > 1:
+            return "circumflex_before_penult"
+    return None
+
+
+# The fused -τις of ὅστις, whose first part keeps its own accent: οὗτινος,
+# ᾧτινι. Fused -δε is not included: a locative such as πόλεμόνδε takes the
+# enclitic's second accent, while the demonstratives of ὅδε do not (τοῖσιδε),
+# so those are listed in GRC_CRASIS_EXCEPTIONS instead.
+FUSED_ENCLITIC_TAILS = (
+    ("τινος", 2), ("τινι", 2), ("τινα", 2), ("τινες", 2), ("τινων", 2),
+    ("τισιν", 2), ("τισι", 2), ("τινας", 2), ("τινε", 2), ("τινοιν", 3),
+)
+
+
+def fused_enclitic_syllables(
+    bases: list[tuple[str, frozenset[int]]],
+    syllables: list[tuple[int, ...]],
+) -> int:
+    """Syllables at the end of the word that belong to a fused enclitic."""
+    letters = "".join(base for base, _marks in bases).lower()
+    letters = letters.replace("ς", "σ")
+    for tail, count in FUSED_ENCLITIC_TAILS:
+        tail = tail.replace("ς", "σ")
+        if letters.endswith(tail) and len(syllables) > count:
+            # Only the unaccented tail letters may form the enclitic.
+            start = len(bases) - len(tail)
+            if not any(marks & TONAL_MARKS for _b, marks in bases[start:]):
+                return count
+    return 0
+
+
+# Enclitics that fuse with a preceding word and keep its second accent on
+# the syllable before them: Αἴγυπτόνδε, τοῖόνδε, οἷοίπερ, Ionic ὁκοῖόντι.
+FUSED_ENCLITIC_ENDINGS = ("δε", "ζε", "περ", "γε", "τε", "τι", "τις", "τοι")
+
+
+def has_enclitic_second_accent(
+    bases: list[tuple[str, frozenset[int]]],
+    syllables: list[tuple[int, ...]],
+    tonal_syllables: list[tuple[int, set[int]]],
+) -> bool:
+    """Return whether a word with two accents has the enclitic shape.
+
+    Only a proparoxytone or properispomenon takes a second accent, an acute
+    (Smyth 183d): on its own ultima before a separate enclitic (ἄνθρωπόν,
+    δῶρόν), or on the syllable before an enclitic fused onto it
+    (Αἴγυπτόνδε). A grave never occurs in such a word, and no word has three
+    accents; anything else is two words run together or a misaccented copy.
+    """
+    if len(tonal_syllables) != 2:
+        return False
+    (first, first_mark), (second, second_mark) = tonal_syllables
+    if first_mark not in ({0x0301}, {0x0342}) or second_mark != {0x0301}:
+        return False
+    # The host ends with the syllable that carries the second accent.
+    host_after_first = second - first
+    if not ((first_mark == {0x0301} and host_after_first == 2)
+            or (first_mark == {0x0342} and host_after_first == 1)):
+        return False
+    if second == len(syllables) - 1:
+        return True
+    # A fused enclitic follows: the letters after the accented syllable's
+    # vowel nucleus must spell one of the fused endings.
+    tail_start = syllables[second][-1] + 1
+    tail = "".join(base for base, _marks in bases[tail_start:]).lower()
+    tail = tail.replace("ς", "σ")
+    return any(
+        tail.endswith(ending.replace("ς", "σ"))
+        and len(tail) - len(ending) <= 1
+        for ending in FUSED_ENCLITIC_ENDINGS
+    )
+
+
+def grc_pair_orthography_reason(form: str, lemma: str) -> str | None:
+    """Apply word-level checks which need the form's lemma provenance."""
+    reason = grc_orthography_reason(form)
+    if reason is not None:
+        return reason
+    if any(ord(char) in SPACING_DIACRITICS for char in form):
+        return None
+    bases = _greek_bases(form)
+    final = bases[-1][0].lower()
+    if (final not in GREEK_VOWELS | frozenset("νρςξψ")
+            and form not in HOMERIC_SHORT_PREPOSITIONS
+            and form not in CONSONANT_FINAL_WORDS
+            and form.lower() not in AG_FUNCTION_WORDS
+            and exact_form_key(form) != exact_form_key(lemma)):
+        return "impossible_final_consonant"
+    return None
+
+
+def contextual_acute(form: str) -> str:
+    """Fold contextual grave accents to their citation/before-pause acute."""
+    nfd = unicodedata.normalize("NFD", form)
+    return unicodedata.normalize(
+        "NFC", "".join("\u0301" if char == "\u0300" else char for char in nfd)
+    )
+
+
+def add_contextual_acute_twins(
     form_lemma: list[tuple[str, str]],
+    reviewed: set[str] | frozenset[str] = frozenset(),
+) -> tuple[list[tuple[str, str]], int]:
+    """Add the acute counterpart of every retained grave surface form.
+
+    This is a defined Greek orthographic normalization, not a general accent
+    rewrite: a grave is the contextual spelling of an oxytone acute.  Keeping
+    the acute twin is required for citation spelling and before punctuation.
+    The twin of a ``reviewed`` grave inherits its review, so it is checked
+    only against the lemma-free structural rules (the baseline ``Ὃκ`` keeps
+    ``Ὅκ`` whatever lemma lookup.db assigns it).
+    """
+    out = list(form_lemma)
+    seen = set(form_lemma)
+    added = 0
+    for form, lemma in form_lemma:
+        acute = contextual_acute(form)
+        pair = (acute, lemma)
+        reason = (
+            grc_orthography_reason(acute) if form in reviewed
+            else grc_pair_orthography_reason(acute, lemma)
+        )
+        if (acute != form and pair not in seen and reason is None):
+            seen.add(pair)
+            out.append(pair)
+            added += 1
+    return out, added
+
+
+def is_productive_second_accent(
+    form: str,
+    exact_freq: dict[str, int],
+) -> bool:
+    """Return whether ``form`` is a regular enclitic second-accent spelling.
+
+    The form must have exactly two tonal marks on separate syllables, with an
+    acute on the ultima.  Removing that final acute must yield an independently
+    attested host spelling, as in ``θάλασσάν`` -> ``θάλασσαν``.  Only a
+    proparoxytone (``ἄνθρωπός τις``) or a properispomenon (``δῶρόν τι``)
+    takes the second accent (Smyth 183d); a paroxytone host keeps a single
+    accent, so ``λύκοί`` and ``ὕπνῴ`` are not productive spellings.
+    """
+    nfd = list(unicodedata.normalize("NFD", form))
+    tonal_indexes = [
+        index for index, char in enumerate(nfd) if ord(char) in TONAL_MARKS
+    ]
+    if len(tonal_indexes) != 2 or nfd[tonal_indexes[-1]] != "\u0301":
+        return False
+    bases = _greek_bases(form)
+    syllables = _syllable_base_indexes(bases)
+    if not syllables:
+        return False
+    last_tonal = tonal_indexes[-1]
+    base_before = ""
+    for char in nfd[:last_tonal]:
+        if unicodedata.category(char) != "Mn":
+            base_before = char
+    if base_before not in GREEK_VOWELS:
+        return False
+    # The final tonal mark must attach to the word's ultima nucleus.
+    last_vowel = max(
+        index for members in syllables for index in members
+    )
+    tonal_base_index = -1
+    seen_bases = -1
+    for char in nfd[:last_tonal]:
+        if _is_greek_letter(char):
+            seen_bases += 1
+            tonal_base_index = seen_bases
+    if tonal_base_index not in syllables[-1] or last_vowel not in syllables[-1]:
+        return False
+    del nfd[last_tonal]
+    host = unicodedata.normalize("NFC", "".join(nfd))
+    if not is_proparoxytone_or_properispomenon(host):
+        return False
+    return exact_freq_lookup(host, exact_freq) > 0
+
+
+def is_proparoxytone_or_properispomenon(form: str) -> bool:
+    """Return whether ``form`` has one accent: an acute on the antepenult or
+    a circumflex on the penult."""
+    bases = _greek_bases(form)
+    syllables = _syllable_base_indexes(bases)
+    base_to_syllable = {
+        base_index: syllable_index
+        for syllable_index, members in enumerate(syllables)
+        for base_index in members
+    }
+    accents = [
+        (base_to_syllable.get(index), marks & TONAL_MARKS)
+        for index, (_base, marks) in enumerate(bases)
+        if marks & TONAL_MARKS
+    ]
+    if len(accents) != 1 or accents[0][0] is None:
+        return False
+    syllable_index, tonal = accents[0]
+    syllables_after = len(syllables) - syllable_index - 1
+    return ((tonal == {0x0301} and syllables_after == 2)
+            or (tonal == {0x0342} and syllables_after == 1))
+
+
+def required_treebank_support(exact: int, dominant: int) -> int:
+    """Treebank tokens a new spelling needs beside a more common spelling.
+
+    ``exact`` is the new spelling's corpus count and ``dominant`` the count of
+    the most frequent well-formed spelling with the same letters. The weaker
+    the new spelling's share, the more likely it is a corrupted copy, so the
+    required GLAUx or Diorisis support rises as the share falls.
+    """
+    if dominant < PROFILE_VARIANT_DOMINANCE_MIN or exact >= dominant:
+        return 0
+    share = exact / dominant
+    for below, required in PROFILE_VARIANT_TREEBANK_FLOORS:
+        if share < below:
+            return required
+    return 0
+
+
+def filter_dominated_spelling_variants(
+    form_lemma: list[tuple[str, str]],
+    exact_freq: dict[str, int],
+    dominant_freq: dict[str, int],
+    treebank_freq: dict[str, int],
+    compatibility_forms: set[str],
+    protected_forms: set[str] | None = None,
 ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
-    """Reject spellings impossible under polytonic initial breathing."""
+    """Reject weak new respellings of strongly attested spellings.
+
+    A respelling differs from a more common spelling only in its marks:
+    accent, breathing, diaeresis, or iota subscript (``ἑγώ`` beside
+    ``ἐγώ``, ``ταΐς`` beside ``ταῖς``, ``ὄσα`` beside ``ὅσα``). OCR and
+    edition typos produce such spellings in proportion to the common word's
+    frequency, so a raw corpus count cannot vouch for them; support in the
+    lemmatized treebanks can. Genuine dialect spellings such as Doric ``τᾷ``
+    carry that support. The reviewed April surface, pinned forms, and
+    productive enclitic second accents are exempt.
+    """
+    protected = compatibility_forms | (protected_forms or set())
     kept: list[tuple[str, str]] = []
     rejected: list[tuple[str, str]] = []
     for pair in form_lemma:
-        if (pair[0] not in GRC_REJECT_FORMS
-                and has_required_initial_breathing(pair[0])):
+        form, _lemma = pair
+        if (form in protected
+                or is_productive_second_accent(form, exact_freq)):
+            kept.append(pair)
+            continue
+        required = required_treebank_support(
+            exact_freq_lookup(form, exact_freq),
+            dominant_freq.get(mark_skeleton(form), 0),
+        )
+        if required and exact_freq_lookup(form, treebank_freq) < required:
+            rejected.append(pair)
+        else:
+            kept.append(pair)
+    return kept, rejected
+
+
+def filter_unattested_new_forms(
+    form_lemma: list[tuple[str, str]],
+    exact_freq: dict[str, int],
+    compatibility_forms: set[str],
+    protected_forms: set[str],
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """Require reviewable evidence for every form added after April.
+
+    Historical paradigm generators contain valuable sparse morphology, but
+    they also produce joins which are orthographically possible and therefore
+    cannot be caught by spelling-shape checks alone. A new form must be
+    attested exactly, belong to a pinned citation/textbook/grammar fixture, or
+    be a productive enclitic second-accent spelling. The reviewed April
+    surface is never subjected to this new evidence requirement.
+    """
+    kept: list[tuple[str, str]] = []
+    rejected: list[tuple[str, str]] = []
+    for pair in form_lemma:
+        form, _lemma = pair
+        acute = contextual_acute(form)
+        if (form in compatibility_forms
+                or form in protected_forms
+                or acute in protected_forms
+                or exact_freq_lookup(form, exact_freq) > 0
+                or is_productive_second_accent(form, exact_freq)):
             kept.append(pair)
         else:
             rejected.append(pair)
     return kept, rejected
+
+
+def filter_grc_orthography(
+    form_lemma: list[tuple[str, str]],
+    compatibility_forms: set[str] | None = None,
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """Reject structurally impossible standalone polytonic spellings."""
+    compatibility = compatibility_forms or set()
+    kept: list[tuple[str, str]] = []
+    rejected: list[tuple[str, str]] = []
+    for pair in form_lemma:
+        if pair[0] in compatibility or grc_pair_orthography_reason(*pair) is None:
+            kept.append(pair)
+        else:
+            rejected.append(pair)
+    return kept, rejected
+
+
+def filter_new_tonos_structural_forms(
+    form_lemma: list[tuple[str, str]],
+    compatibility_forms: set[str],
+    protected_forms: set[str],
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """Keep reviewed baseline forms but block new Hunspell junk classes.
+
+    Hunspell's zero-strip flags can expose a real-looking dictionary stem as
+    a standalone word even when it was only a generator fragment. The
+    compiled Tonos gate treats new lower-case consonant-final fragments and
+    smooth-initial upsilon forms as structural junk, so apply those rules to
+    the post-April surface while retaining reviewed baseline and explicit
+    textbook/citation/function-word evidence.
+    """
+    reviewed = compatibility_forms | protected_forms
+    kept: list[tuple[str, str]] = []
+    rejected: list[tuple[str, str]] = []
+    for pair in form_lemma:
+        if pair[0] not in reviewed and new_form_structural_reason(pair[0]):
+            rejected.append(pair)
+        else:
+            kept.append(pair)
+    return kept, rejected
+
+
+def new_form_structural_reason(form: str) -> str | None:
+    """Return why a new (post-April) form is structural junk downstream.
+
+    These two classes are stricter than :func:`grc_orthography_reason`
+    because they would also reject a few valid baseline words: a lower-case
+    word ending in a consonant no complete word ends in (a stem that lost its
+    elision mark, exposed by a zero-strip affix flag), and a smooth breathing
+    on an initial upsilon, which only Lesbian Aeolic writes.
+    """
+    bases = _greek_bases(form)
+    if not bases:
+        return None
+    # An elided word legitimately ends in a consonant plus ᾽ (γ᾽, παρ᾽).
+    if ord(form[-1]) not in SPACING_DIACRITICS:
+        final = bases[-1][0].lower()
+        if (not form[0].isupper()
+                and final not in GREEK_VOWELS | frozenset("νρςξψ")
+                and form.lower() not in AG_FUNCTION_WORDS
+                and form not in HOMERIC_SHORT_PREPOSITIONS
+                and form not in CONSONANT_FINAL_WORDS):
+            return "truncated_fragment"
+    first, marks = bases[0]
+    if first.lower() == "υ" and 0x0313 in marks:
+        return "smooth_initial_upsilon"
+    return None
+
+
+def grc_pinned_forms(
+    canonical_forms: set[str],
+    top_lsj9_lemmas: set[str],
+    textbook_forms: set[str],
+    lm_head_forms: set[str],
+) -> set[str]:
+    """Forms exempt from the corpus-evidence filters: curated canonical
+    forms, top citation headwords, textbook paradigms, the reviewed LM head,
+    and the closed grammatical lists. Textbook cells and closed-list forms
+    are not also pinned to frequency bucket C (see run_export)."""
+    return (
+        canonical_forms | top_lsj9_lemmas | textbook_forms | lm_head_forms
+        | set(GRC_CLOSED_LIST_FORMS)
+    )
+
+
+def add_grc_reviewed_forms(
+    form_lemma: list[tuple[str, str]],
+    export_overrides: dict[str, str],
+    textbook_paradigms: dict[str, list[str]],
+    compatibility_forms: set[str],
+) -> tuple[list[tuple[str, str]], dict[str, int]]:
+    """Add closed-list, textbook-paradigm, and reviewed April forms.
+
+    These bypass the lookup and frequency gates, so they are added after
+    those gates and before sanitization and the structural filters.
+    """
+    out = list(form_lemma)
+    added = {"overrides": 0, "textbook": 0, "compatibility": 0}
+    existing_forms = {form for form, _lemma in out}
+    for form, lemma in export_overrides.items():
+        if form not in existing_forms:
+            out.append((form, lemma))
+            added["overrides"] += 1
+    existing_pairs = set(out)
+    for lemma, forms in textbook_paradigms.items():
+        for form in forms:
+            if (form, lemma) not in existing_pairs:
+                existing_pairs.add((form, lemma))
+                out.append((form, lemma))
+                added["textbook"] += 1
+    existing_forms = {form for form, _lemma in out}
+    for form in sorted(compatibility_forms - existing_forms):
+        out.append((form, form))
+        added["compatibility"] += 1
+    return out, added
+
+
+def finalize_grc_pairs(
+    form_lemma: list[tuple[str, str]],
+    *,
+    evidence: FormProfileEvidence,
+    compatibility_forms: set[str],
+    textbook_forms: set[str],
+    export_overrides: dict[str, str],
+    protected_forms: set[str],
+) -> tuple[list[tuple[str, str]], dict]:
+    """Apply the grc structural and evidence filters in release order.
+
+    The reviewed April surface (``compatibility_forms``) is exempt from every
+    rule a structural reviewer has already passed; ``protected_forms`` (top
+    citation headwords, textbook paradigms, closed lists) is exempt from the
+    corpus-evidence rules. Acute twins are generated last. A twin shares its
+    grave's exact-form key and so its corpus evidence, and the twin of a
+    reviewed baseline grave inherits that review: the grave and the acute are
+    one word, and the downstream oxytone check requires both. Twins are only
+    checked again for structure.
+    """
+    structural_protected = (
+        textbook_forms | set(export_overrides) | set(AG_FUNCTION_WORDS)
+    )
+    report: dict = {}
+    form_lemma, invalid = filter_grc_orthography(
+        form_lemma, compatibility_forms | structural_protected
+    )
+    report["invalid"] = dict(sorted(
+        Counter(
+            grc_pair_orthography_reason(form, lemma) or "unknown"
+            for form, lemma in invalid
+        ).items()
+    ))
+    form_lemma, new_structural = filter_new_tonos_structural_forms(
+        form_lemma, compatibility_forms, structural_protected,
+    )
+    report["new_structural"] = len(new_structural)
+    form_lemma, unattested = filter_unattested_new_forms(
+        form_lemma, evidence.exact, compatibility_forms, protected_forms,
+    )
+    report["unattested"] = len(unattested)
+    form_lemma, dominated = filter_dominated_spelling_variants(
+        form_lemma, evidence.exact, evidence.dominant, evidence.treebank,
+        compatibility_forms, protected_forms,
+    )
+    report["dominated"] = len(dominated)
+    before_twins = len(form_lemma)
+    form_lemma, acute_twins = add_contextual_acute_twins(
+        form_lemma, compatibility_forms
+    )
+    report["acute_twins"] = acute_twins
+    form_lemma, _ = filter_new_tonos_structural_forms(
+        form_lemma, compatibility_forms, structural_protected,
+    )
+    report["twin_dropped"] = before_twins + acute_twins - len(form_lemma)
+    return form_lemma, report
 
 
 def strip_accents(s: str) -> str:
@@ -541,13 +1321,142 @@ def load_freq_maps() -> tuple[dict[str, int], dict[str, int]]:
     return mg_freq, ag_freq
 
 
-def load_grc_form_freq() -> dict[str, int]:
-    """Load revision-pinned, accent-preserving full-LM form counts."""
-    if not GRC_FORM_FREQ.exists():
-        return {}
-    with gzip.open(GRC_FORM_FREQ, "rt", encoding="utf-8") as stream:
-        raw = json.load(stream)
-    return {form: int(count) for form, count in raw.get("forms", {}).items()}
+class FormProfileEvidence(NamedTuple):
+    """Exact-form corpus evidence from ``form_profile.db``.
+
+    ``exact`` maps :func:`exact_form_key` to the corpus count: the work-
+    deduplicated total, or the largest single-source count when that is
+    larger;
+    ``treebank`` maps the same key to its larger GLAUx or Diorisis count (the
+    two treebanks annotate largely the same texts, so they are not summed);
+    ``dominant`` maps :func:`mark_skeleton` to the count of the most frequent
+    well-formed spelling with those letters.
+    """
+    exact: dict[str, int]
+    dominant: dict[str, int]
+    treebank: dict[str, int]
+    metadata: dict[str, str]
+
+
+def load_form_profile_freq() -> FormProfileEvidence:
+    """Load full accent-preserving corpus counts and provenance.
+
+    Unlike the language-model vocabulary artifact, this database keeps forms
+    with a single occurrence and therefore covers the sparse inflectional
+    tail.  We recompute :func:`exact_form_key` from ``forms.form`` instead of
+    reading ``form_norm``: the profile's runtime key uses ``casefold()``, which
+    folds final sigma and iota subscript, while Hunspell admission deliberately
+    preserves both distinctions.
+    """
+    if not FORM_PROFILE_DB.exists():
+        return FormProfileEvidence({}, {}, {}, {})
+    conn = sqlite3.connect(str(FORM_PROFILE_DB))
+    try:
+        metadata = dict(conn.execute("SELECT key, value FROM meta"))
+        rows = conn.execute(
+            "SELECT f.form, p.total_count, p.source_counts_json "
+            "FROM forms f JOIN form_profile p USING(form_id)"
+        )
+        frequencies: dict[str, int] = defaultdict(int)
+        by_treebank: dict[str, dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
+        for form, count, source_counts in rows:
+            key = exact_form_key(form)
+            sources = json.loads(source_counts or "{}")
+            # total_count is deduplicated by work, so a spelling found only
+            # in a lower-priority source's copy of a work that a higher-
+            # priority source claims has total 0 (199,082 rows). Its own
+            # source count still attests it.
+            frequencies[key] += max(
+                int(count), max((int(n) for n in sources.values()), default=0)
+            )
+            for source in TREEBANK_PROFILE_SOURCES:
+                if sources.get(source):
+                    by_treebank[key][source] += int(sources[source])
+    finally:
+        conn.close()
+    treebank = {
+        key: max(counts.values()) for key, counts in by_treebank.items()
+    }
+    dominant: dict[str, int] = {}
+    for form, count in frequencies.items():
+        if grc_orthography_reason(form) is not None:
+            continue
+        skeleton = mark_skeleton(form)
+        dominant[skeleton] = max(dominant.get(skeleton, 0), count)
+    return FormProfileEvidence(frequencies, dominant, treebank, metadata)
+
+
+def load_top_lsj9_lemmas(limit: int = 2000) -> set[str]:
+    """Return the highest-frequency LSJ9 citation headwords."""
+    if not LSJ9_FREQUENCY.exists():
+        return set()
+    raw = json.loads(LSJ9_FREQUENCY.read_text(encoding="utf-8"))
+    ranked = sorted(
+        ((lemma, int(count)) for lemma, count in raw.items()),
+        key=lambda item: (-item[1], item[0]),
+    )[:limit]
+    normalized: set[str] = set()
+    for lemma, _count in ranked:
+        # LSJ9 inserts hyphens at inflectional boundaries and records vowel
+        # quantity with combining breve/macron. Neither belongs in ordinary
+        # citation spelling or in lookup.db's lemma text.
+        nfd = unicodedata.normalize("NFD", lemma.replace("-", ""))
+        plain = "".join(
+            char for char in nfd if ord(char) not in {0x0304, 0x0306}
+        )
+        normalized.add(unicodedata.normalize("NFC", plain))
+    return normalized
+
+
+def load_lm_head_required_forms() -> set[str]:
+    """Return the reviewed real words among the LM's most frequent forms,
+    in the spelling the dictionary stores (contextual grave read as acute,
+    final elision mark canonicalized)."""
+    if not LM_HEAD_FIXTURE.exists() or not LM_HEAD_EXCLUSIONS.exists():
+        return set()
+    fixture = json.loads(LM_HEAD_FIXTURE.read_text(encoding="utf-8"))
+    excluded = {
+        row["form"] for row in json.loads(
+            LM_HEAD_EXCLUSIONS.read_text(encoding="utf-8")
+        )["exclusions"]
+    }
+    return {
+        canonicalize_final_elision(
+            contextual_acute(unicodedata.normalize("NFC", row["form"]))
+        )
+        for row in fixture["forms"]
+        if row["form"] not in excluded
+    }
+
+
+def load_grc_compatibility_forms() -> tuple[set[str], dict]:
+    """Load the structurally reviewed April acceptance baseline."""
+    if not GRC_COMPATIBILITY_FORMS.exists():
+        return set(), {}
+    with gzip.open(GRC_COMPATIBILITY_FORMS, "rt", encoding="utf-8") as stream:
+        payload = json.load(stream)
+    if payload.get("schema_version") != 1:
+        raise ValueError(
+            f"unsupported compatibility fixture: {GRC_COMPATIBILITY_FORMS}"
+        )
+    return set(payload.get("forms", [])), payload
+
+
+def load_grc_textbook_forms() -> tuple[set[str], dict]:
+    """Load the pinned standard paradigms used by the artifact gate."""
+    if not GRC_TEXTBOOK_FORMS.exists():
+        return set(), {}
+    with gzip.open(GRC_TEXTBOOK_FORMS, "rt", encoding="utf-8") as stream:
+        payload = json.load(stream)
+    if payload.get("schema_version") != 1:
+        raise ValueError(f"unsupported textbook fixture: {GRC_TEXTBOOK_FORMS}")
+    paradigms = payload.get("paradigms", {})
+    forms = {
+        form for lemma_forms in paradigms.values() for form in lemma_forms
+    }
+    return forms, payload
 
 
 def load_independent_ag_headwords() -> set[str]:
@@ -568,28 +1477,32 @@ def load_independent_ag_headwords() -> set[str]:
 
 def is_bare_elision_fallback(
     form: str,
-    elided_base_keys: set[str],
-    attestation_freq: dict[str, int],
+    lemma: str,
+    elided_pair_keys: set[tuple[str, str]],
     independent_headwords: set[str],
 ) -> bool:
     """Return whether *form* is an apostrophe-less elision fallback.
 
     The lookup intentionally accepts tolerant stems such as ``ἀφ`` for
     ``ἀφ᾽``. They are unsuitable dictionary words. A bare spelling is rejected
-    when lookup also contains its marked counterpart, the marked spelling is
-    more frequent in the pinned accent-preserving LM, and neither DGE nor
-    Cunliffe establishes the bare spelling as a headword. This keeps genuine
-    collisions such as ``ἄν`` while covering the class beyond a fixed list.
+    when lookup also contains its marked counterpart under the same lemma and
+    neither DGE nor Cunliffe establishes the bare spelling as a headword. This
+    keeps genuine collisions such as ``ἄν`` (whose marked spelling belongs
+    to ``ἀνά``), while covering the class beyond a fixed list.
     """
     clean = canonicalize_final_elision(sanitize_form(form))
     if not clean or clean.endswith("\u1fbd"):
         return False
-    key = exact_form_key(clean)
-    if key not in elided_base_keys or key in independent_headwords:
+    bases = _greek_bases(clean)
+    if (not bases
+            or bases[-1][0].lower() in GREEK_VOWELS | frozenset("νρςξψ")):
         return False
-    return exact_freq_lookup(clean + "\u1fbd", attestation_freq) > (
-        exact_freq_lookup(clean, attestation_freq)
-    )
+    key = exact_form_key(clean)
+    if (clean.lower() in AG_FUNCTION_WORDS
+            or key in independent_headwords
+            or (key, exact_form_key(lemma)) not in elided_pair_keys):
+        return False
+    return True
 
 
 def get_git_commit() -> str:
@@ -703,11 +1616,14 @@ def select_forms(
             """
         )
         by_lemma: dict[str, list[str]] = defaultdict(list)
-        elided_base_keys: set[str] = set()
+        elided_pair_keys: set[tuple[str, str]] = set()
         for form, lemma in rows:
             canonical_form = canonicalize_final_elision(sanitize_form(form))
             if canonical_form.endswith("\u1fbd"):
-                elided_base_keys.add(exact_form_key(canonical_form[:-1]))
+                elided_pair_keys.add((
+                    exact_form_key(canonical_form[:-1]),
+                    exact_form_key(lemma),
+                ))
             if form in BARE_ELISION_STEMS:
                 continue
             if not has_any_diacritic(form):
@@ -728,16 +1644,15 @@ def select_forms(
             )
             if not is_canonical_keep and not is_attested_keep:
                 if not any(has_polytonic(f) for f in forms):
-                    continue  # pure-monotonic lemma, not AG
-                # also require lemma text itself is diacritic-bearing
+                    continue
                 if not has_any_diacritic(lemma):
                     continue
             for f in forms:
                 if (attestation_freq is not None
                         and is_bare_elision_fallback(
                             f,
-                            elided_base_keys,
-                            attestation_freq,
+                            lemma,
+                            elided_pair_keys,
                             independent_headwords,
                         )):
                     continue
@@ -771,6 +1686,7 @@ def filter_by_lemma_freq(
     min_lemma_count: int = 1,
     strict_acute_min: int | None = None,
     strict_form_freq_map: dict[str, int] | None = None,
+    keep_forms: set[str] | None = None,
 ) -> list[tuple[str, str]]:
     """Drop lemmas whose most-frequent form is below min_lemma_count.
 
@@ -785,10 +1701,13 @@ def filter_by_lemma_freq(
     kept when their lemma is kept. This is mainly used for the AG
     polytonic variant, where the DB carries many acute-only inflections
     that are not canonical AG spellings (e.g. post-Byzantine usage).
+    ``keep_forms`` (pinned textbook cells and citation headwords) are exempt
+    from that per-form requirement.
     """
     if min_lemma_count <= 0 and strict_acute_min is None:
         return form_lemma
 
+    pinned_forms = keep_forms or set()
     by_lemma: dict[str, list[str]] = defaultdict(list)
     for form, lemma in form_lemma:
         by_lemma[lemma].append(form)
@@ -810,7 +1729,9 @@ def filter_by_lemma_freq(
     for form, lemma in form_lemma:
         if lemma not in keep_lemmas:
             continue
-        if strict_acute_min is not None and not has_polytonic(form):
+        if (strict_acute_min is not None
+                and not has_polytonic(form)
+                and form not in pinned_forms):
             # acute-only or undecorated form: require per-form count
             if strict_form_freq_map is None:
                 count = freq_lookup(form, freq_map)
@@ -836,8 +1757,8 @@ def sanitize_export_pairs(
     editorial_dropped = 0
     dedup: set[tuple[str, str]] = set()
     for form, lemma in form_lemma:
-        clean_form = sanitize_form(form)
-        clean_lemma = sanitize_form(lemma)
+        clean_form = canonicalize_final_elision(sanitize_form(form))
+        clean_lemma = canonicalize_final_elision(sanitize_form(lemma))
         if not clean_form:
             continue
         if (has_editorial_sigla(clean_form)
@@ -1116,18 +2037,56 @@ def run_export(sanity: int | None, variants: list[str],
 
     print("Loading frequency maps...")
     mg_freq, ag_freq = load_freq_maps()
-    grc_form_freq = load_grc_form_freq() if "grc" in variants else {}
+    profile = (
+        load_form_profile_freq() if "grc" in variants
+        else FormProfileEvidence({}, {}, {}, {})
+    )
+    grc_form_freq = profile.exact
+    profile_meta = profile.metadata
     print(f"  MG freq: {len(mg_freq):,} entries")
     print(f"  AG freq: {len(ag_freq):,} entries")
     if "grc" in variants:
         if not grc_form_freq:
-            print(f"ERROR: {GRC_FORM_FREQ} is required for accent-preserving "
-                  "grc attestation", file=sys.stderr)
+            print(f"ERROR: {FORM_PROFILE_DB} is required for full, "
+                  "accent-preserving grc attestation; download it with "
+                  "`python -m dilemma download --with-attestation`",
+                  file=sys.stderr)
             sys.exit(1)
-        print(f"  AG exact-form freq: {len(grc_form_freq):,} entries")
+        print(f"  AG exact-form profile: {len(grc_form_freq):,} entries")
+        print(f"  AG form-profile hash: "
+              f"{profile_meta.get('content_hash', 'unknown')}")
     canonical_forms, canonical_lemmas = load_canonical_ag_sets()
+    top_lsj9_lemmas = load_top_lsj9_lemmas()
+    compatibility_forms, compatibility_meta = (
+        load_grc_compatibility_forms() if "grc" in variants else (set(), {})
+    )
+    textbook_forms, textbook_meta = (
+        load_grc_textbook_forms() if "grc" in variants else (set(), {})
+    )
+    if "grc" in variants and not compatibility_forms:
+        print(f"ERROR: {GRC_COMPATIBILITY_FORMS} is required for the "
+              "whole-artifact no-regression gate", file=sys.stderr)
+        sys.exit(1)
+    if "grc" in variants and not textbook_forms:
+        print(f"ERROR: {GRC_TEXTBOOK_FORMS} is required for the textbook "
+              "paradigm gate", file=sys.stderr)
+        sys.exit(1)
+    # Closed lists and pinned forms: exempt from the corpus-evidence filters
+    # and pinned to the common frequency bucket.
+    export_overrides = GRC_CLOSED_LIST_FORMS
+    lm_head_forms = load_lm_head_required_forms() if "grc" in variants else set()
+    grc_protected_forms = grc_pinned_forms(
+        canonical_forms, top_lsj9_lemmas, textbook_forms, lm_head_forms
+    )
     print(f"  AG canonical forms (pin to C): {len(canonical_forms):,}")
     print(f"  AG canonical lemmas (pin to C): {len(canonical_lemmas):,}")
+    if "grc" in variants:
+        baseline = compatibility_meta.get("baseline", {})
+        print(f"  AG compatibility forms: {len(compatibility_forms):,} "
+              f"(baseline {baseline.get('version', 'unknown')} "
+              f"{str(baseline.get('commit', 'unknown'))[:7]})")
+        print(f"  AG textbook forms: {len(textbook_forms):,} "
+              f"(source {textbook_meta.get('source', {}).get('sha256', 'unknown')[:12]})")
     print()
 
     conn = sqlite3.connect(str(LOOKUP_DB))
@@ -1135,7 +2094,10 @@ def run_export(sanity: int | None, variants: list[str],
 
     for variant in variants:
         print(f"=== Variant: {variant} ===")
-        keep = canonical_lemmas if variant == "grc" else None
+        keep = (
+            canonical_lemmas | top_lsj9_lemmas | GRC_COMPLETE_PARADIGM_LEMMAS
+            if variant == "grc" else None
+        )
         form_lemma = select_forms(
             conn,
             variant,
@@ -1177,9 +2139,10 @@ def run_export(sanity: int | None, variants: list[str],
         if threshold > 0:
             fm = mg_freq if variant == "el" else ag_freq
             before = len(form_lemma)
-            # For AG, additionally require acute-only forms to themselves
-            # be corpus-attested (>= 1) - this trims post-Byzantine
-            # spellings that lookup.db carries for fallback only.
+            # Sparse acute-only forms are checked against the complete
+            # accent-preserving corpus profile, not the LM vocabulary (whose
+            # minimum count is 20).  Textbook paradigms and top citation
+            # headwords are explicit, reviewable exceptions.
             strict = 1 if variant == "grc" else None
             form_lemma = filter_by_lemma_freq(
                 form_lemma, fm,
@@ -1187,6 +2150,8 @@ def run_export(sanity: int | None, variants: list[str],
                 strict_acute_min=strict,
                 strict_form_freq_map=(grc_form_freq
                                       if variant == "grc" else None),
+                keep_forms=((top_lsj9_lemmas | textbook_forms)
+                            if variant == "grc" else None),
             )
             print(f"  After freq filter (>= {threshold}"
                   f"{', strict_acute>=1' if strict else ''}): "
@@ -1210,19 +2175,21 @@ def run_export(sanity: int | None, variants: list[str],
             # runtime-resolved forms are exceptions to the lookup/frequency
             # gate. Inject them after filtering so sparse source ownership
             # cannot silently remove them.
-            existing_forms = {f for f, _ in form_lemma}
-            added = 0
-            export_overrides = (
-                AG_FUNCTION_WORDS
-                | AG_EXPORT_OVERRIDES
-                | HOMERIC_SHORT_PREPOSITIONS
+            # A sanity pass stays small: it does not carry the 1.18M-form
+            # April surface, so its output does not satisfy the release audit.
+            form_lemma, added = add_grc_reviewed_forms(
+                form_lemma,
+                export_overrides,
+                textbook_meta.get("paradigms", {}),
+                set() if sanity else compatibility_forms,
             )
-            for form, lemma in export_overrides.items():
-                if form not in existing_forms:
-                    form_lemma.append((form, lemma))
-                    added += 1
-            if added:
-                print(f"  +{added} AG closed-list/override forms")
+            if added["overrides"]:
+                print(f"  +{added['overrides']} AG closed-list/override forms")
+            if added["textbook"]:
+                print(f"  +{added['textbook']:,} pinned textbook-paradigm forms")
+            if added["compatibility"]:
+                print(f"  +{added['compatibility']:,} reviewed April "
+                      "compatibility forms")
 
         # Belt-and-braces guard: sanitize every form so a misplaced combining
         # breathing (leading U+0313/U+0314 or trailing U+0313/U+0314 used as
@@ -1241,10 +2208,36 @@ def run_export(sanity: int | None, variants: list[str],
         form_lemma = sanitized
 
         if variant == "grc":
-            form_lemma, invalid_initial = filter_grc_orthography(form_lemma)
-            if invalid_initial:
-                print(f"  Guard: dropped {len(invalid_initial):,} forms with "
-                      "an unbreathed initial vowel or rho")
+            form_lemma, report = finalize_grc_pairs(
+                form_lemma,
+                evidence=profile,
+                compatibility_forms=compatibility_forms,
+                textbook_forms=textbook_forms,
+                export_overrides=export_overrides,
+                protected_forms=grc_protected_forms,
+            )
+            if report["invalid"]:
+                detail = ", ".join(
+                    f"{reason}={count:,}"
+                    for reason, count in sorted(report["invalid"].items())
+                )
+                print(f"  Guard: dropped {sum(report['invalid'].values()):,} "
+                      f"structurally invalid forms ({detail})")
+            for key, message in (
+                ("new_structural", "new truncated/smooth-upsilon forms"),
+                ("unattested", "unreviewed, unattested post-April "
+                               "generated forms"),
+                ("dominated", "weak new respellings of a more common "
+                              "spelling"),
+            ):
+                if report[key]:
+                    print(f"  Guard: dropped {report[key]:,} {message}")
+            if report["acute_twins"]:
+                print(f"  +{report['acute_twins']:,} contextual-grave "
+                      "acute twins")
+            if report["twin_dropped"]:
+                print(f"  Guard: dropped {report['twin_dropped']:,} derived "
+                      "twins (structure or weak respelling)")
 
         if variant == "el":
             stats = write_variant(
@@ -1267,7 +2260,13 @@ def run_export(sanity: int | None, variants: list[str],
                 lang_tag="grc",
                 version=version,
                 commit=commit,
-                canonical_forms=canonical_forms,
+                # Frequency bucket C: curated forms, top citation
+                # headwords, and the reviewed LM head, so an unaccented
+                # λυω ranks λύω first. Textbook cells and closed-list forms
+                # keep their corpus bucket.
+                canonical_forms=(
+                    canonical_forms | top_lsj9_lemmas | lm_head_forms
+                ),
                 canonical_lemmas=canonical_lemmas,
             )
 

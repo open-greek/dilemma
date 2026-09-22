@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit the grc Hunspell export against the language-model frequency head.
+"""Audit grc Hunspell coverage at the frequency head and over all entries.
 
 The LM vocabulary contains structural sentinels, punctuation-bearing tokens,
 Modern Greek intrusions, and source defects as well as words. This gate ranks
@@ -13,6 +13,10 @@ the complete LM build. Its source hashes make regeneration against a different
 vocabulary or unigram table explicit. JSON sources require a non-sanity
 ``stats.json``. The format-v2 LM binary is also accepted because it embeds the
 exact exported vocabulary and unigram counts.
+
+The same command enforces the reviewed April acceptance surface, top LSJ9
+citation headwords, complete textbook paradigms, grave/acute twins, structural
+spelling hygiene, and pinned held-out corpus rejection ceilings.
 """
 from __future__ import annotations
 
@@ -35,7 +39,21 @@ from dilemma.form_sanitize import (  # noqa: E402
     canonicalize_final_elision,
     sanitize_form,
 )
-from export_hunspell import has_required_initial_breathing  # noqa: E402
+from export_hunspell import (  # noqa: E402
+    BARE_ELISION_STEMS,
+    FORM_PROFILE_DB,
+    GRC_CLOSED_LIST_FORMS,
+    contextual_acute,
+    filter_dominated_spelling_variants,
+    grc_orthography_reason,
+    grc_pinned_forms,
+    load_canonical_ag_sets,
+    load_form_profile_freq,
+    load_grc_textbook_forms,
+    load_lm_head_required_forms,
+    load_top_lsj9_lemmas,
+    new_form_structural_reason,
+)
 
 DEFAULT_VOCAB = ROOT / "build" / "lm" / "vocab.json"
 DEFAULT_UNIGRAMS = ROOT / "build" / "lm" / "unigrams.json"
@@ -45,7 +63,18 @@ DEFAULT_FIXTURE = ROOT / "tests" / "fixtures" / "hunspell_lm_top1000.json"
 DEFAULT_EXCLUSIONS = (
     ROOT / "tests" / "fixtures" / "hunspell_lm_top1000_exclusions.json"
 )
+DEFAULT_COMPATIBILITY = ROOT / "data" / "hunspell_grc_april_compat.json.gz"
+DEFAULT_HELDOUT = ROOT / "tests" / "fixtures" / "hunspell_heldout.json.gz"
 DEFAULT_TOP_N = 1000
+# Top-2,000 LSJ9 headwords that are not single dictionary words. Every other
+# headword must be accepted, so a structural rule that rejects a real
+# headword fails the audit instead of shrinking it.
+CITATION_HEADWORD_EXCLUSIONS = {
+    "οὐ μή": "two-word phrase",
+    "μὴ οὐ": "two-word phrase",
+    "καί τοι": "two-word spelling of καίτοι",
+    "βίοςι": "LSJ9 extraction artifact",
+}
 
 
 def sha256(path: Path) -> str:
@@ -339,13 +368,146 @@ def expanded_export_forms(dictionary_base: Path) -> tuple[set[str], set[str]]:
     return forms, flags_without_identity
 
 
-def audit_export_orthography(dictionary_base: Path) -> tuple[list[str], list[str]]:
-    """Find emitted unbreathed forms and synthetic flagged dictionary bases."""
+def audit_export_orthography(
+    dictionary_base: Path,
+    reviewed: set[str] | frozenset[str] = frozenset(),
+) -> tuple[list[str], list[str]]:
+    """Find structurally invalid forms and synthetic flagged dictionary bases.
+
+    ``reviewed`` forms (the April baseline and the closed lists) are exempt
+    from the structural rules, exactly as in the exporter; bare elision
+    stems never are.
+    """
     forms, flags_without_identity = expanded_export_forms(dictionary_base)
-    invalid_initial = sorted(
-        form for form in forms if not has_required_initial_breathing(form)
+    invalid = sorted(
+        form for form in forms
+        if (form not in reviewed and grc_orthography_reason(form) is not None)
+        or form in BARE_ELISION_STEMS
     )
-    return invalid_initial, sorted(flags_without_identity)
+    return invalid, sorted(flags_without_identity)
+
+
+def load_gzip_fixture(path: Path, schema_version: int = 1) -> dict:
+    with gzip.open(path, "rt", encoding="utf-8") as stream:
+        payload = json.load(stream)
+    if payload.get("schema_version") != schema_version:
+        raise ValueError(f"unsupported fixture schema in {path}")
+    return payload
+
+
+def audit_whole_artifact(
+    dictionary_base: Path,
+    compatibility_path: Path = DEFAULT_COMPATIBILITY,
+) -> dict[str, list[str]]:
+    """Audit all expanded entries, not only forms in the LM vocabulary."""
+    forms, flags_without_identity = expanded_export_forms(dictionary_base)
+    compatibility = load_gzip_fixture(compatibility_path)
+    required = set(compatibility.get("forms", []))
+    reviewed = required | set(GRC_CLOSED_LIST_FORMS)
+    invalid = sorted(
+        form for form in forms
+        if (form not in reviewed and grc_orthography_reason(form) is not None)
+        or form in BARE_ELISION_STEMS
+    )
+    # The acute twin of a reviewed grave inherits its review (see
+    # export_hunspell.finalize_grc_pairs).
+    inherited = {contextual_acute(form) for form in required}
+    grave_without_acute = sorted(
+        form for form in forms
+        if (contextual_acute(form) != form
+            and contextual_acute(form) not in forms
+            and grc_orthography_reason(contextual_acute(form)) is None
+            and new_form_structural_reason(contextual_acute(form)) is None)
+    )
+    citation_headwords = (
+        load_top_lsj9_lemmas(2000) - set(CITATION_HEADWORD_EXCLUSIONS)
+    )
+    return {
+        "compatibility_missing": sorted(required - forms),
+        "invalid_forms": invalid,
+        "grave_without_acute": grave_without_acute,
+        "citation_headwords_missing": sorted(citation_headwords - forms),
+        "flags_without_identity": sorted(flags_without_identity),
+        "weak_respellings": weak_respellings(forms - required - inherited),
+    }
+
+
+def weak_respellings(new_forms: set[str]) -> list[str]:
+    """New entries that fail the exporter's respelling-evidence rule.
+
+    The exporter applies the rule before affix compression and again to the
+    acute twins it derives; this checks the expanded result, so a later step
+    cannot reintroduce ``ἑγώ`` beside ``ἐγώ``.
+    """
+    if not FORM_PROFILE_DB.exists():
+        raise RuntimeError(
+            f"{FORM_PROFILE_DB} is required for the respelling audit; "
+            "run `python -m dilemma download --with-attestation`"
+        )
+    profile = load_form_profile_freq()
+    canonical_forms, _canonical_lemmas = load_canonical_ag_sets()
+    textbook_forms, _textbook_meta = load_grc_textbook_forms()
+    _kept, rejected = filter_dominated_spelling_variants(
+        [(form, form) for form in sorted(new_forms)],
+        profile.exact, profile.dominant, profile.treebank,
+        compatibility_forms=set(),
+        protected_forms=grc_pinned_forms(
+            canonical_forms, load_top_lsj9_lemmas(), textbook_forms,
+            load_lm_head_required_forms(),
+        ),
+    )
+    return [form for form, _lemma in rejected]
+
+
+def textbook_paradigm_forms() -> set[str]:
+    """Return the pinned standard forms for the release-gate paradigms."""
+    forms, _metadata = load_grc_textbook_forms()
+    return forms
+
+
+def audit_textbook_paradigms(dictionary_base: Path) -> list[str]:
+    forms, _flags = expanded_export_forms(dictionary_base)
+    return sorted(textbook_paradigm_forms() - forms)
+
+
+def measure_heldout_corpora(
+    dictionary_base: Path,
+    fixture_path: Path = DEFAULT_HELDOUT,
+) -> dict[str, dict[str, int]]:
+    """Measure candidate and April rejection counts on held-out corpora."""
+    try:
+        from spylls.hunspell import Dictionary
+    except ImportError as exc:  # pragma: no cover - exercised by CLI users
+        raise RuntimeError("install spylls to audit held-out corpora") from exc
+    dictionary = Dictionary.from_files(str(dictionary_base))
+    fixture = load_gzip_fixture(fixture_path)
+    metrics: dict[str, dict[str, int]] = {}
+    for name, corpus in fixture["corpora"].items():
+        rows = corpus["forms"]
+        rejected_types = sum(
+            1 for form, _count in rows if not dictionary.lookup(form)
+        )
+        rejected_tokens = sum(
+            int(count) for form, count in rows if not dictionary.lookup(form)
+        )
+        baseline = corpus["baseline"]
+        metrics[name] = {
+            "rejected_types": rejected_types,
+            "baseline_rejected_types": int(baseline["rejected_types"]),
+            "rejected_tokens": rejected_tokens,
+            "baseline_rejected_tokens": int(baseline["rejected_tokens"]),
+        }
+    return metrics
+
+
+def heldout_regressions(
+    metrics: dict[str, dict[str, int]],
+) -> dict[str, dict[str, int]]:
+    return {
+        name: row for name, row in metrics.items()
+        if (row["rejected_types"] > row["baseline_rejected_types"]
+            or row["rejected_tokens"] > row["baseline_rejected_tokens"])
+    }
 
 
 def compare_dictionary_coverage(
@@ -416,6 +578,14 @@ def main() -> int:
     parser.add_argument("--dictionary", type=Path, default=DEFAULT_DICTIONARY)
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument("--exclusions", type=Path, default=DEFAULT_EXCLUSIONS)
+    parser.add_argument(
+        "--compatibility", type=Path, default=DEFAULT_COMPATIBILITY,
+        help="reviewed whole-artifact acceptance baseline",
+    )
+    parser.add_argument(
+        "--heldout", type=Path, default=DEFAULT_HELDOUT,
+        help="accent-preserving held-out corpus fixture",
+    )
     parser.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
     parser.add_argument("--write-fixture", action="store_true")
     parser.add_argument(
@@ -512,25 +682,72 @@ def main() -> int:
     missing, accepted_exclusions = audit_dictionary(
         args.dictionary, generated, exclusions
     )
-    invalid_initial, synthetic_flags = audit_export_orthography(args.dictionary)
+    whole = audit_whole_artifact(args.dictionary, args.compatibility)
+    paradigm_missing = audit_textbook_paradigms(args.dictionary)
+    heldout_metrics = measure_heldout_corpora(args.dictionary, args.heldout)
+    heldout_failures = heldout_regressions(heldout_metrics)
     total = sum(row["count"] for row in generated["forms"])
     required = args.top_n - len(exclusions)
     print(f"top {args.top_n}: {required - len(missing)}/{required} required "
           f"forms accepted; {len(exclusions) - len(accepted_exclusions)}/"
           f"{len(exclusions)} reviewed nonwords rejected ({total:,} LM tokens)")
+    compatibility_count = len(load_gzip_fixture(args.compatibility)["forms"])
+    citation_count = len(
+        load_top_lsj9_lemmas(2000) - set(CITATION_HEADWORD_EXCLUSIONS)
+    )
+    paradigm_count = len(textbook_paradigm_forms())
+    print(
+        "whole artifact: "
+        f"{compatibility_count - len(whole['compatibility_missing']):,}/"
+        f"{compatibility_count:,} reviewed April forms; "
+        f"{citation_count - len(whole['citation_headwords_missing']):,}/"
+        f"{citation_count:,} top citation headwords; "
+        f"{paradigm_count - len(paradigm_missing):,}/{paradigm_count:,} "
+        "textbook paradigm forms"
+    )
+    print(
+        "whole artifact hygiene: "
+        f"{len(whole['invalid_forms'])} invalid forms, "
+        f"{len(whole['grave_without_acute'])} missing acute twins, "
+        f"{len(whole['flags_without_identity'])} non-identity flags, "
+        f"{len(whole['weak_respellings'])} new weak respellings; "
+        f"{len(heldout_failures)} regression-corpus failures"
+    )
+    for name, metrics in heldout_metrics.items():
+        print(
+            f"regression corpus {name}: candidate rejects "
+            f"{metrics['rejected_tokens']:,} tokens/"
+            f"{metrics['rejected_types']:,} types; April "
+            f"{metrics['baseline_rejected_tokens']:,}/"
+            f"{metrics['baseline_rejected_types']:,}"
+        )
     if missing:
         print("missing required: " + ", ".join(missing), file=sys.stderr)
     if accepted_exclusions:
         print("accepted reviewed nonwords: " + ", ".join(accepted_exclusions),
               file=sys.stderr)
-    if invalid_initial:
-        print(f"accepted forms without required initial breathing "
-              f"({len(invalid_initial)}): " + ", ".join(invalid_initial[:50]),
-              file=sys.stderr)
-    if synthetic_flags:
-        print("flags without identity rules: " + ", ".join(synthetic_flags),
-              file=sys.stderr)
-    if missing or accepted_exclusions or invalid_initial or synthetic_flags:
+    labels = {
+        "compatibility_missing": "April-compatible forms missing",
+        "invalid_forms": "structurally invalid accepted forms",
+        "grave_without_acute": "grave forms without acute twins",
+        "citation_headwords_missing": "top citation headwords missing",
+        "flags_without_identity": "flags without identity rules",
+        "weak_respellings": "new weak respellings of a common spelling",
+    }
+    for key, label in labels.items():
+        rows = whole[key]
+        if rows:
+            print(f"{label} ({len(rows)}): " + ", ".join(rows[:50]),
+                  file=sys.stderr)
+    if paradigm_missing:
+        print(f"textbook paradigm forms missing ({len(paradigm_missing)}): "
+              + ", ".join(paradigm_missing[:50]), file=sys.stderr)
+    if heldout_failures:
+        for name, metrics in heldout_failures.items():
+            print(f"held-out regression {name}: {metrics}", file=sys.stderr)
+    whole_failures = any(whole.values())
+    if (missing or accepted_exclusions or whole_failures
+            or paradigm_missing or heldout_failures):
         return 1
     return 0
 
