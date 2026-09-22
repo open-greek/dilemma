@@ -6,6 +6,97 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Replace the 1.3.5 Hunspell acute-only admission boundary (the 76,153-form
+  language-model vocabulary, whose minimum count was 20) with the full
+  accent-preserving `form_profile.db`. Sparse attested forms and complete
+  textbook paradigms now survive, including `λύω`, `ποιέω`, epic/dialect
+  forms, New Testament and Septuagint vocabulary, and future passives. The top
+  2,000 LSJ9 headwords are normalized out of dictionary display notation and
+  retained as citation forms.
+- Emit the acute citation/before-pause twin of every retained contextual-grave
+  form. Productive enclitic second accents are retained when removing the
+  final acute yields an independently attested proparoxytone or
+  properispomenon host (`θάλασσάν`, `δῶρόν`); a paroxytone host never takes
+  one, so `λύκοί` and `ὕπνῴ` are rejected.
+- Reject punctuation-bearing entries, internal breathings left by bad preverb
+  joins, impossible accent placement including a grave before the final
+  syllable (`καὶτοὺς`) or on an elided word (`γὰρ᾽`), malformed sigma, and
+  known high-impact accent errors.
+  New post-April forms also require exact attestation or membership in a
+  pinned citation, textbook, grammar, or productive second-accent class,
+  preventing orthographically plausible generator noise from riding in on a
+  lemma's frequency. Structural checks run over the complete expanded
+  artifact, not only the LM vocabulary.
+- Reject weak new respellings of common words. A new spelling that differs
+  only in accent, breathing, diaeresis, or iota subscript from a well-formed
+  spelling with at least 1,000 corpus tokens needs GLAUx or Diorisis support:
+  25 tokens below a 1% share of the common spelling's count, 5 below 5%.
+  This removes OCR copies such as `ἑγώ`, `ταΐς`, `ἐκεί`, and `ὄσα` (`ταΐς` had
+  outranked `ταῖς` as Tonos's correction for `ταις`) while keeping Doric
+  `τᾷ` and `τῶ`.
+- Accept valid elided forms the April dictionary lacked, such as `δι᾽`,
+  `παρ᾽`, `γ᾽`, and `θ᾽`, and the complete consonant-final words `ἔκ` and
+  `παρέκ`.
+- Pin the 971 reviewed forms of the language-model head, so the corpus
+  evidence filters cannot drop a form the release audit requires, such as the
+  polytonic Modern article `τή`, which the Ancient Greek corpora behind
+  `form_profile.db` barely attest. In the head fixture, `κα-` is no longer a
+  reviewed nonword (its spelling `κα` is the Doric particle), and `δῑ`, a
+  Diorisis Beta Code artifact of elided `δι᾽`, is.
+- Keep valid spellings the structural rules would otherwise misread, all of
+  which the April dictionary accepted: accentless dialect proclitics and
+  enclitics (`ἁ`, `αἰ`, `εἰν`, `ἐντι`), crasis of `καί` or the article with a
+  proclitic (`κἀν`, `κοὐκ`, `χὠ`, `τἀν`), crasis with a later coronis or with
+  vocative `ὦ` (`ἐγᾦμαι`, `μέντἄν`, `καλοκἀγαθία`, `ὦνθρωπε`), fused
+  enclitics that leave the host's accent in place (`οὗτινος`, `ᾧτινι`,
+  `τοῖσιδε`), iota adscript after a long vowel (`ζῶια`, `τῆιδε`), Ionic `ωυ`
+  crasis (`τωὐτό`), `πῃ`, Homeric `ὑπέκ` and `διέκ`, and indeclinable
+  Septuagint loanwords (`χερουβίμ`, `ἐφούδ`, `σαβαώθ`).
+- Stop giving textbook cells and closed-list forms the common frequency
+  bucket: only curated forms, top citation headwords, and the language-model
+  head are pinned to `fr:C`. Reviewed April forms are no longer added a
+  second time under a placeholder lemma, which had written 949 words twice
+  with conflicting buckets.
+- Treat a spelling as attested when any single source attests it.
+  `form_profile.db` deduplicates totals by work, so 199,082 spellings found
+  only in a lower-priority copy of a work had a total of 0 and were dropped as
+  unattested.
+- Generalize same-lemma bare-elision detection while limiting the mechanism to
+  suspicious final consonants, so real inflections ending in `ν`, `ρ`, `ς`,
+  `ξ`, or `ψ` are not mistaken for fallbacks. Preserve the reviewed Homeric
+  apocope forms, `οὐκ`/`οὐχ`, and the complete unaccented enclitic lists,
+  including `εἰμί` forms; keep `του` and `τῳ` rejected for Tonos correction.
+
+### Changed
+- CI now downloads `data/form_profile.db` (tracked in `scripts/hf_data.py`)
+  so it can build and audit the grc Hunspell export, and the test job's time
+  limit is 45 minutes.
+
+### Added
+- Add a content-pinned whole-artifact compatibility fixture: the dictionary
+  Tonos shipped in April (the Dilemma 0.4.1 export as the keyboard compiled
+  it) minus the forms Tonos's candidate gate classes as junk. The
+  release audit requires all 1,179,659 forms, every top-2,000 LSJ9 headword
+  except three two-word phrases and one extraction artifact, all 2,170 pinned
+  textbook paradigm forms, complete grave/acute twins, and zero synthetic
+  flagged bases, new weak respellings, or structurally invalid entries outside
+  the reviewed April surface (984 of whose forms fail Dilemma's structural
+  rules and are left for review downstream).
+- Pin the textbook paradigms of `λύω`, `παιδεύω`, `τίθημι`, `δίδωμι`,
+  `ἵστημι`, `τιμάω`, `ποιέω`, and `δηλόω` from the generated paradigm data
+  after a recorded review (`data/hunspell_grc_textbook_review.json`) that
+  removes 95 wrong cells (`λύ` for `λύεις`, `λύσαν` for `λῦσαν`, Doric and
+  Ionic forms in Attic slots) and adds standard cells the generator lacks
+  (`δίδωσι`, `τίθησι`, `ἔδωκα`, `ποιεῖσθαι`), each corroborated by
+  `lookup.db` or corpus attestation. Vowel-length marks are removed.
+- Add exact-form regression gates for the New Testament (Perseus), the
+  Septuagint (First1KGreek), Iliad 1, Herodotus 1, and a Katharevousa sample.
+  Every source file is pinned by SHA-256, and a candidate may not exceed the
+  April `.dic`/`.aff` pair's rejection count on either tokens or types. The
+  corpora are in `form_profile.db`, so the gate guards against regression; it
+  does not measure coverage of unseen text.
+
 ## [1.3.5] - 2026-09-21
 
 ### Fixed

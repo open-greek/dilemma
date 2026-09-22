@@ -1,34 +1,49 @@
 """Corpus-head coverage regressions for the Ancient Greek Hunspell export."""
 from __future__ import annotations
 
-import gzip
 import json
 import sqlite3
+import unicodedata
 from pathlib import Path
 
 import pytest
 
 from export_lm import write_binary
 from scripts.audit_hunspell_frequency import (
+    DEFAULT_COMPATIBILITY,
+    DEFAULT_HELDOUT,
     audit_dictionary,
     audit_export_orthography,
+    audit_textbook_paradigms,
+    audit_whole_artifact,
+    heldout_regressions,
+    measure_heldout_corpora,
     fixture_payload_from_binary,
     fixture_payload_from_json,
+    load_gzip_fixture,
     load_exclusions,
     lookup_form,
 )
+from scripts.build_hunspell_heldout_fixture import exact_tokens
 from export_hunspell import (
-    AG_EXPORT_OVERRIDES,
-    AG_FUNCTION_WORDS,
     BARE_ELISION_STEMS,
-    GRC_FORM_FREQ,
+    FORM_PROFILE_DB,
+    GRC_CLOSED_LIST_FORMS,
+    GRC_COMPLETE_PARADIGM_LEMMAS,
     HOMERIC_SHORT_PREPOSITIONS,
     LOOKUP_DB,
+    add_grc_reviewed_forms,
     exact_form_key,
     filter_by_lemma_freq,
-    filter_grc_orthography,
+    finalize_grc_pairs,
+    grc_orthography_reason,
+    grc_pinned_forms,
     load_canonical_ag_sets,
-    load_grc_form_freq,
+    load_form_profile_freq,
+    load_grc_compatibility_forms,
+    load_grc_textbook_forms,
+    load_lm_head_required_forms,
+    load_top_lsj9_lemmas,
     sanitize_export_pairs,
     select_forms,
     strip_accents,
@@ -83,25 +98,130 @@ def test_frequency_exclusions_are_explicit_and_within_fixture():
     assert {"του", "ἀλλ", "ἀπ", "αʹ", "βʹ", "τώρα"} <= set(exclusions)
 
 
-def test_exact_attestation_map_is_pinned_and_preserves_polytonic_marks():
-    with gzip.open(GRC_FORM_FREQ, "rt", encoding="utf-8") as stream:
-        payload = json.load(stream)
-    metadata = payload["_meta"]
-    forms = payload["forms"]
+@pytest.mark.skipif(
+    not FORM_PROFILE_DB.exists(), reason="form_profile.db not downloaded"
+)
+def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
+    forms, dominant, treebank, metadata = load_form_profile_freq()
 
-    assert metadata["training"]["sanity"] is False
-    assert metadata["training"]["total_tokens"] == 30_933_396
-    assert metadata["sources"]["grc_ngram.bin"]["sha256"] == (
-        "862a104d5fde6795259b11852fa0fafc084534e9bce6fad9377b1c8e8dfd70e7"
+    assert metadata["content_hash"] == (
+        "d95ed61d0ef76dafb022df75ccb7014722e8d048af59b51f3f4298ca3f6578c0"
     )
-    assert len(forms) == 76_153
-    assert forms["λέγω"] == 7_977
-    assert "λεγω" not in forms
-    assert forms["αὐτός"] == 31_486
-    assert forms["αυτός"] == 23
-    assert forms["μηδ᾽"] == 2_699
+    assert len(forms) == 1_266_209
+    # The larger of the work-deduplicated total and any single source's own
+    # count: a spelling found only in a lower-priority copy of a work still
+    # counts as attested.
+    assert forms["λέγω"] == 12_227
+    assert forms["λεγω"] == 3
+    assert forms["αὐτός"] == 46_239
+    assert forms["αυτός"] == 15
+    assert forms["μηδ᾽"] == 3_179
     assert exact_form_key("τῳ") in forms
-    assert exact_form_key("τωι") not in forms
+    assert forms[exact_form_key("τῳ")] != forms[exact_form_key("τωι")]
+    # Dominance keys drop every combining mark but keep case-folded letters.
+    assert dominant["αυτος"] == 46_239
+    assert dominant["εγω"] == 32_025
+    assert dominant["ταις"] == 56_821
+    # Treebank support separates Doric τᾷ from OCR respellings of common words.
+    assert treebank[exact_form_key("τᾷ")] == 731
+    assert treebank[exact_form_key("ἑγώ")] == 1
+    assert exact_form_key("ταΐς") not in treebank
+
+
+def test_whole_artifact_compatibility_fixture_is_reviewed_and_pinned():
+    fixture = load_gzip_fixture(DEFAULT_COMPATIBILITY)
+
+    assert fixture["baseline"]["version"] == "0.4.1"
+    assert fixture["baseline"]["commit"] == (
+        "1ac4f62ed6c3c5722f35ce518697220a6d5f41a5"
+    )
+    assert len(fixture["forms"]) == 1_179_659
+    rejected = fixture["policy"]["rejected_by_class"]
+    assert rejected["truncated-stem"] == 8_971
+    assert rejected["foreign-characters"] == 336
+    assert rejected["missing-initial-breathing"] == 166_226
+
+
+def test_heldout_fixture_pins_all_five_corpus_samples():
+    fixture = load_gzip_fixture(DEFAULT_HELDOUT)
+
+    assert set(fixture["corpora"]) == {
+        "new_testament", "septuagint", "iliad_book_1",
+        "herodotus_book_1", "katharevousa",
+    }
+    assert fixture["baseline"]["commit"] == (
+        "1ac4f62ed6c3c5722f35ce518697220a6d5f41a5"
+    )
+    assert fixture["corpora"]["new_testament"]["total_tokens"] == 137_434
+    assert fixture["corpora"]["septuagint"]["total_tokens"] == 583_774
+    assert all(
+        source["files"] and len(source["manifest_sha256"]) == 64
+        for source in fixture["sources"].values()
+    )
+
+
+def test_textbook_paradigm_fixture_is_pinned_and_complete():
+    forms, fixture = load_grc_textbook_forms()
+
+    assert fixture["source"]["sha256"] == (
+        "cdd36c0c9a0222fb3b09b859253a8092174ac07d527d737175d3f63d697839c3"
+    )
+    assert fixture["review"]["sha256"] == (
+        "7cfceb90cd5c4678fb7c3fb27e5776c670ed55ce33603c6f679f28ccff95cf68"
+    )
+    assert set(fixture["paradigms"]) == GRC_COMPLETE_PARADIGM_LEMMAS
+    assert len(forms) == 2_170
+    assert {"λύω", "λύοιμι", "παιδεύω", "τίθημι", "δίδωμι",
+            "ἵστημι", "τιμάω", "ποιέω", "δηλόω"} <= forms
+    # Reviewed corrections: generator garbage is gone, standard cells the
+    # generator lacked are present, and no cell keeps vowel-length marks.
+    assert not {"λύ", "λύσαν", "λύε", "ἵστω", "εἶτε", "ἔδων"} & forms
+    assert {"λύεις", "λῦσαν", "λῦε", "δίδωσι", "τίθησι", "ἔδωκα",
+            "ποιεῖσθαι"} <= forms
+    assert not any(
+        ord(char) in (0x0304, 0x0306)
+        for form in forms for char in unicodedata.normalize("NFD", form)
+    )
+
+
+def test_heldout_requirements_follow_the_current_orthography_policy():
+    fixture = load_gzip_fixture(DEFAULT_HELDOUT)
+    stale = sorted(
+        form
+        for corpus in fixture["corpora"].values()
+        for form, _count in corpus["forms"]
+        if grc_orthography_reason(form) is not None
+        or form in BARE_ELISION_STEMS
+    )
+    # A rule change must be followed by regenerating the fixture.
+    assert stale == []
+
+
+def test_heldout_regressions_compare_both_ceilings():
+    metrics = {
+        "a": {"rejected_types": 3, "baseline_rejected_types": 3,
+              "rejected_tokens": 9, "baseline_rejected_tokens": 10},
+        "b": {"rejected_types": 4, "baseline_rejected_types": 3,
+              "rejected_tokens": 9, "baseline_rejected_tokens": 10},
+        "c": {"rejected_types": 2, "baseline_rejected_types": 3,
+              "rejected_tokens": 11, "baseline_rejected_tokens": 10},
+    }
+    assert set(heldout_regressions(metrics)) == {"b", "c"}
+
+
+def test_heldout_tokenizer_preserves_accents_and_splits_punctuation():
+    assert exact_tokens("πειρασμὸς, δ’ἐγώ ηὕρισκον·") == [
+        "πειρασμός", "δ᾽", "ἐγώ", "ηὕρισκον",
+    ]
+
+
+def test_top_lsj9_gate_normalizes_dictionary_display_notation():
+    lemmas = load_top_lsj9_lemmas(2000)
+
+    assert len(lemmas) == 2000
+    assert "νικάω" in lemmas
+    assert "νῑκάω" not in lemmas
+    assert not any("-" in lemma for lemma in lemmas)
 
 
 def test_json_fixture_rejects_sanity_lm_run(tmp_path):
@@ -145,49 +265,66 @@ def test_binary_fixture_reads_embedded_vocabulary_counts(tmp_path):
 
 
 @pytest.mark.skipif(not LOOKUP_DB.exists(), reason="lookup.db not downloaded")
+@pytest.mark.skipif(
+    not FORM_PROFILE_DB.exists(), reason="form_profile.db not downloaded"
+)
 def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_path):
     Dictionary = pytest.importorskip("spylls.hunspell").Dictionary
     fixture = _fixture()
 
     # Lemma admission still uses the aggregate, accent-stripped corpus map;
-    # per-form acute attestation uses the pinned, accent-preserving full LM.
+    # sparse acute forms use the complete accent-preserving corpus profile.
     freq = {
         strip_accents(row["form"]): row["count"]
         for row in fixture["forms"]
     }
-    exact_freq = load_grc_form_freq()
+    profile = load_form_profile_freq()
     for form in REPORTED_REGRESSIONS:
         freq[strip_accents(form)] = max(freq.get(strip_accents(form), 0), 3)
 
     conn = sqlite3.connect(f"file:{LOOKUP_DB}?mode=ro", uri=True)
-    _, canonical_lemmas = load_canonical_ag_sets()
+    canonical_forms, canonical_lemmas = load_canonical_ag_sets()
+    top_lemmas = load_top_lsj9_lemmas()
     pairs = select_forms(
         conn,
         "grc",
-        keep_lemmas=canonical_lemmas,
-        attestation_freq=exact_freq,
+        keep_lemmas=(
+            canonical_lemmas | top_lemmas | GRC_COMPLETE_PARADIGM_LEMMAS
+        ),
+        attestation_freq=profile.exact,
     )
     conn.close()
+    textbook_forms, textbook_meta = load_grc_textbook_forms()
     pairs = filter_by_lemma_freq(
         pairs,
         freq,
         min_lemma_count=3,
         strict_acute_min=1,
-        strict_form_freq_map=exact_freq,
+        strict_form_freq_map=profile.exact,
+        keep_forms=top_lemmas | textbook_forms,
     )
-    existing = {form for form, _lemma in pairs}
-    pairs.extend(
-        (form, lemma)
-        for form, lemma in (
-            AG_FUNCTION_WORDS
-            | AG_EXPORT_OVERRIDES
-            | HOMERIC_SHORT_PREPOSITIONS
-        ).items()
-        if form not in existing
+    compatibility_forms, _compatibility_meta = load_grc_compatibility_forms()
+    # The same helpers, in the same order, as export_hunspell.run_export.
+    pairs, _added = add_grc_reviewed_forms(
+        pairs,
+        GRC_CLOSED_LIST_FORMS,
+        textbook_meta["paradigms"],
+        compatibility_forms,
     )
     pairs, _changed, _dropped = sanitize_export_pairs(pairs)
-    pairs, invalid_initial = filter_grc_orthography(pairs)
-    assert invalid_initial
+    pairs, report = finalize_grc_pairs(
+        pairs,
+        evidence=profile,
+        compatibility_forms=compatibility_forms,
+        textbook_forms=textbook_forms,
+        export_overrides=GRC_CLOSED_LIST_FORMS,
+        protected_forms=grc_pinned_forms(
+            canonical_forms, top_lemmas, textbook_forms,
+            load_lm_head_required_forms(),
+        ),
+    )
+    assert report["invalid"]
+    assert report["dominated"]
     write_variant(
         variant="grc",
         form_lemma=pairs,
@@ -223,7 +360,17 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
     assert missing == []
     assert accepted_exclusions == []
     invalid_initial, synthetic_flags = audit_export_orthography(
-        tmp_path / "coverage"
+        tmp_path / "coverage",
+        reviewed=compatibility_forms | set(GRC_CLOSED_LIST_FORMS),
     )
     assert invalid_initial == []
     assert synthetic_flags == []
+    # The release contract: every reviewed April form, citation headword,
+    # textbook cell, and acute twin, no new weak respelling, and no
+    # regression-corpus rejection count above April's.
+    whole = audit_whole_artifact(tmp_path / "coverage")
+    assert {key: rows for key, rows in whole.items() if rows} == {}
+    assert audit_textbook_paradigms(tmp_path / "coverage") == []
+    assert heldout_regressions(
+        measure_heldout_corpora(tmp_path / "coverage")
+    ) == {}

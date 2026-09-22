@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "exclusions": [
-    {"form": "κα-", "reason": "hyphenated corpus fragment"},
+    {"form": "δῑ", "reason": "Diorisis Beta Code artifact: di' (elided διά) converted with a macron in place of the elision mark"},
     {"form": "του", "reason": "Modern/unaccented spelling; polytonic article is τοῦ"},
     {"form": "τα-", "reason": "hyphenated corpus fragment"},
     {"form": "μη", "reason": "unaccented corpus token; polytonic particle is μή"},
