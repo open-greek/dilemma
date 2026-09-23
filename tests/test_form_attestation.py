@@ -354,3 +354,98 @@ def test_generate_output_gate_real():
     # type check only: result is a ParadigmForm or None, never an exception
     out = generate("λύω", slot, attested_only=True)
     assert out is None or out.form
+
+
+# --- Patrologia Graeca: two cog layouts, three evidence tiers ---------------
+
+
+def _pg_builder():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("bfa", BUILDER)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_both_cog_locus_layouts_name_the_same_volume():
+    b = _pg_builder()
+    # The CC-BY calfa-co text writes PG<vol>.<page>; the Qwen re-OCR writes
+    # pg<vol>_<page>.<line> and pads the volume inconsistently.
+    assert b._cog_pg_volume("PG006.123") == ("PG006", "123")
+    assert b._cog_pg_volume("PG087_1.44") == ("PG087_1", "44")
+    assert b._cog_pg_volume("pg059_0025.3") == ("PG059", "0025.3")
+    assert b._cog_pg_volume("pg57_0027.1") == ("PG057", "0027.1")
+    # A work's own section numbering names no volume.
+    assert b._cog_pg_volume("4.1") == (None, "4.1")
+    assert b._cog_pg_volume("stobaeus_anthologium_v1_7") == (
+        None, "stobaeus_anthologium_v1_7")
+
+
+def _write_rows(path, rows):
+    import json
+    path.write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
+        encoding="utf-8")
+
+
+def test_the_corrected_text_wins_a_volume_the_re_ocr_also_covers(tmp_path):
+    import hashlib
+    b = _pg_builder()
+    _write_rows(tmp_path / "a.jsonl", [
+        {"source": "cgpg", "locus": "PG006.1", "text": "ἀλφα"},
+    ])
+    _write_rows(tmp_path / "b.jsonl", [
+        {"source": "ocr", "locus": "pg006_0001.1", "text": "βητα"},
+        {"source": "ocr", "locus": "pg059_0025.1", "text": "γαμμα"},
+    ])
+    by_volume = b._cog_pg_rows_by_volume(tmp_path, hashlib.sha256())
+    # PG006 is served by cgpg alone, so the same Migne page is not read twice.
+    assert by_volume["PG006"] == [("1", "ἀλφα")]
+    # A volume cgpg does not carry still comes from the re-OCR.
+    assert by_volume["PG059"] == [("0025.1", "γαμμα")]
+
+
+def test_only_the_calfa_co_text_continues_a_volume_across_rows(tmp_path):
+    import hashlib
+    b = _pg_builder()
+    _write_rows(tmp_path / "a.jsonl", [
+        {"source": "cgpg", "locus": "PG151.7", "text": "ἀλφα"},
+        {"source": "cgpg", "locus": "3.2", "text": "βητα"},
+    ])
+    # Some re-OCR files mix in works OCR'd from other editions entirely;
+    # inheriting a volume would file those under Migne.
+    _write_rows(tmp_path / "b.jsonl", [
+        {"source": "ocr", "locus": "pg110_0021.1", "text": "γαμμα"},
+        {"source": "ocr", "locus": "stobaeus_anthologium_v1_7", "text": "δελτα"},
+    ])
+    by_volume = b._cog_pg_rows_by_volume(tmp_path, hashlib.sha256())
+    assert by_volume["PG151"] == [("7", "ἀλφα"), ("3.2", "βητα")]
+    assert by_volume["PG110"] == [("0021.1", "γαμμα")]
+    assert not any(text == "δελτα"
+                   for rows in by_volume.values() for _, text in rows)
+
+
+def test_in_matthaeum_is_left_to_its_own_tlg_keyed_pass(tmp_path):
+    import hashlib
+    b = _pg_builder()
+    name = "joannes-chrysostomus.in-matthaeum-homiliae-1-90.jsonl"
+    assert name in b._INMATT_FILES
+    _write_rows(tmp_path / name, [
+        {"source": "ocr", "locus": "pg57_0027.1", "text": "ἀλφα"},
+    ])
+    by_volume = b._cog_pg_rows_by_volume(
+        tmp_path, hashlib.sha256(), skip=b._INMATT_FILES)
+    assert by_volume == {}
+
+
+def test_every_re_ocr_volume_has_a_century():
+    b = _pg_builder()
+    # by_century is a shipped field, so a volume with no century would
+    # silently widen the unknown bucket.
+    qwen = {"20", "22", "24", "26", "27", "28", "29", "30", "31", "32", "33",
+            "35", "36", "37", "44", "45", "46", "47", "48", "49", "50", "51",
+            "52", "53", "54", "55", "56", "59", "60", "61", "62", "63", "64",
+            "69", "70", "72", "74", "75", "76", "77", "80", "81", "82", "83",
+            "85", "95", "96", "110"}
+    assert qwen <= set(b.PG_CENTURY)
+    assert all(1 <= b.PG_CENTURY[v] <= 15 for v in qwen)

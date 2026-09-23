@@ -92,6 +92,41 @@ PG_CENTURY = {
     "121": 11, "122": 11, "123": 11, "124": 11, "125": 11, "126": 11,
     "134": 12, "139": 13, "146": 14, "148": 14, "151": 14, "153": 14,
     "155": 15, "157": 15, "158": 15,
+    # The volumes cog serves from its Qwen3.6-27B re-OCR of the scans.
+    # Migne groups a volume under one author, so the century is that
+    # author's floruit.
+    "20": 4, "22": 4, "24": 4,          # Eusebius of Caesarea
+    "26": 4, "27": 4, "28": 4,          # Athanasius
+    "29": 4, "30": 4, "31": 4, "32": 4,  # Basil of Caesarea
+    "33": 4,                            # Cyril of Jerusalem
+    "35": 4, "36": 4, "37": 4,          # Gregory of Nazianzus
+    "44": 4, "45": 4, "46": 4,          # Gregory of Nyssa
+    "47": 4, "48": 4, "49": 4, "50": 4, "51": 4, "52": 4, "53": 4,
+    "54": 4, "55": 4, "56": 4, "57": 4, "58": 4, "59": 4, "60": 4,
+    "61": 4, "62": 4, "63": 4, "64": 4,  # John Chrysostom
+    "69": 5, "70": 5, "72": 5, "74": 5, "75": 5, "76": 5, "77": 5,
+    "80": 5, "81": 5, "82": 5, "83": 5,  # Theodoret of Cyrrhus
+    "85": 5,
+    "95": 8, "96": 8,                   # John of Damascus
+    "110": 9,                           # George Monachus
+}
+PG_QWEN_TITLE = {
+    "20": "Eusebius of Caesarea", "22": "Eusebius of Caesarea",
+    "24": "Eusebius of Caesarea", "26": "Athanasius", "27": "Athanasius",
+    "28": "Athanasius", "29": "Basil of Caesarea", "30": "Basil of Caesarea",
+    "31": "Basil of Caesarea", "32": "Basil of Caesarea",
+    "33": "Cyril of Jerusalem", "35": "Gregory of Nazianzus",
+    "36": "Gregory of Nazianzus", "37": "Gregory of Nazianzus",
+    "44": "Gregory of Nyssa", "45": "Gregory of Nyssa",
+    "46": "Gregory of Nyssa", "69": "Cyril of Alexandria",
+    "70": "Cyril of Alexandria", "72": "Cyril of Alexandria",
+    "74": "Cyril of Alexandria", "75": "Cyril of Alexandria",
+    "76": "Cyril of Alexandria", "77": "Cyril of Alexandria",
+    "80": "Theodoret of Cyrrhus", "81": "Theodoret of Cyrrhus",
+    "82": "Theodoret of Cyrrhus", "83": "Theodoret of Cyrrhus",
+    "95": "John of Damascus", "96": "John of Damascus",
+    "110": "George Monachus",
+    **{str(v): "John Chrysostom" for v in range(47, 65)},
 }
 PG_TITLE = {
     "3": "Dionysius the Areopagite", "5": "Apostolic Fathers & Apologists",
@@ -621,43 +656,77 @@ def process_byzantine(byz_dir, forms, form_ids, profiles, works,
     return h.hexdigest()
 
 
+# cog writes the Migne volume into the locus two ways. The CC-BY calfa-co
+# text (source "cgpg") uses ``PG006.123``; the Qwen3.6-27B re-OCR of the
+# scans (source "ocr") uses ``pg059_0025.3``, and pads the volume
+# inconsistently (``pg57`` beside ``pg059``). Both normalize to PG%03d,
+# which is the key the works table and the PG_CENTURY map use.
 _COG_PG_LOCUS = re.compile(r"^(PG\d+(?:_\d+)?)\.(.+)$")
+_COG_PG_OCR_LOCUS = re.compile(r"^pg(\d+)_(\d+(?:\..*)?)$")
+# Which cog sources carry Patrologia Graeca, best evidence first. The
+# corrected calfa-co text wins a volume outright; the Qwen re-OCR serves the
+# 48 volumes it does not cover. cog retired its first-generation OCR pass
+# for the Qwen one, measuring 130.5 -> 5.4 typeface errors per 1,000 words.
+_COG_PG_SOURCES = ("cgpg", "ocr")
 
 
-def _cog_pg_rows_by_volume(corpus_dir, h, exclude=frozenset()):
+def _cog_pg_volume(locus: str):
+    """The Migne volume and page a cog locus names, or (None, locus)."""
+    match = _COG_PG_LOCUS.match(locus)
+    if match:
+        return match.group(1), match.group(2)
+    match = _COG_PG_OCR_LOCUS.match(locus)
+    if match:
+        return "PG%03d" % int(match.group(1)), match.group(2)
+    return None, locus
+
+
+def _cog_pg_rows_by_volume(corpus_dir, h, exclude=frozenset(), skip=()):
     """Group cog's per-work Patrologia Graeca rows by Migne volume.
 
-    Returns ``{"PG006": [(page, text), ...]}`` in file then row order. A row
-    whose locus is not ``PG<vol>.<page>`` (a work's own section numbering)
-    belongs to the volume of the file's preceding row. Every file read is
-    folded into ``h``.
+    Returns ``{"PG006": [(page, text), ...]}`` in source-priority, then file,
+    then row order. A row whose locus names no volume (a work's own section
+    numbering) belongs to the volume of the file's preceding row. ``skip``
+    names files another pass already reads. Every file read is folded
+    into ``h``.
     """
     by_volume = defaultdict(list)
-    for path in sorted(corpus_dir.glob("*.jsonl")):
-        if path.name.startswith("cogPG."):
-            continue
-        with open(path, "rb") as fh:
-            first = fh.readline()
-        try:
-            if json.loads(first).get("source") != "cgpg":
+    claimed_by = {}
+    for source in _COG_PG_SOURCES:
+        for path in sorted(corpus_dir.glob("*.jsonl")):
+            if path.name.startswith("cogPG.") or path.name in skip:
                 continue
-        except (ValueError, AttributeError):
-            continue
-        data = path.read_bytes()
-        fold_file_hash(h, path.name, data)
-        volume = None
-        for line in data.decode("utf-8", "replace").splitlines():
-            line = line.strip()
-            if not line:
+            with open(path, "rb") as fh:
+                first = fh.readline()
+            try:
+                if json.loads(first).get("source") != source:
+                    continue
+            except (ValueError, AttributeError):
                 continue
-            obj = json.loads(line)
-            locus = str(obj.get("locus") or "")
-            match = _COG_PG_LOCUS.match(locus)
-            if match:
-                volume, page = match.group(1), match.group(2)
-            else:
-                page = locus
-            if volume and volume not in exclude:
+            data = path.read_bytes()
+            fold_file_hash(h, path.name, data)
+            volume = None
+            for line in data.decode("utf-8", "replace").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                obj = json.loads(line)
+                found, page = _cog_pg_volume(str(obj.get("locus") or ""))
+                if found:
+                    volume = found
+                elif source != "cgpg":
+                    # Only the calfa-co text continues a volume across rows
+                    # the locus does not name. Every row of the Qwen re-OCR
+                    # carries its own Migne page, and some of its files mix
+                    # in works OCR'd from other editions entirely, which
+                    # inheriting a volume would file under Migne.
+                    continue
+                if not volume or volume in exclude:
+                    continue
+                # A volume belongs to the first source that carries it, so
+                # the same Migne page is never counted twice.
+                if claimed_by.setdefault(volume, source) != source:
+                    continue
                 by_volume[volume].append((page, obj.get("text", "")))
     return dict(by_volume)
 
@@ -681,15 +750,23 @@ def _ingest_pg_run(text, work_id, century, locus, scheme, forms, form_ids,
         file_cites[(fid, locus, scheme)] += 1
 
 
+_INMATT_FILES = (
+    "tlg2062.tlg152.jsonl",
+    "joannes-chrysostomus.in-matthaeum-homiliae-1-90.jsonl",
+)
+
+
 def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, stats):
-    """Patrologia Graeca: prefer cog's CORRECTED corpus (data/corpus/
-    cogPG.<vol>.jsonl, with cog's whole-token OCR corrections already applied),
-    falling back to the RAW calfa-co OCR (sources/cgpg/PG*/PG*_text.txt,
-    ``$0=vol $8=page $9=line`` markers) for volumes cog has not corrected yet.
-    Reading the corrected text stops the attested-only gate from certifying OCR
+    """Patrologia Graeca, best evidence per volume first: cog's CORRECTED
+    calfa-co text (source "cgpg", 22 volumes, whole-token OCR corrections
+    already applied), then cog's Qwen3.6-27B re-OCR of the scans (source
+    "ocr", the other 48 volumes), then the RAW first-generation calfa-co OCR
+    (sources/cgpg/PG*/PG*_text.txt, ``$0=vol $8=page $9=line`` markers) for
+    anything neither covers. Reading corrected and re-OCR'd text rather than
+    the retired raw pass stops the attested-only gate from certifying OCR
     garble. Locus is the Migne page; the work is the volume (no TLG id, never
-    deduped). Also ingests the CLLG-OCR'd In Matthaeum (tlg2062.tlg152) - it is
-    TLG-keyed, so it dedups by TLG id like the lemmatized sources."""
+    deduped). Also ingests the separately OCR'd In Matthaeum (tlg2062.tlg152)
+    - it is TLG-keyed, so it dedups by TLG id like the lemmatized sources."""
     h = hashlib.sha256()
     corpus_dir = pg_dir.parent.parent / "data" / "corpus"
     # cog's CORRECTED corpus is canonical. It now stores the Patrologia
@@ -698,26 +775,35 @@ def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, s
     # per-volume cgpg OCR is only a fallback for volumes cog hasn't corrected.
     corrected = {jf.name[len("cogPG."):-len(".jsonl")]: jf
                  for jf in corpus_dir.glob("cogPG.*.jsonl")}
-    per_work = _cog_pg_rows_by_volume(corpus_dir, h, exclude=set(corrected))
-    raw = {xf.parent.name: xf for xf in pg_dir.glob("PG*/PG*_text.txt")
-           if xf.parent.name not in corrected and xf.parent.name not in per_work}
+    per_work = _cog_pg_rows_by_volume(corpus_dir, h, exclude=set(corrected),
+                                      skip=_INMATT_FILES)
+    # The first-generation calfa-co OCR of the whole volume. cog serves its
+    # 22 corrected volumes carved into the works of its carve plan, which is
+    # less than the volume, so the raw dump is read for every volume: as the
+    # only text where nothing better covers it, and otherwise as SECONDARY
+    # evidence, which credits source_counts and citations without touching
+    # the deduplicated totals the better text decides.
+    raw = {xf.parent.name: xf for xf in pg_dir.glob("PG*/PG*_text.txt")}
     vols = sorted(set(corrected) | set(per_work) | set(raw))
     if limit:
         vols = vols[:limit]
-    n_corr = n_raw = 0
+    n_corr = n_raw = n_second = 0
     for dirname in vols:
         vol = _pg_volume(dirname)
         century = PG_CENTURY.get(vol)
         work_id = "PG" + vol
         works[work_id] = {
             "work_id": work_id, "id_scheme": "pg", "source": "pg",
-            "author": None, "title": PG_TITLE.get(vol, f"Patrologia Graeca {vol}"),
+            "author": None,
+            "title": PG_TITLE.get(
+                vol, PG_QWEN_TITLE.get(vol, f"Patrologia Graeca {vol}")),
             "genre": "religion", "dialect": None, "century": century,
             "start_year": century_year(century, True),
             "end_year": century_year(century, False),
         }
         claimed.add(work_id)
         file_cites = Counter()
+        served = dirname in per_work or dirname in corrected
         if dirname in per_work:
             n_corr += 1
             for page, text in per_work[dirname]:
@@ -735,10 +821,13 @@ def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, s
                 _ingest_pg_run(obj.get("text", ""), work_id, century,
                                obj.get("locus"), "migne-page", forms, form_ids,
                                profiles, stats, file_cites)
-        else:
+        if dirname in raw:
             data = raw[dirname].read_bytes()
             fold_file_hash(h, dirname, data)
-            n_raw += 1
+            if served:
+                n_second += 1
+            else:
+                n_raw += 1
             page = None
             for line in data.decode("utf-8", "replace").split("\n"):
                 m = _PG_MARKER.match(line)
@@ -746,17 +835,20 @@ def process_pg(pg_dir, forms, form_ids, profiles, works, sink, claimed, limit, s
                     page = m.group(1)
                     continue
                 _ingest_pg_run(line, work_id, century, page, "migne-page",
-                               forms, form_ids, profiles, stats, file_cites)
+                               forms, form_ids, profiles, stats, file_cites,
+                               deferred=served)
         sink.add([(fid, work_id, "pg", loc, sch, c, century)
                   for (fid, loc, sch), c in file_cites.items()])
-    print(f"pg: {n_corr} corrected + {n_raw} raw Patrologia Graeca volumes")
+    print(f"pg: {n_corr} corrected/re-OCR'd + {n_raw} raw-only Patrologia "
+          f"Graeca volumes, {n_second} with the raw dump as secondary evidence")
 
     # In Matthaeum (PG 57-58), OCR'd outside the cgpg corpus; cog has stored
-    # it under its TLG id and, since, under its author/work slug.
-    inmatt = next((path for path in (
-        corpus_dir / "tlg2062.tlg152.jsonl",
-        corpus_dir / "joannes-chrysostomus.in-matthaeum-homiliae-1-90.jsonl",
-    ) if path.exists()), corpus_dir / "tlg2062.tlg152.jsonl")
+    # it under its TLG id and, since, under its author/work slug. It is read
+    # here, keyed by TLG id so it dedups against the lemmatized sources, and
+    # its file is kept out of the by-volume pass above.
+    inmatt = next((corpus_dir / name for name in _INMATT_FILES
+                   if (corpus_dir / name).exists()),
+                  corpus_dir / "tlg2062.tlg152.jsonl")
     if inmatt.exists() and not limit:
         data = inmatt.read_bytes()
         fold_file_hash(h, inmatt.name, data)

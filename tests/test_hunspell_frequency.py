@@ -105,23 +105,23 @@ def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
     forms, dominant, treebank, metadata = load_form_profile_freq()
 
     assert metadata["content_hash"] == (
-        "73fcccfe5b58bc022101c5f7ed4b383fc5d144474af9fc6889ecaefcc79fca03"
+        "d9bfe0176b2b17b948961ea7ad9e47ae0527bb27f79e57210df7b55a15d8e086"
     )
-    assert len(forms) == 1_229_963
+    assert len(forms) == 1_773_559
     # The larger of the work-deduplicated total and any single source's own
     # count: a spelling found only in a lower-priority copy of a work still
     # counts as attested.
-    assert forms["λέγω"] == 12_313
-    assert forms["λεγω"] == 3
-    assert forms["αὐτός"] == 45_490
-    assert forms["αυτός"] == 15
-    assert forms["μηδ᾽"] == 3_179
+    assert forms["λέγω"] == 16_564
+    assert forms["λεγω"] == 55
+    assert forms["αὐτός"] == 62_362
+    assert forms["αυτός"] == 32
+    assert forms["μηδ᾽"] == 3_328
     assert exact_form_key("τῳ") in forms
     assert forms[exact_form_key("τῳ")] != forms[exact_form_key("τωι")]
     # Dominance keys drop every combining mark but keep case-folded letters.
-    assert dominant["αυτος"] == 45_490
-    assert dominant["εγω"] == 31_880
-    assert dominant["ταις"] == 55_578
+    assert dominant["αυτος"] == 62_362
+    assert dominant["εγω"] == 42_497
+    assert dominant["ταις"] == 70_631
     # Treebank support separates Doric τᾷ from OCR respellings of common words.
     assert treebank[exact_form_key("τᾷ")] == 731
     assert treebank[exact_form_key("ἑγώ")] == 1
