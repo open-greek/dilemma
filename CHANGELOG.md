@@ -6,6 +6,22 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The elision table in `build/hunspell/grc_morph.json`, which the keyboard
+  reads to offer an elided spelling, picked between candidates on casing,
+  breathing and whether an accent survived, and broke ties on set iteration
+  order. Python randomizes that per process, so the table was not
+  reproducible: two builds of the same inputs differed in 316 entries.
+  Candidates are now ranked on whether the orthography rules accept the
+  spelling at all, then on whether it keeps the full form's own stem marks,
+  then the existing profile, then the corpus count, then the spelling itself.
+  606 entries change against the table Tonos ships: `αὔτ᾽` becomes `αὐτ᾽`,
+  `γέλοι᾽` becomes `γελοῖ᾽`, `διδῶσ᾽` becomes `δίδωσ᾽`, and the structurally
+  invalid spellings among them fall from 14 to none. `εἶπε` keeps `εἶπ᾽` and
+  `εἰπέ` keeps `εἴπ᾽`, which a corpus count alone gets backwards, because the
+  two elided spellings belong to different full forms rather than competing
+  for one.
+
 ### Changed
 - The compatibility baseline is now the dictionary Tonos currently ships,
   rather than the April 0.4.1 export it started from, and

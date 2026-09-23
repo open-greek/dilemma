@@ -65,6 +65,8 @@ from collections import defaultdict
 from pathlib import Path
 
 from dilemma.form_sanitize import has_editorial_sigla
+from export_hunspell import (exact_form_key, grc_orthography_reason,
+                             load_form_profile_freq)
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -163,7 +165,21 @@ def _canon_elided(s: str) -> str:
     return s
 
 
-def _score_elision_variant(full: str, elided: str) -> int:
+def _stem_marks_match(full: str, elided: str) -> bool:
+    """True when the elided form keeps the full form's own stem marks.
+
+    Elision drops the final vowel, and what is left carries the marks it
+    had: ``εἶπε`` elides to ``εἶπ᾽`` and ``εἰπέ`` to ``εἴπ᾽``, so the two
+    elided spellings are not variants of one another and the corpus count
+    of either says nothing about which belongs to which full form. The
+    same distinguishes ``Τἆλλα`` -> ``τἆλλ᾽`` from ``Τἄλλα`` -> ``τἄλλ᾽``.
+    """
+    stem = elided[:-1]
+    return bool(stem) and full[:len(stem)].lower() == stem.lower()
+
+
+def _score_elision_variant(full: str, elided: str,
+                           exact_freq: dict[str, int] | None = None) -> tuple:
     """Rank an elided candidate against its full form. Higher is better.
 
     Greek editing practice prefers the elided form's casing and
@@ -173,7 +189,16 @@ def _score_elision_variant(full: str, elided: str) -> int:
     that retains its own accent distinguishes corpus-legitimate
     ``μετ᾽`` / ``παρ᾽`` entries from noise-stripped ``μετ`` / ``παρ``
     variants that leaked in without their final accent.
+
+    Ranked above those: a candidate the orthography rules reject is not a
+    spelling at all (``τὸτ᾽`` carries a grave on an elided word), and a
+    candidate that keeps the full form's stem marks belongs to that full
+    form rather than to its sibling. Ranked below them, the corpus count
+    settles what is otherwise a tie, so that ``εἵτ᾽`` (2 tokens) does not
+    take ``Εἴτε`` from ``εἴτ᾽`` (765). The spelling itself comes last, so
+    the table does not depend on set iteration order.
     """
+    freq = exact_freq or {}
     score = 0
     # Same case on the first letter
     if full[:1].isupper() == elided[:1].isupper():
@@ -188,7 +213,13 @@ def _score_elision_variant(full: str, elided: str) -> int:
     # where a leading combining mark wasn't reattached to its base)
     if elided[:1] in ELISION_GLYPHS:
         score -= 20
-    return score
+    return (
+        grc_orthography_reason(elided) is None,
+        _stem_marks_match(full, elided),
+        score,
+        freq.get(exact_form_key(elided), 0),
+        elided,
+    )
 
 
 # Tags considered disqualifying for movable nu. Movable nu never
@@ -340,6 +371,7 @@ def _load_lemma_forms(
 
 def _derive_elision_pairs(
     lemma_to_forms: dict[str, set[str]],
+    exact_freq: dict[str, int] | None = None,
 ) -> dict[str, str]:
     """Return {full_form_nfc -> elided_form_nfc_with_koronis}.
 
@@ -397,7 +429,8 @@ def _derive_elision_pairs(
             if not candidates:
                 continue
             best = max(
-                candidates, key=lambda e: _score_elision_variant(full, e)
+                candidates,
+                key=lambda e: _score_elision_variant(full, e, exact_freq),
             )
             pairs[full] = best
 
@@ -436,7 +469,9 @@ def build(out_dir: Path) -> dict:
     )
     print(f"  lemmas with attested forms: {len(lemma_to_forms):,}")
 
-    elision_pairs = _derive_elision_pairs(lemma_to_forms)
+    exact_freq = load_form_profile_freq().exact
+    print(f"  corpus counts for elision ranking: {len(exact_freq):,} forms")
+    elision_pairs = _derive_elision_pairs(lemma_to_forms, exact_freq)
     print(f"  elision full -> elided pairs: {len(elision_pairs):,}")
 
     out_dir.mkdir(parents=True, exist_ok=True)
