@@ -6,6 +6,27 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The Patrologia Graeca now comes from three tiers of evidence rather than
+  one, taking it from 22 Migne volumes and 4,212,976 tokens to 81 volumes and
+  15,200,132. `data/form_profile.db` grows from 1,350,920 exact forms to
+  1,945,872.
+  - The corpus's Qwen3.6-27B re-OCR of the public-domain scans adds 48
+    volumes that nothing else covered: Eusebius, Athanasius, Basil, both
+    Gregories, Chrysostom, Cyril of Alexandria, Theodoret, John of Damascus,
+    George Monachus. Its rows carry `source: "ocr"` and loci
+    `pg<volume>_<page>.<line>`, which the reader had no case for, so they
+    were skipped although the same pass's output was already ingested for
+    In Matthaeum through a hardcoded path. Each of those volumes gets its
+    author's century, since `by_century` is a shipped field.
+  - The raw first-generation calfa-co dump is read again for the 11 volumes
+    neither other tier covers, and for the 22 the corpus serves carved into
+    the works of its carve plan it is read as SECONDARY evidence: it credits
+    `source_counts` and citations for the part of a volume the carve leaves
+    out, without touching the deduplicated totals the better text decides.
+    That part of the volume is where 1,504 of the forms the previous build
+    lost their only attestation.
+
 ### Fixed
 - Diorisis beta code read the elision apostrophe after an unaccented alpha,
   iota or upsilon as a macron on that vowel, so `di'` became `δῑ` instead of

@@ -1247,11 +1247,29 @@ byzantine-vernacular corpora (for late-antique, patristic and Byzantine
 coverage), deduping each work once by source priority (so `total_count` is a
 deduped union while `citations` keep every source's passages). The Patrologia
 Graeca and byzantine-vernacular texts are read from the
-[Open Greek Corpus](https://github.com/open-greek/open-greek-corpus), which
-serves the Migne OCR with whole-token corrections already applied. The raw-text
-sources (especially the OCR'd Patrologia Graeca) are noisier than the treebanks,
-so a form attested only there is lower-confidence; `source_counts` tells you
-which corpora attest each form. Both artifacts are opt-in downloads, kept out of the base
+[Open Greek Corpus](https://github.com/open-greek/open-greek-corpus).
+
+The Patrologia Graeca comes in three tiers of evidence, best first, and a
+Migne volume is counted once under the best tier that covers it:
+
+1. The CC-BY [calfa-co](https://github.com/calfa-co/Patrologia-Graeca) text
+   as the corpus serves it, with whole-token OCR corrections applied and each
+   volume carved into its works. 22 volumes, loci `PG<volume>.<page>`.
+2. The corpus's Qwen3.6-27B re-OCR of the public-domain Migne scans, which
+   replaced a retired first-generation OCR pass that misread whole sorts
+   (`ϖ` as `σ`). 48 further volumes, loci `pg<volume>_<page>.<line>` -
+   Eusebius, Athanasius, Basil, both Gregories, Chrysostom, Cyril of
+   Alexandria, Theodoret, John of Damascus.
+3. The raw first-generation calfa-co dump, read from
+   `<corpus>/sources/cgpg/PG*/PG*_text.txt`. It is the only text for 11
+   volumes nothing else covers, and for the 22 carved volumes it is read as
+   secondary evidence: it credits `source_counts` and citations for the part
+   of a volume the carve plan leaves out, without touching the deduplicated
+   totals the better text decides.
+
+The raw-text sources (especially the OCR'd Patrologia Graeca) are noisier than
+the treebanks, so a form attested only there is lower-confidence;
+`source_counts` tells you which corpora attest each form. Both artifacts are opt-in downloads, kept out of the base
 `dilemma download`:
 
 ```bash
