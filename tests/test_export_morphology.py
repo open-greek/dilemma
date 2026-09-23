@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from dilemma.form_sanitize import has_editorial_sigla
+from export_hunspell import exact_form_key
 from export_morphology import (
     _derive_elision_pairs,
     _derive_nu_forms,
@@ -69,3 +70,38 @@ def test_elision_loading_and_derivation_reject_editorial_sigla(tmp_path):
         has_editorial_sigla(full) or has_editorial_sigla(elided)
         for full, elided in pairs.items()
     )
+
+
+def test_an_elided_form_keeps_its_own_full_form_stem_marks():
+    # εἶπε and εἰπέ elide to different spellings, so neither one's corpus
+    # count says anything about which belongs to which full form.
+    lemma_forms = {"λέγω": {"Εἶπε", "Εἰπέ", "εἶπ᾽", "εἴπ᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms, {exact_form_key("εἴπ᾽"): 138})
+    assert pairs["Εἶπε"] == "εἶπ᾽"
+    assert pairs["Εἰπέ"] == "εἴπ᾽"
+
+
+def test_the_corpus_count_settles_an_otherwise_tied_elision():
+    # Neither spelling carries Εἴτε's stem marks, and both score the same
+    # on case, breathing and accent; εἵτ᾽ has 2 corpus tokens to εἴτ᾽'s 765.
+    lemma_forms = {"εἴτε": {"Εἴτε", "εἴτ᾽", "εἵτ᾽"}}
+    freq = {exact_form_key("εἴτ᾽"): 765, exact_form_key("εἵτ᾽"): 2}
+    assert _derive_elision_pairs(lemma_forms, freq)["Εἴτε"] == "εἴτ᾽"
+
+
+def test_a_candidate_the_orthography_rules_reject_loses():
+    # τὸτ᾽ carries a grave on an elided word. It has the same corpus count
+    # as τότ᾽, so nothing below the structural check separates them.
+    lemma_forms = {"τότε": {"Τότε", "τότ᾽", "τὸτ᾽"}}
+    freq = {exact_form_key("τότ᾽"): 1183, exact_form_key("τὸτ᾽"): 1183}
+    assert _derive_elision_pairs(lemma_forms, freq)["Τότε"] == "τότ᾽"
+
+
+def test_the_table_does_not_depend_on_set_iteration_order():
+    # The candidates arrive from a set, whose iteration order varies with
+    # the interpreter's hash seed, so ties have to break on the spelling.
+    lemma_forms = {"ζζύω": {"Ζζύε", "ζζύ᾽", "ζζὺ᾽"}}
+    first = _derive_elision_pairs(lemma_forms, {})
+    again = _derive_elision_pairs({"ζζύω": set(reversed(sorted(
+        lemma_forms["ζζύω"])))}, {})
+    assert first == again
