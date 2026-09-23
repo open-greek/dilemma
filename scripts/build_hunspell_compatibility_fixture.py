@@ -2,7 +2,7 @@
 """Pin the reviewed acceptance surface of the dictionary Tonos ships.
 
 The source of truth is the compiled blob the keyboard actually reads, not raw
-Hunspell stems: the April export (Dilemma 0.4.1) as Tonos compiled and shipped
+Hunspell stems: the export Tonos most recently compiled and shipped
 it. The downstream candidate gate classifies structural junk, reviewed
 must-reject forms, accepted losses, and common-word respellings; the remaining
 surface becomes Dilemma's deterministic no-regression contract. Every input is
@@ -27,7 +27,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.audit_hunspell_frequency import sha256  # noqa: E402
 
-DEFAULT_OUTPUT = ROOT / "data" / "hunspell_grc_april_compat.json.gz"
+DEFAULT_OUTPUT = ROOT / "data" / "hunspell_grc_shipped_compat.json.gz"
 
 
 def _load_gate(path: Path):

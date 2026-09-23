@@ -6,6 +6,33 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- The compatibility baseline is now the dictionary Tonos currently ships,
+  rather than the April 0.4.1 export it started from, and
+  `data/hunspell_grc_april_compat.json.gz` is renamed
+  `hunspell_grc_shipped_compat.json.gz` to stop claiming otherwise. It moves
+  forward with each swap-in; the contract it encodes is unchanged, that an
+  export must not lose what the keyboard already accepts. Because the gate
+  strips its structural classes before pinning, the new baseline grandfathers
+  far less junk than the old one: 18 truncated stems against 8,971, and no
+  missing-breathing forms at all against 166,226. 1,363,274 required forms.
+- A respelling both treebanks annotate independently no longer has to clear
+  the raw-count floor. GLAUx and Diorisis lemmatize and tag separately, so
+  both landing on one spelling more than once is evidence that counting OCR
+  tokens cannot give: the dual `πρώτω` has 40 corpus tokens against 4,006 for
+  the dative `πρώτῳ`, which asks for 25 treebank tokens where it has 9. Doric
+  `γλώσσᾳ` and the contract `πειρᾷς` were failing the same way, as were Doric
+  `δεσπότᾳ` and epic `γένεϊ`.
+
+  The confirmation is bounded the same way the floor is, because treebanks
+  mis-tag a common word in proportion to how common it is: it counts only
+  when the treebank support is at least one token per thousand of the
+  dominant spelling. Without that bound the treebanks' own stray taggings of
+  `ὅτι`, `εἶναι` and `τοῦτο` - two or three tokens against 241,498, 140,919
+  and 176,293 - let `ὄτι`, `εἴναι` and `τούτο` into the dictionary, which
+  Tonos's gate caught. `scripts/audit_hunspell_frequency.py` applies the same
+  rule, so the audit and the export agree on what a weak respelling is.
+
 ### Added
 - The Patrologia Graeca now comes from three tiers of evidence rather than
   one, taking it from 22 Migne volumes and 4,212,976 tokens to 81 volumes and

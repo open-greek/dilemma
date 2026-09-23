@@ -102,7 +102,7 @@ def test_frequency_exclusions_are_explicit_and_within_fixture():
     not FORM_PROFILE_DB.exists(), reason="form_profile.db not downloaded"
 )
 def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
-    forms, dominant, treebank, metadata = load_form_profile_freq()
+    forms, dominant, treebank, metadata, confirmed = load_form_profile_freq()
 
     assert metadata["content_hash"] == (
         "d9bfe0176b2b17b948961ea7ad9e47ae0527bb27f79e57210df7b55a15d8e086"
@@ -126,20 +126,34 @@ def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
     assert treebank[exact_form_key("τᾷ")] == 731
     assert treebank[exact_form_key("ἑγώ")] == 1
     assert exact_form_key("ταΐς") not in treebank
+    # Both treebanks annotate the dual πρώτω and Doric γλώσσᾳ, which is what
+    # lets them past the floor their raw counts fail; the treebanks' stray
+    # taggings of ὅτι and ἐγώ are not that.
+    assert {exact_form_key(f) for f in ("πρώτω", "γλώσσᾳ", "πειρᾷς")} <= confirmed
+    assert exact_form_key("ταΐς") not in confirmed
+    assert exact_form_key("ὄσα") not in confirmed
 
 
 def test_whole_artifact_compatibility_fixture_is_reviewed_and_pinned():
     fixture = load_gzip_fixture(DEFAULT_COMPATIBILITY)
 
-    assert fixture["baseline"]["version"] == "0.4.1"
+    # The baseline is whatever Tonos ships now, not the April export it
+    # started from: it moves forward with each swap-in, and the contract is
+    # that the next export does not lose what the keyboard already has.
+    assert fixture["baseline"]["version"] == "1.3.6"
     assert fixture["baseline"]["commit"] == (
-        "1ac4f62ed6c3c5722f35ce518697220a6d5f41a5"
+        "2266ce119046ee1e4c5ad3948e745352c3e6358d"
     )
-    assert len(fixture["forms"]) == 1_179_659
+    assert fixture["baseline"]["compiled_entries"] == 1_366_673
+    assert len(fixture["forms"]) == 1_363_274
+    # The structural classes the gate strips before pinning. They are far
+    # smaller than the April baseline's because that export's junk is gone
+    # rather than grandfathered: truncated stems 8,971 -> 18, missing
+    # breathings 166,226 -> 0.
     rejected = fixture["policy"]["rejected_by_class"]
-    assert rejected["truncated-stem"] == 8_971
-    assert rejected["foreign-characters"] == 336
-    assert rejected["missing-initial-breathing"] == 166_226
+    assert rejected["truncated-stem"] == 18
+    assert rejected["common_word_respelling"] == 2_069
+    assert "missing-initial-breathing" not in rejected
 
 
 def test_heldout_fixture_pins_all_five_corpus_samples():
@@ -370,9 +384,9 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
     )
     assert invalid_initial == []
     assert synthetic_flags == []
-    # The release contract: every reviewed April form, citation headword,
+    # The release contract: every reviewed shipped form, citation headword,
     # textbook cell, and acute twin, no new weak respelling, and no
-    # regression-corpus rejection count above April's.
+    # regression-corpus rejection count above the held-out baseline's.
     whole = audit_whole_artifact(tmp_path / "coverage")
     assert {key: rows for key, rows in whole.items() if rows} == {}
     assert audit_textbook_paradigms(tmp_path / "coverage") == []

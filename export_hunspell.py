@@ -288,7 +288,7 @@ CORPUS_FREQ = DATA / "corpus_freq.json"
 MG_FORM_FREQ = DATA / "mg_form_freq.json"
 FORM_PROFILE_DB = DATA / "form_profile.db"
 LSJ9_FREQUENCY = DATA / "lsj9_frequency.json"
-GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_april_compat.json.gz"
+GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_shipped_compat.json.gz"
 GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # Curated iconic AG polytonic surface forms and lemmas that are always
 # promoted to bucket C, regardless of raw corpus token count. See the
@@ -313,7 +313,8 @@ GRC_COMPLETE_PARADIGM_LEMMAS = frozenset({
     "τιμάω", "ποιέω", "δηλόω",
 })
 
-# A new (post-April) spelling that differs only in its marks from a more
+# A new spelling, absent from the shipped dictionary, that differs only
+# in its marks from a more
 # common well-formed spelling needs treebank support, rising as its share of
 # the common spelling's count falls: (share below, GLAUx or Diorisis tokens
 # required). Only a dominant spelling with at least
@@ -325,6 +326,21 @@ GRC_COMPLETE_PARADIGM_LEMMAS = frozenset({
 # compatibility baseline, pinned forms, or productive enclitic second accents.
 PROFILE_VARIANT_DOMINANCE_MIN = 1000
 PROFILE_VARIANT_TREEBANK_FLOORS = ((0.01, 25), (0.05, 5))
+# GLAUx and Diorisis lemmatize and tag independently. Both landing on the
+# same spelling more than once is confirmation the floors above cannot give,
+# because those count raw tokens and OCR produces those in bulk: πρώτω (the
+# dual, beside the dative πρώτῳ), Doric γλώσσᾳ and the contract πειρᾷς each
+# have a handful of treebank tokens against a four-figure rival. It has to be
+# the same spelling in both, and more than once in each: ἑγὼ and ἐκεί each
+# carry a single stray token in one treebank apiece.
+TREEBANK_CONFIRMATION_MIN = 2
+# Treebanks mis-tag a common word in proportion to how common it is, exactly
+# as OCR misreads it, so the confirmation also has to be worth something
+# against the dominant spelling's own count. At 1 treebank token per 1,000,
+# πρώτω (9 against πρώτῳ's 4,006) and Doric γλώσσᾳ (5 against 1,116) clear it
+# and the treebanks' own stray taggings of ὅτι, εἶναι and τοῦτο - 2 or 3
+# tokens against 241,498, 140,919 and 176,293 - do not.
+TREEBANK_CONFIRMATION_SHARE = 1000
 # Sources in form_profile.db that are lemmatized treebanks of edited texts,
 # as opposed to digitized or OCR editions.
 TREEBANK_PROFILE_SOURCES = ("glaux", "diorisis")
@@ -915,6 +931,7 @@ def filter_dominated_spelling_variants(
     treebank_freq: dict[str, int],
     compatibility_forms: set[str],
     protected_forms: set[str] | None = None,
+    treebank_confirmed: frozenset | None = None,
 ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """Reject weak new respellings of strongly attested spellings.
 
@@ -924,10 +941,12 @@ def filter_dominated_spelling_variants(
     edition typos produce such spellings in proportion to the common word's
     frequency, so a raw corpus count cannot vouch for them; support in the
     lemmatized treebanks can. Genuine dialect spellings such as Doric ``τᾷ``
-    carry that support. The reviewed April surface, pinned forms, and
-    productive enclitic second accents are exempt.
+    carry that support, and so does any spelling both treebanks annotate
+    independently, whatever its raw count. The shipped surface, pinned
+    forms, and productive enclitic second accents are exempt.
     """
     protected = compatibility_forms | (protected_forms or set())
+    confirmed = treebank_confirmed or frozenset()
     kept: list[tuple[str, str]] = []
     rejected: list[tuple[str, str]] = []
     for pair in form_lemma:
@@ -936,11 +955,16 @@ def filter_dominated_spelling_variants(
                 or is_productive_second_accent(form, exact_freq)):
             kept.append(pair)
             continue
+        dominant = dominant_freq.get(mark_skeleton(form), 0)
+        support = exact_freq_lookup(form, treebank_freq)
+        if (exact_form_key(form) in confirmed
+                and support * TREEBANK_CONFIRMATION_SHARE >= dominant):
+            kept.append(pair)
+            continue
         required = required_treebank_support(
-            exact_freq_lookup(form, exact_freq),
-            dominant_freq.get(mark_skeleton(form), 0),
+            exact_freq_lookup(form, exact_freq), dominant,
         )
-        if required and exact_freq_lookup(form, treebank_freq) < required:
+        if required and support < required:
             rejected.append(pair)
         else:
             kept.append(pair)
@@ -953,13 +977,13 @@ def filter_unattested_new_forms(
     compatibility_forms: set[str],
     protected_forms: set[str],
 ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
-    """Require reviewable evidence for every form added after April.
+    """Require reviewable evidence for every form the shipped dictionary lacks.
 
     Historical paradigm generators contain valuable sparse morphology, but
     they also produce joins which are orthographically possible and therefore
     cannot be caught by spelling-shape checks alone. A new form must be
     attested exactly, belong to a pinned citation/textbook/grammar fixture, or
-    be a productive enclitic second-accent spelling. The reviewed April
+    be a productive enclitic second-accent spelling. The reviewed shipped
     surface is never subjected to this new evidence requirement.
     """
     kept: list[tuple[str, str]] = []
@@ -1005,7 +1029,7 @@ def filter_new_tonos_structural_forms(
     a standalone word even when it was only a generator fragment. The
     compiled Tonos gate treats new lower-case consonant-final fragments and
     smooth-initial upsilon forms as structural junk, so apply those rules to
-    the post-April surface while retaining reviewed baseline and explicit
+    the new surface while retaining reviewed baseline and explicit
     textbook/citation/function-word evidence.
     """
     reviewed = compatibility_forms | protected_forms
@@ -1020,7 +1044,7 @@ def filter_new_tonos_structural_forms(
 
 
 def new_form_structural_reason(form: str) -> str | None:
-    """Return why a new (post-April) form is structural junk downstream.
+    """Return why a form new since the shipped dictionary is junk downstream.
 
     These two classes are stricter than :func:`grc_orthography_reason`
     because they would also reject a few valid baseline words: a lower-case
@@ -1068,7 +1092,7 @@ def add_grc_reviewed_forms(
     textbook_paradigms: dict[str, list[str]],
     compatibility_forms: set[str],
 ) -> tuple[list[tuple[str, str]], dict[str, int]]:
-    """Add closed-list, textbook-paradigm, and reviewed April forms.
+    """Add closed-list, textbook-paradigm, and reviewed shipped forms.
 
     These bypass the lookup and frequency gates, so they are added after
     those gates and before sanitization and the structural filters.
@@ -1105,7 +1129,7 @@ def finalize_grc_pairs(
 ) -> tuple[list[tuple[str, str]], dict]:
     """Apply the grc structural and evidence filters in release order.
 
-    The reviewed April surface (``compatibility_forms``) is exempt from every
+    The reviewed shipped surface (``compatibility_forms``) is exempt from every
     rule a structural reviewer has already passed; ``protected_forms`` (top
     citation headwords, textbook paradigms, closed lists) is exempt from the
     corpus-evidence rules. Acute twins are generated last. A twin shares its
@@ -1137,7 +1161,7 @@ def finalize_grc_pairs(
     report["unattested"] = len(unattested)
     form_lemma, dominated = filter_dominated_spelling_variants(
         form_lemma, evidence.exact, evidence.dominant, evidence.treebank,
-        compatibility_forms, protected_forms,
+        compatibility_forms, protected_forms, evidence.treebank_confirmed,
     )
     report["dominated"] = len(dominated)
     before_twins = len(form_lemma)
@@ -1330,12 +1354,15 @@ class FormProfileEvidence(NamedTuple):
     ``treebank`` maps the same key to its larger GLAUx or Diorisis count (the
     two treebanks annotate largely the same texts, so they are not summed);
     ``dominant`` maps :func:`mark_skeleton` to the count of the most frequent
-    well-formed spelling with those letters.
+    well-formed spelling with those letters;
+    ``treebank_confirmed`` holds the keys both treebanks annotate, on one
+    spelling and more than once each.
     """
     exact: dict[str, int]
     dominant: dict[str, int]
     treebank: dict[str, int]
     metadata: dict[str, str]
+    treebank_confirmed: frozenset = frozenset()
 
 
 def load_form_profile_freq() -> FormProfileEvidence:
@@ -1361,6 +1388,7 @@ def load_form_profile_freq() -> FormProfileEvidence:
         by_treebank: dict[str, dict[str, int]] = defaultdict(
             lambda: defaultdict(int)
         )
+        treebank_confirmed: set[str] = set()
         for form, count, source_counts in rows:
             key = exact_form_key(form)
             sources = json.loads(source_counts or "{}")
@@ -1374,18 +1402,26 @@ def load_form_profile_freq() -> FormProfileEvidence:
             for source in TREEBANK_PROFILE_SOURCES:
                 if sources.get(source):
                     by_treebank[key][source] += int(sources[source])
+            # Per spelling, not per key: the key folds the contextual grave
+            # into the acute, and ἐκεί's two treebank tokens sit on ἐκεί and
+            # ἐκεὶ, one apiece, which is not two treebanks agreeing.
+            if all(int(sources.get(source, 0)) >= TREEBANK_CONFIRMATION_MIN
+                   for source in TREEBANK_PROFILE_SOURCES):
+                treebank_confirmed.add(key)
     finally:
         conn.close()
     treebank = {
         key: max(counts.values()) for key, counts in by_treebank.items()
     }
+
     dominant: dict[str, int] = {}
     for form, count in frequencies.items():
         if grc_orthography_reason(form) is not None:
             continue
         skeleton = mark_skeleton(form)
         dominant[skeleton] = max(dominant.get(skeleton, 0), count)
-    return FormProfileEvidence(frequencies, dominant, treebank, metadata)
+    return FormProfileEvidence(frequencies, dominant, treebank, metadata,
+                               frozenset(treebank_confirmed))
 
 
 def load_top_lsj9_lemmas(limit: int = 2000) -> set[str]:
@@ -1432,7 +1468,7 @@ def load_lm_head_required_forms() -> set[str]:
 
 
 def load_grc_compatibility_forms() -> tuple[set[str], dict]:
-    """Load the structurally reviewed April acceptance baseline."""
+    """Load the structurally reviewed acceptance baseline Tonos ships."""
     if not GRC_COMPATIBILITY_FORMS.exists():
         return set(), {}
     with gzip.open(GRC_COMPATIBILITY_FORMS, "rt", encoding="utf-8") as stream:
@@ -2176,7 +2212,7 @@ def run_export(sanity: int | None, variants: list[str],
             # gate. Inject them after filtering so sparse source ownership
             # cannot silently remove them.
             # A sanity pass stays small: it does not carry the 1.18M-form
-            # April surface, so its output does not satisfy the release audit.
+            # shipped surface, so its output fails the release audit.
             form_lemma, added = add_grc_reviewed_forms(
                 form_lemma,
                 export_overrides,
@@ -2188,7 +2224,7 @@ def run_export(sanity: int | None, variants: list[str],
             if added["textbook"]:
                 print(f"  +{added['textbook']:,} pinned textbook-paradigm forms")
             if added["compatibility"]:
-                print(f"  +{added['compatibility']:,} reviewed April "
+                print(f"  +{added['compatibility']:,} reviewed shipped "
                       "compatibility forms")
 
         # Belt-and-braces guard: sanitize every form so a misplaced combining
@@ -2225,7 +2261,7 @@ def run_export(sanity: int | None, variants: list[str],
                       f"structurally invalid forms ({detail})")
             for key, message in (
                 ("new_structural", "new truncated/smooth-upsilon forms"),
-                ("unattested", "unreviewed, unattested post-April "
+                ("unattested", "unreviewed, unattested new "
                                "generated forms"),
                 ("dominated", "weak new respellings of a more common "
                               "spelling"),

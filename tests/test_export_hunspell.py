@@ -580,7 +580,7 @@ def test_dominated_new_respelling_is_rejected_but_baseline_is_kept():
     )
     assert {form for form, _lemma in rejected} == {"τών", "ἑγώ", "ταΐς"}
     # Doric τᾷ has treebank support; θάλασσάν is a productive second accent;
-    # κάλως is reviewed April surface; Τίμων holds a large share.
+    # κάλως is reviewed shipped surface; Τίμων holds a large share.
     assert {form for form, _lemma in kept} == {
         "τᾷ", "θάλασσάν", "κάλως", "Τίμων",
     }
@@ -1067,3 +1067,56 @@ def test_koronis_bearing_non_spelling_is_not_admitted(
     admitted = {f for f, _ in select_forms(conn, "grc")}
     assert rejected not in admitted
     assert set(kept) <= admitted
+
+
+def test_both_treebanks_on_one_spelling_confirm_a_respelling():
+    # πρώτω, the dual, has 40 corpus tokens against 4,006 for the dative
+    # πρώτῳ, so the raw-count floor asks for 25 treebank tokens and it has
+    # 9. GLAUx and Diorisis both annotate it, which the floor cannot see.
+    pairs = [
+        ("πρώτω", "πρῶτος"),
+        ("ἑγώ", "ἐγώ"),
+    ]
+    exact = {
+        exact_form_key("πρώτῳ"): 4_006,
+        exact_form_key("πρώτω"): 40,
+        exact_form_key("ἐγώ"): 32_000,
+        exact_form_key("ἑγώ"): 54,
+    }
+    dominant = {"πρωτω": 4_006, "εγω": 32_000}
+    treebank = {exact_form_key("πρώτω"): 9, exact_form_key("ἑγώ"): 1}
+    confirmed = frozenset({exact_form_key("πρώτω")})
+    kept, rejected = filter_dominated_spelling_variants(
+        pairs, exact, dominant, treebank, set(), None, confirmed,
+    )
+    assert {form for form, _lemma in kept} == {"πρώτω"}
+    assert {form for form, _lemma in rejected} == {"ἑγώ"}
+
+
+def test_confirmation_must_be_worth_something_against_the_common_word():
+    # Both treebanks carry a stray tagging of ὅτι as ὄτι, but 3 tokens
+    # against 241,498 is the mis-tagging rate of a very common word, not
+    # evidence of a second spelling.
+    pairs = [("ὄτι", "ὅτι"), ("πρώτω", "πρῶτος")]
+    exact = {
+        exact_form_key("ὅτι"): 241_498, exact_form_key("ὄτι"): 617,
+        exact_form_key("πρώτῳ"): 4_006, exact_form_key("πρώτω"): 40,
+    }
+    dominant = {"οτι": 241_498, "πρωτω": 4_006}
+    treebank = {exact_form_key("ὄτι"): 3, exact_form_key("πρώτω"): 9}
+    confirmed = frozenset({exact_form_key("ὄτι"), exact_form_key("πρώτω")})
+    kept, rejected = filter_dominated_spelling_variants(
+        pairs, exact, dominant, treebank, set(), None, confirmed,
+    )
+    assert {form for form, _lemma in kept} == {"πρώτω"}
+    assert {form for form, _lemma in rejected} == {"ὄτι"}
+
+
+def test_confirmation_is_absent_by_default():
+    # Without the set, the floor decides on its own, as it did before.
+    pairs = [("πρώτω", "πρῶτος")]
+    exact = {exact_form_key("πρώτῳ"): 4_006, exact_form_key("πρώτω"): 40}
+    kept, rejected = filter_dominated_spelling_variants(
+        pairs, exact, {"πρωτω": 4_006}, {exact_form_key("πρώτω"): 9}, set(),
+    )
+    assert not kept and len(rejected) == 1

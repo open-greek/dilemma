@@ -14,7 +14,7 @@ vocabulary or unigram table explicit. JSON sources require a non-sanity
 ``stats.json``. The format-v2 LM binary is also accepted because it embeds the
 exact exported vocabulary and unigram counts.
 
-The same command enforces the reviewed April acceptance surface, top LSJ9
+The same command enforces the reviewed shipped acceptance surface, top LSJ9
 citation headwords, complete textbook paradigms, grave/acute twins, structural
 spelling hygiene, and pinned held-out corpus rejection ceilings.
 """
@@ -63,7 +63,7 @@ DEFAULT_FIXTURE = ROOT / "tests" / "fixtures" / "hunspell_lm_top1000.json"
 DEFAULT_EXCLUSIONS = (
     ROOT / "tests" / "fixtures" / "hunspell_lm_top1000_exclusions.json"
 )
-DEFAULT_COMPATIBILITY = ROOT / "data" / "hunspell_grc_april_compat.json.gz"
+DEFAULT_COMPATIBILITY = ROOT / "data" / "hunspell_grc_shipped_compat.json.gz"
 DEFAULT_HELDOUT = ROOT / "tests" / "fixtures" / "hunspell_heldout.json.gz"
 DEFAULT_TOP_N = 1000
 # Top-2,000 LSJ9 headwords that are not single dictionary words. Every other
@@ -374,7 +374,7 @@ def audit_export_orthography(
 ) -> tuple[list[str], list[str]]:
     """Find structurally invalid forms and synthetic flagged dictionary bases.
 
-    ``reviewed`` forms (the April baseline and the closed lists) are exempt
+    ``reviewed`` forms (the shipped baseline and the closed lists) are exempt
     from the structural rules, exactly as in the exporter; bare elision
     stems never are.
     """
@@ -455,6 +455,7 @@ def weak_respellings(new_forms: set[str]) -> list[str]:
             canonical_forms, load_top_lsj9_lemmas(), textbook_forms,
             load_lm_head_required_forms(),
         ),
+        treebank_confirmed=profile.treebank_confirmed,
     )
     return [form for form, _lemma in rejected]
 
@@ -474,7 +475,7 @@ def measure_heldout_corpora(
     dictionary_base: Path,
     fixture_path: Path = DEFAULT_HELDOUT,
 ) -> dict[str, dict[str, int]]:
-    """Measure candidate and April rejection counts on held-out corpora."""
+    """Measure candidate and baseline rejection counts on held-out corpora."""
     try:
         from spylls.hunspell import Dictionary
     except ImportError as exc:  # pragma: no cover - exercised by CLI users
@@ -699,7 +700,7 @@ def main() -> int:
     print(
         "whole artifact: "
         f"{compatibility_count - len(whole['compatibility_missing']):,}/"
-        f"{compatibility_count:,} reviewed April forms; "
+        f"{compatibility_count:,} reviewed shipped forms; "
         f"{citation_count - len(whole['citation_headwords_missing']):,}/"
         f"{citation_count:,} top citation headwords; "
         f"{paradigm_count - len(paradigm_missing):,}/{paradigm_count:,} "
@@ -727,7 +728,7 @@ def main() -> int:
         print("accepted reviewed nonwords: " + ", ".join(accepted_exclusions),
               file=sys.stderr)
     labels = {
-        "compatibility_missing": "April-compatible forms missing",
+        "compatibility_missing": "forms the shipped dictionary has and this lacks",
         "invalid_forms": "structurally invalid accepted forms",
         "grave_without_acute": "grave forms without acute twins",
         "citation_headwords_missing": "top citation headwords missing",

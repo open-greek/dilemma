@@ -2027,7 +2027,7 @@ monotonic) is retained for other downstream consumers via
 
 | Variant | Script name | Lang tag | Contents |
 |--------|------------|---------|---------|
-| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. New post-April forms require exact evidence from the complete accent-preserving `form_profile.db`, including hapaxes, or membership in a pinned citation, textbook-paradigm, grammar, or productive second-accent class; arbitrary unattested generator output is not admitted. A productive second accent needs a proparoxytone or properispomenon host (`θάλασσάν`, `δῶρόν`, but not `λύκοί`). A new spelling that differs only in accent, breathing, diaeresis, or iota subscript from a well-formed spelling with at least 1,000 corpus tokens (`ἑγώ` beside `ἐγώ`, `ταΐς` beside `ταῖς`) must also be attested in the GLAUx or Diorisis treebanks: at least 25 tokens when it has under 1% of the common spelling's count, at least 5 when it has under 5%. This keeps genuine dialect spellings such as Doric `τᾷ` and `τῶ`. Outside the reviewed April surface (see the release audit below), a vowel- or rho-initial form without a breathing is rejected, and so are a grave accent before the final syllable (`καὶτοὺς`, `ὓστερον`) or on an elided word (`γὰρ᾽`), and a second accent anywhere but on the ultima of a proparoxytone or properispomenon, or before a fused enclitic (`Αἴγυπτόνδε`). Valid elisions normalize their final textual apostrophe to U+1FBD koronis. Same-lemma bare elision fallbacks are excluded unless an independent DGE/Cunliffe headword proves the collision, while the reviewed historical fallback set catches malformed self-headwords and preserves genuine `ἄν`. The closed Homeric apocope set preserves `κὰτ`/`κάτ` through `κὰγ`/`κάγ` and `ἂμ`/`ἄμ`. A closed grammatical list preserves legitimate unaccented words: enclitics including the `τις`, `φημί`, and `εἰμί` forms, dialect proclitics (`ἁ`, `αἰ`), and crasis with a proclitic (`κἀν`, `χὠ`), while `του` and `τῳ` remain deliberately excluded. Reviewed lists keep crasis with a later coronis (`ἐγᾦμαι`, `καλοκἀγαθία`, `ὦνθρωπε`) and complete words that end in a consonant (`ἔκ`, `παρέκ`, `ὑπέκ`, `χερουβίμ`); a fused enclitic's host keeps its own accent window (`οὗτινος`). Every retained contextual grave receives its citation/before-pause acute twin unless the twin fails a structural rule. |
+| `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. New forms require exact evidence from the complete accent-preserving `form_profile.db`, including hapaxes, or membership in a pinned citation, textbook-paradigm, grammar, or productive second-accent class; arbitrary unattested generator output is not admitted. A productive second accent needs a proparoxytone or properispomenon host (`θάλασσάν`, `δῶρόν`, but not `λύκοί`). A new spelling that differs only in accent, breathing, diaeresis, or iota subscript from a well-formed spelling with at least 1,000 corpus tokens (`ἑγώ` beside `ἐγώ`, `ταΐς` beside `ταῖς`) must also be attested in the GLAUx or Diorisis treebanks: at least 25 tokens when it has under 1% of the common spelling's count, at least 5 when it has under 5%. A spelling both treebanks annotate independently, more than once each and at a rate of at least one treebank token per thousand of the dominant spelling, is confirmed instead of counted, which keeps the dual `πρώτω`, Doric `γλώσσᾳ` and the contract `πειρᾷς`. This keeps genuine dialect spellings such as Doric `τᾷ` and `τῶ`. Outside the reviewed April surface (see the release audit below), a vowel- or rho-initial form without a breathing is rejected, and so are a grave accent before the final syllable (`καὶτοὺς`, `ὓστερον`) or on an elided word (`γὰρ᾽`), and a second accent anywhere but on the ultima of a proparoxytone or properispomenon, or before a fused enclitic (`Αἴγυπτόνδε`). Valid elisions normalize their final textual apostrophe to U+1FBD koronis. Same-lemma bare elision fallbacks are excluded unless an independent DGE/Cunliffe headword proves the collision, while the reviewed historical fallback set catches malformed self-headwords and preserves genuine `ἄν`. The closed Homeric apocope set preserves `κὰτ`/`κάτ` through `κὰγ`/`κάγ` and `ἂμ`/`ἄμ`. A closed grammatical list preserves legitimate unaccented words: enclitics including the `τις`, `φημί`, and `εἰμί` forms, dialect proclitics (`ἁ`, `αἰ`), and crasis with a proclitic (`κἀν`, `χὠ`), while `του` and `τῳ` remain deliberately excluded. Reviewed lists keep crasis with a later coronis (`ἐγᾦμαι`, `καλοκἀγαθία`, `ὦνθρωπε`) and complete words that end in a consonant (`ἔκ`, `παρέκ`, `ὑπέκ`, `χερουβίμ`); a fused enclitic's host keeps its own accent window (`οὗτινος`). Every retained contextual grave receives its citation/before-pause acute twin unless the twin fails a structural rule. |
 | `el_GR_monotonic.{dic,aff,version}` | `el` | `el_GR` | Modern Greek monotonic forms, including MG-relevant vocabulary drawn from the AG side of `lookup.db` (articles, common verbs, proper names). Not shipped in Tonos. |
 
 Each dictionary entry carries a morphological field `fr:<bucket>` where
@@ -2088,13 +2088,16 @@ flagged bases, bare elision stems, and new weak respellings of common
 spellings, and require an acute twin for every contextual grave whose acute
 spelling passes the structural rules.
 
-The reviewed April surface is exempt from Dilemma's structural rules, and
-984 of its forms fail them: 404 have a grave before the final syllable
-(`Ξὲρξης`), 338 an accent before the antepenult, 115 a circumflex before the
-penult, 71 an internal breathing, 43 a character that is not a Greek letter,
-and 13 no initial breathing (`ωὐτός`). Dropping them would count as losses in
-Tonos's gate, so they stay until they are reviewed there. The acute twin of a
-reviewed grave inherits its review.
+The baseline is the dictionary Tonos ships now, not the April 0.4.1 export it
+started from: it moves forward with each swap-in, and what it encodes is that
+an export must not lose what the keyboard already accepts. Because the gate
+strips its structural classes before pinning, a baseline taken from a recent
+export grandfathers far less than one taken from April: 18 truncated stems
+rather than 8,971, and no missing-breathing forms rather than 166,226. The
+reviewed surface is exempt from Dilemma's structural rules, and whatever
+still fails them stays until it is reviewed in Tonos, because dropping it
+would count as a loss in the gate. The acute twin of a reviewed grave
+inherits its review.
 
 A content-hashed fixture measures rejection counts over the New Testament
 (Perseus), the Septuagint (First1KGreek), Iliad 1, Herodotus 1, and a
@@ -2102,7 +2105,7 @@ Katharevousa sample. These are regression corpora, not held-out text:
 `form_profile.db` contains the same works, so the exact-attestation rule
 admits almost all of their forms. Candidate token and type rejection counts,
 measured with `spylls`, may not exceed those of the April `.dic`/`.aff` read
-the same way. `data/hunspell_grc_april_compat.json.gz` records the reviewed
+the same way. `data/hunspell_grc_shipped_compat.json.gz` records the reviewed
 baseline surface; `data/hunspell_grc_textbook.json.gz` pins the textbook
 paradigms, taken from `data/ag_verb_paradigms.json` (built by
 `build/build_grc_verb_paradigms.py`; the fixture records its SHA-256);
