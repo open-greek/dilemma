@@ -105,3 +105,25 @@ def test_the_table_does_not_depend_on_set_iteration_order():
     again = _derive_elision_pairs({"ζζύω": set(reversed(sorted(
         lemma_forms["ζζύω"])))}, {})
     assert first == again
+
+
+def test_an_elided_oxytone_throws_its_accent_back():
+    # Smyth 174: ἀνδρί loses its final vowel and the accent goes back onto
+    # the penult as an acute. The full form's own stem carries no mark, so
+    # the stem-marks test alone would prefer the bare spelling.
+    lemma_forms = {"ἀνήρ": {"ἀνδρί", "ἄνδρ᾽", "ἀνδρ᾽"}}
+    assert _derive_elision_pairs(lemma_forms, {})["ἀνδρί"] == "ἄνδρ᾽"
+
+
+def test_prepositions_and_conjunctions_lose_the_accent_instead():
+    # The other half of Smyth 174. οὐδέ is not one of the pinned ten, so
+    # nothing else would keep it bare.
+    lemma_forms = {"οὐδέ": {"οὐδέ", "οὐδ᾽", "οὔδ᾽"}}
+    assert _derive_elision_pairs(lemma_forms, {})["οὐδέ"] == "οὐδ᾽"
+
+
+def test_a_form_that_is_not_oxytone_keeps_its_marks_where_they_were():
+    # The retraction rule has to say nothing here, or it would override the
+    # stem-marks test for every paroxytone and properispomenon.
+    lemma_forms = {"ἄλλος": {"ἄλλε", "ἄλλ᾽", "ἆλλ᾽"}}
+    assert _derive_elision_pairs(lemma_forms, {})["ἄλλε"] == "ἄλλ᾽"
