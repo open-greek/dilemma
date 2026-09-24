@@ -165,6 +165,51 @@ def _canon_elided(s: str) -> str:
     return s
 
 
+_GREEK_VOWELS = frozenset("αεηιουωΑΕΗΙΟΥΩ")
+
+# Smyth 174: an oxytone that loses its final vowel throws the accent back
+# onto the penult as an acute (ἀνδρί -> ἄνδρ᾽, αὐτή -> αὔτ᾽). Prepositions
+# and conjunctions lose it outright instead (ἀλλά -> ἀλλ᾽). The ten in
+# CANONICAL_ELISION_OVERRIDES are pinned anyway; these are the rest of the
+# class, which nothing else would keep bare.
+ELISION_KEEPS_NO_ACCENT: frozenset[str] = frozenset([
+    # prepositions
+    "ανα", "αμφι", "αντι", "απο", "δια", "επι", "κατα", "μετα", "παρα",
+    "περι", "υπο",
+    # conjunctions and particles
+    "αλλα", "δε", "ουδε", "μηδε", "τε",
+])
+
+
+def _is_oxytone(form: str) -> bool:
+    """True when an acute sits on the form's final vowel."""
+    nfd = unicodedata.normalize("NFD", form)
+    last = -1
+    for i, ch in enumerate(nfd):
+        if ch in _GREEK_VOWELS:
+            last = i
+    return last >= 0 and "\u0301" in nfd[last + 1:]
+
+
+def _has_acute(s: str) -> bool:
+    return "\u0301" in unicodedata.normalize("NFD", s)
+
+
+def _elision_accent_ok(full: str, elided: str) -> bool:
+    """Whether the candidate accents the elided form the way Greek does.
+
+    Only the oxytones say anything: elision leaves everything else's marks
+    where they were, which is what ``_stem_marks_match`` below reads. An
+    oxytone's own stem carries no mark, so that test would prefer the bare
+    spelling for every one of them.
+    """
+    if not _is_oxytone(full):
+        return True
+    if _strip_lower(full) in ELISION_KEEPS_NO_ACCENT:
+        return not _has_accent(elided)
+    return _has_acute(elided)
+
+
 def _stem_marks_match(full: str, elided: str) -> bool:
     """True when the elided form keeps the full form's own stem marks.
 
@@ -191,7 +236,9 @@ def _score_elision_variant(full: str, elided: str,
     variants that leaked in without their final accent.
 
     Ranked above those: a candidate the orthography rules reject is not a
-    spelling at all (``τὸτ᾽`` carries a grave on an elided word), and a
+    spelling at all (``τὸτ᾽`` carries a grave on an elided word); a
+    candidate that accents an elided oxytone the way Greek does, throwing
+    the accent back onto the penult (``ἀνδρί`` -> ``ἄνδρ᾽``); and a
     candidate that keeps the full form's stem marks belongs to that full
     form rather than to its sibling. Ranked below them, the corpus count
     settles what is otherwise a tie, so that ``εἵτ᾽`` (2 tokens) does not
@@ -215,6 +262,7 @@ def _score_elision_variant(full: str, elided: str,
         score -= 20
     return (
         grc_orthography_reason(elided) is None,
+        _elision_accent_ok(full, elided),
         _stem_marks_match(full, elided),
         score,
         freq.get(exact_form_key(elided), 0),

@@ -7,6 +7,23 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- An elided oxytone throws its accent back onto the penult as an acute
+  (Smyth 174), and the elision table was leaving it bare. The ranking added
+  in the previous entry prefers the candidate that keeps the full form's own
+  stem marks, and an oxytone's stem carries no mark, so `ἀνδρί` took `ἀνδρ᾽`
+  over `ἄνδρ᾽`, `αὐτή` took `αὐτ᾽` over `αὔτ᾽`, and `Διί` took `Δι᾽`, which
+  also collides with `δι᾽` for `διά`. The retraction now ranks above the
+  stem-marks test, and applies only to oxytones, so every other form still
+  keeps its marks where they were. Prepositions and conjunctions lose the
+  accent outright instead, which is the other half of the same rule: beyond
+  the ten pinned particles that covers `ἀνά`, `ἀμφί`, `περί`, `οὐδέ`, `μηδέ`
+  and `τε`, and it corrects `οὐδέ` from `οὔδ᾽` to `οὐδ᾽`.
+
+  Reported by Tonos, which held the table back from its second swap-in rather
+  than ship it. Its gate reads only the dictionary, so nothing on either side
+  tests this file automatically.
+
+### Fixed
 - The elision table in `build/hunspell/grc_morph.json`, which the keyboard
   reads to offer an elided spelling, picked between candidates on casing,
   breathing and whether an accent survived, and broke ties on set iteration
