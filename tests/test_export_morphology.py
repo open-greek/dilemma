@@ -148,6 +148,17 @@ def test_a_word_elision_cannot_touch_gets_no_entry():
         assert full not in pairs, f"{full} cannot elide"
 
 
+def test_words_attic_never_elides_get_no_entry():
+    # ὅτ᾽ reads as ὅτε, δι᾽ as διά, and οὐχί ends in a long ί.
+    lemma_forms = {"ὅτι": {"ὅτι", "ὅτ᾽"}, "περί": {"περί", "περὶ", "περ᾽"},
+                   "διό": {"διό", "δι᾽"}, "οὐχί": {"οὐχί", "οὔχ᾽"},
+                   "ὅτε": {"ὅτε", "ὅτ᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms)
+    for word in ("ὅτι", "περί", "περὶ", "διό", "οὐχί"):
+        assert word not in pairs, word
+    assert pairs["ὅτε"] == "ὅτ᾽"
+
+
 def test_a_pair_is_dropped_when_every_candidate_is_junk():
     # Ranking only picks the least bad one, and writing that into
     # someone's text is worse than offering nothing.

@@ -7,6 +7,14 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- Words Attic never elides no longer have an elision entry, although their
+  final vowel is short: `ὅτι`, `περί`, `πρό`, `ἄχρι` and `μέχρι` (Smyth 72),
+  `διό` and `καθά`, which already contain one (`δι᾽ ὅ`, `καθ᾽ ἅ`), and the
+  emphatic and deictic -ί, which is long (`οὐχί`, `ὁδί`, `τοδί`). A keyboard
+  applying the table rewrote them before any vowel, and `ὅτ᾽` reads as `ὅτε`,
+  `δι᾽` as `διά`. GLAUx elides `ὅτι` 5 times in 20,231 before a vowel and
+  `οὐχί` never in 462. 32 entries go, whose 14 distinct corpus spellings
+  carry 476,588 occurrences.
 - The elision table now emits a pair only when the corpora attest the
   spelling the rules of elision give: the final vowel goes, an oxytone throws
   its accent back as an acute unless it is a preposition, conjunction or

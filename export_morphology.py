@@ -169,9 +169,9 @@ _GREEK_VOWELS = frozenset("αεηιουωΑΕΗΙΟΥΩ")
 ELISION_KEEPS_NO_ACCENT: frozenset[str] = frozenset([
     # prepositions
     "ανα", "αμφι", "αντι", "απο", "δια", "επι", "κατα", "μετα", "παρα",
-    "περι", "υπο",
-    # conjunctions and adverbs of the same class
-    "αλλα", "δε", "ουδε", "μηδε", "διο", "καθα",
+    "υπο",
+    # conjunctions of the same class
+    "αλλα", "δε", "ουδε", "μηδε",
     # enclitics, which have no accent of their own to throw back
     # (Smyth 183). The orthotone εἰμί and φημί are not among them:
     # εἰμί elides to εἴμ᾽ and ἐμέ, the emphatic pronoun, to ἔμ᾽.
@@ -204,6 +204,19 @@ def _elides_bare(full: str) -> bool:
 # long, υ does not elide, a circumflex or an iota subscript marks a long
 # vowel, and the second element of a diphthong goes with the first.
 _ELIDABLE_VOWELS = frozenset("αειο")
+
+# Words whose final vowel is short but which do not elide. Attic never
+# elides ὅτι, περί, πρό, ἄχρι or μέχρι (Smyth 72), and ὅτ᾽ reads as ὅτε, δι᾽
+# as διά. διό and καθά already contain an elision (δι᾽ ὅ, καθ᾽ ἅ). The
+# emphatic and deictic -ί is long (οὐχί, τουτί, ὁδί). A keyboard rewrites
+# the word before any vowel, so these would change the text's meaning
+# rather than its spelling.
+NEVER_ELIDED: frozenset[str] = frozenset([
+    "οτι", "περι", "προ", "αχρι", "μεχρι",
+    "διο", "καθα",
+    "ουχι", "ναιχι", "νυνι", "τουτι", "ταυτι", "ωδι", "οδι", "ηδι", "τοδι",
+    "ταδι", "ενθαδι", "ουτοσι", "αυτηι",
+])
 _DIPHTHONGS = frozenset(["αι", "ει", "οι", "υι", "αυ", "ευ", "ηυ", "ου"])
 
 
@@ -244,6 +257,8 @@ def _is_oxytone(form: str) -> bool:
 
 def _can_elide(form: str) -> bool:
     """True when the form's final vowel is one elision can remove."""
+    if _strip_lower(form) in NEVER_ELIDED:
+        return False
     found = _final_vowel(form)
     if not found:
         return False
