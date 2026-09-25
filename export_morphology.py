@@ -180,10 +180,12 @@ ELISION_KEEPS_NO_ACCENT: frozenset[str] = frozenset([
     # accented adverb rather than an enclitic, so it is not among them.
     "ποτι", "ηδε", "ηε",
     "με", "σε", "μοι", "σοι", "τινα", "τινι", "τινε", "τινος",
-    # Epic, Ionic, Doric and Aeolic prepositions and particles, prepositions
-    # in crasis (κἀπί, κἀπό), and ἰδέ, which elides bare as the epic
-    # conjunction, most of its elided tokens, rather than as the imperative.
-    "προτι", "κοτε", "ποκα", "πεδα", "καπι", "καπο", "ιδε",
+    # Epic, Ionic, Doric and Aeolic prepositions and particles, the dual
+    # enclitic σφωε, prepositions and conjunctions in crasis (κἀπί, τἀπό,
+    # μἀλλά), and ἰδέ, which elides bare as the epic conjunction, most of its
+    # elided tokens, rather than as the imperative.
+    "προτι", "κοτε", "ποκα", "πεδα", "υπα", "σφωε",
+    "καπι", "καπο", "ταπι", "ταπο", "καντι", "μαλλα", "κουδε", "ιδε",
 ])
 
 # Matched with the breathing kept: the epic preposition ἐνί elides bare,
@@ -216,8 +218,19 @@ NEVER_ELIDED: frozenset[str] = frozenset([
     "οτι", "περι", "προ", "αχρι", "μεχρι",
     "διο", "καθα",
     "ουχι", "ναιχι", "νυνι", "τουτι", "ταυτι", "ωδι", "οδι", "ηδι", "τοδι",
-    "ταδι", "ενθαδι", "ουτοσι", "αυτηι",
+    "ταδι", "ενθαδι", "ουτοσι", "αυτηι", "τονδι", "τηνδι", "τασδι",
+    "τουσδι", "οιδι", "τοιοσδι", "τοιαδι", "τοιονδι", "τοσονδι", "τουδι",
+    "τηδι", "τωδι", "ταυτηι", "τουτωι", "τουτουι", "ουτωσι", "εκεινοσι",
+    "εκεινηι", "τοιουτοσι", "τοσουτοσι", "τοιαυτι", "τοσαυτι", "δευρι",
+    "ενταυθι",
+    # contracted neuter plurals of nouns in -ας, whose α is long
+    "κρεα", "κερα", "γερα",
 ])
+
+# A monosyllable does not elide unless it ends in ε (Smyth 72): δέ, τε, σε.
+# These particles are the exceptions the corpora attest.
+ELIDING_MONOSYLLABLES: frozenset[str] = frozenset(["ρα", "κα", "γα", "σφι"])
+
 _DIPHTHONGS = frozenset(["αι", "ει", "οι", "υι", "αυ", "ευ", "ηυ", "ου"])
 
 
@@ -231,6 +244,37 @@ def _final_vowel(form: str):
     if last < 0:
         return None
     return last, nfd[last].lower(), nfd[last + 1:]
+
+
+def _nuclei(nfd: str) -> list[tuple[int, int]]:
+    """Spans of an NFD string's vowel nuclei, a diphthong counting as one.
+
+    An accent on the ε or ο of a pair marks a hiatus, not a diphthong, whose
+    accent would sit on the second vowel: βασιλέι is βασιλέϊ.
+    """
+    spans: list[list[int]] = []
+    single = None       # (base, marks) when the last span is a lone vowel
+    i = 0
+    while i < len(nfd):
+        j = i + 1
+        while j < len(nfd) and unicodedata.combining(nfd[j]):
+            j += 1
+        base, marks = nfd[i].lower(), nfd[i + 1:j]
+        if base in "αεηιουω":
+            hiatus = single is not None and single[0] in "εο" and any(
+                m in single[1] for m in "\u0300\u0301")
+            if (single is not None and spans[-1][1] == i
+                    and single[0] + base in _DIPHTHONGS
+                    and "\u0308" not in marks and not hiatus):
+                spans[-1][1] = j
+                single = None
+            else:
+                spans.append([i, j])
+                single = (base, marks)
+        else:
+            single = None
+        i = j
+    return [(a, b) for a, b in spans]
 
 
 def _is_oxytone(form: str) -> bool:
@@ -247,34 +291,39 @@ def _is_oxytone(form: str) -> bool:
     index, _base, marks = found
     if "\u0301" not in marks and "\u0300" not in marks:
         return False
-    # A second accent on the last syllable is an enclitic's, thrown onto a
-    # proparoxytone or properispomenon (σῶμά τι, χεῖρά τε). It leaves with
-    # the elided vowel, and the word's own accent stays where it was:
-    # χεῖρά elides to χεῖρ᾽, not χείρ᾽. A grave earlier in the word is no
-    # accent of its own, only a malformed spelling (μὲτὰ).
-    head = unicodedata.normalize("NFD", form)[:index]
-    return not any(ord(c) in (0x0301, 0x0342) for c in head)
+    # A second accent on the last syllable is an enclitic's, thrown onto the
+    # word's own acute or onto a circumflex on the penult (σῶμά τι, χεῖρά
+    # τε). It leaves with the elided vowel, and the word keeps its own
+    # accent where the user put it: χεῖρά elides to χεῖρ᾽, not χείρ᾽, and
+    # the grave rule's τοῦτὸ to τοῦτ᾽. A circumflex further back cannot host
+    # one, so ὦγαθέ, a crasis, is an oxytone (ὦγάθ᾽); a grave earlier in the
+    # word is only a malformed spelling (μὲτὰ).
+    nfd = unicodedata.normalize("NFD", form)
+    spans = _nuclei(nfd)
+    penult = nfd[spans[-2][0]:spans[-2][1]] if len(spans) >= 2 else ""
+    return "\u0301" not in nfd[:index] and "\u0342" not in penult
 
 
 def _can_elide(form: str) -> bool:
     """True when the form's final vowel is one elision can remove."""
-    if _strip_lower(form) in NEVER_ELIDED:
+    stripped = _strip_lower(form)
+    if stripped in NEVER_ELIDED:
         return False
     found = _final_vowel(form)
     if not found:
         return False
-    index, base, marks = found
+    _index, base, marks = found
     if base not in _ELIDABLE_VOWELS:
         return False
     if "\u0342" in marks or "\u0345" in marks:
         return False
-    if "\u0308" in marks:       # a diaeresis breaks the diphthong
-        return True
     nfd = unicodedata.normalize("NFD", form)
-    for j in range(index - 1, -1, -1):
-        if unicodedata.combining(nfd[j]):
-            continue
-        return (nfd[j].lower() + base) not in _DIPHTHONGS
+    spans = _nuclei(nfd)
+    last = nfd[spans[-1][0]:spans[-1][1]]
+    if sum(c.lower() in "αεηιουω" for c in last) > 1:
+        return False            # the second element of a diphthong
+    if len(spans) == 1 and base != "ε":
+        return stripped in ELIDING_MONOSYLLABLES
     return True
 
 
@@ -496,10 +545,15 @@ def _derive_elision_pairs(
     win regardless of corpus noise.
     """
     candidates_by_full: dict[str, set[str]] = defaultdict(set)
+    # The Attic accusative of a noun in -εύς ends in a long ᾱ (βασιλέᾱ,
+    # Smyth 276), which cannot elide; the spelling does not show it, the
+    # lemma does.
+    long_final: set[str] = set()
 
     for lemma, forms in lemma_to_forms.items():
         if has_editorial_sigla(lemma):
             continue
+        eus = _strip_lower(lemma).endswith("ευς")
         elideds = set()
         fulls: list[str] = []
         for f in forms:
@@ -522,6 +576,8 @@ def _derive_elision_pairs(
             if not _can_elide(full):
                 continue
             stripped_full = _strip_lower(full)
+            if eus and stripped_full.endswith("εα"):
+                long_final.add(full)
             # Find elided candidates whose stripped stem is exactly
             # one vowel shorter than the full form.
             for e in elideds:
@@ -548,6 +604,8 @@ def _derive_elision_pairs(
     # is better than offering another word.
     pairs: dict[str, str] = {}
     for full, candidates in candidates_by_full.items():
+        if full in long_final:
+            continue
         elided = _rule_elision(full)
         if elided in candidates and grc_orthography_reason(elided) is None:
             pairs[full] = elided

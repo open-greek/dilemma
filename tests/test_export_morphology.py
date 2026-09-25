@@ -211,11 +211,64 @@ def test_no_entry_when_the_rules_spelling_is_unattested():
 
 
 def test_the_epic_preposition_eni_elides_bare_and_the_numeral_retracts():
+    # The corpora file ἐνί under εἷς as well as under ἐν, which is how it
+    # took the numeral's ἕν᾽; the answer must not depend on which comes last.
     lemma_forms = {"ἐν": {"ἐνί", "ἐν᾽"},
-                   "εἷς": {"ἑνί", "ἕν᾽", "ἑν᾽"}}
+                   "εἷς": {"ἐνί", "ἑνί", "ἕν᾽"}}
+    for order in (lemma_forms, dict(reversed(list(lemma_forms.items())))):
+        pairs = _derive_elision_pairs(order)
+        assert pairs["ἐνί"] == "ἐν᾽"
+        assert pairs["ἑνί"] == "ἕν᾽"
+
+
+def test_a_rule_spelling_the_orthography_rules_reject_is_not_emitted():
+    # ἂρα carries a grave before its last syllable, and the rule keeps it.
+    assert "ἂρα" not in _derive_elision_pairs({"ἄρα": {"ἂρα", "ἂρ᾽"}})
+
+
+def test_a_key_that_opens_with_a_mark_is_skipped():
+    # A prodelided ᾽κεῖνα is not a word a keyboard reads.
+    lemma_forms = {"ἐκεῖνος": {"᾽κεῖνα", "᾽κεῖν᾽"}}
+    assert "᾽κεῖνα" not in _derive_elision_pairs(lemma_forms)
+
+
+def test_tote_is_an_adverb_that_retracts():
+    # τοτέ, "at times", is accented and no enclitic; the lemma τότε lists it.
+    lemma_forms = {"τοτέ": {"τοτέ", "τοτ᾽"}, "τότε": {"τότε", "τοτέ", "τότ᾽"}}
+    assert _derive_elision_pairs(lemma_forms)["τοτέ"] == "τότ᾽"
+
+
+def test_dialect_prepositions_and_crasis_elide_bare():
+    lemma_forms = {"προτί": {"προτί", "προτ᾽", "πρότ᾽"},
+                   "ἐπί": {"τἀπί", "τἀπ᾽", "τἄπ᾽"},
+                   "ὑπό": {"ὑπά", "ὑπ᾽", "ὕπ᾽"}}
     pairs = _derive_elision_pairs(lemma_forms)
-    assert pairs["ἐνί"] == "ἐν᾽"
-    assert pairs["ἑνί"] == "ἕν᾽"
+    assert pairs["προτί"] == "προτ᾽"
+    assert pairs["τἀπί"] == "τἀπ᾽"
+    assert pairs["ὑπά"] == "ὑπ᾽"
+
+
+def test_a_circumflex_before_the_penult_hosts_no_enclitic_accent():
+    # ὦγαθέ is the crasis ὦ ἀγαθέ, an oxytone, and prints as ὦγάθ᾽.
+    lemma_forms = {"ἀγαθός": {"ὦγαθέ", "ὦγάθ᾽"}}
+    assert _derive_elision_pairs(lemma_forms)["ὦγαθέ"] == "ὦγάθ᾽"
+
+
+def test_long_final_vowels_the_spelling_hides_do_not_elide():
+    # The deictic -ί (Smyth 333g), the Attic accusative -έᾱ of a noun in
+    # -εύς (Smyth 276), a contracted neuter plural in -ᾱ, and a monosyllable
+    # not in ε (Smyth 72). βασιλέι is a hiatus, βασιλέϊ, and elides.
+    lemma_forms = {"ὅδε": {"τόνδε", "τονδί", "τόνδ᾽"},
+                   "βασιλεύς": {"βασιλέα", "βασιλέι", "βασιλέ᾽"},
+                   "κρέας": {"κρέα", "κρέ᾽"},
+                   "σός": {"σά", "σ᾽"},
+                   "ἄρα": {"ῥα", "ῥ᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms)
+    for word in ("τονδί", "βασιλέα", "κρέα", "σά"):
+        assert word not in pairs, word
+    assert pairs["τόνδε"] == "τόνδ᾽"
+    assert pairs["βασιλέι"] == "βασιλέ᾽"
+    assert pairs["ῥα"] == "ῥ᾽"
 
 
 def test_a_grave_before_the_last_syllable_is_not_an_accent():
@@ -259,9 +312,15 @@ def test_the_built_elision_table_holds_its_invariants():
     # Elision drops the last vowel and may move the accent, nothing else. A
     # value that changes a letter, a breathing or an iota subscript is the
     # elision of another word (ἐνί took the numeral's ἕν᾽), and a key whose
-    # accent sits before its last vowel keeps that accent exactly (αἰτία
-    # took αἴτι᾽, the neuter plural's).
+    # accent sits before its last vowel keeps that accent where it was
+    # (αἰτία took αἴτι᾽, the neuter plural's). An oxytone may add the acute
+    # it throws back (ὦγαθέ gives ὦγάθ᾽), and that is all it may add.
     accents = {"\u0300", "\u0301", "\u0342"}
+
+    def keeps(kept, own):
+        return kept == own or any(
+            kept[:i] + kept[i + 1:] == own
+            for i, c in enumerate(kept) if c == "\u0301")
 
     def stem(form):
         nfd = unicodedata.normalize("NFD", form)
@@ -276,7 +335,7 @@ def test_the_built_elision_table_holds_its_invariants():
         kept, own = unicodedata.normalize("NFD", v)[:-1], stem(k)
         if unaccented(kept) != unaccented(own):
             other_word[k] = v
-        elif any(c in accents for c in own) and kept != own:
+        elif any(c in accents for c in own) and not keeps(kept, own):
             moved[k] = v
     assert not other_word, f"values that spell another word: {list(other_word.items())[:10]}"
     assert not moved, f"values that move the key's own accent: {list(moved.items())[:10]}"

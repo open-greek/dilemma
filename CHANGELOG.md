@@ -7,6 +7,17 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- Long final vowels that the spelling does not show no longer elide: the
+  Attic accusative of a noun in -εύς (`βασιλέα`, whose ᾱ is long; Smyth 276),
+  the contracted neuter plurals `κρέα`, `κέρα` and `γέρα`, and the rest of the
+  deictic -ί paradigm (`τονδί`, `τοιονδί`, `τοιαδί`). Neither does a
+  monosyllable that does not end in ε (Smyth 72), so `σά` and the fragments
+  `λα`, `πί` and `στι` go; `ῥα`, `κα`, `γα` and `σφι` stay. An accented ε or
+  ο before a final ι is a hiatus rather than a diphthong, so the epic
+  `βασιλέι` elides again, and a circumflex before the penult hosts no
+  enclitic's accent, so the crasis `ὦγαθέ` retracts to `ὦγάθ᾽`. More
+  crasis forms and dialect words elide bare (`τἀπί`, `μἀλλά`, `κἀντί`,
+  `κοὐδέ`, `σφωέ`, `ὑπά`). The table ends at 16,981 entries.
 - Words Attic never elides no longer have an elision entry, although their
   final vowel is short: `ὅτι`, `περί`, `πρό`, `ἄχρι` and `μέχρι` (Smyth 72),
   `διό` and `καθά`, which already contain one (`δι᾽ ὅ`, `καθ᾽ ἅ`), and the
@@ -37,7 +48,7 @@ All notable changes to Dilemma are documented here. The format follows
 - The elision table gave `κατὰ` the value `Κατ᾽` and `μετὰ` the value
   `Μετ᾽`, and a keyboard writes the value into the user's text as it stands,
   so the two commonest mid-sentence spellings of those prepositions came out
-  capitalized: 226,495 and 94,075 corpus occurrences. A form's elision was
+  capitalized: 217,784 and 88,664 corpus occurrences of those spellings. A form's elision was
   assigned lemma by lemma, and the last lemma to claim the form won whatever
   the ranking said. The corpora carry a capitalized lemma `Κατά` whose one
   elided token opened a sentence, and it came after `κατά`. A form's
