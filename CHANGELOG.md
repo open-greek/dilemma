@@ -7,6 +7,23 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The elision table now emits a pair only when the corpora attest the
+  spelling the rules of elision give: the final vowel goes, an oxytone throws
+  its accent back as an acute unless it is a preposition, conjunction or
+  enclitic, and every other mark stays. The corpus candidates used to be
+  ranked instead, and the ranking only broke ties among spellings that were
+  often all wrong, so a key whose one candidate belonged to another word
+  still got it. 32,333 entries fall to 17,030. 13,156 of the keys dropped are
+  spellings the orthography rules reject (a grave before the last syllable, a
+  missing breathing), whose values were correcting the spelling as well as
+  eliding it. Among the 2,147 well-formed ones, a long final α took the
+  neuter plural's elision (`αἰτία` -> `αἴτι᾽`, `ἑτέρα` -> `ἕτερ᾽`; 266 keys,
+  39,259 occurrences), an oxytone in -ι took another case's accent
+  (`γυναικί` -> `γυναῖκ᾽`, the accusative's; 105 keys, 35,291), and the
+  deictic -ί, which is long, was elided into the plain pronoun (`τουτί` ->
+  `τοῦτ᾽`). The epic `ἐνί` now elides to `ἐν᾽` rather than the numeral's
+  `ἕν᾽`, and the dialect prepositions and particles that elide bare are
+  listed (`προτί`, `κοτέ`, `ποκά`, `πεδά`, `κἀπί`).
 - The elision table gave `κατὰ` the value `Κατ᾽` and `μετὰ` the value
   `Μετ᾽`, and a keyboard writes the value into the user's text as it stands,
   so the two commonest mid-sentence spellings of those prepositions came out

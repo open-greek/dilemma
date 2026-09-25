@@ -65,8 +65,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from dilemma.form_sanitize import has_editorial_sigla
-from export_hunspell import (exact_form_key, grc_orthography_reason,
-                             load_form_profile_freq)
+from export_hunspell import grc_orthography_reason
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -146,11 +145,6 @@ def _last_base_vowel(s: str) -> str | None:
     return None
 
 
-def _has_breathing(s: str) -> bool:
-    nfd = unicodedata.normalize("NFD", s)
-    return any(ord(c) in (0x0313, 0x0314) for c in nfd)
-
-
 def _has_accent(s: str) -> bool:
     nfd = unicodedata.normalize("NFD", s)
     return any(ord(c) in (0x0300, 0x0301, 0x0342) for c in nfd)
@@ -185,7 +179,25 @@ ELISION_KEEPS_NO_ACCENT: frozenset[str] = frozenset([
     # Epic and Doric members of the same classes
     "ποτι", "ηδε", "ηε", "τοτε",
     "με", "σε", "μοι", "σοι", "τινα", "τινι", "τινε", "τινος",
+    # Epic, Ionic, Doric and Aeolic prepositions and particles, prepositions
+    # in crasis (κἀπί, κἀπό), and ἰδέ, which elides bare as the epic
+    # conjunction, most of its elided tokens, rather than as the imperative.
+    "προτι", "κοτε", "ποκα", "πεδα", "καπι", "καπο", "ιδε",
 ])
+
+# Matched with the breathing kept: the epic preposition ἐνί elides bare,
+# and the numeral ἑνί retracts like any oxytone.
+ELISION_KEEPS_NO_ACCENT_SMOOTH: frozenset[str] = frozenset(["ενι", "εινι"])
+
+
+def _elides_bare(full: str) -> bool:
+    """True for an oxytone that loses its accent in elision instead of
+    throwing it back: a preposition, a conjunction or an enclitic."""
+    stripped = _strip_lower(full)
+    if stripped in ELISION_KEEPS_NO_ACCENT:
+        return True
+    return (stripped in ELISION_KEEPS_NO_ACCENT_SMOOTH
+            and "\u0314" not in unicodedata.normalize("NFD", full))
 
 
 # Elision removes a short final vowel and nothing else. η and ω are always
@@ -250,23 +262,26 @@ def _can_elide(form: str) -> bool:
     return True
 
 
-def _has_acute(s: str) -> bool:
-    return "\u0301" in unicodedata.normalize("NFD", s)
+def _rule_elision(full: str) -> str:
+    """The spelling elision gives ``full``, by rule rather than by corpus.
 
-
-def _elision_accent_ok(full: str, elided: str) -> bool:
-    """Whether the candidate accents the elided form the way Greek does.
-
-    Only the oxytones say anything: elision leaves everything else's marks
-    where they were, which is what ``_stem_marks_match`` below reads. An
-    oxytone's own stem carries no mark, so that test would prefer the bare
-    spelling for every one of them.
+    The final vowel goes with its own marks. An oxytone throws its accent
+    back onto the new last vowel as an acute (ἀνδρί -> ἄνδρ᾽, αὐτό -> αὔτ᾽),
+    unless it is one of the words that elide bare (ἀλλά -> ἀλλ᾽), and a
+    monosyllable has no vowel left to carry one (σέ -> σ᾽). Everything else
+    keeps every mark where it was.
     """
-    if not _is_oxytone(full):
-        return True
-    if _strip_lower(full) in ELISION_KEEPS_NO_ACCENT:
-        return not _has_accent(elided)
-    return _has_acute(elided)
+    index, _base, _marks = _final_vowel(full)
+    stem = unicodedata.normalize("NFD", full)[:index]
+    if _is_oxytone(full) and not _elides_bare(full):
+        last = max((i for i, ch in enumerate(stem) if ch in _GREEK_VOWELS),
+                   default=None)
+        if last is not None:
+            end = last + 1
+            while end < len(stem) and unicodedata.combining(stem[end]):
+                end += 1
+            stem = stem[:end] + "\u0301" + stem[end:]
+    return _nfc(stem) + KORONIS
 
 
 def _match_initial_case(elided: str, full: str) -> str:
@@ -288,66 +303,6 @@ def _match_initial_case(elided: str, full: str) -> str:
     else:
         return elided
     return _nfc(head + elided[1:])
-
-
-def _stem_marks_match(full: str, elided: str) -> bool:
-    """True when the elided form keeps the full form's own stem marks.
-
-    Elision drops the final vowel, and what is left carries the marks it
-    had: ``εἶπε`` elides to ``εἶπ᾽`` and ``εἰπέ`` to ``εἴπ᾽``, so the two
-    elided spellings are not variants of one another and the corpus count
-    of either says nothing about which belongs to which full form. The
-    same distinguishes ``Τἆλλα`` -> ``τἆλλ᾽`` from ``Τἄλλα`` -> ``τἄλλ᾽``.
-    """
-    stem = elided[:-1]
-    return bool(stem) and full[:len(stem)].lower() == stem.lower()
-
-
-def _score_elision_variant(full: str, elided: str,
-                           exact_freq: dict[str, int] | None = None) -> tuple:
-    """Rank an elided candidate against its full form. Higher is better.
-
-    Greek editing practice prefers the elided form's casing and
-    breathing profile to track the full form. For ``Αὐτός`` (cap + smooth)
-    we want ``Αὐτ᾽`` not ``αὐτ᾽``; for ``ἀλλά`` (lower + smooth) we want
-    ``ἀλλ᾽`` not ``Ἀλλ᾽``. A secondary preference for an elided form
-    that retains its own accent distinguishes corpus-legitimate
-    ``μετ᾽`` / ``παρ᾽`` entries from noise-stripped ``μετ`` / ``παρ``
-    variants that leaked in without their final accent.
-
-    Ranked above those: a candidate the orthography rules reject is not a
-    spelling at all (``τὸτ᾽`` carries a grave on an elided word); a
-    candidate that accents an elided oxytone the way Greek does, throwing
-    the accent back onto the penult (``ἀνδρί`` -> ``ἄνδρ᾽``); and a
-    candidate that keeps the full form's stem marks belongs to that full
-    form rather than to its sibling. Ranked below them, the corpus count
-    settles what is otherwise a tie, so that ``εἵτ᾽`` (2 tokens) does not
-    take ``Εἴτε`` from ``εἴτ᾽`` (765). The spelling itself comes last, so
-    the table does not depend on set iteration order.
-    """
-    freq = exact_freq or {}
-    score = 0
-    # Same case on the first letter
-    if full[:1].isupper() == elided[:1].isupper():
-        score += 10
-    # Breathing matches (both present or both absent)
-    if _has_breathing(full) == _has_breathing(elided):
-        score += 5
-    # Prefer elided forms that kept an accent (attested typography)
-    if _has_accent(elided):
-        score += 2
-    # Penalise elided forms that start with an elision glyph (OCR junk
-    # where a leading combining mark wasn't reattached to its base)
-    if elided[:1] in ELISION_GLYPHS:
-        score -= 20
-    return (
-        grc_orthography_reason(elided) is None,
-        _elision_accent_ok(full, elided),
-        _stem_marks_match(full, elided),
-        score,
-        freq.get(exact_form_key(elided), 0),
-        elided,
-    )
 
 
 # Tags considered disqualifying for movable nu. Movable nu never
@@ -499,7 +454,6 @@ def _load_lemma_forms(
 
 def _derive_elision_pairs(
     lemma_to_forms: dict[str, set[str]],
-    exact_freq: dict[str, int] | None = None,
 ) -> dict[str, str]:
     """Return {full_form_nfc -> elided_form_nfc_with_koronis}.
 
@@ -517,12 +471,13 @@ def _derive_elision_pairs(
         final vowel is what elision dropped.
 
     A full form can belong to several lemmas, so its candidates are pooled
-    across all of them and ranked once, and each candidate first takes the
-    full form's case (``_match_initial_case``). When a full form matches
-    multiple elided candidates we pick the one that best tracks the full
-    form's breathing profile via ``_score_elision_variant``. Canonical
-    overrides for the ten iconic particles are applied last so the
-    textbook forms always win regardless of corpus noise.
+    across all of them, each first taking the full form's case
+    (``_match_initial_case``). The rules of elision then say what the
+    elided spelling must be (``_rule_elision``), and the pair is emitted
+    only when the corpora attest exactly that spelling: the evidence says
+    whether the word elides, the rules say how. Canonical overrides for
+    the ten iconic particles are applied last so the textbook forms always
+    win regardless of corpus noise.
     """
     candidates_by_full: dict[str, set[str]] = defaultdict(set)
 
@@ -562,22 +517,22 @@ def _derive_elision_pairs(
                         candidates_by_full[full].add(
                             _match_initial_case(e, full))
 
-    # Ranked only once every lemma has contributed. Assigning per lemma let
-    # the last lemma to claim a form win whatever the ranking said: the
-    # corpora carry a capitalized lemma Κατά whose one elided token opened
-    # a sentence, and it overwrote κατὰ's κατ᾽ with Κατ᾽.
+    # Decided only once every lemma has contributed. Assigning per lemma
+    # let the last lemma to claim a form win: the corpora carry a
+    # capitalized lemma Κατά whose one elided token opened a sentence, and
+    # it overwrote κατὰ's κατ᾽ with Κατ᾽.
+    #
+    # The corpus candidates were ranked here until the rules proved they
+    # only ever broke ties among spellings that were often all wrong: a
+    # long final α took the elided neuter plural (αἰτία -> αἴτι᾽), and an
+    # oxytone the circumflex of its accusative (γυναικί -> γυναῖκ᾽). A
+    # keyboard writes the value into the user's text, and offering nothing
+    # is better than offering another word.
     pairs: dict[str, str] = {}
     for full, candidates in candidates_by_full.items():
-        best = max(
-            candidates,
-            key=lambda e: _score_elision_variant(full, e, exact_freq),
-        )
-        # Every candidate can be junk, and then the ranking only picks
-        # the least bad one. Writing that into someone's text is worse
-        # than offering nothing.
-        if grc_orthography_reason(best) is not None:
-            continue
-        pairs[full] = best
+        elided = _rule_elision(full)
+        if elided in candidates and grc_orthography_reason(elided) is None:
+            pairs[full] = elided
 
     # Pin canonical overrides last. NFC everything for safety.
     for full, elided in CANONICAL_ELISION_OVERRIDES.items():
@@ -614,9 +569,7 @@ def build(out_dir: Path) -> dict:
     )
     print(f"  lemmas with attested forms: {len(lemma_to_forms):,}")
 
-    exact_freq = load_form_profile_freq().exact
-    print(f"  corpus counts for elision ranking: {len(exact_freq):,} forms")
-    elision_pairs = _derive_elision_pairs(lemma_to_forms, exact_freq)
+    elision_pairs = _derive_elision_pairs(lemma_to_forms)
     print(f"  elision full -> elided pairs: {len(elision_pairs):,}")
 
     out_dir.mkdir(parents=True, exist_ok=True)

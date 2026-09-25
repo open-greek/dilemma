@@ -1,5 +1,6 @@
 import json
 import sys
+import unicodedata
 
 import pytest
 from pathlib import Path
@@ -8,9 +9,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from dilemma.form_sanitize import has_editorial_sigla
-from export_hunspell import exact_form_key
 from export_morphology import (
     _derive_elision_pairs,
+    _is_oxytone,
     _derive_nu_forms,
     _load_lemma_forms,
 )
@@ -78,34 +79,31 @@ def test_an_elided_form_keeps_its_own_full_form_stem_marks():
     # εἶπε and εἰπέ elide to different spellings, so neither one's corpus
     # count says anything about which belongs to which full form.
     lemma_forms = {"λέγω": {"Εἶπε", "Εἰπέ", "εἶπ᾽", "εἴπ᾽"}}
-    pairs = _derive_elision_pairs(lemma_forms, {exact_form_key("εἴπ᾽"): 138})
+    pairs = _derive_elision_pairs(lemma_forms)
     assert pairs["Εἶπε"] == "Εἶπ᾽"
     assert pairs["Εἰπέ"] == "Εἴπ᾽"
 
 
-def test_the_corpus_count_settles_an_otherwise_tied_elision():
-    # Neither spelling carries Εἴτε's stem marks, and both score the same
-    # on case, breathing and accent; εἵτ᾽ has 2 corpus tokens to εἴτ᾽'s 765.
+def test_the_rules_not_the_corpus_pick_the_spelling():
+    # Εἴτε keeps its smooth breathing whatever the counts say: εἵτ᾽ is
+    # another spelling, not a variant of this one.
     lemma_forms = {"εἴτε": {"Εἴτε", "εἴτ᾽", "εἵτ᾽"}}
-    freq = {exact_form_key("εἴτ᾽"): 765, exact_form_key("εἵτ᾽"): 2}
-    assert _derive_elision_pairs(lemma_forms, freq)["Εἴτε"] == "Εἴτ᾽"
+    assert _derive_elision_pairs(lemma_forms)["Εἴτε"] == "Εἴτ᾽"
 
 
 def test_a_candidate_the_orthography_rules_reject_loses():
-    # τὸτ᾽ carries a grave on an elided word. It has the same corpus count
-    # as τότ᾽, so nothing below the structural check separates them.
+    # τὸτ᾽ carries a grave on an elided word.
     lemma_forms = {"τότε": {"Τότε", "τότ᾽", "τὸτ᾽"}}
-    freq = {exact_form_key("τότ᾽"): 1183, exact_form_key("τὸτ᾽"): 1183}
-    assert _derive_elision_pairs(lemma_forms, freq)["Τότε"] == "Τότ᾽"
+    assert _derive_elision_pairs(lemma_forms)["Τότε"] == "Τότ᾽"
 
 
 def test_the_table_does_not_depend_on_set_iteration_order():
     # The candidates arrive from a set, whose iteration order varies with
     # the interpreter's hash seed, so ties have to break on the spelling.
     lemma_forms = {"ζζύω": {"Ζζύε", "ζζύ᾽", "ζζὺ᾽"}}
-    first = _derive_elision_pairs(lemma_forms, {})
+    first = _derive_elision_pairs(lemma_forms)
     again = _derive_elision_pairs({"ζζύω": set(reversed(sorted(
-        lemma_forms["ζζύω"])))}, {})
+        lemma_forms["ζζύω"])))})
     assert first == again
 
 
@@ -114,21 +112,21 @@ def test_an_elided_oxytone_throws_its_accent_back():
     # the penult as an acute. The full form's own stem carries no mark, so
     # the stem-marks test alone would prefer the bare spelling.
     lemma_forms = {"ἀνήρ": {"ἀνδρί", "ἄνδρ᾽", "ἀνδρ᾽"}}
-    assert _derive_elision_pairs(lemma_forms, {})["ἀνδρί"] == "ἄνδρ᾽"
+    assert _derive_elision_pairs(lemma_forms)["ἀνδρί"] == "ἄνδρ᾽"
 
 
 def test_prepositions_and_conjunctions_lose_the_accent_instead():
     # The other half of Smyth 174. οὐδέ is not one of the pinned ten, so
     # nothing else would keep it bare.
     lemma_forms = {"οὐδέ": {"οὐδέ", "οὐδ᾽", "οὔδ᾽"}}
-    assert _derive_elision_pairs(lemma_forms, {})["οὐδέ"] == "οὐδ᾽"
+    assert _derive_elision_pairs(lemma_forms)["οὐδέ"] == "οὐδ᾽"
 
 
 def test_a_form_that_is_not_oxytone_keeps_its_marks_where_they_were():
     # The retraction rule has to say nothing here, or it would override the
     # stem-marks test for every paroxytone and properispomenon.
     lemma_forms = {"ἄλλος": {"ἄλλε", "ἄλλ᾽", "ἆλλ᾽"}}
-    assert _derive_elision_pairs(lemma_forms, {})["ἄλλε"] == "ἄλλ᾽"
+    assert _derive_elision_pairs(lemma_forms)["ἄλλε"] == "ἄλλ᾽"
 
 
 def test_a_grave_oxytone_retracts_like_an_acute_one():
@@ -136,7 +134,7 @@ def test_a_grave_oxytone_retracts_like_an_acute_one():
     # the spelling a word carries mid-sentence, which is where elision
     # happens. Reported by Tonos: 59 entries were left bare.
     lemma_forms = {"αὐτός": {"αὐτὸ", "αὔτ᾽", "αὐτ᾽"}}
-    assert _derive_elision_pairs(lemma_forms, {})["αὐτὸ"] == "αὔτ᾽"
+    assert _derive_elision_pairs(lemma_forms)["αὐτὸ"] == "αὔτ᾽"
 
 
 def test_a_word_elision_cannot_touch_gets_no_entry():
@@ -146,7 +144,7 @@ def test_a_word_elision_cannot_touch_gets_no_entry():
     for full, elided in [("αὐτῷ", "αὐτ᾽"), ("αὐτῇ", "αὐτ᾽"),
                          ("δεῖ", "δέ᾽"), ("ἤδη", "ἠδ᾽"),
                          ("λόγοι", "λόγ᾽"), ("λόγου", "λόγ᾽")]:
-        pairs = _derive_elision_pairs({"x": {full, elided}}, {})
+        pairs = _derive_elision_pairs({"x": {full, elided}})
         assert full not in pairs, f"{full} cannot elide"
 
 
@@ -155,7 +153,7 @@ def test_a_pair_is_dropped_when_every_candidate_is_junk():
     # someone's text is worse than offering nothing.
     from export_hunspell import grc_orthography_reason
     assert grc_orthography_reason("ὃσδ᾽") is not None
-    assert "ὅσδε" not in _derive_elision_pairs({"ὅσδε": {"ὅσδε", "ὃσδ᾽"}}, {})
+    assert "ὅσδε" not in _derive_elision_pairs({"ὅσδε": {"ὅσδε", "ὃσδ᾽"}})
 
 
 def test_a_form_two_lemmas_claim_is_ranked_once():
@@ -165,16 +163,16 @@ def test_a_form_two_lemmas_claim_is_ranked_once():
     lemma_forms = {"κατά": {"κατὰ", "κατ᾽", "κάτ᾽"},
                    "Κατά": {"κατὰ", "Κατ᾽"},
                    "Ἑλλάς": {"ἑλλάδα", "Ἑλλάδ᾽"}}
-    pairs = _derive_elision_pairs(lemma_forms, {})
+    pairs = _derive_elision_pairs(lemma_forms)
     assert pairs["κατὰ"] == "κατ᾽"
     assert pairs["ἑλλάδα"] == "ἑλλάδ᾽"
     reordered = dict(reversed(list(lemma_forms.items())))
-    assert _derive_elision_pairs(reordered, {}) == pairs
+    assert _derive_elision_pairs(reordered) == pairs
 
 
 def test_the_elided_form_takes_the_full_forms_case():
     lemma_forms = {"αὐτός": {"Αὐτὸ", "αὔτ᾽"}}
-    assert _derive_elision_pairs(lemma_forms, {})["Αὐτὸ"] == "Αὔτ᾽"
+    assert _derive_elision_pairs(lemma_forms)["Αὐτὸ"] == "Αὔτ᾽"
 
 
 def test_an_enclitics_accent_is_not_the_words_own():
@@ -183,17 +181,37 @@ def test_an_enclitics_accent_is_not_the_words_own():
     lemma_forms = {"χείρ": {"χεῖρά", "χεῖρ᾽", "χείρ᾽"},
                    "λέγω": {"εἶπέ", "εἶπ᾽", "εἴπ᾽"},
                    "ἄλλος": {"ἄλλὰ", "ἄλλ᾽", "ἀλλ᾽"}}
-    pairs = _derive_elision_pairs(lemma_forms, {})
+    pairs = _derive_elision_pairs(lemma_forms)
     assert pairs["χεῖρά"] == "χεῖρ᾽"
     assert pairs["εἶπέ"] == "εἶπ᾽"
     assert pairs["ἄλλὰ"] == "ἄλλ᾽"
 
 
+def test_no_entry_when_the_rules_spelling_is_unattested():
+    # αἰτία ends in a long α, which cannot elide, and its only candidate is
+    # the elided neuter plural αἴτια's. γυναικί would retract to γυναίκ᾽,
+    # which no text writes; γυναῖκ᾽ is the accusative's. Either value would
+    # replace the user's word with another one.
+    lemma_forms = {"αἰτία": {"αἰτία", "αἴτι᾽"},
+                   "γυνή": {"γυναικί", "γυναῖκ᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms)
+    assert "αἰτία" not in pairs
+    assert "γυναικί" not in pairs
+
+
+def test_the_epic_preposition_eni_elides_bare_and_the_numeral_retracts():
+    lemma_forms = {"ἐν": {"ἐνί", "ἐν᾽"},
+                   "εἷς": {"ἑνί", "ἕν᾽", "ἑν᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms)
+    assert pairs["ἐνί"] == "ἐν᾽"
+    assert pairs["ἑνί"] == "ἕν᾽"
+
+
 def test_a_grave_before_the_last_syllable_is_not_an_accent():
     # μὲτὰ is a malformed μετά, not a proparoxytone carrying an enclitic's
-    # accent, so it stays in the class that elides bare.
-    lemma_forms = {"μετά": {"μὲτὰ", "μετ᾽", "μέτ᾽"}}
-    assert _derive_elision_pairs(lemma_forms, {})["μὲτὰ"] == "μετ᾽"
+    # accent the way χεῖρά is, so it stays an oxytone.
+    assert _is_oxytone("μὲτὰ")
+    assert not _is_oxytone("χεῖρά")
 
 
 ARTIFACT = ROOT / "build" / "hunspell" / "grc_morph.json"
@@ -227,6 +245,31 @@ def test_the_built_elision_table_holds_its_invariants():
                if k[:1].isupper() != v[:1].isupper()}
     assert not recased, f"values that change the key's case: {list(recased.items())[:10]}"
 
+    # Elision drops the last vowel and may move the accent, nothing else. A
+    # value that changes a letter, a breathing or an iota subscript is the
+    # elision of another word (ἐνί took the numeral's ἕν᾽), and a key whose
+    # accent sits before its last vowel keeps that accent exactly (αἰτία
+    # took αἴτι᾽, the neuter plural's).
+    accents = {"\u0300", "\u0301", "\u0342"}
+
+    def stem(form):
+        nfd = unicodedata.normalize("NFD", form)
+        last = max(i for i, c in enumerate(nfd) if c.lower() in "αεηιουω")
+        return nfd[:last]
+
+    def unaccented(nfd):
+        return "".join(c for c in nfd if c not in accents).lower()
+
+    other_word, moved = {}, {}
+    for k, v in table.items():
+        kept, own = unicodedata.normalize("NFD", v)[:-1], stem(k)
+        if unaccented(kept) != unaccented(own):
+            other_word[k] = v
+        elif any(c in accents for c in own) and kept != own:
+            moved[k] = v
+    assert not other_word, f"values that spell another word: {list(other_word.items())[:10]}"
+    assert not moved, f"values that move the key's own accent: {list(moved.items())[:10]}"
+
     # Oxytones are pinned by corpus weight rather than by count, because
     # weight is what separates a rule that stopped firing from the tail of
     # the known-bare class. That tail is crasis forms (κἀπί), dialect
@@ -239,7 +282,7 @@ def test_the_built_elision_table_holds_its_invariants():
     bare = [k for k, v in table.items()
             if grc_orthography_reason(k) is None
             and em._is_oxytone(k)
-            and em._strip_lower(k) not in em.ELISION_KEEPS_NO_ACCENT
+            and not em._elides_bare(k)
             and not em._has_accent(v)]
     weight = sum(freq.get(exact_form_key(k), 0) for k in bare)
     assert weight < 25_000, (
