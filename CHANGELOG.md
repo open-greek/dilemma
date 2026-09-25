@@ -31,7 +31,9 @@ All notable changes to Dilemma are documented here. The format follows
   deictic -ί, which is long, was elided into the plain pronoun (`τουτί` ->
   `τοῦτ᾽`). The epic `ἐνί` now elides to `ἐν᾽` rather than the numeral's
   `ἕν᾽`, and the dialect prepositions and particles that elide bare are
-  listed (`προτί`, `κοτέ`, `ποκά`, `πεδά`, `κἀπί`).
+  listed (`προτί`, `κοτέ`, `ποκά`, `πεδά`, `κἀπί`). `τοτέ`, "at times", is
+  an accented adverb rather than an enclitic, so it retracts to `τότ᾽`
+  instead of eliding bare.
 - The elision table gave `κατὰ` the value `Κατ᾽` and `μετὰ` the value
   `Μετ᾽`, and a keyboard writes the value into the user's text as it stands,
   so the two commonest mid-sentence spellings of those prepositions came out

@@ -176,8 +176,9 @@ ELISION_KEEPS_NO_ACCENT: frozenset[str] = frozenset([
     # (Smyth 183). The orthotone εἰμί and φημί are not among them:
     # εἰμί elides to εἴμ᾽ and ἐμέ, the emphatic pronoun, to ἔμ᾽.
     "τε", "γε", "τοι", "ποτε", "που", "πως", "πη", "νυν", "ρα",
-    # Epic and Doric members of the same classes
-    "ποτι", "ηδε", "ηε", "τοτε",
+    # Epic and Doric members of the same classes. τοτέ, "at times", is an
+    # accented adverb rather than an enclitic, so it is not among them.
+    "ποτι", "ηδε", "ηε",
     "με", "σε", "μοι", "σοι", "τινα", "τινι", "τινε", "τινος",
     # Epic, Ionic, Doric and Aeolic prepositions and particles, prepositions
     # in crasis (κἀπί, κἀπό), and ἰδέ, which elides bare as the epic
@@ -511,7 +512,9 @@ def _derive_elision_pairs(
         if not elideds:
             continue
         for full in fulls:
-            if len(full) < 2:
+            # A key has to be something a keyboard reads as one word, which
+            # a prodelided ᾽στί is not.
+            if len(full) < 2 or not full[0].isalpha():
                 continue
             # The keyboard rewrites the user's text with this table, so a
             # word elision cannot touch has no business carrying an entry,
