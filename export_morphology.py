@@ -65,8 +65,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from dilemma.form_sanitize import has_editorial_sigla
-from export_hunspell import (exact_form_key, grc_orthography_reason,
-                             load_form_profile_freq)
+from export_hunspell import exact_form_key, grc_orthography_reason
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -114,6 +113,10 @@ CANONICAL_ELISION_OVERRIDES: dict[str, str] = {
 # cleanly, so we keep the list short.
 EXTRA_NU_FORMS: frozenset[str] = frozenset([
     "εἴκοσι",
+    # The prodelided ἐστι (ὁ ’στιν) as a keyboard reads it after an
+    # apostrophe, which ends the word before it. It takes nu before a vowel
+    # in every GLAUx instance; the orthography rules reject it bare.
+    "στι",
 ])
 
 
@@ -146,11 +149,6 @@ def _last_base_vowel(s: str) -> str | None:
     return None
 
 
-def _has_breathing(s: str) -> bool:
-    nfd = unicodedata.normalize("NFD", s)
-    return any(ord(c) in (0x0313, 0x0314) for c in nfd)
-
-
 def _has_accent(s: str) -> bool:
     nfd = unicodedata.normalize("NFD", s)
     return any(ord(c) in (0x0300, 0x0301, 0x0342) for c in nfd)
@@ -175,23 +173,68 @@ _GREEK_VOWELS = frozenset("αεηιουωΑΕΗΙΟΥΩ")
 ELISION_KEEPS_NO_ACCENT: frozenset[str] = frozenset([
     # prepositions
     "ανα", "αμφι", "αντι", "απο", "δια", "επι", "κατα", "μετα", "παρα",
-    "περι", "υπο",
-    # conjunctions and adverbs of the same class
-    "αλλα", "δε", "ουδε", "μηδε", "διο", "καθα",
+    "υπο",
+    # conjunctions of the same class
+    "αλλα", "δε", "ουδε", "μηδε",
     # enclitics, which have no accent of their own to throw back
     # (Smyth 183). The orthotone εἰμί and φημί are not among them:
     # εἰμί elides to εἴμ᾽ and ἐμέ, the emphatic pronoun, to ἔμ᾽.
     "τε", "γε", "τοι", "ποτε", "που", "πως", "πη", "νυν", "ρα",
-    # Epic and Doric members of the same classes
-    "ποτι", "ηδε", "ηε", "τοτε",
+    # Epic and Doric members of the same classes. τοτέ, "at times", is an
+    # accented adverb rather than an enclitic, so it is not among them.
+    "ποτι", "ηδε", "ηε",
     "με", "σε", "μοι", "σοι", "τινα", "τινι", "τινε", "τινος",
+    # Epic, Ionic, Doric and Aeolic prepositions and particles, the dual
+    # enclitic σφωε, prepositions and conjunctions in crasis (κἀπί, τἀπό,
+    # μἀλλά), and ἰδέ, which elides bare as the epic conjunction, most of its
+    # elided tokens, rather than as the imperative.
+    "προτι", "κοτε", "ποκα", "πεδα", "υπα", "σφωε",
+    "καπι", "καπο", "ταπι", "ταπο", "καντι", "μαλλα", "κουδε", "ιδε",
 ])
+
+# Matched with the breathing kept: the epic preposition ἐνί elides bare,
+# and the numeral ἑνί retracts like any oxytone.
+ELISION_KEEPS_NO_ACCENT_SMOOTH: frozenset[str] = frozenset(["ενι", "εινι"])
+
+
+def _elides_bare(full: str) -> bool:
+    """True for an oxytone that loses its accent in elision instead of
+    throwing it back: a preposition, a conjunction or an enclitic."""
+    stripped = _strip_lower(full)
+    if stripped in ELISION_KEEPS_NO_ACCENT:
+        return True
+    return (stripped in ELISION_KEEPS_NO_ACCENT_SMOOTH
+            and "\u0314" not in unicodedata.normalize("NFD", full))
 
 
 # Elision removes a short final vowel and nothing else. η and ω are always
 # long, υ does not elide, a circumflex or an iota subscript marks a long
 # vowel, and the second element of a diphthong goes with the first.
 _ELIDABLE_VOWELS = frozenset("αειο")
+
+# Words whose final vowel is short but which do not elide. Attic never
+# elides ὅτι, περί, πρό, ἄχρι or μέχρι (Smyth 72), and ὅτ᾽ reads as ὅτε, δι᾽
+# as διά. διό and καθά already contain an elision (δι᾽ ὅ, καθ᾽ ἅ). The
+# emphatic and deictic -ί is long (οὐχί, τουτί, ὁδί). A keyboard rewrites
+# the word before any vowel, so these would change the text's meaning
+# rather than its spelling.
+NEVER_ELIDED: frozenset[str] = frozenset([
+    "οτι", "περι", "προ", "αχρι", "μεχρι",
+    "διο", "καθα",
+    "ουχι", "ναιχι", "νυνι", "τουτι", "ταυτι", "ωδι", "οδι", "ηδι", "τοδι",
+    "ταδι", "ενθαδι", "ουτοσι", "αυτηι", "τονδι", "τηνδι", "τασδι",
+    "τουσδι", "οιδι", "τοιοσδι", "τοιαδι", "τοιονδι", "τοσονδι", "τουδι",
+    "τηδι", "τωδι", "ταυτηι", "τουτωι", "τουτουι", "ουτωσι", "εκεινοσι",
+    "εκεινηι", "τοιουτοσι", "τοσουτοσι", "τοιαυτι", "τοσαυτι", "δευρι",
+    "ενταυθι",
+    # contracted neuter plurals of nouns in -ας, whose α is long
+    "κρεα", "κερα", "γερα",
+])
+
+# A monosyllable does not elide unless it ends in ε (Smyth 72): δέ, τε, σε.
+# These particles are the exceptions the corpora attest.
+ELIDING_MONOSYLLABLES: frozenset[str] = frozenset(["ρα", "κα", "γα"])
+
 _DIPHTHONGS = frozenset(["αι", "ει", "οι", "υι", "αυ", "ευ", "ηυ", "ου"])
 
 
@@ -207,6 +250,37 @@ def _final_vowel(form: str):
     return last, nfd[last].lower(), nfd[last + 1:]
 
 
+def _nuclei(nfd: str) -> list[tuple[int, int]]:
+    """Spans of an NFD string's vowel nuclei, a diphthong counting as one.
+
+    An accent on the ε or ο of a pair marks a hiatus, not a diphthong, whose
+    accent would sit on the second vowel: βασιλέι is βασιλέϊ.
+    """
+    spans: list[list[int]] = []
+    single = None       # (base, marks) when the last span is a lone vowel
+    i = 0
+    while i < len(nfd):
+        j = i + 1
+        while j < len(nfd) and unicodedata.combining(nfd[j]):
+            j += 1
+        base, marks = nfd[i].lower(), nfd[i + 1:j]
+        if base in "αεηιουω":
+            hiatus = single is not None and single[0] in "εο" and any(
+                m in single[1] for m in "\u0300\u0301")
+            if (single is not None and spans[-1][1] == i
+                    and single[0] + base in _DIPHTHONGS
+                    and "\u0308" not in marks and not hiatus):
+                spans[-1][1] = j
+                single = None
+            else:
+                spans.append([i, j])
+                single = (base, marks)
+        else:
+            single = None
+        i = j
+    return [(a, b) for a, b in spans]
+
+
 def _is_oxytone(form: str) -> bool:
     """True when an acute or a grave sits on the form's final vowel.
 
@@ -218,107 +292,93 @@ def _is_oxytone(form: str) -> bool:
     found = _final_vowel(form)
     if not found:
         return False
-    _index, _base, marks = found
-    return "\u0301" in marks or "\u0300" in marks
+    index, _base, marks = found
+    if "\u0301" not in marks and "\u0300" not in marks:
+        return False
+    # A second accent on the last syllable is an enclitic's, thrown onto the
+    # word's own acute or onto a circumflex on the penult (σῶμά τι, χεῖρά
+    # τε). It leaves with the elided vowel, and the word keeps its own
+    # accent where the user put it: χεῖρά elides to χεῖρ᾽, not χείρ᾽, and
+    # the grave rule's τοῦτὸ to τοῦτ᾽. A circumflex further back cannot host
+    # one, so ὦγαθέ, a crasis, is an oxytone (ὦγάθ᾽); a grave earlier in the
+    # word is only a malformed spelling (μὲτὰ).
+    nfd = unicodedata.normalize("NFD", form)
+    spans = _nuclei(nfd)
+    penult = nfd[spans[-2][0]:spans[-2][1]] if len(spans) >= 2 else ""
+    return "\u0301" not in nfd[:index] and "\u0342" not in penult
 
 
 def _can_elide(form: str) -> bool:
     """True when the form's final vowel is one elision can remove."""
+    stripped = _strip_lower(form)
+    if stripped in NEVER_ELIDED:
+        return False
     found = _final_vowel(form)
     if not found:
         return False
-    index, base, marks = found
+    _index, base, marks = found
     if base not in _ELIDABLE_VOWELS:
         return False
-    if "\u0342" in marks or "\u0345" in marks:
+    # A circumflex, an iota subscript or a macron marks a long vowel.
+    if "\u0342" in marks or "\u0345" in marks or "\u0304" in marks:
         return False
-    if "\u0308" in marks:       # a diaeresis breaks the diphthong
-        return True
     nfd = unicodedata.normalize("NFD", form)
-    for j in range(index - 1, -1, -1):
-        if unicodedata.combining(nfd[j]):
-            continue
-        return (nfd[j].lower() + base) not in _DIPHTHONGS
+    spans = _nuclei(nfd)
+    # An iota written after a long η or ω is the subscript written out
+    # (λόγωι, τῆι), not a vowel of its own.
+    before = [c for c in nfd[:spans[-1][0]] if not unicodedata.combining(c)]
+    if (base == "ι" and "\u0308" not in marks
+            and before and before[-1].lower() in "ηω"):
+        return False
+    last = nfd[spans[-1][0]:spans[-1][1]]
+    if sum(c.lower() in "αεηιουω" for c in last) > 1:
+        return False            # the second element of a diphthong
+    if len(spans) == 1 and base != "ε":
+        return stripped in ELIDING_MONOSYLLABLES
     return True
 
 
-def _has_acute(s: str) -> bool:
-    return "\u0301" in unicodedata.normalize("NFD", s)
+def _rule_elision(full: str) -> str:
+    """The spelling elision gives ``full``, by rule rather than by corpus.
 
-
-def _elision_accent_ok(full: str, elided: str) -> bool:
-    """Whether the candidate accents the elided form the way Greek does.
-
-    Only the oxytones say anything: elision leaves everything else's marks
-    where they were, which is what ``_stem_marks_match`` below reads. An
-    oxytone's own stem carries no mark, so that test would prefer the bare
-    spelling for every one of them.
+    The final vowel goes with its own marks. An oxytone throws its accent
+    back onto the new last vowel as an acute (ἀνδρί -> ἄνδρ᾽, αὐτό -> αὔτ᾽),
+    unless it is one of the words that elide bare (ἀλλά -> ἀλλ᾽), and a
+    monosyllable has no vowel left to carry one (σέ -> σ᾽). Everything else
+    keeps every mark where it was.
     """
-    if not _is_oxytone(full):
-        return True
-    if _strip_lower(full) in ELISION_KEEPS_NO_ACCENT:
-        return not _has_accent(elided)
-    return _has_acute(elided)
+    index, _base, _marks = _final_vowel(full)
+    stem = unicodedata.normalize("NFD", full)[:index]
+    if _is_oxytone(full) and not _elides_bare(full):
+        last = max((i for i, ch in enumerate(stem) if ch in _GREEK_VOWELS),
+                   default=None)
+        if last is not None:
+            end = last + 1
+            while end < len(stem) and unicodedata.combining(stem[end]):
+                end += 1
+            stem = stem[:end] + "\u0301" + stem[end:]
+    return _nfc(stem) + KORONIS
 
 
-def _stem_marks_match(full: str, elided: str) -> bool:
-    """True when the elided form keeps the full form's own stem marks.
+def _match_initial_case(elided: str, full: str) -> str:
+    """Give ``elided`` the case of ``full``'s first letter.
 
-    Elision drops the final vowel, and what is left carries the marks it
-    had: ``εἶπε`` elides to ``εἶπ᾽`` and ``εἰπέ`` to ``εἴπ᾽``, so the two
-    elided spellings are not variants of one another and the corpus count
-    of either says nothing about which belongs to which full form. The
-    same distinguishes ``Τἆλλα`` -> ``τἆλλ᾽`` from ``Τἄλλα`` -> ``τἄλλ᾽``.
+    Case is not part of the word: a sentence-initial ``Κατ᾽`` is the same
+    elision as ``κατ᾽``. The corpora pair a lowercase full form with a
+    capitalized elided one wherever the only elided token they saw opened
+    a sentence (``ἑλλάδα`` with ``Ἑλλάδ᾽``), and a keyboard writes the
+    value into the user's text as it stands.
     """
-    stem = elided[:-1]
-    return bool(stem) and full[:len(stem)].lower() == stem.lower()
-
-
-def _score_elision_variant(full: str, elided: str,
-                           exact_freq: dict[str, int] | None = None) -> tuple:
-    """Rank an elided candidate against its full form. Higher is better.
-
-    Greek editing practice prefers the elided form's casing and
-    breathing profile to track the full form. For ``Αὐτός`` (cap + smooth)
-    we want ``Αὐτ᾽`` not ``αὐτ᾽``; for ``ἀλλά`` (lower + smooth) we want
-    ``ἀλλ᾽`` not ``Ἀλλ᾽``. A secondary preference for an elided form
-    that retains its own accent distinguishes corpus-legitimate
-    ``μετ᾽`` / ``παρ᾽`` entries from noise-stripped ``μετ`` / ``παρ``
-    variants that leaked in without their final accent.
-
-    Ranked above those: a candidate the orthography rules reject is not a
-    spelling at all (``τὸτ᾽`` carries a grave on an elided word); a
-    candidate that accents an elided oxytone the way Greek does, throwing
-    the accent back onto the penult (``ἀνδρί`` -> ``ἄνδρ᾽``); and a
-    candidate that keeps the full form's stem marks belongs to that full
-    form rather than to its sibling. Ranked below them, the corpus count
-    settles what is otherwise a tie, so that ``εἵτ᾽`` (2 tokens) does not
-    take ``Εἴτε`` from ``εἴτ᾽`` (765). The spelling itself comes last, so
-    the table does not depend on set iteration order.
-    """
-    freq = exact_freq or {}
-    score = 0
-    # Same case on the first letter
-    if full[:1].isupper() == elided[:1].isupper():
-        score += 10
-    # Breathing matches (both present or both absent)
-    if _has_breathing(full) == _has_breathing(elided):
-        score += 5
-    # Prefer elided forms that kept an accent (attested typography)
-    if _has_accent(elided):
-        score += 2
-    # Penalise elided forms that start with an elision glyph (OCR junk
-    # where a leading combining mark wasn't reattached to its base)
-    if elided[:1] in ELISION_GLYPHS:
-        score -= 20
-    return (
-        grc_orthography_reason(elided) is None,
-        _elision_accent_ok(full, elided),
-        _stem_marks_match(full, elided),
-        score,
-        freq.get(exact_form_key(elided), 0),
-        elided,
-    )
+    head = elided[:1]
+    if not head.isalpha():
+        return elided
+    if full[:1].isupper() and head.islower():
+        head = head.upper()
+    elif full[:1].islower() and head.isupper():
+        head = head.lower()
+    else:
+        return elided
+    return _nfc(head + elided[1:])
 
 
 # Tags considered disqualifying for movable nu. Movable nu never
@@ -347,7 +407,9 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
     Subjunctive, optative, imperative, infinitive, and participle tags
     on the same token disqualify it outright, since none of those
     moods / forms take movable nu even when the surface spelling ends
-    in a qualifying letter. Relies on GLAUx / Diorisis morphological
+    in a qualifying letter, except a participle's dative plural, which
+    rule 4 covers like any other, and the subjunctive's third person plural
+    in -σι. A spelling the orthography rules reject is never eligible. Relies on GLAUx / Diorisis morphological
     tagging; no heuristic falls back to raw frequency counts because
     corpus co-occurrence alone produces too many false positives on
     neuter nominative participles (e.g. ``γραφέν``) that share the
@@ -366,13 +428,34 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
                 continue
             tags = set(entry.get("tags", []))
             pos = entry.get("pos", "")
+            last = _last_base_vowel(form)
+            stripped = _strip_lower(form)
+
+            # A malformed spelling gets nothing: a ν appended to ἒστι or
+            # λέγουσὶ is written into the user's text as it stands. A
+            # prodelided form (’στι for ἐστι) is checked with the mark in
+            # the dictionary's own glyph.
+            probe = KORONIS + form[1:] if form[0] in ELISION_GLYPHS else form
+            if grc_orthography_reason(probe) is not None:
+                continue
+
+            # A participle's dative plural is a dative plural like any
+            # other, and takes movable nu the same way (οὖσιν, ἔχουσιν),
+            # and the third person plural in -σι takes it in the
+            # subjunctive too (ὦσιν, λύωσιν; Smyth 134).
+            if ("participle" in tags and "dative" in tags
+                    and "plural" in tags
+                    and stripped.endswith(("σι", "ξι", "ψι"))):
+                nu_eligible.add(form)
+                continue
+            if ("subjunctive" in tags and "third-person" in tags
+                    and "plural" in tags and stripped.endswith("σι")):
+                nu_eligible.add(form)
+                continue
 
             # Disqualify: never-nu moods / forms.
             if tags & _NU_DISQUALIFIERS:
                 continue
-
-            last = _last_base_vowel(form)
-            stripped = _strip_lower(form)
 
             # Rule 1: verb 3sg active indicative past (-ε)
             if (pos == "verb"
@@ -418,6 +501,68 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
         nu_eligible.add(_nfc(w))
 
     return nu_eligible
+
+
+def _dative_key(form: str) -> str:
+    """``form`` with a grave read as an acute and its case kept: the key the
+    dative test looks spellings up by."""
+    return _nfc(unicodedata.normalize("NFD", form).replace("\u0300", "\u0301"))
+
+
+def _derive_dative_keys(pairs_files: list[Path]) -> dict[str, bool]:
+    """For each spelling the tagged corpora analyze (``_dative_key``),
+    whether every analysis of it is a dative. ``_is_dative`` reads it.
+
+    The dative -ι and -σι elide only in epic (Smyth 72), and rarely there:
+    GLAUx elides them in about 2% of epic tokens before a vowel and 0.2% of
+    the rest, and the elided spelling it does attest is nearly always
+    another case's (ἄνδρ᾽ is ἄνδρα, πάντ᾽ is πάντα). The spelling does not
+    say which forms are datives, so the tagged corpora do. The first file
+    that has a form decides, because the treebanks disagree on some:
+    Diorisis files λέγουσι only as a dative participle, GLAUx only as the
+    verb, and ἀνδρί once as a vocative of ἀνδρίς. The pair files keep the
+    first analysis they met for each form and lemma, so a form that is
+    both a verb and a dative participle (θέλουσι) follows that one; at
+    worst that costs a poetic elision of the verb, which movable nu, the
+    commoner spelling before a vowel, would take anyway.
+    """
+    analyses: dict[str, list[set[str]]] = {}
+    for p in pairs_files:
+        seen: dict[str, list[set[str]]] = defaultdict(list)
+        with open(p, encoding="utf-8") as f:
+            entries = json.load(f)
+        for entry in entries:
+            form = _nfc(entry.get("form", "").strip())
+            if form and not has_editorial_sigla(form):
+                seen[_dative_key(form)].append(set(entry.get("tags", [])))
+        for key, tag_sets in seen.items():
+            analyses.setdefault(key, tag_sets)
+    return {key: all("dative" in tags for tags in tag_sets)
+            for key, tag_sets in analyses.items()}
+
+
+def _is_dative(full: str, dative_keys: dict[str, bool]) -> bool:
+    """Whether ``full`` is a dative, by the analyses of the spelling nearest
+    to it. Case is kept apart because a capitalized homograph carries its
+    own analyses, some of them junk: GLAUx tags a Χερσὶ with no case and a
+    Φανέντι as a nominative noun, and either would veto the lowercase
+    dative. So a capitalized word is read through its lowercase spelling
+    first, and a lowercase one through its own, then its capitalized one
+    (πλάτωνι is analyzed only as Πλάτωνι). A diaeresis is dropped only when
+    no spelling with it is analyzed, since ἔγχεϊ is a dative and ἔγχει an
+    imperative."""
+    own = _dative_key(full)
+    lower = _dative_key(full.lower())
+    capital = _dative_key(full[:1].title() + full[1:])
+    order = [lower, own] if own != lower else [own, capital]
+    for key in order:
+        if key in dative_keys:
+            return dative_keys[key]
+    for key in order:
+        folded = _nfc(unicodedata.normalize("NFD", key).replace("\u0308", ""))
+        if folded != key and folded in dative_keys:
+            return dative_keys[folded]
+    return False
 
 
 def _load_lemma_forms(
@@ -470,7 +615,7 @@ def _load_lemma_forms(
 
 def _derive_elision_pairs(
     lemma_to_forms: dict[str, set[str]],
-    exact_freq: dict[str, int] | None = None,
+    dative_keys: dict[str, bool] | None = None,
 ) -> dict[str, str]:
     """Return {full_form_nfc -> elided_form_nfc_with_koronis}.
 
@@ -487,17 +632,25 @@ def _derive_elision_pairs(
       - that extra character is one of the seven Greek vowels, so F's
         final vowel is what elision dropped.
 
-    When a full form matches multiple elided candidates we pick the
-    one that best tracks the full form's casing and breathing profile
-    via ``_score_elision_variant``. Canonical overrides for the ten
-    iconic particles are applied last so the textbook forms always win
-    regardless of corpus noise.
+    A full form can belong to several lemmas, so its candidates are pooled
+    across all of them, each first taking the full form's case
+    (``_match_initial_case``). The rules of elision then say what the
+    elided spelling must be (``_rule_elision``), and the pair is emitted
+    only when the corpora attest exactly that spelling: the evidence says
+    whether the word elides, the rules say how. Canonical overrides for
+    the ten iconic particles are applied last so the textbook forms always
+    win regardless of corpus noise.
     """
-    pairs: dict[str, str] = {}
+    candidates_by_full: dict[str, set[str]] = defaultdict(set)
+    # The Attic accusative of a noun in -εύς ends in a long ᾱ (βασιλέᾱ,
+    # Smyth 276), which cannot elide; the spelling does not show it, the
+    # lemma does.
+    long_final: set[str] = set()
 
     for lemma, forms in lemma_to_forms.items():
         if has_editorial_sigla(lemma):
             continue
+        eus = _strip_lower(lemma).endswith("ευς")
         elideds = set()
         fulls: list[str] = []
         for f in forms:
@@ -510,7 +663,9 @@ def _derive_elision_pairs(
         if not elideds:
             continue
         for full in fulls:
-            if len(full) < 2:
+            # A key has to be something a keyboard reads as one word, which
+            # a prodelided ᾽στί is not.
+            if len(full) < 2 or not full[0].isalpha():
                 continue
             # The keyboard rewrites the user's text with this table, so a
             # word elision cannot touch has no business carrying an entry,
@@ -518,9 +673,10 @@ def _derive_elision_pairs(
             if not _can_elide(full):
                 continue
             stripped_full = _strip_lower(full)
+            if eus and stripped_full.endswith("εα"):
+                long_final.add(full)
             # Find elided candidates whose stripped stem is exactly
             # one vowel shorter than the full form.
-            candidates: list[str] = []
             for e in elideds:
                 stem_e = e[:-1]  # drop koronis
                 if not stem_e:
@@ -529,19 +685,32 @@ def _derive_elision_pairs(
                 if (stripped_full.startswith(stripped_stem)
                         and len(stripped_full) - len(stripped_stem) == 1):
                     if stripped_full[-1] in "αεηιουω":
-                        candidates.append(e)
-            if not candidates:
-                continue
-            best = max(
-                candidates,
-                key=lambda e: _score_elision_variant(full, e, exact_freq),
-            )
-            # Every candidate can be junk, and then the ranking only picks
-            # the least bad one. Writing that into someone's text is worse
-            # than offering nothing.
-            if grc_orthography_reason(best) is not None:
-                continue
-            pairs[full] = best
+                        candidates_by_full[full].add(
+                            _match_initial_case(e, full))
+
+    # Decided only once every lemma has contributed. Assigning per lemma
+    # let the last lemma to claim a form win: the corpora carry a
+    # capitalized lemma Κατά whose one elided token opened a sentence, and
+    # it overwrote κατὰ's κατ᾽ with Κατ᾽.
+    #
+    # The corpus candidates were ranked here until the rules proved they
+    # only ever broke ties among spellings that were often all wrong: a
+    # long final α took the elided neuter plural (αἰτία -> αἴτι᾽), and an
+    # oxytone the circumflex of its accusative (γυναικί -> γυναῖκ᾽). A
+    # keyboard writes the value into the user's text, and offering nothing
+    # is better than offering another word.
+    pairs: dict[str, str] = {}
+    for full, candidates in candidates_by_full.items():
+        if full in long_final:
+            continue
+        # Only the dative's own -ι: τῷδε and ἔμοιγε are datives too, but
+        # what they lose is the ε of δε and γε, which elides like any other.
+        if (dative_keys and _is_dative(full, dative_keys)
+                and _final_vowel(full)[1] == "ι"):
+            continue
+        elided = _rule_elision(full)
+        if elided in candidates and grc_orthography_reason(elided) is None:
+            pairs[full] = elided
 
     # Pin canonical overrides last. NFC everything for safety.
     for full, elided in CANONICAL_ELISION_OVERRIDES.items():
@@ -578,9 +747,9 @@ def build(out_dir: Path) -> dict:
     )
     print(f"  lemmas with attested forms: {len(lemma_to_forms):,}")
 
-    exact_freq = load_form_profile_freq().exact
-    print(f"  corpus counts for elision ranking: {len(exact_freq):,} forms")
-    elision_pairs = _derive_elision_pairs(lemma_to_forms, exact_freq)
+    dative_keys = _derive_dative_keys(pairs_files)
+    print(f"  forms tagged only as datives: {sum(dative_keys.values()):,}")
+    elision_pairs = _derive_elision_pairs(lemma_to_forms, dative_keys)
     print(f"  elision full -> elided pairs: {len(elision_pairs):,}")
 
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -7,6 +7,81 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The dative -ι and -σι no longer elide. They elide only in epic (Smyth 72),
+  and rarely there: GLAUx elides them in about 2% of epic tokens before a
+  vowel and 0.2% of the rest, and the elided spelling it does attest is
+  nearly always another case's (`ἄνδρ᾽` is `ἄνδρα`, `πάντ᾽` is `πάντα`), so
+  a keyboard applying the table turned `παντί` into the accusative. The
+  tagged corpora say which forms are datives; the first file that has a form
+  decides, since they disagree on some. `τῷδε` and `ἔμοιγε` keep their
+  entries, because what they lose is the ε of δε and γε. A capitalized
+  homograph's analyses do not decide a lowercase word (GLAUx tags a `Χερσὶ`
+  with no case, which would have kept `χερσί` eliding). 1,739 entries go,
+  196,008 corpus occurrences of those spellings, and the table ends at
+  15,242.
+- A participle's dative plural in -σι takes movable nu like any other
+  dative plural (`οὖσιν`, `ἔχουσιν`), and so does the subjunctive's third
+  person plural (`ὦσιν`, Smyth 134); the movable-nu list had excluded every
+  participle and subjunctive. A spelling the orthography rules reject gets
+  no nu, so `ἒστι` and `λέγουσὶ` no longer take one, while a prodelided
+  form (`’στι`, and the bare `στι` a keyboard reads after an apostrophe)
+  keeps it. The list grows from 21,722 forms to 26,221.
+- Long final vowels that the spelling does not show no longer elide: the
+  Attic accusative of a noun in -εύς (`βασιλέα`, whose ᾱ is long; Smyth 276),
+  the contracted neuter plurals `κρέα`, `κέρα` and `γέρα`, and the rest of the
+  deictic -ί paradigm (`τονδί`, `τοιονδί`, `τοιαδί`). Neither does a
+  monosyllable that does not end in ε (Smyth 72), so `σά` and the fragments
+  `λα`, `πί` and `στι` go; `ῥα`, `κα` and `γα` stay. An accented ε or
+  ο before a final ι is a hiatus rather than a diphthong, so the epic
+  `βασιλέι` is read as `βασιλέϊ` (though as a dative it no longer elides;
+  see above), and a circumflex before the penult hosts no
+  enclitic's accent, so the crasis `ὦγαθέ` retracts to `ὦγάθ᾽`. More
+  crasis forms and dialect words elide bare (`τἀπί`, `μἀλλά`, `κἀντί`,
+  `κοὐδέ`, `σφωέ`, `ὑπά`). That leaves 16,981 entries.
+- Words Attic never elides no longer have an elision entry, although their
+  final vowel is short: `ὅτι`, `περί`, `πρό`, `ἄχρι` and `μέχρι` (Smyth 72),
+  `διό` and `καθά`, which already contain one (`δι᾽ ὅ`, `καθ᾽ ἅ`), and the
+  emphatic and deictic -ί, which is long (`οὐχί`, `ὁδί`, `τοδί`). A keyboard
+  applying the table rewrote them before any vowel, and `ὅτ᾽` reads as `ὅτε`,
+  `δι᾽` as `διά`. GLAUx elides `ὅτι` 5 times in 20,231 before a vowel and
+  `οὐχί` never in 462. 32 entries go, whose 14 distinct corpus spellings
+  carry 476,588 occurrences.
+- The elision table now emits a pair only when the corpora attest the
+  spelling the rules of elision give: the final vowel goes, an oxytone throws
+  its accent back as an acute unless it is a preposition, conjunction or
+  enclitic, and every other mark stays. The corpus candidates used to be
+  ranked instead, and the ranking only broke ties among spellings that were
+  often all wrong, so a key whose one candidate belonged to another word
+  still got it. 32,333 entries fall to 17,030. 13,156 of the keys dropped are
+  spellings the orthography rules reject (a grave before the last syllable, a
+  missing breathing), whose values were correcting the spelling as well as
+  eliding it. Among the 2,147 well-formed ones, a long final α took the
+  neuter plural's elision (`αἰτία` -> `αἴτι᾽`, `ἑτέρα` -> `ἕτερ᾽`; 266 keys,
+  39,259 occurrences), an oxytone in -ι took another case's accent
+  (`γυναικί` -> `γυναῖκ᾽`, the accusative's; 105 keys, 35,291), and the
+  deictic -ί, which is long, was elided into the plain pronoun (`τουτί` ->
+  `τοῦτ᾽`). The epic `ἐνί` now elides to `ἐν᾽` rather than the numeral's
+  `ἕν᾽`, and the dialect prepositions and particles that elide bare are
+  listed (`προτί`, `κοτέ`, `ποκά`, `πεδά`, `κἀπί`). `τοτέ`, "at times", is
+  an accented adverb rather than an enclitic, so it retracts to `τότ᾽`
+  instead of eliding bare.
+- The elision table gave `κατὰ` the value `Κατ᾽` and `μετὰ` the value
+  `Μετ᾽`, and a keyboard writes the value into the user's text as it stands,
+  so the two commonest mid-sentence spellings of those prepositions came out
+  capitalized: 217,784 and 88,664 corpus occurrences of those spellings. A form's elision was
+  assigned lemma by lemma, and the last lemma to claim the form won whatever
+  the ranking said. The corpora carry a capitalized lemma `Κατά` whose one
+  elided token opened a sentence, and it came after `κατά`. A form's
+  candidates are now pooled across every lemma that claims it and ranked
+  once, and each candidate first takes the full form's case, so a lowercase
+  `ἑλλάδα` no longer gets `Ἑλλάδ᾽` either. 1,683 entries change case and
+  nothing else; 763 of them went from a capital to lowercase.
+- An enclitic's accent on the last syllable was read as the word's own, so
+  the retraction rule moved the real one: `χεῖρά` took `χείρ᾽`, `εἶπέ` took
+  `εἴπ᾽`, and `ἄλλὰ` was taken for the conjunction and lost its accent. The
+  acute an enclitic throws onto a proparoxytone or properispomenon leaves with
+  the elided vowel, and the word keeps its own accent where it was. 32 entries
+  carrying 5,663 occurrences change.
 - Three defects in the elision table, all reported by Tonos, which reads it to
   rewrite the user's text and diffs it by hand because its dictionary gate
   never sees the file.
