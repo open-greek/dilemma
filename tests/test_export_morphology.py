@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from dilemma.form_sanitize import has_editorial_sigla
 from export_morphology import (
+    _derive_dative_keys,
     _derive_elision_pairs,
     _is_oxytone,
     _derive_nu_forms,
@@ -157,6 +158,55 @@ def test_words_attic_never_elides_get_no_entry():
     for word in ("ὅτι", "περί", "περὶ", "διό", "οὐχί"):
         assert word not in pairs, word
     assert pairs["ὅτε"] == "ὅτ᾽"
+
+
+def test_the_dative_ending_does_not_elide(tmp_path):
+    # Smyth 72: the dative -ι and -σι elide only in epic, and the elided
+    # spelling the corpora attest is another case's (ἄνδρ᾽ is ἄνδρα). The
+    # first tagged file that has a form decides, so GLAUx's verb λέγουσι
+    # outvotes Diorisis's dative participle, and Diorisis's stray vocative
+    # of ἀνδρίς does not save ἀνδρί. τῷδε is a dative too, but it loses the
+    # ε of δε.
+    glaux = tmp_path / "glaux.json"
+    glaux.write_text(json.dumps([
+        {"form": "ἀνδρί", "lemma": "ἀνήρ", "tags": ["singular", "dative"]},
+        {"form": "λέγουσι", "lemma": "λέγω",
+         "tags": ["third-person", "plural", "indicative"]},
+        {"form": "τῷδε", "lemma": "ὅδε", "tags": ["singular", "dative"]},
+    ], ensure_ascii=False), encoding="utf-8")
+    diorisis = tmp_path / "diorisis.json"
+    diorisis.write_text(json.dumps([
+        {"form": "λέγουσι", "lemma": "λέγω",
+         "tags": ["plural", "dative", "participle"]},
+        {"form": "πᾶσι", "lemma": "πᾶς", "tags": ["plural", "dative"]},
+        {"form": "ἀνδρί", "lemma": "ἀνδρίς",
+         "tags": ["feminine", "singular", "vocative"]},
+    ], ensure_ascii=False), encoding="utf-8")
+    datives = _derive_dative_keys([glaux, diorisis])
+    assert datives == {"ἀνδρί", "τῷδε", "πᾶσι"}
+
+    lemma_forms = {"ἀνήρ": {"ἀνδρί", "ἀνδρὶ", "ἄνδρ᾽"},
+                   "λέγω": {"λέγουσι", "λέγουσ᾽"},
+                   "ὅδε": {"τῷδε", "τῷδ᾽"},
+                   "πᾶς": {"πᾶσι", "πᾶσ᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms, datives)
+    for word in ("ἀνδρί", "ἀνδρὶ", "πᾶσι"):
+        assert word not in pairs, word
+    assert pairs["λέγουσι"] == "λέγουσ᾽"
+    assert pairs["τῷδε"] == "τῷδ᾽"
+
+
+def test_a_participles_dative_plural_takes_movable_nu(tmp_path):
+    pairs_path = tmp_path / "pairs.json"
+    pairs_path.write_text(json.dumps([
+        {"form": "οὖσι", "lemma": "εἰμί", "pos": "verb",
+         "tags": ["plural", "present", "participle", "dative"]},
+        {"form": "οὖσα", "lemma": "εἰμί", "pos": "verb",
+         "tags": ["singular", "present", "participle", "nominative"]},
+    ], ensure_ascii=False), encoding="utf-8")
+    forms = _derive_nu_forms([pairs_path])
+    assert "οὖσι" in forms
+    assert "οὖσα" not in forms
 
 
 def test_a_pair_is_dropped_when_every_candidate_is_junk():

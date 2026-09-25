@@ -7,6 +7,18 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The dative -ι and -σι no longer elide. They elide only in epic (Smyth 72),
+  and rarely there: GLAUx elides them in about 1% of epic tokens before a
+  vowel and 0.02% of prose ones, and the elided spelling it does attest is
+  nearly always another case's (`ἄνδρ᾽` is `ἄνδρα`, `πάντ᾽` is `πάντα`), so
+  a keyboard applying the table turned `παντί` into the accusative. The
+  tagged corpora say which forms are datives; the first file that has a form
+  decides, since they disagree on some. `τῷδε` and `ἔμοιγε` keep their
+  entries, because what they lose is the ε of δε and γε. 1,729 entries go,
+  carrying 195,574 corpus occurrences, and the table ends at 15,252.
+- A participle's dative plural in -σι takes movable nu like any other
+  dative plural (`οὖσιν`, `ἔχουσιν`); the movable-nu list had excluded every
+  participle. 2,456 forms join it.
 - Long final vowels that the spelling does not show no longer elide: the
   Attic accusative of a noun in -εύς (`βασιλέα`, whose ᾱ is long; Smyth 276),
   the contracted neuter plurals `κρέα`, `κέρα` and `γέρα`, and the rest of the
@@ -17,7 +29,7 @@ All notable changes to Dilemma are documented here. The format follows
   `βασιλέι` elides again, and a circumflex before the penult hosts no
   enclitic's accent, so the crasis `ὦγαθέ` retracts to `ὦγάθ᾽`. More
   crasis forms and dialect words elide bare (`τἀπί`, `μἀλλά`, `κἀντί`,
-  `κοὐδέ`, `σφωέ`, `ὑπά`). The table ends at 16,981 entries.
+  `κοὐδέ`, `σφωέ`, `ὑπά`). That leaves 16,981 entries.
 - Words Attic never elides no longer have an elision entry, although their
   final vowel is short: `ὅτι`, `περί`, `πρό`, `ἄχρι` and `μέχρι` (Smyth 72),
   `διό` and `καθά`, which already contain one (`δι᾽ ὅ`, `καθ᾽ ἅ`), and the
