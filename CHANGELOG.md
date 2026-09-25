@@ -7,6 +7,24 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- Four orthography rules misread valid Greek and dropped 18 attested forms
+  from the grc dictionary, which the keyboard's own gate had listed as words
+  it must accept. In a Latin name `ου` between two vowels is the consonant v,
+  not a syllable, so `Ὀκτάουιος` is accented on its antepenult. A fused
+  `-περ`, and the `-δε` of the epic and Ionic datives of `ὅδε` (`τῇσιδε`),
+  leave the host's accent where it was (`οἷονπερ`). Crasis with `ὦ` keeps the
+  interjection's circumflex (`ὦλεθρε`), and crasis inside `ταὧς` carries its
+  breathing into its forms (`ταὧνι`). The Ionic enclitics `τεο`, `τεῳ` and
+  `τεων` are written without an accent. The rules now say so, and 46 entries
+  come back, among them `Φλάουιος`, `Λίουιος`, `ἐγᾦδ᾽` and `ὦνθρωπ᾽`; none
+  goes.
+
+### Changed
+- The compatibility baseline is rebased onto the dictionary Tonos ships now,
+  the export of `2e633cc`: 1,363,275 reviewed forms that every export must
+  keep.
+
+### Fixed
 - The dative -ι and -σι no longer elide. They elide only in epic (Smyth 72),
   and rarely there: GLAUx elides them in about 2% of epic tokens before a
   vowel and 0.2% of the rest, and the elided spelling it does attest is

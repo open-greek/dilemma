@@ -142,17 +142,18 @@ def test_whole_artifact_compatibility_fixture_is_reviewed_and_pinned():
     # that the next export does not lose what the keyboard already has.
     assert fixture["baseline"]["version"] == "1.3.6"
     assert fixture["baseline"]["commit"] == (
-        "2266ce119046ee1e4c5ad3948e745352c3e6358d"
+        "2e633cc8d752343639d2cc49fa28eb40a4f6b27c"
     )
-    assert fixture["baseline"]["compiled_entries"] == 1_366_673
-    assert len(fixture["forms"]) == 1_363_274
+    assert fixture["baseline"]["compiled_entries"] == 1_365_574
+    assert len(fixture["forms"]) == 1_363_275
     # The structural classes the gate strips before pinning. They are far
     # smaller than the April baseline's because that export's junk is gone
     # rather than grandfathered: truncated stems 8,971 -> 18, missing
-    # breathings 166,226 -> 0.
+    # breathings 166,226 -> 0. The respelling count is the gate's own, taken
+    # on this baseline with the gate as it stands (2,069 on the previous one).
     rejected = fixture["policy"]["rejected_by_class"]
     assert rejected["truncated-stem"] == 18
-    assert rejected["common_word_respelling"] == 2_069
+    assert rejected["common_word_respelling"] == 2_247
     assert "missing-initial-breathing" not in rejected
 
 

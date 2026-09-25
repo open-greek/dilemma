@@ -705,6 +705,35 @@ def test_grc_orthography_keeps_dialect_crasis_and_adscript_spellings(form):
     assert grc_orthography_reason(form) is None
 
 
+@pytest.mark.parametrize("form", [
+    # Latin v written ου between vowels is a consonant, not a syllable
+    "Ὀκτάουιος", "Ὀκτάουιον", "Ὀκτάουϊος", "Ἀριόουιστος", "Ἀριόουιστον",
+    "Ῥάουεννα", "Ῥάουενναν",
+    # fused -περ, and the -δε of the epic and Ionic datives of ὅδε
+    "οἷονπερ", "οἷοσπερ", "οἷσιπερ", "τῇσιδε", "τοιῇσιδε",
+    # crasis with ὦ, and inside ταὧς
+    "ὦλεθρε", "ὦρνιθες", "ταὧν", "ταὧνι", "ταὧσι",
+    # the Ionic enclitic dative of τις
+    "τεῳ",
+])
+def test_grc_orthography_keeps_attested_forms_the_rules_misread(form):
+    # All eighteen are attested, and all were dropped from 1.3.6 by these
+    # rules; the keyboard's gate lists them as words it must accept.
+    assert grc_orthography_reason(form) is None
+
+
+@pytest.mark.parametrize("form,reason", [
+    # ου that is not between two vowels is still a syllable
+    ("ἄκουουσι", "accent_before_antepenult"),
+    # a circumflex too far back is still wrong without the crasis ὦ
+    ("σῶματος", "circumflex_before_penult"),
+    # only the ὅδε datives keep one accent before -δε
+    ("ἄνθρωπουδε", "accent_before_antepenult"),
+])
+def test_grc_orthography_allowances_stay_narrow(form, reason):
+    assert grc_orthography_reason(form) == reason
+
+
 def test_locative_de_needs_the_second_accent():
     # The locative takes the enclitic's second accent; only the listed
     # demonstratives of ὅδε keep one accent before a fused -δε.
