@@ -160,6 +160,18 @@ def test_words_attic_never_elides_get_no_entry():
     assert pairs["ὅτε"] == "ὅτ᾽"
 
 
+def test_a_hiatus_or_a_written_out_subscript_is_read_as_such():
+    from export_morphology import _can_elide
+    # An accented ε before a final ι is a hiatus: βασιλέι is βασιλέϊ, whose
+    # short ι could elide were it not a dative.
+    assert _can_elide("βασιλέι")
+    # An ι after η or ω is the iota subscript written out, and a macron
+    # marks a long vowel.
+    assert not _can_elide("λόγωι")
+    assert not _can_elide("τῆι")
+    assert not _can_elide("χώρᾱ")
+
+
 def test_the_dative_ending_does_not_elide(tmp_path):
     # Smyth 72: the dative -ι and -σι elide only in epic, and the elided
     # spelling the corpora attest is another case's (ἄνδρ᾽ is ἄνδρα). The
@@ -173,6 +185,8 @@ def test_the_dative_ending_does_not_elide(tmp_path):
         {"form": "λέγουσι", "lemma": "λέγω",
          "tags": ["third-person", "plural", "indicative"]},
         {"form": "τῷδε", "lemma": "ὅδε", "tags": ["singular", "dative"]},
+        {"form": "Χερσὶ", "lemma": "Χείρ", "tags": ["plural", "feminine"]},
+        {"form": "χερσὶ", "lemma": "χείρ", "tags": ["plural", "dative"]},
     ], ensure_ascii=False), encoding="utf-8")
     diorisis = tmp_path / "diorisis.json"
     diorisis.write_text(json.dumps([
@@ -183,14 +197,18 @@ def test_the_dative_ending_does_not_elide(tmp_path):
          "tags": ["feminine", "singular", "vocative"]},
     ], ensure_ascii=False), encoding="utf-8")
     datives = _derive_dative_keys([glaux, diorisis])
-    assert datives == {"ἀνδρί", "τῷδε", "πᾶσι"}
+    assert {key for key, dative in datives.items() if dative} == {
+        "ἀνδρί", "τῷδε", "πᾶσι", "χερσί"}
 
-    lemma_forms = {"ἀνήρ": {"ἀνδρί", "ἀνδρὶ", "ἄνδρ᾽"},
+    lemma_forms = {"χείρ": {"χερσὶ", "Χερσὶ", "χέρσ᾽"},
+                   "ἀνήρ": {"ἀνδρί", "ἀνδρὶ", "ἄνδρ᾽"},
                    "λέγω": {"λέγουσι", "λέγουσ᾽"},
                    "ὅδε": {"τῷδε", "τῷδ᾽"},
                    "πᾶς": {"πᾶσι", "πᾶσ᾽"}}
     pairs = _derive_elision_pairs(lemma_forms, datives)
-    for word in ("ἀνδρί", "ἀνδρὶ", "πᾶσι"):
+    # The capitalized Χερσὶ, analyzed without a case, is read through its
+    # lowercase spelling, and does not keep the dative eliding.
+    for word in ("ἀνδρί", "ἀνδρὶ", "πᾶσι", "χερσὶ", "Χερσὶ"):
         assert word not in pairs, word
     assert pairs["λέγουσι"] == "λέγουσ᾽"
     assert pairs["τῷδε"] == "τῷδ᾽"
@@ -203,10 +221,21 @@ def test_a_participles_dative_plural_takes_movable_nu(tmp_path):
          "tags": ["plural", "present", "participle", "dative"]},
         {"form": "οὖσα", "lemma": "εἰμί", "pos": "verb",
          "tags": ["singular", "present", "participle", "nominative"]},
+        {"form": "ὦσι", "lemma": "εἰμί", "pos": "verb",
+         "tags": ["third-person", "plural", "present", "subjunctive"]},
+        {"form": "ἔχουσἰ", "lemma": "ἔχω", "pos": "verb",
+         "tags": ["plural", "present", "participle", "dative"]},
+        {"form": "ἒστι", "lemma": "εἰμί", "pos": "verb",
+         "tags": ["third-person", "singular", "present", "indicative",
+                  "active"]},
     ], ensure_ascii=False), encoding="utf-8")
     forms = _derive_nu_forms([pairs_path])
     assert "οὖσι" in forms
+    assert "ὦσι" in forms       # the subjunctive's third plural (Smyth 134)
     assert "οὖσα" not in forms
+    # Malformed spellings get no ν appended.
+    assert "ἔχουσἰ" not in forms
+    assert "ἒστι" not in forms
 
 
 def test_a_pair_is_dropped_when_every_candidate_is_junk():
@@ -307,9 +336,9 @@ def test_a_circumflex_before_the_penult_hosts_no_enclitic_accent():
 def test_long_final_vowels_the_spelling_hides_do_not_elide():
     # The deictic -ί (Smyth 333g), the Attic accusative -έᾱ of a noun in
     # -εύς (Smyth 276), a contracted neuter plural in -ᾱ, and a monosyllable
-    # not in ε (Smyth 72). βασιλέι is a hiatus, βασιλέϊ, and elides.
+    # not in ε (Smyth 72).
     lemma_forms = {"ὅδε": {"τόνδε", "τονδί", "τόνδ᾽"},
-                   "βασιλεύς": {"βασιλέα", "βασιλέι", "βασιλέ᾽"},
+                   "βασιλεύς": {"βασιλέα", "βασιλέ᾽"},
                    "κρέας": {"κρέα", "κρέ᾽"},
                    "σός": {"σά", "σ᾽"},
                    "ἄρα": {"ῥα", "ῥ᾽"}}
@@ -317,7 +346,6 @@ def test_long_final_vowels_the_spelling_hides_do_not_elide():
     for word in ("τονδί", "βασιλέα", "κρέα", "σά"):
         assert word not in pairs, word
     assert pairs["τόνδε"] == "τόνδ᾽"
-    assert pairs["βασιλέι"] == "βασιλέ᾽"
     assert pairs["ῥα"] == "ῥ᾽"
 
 

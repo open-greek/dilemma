@@ -8,25 +8,32 @@ All notable changes to Dilemma are documented here. The format follows
 
 ### Fixed
 - The dative -ι and -σι no longer elide. They elide only in epic (Smyth 72),
-  and rarely there: GLAUx elides them in about 1% of epic tokens before a
-  vowel and 0.02% of prose ones, and the elided spelling it does attest is
+  and rarely there: GLAUx elides them in about 2% of epic tokens before a
+  vowel and 0.2% of the rest, and the elided spelling it does attest is
   nearly always another case's (`ἄνδρ᾽` is `ἄνδρα`, `πάντ᾽` is `πάντα`), so
   a keyboard applying the table turned `παντί` into the accusative. The
   tagged corpora say which forms are datives; the first file that has a form
   decides, since they disagree on some. `τῷδε` and `ἔμοιγε` keep their
-  entries, because what they lose is the ε of δε and γε. 1,729 entries go,
-  carrying 195,574 corpus occurrences, and the table ends at 15,252.
+  entries, because what they lose is the ε of δε and γε. A capitalized
+  homograph's analyses do not decide a lowercase word (GLAUx tags a `Χερσὶ`
+  with no case, which would have kept `χερσί` eliding). 1,739 entries go,
+  196,008 corpus occurrences of those spellings, and the table ends at
+  15,242.
 - A participle's dative plural in -σι takes movable nu like any other
-  dative plural (`οὖσιν`, `ἔχουσιν`); the movable-nu list had excluded every
-  participle. 2,456 forms join it.
+  dative plural (`οὖσιν`, `ἔχουσιν`), and so does the subjunctive's third
+  person plural (`ὦσιν`, Smyth 134); the movable-nu list had excluded every
+  participle and subjunctive. A spelling the orthography rules reject gets
+  no nu, so `ἒστι` and `λέγουσὶ` no longer take one. The list grows from
+  21,722 forms to 26,204: 4,709 join it and 227 malformed ones leave.
 - Long final vowels that the spelling does not show no longer elide: the
   Attic accusative of a noun in -εύς (`βασιλέα`, whose ᾱ is long; Smyth 276),
   the contracted neuter plurals `κρέα`, `κέρα` and `γέρα`, and the rest of the
   deictic -ί paradigm (`τονδί`, `τοιονδί`, `τοιαδί`). Neither does a
   monosyllable that does not end in ε (Smyth 72), so `σά` and the fragments
-  `λα`, `πί` and `στι` go; `ῥα`, `κα`, `γα` and `σφι` stay. An accented ε or
+  `λα`, `πί` and `στι` go; `ῥα`, `κα` and `γα` stay. An accented ε or
   ο before a final ι is a hiatus rather than a diphthong, so the epic
-  `βασιλέι` elides again, and a circumflex before the penult hosts no
+  `βασιλέι` is read as `βασιλέϊ` (though as a dative it no longer elides;
+  see above), and a circumflex before the penult hosts no
   enclitic's accent, so the crasis `ὦγαθέ` retracts to `ὦγάθ᾽`. More
   crasis forms and dialect words elide bare (`τἀπί`, `μἀλλά`, `κἀντί`,
   `κοὐδέ`, `σφωέ`, `ὑπά`). That leaves 16,981 entries.

@@ -315,10 +315,16 @@ def _can_elide(form: str) -> bool:
     _index, base, marks = found
     if base not in _ELIDABLE_VOWELS:
         return False
-    if "\u0342" in marks or "\u0345" in marks:
+    # A circumflex, an iota subscript or a macron marks a long vowel.
+    if "\u0342" in marks or "\u0345" in marks or "\u0304" in marks:
         return False
     nfd = unicodedata.normalize("NFD", form)
     spans = _nuclei(nfd)
+    # An iota written after a long η or ω is the subscript written out
+    # (λόγωι, τῆι), not a vowel of its own.
+    before = [c for c in nfd[:spans[-1][0]] if not unicodedata.combining(c)]
+    if base == "ι" and before and before[-1].lower() in "ηω":
+        return False
     last = nfd[spans[-1][0]:spans[-1][1]]
     if sum(c.lower() in "αεηιουω" for c in last) > 1:
         return False            # the second element of a diphthong
@@ -397,7 +403,8 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
     on the same token disqualify it outright, since none of those
     moods / forms take movable nu even when the surface spelling ends
     in a qualifying letter, except a participle's dative plural, which
-    rule 4 covers like any other. Relies on GLAUx / Diorisis morphological
+    rule 4 covers like any other, and the subjunctive's third person plural
+    in -σι. A spelling the orthography rules reject is never eligible. Relies on GLAUx / Diorisis morphological
     tagging; no heuristic falls back to raw frequency counts because
     corpus co-occurrence alone produces too many false positives on
     neuter nominative participles (e.g. ``γραφέν``) that share the
@@ -419,11 +426,22 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
             last = _last_base_vowel(form)
             stripped = _strip_lower(form)
 
+            # A malformed spelling gets nothing: a ν appended to ἒστι or
+            # λέγουσὶ is written into the user's text as it stands.
+            if grc_orthography_reason(form) is not None:
+                continue
+
             # A participle's dative plural is a dative plural like any
-            # other, and takes movable nu the same way (οὖσιν, ἔχουσιν).
+            # other, and takes movable nu the same way (οὖσιν, ἔχουσιν),
+            # and the third person plural in -σι takes it in the
+            # subjunctive too (ὦσιν, λύωσιν; Smyth 134).
             if ("participle" in tags and "dative" in tags
                     and "plural" in tags
                     and stripped.endswith(("σι", "ξι", "ψι"))):
+                nu_eligible.add(form)
+                continue
+            if ("subjunctive" in tags and "third-person" in tags
+                    and "plural" in tags and stripped.endswith("σι")):
                 nu_eligible.add(form)
                 continue
 
@@ -477,12 +495,19 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
     return nu_eligible
 
 
-def _derive_dative_keys(pairs_files: list[Path]) -> set[str]:
-    """Exact keys (``exact_form_key``) whose every analysis is a dative.
+def _dative_key(form: str) -> str:
+    """``form`` with a grave read as an acute and its case kept: the key the
+    dative test looks spellings up by."""
+    return _nfc(unicodedata.normalize("NFD", form).replace("\u0300", "\u0301"))
+
+
+def _derive_dative_keys(pairs_files: list[Path]) -> dict[str, bool]:
+    """For each spelling the tagged corpora analyze (``_dative_key``),
+    whether every analysis of it is a dative. ``_is_dative`` reads it.
 
     The dative -ι and -σι elide only in epic (Smyth 72), and rarely there:
-    GLAUx elides them in about 1% of epic tokens before a vowel and 0.02%
-    of prose ones, and the elided spelling it does attest is nearly always
+    GLAUx elides them in about 2% of epic tokens before a vowel and 0.2% of
+    the rest, and the elided spelling it does attest is nearly always
     another case's (ἄνδρ᾽ is ἄνδρα, πάντ᾽ is πάντα). The spelling does not
     say which forms are datives, so the tagged corpora do. The first file
     that has a form decides, because the treebanks disagree on some:
@@ -501,11 +526,35 @@ def _derive_dative_keys(pairs_files: list[Path]) -> set[str]:
         for entry in entries:
             form = _nfc(entry.get("form", "").strip())
             if form and not has_editorial_sigla(form):
-                seen[exact_form_key(form)].append(set(entry.get("tags", [])))
+                seen[_dative_key(form)].append(set(entry.get("tags", [])))
         for key, tag_sets in seen.items():
             analyses.setdefault(key, tag_sets)
-    return {key for key, tag_sets in analyses.items()
-            if all("dative" in tags for tags in tag_sets)}
+    return {key: all("dative" in tags for tags in tag_sets)
+            for key, tag_sets in analyses.items()}
+
+
+def _is_dative(full: str, dative_keys: dict[str, bool]) -> bool:
+    """Whether ``full`` is a dative, by the analyses of the spelling nearest
+    to it. Case is kept apart because a capitalized homograph carries its
+    own analyses, some of them junk: GLAUx tags a Χερσὶ with no case and a
+    Φανέντι as a nominative noun, and either would veto the lowercase
+    dative. So a capitalized word is read through its lowercase spelling
+    first, and a lowercase one through its own, then its capitalized one
+    (πλάτωνι is analyzed only as Πλάτωνι). A diaeresis is dropped only when
+    no spelling with it is analyzed, since ἔγχεϊ is a dative and ἔγχει an
+    imperative."""
+    own = _dative_key(full)
+    lower = _dative_key(full.lower())
+    capital = _dative_key(full[:1].upper() + full[1:])
+    order = [lower, own] if own != lower else [own, capital]
+    for key in order:
+        if key in dative_keys:
+            return dative_keys[key]
+    for key in order:
+        folded = _nfc(unicodedata.normalize("NFD", key).replace("\u0308", ""))
+        if folded != key and folded in dative_keys:
+            return dative_keys[folded]
+    return False
 
 
 def _load_lemma_forms(
@@ -558,7 +607,7 @@ def _load_lemma_forms(
 
 def _derive_elision_pairs(
     lemma_to_forms: dict[str, set[str]],
-    dative_keys: frozenset[str] | set[str] = frozenset(),
+    dative_keys: dict[str, bool] | None = None,
 ) -> dict[str, str]:
     """Return {full_form_nfc -> elided_form_nfc_with_koronis}.
 
@@ -648,7 +697,7 @@ def _derive_elision_pairs(
             continue
         # Only the dative's own -ι: τῷδε and ἔμοιγε are datives too, but
         # what they lose is the ε of δε and γε, which elides like any other.
-        if (exact_form_key(full) in dative_keys
+        if (dative_keys and _is_dative(full, dative_keys)
                 and _final_vowel(full)[1] == "ι"):
             continue
         elided = _rule_elision(full)
@@ -691,7 +740,7 @@ def build(out_dir: Path) -> dict:
     print(f"  lemmas with attested forms: {len(lemma_to_forms):,}")
 
     dative_keys = _derive_dative_keys(pairs_files)
-    print(f"  forms tagged only as datives: {len(dative_keys):,}")
+    print(f"  forms tagged only as datives: {sum(dative_keys.values()):,}")
     elision_pairs = _derive_elision_pairs(lemma_to_forms, dative_keys)
     print(f"  elision full -> elided pairs: {len(elision_pairs):,}")
 
