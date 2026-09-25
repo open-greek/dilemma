@@ -7,6 +7,33 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- Three defects in the elision table, all reported by Tonos, which reads it to
+  rewrite the user's text and diffs it by hand because its dictionary gate
+  never sees the file.
+  - A grave oxytone was not retracting. The grave is only the contextual
+    spelling of an oxytone, and it is the spelling a word carries
+    mid-sentence, which is exactly where elision happens, so `αὐτὸ` took
+    `αὐτ᾽` where `αὐτή` correctly took `αὔτ᾽`. 59 entries by Tonos's count,
+    carrying 119,486 corpus occurrences: `αὐτὸ`, `πολλὰ`, `αὐτὰ`, `ἐμὲ`.
+  - A word elision cannot touch was still given an entry. Elision removes a
+    short final vowel, so η and ω are out, a circumflex or an iota subscript
+    marks a long vowel, and the second element of a diphthong goes with the
+    first. That is 10,957 keys, including `αὐτῷ`, `αὐτῇ`, `δεῖ` (which was
+    paired with `δέ᾽`) and `ἤδη`.
+  - A pair whose every candidate is junk was emitting the least bad one, so
+    `ὅσδε` gave `ὃσδ᾽`, a grave on an elided word. 30 entries, now dropped
+    rather than written into someone's text.
+  The known-bare class is also stated rather than left to the absence of an
+  accented candidate: prepositions, conjunctions and, newly, enclitics, which
+  have no accent of their own to throw back (Smyth 183). That separates the
+  enclitic `ποτέ` from the interrogative `πότε`. The orthotone `εἰμί` and
+  `φημί` are not enclitics here, so `εἰμί` keeps `εἴμ᾽`.
+- `tests/test_export_morphology.py` now checks the built table against those
+  three invariants, pinning the oxytone one by corpus weight rather than entry
+  count, because weight is what separates a rule that stopped firing from the
+  tail of the known-bare class.
+
+### Fixed
 - An elided oxytone throws its accent back onto the penult as an acute
   (Smyth 174), and the elision table was leaving it bare. The ranking added
   in the previous entry prefers the candidate that keeps the full form's own

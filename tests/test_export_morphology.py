@@ -1,5 +1,7 @@
 import json
 import sys
+
+import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -127,3 +129,75 @@ def test_a_form_that_is_not_oxytone_keeps_its_marks_where_they_were():
     # stem-marks test for every paroxytone and properispomenon.
     lemma_forms = {"ἄλλος": {"ἄλλε", "ἄλλ᾽", "ἆλλ᾽"}}
     assert _derive_elision_pairs(lemma_forms, {})["ἄλλε"] == "ἄλλ᾽"
+
+
+def test_a_grave_oxytone_retracts_like_an_acute_one():
+    # The grave is only the contextual spelling of an oxytone, and it is
+    # the spelling a word carries mid-sentence, which is where elision
+    # happens. Reported by Tonos: 59 entries were left bare.
+    lemma_forms = {"αὐτός": {"αὐτὸ", "αὔτ᾽", "αὐτ᾽"}}
+    assert _derive_elision_pairs(lemma_forms, {})["αὐτὸ"] == "αὔτ᾽"
+
+
+def test_a_word_elision_cannot_touch_gets_no_entry():
+    # Elision removes a short final vowel. η and ω are always long, a
+    # circumflex or iota subscript marks length, and the second element of
+    # a diphthong goes with the first.
+    for full, elided in [("αὐτῷ", "αὐτ᾽"), ("αὐτῇ", "αὐτ᾽"),
+                         ("δεῖ", "δέ᾽"), ("ἤδη", "ἠδ᾽"),
+                         ("λόγοι", "λόγ᾽"), ("λόγου", "λόγ᾽")]:
+        pairs = _derive_elision_pairs({"x": {full, elided}}, {})
+        assert full not in pairs, f"{full} cannot elide"
+
+
+def test_a_pair_is_dropped_when_every_candidate_is_junk():
+    # Ranking only picks the least bad one, and writing that into
+    # someone's text is worse than offering nothing.
+    from export_hunspell import grc_orthography_reason
+    assert grc_orthography_reason("ὃσδ᾽") is not None
+    assert "ὅσδε" not in _derive_elision_pairs({"ὅσδε": {"ὅσδε", "ὃσδ᾽"}}, {})
+
+
+ARTIFACT = ROOT / "build" / "hunspell" / "grc_morph.json"
+
+
+@pytest.mark.skipif(not ARTIFACT.exists(), reason="grc_morph.json not built")
+def test_the_built_elision_table_holds_its_invariants():
+    """The keyboard rewrites the user's text with this table.
+
+    Tonos's dictionary gate never reads this file, so three separate
+    defects reached it before anything here checked them.
+    """
+    import export_morphology as em
+    from export_hunspell import (exact_form_key, grc_orthography_reason,
+                                 load_form_profile_freq)
+
+    table = json.loads(ARTIFACT.read_text(encoding="utf-8"))["el"]
+    assert table
+
+    non_elidable = [k for k in table if not em._can_elide(k)]
+    assert not non_elidable, f"keys elision cannot touch: {non_elidable[:10]}"
+
+    invalid = {k: v for k, v in table.items()
+               if grc_orthography_reason(v) is not None}
+    assert not invalid, f"values the orthography rules reject: {list(invalid)[:10]}"
+
+    # Oxytones are pinned by corpus weight rather than by count, because
+    # weight is what separates a rule that stopped firing from the tail of
+    # the known-bare class. That tail is crasis forms (κἀπί), dialect
+    # particles (ποκά, πεδά, προτί) and OCR fragments, and stands at 56
+    # entries carrying 11,679 occurrences. The regression Tonos reported
+    # carried 119,486.
+    freq = load_form_profile_freq().exact
+    if not freq:
+        pytest.skip("form_profile.db not downloaded")
+    bare = [k for k, v in table.items()
+            if grc_orthography_reason(k) is None
+            and em._is_oxytone(k)
+            and em._strip_lower(k) not in em.ELISION_KEEPS_NO_ACCENT
+            and not em._has_accent(v)]
+    weight = sum(freq.get(exact_form_key(k), 0) for k in bare)
+    assert weight < 25_000, (
+        f"elided oxytones left bare carry {weight:,} occurrences: "
+        f"{sorted(bare, key=lambda k: -freq.get(exact_form_key(k), 0))[:10]}"
+    )

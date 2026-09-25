@@ -176,19 +176,70 @@ ELISION_KEEPS_NO_ACCENT: frozenset[str] = frozenset([
     # prepositions
     "ανα", "αμφι", "αντι", "απο", "δια", "επι", "κατα", "μετα", "παρα",
     "περι", "υπο",
-    # conjunctions and particles
-    "αλλα", "δε", "ουδε", "μηδε", "τε",
+    # conjunctions and adverbs of the same class
+    "αλλα", "δε", "ουδε", "μηδε", "διο", "καθα",
+    # enclitics, which have no accent of their own to throw back
+    # (Smyth 183). The orthotone εἰμί and φημί are not among them:
+    # εἰμί elides to εἴμ᾽ and ἐμέ, the emphatic pronoun, to ἔμ᾽.
+    "τε", "γε", "τοι", "ποτε", "που", "πως", "πη", "νυν", "ρα",
+    # Epic and Doric members of the same classes
+    "ποτι", "ηδε", "ηε", "τοτε",
+    "με", "σε", "μοι", "σοι", "τινα", "τινι", "τινε", "τινος",
 ])
 
 
-def _is_oxytone(form: str) -> bool:
-    """True when an acute sits on the form's final vowel."""
+# Elision removes a short final vowel and nothing else. η and ω are always
+# long, υ does not elide, a circumflex or an iota subscript marks a long
+# vowel, and the second element of a diphthong goes with the first.
+_ELIDABLE_VOWELS = frozenset("αειο")
+_DIPHTHONGS = frozenset(["αι", "ει", "οι", "υι", "αυ", "ευ", "ηυ", "ου"])
+
+
+def _final_vowel(form: str):
+    """Return (index, base, marks) of the form's last vowel in NFD."""
     nfd = unicodedata.normalize("NFD", form)
     last = -1
     for i, ch in enumerate(nfd):
         if ch in _GREEK_VOWELS:
             last = i
-    return last >= 0 and "\u0301" in nfd[last + 1:]
+    if last < 0:
+        return None
+    return last, nfd[last].lower(), nfd[last + 1:]
+
+
+def _is_oxytone(form: str) -> bool:
+    """True when an acute or a grave sits on the form's final vowel.
+
+    The grave is only the contextual spelling of an oxytone, and it is the
+    spelling a word carries mid-sentence, which is exactly where elision
+    happens. ``αὐτὸ`` retracts to ``αὔτ᾽`` for the same reason ``αὐτή``
+    retracts to ``αὔτ᾽``.
+    """
+    found = _final_vowel(form)
+    if not found:
+        return False
+    _index, _base, marks = found
+    return "\u0301" in marks or "\u0300" in marks
+
+
+def _can_elide(form: str) -> bool:
+    """True when the form's final vowel is one elision can remove."""
+    found = _final_vowel(form)
+    if not found:
+        return False
+    index, base, marks = found
+    if base not in _ELIDABLE_VOWELS:
+        return False
+    if "\u0342" in marks or "\u0345" in marks:
+        return False
+    if "\u0308" in marks:       # a diaeresis breaks the diphthong
+        return True
+    nfd = unicodedata.normalize("NFD", form)
+    for j in range(index - 1, -1, -1):
+        if unicodedata.combining(nfd[j]):
+            continue
+        return (nfd[j].lower() + base) not in _DIPHTHONGS
+    return True
 
 
 def _has_acute(s: str) -> bool:
@@ -461,6 +512,11 @@ def _derive_elision_pairs(
         for full in fulls:
             if len(full) < 2:
                 continue
+            # The keyboard rewrites the user's text with this table, so a
+            # word elision cannot touch has no business carrying an entry,
+            # whatever spelling the corpus happens to pair with it.
+            if not _can_elide(full):
+                continue
             stripped_full = _strip_lower(full)
             # Find elided candidates whose stripped stem is exactly
             # one vowel shorter than the full form.
@@ -480,6 +536,11 @@ def _derive_elision_pairs(
                 candidates,
                 key=lambda e: _score_elision_variant(full, e, exact_freq),
             )
+            # Every candidate can be junk, and then the ranking only picks
+            # the least bad one. Writing that into someone's text is worse
+            # than offering nothing.
+            if grc_orthography_reason(best) is not None:
+                continue
             pairs[full] = best
 
     # Pin canonical overrides last. NFC everything for safety.
