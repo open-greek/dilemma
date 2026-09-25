@@ -218,8 +218,16 @@ def _is_oxytone(form: str) -> bool:
     found = _final_vowel(form)
     if not found:
         return False
-    _index, _base, marks = found
-    return "\u0301" in marks or "\u0300" in marks
+    index, _base, marks = found
+    if "\u0301" not in marks and "\u0300" not in marks:
+        return False
+    # A second accent on the last syllable is an enclitic's, thrown onto a
+    # proparoxytone or properispomenon (σῶμά τι, χεῖρά τε). It leaves with
+    # the elided vowel, and the word's own accent stays where it was:
+    # χεῖρά elides to χεῖρ᾽, not χείρ᾽. A grave earlier in the word is no
+    # accent of its own, only a malformed spelling (μὲτὰ).
+    head = unicodedata.normalize("NFD", form)[:index]
+    return not any(ord(c) in (0x0301, 0x0342) for c in head)
 
 
 def _can_elide(form: str) -> bool:
@@ -259,6 +267,27 @@ def _elision_accent_ok(full: str, elided: str) -> bool:
     if _strip_lower(full) in ELISION_KEEPS_NO_ACCENT:
         return not _has_accent(elided)
     return _has_acute(elided)
+
+
+def _match_initial_case(elided: str, full: str) -> str:
+    """Give ``elided`` the case of ``full``'s first letter.
+
+    Case is not part of the word: a sentence-initial ``Κατ᾽`` is the same
+    elision as ``κατ᾽``. The corpora pair a lowercase full form with a
+    capitalized elided one wherever the only elided token they saw opened
+    a sentence (``ἑλλάδα`` with ``Ἑλλάδ᾽``), and a keyboard writes the
+    value into the user's text as it stands.
+    """
+    head = elided[:1]
+    if not head.isalpha():
+        return elided
+    if full[:1].isupper() and head.islower():
+        head = head.upper()
+    elif full[:1].islower() and head.isupper():
+        head = head.lower()
+    else:
+        return elided
+    return _nfc(head + elided[1:])
 
 
 def _stem_marks_match(full: str, elided: str) -> bool:
@@ -487,13 +516,15 @@ def _derive_elision_pairs(
       - that extra character is one of the seven Greek vowels, so F's
         final vowel is what elision dropped.
 
-    When a full form matches multiple elided candidates we pick the
-    one that best tracks the full form's casing and breathing profile
-    via ``_score_elision_variant``. Canonical overrides for the ten
-    iconic particles are applied last so the textbook forms always win
-    regardless of corpus noise.
+    A full form can belong to several lemmas, so its candidates are pooled
+    across all of them and ranked once, and each candidate first takes the
+    full form's case (``_match_initial_case``). When a full form matches
+    multiple elided candidates we pick the one that best tracks the full
+    form's breathing profile via ``_score_elision_variant``. Canonical
+    overrides for the ten iconic particles are applied last so the
+    textbook forms always win regardless of corpus noise.
     """
-    pairs: dict[str, str] = {}
+    candidates_by_full: dict[str, set[str]] = defaultdict(set)
 
     for lemma, forms in lemma_to_forms.items():
         if has_editorial_sigla(lemma):
@@ -520,7 +551,6 @@ def _derive_elision_pairs(
             stripped_full = _strip_lower(full)
             # Find elided candidates whose stripped stem is exactly
             # one vowel shorter than the full form.
-            candidates: list[str] = []
             for e in elideds:
                 stem_e = e[:-1]  # drop koronis
                 if not stem_e:
@@ -529,19 +559,25 @@ def _derive_elision_pairs(
                 if (stripped_full.startswith(stripped_stem)
                         and len(stripped_full) - len(stripped_stem) == 1):
                     if stripped_full[-1] in "αεηιουω":
-                        candidates.append(e)
-            if not candidates:
-                continue
-            best = max(
-                candidates,
-                key=lambda e: _score_elision_variant(full, e, exact_freq),
-            )
-            # Every candidate can be junk, and then the ranking only picks
-            # the least bad one. Writing that into someone's text is worse
-            # than offering nothing.
-            if grc_orthography_reason(best) is not None:
-                continue
-            pairs[full] = best
+                        candidates_by_full[full].add(
+                            _match_initial_case(e, full))
+
+    # Ranked only once every lemma has contributed. Assigning per lemma let
+    # the last lemma to claim a form win whatever the ranking said: the
+    # corpora carry a capitalized lemma Κατά whose one elided token opened
+    # a sentence, and it overwrote κατὰ's κατ᾽ with Κατ᾽.
+    pairs: dict[str, str] = {}
+    for full, candidates in candidates_by_full.items():
+        best = max(
+            candidates,
+            key=lambda e: _score_elision_variant(full, e, exact_freq),
+        )
+        # Every candidate can be junk, and then the ranking only picks
+        # the least bad one. Writing that into someone's text is worse
+        # than offering nothing.
+        if grc_orthography_reason(best) is not None:
+            continue
+        pairs[full] = best
 
     # Pin canonical overrides last. NFC everything for safety.
     for full, elided in CANONICAL_ELISION_OVERRIDES.items():

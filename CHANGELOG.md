@@ -7,6 +7,23 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The elision table gave `κατὰ` the value `Κατ᾽` and `μετὰ` the value
+  `Μετ᾽`, and a keyboard writes the value into the user's text as it stands,
+  so the two commonest mid-sentence spellings of those prepositions came out
+  capitalized: 226,495 and 94,075 corpus occurrences. A form's elision was
+  assigned lemma by lemma, and the last lemma to claim the form won whatever
+  the ranking said. The corpora carry a capitalized lemma `Κατά` whose one
+  elided token opened a sentence, and it came after `κατά`. A form's
+  candidates are now pooled across every lemma that claims it and ranked
+  once, and each candidate first takes the full form's case, so a lowercase
+  `ἑλλάδα` no longer gets `Ἑλλάδ᾽` either. 1,683 entries change case and
+  nothing else; 763 of them went from a capital to lowercase.
+- An enclitic's accent on the last syllable was read as the word's own, so
+  the retraction rule moved the real one: `χεῖρά` took `χείρ᾽`, `εἶπέ` took
+  `εἴπ᾽`, and `ἄλλὰ` was taken for the conjunction and lost its accent. The
+  acute an enclitic throws onto a proparoxytone or properispomenon leaves with
+  the elided vowel, and the word keeps its own accent where it was. 32 entries
+  carrying 5,663 occurrences change.
 - Three defects in the elision table, all reported by Tonos, which reads it to
   rewrite the user's text and diffs it by hand because its dictionary gate
   never sees the file.

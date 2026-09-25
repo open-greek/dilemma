@@ -79,8 +79,8 @@ def test_an_elided_form_keeps_its_own_full_form_stem_marks():
     # count says anything about which belongs to which full form.
     lemma_forms = {"λέγω": {"Εἶπε", "Εἰπέ", "εἶπ᾽", "εἴπ᾽"}}
     pairs = _derive_elision_pairs(lemma_forms, {exact_form_key("εἴπ᾽"): 138})
-    assert pairs["Εἶπε"] == "εἶπ᾽"
-    assert pairs["Εἰπέ"] == "εἴπ᾽"
+    assert pairs["Εἶπε"] == "Εἶπ᾽"
+    assert pairs["Εἰπέ"] == "Εἴπ᾽"
 
 
 def test_the_corpus_count_settles_an_otherwise_tied_elision():
@@ -88,7 +88,7 @@ def test_the_corpus_count_settles_an_otherwise_tied_elision():
     # on case, breathing and accent; εἵτ᾽ has 2 corpus tokens to εἴτ᾽'s 765.
     lemma_forms = {"εἴτε": {"Εἴτε", "εἴτ᾽", "εἵτ᾽"}}
     freq = {exact_form_key("εἴτ᾽"): 765, exact_form_key("εἵτ᾽"): 2}
-    assert _derive_elision_pairs(lemma_forms, freq)["Εἴτε"] == "εἴτ᾽"
+    assert _derive_elision_pairs(lemma_forms, freq)["Εἴτε"] == "Εἴτ᾽"
 
 
 def test_a_candidate_the_orthography_rules_reject_loses():
@@ -96,7 +96,7 @@ def test_a_candidate_the_orthography_rules_reject_loses():
     # as τότ᾽, so nothing below the structural check separates them.
     lemma_forms = {"τότε": {"Τότε", "τότ᾽", "τὸτ᾽"}}
     freq = {exact_form_key("τότ᾽"): 1183, exact_form_key("τὸτ᾽"): 1183}
-    assert _derive_elision_pairs(lemma_forms, freq)["Τότε"] == "τότ᾽"
+    assert _derive_elision_pairs(lemma_forms, freq)["Τότε"] == "Τότ᾽"
 
 
 def test_the_table_does_not_depend_on_set_iteration_order():
@@ -158,6 +158,44 @@ def test_a_pair_is_dropped_when_every_candidate_is_junk():
     assert "ὅσδε" not in _derive_elision_pairs({"ὅσδε": {"ὅσδε", "ὃσδ᾽"}}, {})
 
 
+def test_a_form_two_lemmas_claim_is_ranked_once():
+    # The corpora carry a capitalized lemma Κατά whose one elided token
+    # opened a sentence. Assigned lemma by lemma, whichever came last won,
+    # and κατὰ took Κατ᾽ from it.
+    lemma_forms = {"κατά": {"κατὰ", "κατ᾽", "κάτ᾽"},
+                   "Κατά": {"κατὰ", "Κατ᾽"},
+                   "Ἑλλάς": {"ἑλλάδα", "Ἑλλάδ᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms, {})
+    assert pairs["κατὰ"] == "κατ᾽"
+    assert pairs["ἑλλάδα"] == "ἑλλάδ᾽"
+    reordered = dict(reversed(list(lemma_forms.items())))
+    assert _derive_elision_pairs(reordered, {}) == pairs
+
+
+def test_the_elided_form_takes_the_full_forms_case():
+    lemma_forms = {"αὐτός": {"Αὐτὸ", "αὔτ᾽"}}
+    assert _derive_elision_pairs(lemma_forms, {})["Αὐτὸ"] == "Αὔτ᾽"
+
+
+def test_an_enclitics_accent_is_not_the_words_own():
+    # χεῖρά τε: the acute on the last syllable came from the enclitic and
+    # leaves with the elided vowel, so this is no oxytone to retract.
+    lemma_forms = {"χείρ": {"χεῖρά", "χεῖρ᾽", "χείρ᾽"},
+                   "λέγω": {"εἶπέ", "εἶπ᾽", "εἴπ᾽"},
+                   "ἄλλος": {"ἄλλὰ", "ἄλλ᾽", "ἀλλ᾽"}}
+    pairs = _derive_elision_pairs(lemma_forms, {})
+    assert pairs["χεῖρά"] == "χεῖρ᾽"
+    assert pairs["εἶπέ"] == "εἶπ᾽"
+    assert pairs["ἄλλὰ"] == "ἄλλ᾽"
+
+
+def test_a_grave_before_the_last_syllable_is_not_an_accent():
+    # μὲτὰ is a malformed μετά, not a proparoxytone carrying an enclitic's
+    # accent, so it stays in the class that elides bare.
+    lemma_forms = {"μετά": {"μὲτὰ", "μετ᾽", "μέτ᾽"}}
+    assert _derive_elision_pairs(lemma_forms, {})["μὲτὰ"] == "μετ᾽"
+
+
 ARTIFACT = ROOT / "build" / "hunspell" / "grc_morph.json"
 
 
@@ -181,6 +219,13 @@ def test_the_built_elision_table_holds_its_invariants():
     invalid = {k: v for k, v in table.items()
                if grc_orthography_reason(v) is not None}
     assert not invalid, f"values the orthography rules reject: {list(invalid)[:10]}"
+
+    # The keyboard writes the value into the user's text as it stands, so
+    # a capital here puts one mid-sentence (κατὰ -> Κατ᾽ did, 226,495
+    # occurrences).
+    recased = {k: v for k, v in table.items()
+               if k[:1].isupper() != v[:1].isupper()}
+    assert not recased, f"values that change the key's case: {list(recased.items())[:10]}"
 
     # Oxytones are pinned by corpus weight rather than by count, because
     # weight is what separates a rule that stopped firing from the tail of
