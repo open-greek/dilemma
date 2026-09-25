@@ -113,6 +113,10 @@ CANONICAL_ELISION_OVERRIDES: dict[str, str] = {
 # cleanly, so we keep the list short.
 EXTRA_NU_FORMS: frozenset[str] = frozenset([
     "εἴκοσι",
+    # The prodelided ἐστι (ὁ ’στιν) as a keyboard reads it after an
+    # apostrophe, which ends the word before it. It takes nu before a vowel
+    # in every GLAUx instance; the orthography rules reject it bare.
+    "στι",
 ])
 
 
@@ -323,7 +327,8 @@ def _can_elide(form: str) -> bool:
     # An iota written after a long η or ω is the subscript written out
     # (λόγωι, τῆι), not a vowel of its own.
     before = [c for c in nfd[:spans[-1][0]] if not unicodedata.combining(c)]
-    if base == "ι" and before and before[-1].lower() in "ηω":
+    if (base == "ι" and "\u0308" not in marks
+            and before and before[-1].lower() in "ηω"):
         return False
     last = nfd[spans[-1][0]:spans[-1][1]]
     if sum(c.lower() in "αεηιουω" for c in last) > 1:
@@ -427,8 +432,11 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
             stripped = _strip_lower(form)
 
             # A malformed spelling gets nothing: a ν appended to ἒστι or
-            # λέγουσὶ is written into the user's text as it stands.
-            if grc_orthography_reason(form) is not None:
+            # λέγουσὶ is written into the user's text as it stands. A
+            # prodelided form (’στι for ἐστι) is checked with the mark in
+            # the dictionary's own glyph.
+            probe = KORONIS + form[1:] if form[0] in ELISION_GLYPHS else form
+            if grc_orthography_reason(probe) is not None:
                 continue
 
             # A participle's dative plural is a dative plural like any
@@ -545,7 +553,7 @@ def _is_dative(full: str, dative_keys: dict[str, bool]) -> bool:
     imperative."""
     own = _dative_key(full)
     lower = _dative_key(full.lower())
-    capital = _dative_key(full[:1].upper() + full[1:])
+    capital = _dative_key(full[:1].title() + full[1:])
     order = [lower, own] if own != lower else [own, capital]
     for key in order:
         if key in dative_keys:

@@ -170,6 +170,8 @@ def test_a_hiatus_or_a_written_out_subscript_is_read_as_such():
     assert not _can_elide("λόγωι")
     assert not _can_elide("τῆι")
     assert not _can_elide("χώρᾱ")
+    # With a diaeresis the ι is a vowel of its own, not a subscript.
+    assert _can_elide("ἥρωϊ")
 
 
 def test_the_dative_ending_does_not_elide(tmp_path):
@@ -233,9 +235,11 @@ def test_a_participles_dative_plural_takes_movable_nu(tmp_path):
     assert "οὖσι" in forms
     assert "ὦσι" in forms       # the subjunctive's third plural (Smyth 134)
     assert "οὖσα" not in forms
-    # Malformed spellings get no ν appended.
+    # Malformed spellings get no ν appended; a prodelided one is not
+    # malformed.
     assert "ἔχουσἰ" not in forms
     assert "ἒστι" not in forms
+    assert "στι" in forms
 
 
 def test_a_pair_is_dropped_when_every_candidate_is_junk():

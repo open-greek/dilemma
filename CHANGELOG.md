@@ -23,8 +23,9 @@ All notable changes to Dilemma are documented here. The format follows
   dative plural (`οὖσιν`, `ἔχουσιν`), and so does the subjunctive's third
   person plural (`ὦσιν`, Smyth 134); the movable-nu list had excluded every
   participle and subjunctive. A spelling the orthography rules reject gets
-  no nu, so `ἒστι` and `λέγουσὶ` no longer take one. The list grows from
-  21,722 forms to 26,204: 4,709 join it and 227 malformed ones leave.
+  no nu, so `ἒστι` and `λέγουσὶ` no longer take one, while a prodelided
+  form (`’στι`, and the bare `στι` a keyboard reads after an apostrophe)
+  keeps it. The list grows from 21,722 forms to 26,221.
 - Long final vowels that the spelling does not show no longer elide: the
   Attic accusative of a noun in -εύς (`βασιλέα`, whose ᾱ is long; Smyth 276),
   the contracted neuter plurals `κρέα`, `κέρα` and `γέρα`, and the rest of the
