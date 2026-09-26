@@ -139,6 +139,8 @@ AG_FUNCTION_WORDS = {
     "ποι": "ποι", "οὑ": "οὑ", "ἑ": "ἑ", "σφεας": "σφεῖς",
     "σφωε": "σφεῖς", "σφωϊν": "σφεῖς", "ῥα": "ῥα", "κα": "κα",
     "μευ": "ἐγώ", "σευ": "σύ", "τευ": "σύ", "τυ": "σύ",
+    # Ionic and epic enclitic forms of τις (τεο, τεῳ, τεων).
+    "τεο": "τις", "τεῳ": "τις", "τεων": "τις",
     "κοτε": "ποτε", "κου": "που", "κως": "πως", "κω": "πω",
     "ποκα": "ποτε",
     # The consonant-final contextual forms of οὐ are complete words, not
@@ -238,6 +240,16 @@ GRC_CRASIS_EXCEPTIONS = {
     "ὦνθρωπε": "ἄνθρωπος", "ὦνδρες": "ἀνήρ", "ὦγαθέ": "ἀγαθός",
     "ὦγαθοί": "ἀγαθός", "Ὦπολλον": "Ἀπόλλων",
 }
+
+# Stems whose breathing legitimately sits past the first syllable, because a
+# crasis sits inside the word: ἐγᾦδα, μέντἄν, καλοκἀγαθία, and the Attic
+# ταὧς with its forms (ταὧνα, ταὧσι).
+MEDIAL_BREATHING_PREFIXES = tuple(
+    unicodedata.normalize("NFC", prefix) for prefix in (
+        "ἐγᾦ", "μέντἄν", "μεντἄν", "μέντἂν", "μεντἂν",
+        "καλοκἀγαθ", "καλοκἀγάθ", "ταὧ",
+    )
+)
 
 # Every closed-list grc form, added after the lookup and frequency gates.
 GRC_CLOSED_LIST_FORMS = (
@@ -647,9 +659,10 @@ def grc_orthography_reason(form: str) -> str | None:
     allowed_breathing_indexes = first_nucleus
     if bases[0][0].lower() == "ρ":
         allowed_breathing_indexes = allowed_breathing_indexes | {0}
-    if (len(breathing_indexes) > 1
+    if ((len(breathing_indexes) > 1
             or any(index not in allowed_breathing_indexes
-                   for index in breathing_indexes)):
+                   for index in breathing_indexes))
+            and not form.lower().startswith(MEDIAL_BREATHING_PREFIXES)):
         return "internal_breathing"
 
     base_to_syllable = {
@@ -694,9 +707,19 @@ def grc_orthography_reason(form: str) -> str | None:
         if not has_enclitic_second_accent(bases, syllables, tonal_syllables):
             return "misplaced_second_accent"
         return None
+    # Crasis with ὦ keeps the interjection's circumflex wherever it lands:
+    # ὦνθρωπε, ὦλεθρε, ὦρνιθες.
+    first_base, first_marks = bases[0]
+    if (first_base.lower() == "ω" and 0x0342 in first_marks
+            and first_marks & BREATHING_MARKS):
+        return None
     fused = fused_enclitic_syllables(bases, syllables)
+    consonantal = latin_v_syllables(bases, syllables)
     for syllable_index, tonal in tonal_syllables:
-        syllables_after = len(syllables) - syllable_index - 1
+        syllables_after = sum(
+            1 for later in range(syllable_index + 1, len(syllables))
+            if later not in consonantal
+        )
         if form and ord(form[-1]) in SPACING_DIACRITICS:
             syllables_after += 1
         # A fused enclitic leaves the host's own accent in place, so the
@@ -710,14 +733,39 @@ def grc_orthography_reason(form: str) -> str | None:
     return None
 
 
-# The fused -τις of ὅστις, whose first part keeps its own accent: οὗτινος,
-# ᾧτινι. Fused -δε is not included: a locative such as πόλεμόνδε takes the
-# enclitic's second accent, while the demonstratives of ὅδε do not (τοῖσιδε),
-# so those are listed in GRC_CRASIS_EXCEPTIONS instead.
+# Enclitics fused onto the word before them, which keeps its own accent:
+# the -τις of ὅστις (οὗτινος, ᾧτινι), -περ (οἷονπερ, οἷσιπερ), and the -δε
+# of the epic and Ionic datives of ὅδε and τοιόσδε (τοῖσιδε, τῇσιδε,
+# τοιῇσιδε). Any other -δε takes the enclitic's second accent instead
+# (πόλεμόνδε), which has_enclitic_second_accent settles, so a single-accent
+# πόλεμονδε stays wrong. Only the "δε" is the enclitic in "σιδε".
 FUSED_ENCLITIC_TAILS = (
     ("τινος", 2), ("τινι", 2), ("τινα", 2), ("τινες", 2), ("τινων", 2),
     ("τισιν", 2), ("τισι", 2), ("τινας", 2), ("τινε", 2), ("τινοιν", 3),
+    ("περ", 1), ("σιδε", 1),
 )
+
+
+def latin_v_syllables(
+    bases: list[tuple[str, frozenset[int]]],
+    syllables: list[tuple[int, ...]],
+) -> set[int]:
+    """Indexes of syllables that are really the consonant v of a Latin name.
+
+    Greek spells Latin v as ου, and between two vowels it is a consonant,
+    not a syllable: Ὀκτάουιος is Oc-ta-vi-us, accented on its antepenult.
+    """
+    out: set[int] = set()
+    for index, members in enumerate(syllables):
+        if len(members) != 2:
+            continue
+        first, second = members
+        if ((bases[first][0] + bases[second][0]).lower() == "ου"
+                and first > 0 and bases[first - 1][0] in GREEK_VOWELS
+                and second + 1 < len(bases)
+                and bases[second + 1][0] in GREEK_VOWELS):
+            out.add(index)
+    return out
 
 
 def fused_enclitic_syllables(
