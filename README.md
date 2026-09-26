@@ -2193,6 +2193,27 @@ python export_hunspell.py
 python eval_hunspell.py --n 200
 ```
 
+#### Boundary rewrites (`grc_morph.json`)
+
+`export_morphology.py` writes `build/hunspell/grc_morph.json`, the table a
+keyboard uses to respell a word once the next word turns out to start with a
+vowel. `nu` lists the forms that take movable nu (Smyth 134): third-person
+singulars in -ε and in -σι or -τι, third-person plurals and dative plurals in
+-σι, the dative plural of a participle and the subjunctive's third plural
+included. `el` maps a full form to its elided form, ending in U+1FBD. An
+elision is written only in the spelling the rules give: the short final vowel
+goes, an oxytone throws its accent back onto the new last vowel as an acute
+unless it is a preposition, conjunction or enclitic, and every other mark
+stays. It is written only when the tagged corpora or the lookup table attest
+exactly that spelling among the elided forms of a lemma that claims the full
+form, and the value takes the key's case. No entry is made for a final vowel
+that cannot elide: a long one, marked or not (η, ω, a circumflex, an iota
+subscript or adscript, the Attic accusative in -έᾱ of nouns in -εύς, the
+deictic -ί), the words Attic never elides (`ὅτι`, `περί`, `πρό`, `ἄχρι`,
+`μέχρι`; Smyth 72), a monosyllable not ending in ε, and the dative -ι and -σι,
+which elide only in epic. `tests/test_export_morphology.py` checks the built
+table against these rules.
+
 ### Polytonic next-word prediction LM
 
 `train_lm.py` + `export_lm.py` produce a compact next-word prediction
