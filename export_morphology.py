@@ -16,12 +16,18 @@ boundary-sensitive rewrite tables:
     ``-σι`` (``λέγουσι``, ``γράφουσι``);
   - Noun / pronoun / adjective dative plural ending in ``-σι`` /
     ``-ξι`` / ``-ψι`` (``ἀνδράσι``, ``πᾶσι``);
+  - Adverbs in ``-σι`` and adverbs of place in ``-θε`` that the texts
+    write with the ν (``παντάπασι``, ``πρόσθε``, ``ὄπισθε``);
   - A small closed list of numerals that historically take movable nu
     (``εἴκοσι``).
 
-  Subjunctive, optative, imperative, infinitive, and participle forms
-  are explicitly excluded because Ancient Greek movable nu never
-  attaches to them.
+  - Verb 3sg aorist optative in ``-ειε`` (``δόξειε``, ``ποιήσειε``).
+
+  Other moods and non-finite forms are excluded, apart from what they
+  share with the endings above: the subjunctive's third person in
+  ``-σι``, a participle's dative plural, and the optative in ``-ειε``.
+  So is an unaugmented past in ``-ε`` that is spelled like the
+  imperative and that the texts never write with the ν (``κατένεγκε``).
 
 * ``el`` - full-form -> elided-form pairs harvested from GLAUx,
   Diorisis, and the canonical dilemma lookup table. The elided form
@@ -381,10 +387,9 @@ def _match_initial_case(elided: str, full: str) -> str:
     return _nfc(head + elided[1:])
 
 
-# Tags considered disqualifying for movable nu. Movable nu never
-# attaches to subjunctive, optative, imperative, infinitive, or
-# participle forms. Indicative past / present (where the letter
-# conditions allow) is the carrier.
+# Tags considered disqualifying for movable nu: the moods and non-finite
+# forms, apart from the endings ``_nu_reading`` lets through first (a
+# subjunctive's -σι, a participle's dative plural, the optative's -ειε).
 _NU_DISQUALIFIERS = frozenset([
     "subjunctive", "optative", "imperative", "infinitive", "participle",
 ])
@@ -410,6 +415,9 @@ def _nu_reading(stripped: str, pos: str, tags: set[str]) -> str | None:
          epic datives as adverbs (``ἀκλινέεσσι``); the case decides.
       5. The subjunctive's third person in ``-σι``, the plural (ὦσιν,
          λύωσιν) and the epic singular (ἐθέλῃσιν).
+      6. The aorist optative's third person singular in ``-ειε``
+         (δόξειεν, ποιήσειεν), a third person singular in -ε like the
+         past's (Smyth 134).
 
     ``"never"`` for an analysis that cannot take it: another mood or a
     non-finite form, a first or second person, a case other than the
@@ -420,6 +428,11 @@ def _nu_reading(stripped: str, pos: str, tags: set[str]) -> str | None:
     cannot have (GLAUx files half of ἔσκε as middle).
     """
     last = stripped[-1:]
+    # The aorist optative in -ειε is a third person singular in -ε too, and
+    # takes the ν like the rest (δόξειεν ἄν; Smyth 134).
+    if ("optative" in tags and "third-person" in tags and "singular" in tags
+            and stripped.endswith("ειε")):
+        return "takes"
     if ("participle" in tags and "dative" in tags and "plural" in tags
             and stripped.endswith(("σι", "ξι", "ψι"))):
         return "takes"
@@ -455,9 +468,379 @@ def _nu_reading(stripped: str, pos: str, tags: set[str]) -> str | None:
         return "never"
     if "dative" in tags and tags & {"singular", "dual"}:
         return "never"
+    # An adverb of place in -θε (or the same word governing a genitive, which
+    # GLAUx files as a preposition) alternates with -θεν (Smyth 134 D:
+    # πρόσθε(ν)); whether it takes the ν is left to the texts, as for an
+    # adverb in -σι (``_alternating_adverb``).
+    if _alternating_adverb(stripped, pos):
+        return None
     if pos in ("adv", "conj", "particle", "prep", "intj") and last == "ε":
         return "never"
     return None
+
+
+def _alternating_adverb(stripped: str, pos: str) -> bool:
+    """Whether an analysis is an adverb whose final ν the texts add or leave
+    off: the local adverbs in -σι (Ἀθήνησι(ν), παντάπασι(ν); Smyth 134) and
+    the adverbs of place in -θε (πρόσθε(ν), ὄπισθε(ν); Smyth 134 D), which
+    GLAUx files as prepositions when they govern a genitive. ``stripped`` is
+    the spelling without the ν."""
+    if pos == "adv" and stripped.endswith("σι"):
+        return True
+    return pos in ("adv", "prep") and stripped.endswith("θε")
+
+
+_VOWEL_LETTERS = frozenset("αεηιουω")
+_CONSONANT_LETTERS = frozenset("βγδζθκλμνξπρστφχψ")
+_LABIALS = frozenset("πβφψμ")
+_VELARS = frozenset("κγχξ")
+
+# The preverbs a compound verb can begin with, each with its spellings and
+# the letters each spelling stands before (None: any). A preverb ending in a
+# vowel elides it before a vowel, and before a rough breathing aspirates
+# (ἀφ-, καθ-), except περί and πρό and, often, ἀμφί (ἀμφιέννυμι); so
+# ἐπιάχω is ἐπ- and ἰάχω, and διαιρέω δι- and αἱρέω. ἐκ becomes ἐξ before
+# a vowel; ἐν and σύν assimilate to the consonant that follows, and Attic
+# writes ξύν for σύν.
+_PREVERB_SPELLINGS: dict[str, tuple[tuple[str, frozenset | None], ...]] = {
+    "αμφι": (("αμφι", None), ("αμφ", _VOWEL_LETTERS)),
+    "ανα": (("ανα", _CONSONANT_LETTERS), ("αν", _VOWEL_LETTERS)),
+    "αντι": (("αντι", _CONSONANT_LETTERS), ("αντ", _VOWEL_LETTERS),
+             ("ανθ", _VOWEL_LETTERS)),
+    "απο": (("απο", _CONSONANT_LETTERS), ("απ", _VOWEL_LETTERS),
+            ("αφ", _VOWEL_LETTERS)),
+    "δια": (("δια", _CONSONANT_LETTERS), ("δι", _VOWEL_LETTERS)),
+    "εισ": (("εισ", None), ("εσ", None)),
+    "εκ": (("εκ", _CONSONANT_LETTERS), ("εξ", None)),
+    "εν": (("εν", None), ("εμ", _LABIALS), ("εγ", _VELARS),
+           ("ελ", frozenset("λ")), ("ερ", frozenset("ρ"))),
+    "επι": (("επι", _CONSONANT_LETTERS), ("επ", _VOWEL_LETTERS),
+            ("εφ", _VOWEL_LETTERS)),
+    "κατα": (("κατα", _CONSONANT_LETTERS), ("κατ", _VOWEL_LETTERS),
+             ("καθ", _VOWEL_LETTERS)),
+    "μετα": (("μετα", _CONSONANT_LETTERS), ("μετ", _VOWEL_LETTERS),
+             ("μεθ", _VOWEL_LETTERS)),
+    "παρα": (("παρα", _CONSONANT_LETTERS), ("παρ", _VOWEL_LETTERS)),
+    "περι": (("περι", None),),
+    "προσ": (("προσ", None),),
+    "προ": (("προ", None), ("πρου", _VOWEL_LETTERS)),
+    "συν": (("συν", None), ("συμ", _LABIALS), ("συγ", _VELARS),
+            ("συλ", frozenset("λ")), ("συρ", frozenset("ρ")),
+            ("συσ", frozenset("σ")), ("συ", frozenset("σζ")),
+            ("ξυν", None), ("ξυμ", _LABIALS), ("ξυγ", _VELARS),
+            ("ξυλ", frozenset("λ")), ("ξυ", frozenset("σζ"))),
+    "υπερ": (("υπερ", None),),
+    "υπο": (("υπο", _CONSONANT_LETTERS), ("υπ", _VOWEL_LETTERS),
+            ("υφ", _VOWEL_LETTERS)),
+}
+_PREVERBS_LONGEST_FIRST = sorted(
+    ((spelling, before, preverb)
+     for preverb, spellings in _PREVERB_SPELLINGS.items()
+     for spelling, before in spellings),
+    key=lambda row: -len(row[0]))
+
+
+# The endings a verb is cited with, longest first.
+_CITATION_ENDINGS = ("ουμαι", "ωμαι", "ομαι", "αμαι", "εμαι", "υμαι", "μαι",
+                     "μι", "ω")
+
+
+def _verb_stem(verb: str) -> str:
+    """A stripped verb without its citation ending (``βαλλω`` -> ``βαλλ``)."""
+    for ending in _CITATION_ENDINGS:
+        if verb.endswith(ending):
+            return verb[: len(verb) - len(ending)]
+    return verb
+
+
+def _split_lemma_preverbs(lemma: str) -> tuple[list[str], str]:
+    """The preverbs of a stripped lemma and the simple verb after them
+    (``καταφερω`` -> ``(["κατα"], "φερω")``). The simple verb must keep a
+    stem of at least two letters, so ἄγω is not ἀ- plus a verb, and ἄντομαι
+    not ἀντ- plus -ομαι."""
+    chain: list[str] = []
+    rest = lemma
+    while True:
+        for spelling, before, preverb in _PREVERBS_LONGEST_FIRST:
+            after = rest[len(spelling):]
+            if (rest.startswith(spelling) and len(after) >= 3
+                    and len(_verb_stem(after)) >= 2
+                    and (before is None or after[0] in before)):
+                chain.append(preverb)
+                rest = rest[len(spelling):]
+                break
+        else:
+            return chain, rest
+
+
+def _split_form_preverbs(form: str, chain: list[str]) -> tuple[str, str] | None:
+    """A stripped form split after the lemma's preverbs, in whatever spelling
+    the form gives each one, or None when the form does not begin with them."""
+    prefix, rest = "", form
+    for preverb in chain:
+        for spelling, _ in sorted(_PREVERB_SPELLINGS[preverb],
+                                  key=lambda row: -len(row[0])):
+            if rest.startswith(spelling) and len(rest) > len(spelling):
+                prefix += spelling
+                rest = rest[len(spelling):]
+                break
+        else:
+            return None
+    return prefix, rest
+
+
+def _augmented_starts(rest: str) -> list[str]:
+    """The augmented spellings of a verb stem that has none (Smyth 429-437):
+    ε- before a consonant (ἐρρ- before ρ), and the vowel lengthened, α and ε
+    to η, ο to ω, αι to ῃ, οι to ῳ, αυ and ευ to ηυ; ε also to ει (εἶχε).
+    Empty for a stem whose augment does not show (ι, υ, η, ω, ει)."""
+    if not rest:
+        return []
+    first, two = rest[0], rest[:2]
+    if first == "ρ":
+        return ["ερρ" + rest[1:], "ερ" + rest[1:]]
+    if first not in _VOWEL_LETTERS:
+        return ["ε" + rest]
+    if two == "ει":
+        return []
+    if two == "αι":
+        return ["η" + rest[1:], "η" + rest[2:]]
+    if two == "οι":
+        return ["ω" + rest[1:], "ω" + rest[2:]]
+    if two in ("αυ", "ευ"):
+        return ["ηυ" + rest[2:]]
+    if first == "α":
+        return ["η" + rest[1:]]
+    if first == "ε":
+        return ["η" + rest[1:], "ει" + rest[1:]]
+    if first == "ο":
+        return ["ω" + rest[1:]]
+    return []
+
+
+def _common_prefix_length(a: str, b: str) -> int:
+    n = 0
+    while n < min(len(a), len(b)) and a[n] == b[n]:
+        n += 1
+    return n
+
+
+def _accent_held_by_augment(form: str, rest: str) -> bool:
+    """Whether the accent of a past spelling in -ε stops short of where a
+    verb's recessive accent goes, which only the augment does: the accent
+    of a compound cannot go back past it, and a long vowel the augment
+    leaves as it is takes the accent (ὑπεῖκε beside the imperative ὕπεικε,
+    συνεξεῦρε, Doric συνᾶγε; Smyth 426). That is a word of three or more
+    syllables with its main accent on the penult, where the penult belongs
+    to the verb after its preverbs (``rest``), since a compound imperative
+    of a one-syllable verb keeps the accent on the preverb (ἐπίσχες)."""
+    nfd = unicodedata.normalize("NFD", form)
+    spans = _nuclei(nfd)
+    if len(spans) < 3 or len(_nuclei(rest)) < 2:
+        return False
+    accents = (_COMBINING_ACUTE, _COMBINING_CIRCUMFLEX)
+    for index, (start, end) in enumerate(spans):
+        if any(a in nfd[start:end] for a in accents):
+            return index == len(spans) - 2
+    return False
+
+
+# Crasis joins καί, the article or a preposition to the verb and hides where
+# the augment would go (κἄκλαε, χὑπέμεινε, θἀτέρου).
+_CRASIS_OPENINGS = ("κα", "χα", "χυ", "κυ", "θα", "χη", "κη")
+
+
+def _unaugmented(form: str, lemma: str,
+                 lemmas_of: dict[str, set[str]]) -> bool:
+    """Whether a 3sg past spelling in -ε of ``lemma`` lacks its augment, which
+    makes it the same spelling as the 2sg imperative of the same stem
+    (κατένεγκε, the aorist of καταφέρω beside κατήνεγκε). A compound
+    augments after its last preverb (Smyth 450). A consonant-initial stem
+    shows the missing ε-, and an α-, ο-, αι-, αυ- or οι-initial stem its
+    unlengthened vowel. An ε-initial or suppletive stem (ἐνεγκ- of φέρω)
+    cannot show it, so the augmented spelling has to be filed under the
+    same lemma, or under the simple verb (ἤνεγκε under φέρω).
+    ``lemmas_of`` maps a stripped spelling to the stripped lemmas the
+    corpora file it under. False whenever the augment cannot be seen:
+    an ι-, υ-, η- or ω-initial stem, a crasis, or a reduplicated stem."""
+    marks = "".join(ELISION_GLYPHS) + "'"
+    spelled = _strip_lower(form).lstrip(marks)
+    prodelided = form[:1] in marks
+    lemma_s = _strip_lower(lemma)
+    if spelled.startswith(_CRASIS_OPENINGS) and not lemma_s.startswith(spelled[:2]):
+        return False
+    chain, stem = _split_lemma_preverbs(lemma_s)
+    if prodelided and spelled[:1] not in _VOWEL_LETTERS and not (
+            chain and chain[0].startswith("ε")):
+        return False  # ’βάδιζε: what the mark stands for is the augment
+    split = _split_form_preverbs(spelled, chain)
+    if split is None and spelled[:1] not in _VOWEL_LETTERS:
+        # Prodelision took the ε of ἐξ- (’ξένεγκε, Smyth 76).
+        split = _split_form_preverbs("ε" + spelled, chain)
+        if split is not None:
+            spelled = "ε" + spelled
+    if split is None or not split[1] or not stem:
+        return False
+    prefix, rest = split
+    if chain and chain[-1] == "προ" and prefix.endswith("πρου"):
+        return False  # προὔβαινε: the augment is in the crasis
+    if _accent_held_by_augment(form, rest):
+        return False
+    # The spelling has to be the lemma's own stem before its first letter
+    # says anything: ἐπεστελλε or ἀνεωγε filed under a lemma it only begins
+    # like is left to the augmented-partner test.
+    own_stem = _common_prefix_length(rest, _verb_stem(stem)) >= len(_verb_stem(stem)) - 1
+    initial = stem[0]
+    if initial not in _VOWEL_LETTERS:
+        if rest.startswith("ε" + initial) or (initial == "ρ" and rest.startswith("ερρ")):
+            return False
+        if rest[0] == initial and own_stem:
+            reduplicated = len(rest) > 2 and rest[1] == "ε" and rest[2] == initial
+            return not reduplicated
+    if stem[:2] in ("αι", "οι", "αυ") or initial in "αο":
+        head = stem[:2] if stem[:2] in ("αι", "οι", "αυ") else initial
+        if rest.startswith(head) and own_stem:
+            return True
+        if rest[0] in "ηω":
+            return False
+    if initial == "ε" and stem[1:2] not in ("ι", "υ"):
+        if rest.startswith("ει") or rest[0] == "η":
+            return False
+    # The augmented partner, after the same preverbs in any of their
+    # spellings (ἐξένεγκε beside ἐξήνεγκε), filed under the same lemma.
+    heads = [""]
+    if chain:
+        last = chain[-1]
+        before_last = prefix
+        for spelling, _ in sorted(_PREVERB_SPELLINGS[last], key=lambda row: -len(row[0])):
+            if prefix.endswith(spelling):
+                before_last = prefix[: len(prefix) - len(spelling)]
+                break
+        heads = [before_last + spelling for spelling, _ in _PREVERB_SPELLINGS[last]]
+    for augmented in _augmented_starts(rest):
+        for head in heads:
+            partner = head + augmented
+            if partner == spelled:
+                continue
+            if any(lemma_s in lemmas_of.get(p, ()) for p in (partner, partner + "ν")):
+                return True
+    if chain:
+        for augmented in _augmented_starts(rest):
+            if any(stem in lemmas_of.get(p, ()) for p in (augmented, augmented + "ν")):
+                return True
+    return False
+
+
+# Aorists whose imperative is spelled otherwise (λῦσε beside λῦσον, θῆκε
+# beside θές) and the iteratives, which have none.
+_NOT_IMPERATIVE_SHAPED = ("σε", "ξε", "ψε", "σκε", "ηκε", "ωκε")
+
+
+# The vowel a liquid verb's first aorist lengthens its stem vowel to
+# (Smyth 544): α to η, or to ᾱ in some verbs in -αίνω (ἐγλύκᾱνα), ε to ει;
+# ι and υ lengthen without a change of spelling.
+_LIQUID_AORIST_VOWELS = {"αι": ("η", "α"), "α": ("η",), "ε": ("ει",),
+                         "ει": ("ει",), "ι": ("ι",), "υ": ("υ",)}
+
+
+def _liquid_first_aorist(stripped: str, lemma: str) -> bool:
+    """Whether an aorist spelling in -ε is a liquid verb's first aorist
+    spelled otherwise than the present stem (σήμηνε of σημαίνω, ἔχθηρε of
+    ἐχθαίρω, πῆλε of πάλλω, στεῖλε of στέλλω, μεῖνε of μένω): its imperative
+    is in -ον, so no imperative shares the spelling. When the lengthening
+    does not show (κτεῖνε, κρῖνε), the spelling is the present imperative's,
+    and a thematic second aorist (βάλε, τάμε) keeps its short vowel."""
+    present = _verb_stem(_strip_lower(lemma))
+    if present.endswith("λλ"):
+        liquid, liquid_aorist = "λλ", "λ"
+    elif present[-1:] in ("λ", "μ", "ν", "ρ"):
+        liquid = liquid_aorist = present[-1]
+    else:
+        return False
+    before = present[: len(present) - len(liquid)]
+    vowel = before[-2:] if before[-2:] in _LIQUID_AORIST_VOWELS else before[-1:]
+    for lengthened in _LIQUID_AORIST_VOWELS.get(vowel, ()):
+        aorist = lengthened + liquid_aorist
+        if aorist != vowel + liquid and stripped[:-1].endswith(aorist):
+            return True
+    return False
+
+
+def _imperative_shaped(stripped: str, lemma: str, tense: str) -> bool:
+    """Whether a past spelling could be an imperative by its ending. An
+    imperfect is the present stem plus ε, which is the present imperative
+    whatever the stem ends in (δίδασκε, πρᾶσσε beside διδάσκω, πράσσω);
+    otherwise a σ- or κ-aorist, a liquid first aorist whose stem vowel shows
+    its lengthening, or an iterative in -σκε is not."""
+    lemma_s = _strip_lower(lemma)
+    if (tense == "imperfect" and lemma_s.endswith("ω") and len(lemma_s) > 2
+            and stripped[:-1].endswith(lemma_s[-3:-1])):
+        return True
+    if tense == "aorist" and _liquid_first_aorist(stripped, lemma):
+        return False
+    return not stripped.endswith(_NOT_IMPERATIVE_SHAPED)
+
+
+def _past_tense(tags: set[str]) -> str:
+    """The tense of an indicative analysis; empty for any other mood (the
+    optative in -ειε has no augment to lose)."""
+    if "indicative" not in tags:
+        return ""
+    for tense in ("imperfect", "aorist", "pluperfect", "perfect"):
+        if tense in tags:
+            return tense
+    return ""
+
+
+def _attestation_key(form: str) -> str:
+    """``form`` without the marks that do not make another word: an
+    enclitic's second accent, a diaeresis and an iota subscript, so that
+    ἀπάλλαττέ counts as written with the ν when ἀπάλλαττεν is."""
+    out: list[str] = []
+    accented = False
+    for c in unicodedata.normalize("NFD", form):
+        if c in (_COMBINING_DIAERESIS, _COMBINING_YPOGEGRAMMENI):
+            continue
+        if c in (_COMBINING_ACUTE, _COMBINING_GRAVE, _COMBINING_CIRCUMFLEX):
+            if accented:
+                continue
+            accented = True
+        out.append(c)
+    return _nfc("".join(out))
+
+
+def _imperative_homograph(form: str, readings, lemmas_of: dict[str, set[str]],
+                          written_with_nu: set[str]) -> bool:
+    """Whether a spelling in -ε that some analysis reads as a 3sg past is
+    also the 2sg imperative, and the texts never write the past with its ν.
+
+    Movable nu goes on the past indicative and never on the imperative
+    (Smyth 134). The augment tells them apart, and epic, lyric and Ionic
+    leave it off (Smyth 438), so an unaugmented imperfect or thematic
+    aorist is the imperative's spelling (φέρε, κατένεγκε). The taggers do
+    not separate them: Morpheus lists no imperative for the ἐνεγκ-
+    compounds, and GLAUx's tagger files the imperatives of Lucian's
+    κατένεγκε and Galen's recipes (προσέμβαλλε, ξήρανε) as indicatives.
+    GLAUx writes the ν on 99.6% of the 51,949 3sg past indicatives in -ε
+    that stand before a vowel (only Diorisis's Herodotus, at 0.1%, prints
+    none), so a past whose spelling with ν is attested nowhere hardly ever
+    stood before a vowel as an indicative, and what stood there bare was
+    the imperative. Such a spelling is dropped when every reading that
+    takes nu is an unaugmented imperfect or aorist (``_unaugmented``); the
+    token vote still decides the ones written with ν somewhere.
+    ``written_with_nu`` holds the ``_attestation_key`` of every spelling the
+    corpora write with the ν, without it."""
+    stripped = _strip_lower(form)
+    if not readings:
+        return False
+    if not all(tense in ("imperfect", "aorist") and lemma
+               and _imperative_shaped(stripped, lemma, tense)
+               and _unaugmented(form, lemma, lemmas_of)
+               for lemma, tense in readings):
+        return False
+    pooled = {form, form[:1].lower() + form[1:]}
+    return not any(_attestation_key(spelling) in written_with_nu
+                   for spelling in pooled)
 
 
 def _entry_analyses(entry: dict) -> list[tuple[str, set[str], int]]:
@@ -497,9 +880,12 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
     A spelling in -σι, -ξι or -ψι is a dative plural or a third person,
     both of which take nu, so an analysis that says otherwise is a tagging
     slip (GLAUx files one ζηλῶσί as a first person) and abstains. An
-    adverb in -σι takes nu when the texts write it with one in at least a
-    tenth of its tokens (παντάπασιν 70%, Ἀθήνησιν 42%; Smyth 134); the
-    deictic οὑτωσί is written οὑτωσίν twice in 451, a slip.
+    adverb in -σι, or an adverb of place in -θε, takes nu when the texts
+    write it with one in at least a tenth of its tokens (παντάπασιν 70%,
+    Ἀθήνησιν 42%; Smyth 134, and 134 D for πρόσθε(ν)); the deictic
+    οὑτωσί is written οὑτωσίν twice in 451, a slip. The -θε adverbs that
+    qualify are written with the ν in at least a fifth of their tokens and
+    the rest never, so the threshold does not choose among them.
 
     A spelling the orthography rules reject is never eligible. There is no
     fallback to raw frequency counts, because corpus co-occurrence alone
@@ -521,11 +907,21 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
     # Adverbs in -σι: tokens without the ν and with it.
     adverb_tokens: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     candidates: dict[str, bool] = {}  # form -> some analysis takes nu
+    # The lemma and tense of every reading of a spelling in -ε that takes
+    # nu, every spelling the corpora write, and the lemmas each stripped
+    # spelling is filed under: what the imperative test below reads.
+    past_readings: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    spellings: set[str] = set()
+    lemmas_of: dict[str, set[str]] = defaultdict(set)
     for entries in entries_by_file:
         for entry in entries:
             form = _nfc(entry.get("form", "").strip())
             if not form or len(form) < 2 or has_editorial_sigla(form):
                 continue
+            lemma = _nfc(entry.get("lemma", "").strip())
+            spellings.add(form)
+            if lemma:
+                lemmas_of[_strip_lower(form)].add(_strip_lower(lemma))
             carries_nu = form.endswith("ν") or form.endswith("Ν")
             bare = form[:-1] if carries_nu else form
             stripped = _strip_lower(bare)
@@ -540,6 +936,8 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
                 if reading == "takes":
                     slot = 0
                     takes = True
+                    if not carries_nu and stripped.endswith("ε"):
+                        past_readings[form].add((lemma, _past_tense(tags)))
                 elif (reading == "never" and not carries_nu
                         and not plural_ending):
                     slot = 1
@@ -547,16 +945,21 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
                     votes[key(bare)][slot] += n
                     if lowercase:
                         lowercase_votes[key(bare)][slot] += n
-                if pos == "adv" and stripped.endswith("σι"):
+                if _alternating_adverb(stripped, pos):
                     adverb_tokens[key(bare)][carries_nu] += n
             if carries_nu:
                 continue
             if _nu_reading(stripped, *first) == "takes":
                 takes = True
-            if first[0] == "adv" and stripped.endswith("σι"):
+                if stripped.endswith("ε"):
+                    past_readings[form].add((lemma, _past_tense(first[1])))
+            if _alternating_adverb(stripped, first[0]):
                 candidates.setdefault(form, False)
             if takes:
                 candidates[form] = True
+
+    written_with_nu = {_attestation_key(s[:-1]) for s in spellings
+                       if s.endswith(("ν", "Ν"))}
 
     def adverb_takes_nu(form: str) -> bool:
         without, with_nu = adverb_tokens[key(form)]
@@ -576,6 +979,9 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
         pool = votes if form[:1].isupper() else lowercase_votes
         takes_votes, never_votes = pool[key(form)]
         if never_votes > takes_votes:
+            continue
+        if _imperative_homograph(form, past_readings.get(form, ()), lemmas_of,
+                                 written_with_nu):
             continue
         nu_eligible.add(form)
 
@@ -607,9 +1013,26 @@ def _dative_key(form: str) -> str:
     return _nfc(unicodedata.normalize("NFD", form).replace("\u0300", "\u0301"))
 
 
+_COMBINING_DIAERESIS = unicodedata.lookup("COMBINING DIAERESIS")
+_COMBINING_ACUTE = unicodedata.lookup("COMBINING ACUTE ACCENT")
+_COMBINING_GRAVE = unicodedata.lookup("COMBINING GRAVE ACCENT")
+_COMBINING_CIRCUMFLEX = unicodedata.lookup("COMBINING GREEK PERISPOMENI")
+_COMBINING_YPOGEGRAMMENI = unicodedata.lookup("COMBINING GREEK YPOGEGRAMMENI")
+
+
+def _uncontracted_ei(form: str) -> bool:
+    """Whether ``form`` ends in ε and a ι written apart with a diaeresis
+    (κήδεϊ, ἔγχεϊ): the uncontracted dative singular of an s-, u- or
+    eu-stem."""
+    nfd = unicodedata.normalize("NFD", form)
+    return (_strip_lower(form).endswith("ει")
+            and nfd.rstrip(_COMBINING_ACUTE + _COMBINING_GRAVE)
+                   .endswith(_COMBINING_DIAERESIS))
+
+
 def _derive_dative_keys(pairs_files: list[Path]) -> dict[str, bool]:
     """For each spelling the tagged corpora analyze (``_dative_key``),
-    whether every analysis of it is a dative. ``_is_dative`` reads it.
+    whether every analysis of it is a dative. ``_dative_analysis`` reads it.
 
     The dative -ι and -σι elide only in epic (Smyth 72), and rarely there:
     GLAUx elides them in about 2% of epic tokens before a vowel and 0.2% of
@@ -623,6 +1046,12 @@ def _derive_dative_keys(pairs_files: list[Path]) -> dict[str, bool]:
     both a verb and a dative participle (θέλουσι) follows that one; at
     worst that costs a poetic elision of the verb, which movable nu, the
     commoner spelling before a vowel, would take anyway.
+
+    Diorisis files the uncontracted datives in -εϊ (κήδεϊ, κράτεϊ) as
+    nominative duals, the analysis of γένει, which is contracted from
+    γένεε. The diaeresis says the ε and ι were not contracted, so a dual
+    analysis of such a spelling is set aside, and a spelling left with no
+    other analysis counts as unanalyzed.
     """
     analyses: dict[str, list[set[str]]] = {}
     for p in pairs_files:
@@ -631,24 +1060,30 @@ def _derive_dative_keys(pairs_files: list[Path]) -> dict[str, bool]:
             entries = json.load(f)
         for entry in entries:
             form = _nfc(entry.get("form", "").strip())
-            if form and not has_editorial_sigla(form):
-                seen[_dative_key(form)].append(set(entry.get("tags", [])))
+            if not form or has_editorial_sigla(form):
+                continue
+            tags = set(entry.get("tags", []))
+            if "dual" in tags and _uncontracted_ei(form):
+                continue
+            seen[_dative_key(form)].append(tags)
         for key, tag_sets in seen.items():
             analyses.setdefault(key, tag_sets)
     return {key: all("dative" in tags for tags in tag_sets)
             for key, tag_sets in analyses.items()}
 
 
-def _is_dative(full: str, dative_keys: dict[str, bool]) -> bool:
+def _dative_analysis(full: str, dative_keys: dict[str, bool], *,
+                     fold: bool) -> bool | None:
     """Whether ``full`` is a dative, by the analyses of the spelling nearest
-    to it. Case is kept apart because a capitalized homograph carries its
-    own analyses, some of them junk: GLAUx tags a Χερσὶ with no case and a
-    Φανέντι as a nominative noun, and either would veto the lowercase
-    dative. So a capitalized word is read through its lowercase spelling
-    first, and a lowercase one through its own, then its capitalized one
-    (πλάτωνι is analyzed only as Πλάτωνι). A diaeresis is dropped only when
-    no spelling with it is analyzed, since ἔγχεϊ is a dative and ἔγχει an
-    imperative."""
+    to it, or None when the tagged corpora analyze no spelling of it. Case
+    is kept apart because a capitalized homograph carries its own analyses,
+    some of them junk: GLAUx tags a Χερσὶ with no case and a Φανέντι as a
+    nominative noun, and either would veto the lowercase dative. So a
+    capitalized word is read through its lowercase spelling first, and a
+    lowercase one through its own, then its capitalized one (πλάτωνι is
+    analyzed only as Πλάτωνι). With ``fold``, a spelling with a diaeresis
+    is also read without it, which the caller does only after every other
+    test, since ἔγχεϊ is a dative and ἔγχει an imperative."""
     own = _dative_key(full)
     lower = _dative_key(full.lower())
     capital = _dative_key(full[:1].title() + full[1:])
@@ -656,11 +1091,145 @@ def _is_dative(full: str, dative_keys: dict[str, bool]) -> bool:
     for key in order:
         if key in dative_keys:
             return dative_keys[key]
-    for key in order:
-        folded = _nfc(unicodedata.normalize("NFD", key).replace("\u0308", ""))
-        if folded != key and folded in dative_keys:
-            return dative_keys[folded]
-    return False
+    if fold:
+        for key in order:
+            folded = _nfc(unicodedata.normalize("NFD", key)
+                          .replace(_COMBINING_DIAERESIS, ""))
+            if folded != key and folded in dative_keys:
+                return dative_keys[folded]
+    return None
+
+
+# A lemma cited in one of these is a verb.
+_VERB_CITATION_ENDINGS = ("ω", "μι", "μαι")
+
+
+def _mark_groups(form: str) -> list[tuple[str, str]]:
+    """Each base letter of ``form``, lowercased, with the marks on it."""
+    groups: list[list[str]] = []
+    for c in unicodedata.normalize("NFD", form):
+        if unicodedata.combining(c) and groups:
+            groups[-1][1] += c
+        else:
+            groups.append([c.lower(), ""])
+    return [(letter, marks) for letter, marks in groups]
+
+
+def _third_declension_dative_plurals(stem: str) -> dict[str, tuple[str, str]]:
+    """The dative plural spellings a third-declension stem gives, each with
+    the kind of stem and, for a -ντ- stem, what precedes its vowel. Before
+    the σ of -σι a dental or ν drops, ντ drops and lengthens the vowel
+    before it (ο to ου, ε to ει, α to ᾱ), a labial gives ψ and a velar ξ
+    (Smyth 100); epic also writes -σσι and -εσσι."""
+    out: dict[str, tuple[str, str]] = {}
+    if stem.endswith("ντ"):
+        before = stem[:-2]
+        if before.endswith(("ου", "ω", "υ")):
+            out[before + "σι"] = ("contract", "")
+        elif before.endswith("ο"):
+            out[before[:-1] + "ουσι"] = ("o", before[:-1])
+        elif before.endswith("ε"):
+            out[before[:-1] + "εισι"] = ("athematic", before[:-1])
+        elif before.endswith("α"):
+            out[before[:-1] + "ασι"] = ("athematic", before[:-1])
+        return out
+    last = stem[-1:]
+    if last in "τδθν":
+        out[stem[:-1] + "σι"] = ("nominal", "")
+        if last in "τδ":
+            out[stem[:-1] + "σσι"] = ("nominal", "")
+    elif last in "κγχ":
+        out[stem[:-1] + "ξι"] = ("nominal", "")
+    elif last in "πβφ":
+        out[stem[:-1] + "ψι"] = ("nominal", "")
+    elif last == "ρ":
+        out[stem + "σι"] = ("nominal", "")
+    elif last in _VOWEL_LETTERS:
+        out[stem + "σι"] = ("nominal", "")
+        out[stem + "σσι"] = ("nominal", "")
+    out.setdefault(stem + "εσσι", ("nominal", ""))
+    return out
+
+
+def _lemma_reads_dative(full: str, lemma: str, forms: set[str]) -> bool:
+    """Whether the forms of ``lemma`` make ``full``, a spelling in -ι, a
+    dative.
+
+    A third-declension dative singular is the genitive's stem plus ι
+    (δμητῆρι beside δμητῆρος), so it is one when the lemma has that
+    genitive as a form other than its citation form (which keeps out an
+    adverb in -ί filed under its adjective, ἀμισθί under ἄμισθος). A
+    spelling in -εϊ is the uncontracted dative of an s-, u- or eu-stem
+    (μήδεϊ of μῆδος, ταχέϊ of ταχύς). A dative plural is the stem plus -σι
+    as ``_third_declension_dative_plurals`` spells it, from a stem that
+    shows the genitive in -ος and one more third-declension case (-ι, -α or
+    -ες), so that ἑσταός alone does not make a stem.
+
+    The dative plural of a present or future participle is also the verb's
+    third person plural (λύουσι, τιμῶσι, ποιοῦσι, βαλοῦσι, ἱστᾶσι, τιθεῖσι,
+    διδοῦσι); an aorist or perfect participle's is not. So for a verb
+    lemma a -σι reading of a contract -ντ- stem, of an -αντ- or -εντ- stem
+    whose verb is in -ημι, of an -οντ- stem of a verb in -ωμι, or of any
+    other -οντ- stem is not a dative, unless the form is accented like a
+    second aorist, on the ending in both the genitive (λαβόντος) and the
+    dative (λαβοῦσι), and the lemma has no liquid future in -οῦμεν."""
+    spelled, lemma_s = _strip_lower(full), _strip_lower(lemma)
+    stripped_forms = {_strip_lower(f) for f in forms} | {lemma_s}
+    if _uncontracted_ei(full):
+        if (lemma_s in {spelled[:-2] + e for e in ("ος", "ης", "υς", "ευς")}
+                or {spelled[:-1] + "ος", spelled[:-1] + "ως",
+                    spelled[:-2] + "ους"} & stripped_forms):
+            return True
+    elif (spelled[:-1] + "ος" != lemma_s
+            and spelled[:-1] + "ος" in stripped_forms):
+        return True
+    if not spelled.endswith(("σι", "ξι", "ψι")):
+        return False
+    verb = lemma_s.endswith(_VERB_CITATION_ENDINGS)
+    found = False
+    for genitive in stripped_forms:
+        if not genitive.endswith("ος") or len(genitive) < 4:
+            continue
+        stem = genitive[:-2]
+        if not {stem + "ι", stem + "α", stem + "ες"} & stripped_forms:
+            continue
+        kind = _third_declension_dative_plurals(stem).get(spelled)
+        if not kind:
+            continue
+        found = True
+        if not verb:
+            continue
+        stem_kind, before = kind
+        if stem_kind == "contract":
+            return False
+        if stem_kind == "athematic" and before + "ημι" in stripped_forms:
+            return False
+        if stem_kind == "o":
+            if before + "ωμι" == lemma_s:
+                return False
+            marks = _mark_groups(full)
+            ending_accent = (len(marks) >= 4 and marks[-4][0] == "ο"
+                             and marks[-3][0] == "υ"
+                             and _COMBINING_CIRCUMFLEX in marks[-3][1])
+            genitive_on_ending = any(
+                _strip_lower(f) == genitive and len(g := _mark_groups(f)) >= 5
+                and g[-5][0] == "ο"
+                and (_COMBINING_ACUTE in g[-5][1] or _COMBINING_GRAVE in g[-5][1])
+                for f in forms)
+            if (not (ending_accent and genitive_on_ending)
+                    or before + "ουμεν" in stripped_forms):
+                return False
+    return found
+
+
+def _paradigm_dative(full: str, lemmas: set[str],
+                     lemma_to_forms: dict[str, set[str]]) -> bool:
+    """Whether every lemma ``full`` is filed under reads it as a dative
+    (``_lemma_reads_dative``). A lemma that does not leaves room for
+    another reading, which keeps the elision."""
+    return bool(lemmas) and all(
+        _lemma_reads_dative(full, lemma, lemma_to_forms[lemma])
+        for lemma in lemmas)
 
 
 def _load_lemma_forms(
@@ -797,14 +1366,36 @@ def _derive_elision_pairs(
     # oxytone the circumflex of its accusative (γυναικί -> γυναῖκ᾽). A
     # keyboard writes the value into the user's text, and offering nothing
     # is better than offering another word.
+    # Only the dative's own -ι is tested: τῷδε and ἔμοιγε are datives too,
+    # but what they lose is the ε of δε and γε, which elides like any other.
+    # A spelling in -ι that no tagged corpus analyzes (the lookup table's
+    # paradigm expansions: δμητῆρι, λυθεῖσι) is read through the forms of
+    # the lemmas it is filed under.
+    iota_final = [full for full in candidates_by_full
+                  if _final_vowel(full)[1] == "ι"]
+    unanalyzed = {full for full in iota_final
+                  if not dative_keys
+                  or _dative_analysis(full, dative_keys, fold=False) is None}
+    wanted = unanalyzed | {full.lower() for full in unanalyzed}
+    lemmas_of: dict[str, set[str]] = defaultdict(set)
+    for lemma, forms in lemma_to_forms.items():
+        for form in wanted.intersection(forms):
+            lemmas_of[form].add(lemma)
+
+    def dative(full: str) -> bool:
+        if full not in unanalyzed:
+            return bool(_dative_analysis(full, dative_keys, fold=False))
+        if _paradigm_dative(full, lemmas_of[full] | lemmas_of[full.lower()],
+                            lemma_to_forms):
+            return True
+        return bool(dative_keys
+                    and _dative_analysis(full, dative_keys, fold=True))
+
     pairs: dict[str, str] = {}
     for full, candidates in candidates_by_full.items():
         if full in long_final:
             continue
-        # Only the dative's own -ι: τῷδε and ἔμοιγε are datives too, but
-        # what they lose is the ε of δε and γε, which elides like any other.
-        if (dative_keys and _is_dative(full, dative_keys)
-                and _final_vowel(full)[1] == "ι"):
+        if _final_vowel(full)[1] == "ι" and dative(full):
             continue
         elided = _rule_elision(full)
         if elided in candidates and grc_orthography_reason(elided) is None:
