@@ -7,6 +7,30 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The movable-nu list no longer gives a nu to imperatives the taggers file as
+  unaugmented pasts. An unaugmented imperfect or thematic aorist in -ε is
+  spelled like the 2sg imperative (`κατένεγκε`, `ἐντύγχανε`, Galen's
+  `προσέμβαλλε`), and GLAUx writes the nu on 99.6% of these pasts before a
+  vowel, so such a spelling stays only when the texts write it with its nu
+  somewhere. The augment is read after the verb's preverbs, from an accent it
+  holds on the penult (`συνεξεῦρε`, Smyth 426), or from the augmented
+  spelling filed under the same or the simple verb; liquid first aorists
+  (`σήμηνε`), σ- and κ-aorists and iteratives are not imperative-shaped, and
+  `ἄντε`, Plato's `ἄν τε` filed as a verb, leaves the list. The adverbs of
+  place in -θε (`πρόσθε`, `ὄπισθε`) follow the written-nu rule of the adverbs
+  in -σι (Smyth 134 D), and the aorist optative in -ειε takes the nu like any
+  third-person singular in -ε (`δόξειεν`, 1,942 of 1,950 GLAUx tokens before
+  a vowel). 26,277 forms become 27,021: 876 optatives and 57 adverbs come in,
+  189 pasts go.
+- The elision table no longer elides datives that no tagged corpus analyzes.
+  A form in -ι known only from the lookup table's paradigm expansions
+  (`δμητῆρι`, `λυθεῖσι`, `παντι`) is read through the forms of its lemmas: a
+  genitive in -ος beside it, the uncontracted -εϊ of an s-stem, or a
+  third-declension stem that yields the -σι makes it a dative. A present
+  participle's dative plural is also the verb's third person plural
+  (`κεύθουσι`, `τιμῶσι`) and keeps its elision. Diorisis's nominative-dual
+  analysis of the uncontracted datives in -εϊ (`κήδεϊ`) no longer vetoes the
+  dative. 15,245 entries become 14,905; none is added or changed.
 - The grc dictionary no longer accepts 280 spellings a recorded review
   rejected (`data/hunspell_grc_spelling_review.json`): 191 respellings of
   common words that OCR'd text admitted (`στρατηγού` for `στρατηγοῦ`,

@@ -2222,9 +2222,10 @@ singulars in -ε, in -σι, and in -στι (`ἐστί`, its compounds, crasis a
 prodelided spellings, but not the Doric `ἐντί`); third-person plurals in -σι,
 the subjunctive's included (`ὦσι`, epic `ἐθέλῃσι`); every dative plural in
 -σι, -ξι or -ψι, the article's and numerals' as much as a noun's or a
-participle's; and adverbs in -σι that the texts write with a nu in at least a
-tenth of their tokens (`παντάπασιν`, `Ἀθήνησιν`, `πέρυσιν`, but not the
-deictic `οὑτωσί`). Where a spelling has another reading that cannot take nu,
+participle's; and adverbs in -σι, and adverbs of place in -θε (Smyth 134 D),
+that the texts write with a nu in at least a tenth of their tokens
+(`παντάπασιν`, `Ἀθήνησιν`, `πέρυσιν`, `πρόσθεν`, `ὄπισθεν`, but not the
+deictic `οὑτωσί` or `εἴθε`). Where a spelling has another reading that cannot take nu,
 GLAUx's token counts decide: `φέρε` is an imperative 956 times and an
 unaugmented imperfect 45, so it is left out, while `μέλλε`, an imperative 14
 times and an imperfect 7, stays, because the imperfect is spelled `μέλλεν` 17
@@ -2233,6 +2234,17 @@ lowercase word; a lowercase one only with its lowercase spellings, so a name's
 vocative (`Κέλσε`) does not decide the verb (`κέλσε`). Diorisis lists every
 candidate analysis on each token, so it shows that a spelling can take nu but
 does not vote, and the export refuses a GLAUx pairs file without counts.
+An unaugmented imperfect or thematic aorist is spelled like the imperative
+(`κατένεγκε`, `ἐντύγχανε`), and the taggers do not tell them apart, so such a
+spelling is left out unless the texts write it with its nu somewhere: GLAUx
+writes the nu on 99.6% of these past forms before a vowel, so one never written
+with it stood there only as the imperative. The augment is read after the
+verb's preverbs, from an accent it holds on the penult (`συνεξεῦρε`, Smyth
+426), and for a stem that cannot show it (`ἐνεγκ-`) from the augmented spelling
+filed under the same verb or its simple verb. A liquid verb's first aorist
+(`σήμηνε`) has its imperative in -ον and stays. The aorist optative in -ειε
+takes the nu like any third-person singular in -ε (`δόξειεν`); the pluperfect
+in -ει is left out, since GLAUx writes it with the nu 11 times in 4,317.
 `el` maps a full form to its elided form, ending in U+1FBD. An
 elision is written only in the spelling the rules give: the short final vowel
 goes, an oxytone throws its accent back onto the new last vowel as an acute
@@ -2244,8 +2256,13 @@ that cannot elide: a long one, marked or not (η, ω, a circumflex, an iota
 subscript or adscript, the Attic accusative in -έᾱ of nouns in -εύς, the
 deictic -ί), the words Attic never elides (`ὅτι`, `περί`, `πρό`, `ἄχρι`,
 `μέχρι`; Smyth 72), a monosyllable not ending in ε, and the dative -ι and -σι,
-which elide only in epic. `tests/test_export_morphology.py` checks the built
-table against these rules.
+which elide only in epic. The tagged corpora say which spellings are datives;
+for a form they do not analyze (the lookup table's paradigm expansions, such
+as `δμητῆρι`), the forms of its lemma decide: a genitive in -ος beside it, the
+uncontracted -εϊ of an s-stem, or a third-declension stem that yields the -σι.
+A present participle's dative plural is also the verb's third person plural
+(`κεύθουσι`, `τιμῶσι`), so those keep their elision.
+`tests/test_export_morphology.py` checks the built table against these rules.
 
 ### Polytonic next-word prediction LM
 

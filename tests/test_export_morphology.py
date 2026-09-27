@@ -216,6 +216,40 @@ def test_the_dative_ending_does_not_elide(tmp_path):
     assert pairs["τῷδε"] == "τῷδ᾽"
 
 
+def test_a_dative_no_treebank_analyzes_is_read_from_its_lemmas_forms(tmp_path):
+    # The lookup table's paradigm expansions carry datives no tagged corpus
+    # analyzes. A dative singular sits beside its genitive (δμητῆρι,
+    # δμητῆρος); an aorist participle's dative plural is no verb form
+    # (λυθεῖσι, and the second aorist λαβοῦσι, accented on the ending); a
+    # present participle's is also the third person plural (κεύθουσι,
+    # τιμῶσι, ἱστᾶσι, διδοῦσι), and an optative is a verb (κάμψαιμι).
+    # Diorisis files the uncontracted κήδεϊ as a nominative dual, which the
+    # diaeresis rules out.
+    diorisis = _write(tmp_path / "diorisis.json", [
+        {"form": "κήδεϊ", "lemma": "κῆδος", "pos": "noun",
+         "tags": ["neuter", "dual", "nominative"]},
+    ])
+    datives = _derive_dative_keys([diorisis])
+    assert "κήδεϊ" not in datives
+
+    lemma_forms = {
+        "δμητήρ": {"δμητῆρι", "δμητῆρος", "δμητῆρα", "δμητῆρ᾽"},
+        "λύω": {"λυθεῖσι", "λυθέντος", "λυθέντα", "λυθεῖσ᾽"},
+        "λαμβάνω": {"λαβοῦσι", "λαβόντος", "λαβόντα", "λαβοῦσ᾽"},
+        "κεύθω": {"κεύθουσι", "κεύθοντος", "κεύθοντα", "κεύθουσ᾽"},
+        "τιμάω": {"τιμῶσι", "τιμῶντος", "τιμῶντα", "τιμῶσ᾽"},
+        "ἵστημι": {"ἱστᾶσι", "ἱστάντος", "ἱστάντα", "ἱστᾶσ᾽"},
+        "δίδωμι": {"διδοῦσι", "διδόντος", "διδόντα", "διδοῦσ᾽"},
+        "κάμπτω": {"κάμψαιμι", "κάμψαιμ᾽"},
+        "κῆδος": {"κήδεϊ", "κήδε᾽"},
+    }
+    pairs = _derive_elision_pairs(lemma_forms, datives)
+    assert not {"δμητῆρι", "λυθεῖσι", "λαβοῦσι", "κήδεϊ"} & set(pairs)
+    for verb in ("κεύθουσι", "τιμῶσι", "ἱστᾶσι", "διδοῦσι"):
+        assert pairs[verb] == verb[:-1] + "᾽", verb
+    assert pairs["κάμψαιμι"] == "κάμψαιμ᾽"
+
+
 IMPERATIVE = ["second-person", "singular", "present", "imperative", "active"]
 IMPERFECT = ["third-person", "singular", "imperfect", "indicative", "active"]
 
@@ -261,6 +295,10 @@ def test_a_file_without_token_counts_does_not_vote(tmp_path):
     diorisis = _write(tmp_path / "diorisis.json", [
         {"form": "ἄγε", "lemma": "ἄγω", "pos": "verb", "tags": IMPERATIVE},
         {"form": "κέλευε", "lemma": "κελεύω", "pos": "verb", "tags": IMPERFECT},
+        # Both are unaugmented, so they are kept only because the texts
+        # write the past with its ν (see the imperative test below).
+        {"form": "ἄγεν", "lemma": "ἄγω", "pos": "verb", "tags": IMPERFECT},
+        {"form": "κέλευεν", "lemma": "κελεύω", "pos": "verb", "tags": IMPERFECT},
     ])
     forms = _derive_nu_forms([glaux, diorisis])
     assert "ἄγε" in forms
@@ -312,6 +350,9 @@ def test_any_counted_analysis_can_make_a_spelling_eligible(tmp_path):
         {"form": "πέλε", "lemma": "πέλω", "pos": "verb", "tags": IMPERATIVE,
          "count": 79,
          "analyses": [["verb", IMPERFECT, 78], ["verb", IMPERATIVE, 1]]},
+        # Unaugmented, so it also needs its ν spelling in the texts.
+        {"form": "πέλεν", "lemma": "πέλω", "pos": "verb", "tags": IMPERFECT,
+         "count": 55},
     ])
     assert "πέλε" in _derive_nu_forms([glaux])
 
@@ -368,6 +409,131 @@ def test_an_adverb_in_si_takes_nu_when_the_texts_write_it(tmp_path):
     forms = _derive_nu_forms([glaux])
     assert "παντάπασι" in forms
     assert "οὑτωσί" not in forms
+
+
+def test_an_adverb_in_the_takes_nu_when_the_texts_write_it(tmp_path):
+    # πρόσθε(ν) and ὄπισθε(ν) alternate (Smyth 134 D), GLAUx filing the word
+    # as a preposition when it governs a genitive; εἴθε never has a ν, and
+    # the 2pl βούλεσθε and the imperative ἐλθέ are verbs.
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "πρόσθε", "lemma": "πρόσθεν", "pos": "adv", "count": 147,
+         "analyses": [["adv", [], 134], ["prep", [], 13]]},
+        {"form": "πρόσθεν", "lemma": "πρόσθεν", "pos": "adv", "count": 2855},
+        {"form": "ὄπισθε", "lemma": "ὄπισθεν", "pos": "prep", "count": 3},
+        {"form": "ὄπισθεν", "lemma": "ὄπισθεν", "pos": "prep", "count": 10},
+        {"form": "εἴθε", "lemma": "εἴθε", "pos": "adv", "count": 4},
+        {"form": "βούλεσθε", "lemma": "βούλομαι", "pos": "verb",
+         "tags": ["second-person", "plural", "present", "indicative", "middle"],
+         "count": 200},
+        {"form": "ἐλθέ", "lemma": "ἔρχομαι", "pos": "verb",
+         "tags": ["second-person", "singular", "aorist", "imperative", "active"],
+         "count": 50},
+    ])
+    forms = _derive_nu_forms([glaux])
+    assert {"πρόσθε", "ὄπισθε"} <= forms
+    assert not {"εἴθε", "βούλεσθε", "ἐλθέ"} & forms
+
+
+AORIST = ["third-person", "singular", "aorist", "indicative", "active"]
+
+
+def test_an_unaugmented_past_the_texts_never_write_with_nu_is_the_imperative(
+        tmp_path):
+    # An unaugmented imperfect or thematic aorist is spelled like the 2sg
+    # imperative, which takes no nu (Smyth 134, 438). GLAUx's tagger files
+    # Lucian's κατένεγκε and Galen's προσέμβαλλε as indicatives, and
+    # Diorisis lists no imperative for the ἐνεγκ- compounds; since the
+    # texts never write them with ν, they are dropped. The augment shows
+    # after the preverbs (κατήνεγκε, ἐξήνεγκε), or under the simple verb
+    # (ἤνεγκε under φέρω), or as a missing ε- (ἐντύγχανε, δίδασκε).
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "κατένεγκε", "lemma": "καταφέρω", "pos": "verb",
+         "tags": AORIST, "count": 3},
+        {"form": "Κατένεγκε", "lemma": "καταφέρω", "pos": "verb",
+         "tags": AORIST, "count": 1},
+        {"form": "κατήνεγκε", "lemma": "καταφέρω", "pos": "verb",
+         "tags": AORIST, "count": 10},
+        {"form": "ἤνεγκε", "lemma": "φέρω", "pos": "verb",
+         "tags": AORIST, "count": 40},
+        {"form": "ἐξήνεγκε", "lemma": "ἐκφέρω", "pos": "verb",
+         "tags": AORIST, "count": 8},
+        {"form": "προσέμβαλλε", "lemma": "προσεμβάλλω", "pos": "verb",
+         "tags": IMPERFECT, "count": 2},
+        {"form": "δίδασκε", "lemma": "διδάσκω", "pos": "verb",
+         "tags": IMPERFECT, "count": 2},
+        # Kept: a σ-aorist, an iterative, a pluperfect, an augmented
+        # imperfect, and an unaugmented aorist the texts write with ν.
+        {"form": "βλάστησε", "lemma": "βλαστάνω", "pos": "verb",
+         "tags": AORIST, "count": 2},
+        {"form": "ποιέεσκε", "lemma": "ποιέω", "pos": "verb",
+         "tags": IMPERFECT, "count": 2},
+        {"form": "κατεστήκεε", "lemma": "καθίστημι", "pos": "verb",
+         "tags": ["third-person", "singular", "pluperfect", "indicative",
+                  "active"], "count": 1},
+        {"form": "ἔλεγε", "lemma": "λέγω", "pos": "verb",
+         "tags": IMPERFECT, "count": 30},
+        {"form": "βάλε", "lemma": "βάλλω", "pos": "verb",
+         "tags": AORIST, "count": 20},
+        {"form": "βάλεν", "lemma": "βάλλω", "pos": "verb",
+         "tags": AORIST, "count": 74},
+        # ἄντε is Plato's ἄν τε, filed as an imperfect of ἄντομαι, which is
+        # not ἀντ- plus -ομαι; it is never written with ν.
+        {"form": "ἄντε", "lemma": "ἄντομαι", "pos": "verb",
+         "tags": IMPERFECT, "count": 30},
+        # Kept: a liquid first aorist, whose imperative is σήμηνον; an
+        # accent the augment holds on the penult (Smyth 426), beside the
+        # imperative ἔξευρε; an augmented διανέπαυε a greedy split would
+        # read as δια- plus ναπαύω; a prodelided augment; and an enclitic's
+        # accent on a spelling whose plain twin is written with ν.
+        {"form": "σήμηνε", "lemma": "σημαίνω", "pos": "verb",
+         "tags": AORIST, "count": 3},
+        {"form": "ἐσήμηνε", "lemma": "σημαίνω", "pos": "verb",
+         "tags": AORIST, "count": 9},
+        {"form": "συνεξεῦρε", "lemma": "συνεξευρίσκω", "pos": "verb",
+         "tags": AORIST, "count": 1},
+        {"form": "ηὗρε", "lemma": "εὑρίσκω", "pos": "verb",
+         "tags": AORIST, "count": 5},
+        {"form": "διανέπαυε", "lemma": "διαναπαύω", "pos": "verb",
+         "tags": IMPERFECT, "count": 2},
+        {"form": "’βάδιζε", "lemma": "βαδίζω", "pos": "verb",
+         "tags": IMPERFECT, "count": 1},
+        {"form": "δαῖέ", "lemma": "δαίω", "pos": "verb",
+         "tags": IMPERFECT, "count": 1},
+        {"form": "δαῖεν", "lemma": "δαίω", "pos": "verb",
+         "tags": IMPERFECT, "count": 2},
+    ])
+    diorisis = _write(tmp_path / "diorisis.json", [
+        {"form": "προσανένεγκε", "lemma": "προσαναφέρω", "pos": "verb",
+         "tags": AORIST},
+        {"form": "ξένεγκε", "lemma": "ἐκφέρω", "pos": "verb", "tags": AORIST},
+        {"form": "ἐντύγχανε", "lemma": "ἐντυγχάνω", "pos": "verb",
+         "tags": IMPERFECT},
+    ])
+    forms = _derive_nu_forms([glaux, diorisis])
+    assert not {"κατένεγκε", "Κατένεγκε", "προσανένεγκε", "ξένεγκε",
+                "προσέμβαλλε", "δίδασκε", "ἐντύγχανε", "ἄντε"} & forms
+    assert {"κατήνεγκε", "ἤνεγκε", "βλάστησε", "ποιέεσκε", "κατεστήκεε",
+            "ἔλεγε", "βάλε", "σήμηνε", "συνεξεῦρε", "διανέπαυε", "’βάδιζε",
+            "δαῖέ"} <= forms
+
+
+def test_the_aorist_optative_in_eie_takes_movable_nu(tmp_path):
+    # A third person singular in -ε like the past's (Smyth 134): GLAUx
+    # writes δόξειεν before a vowel on 99.6% of such tokens. The other
+    # optatives take none.
+    optative = ["third-person", "singular", "aorist", "optative", "active"]
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "ποιήσειε", "lemma": "ποιέω", "pos": "verb",
+         "tags": optative, "count": 40},
+        {"form": "λύοι", "lemma": "λύω", "pos": "verb",
+         "tags": ["third-person", "singular", "present", "optative",
+                  "active"], "count": 10},
+        {"form": "λύσαι", "lemma": "λύω", "pos": "verb",
+         "tags": optative, "count": 5},
+    ])
+    forms = _derive_nu_forms([glaux])
+    assert "ποιήσειε" in forms
+    assert not {"λύοι", "λύσαι"} & forms
 
 
 def test_the_third_singular_in_ti_is_esti_and_its_compounds(tmp_path):
@@ -555,12 +721,18 @@ ARTIFACT = ROOT / "build" / "hunspell" / "grc_morph.json"
 @pytest.mark.skipif(not ARTIFACT.exists(), reason="grc_morph.json not built")
 def test_the_built_nu_list_follows_the_texts():
     nu = set(json.loads(ARTIFACT.read_text(encoding="utf-8"))["nu"])
-    # Imperatives the texts mostly mean, a deictic, and the Doric -τι.
+    # Imperatives the texts mostly mean, a deictic, and the Doric -τι;
+    # imperatives the taggers file as unaugmented pasts.
     assert not {"φέρε", "ἄκουε", "ἴδε", "οὑτωσί", "ἐντί"} & nu
+    assert not {"κατένεγκε", "Κατένεγκε", "προσανένεγκε", "ξένεγκε",
+                "ἐντύγχανε", "προσέμβαλλε"} & nu
     # An imperfect the ν spelling carries, the Ionic article's dative
-    # plural, an adverb in -σι, an epic subjunctive, ἐστί's compounds.
+    # plural, an adverb in -σι, an epic subjunctive, ἐστί's compounds, the
+    # adverbs in -θε, a σ-aorist and an unaugmented aorist written with ν.
     assert {"μέλλε", "τῇσι", "παντάπασι", "ἐθέλῃσι", "πάρεστι",
-            "ἔλεγε", "ἐστί", "λέγουσι"} <= nu
+            "ἔλεγε", "ἐστί", "λέγουσι", "πρόσθε", "ὄπισθε", "βλάστησε",
+            "βάλε", "δόξειε", "ποιήσειε", "σήμηνε"} <= nu
+    assert "ἄντε" not in nu
 
 
 @pytest.mark.skipif(not ARTIFACT.exists(), reason="grc_morph.json not built")
@@ -576,6 +748,13 @@ def test_the_built_elision_table_holds_its_invariants():
 
     table = json.loads(ARTIFACT.read_text(encoding="utf-8"))["el"]
     assert table
+
+    # Datives the tagged corpora do not analyze, read from their lemmas'
+    # forms, and the uncontracted -εϊ Diorisis calls a dual (Smyth 72).
+    datives = {"δμητῆρι", "διι", "παντι", "κήδεϊ", "λαίφεϊ", "μέλεϊ"}
+    assert not datives & set(table), sorted(datives & set(table))
+    # Verb forms in -ι still elide.
+    assert table.get("κάμψαιμι") == "κάμψαιμ᾽"
 
     non_elidable = [k for k in table if not em._can_elide(k)]
     assert not non_elidable, f"keys elision cannot touch: {non_elidable[:10]}"
