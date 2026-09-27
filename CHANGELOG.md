@@ -7,6 +7,21 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The grc dictionary no longer accepts 280 spellings a recorded review
+  rejected (`data/hunspell_grc_spelling_review.json`): 191 respellings of
+  common words that OCR'd text admitted (`στρατηγού` for `στρατηγοῦ`,
+  `βοής`, `ἔκαστος`, `ἐβδομήκοντα`), which the respelling guard's calibrated
+  thresholds let through, and 89 reviewed-baseline entries that fail the
+  structural rules and are not typed words (underdotted letters, synizesis
+  ties, `δόκιμάζω`). Two reviewers labelled each candidate independently from
+  its attestation and corpus sentences, and a form is listed only where both
+  rejected it; the exporter drops it with its grave or acute twin and the
+  audit no longer requires it. It accepts `θὰ` and `γιὰ`, polytonic Modern
+  Greek particles no lemma source proposes, while their acute `θά` and `γιά`,
+  the monotonic misspelling, stay rejected. 1,363,527 entries become
+  1,363,249. The held-out corpus fixture is regenerated for the rules changed
+  since it was built: `θά` leaves its coverage, and `τεο`, `τεῳ`, `τῇσιδε`
+  and `ᾧχετο` join it.
 - The movable-nu list follows what the texts mean by a spelling, not the
   first analysis a pairs file met. `φέρε` is an imperative 956 times in GLAUx
   and an unaugmented imperfect 45, and was on the list, so a keyboard wrote

@@ -49,6 +49,7 @@ from export_hunspell import (  # noqa: E402
     grc_pinned_forms,
     load_canonical_ag_sets,
     load_form_profile_freq,
+    load_grc_spelling_review,
     load_grc_textbook_forms,
     load_lm_head_required_forms,
     load_top_lsj9_lemmas,
@@ -402,7 +403,13 @@ def audit_whole_artifact(
     """Audit all expanded entries, not only forms in the LM vocabulary."""
     forms, flags_without_identity = expanded_export_forms(dictionary_base)
     compatibility = load_gzip_fixture(compatibility_path)
-    required = set(compatibility.get("forms", []))
+    # A form a recorded spelling review rejected is no longer required,
+    # nor is its contextual grave or acute twin.
+    review = {contextual_acute(form) for form in load_grc_spelling_review()}
+    required = {
+        form for form in compatibility.get("forms", [])
+        if contextual_acute(form) not in review
+    }
     reviewed = required | set(GRC_CLOSED_LIST_FORMS)
     invalid = sorted(
         form for form in forms
