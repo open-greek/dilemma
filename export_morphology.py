@@ -820,7 +820,7 @@ def _imperative_homograph(form: str, readings, lemmas_of: dict[str, set[str]],
     aorist is the imperative's spelling (φέρε, κατένεγκε). The taggers do
     not separate them: Morpheus lists no imperative for the ἐνεγκ-
     compounds, and GLAUx's tagger files the imperatives of Lucian's
-    κατένεγκε and Galen's recipes (προσέμβαλλε, ξήρανε) as indicatives.
+    κατένεγκε and Galen's recipes (προσέμβαλλε, ἐπέμβαλλε) as indicatives.
     GLAUx writes the ν on 99.6% of the 51,949 3sg past indicatives in -ε
     that stand before a vowel (only Diorisis's Herodotus, at 0.1%, prints
     none), so a past whose spelling with ν is attested nowhere hardly ever
