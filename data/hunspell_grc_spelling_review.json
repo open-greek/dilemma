@@ -1,0 +1,2811 @@
+{
+ "schema_version": 1,
+ "description": "Spellings the corpus evidence admitted but a recorded review rejected. respelling: a common word written with the wrong diacritics in OCR text (στρατηγού for στρατηγοῦ), among the entries the gate reports as respellings of frequent words. structural: a reviewed-baseline entry that fails the orthography rules and is not a word a writer types (editorial underdots, synizesis ties, spurious extra accents).",
+ "method": "Two independent reviewers labelled every candidate from its attestation by source and up to three corpus sentences; a form is listed only where both rejected it. αὗθις and ἄπαντα, which both rejected, are kept: GLAUx attests them in held-out text, and a breathing variant may be an edition's own spelling.",
+ "reviewed": {
+  "respelling": 399,
+  "structural": 182
+ },
+ "reviews": [
+  {
+   "form": "Βρούτος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Βροῦτος",
+   "reasons": [
+    "Brutus is Βροῦτος (long υ, short ultima); PG-only OCR",
+    "Brutus is Βροῦτος (long ū, short ultima); only PG OCR, contexts are the name"
+   ]
+  },
+  {
+   "form": "Γνώσις",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Γνῶσις",
+   "reasons": [
+    "γνῶσις is properispomenon; contexts use it as γνῶσις",
+    "γνῶσις has long ω before short ultima, must be circumflex; contexts are γνῶσις"
+   ]
+  },
+  {
+   "form": "Γορδι̣ανού",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Γορδιανού",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Γορδι̣ανοῦ",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Γορδιανοῦ",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Δέλφους",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Δελφούς",
+   "reasons": [
+    "no word Δέλφους; acc. of Δελφοί is Δελφούς",
+    "misaccented Δελφούς (Delphi / Delphians); no proper name Δέλφος; δέλφος \"pig\" is a doubtful LSJ hapax"
+   ]
+  },
+  {
+   "form": "Δήλος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Δῆλος",
+   "reasons": [
+    "Delos / δῆλος are properispomenon; contexts are Delos",
+    "island/adjective is Δῆλος/δῆλος; contexts are the island Delos"
+   ]
+  },
+  {
+   "form": "Δαρείος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Δαρεῖος",
+   "reasons": [
+    "Darius is Δαρεῖος",
+    "Darius is Δαρεῖος; PG OCR only"
+   ]
+  },
+  {
+   "form": "Δείνος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Δεῖνος",
+   "reasons": [
+    "context τοῦ Δείνος = gen. of ὁ δεῖνα, which is δεῖνος",
+    "gen. of ὁ δεῖνα is δεῖνος (also LGPN name Δεῖνος); context τοῦ Δείνος = τοῦ δεῖνος"
+   ]
+  },
+  {
+   "form": "Ε̣ἶ̣ρμος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Εἶρμος",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Εὔεργέται",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "εὐεργέται is paroxytone; an acute on εὔ- is impossible (no enclitic adds an accent before the penult)",
+    "spurious extra accent on a non-enclitic word; correct form is Εὐεργέται, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "Εὖβοίας",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "Εὐβοίας with a spurious circumflex on the first syllable (typo in the Perseus Aeschines)",
+    "spurious extra accent on a non-enclitic word; correct form is Εὐβοίας (Aeschines 3.85, text corruption), no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "Κλαδ̣ών",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Κλαδών",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Κλαδ̣ὼν",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Κλαδὼν",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Κωμάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Κώμας",
+   "reasons": [
+    "no word κωμάς; acc. pl. of κώμη is κώμας",
+    "no such word; the name is Κωμᾶς (circumflex required on contracted -ᾶς), common word κώμας"
+   ]
+  },
+  {
+   "form": "Κύρος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Κῦρος",
+   "reasons": [
+    "Cyrus is Κῦρος; contexts are Cyrus the Persian",
+    "Cyrus is Κῦρος (long ū, short ultima); treebank hits (Xen. Cyr.) are text errors"
+   ]
+  },
+  {
+   "form": "Λυκούργος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Λυκοῦργος",
+   "reasons": [
+    "Lycurgus is Λυκοῦργος",
+    "Lycurgus is Λυκοῦργος; PG OCR only"
+   ]
+  },
+  {
+   "form": "Μωῦσέως",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "Μωϋσέως with the diaeresis rendered as a circumflex; a circumflex on the antepenult plus a final acute is impossible",
+    "circumflex on υ stands in for the diaeresis of Μωϋσέως (an encoding/OCR confusion of ¨ and ˜ repeated across sources); with the acute on ε it is a double accent no rule produces"
+   ]
+  },
+  {
+   "form": "Παρασκευής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Παρασκευῆς",
+   "reasons": [
+    "gen. of παρασκευή is παρασκευῆς",
+    "monotonic spelling; polytonic gen. of Παρασκευή is Παρασκευῆς"
+   ]
+  },
+  {
+   "form": "Πεισάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Πείσας",
+   "reasons": [
+    "aor. ptcp. of πείθω is πείσας; no word πεισάς",
+    "no such word; the name is Πεισᾶς (circumflex), the participle πείσας"
+   ]
+  },
+  {
+   "form": "Πελάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Πέλας",
+   "reasons": [
+    "πέλας is paroxytone; no word πελάς",
+    "no such word; the name is Πελᾶς (circumflex), the adverb πέλας"
+   ]
+  },
+  {
+   "form": "Πηληϊάδε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is Πηληϊάδεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "Πριαμίδε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is Πριαμίδεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "Στέφανους",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Στεφάνους",
+   "reasons": [
+    "accent cannot stand on the antepenult with long ultima",
+    "acute on the antepenult with a long ultima is impossible; acc. pl. is Στεφάνους"
+   ]
+  },
+  {
+   "form": "Στεφανούς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Στεφάνους",
+   "reasons": [
+    "no word στεφανούς",
+    "no oxytone -ούς form of this stem; acc. pl. Στεφάνους (gen. of Στεφανώ would be Στεφανοῦς)"
+   ]
+  },
+  {
+   "form": "Τιβ̣εριάς",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Τιβεριάς",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Τιβ̣εριᾶς",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Τιβεριᾶς",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "αἴματος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "αἵματος",
+   "reasons": [
+    "αἷμα has rough breathing; contexts are αἵματος",
+    "αἷμα has rough breathing; single GLAUx hit (Hippocrates) and PG are errors"
+   ]
+  },
+  {
+   "form": "αὐτέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is αὐτέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "βασιλεύσιν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "βασιλεῦσιν",
+   "reasons": [
+    "dat. pl. of βασιλεύς is βασιλεῦσιν",
+    "dat. pl. of βασιλεύς is βασιλεῦσιν; no form βασιλεύσιν"
+   ]
+  },
+  {
+   "form": "βελτιών",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "βελτίων",
+   "reasons": [
+    "no word βελτιών; comparative is βελτίων",
+    "no such form (βελτίων adj., βελτιῶν ptcp. of βελτιόω); PG contexts are βελτίων"
+   ]
+  },
+  {
+   "form": "βι̂οίς",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "stray Latin combining circumflex (U+0302) on ι; the word already carries its accent on -οί/-οῖ, so this is encoding junk (βιοῖς/βίοις garbled)",
+    "Latin combining circumflex (U+0302) on ι plus an acute on οι; junk for βίοις, two accents no rule produces"
+   ]
+  },
+  {
+   "form": "βι̂οῖς",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "stray Latin combining circumflex (U+0302) on ι; the word already carries its accent on -οί/-οῖ, so this is encoding junk (βιοῖς/βίοις garbled)",
+    "Latin combining circumflex (U+0302) on ι plus a circumflex on οι; junk for βίοις"
+   ]
+  },
+  {
+   "form": "βοής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "βοῆς",
+   "reasons": [
+    "gen. of βοή is βοῆς",
+    "gen. of βοή is βοῆς; βοής is a monotonic/misaccented spelling"
+   ]
+  },
+  {
+   "form": "βούν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "βοῦν",
+   "reasons": [
+    "acc. of βοῦς is βοῦν",
+    "acc. of βοῦς is βοῦν"
+   ]
+  },
+  {
+   "form": "βροτών",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "βροτῶν",
+   "reasons": [
+    "gen. pl. of βροτός is βροτῶν",
+    "gen. pl. of βροτός is βροτῶν"
+   ]
+  },
+  {
+   "form": "βρούτος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Βροῦτος",
+   "reasons": [
+    "Brutus is Βροῦτος (and capitalized)",
+    "lowercased misaccented Brutus; correct Βροῦτος"
+   ]
+  },
+  {
+   "form": "γαμών",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "γάμων",
+   "reasons": [
+    "no word γαμών; γάμων (gen. pl.) or γαμῶν (ptcp.)",
+    "no such form (γάμων gen. pl., γαμῶν ptcp.)"
+   ]
+  },
+  {
+   "form": "γεγενήσθαι",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "γεγενῆσθαι",
+   "reasons": [
+    "perf. inf. is γεγενῆσθαι",
+    "perf. inf. is γεγενῆσθαι; PG OCR only"
+   ]
+  },
+  {
+   "form": "γενναίον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "γενναῖον",
+   "reasons": [
+    "γενναῖος is properispomenon in the neuter",
+    "γενναῖος has circumflex before short -ον"
+   ]
+  },
+  {
+   "form": "γνώσιν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "γνῶσιν",
+   "reasons": [
+    "γνῶσις has long ω, short ultima: γνῶσιν",
+    "γνῶσις: long ω before short ultima takes circumflex"
+   ]
+  },
+  {
+   "form": "γνώσις",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "γνῶσις",
+   "reasons": [
+    "γνῶσις is properispomenon",
+    "γνῶσις: long ω before short ultima takes circumflex"
+   ]
+  },
+  {
+   "form": "γονείς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "γονεῖς",
+   "reasons": [
+    "monotonic spelling; polytonic is γονεῖς",
+    "monotonic spelling (Chronicle of Morea); polytonic γονεῖς"
+   ]
+  },
+  {
+   "form": "γορδι̣ανού",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is γορδιανού",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "γορδι̣ανοῦ",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is γορδιανοῦ",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "δήθεν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δῆθεν",
+   "reasons": [
+    "δῆθεν is properispomenon (δήθεν is monotonic)",
+    "δῆθεν has circumflex; δήθεν is the Modern monotonic spelling"
+   ]
+  },
+  {
+   "form": "δήλος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δῆλος",
+   "reasons": [
+    "δῆλος is properispomenon",
+    "δῆλος has circumflex; PG OCR only"
+   ]
+  },
+  {
+   "form": "δαρείος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Δαρεῖος",
+   "reasons": [
+    "Darius is Δαρεῖος",
+    "Darius is Δαρεῖος"
+   ]
+  },
+  {
+   "form": "δείνος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δεῖνος",
+   "reasons": [
+    "gen. of ὁ δεῖνα is δεῖνος",
+    "gen. of ὁ δεῖνα is δεῖνος (Eustathius τοῦ δεῖνος ἢ τῆς δεῖνος)"
+   ]
+  },
+  {
+   "form": "δειπνοῦ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δείπνου",
+   "reasons": [
+    "gen. of δεῖπνον is δείπνου; no attested δειπνοῦ",
+    "contexts are δείπνου or the split δειπνοῦ-σι; only as a middle/passive imperative of δειπνέω, which is not used"
+   ]
+  },
+  {
+   "form": "δια̣κούσαντες",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is διακούσαντες",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "διδοῦς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "διδούς",
+   "reasons": [
+    "participle of δίδωμι is διδούς; Διδοῦς is only the capitalized name",
+    "pres. participle of δίδωμι is διδούς; contexts are the participle"
+   ]
+  },
+  {
+   "form": "δικαῖος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δίκαιος",
+   "reasons": [
+    "δίκαιος is proparoxytone; PG-only OCR",
+    "the adjective is δίκαιος; 421 PG OCR hits"
+   ]
+  },
+  {
+   "form": "διπλούν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "διπλοῦν",
+   "reasons": [
+    "contracted διπλοῦν",
+    "contracted διπλοῦν has circumflex"
+   ]
+  },
+  {
+   "form": "δοκείς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δοκεῖς",
+   "reasons": [
+    "δοκεῖς is perispomenon",
+    "contracted δοκεῖς; context is monotonic-style OCR"
+   ]
+  },
+  {
+   "form": "δρομοῦ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δρόμου",
+   "reasons": [
+    "no word δρομός; gen. of δρόμος is δρόμου",
+    "no genuine use: δρομόω is an Aquila hapax (active); contexts are δρόμου"
+   ]
+  },
+  {
+   "form": "δρομῷ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δρόμῳ",
+   "reasons": [
+    "no word δρομός; dat. of δρόμος is δρόμῳ",
+    "no such form of any lexeme; contexts are δρόμῳ"
+   ]
+  },
+  {
+   "form": "δυείν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δυεῖν",
+   "reasons": [
+    "δυεῖν is perispomenon",
+    "gen./dat. dual δυεῖν has circumflex"
+   ]
+  },
+  {
+   "form": "δόκιμάζω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "δοκιμάζω with a spurious acute on the first syllable",
+    "spurious extra accent on a non-enclitic word; correct form is δοκιμάζω, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "δῆμου",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "δήμου",
+   "reasons": [
+    "circumflex cannot stand on the penult before a long ultima",
+    "circumflex impossible before long ultima -ου; gen. of δῆμος is δήμου"
+   ]
+  },
+  {
+   "form": "ε̣ἶ̣ρμος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is εἶρμος",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "εἰδά",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "εἶδα",
+   "reasons": [
+    "no word εἰδά",
+    "no such form; the late aorist is εἶδα"
+   ]
+  },
+  {
+   "form": "εἰδέ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "εἶδε",
+   "reasons": [
+    "no word εἰδέ; contexts are split εἰδέναι",
+    "no such form; contexts are split εἰδέ-ναι or garble; εἶδε"
+   ]
+  },
+  {
+   "form": "εἰδών",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "εἰδῶν",
+   "reasons": [
+    "no Greek form εἰδών; gen. pl. is εἰδῶν (the Suda context is an itacistic ἰδών)",
+    "No form εἰδών exists; gen. pl. of εἶδος / Εἰδοί is εἰδῶν. Unattested; the only context is garbled Suda glosses."
+   ]
+  },
+  {
+   "form": "εἰκῶν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "εἰκών",
+   "reasons": [
+    "nominative εἰκών is oxytone; εἰκῶν is no form",
+    "εἰκών is oxytone and has no circumflex form (gen. pl. εἰκόνων). Contexts, including the one GLAUx hit (Lucian ἡ εἰκῶν αὐτοῦ), use it as nom. εἰκών."
+   ]
+  },
+  {
+   "form": "εὔπορήσειν",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "εὐπορήσειν with a spurious acute on εὔ- (typo in the Perseus Appian)",
+    "spurious extra accent on a non-enclitic word; correct form is εὐπορήσειν, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "θάττον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "θᾶττον",
+   "reasons": [
+    "comparative θᾶττον has long α, always circumflex",
+    "The comparative θᾶττον has a long α and a short final syllable, so it must be properispomenon; the neuter participle of θάσσω is also θᾶττον. All contexts are the comparative."
+   ]
+  },
+  {
+   "form": "θαλάττα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "θάλαττα",
+   "reasons": [
+    "no form θαλάττα; nominative θάλαττα (contexts need θάλαττα / θαλάττῃ)",
+    "Neither nom. θάλαττα (proparoxytone) nor dat. θαλάττῃ; the contexts show both, misaccented. PG OCR only."
+   ]
+  },
+  {
+   "form": "θανείν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "θανεῖν",
+   "reasons": [
+    "aorist infinitive θανεῖν is always perispomenon",
+    "The aorist infinitive θανεῖν is always perispomenon. Eustathius OCR."
+   ]
+  },
+  {
+   "form": "κήρου",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "κηροῦ",
+   "reasons": [
+    "gen. of κηρός 'wax' is κηροῦ; κήρου is no form",
+    "κηρός is oxytone (gen. κηροῦ), and no κῆρος/κήρος stem exists; a contract verb κηρόω cannot yield κήρου. PG OCR contexts are garbled (e.g. κόρου)."
+   ]
+  },
+  {
+   "form": "καλούμεν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "καλοῦμεν",
+   "reasons": [
+    "pres. 1pl of καλέω is καλοῦμεν",
+    "Attic contracted καλοῦμεν is perispomenon. Modern demotic is καλοῦμε, so no period spells it this way. PG OCR contexts."
+   ]
+  },
+  {
+   "form": "καταστάσιν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "κατάστασιν",
+   "reasons": [
+    "acc. of κατάστασις is κατάστασιν; καταστάσιν is no form",
+    "κατάστασις is proparoxytone, and the participle dat. pl. is καταστᾶσι(ν), so καταστάσιν is no form. PG OCR contexts use it as κατάστασιν."
+   ]
+  },
+  {
+   "form": "κλαδ̣ών",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is κλαδών",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "κλαδ̣ὼν",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is κλαδὼν",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "κοίλον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "κοῖλον",
+   "reasons": [
+    "neuter of κοῖλος is κοῖλον",
+    "κοῖλος has a long diphthong before a short ending, so the form is κοῖλον. κοίλον is the monotonic Modern spelling; polytonic Modern Greek also writes κοῖλον."
+   ]
+  },
+  {
+   "form": "κράσιν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "κρᾶσιν",
+   "reasons": [
+    "acc. of κρᾶσις (long α) is κρᾶσιν",
+    "κρᾶσις has a long α (LSJ κρᾶσις), so the acc. is κρᾶσιν. The GLAUx hits (Galen) are typos in the digital text."
+   ]
+  },
+  {
+   "form": "κρεών",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "κρεῶν",
+   "reasons": [
+    "gen. pl. of κρέας is κρεῶν; the Eustathius context is χρεών",
+    "Gen. pl. of κρέας is κρεῶν (contracted). κρέων/Κρέων are paroxytone, so κρεών is no form. Eustathius OCR."
+   ]
+  },
+  {
+   "form": "κωμάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "κώμας",
+   "reasons": [
+    "acc. pl. of κώμη is κώμας; κωμάς is no form",
+    "There is no lowercase word κωμάς. The name is Κωμᾶς (-ᾶς hypocoristic), which is a separate entry; the Modern monotonic Κωμάς is not polytonic."
+   ]
+  },
+  {
+   "form": "κύρος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "κῦρος",
+   "reasons": [
+    "noun κῦρος 'authority' (τὸ κῦρος) and the name Κῦρος have a circumflex",
+    "τὸ κῦρος 'authority' and Κῦρος both have a long υ and so a circumflex. Contexts are τὸ κῦρος. κύρος is monotonic Modern spelling."
+   ]
+  },
+  {
+   "form": "λαθείν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "λαθεῖν",
+   "reasons": [
+    "aorist infinitive λαθεῖν is always perispomenon",
+    "The aorist infinitive λαθεῖν is always perispomenon. PG only."
+   ]
+  },
+  {
+   "form": "λείον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "λεῖον",
+   "reasons": [
+    "neuter of λεῖος is λεῖον",
+    "λεῖος has a long diphthong before a short ending, so the neuter is λεῖον. The contexts mean λεῖον 'smooth'."
+   ]
+  },
+  {
+   "form": "λυκούργος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Λυκοῦργος",
+   "reasons": [
+    "the name is Λυκοῦργος",
+    "The name is Λυκοῦργος (long ου before a short ending). Lowercase with acute is not a form. Unattested."
+   ]
+  },
+  {
+   "form": "μέγαλα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "μεγάλα",
+   "reasons": [
+    "neuter pl. of μέγας is μεγάλα; μέγαλα is no form",
+    "The neuter pl. of μέγας is μεγάλα. The GLAUx and First1K hits (Aristotle, LXX Gen. 1:21 τὰ κήτη τὰ μεγάλα, catenae) are typos, and no Aeolic edition attests μέγαλα."
+   ]
+  },
+  {
+   "form": "μέλικρήτῳ",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "μελικρήτῳ with a spurious acute on μέ- (typo in the Perseus Aretaeus)",
+    "spurious extra accent on a non-enclitic word; correct form is μελικρήτῳ, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "μακρού",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "μακροῦ",
+   "reasons": [
+    "gen. of μακρός is μακροῦ",
+    "μακρός is oxytone, so the gen. is μακροῦ. The acute is the monotonic Modern spelling and is not valid polytonic."
+   ]
+  },
+  {
+   "form": "μείζον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "μεῖζον",
+   "reasons": [
+    "neuter of μείζων is μεῖζον",
+    "The neuter μεῖζον is properispomenon. The acute is right only in the elided μείζον᾽, which is a separate entry. Most PG hits are OCR for μεῖζον."
+   ]
+  },
+  {
+   "form": "μετρίον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "μέτριον",
+   "reasons": [
+    "neuter of μέτριος is μέτριον",
+    "μέτριος is proparoxytone throughout, and no μετρίον exists in any period. PG OCR contexts use it as μέτριον."
+   ]
+  },
+  {
+   "form": "μηδεμιάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "μηδεμιᾶς",
+   "reasons": [
+    "gen. of μηδεμία is μηδεμιᾶς",
+    "The gen. of μηδεμία is μηδεμιᾶς (perispomenon). PG only."
+   ]
+  },
+  {
+   "form": "μούνον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "μοῦνον",
+   "reasons": [
+    "Ionic μοῦνος has a circumflex (μοῦνον)",
+    "Ionic μοῦνος has a long diphthong before a short ending, so the form is μοῦνον. PG OCR."
+   ]
+  },
+  {
+   "form": "ναύκληρία",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ναυκληρία with a spurious acute on ναύ-",
+    "spurious extra accent on a non-enclitic word; correct form is ναυκληρία, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ναύκληρίας",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ναυκληρίας with a spurious acute on ναύ-",
+    "spurious extra accent on a non-enclitic word; correct form is ναυκληρίας, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "νεοῦς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "νέους",
+   "reasons": [
+    "acc. pl. of νέος is νέους; νεοῦς is no form",
+    "No lowercase word νεοῦς exists: acc. pl. νέους, temple νεώς. The name Νεοῦς is a separate capitalized entry. The contexts are OCR for νέους/νεώς."
+   ]
+  },
+  {
+   "form": "νώτα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "νῶτα",
+   "reasons": [
+    "pl. of νῶτον is νῶτα",
+    "νῶτον has a long ω before a short ending, so the plural is νῶτα. Monotonic Modern spelling; PG OCR."
+   ]
+  },
+  {
+   "form": "οὐτί",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "οὔτι",
+   "reasons": [
+    "οὔτι / οὔ τι; οὐτί is no form",
+    "The adverb is οὔτι (οὔ τι). The vocative of the oxytone οὐτίς 'bustard' would be οὐτίς. The contexts (Gregory of Nazianzus οὐτί φίλοις) mean οὔτι."
+   ]
+  },
+  {
+   "form": "οὐτ᾽",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "οὔτ’",
+   "reasons": [
+    "elided οὔτε keeps its accent: οὔτ’",
+    "Elided οὔτε keeps its accent: οὔτ᾽. The GLAUx hits (Athenaeus, Galen, Aristides, Heron) are typos for οὔτ᾽ that GLAUx mislemmatized as οὐτίς."
+   ]
+  },
+  {
+   "form": "οὗς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "οὓς",
+   "reasons": [
+    "no word οὗς: relative acc. pl. οὕς or noun οὖς 'ear'",
+    "Neither the relative οὕς/οὓς nor οὖς 'ear' has this breathing and accent. The contexts, including the GLAUx LXX hits (παράβαλλε σὸν οὗς), are those words misspelled."
+   ]
+  },
+  {
+   "form": "παλαιού",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "παλαιοῦ",
+   "reasons": [
+    "gen. of παλαιός is παλαιοῦ",
+    "παλαιός is oxytone, so the gen. is παλαιοῦ. The acute is the monotonic Modern spelling. PG OCR."
+   ]
+  },
+  {
+   "form": "παράλαμβάνω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "παραλαμβάνω with a spurious acute on -ρά-",
+    "spurious extra accent on a non-enclitic word; correct form is παραλαμβάνω, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "παρήν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "παρῆν",
+   "reasons": [
+    "imperfect 3sg of πάρειμι is παρῆν",
+    "The imperfect of πάρειμι is παρῆν. PG OCR contexts."
+   ]
+  },
+  {
+   "form": "παρήσαν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "παρῆσαν",
+   "reasons": [
+    "imperfect 3pl of πάρειμι is παρῆσαν",
+    "The imperfect 3 pl. of πάρειμι is παρῆσαν (from 'go', παρῇσαν). PG OCR."
+   ]
+  },
+  {
+   "form": "παρασκευής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "παρασκευῆς",
+   "reasons": [
+    "gen. of παρασκευή is παρασκευῆς (παρασκευής is monotonic)",
+    "The gen. of παρασκευή is παρασκευῆς. Monotonic spelling (the name Παρασκευής is a separate entry). Unattested."
+   ]
+  },
+  {
+   "form": "παρεχωρήθ̣η",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is παρεχωρήθη",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "παρὴν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "παρῆν",
+   "reasons": [
+    "imperfect 3sg of πάρειμι is παρῆν; no grave form",
+    "No form παρήν/παρὴν exists. The contexts, including the one GLAUx hit (Αἴσωπος, παρὴν γάρ), are the imperfect παρῆν."
+   ]
+  },
+  {
+   "form": "πείραν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πεῖραν",
+   "reasons": [
+    "acc. of πεῖρα is πεῖραν (πείραν is monotonic)",
+    "The acc. of πεῖρα is πεῖραν (long diphthong before short α). The participle neuter of πείρω would also be πεῖραν. 429 PG OCR hits."
+   ]
+  },
+  {
+   "form": "πειράσθαι",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πειρᾶσθαι",
+   "reasons": [
+    "pres. infinitive of πειράομαι is πειρᾶσθαι",
+    "The present middle infinitive is πειρᾶσθαι; there is no form πειράσθαι. PG OCR."
+   ]
+  },
+  {
+   "form": "πεισάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πείσας",
+   "reasons": [
+    "aorist participle of πείθω is πείσας",
+    "The aorist participle of πείθω is πείσας (the context has it). The name is Πεισᾶς; no πεισάς exists."
+   ]
+  },
+  {
+   "form": "πελάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πέλας",
+   "reasons": [
+    "adverb πέλας; πελάς is no form",
+    "The adverb is πέλας (ὁ πέλας 'neighbor'), as all contexts show. The name is Πελᾶς; no πελάς exists."
+   ]
+  },
+  {
+   "form": "πηγής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πηγῆς",
+   "reasons": [
+    "gen. of πηγή is πηγῆς",
+    "The gen. of πηγή is πηγῆς. The acute is monotonic Modern spelling. PG OCR."
+   ]
+  },
+  {
+   "form": "πηληϊάδε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is πηληϊάδεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "πλήθος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πλῆθος",
+   "reasons": [
+    "πλῆθος has a circumflex",
+    "πλῆθος has a long η before a short ending. The acute is monotonic Modern spelling. 844 PG OCR hits."
+   ]
+  },
+  {
+   "form": "πλείν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πλεῖν",
+   "reasons": [
+    "pres. infinitive of πλέω is πλεῖν",
+    "The infinitive of πλέω is πλεῖν. PG OCR."
+   ]
+  },
+  {
+   "form": "πληγής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πληγῆς",
+   "reasons": [
+    "polytonic gen. is πληγῆς; πληγής is the monotonic spelling (Erotokritos)",
+    "The gen. of πληγή is πληγῆς. The context is a monotonic Erotokritos text; polytonic Modern Greek also writes πληγῆς."
+   ]
+  },
+  {
+   "form": "πλοία",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πλοῖα",
+   "reasons": [
+    "pl. of πλοῖον is πλοῖα",
+    "πλοῖον has a long diphthong before a short ending, so the plural is πλοῖα. The acute is monotonic Modern spelling. PG OCR."
+   ]
+  },
+  {
+   "form": "ποιήσιν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ποίησιν",
+   "reasons": [
+    "acc. of ποίησις is ποίησιν; ποιήσιν is no form",
+    "No form ποιήσιν exists: acc. ποίησιν, Ionic dat. pl. ποιῇσι. PG OCR contexts mean ποίησιν/ποιεῖν."
+   ]
+  },
+  {
+   "form": "ποιήται",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ποιῆται",
+   "reasons": [
+    "no form ποιήται; the contexts are subjunctive ποιῆται (noun pl. ποιηταί)",
+    "No form ποιήται exists: the subj. is ποιῆται, which the contexts (ὅταν … ποιῆται) show, and the noun pl. is ποιηταί."
+   ]
+  },
+  {
+   "form": "ποιητού",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ποιητοῦ",
+   "reasons": [
+    "gen. of ποιητός is ποιητοῦ",
+    "The gen. of ποιητός/ποιητής is ποιητοῦ. The context is monotonic-style OCR."
+   ]
+  },
+  {
+   "form": "ποιούντας",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ποιοῦντας",
+   "reasons": [
+    "participle of ποιέω is ποιοῦντας",
+    "The participle of ποιέω is ποιοῦντας. PG OCR."
+   ]
+  },
+  {
+   "form": "ποιούντες",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ποιοῦντες",
+   "reasons": [
+    "participle of ποιέω is ποιοῦντες",
+    "The participle of ποιέω is ποιοῦντες. 215 PG OCR hits."
+   ]
+  },
+  {
+   "form": "πράξιν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πρᾶξιν",
+   "reasons": [
+    "acc. of πρᾶξις (long α) is πρᾶξιν",
+    "πρᾶξις has a long α, so the acc. is πρᾶξιν. 92 PG OCR hits."
+   ]
+  },
+  {
+   "form": "πριαμίδε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is πριαμίδεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "προίκα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "προῖκα",
+   "reasons": [
+    "acc. of προίξ is προῖκα (προίκα is monotonic)",
+    "Ancient and Katharevousa προῖκα, and polytonic Modern Greek also writes προῖκα. The acute is monotonic spelling. PG OCR."
+   ]
+  },
+  {
+   "form": "προῖόντος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "προϊόντος with the diaeresis rendered as a circumflex (common OCR confusion in PG scans)",
+    "circumflex on ι stands in for the diaeresis of προϊόντος; with the acute on ό it is a double accent no rule produces"
+   ]
+  },
+  {
+   "form": "πρωτέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is πρωτέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "πυρετοῖ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "πυρετοί",
+   "reasons": [
+    "nom. pl. of πυρετός is πυρετοί; πυρετοῖ is no form",
+    "No form πυρετοῖ exists (the dat. is πυρετῷ, and a verb πυρετέω would give πυρετεῖ). The contexts are nom. pl. πυρετοί."
+   ]
+  },
+  {
+   "form": "πῖνέτω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "πινέτω with a spurious circumflex on the first syllable",
+    "spurious extra accent on a non-enclitic word; correct form is πινέτω (Hippocratic text corruption), no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "σέμνον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "σεμνὸν",
+   "reasons": [
+    "no such accentuation; σεμνόν misaccented (OCR and a manuscript reading in an apparatus)",
+    "σεμνός is oxytone; no form σέμνον exists; contexts are σεμνόν"
+   ]
+  },
+  {
+   "form": "σίτον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "σῖτον",
+   "reasons": [
+    "σῖτον with long ι requires circumflex; no word σίτον",
+    "acc. of σῖτος has circumflex (long ι, short ultima); no word σίτον"
+   ]
+  },
+  {
+   "form": "στέφανους",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "στεφάνους",
+   "reasons": [
+    "antepenult accent impossible with long ultima; στεφάνους",
+    "acute on antepenult impossible before long -ους; acc. pl. of στέφανος is στεφάνους"
+   ]
+  },
+  {
+   "form": "στεφανούς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "στεφάνους",
+   "reasons": [
+    "no oxytone στεφανός; misaccented στεφάνους",
+    "no such form of στέφανος or στεφανόω; contexts are στεφάνους"
+   ]
+  },
+  {
+   "form": "στεφανοῦς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "στεφάνους",
+   "reasons": [
+    "no contracted adjective or verb form στεφανοῦς; misaccented στεφάνους",
+    "no such form (στεφανόω 2sg is στεφανοῖς); contexts are τοὺς στεφάνους"
+   ]
+  },
+  {
+   "form": "στράτου",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "στρατοῦ",
+   "reasons": [
+    "lowercase στράτου is not a word; contexts are fragments of names in -στράτου or misaccented στρατοῦ (the city name would be capitalized Στράτου)",
+    "lowercase form is no Greek word: gen. of στρατός is στρατοῦ; attestations are a split name (Ἀρχε-στράτου) and a lacuna fragment in Athenaeus; the name Στράτος would be capitalized"
+   ]
+  },
+  {
+   "form": "στρατηγού",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "στρατηγοῦ",
+   "reasons": [
+    "στρατηγοῦ with wrong accent",
+    "gen. of στρατηγός is perispomenon; acute is monotonic/OCR"
+   ]
+  },
+  {
+   "form": "συμφοραίς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "συμφοραῖς",
+   "reasons": [
+    "monotonic-style acute for συμφοραῖς",
+    "dat. pl. of συμφορά takes circumflex"
+   ]
+  },
+  {
+   "form": "συνεχείς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "συνεχεῖς",
+   "reasons": [
+    "polytonic requires συνεχεῖς (acute is monotonic)",
+    "contracted nom./acc. pl. of συνεχής is συνεχεῖς"
+   ]
+  },
+  {
+   "form": "σωφρονείν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "σωφρονεῖν",
+   "reasons": [
+    "σωφρονεῖν with wrong accent",
+    "contracted infinitive of σωφρονέω is σωφρονεῖν"
+   ]
+  },
+  {
+   "form": "σύμμαχων",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "συμμάχων",
+   "reasons": [
+    "genitive plural of σύμμαχος is συμμάχων (long ultima)",
+    "acute on antepenult impossible before long ω; gen. pl. is συμμάχων"
+   ]
+  },
+  {
+   "form": "τάλλα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τἆλλα",
+   "reasons": [
+    "crasis τὰ ἄλλα needs coronis: τἆλλα / τἄλλα",
+    "crasis of τὰ ἄλλα needs the coronis (τἆλλα/τἄλλα); τάλλα is not a Greek spelling"
+   ]
+  },
+  {
+   "form": "ταραχής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ταραχῆς",
+   "reasons": [
+    "monotonic spelling; polytonic ταραχῆς",
+    "gen. of ταραχή is ταραχῆς; the contexts are monotonic vernacular text"
+   ]
+  },
+  {
+   "form": "ταῦτο",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ταὐτὸ",
+   "reasons": [
+    "crasis ταὐτό misread; circumflex on αυ with paroxytone is no word",
+    "crasis of τὸ αὐτό is ταὐτό; ταῦτο is no word (GLAUx hit is διὰ ταῦτο for ταῦτα in De plantis)"
+   ]
+  },
+  {
+   "form": "τειχών",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τειχῶν",
+   "reasons": [
+    "τειχῶν with wrong accent",
+    "gen. pl. of τεῖχος is τειχῶν; unattested"
+   ]
+  },
+  {
+   "form": "τελή",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τέλη",
+   "reasons": [
+    "no word τελή; τέλη",
+    "context is τὰ δὲ οὐ τέλη; no word τελή"
+   ]
+  },
+  {
+   "form": "τηλικούτον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τηλικοῦτον",
+   "reasons": [
+    "τηλικοῦτον with wrong accent",
+    "long penult with short ultima takes circumflex: τηλικοῦτον"
+   ]
+  },
+  {
+   "form": "τιβ̣εριάς",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is τιβεριάς",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "τιβ̣εριᾶς",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is τιβεριᾶς",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "τοίον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τοῖον",
+   "reasons": [
+    "τοῖον with wrong accent",
+    "τοῖος has circumflex on long penult before short ultima"
+   ]
+  },
+  {
+   "form": "τοίσδε",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τοῖσδε",
+   "reasons": [
+    "τοῖσδε with wrong accent",
+    "epic dat. pl. of ὅδε is τοῖσδε"
+   ]
+  },
+  {
+   "form": "τοιούτοι",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τοιοῦτοι",
+   "reasons": [
+    "τοιοῦτοι with wrong accent",
+    "nom. pl. of τοιοῦτος is τοιοῦτοι (final -οι short)"
+   ]
+  },
+  {
+   "form": "τοιούτον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τοιοῦτον",
+   "reasons": [
+    "τοιοῦτον with wrong accent",
+    "acc./neut. of τοιοῦτος is τοιοῦτον; single GLAUx hit is a typo in Dio"
+   ]
+  },
+  {
+   "form": "τοιούτος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τοιοῦτος",
+   "reasons": [
+    "τοιοῦτος with wrong accent",
+    "nominative is τοιοῦτος"
+   ]
+  },
+  {
+   "form": "τοσούτο",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τοσοῦτο",
+   "reasons": [
+    "τοσοῦτο with wrong accent",
+    "neuter τοσοῦτο has circumflex; no form τοσούτο"
+   ]
+  },
+  {
+   "form": "τοτ᾽",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τότ’",
+   "reasons": [
+    "elided τότε keeps its accent: τότ᾽; unaccented τοτ᾽ is no form (τοτέ elides to τότ᾽ too)",
+    "elided τότε keeps its accent (τότ᾽); no unaccented enclitic τοτε exists"
+   ]
+  },
+  {
+   "form": "τοῦτου",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τούτου",
+   "reasons": [
+    "circumflex on penult impossible with long ultima; τούτου",
+    "circumflex on penult impossible before long -ου; gen. is τούτου"
+   ]
+  },
+  {
+   "form": "τρίχων",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τριχῶν",
+   "reasons": [
+    "genitive plural of θρίξ is τριχῶν (monosyllabic stem accents the ending)",
+    "gen. pl. of monosyllabic θρίξ is τριχῶν; no word τρίχων"
+   ]
+  },
+  {
+   "form": "τραπεζῆς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τραπέζης",
+   "reasons": [
+    "τραπέζης with wrong accent",
+    "gen. of τράπεζα is τραπέζης"
+   ]
+  },
+  {
+   "form": "τριτῆς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "τρίτης",
+   "reasons": [
+    "τρίτης with wrong accent",
+    "gen. of τρίτη is τρίτης (paroxytone)"
+   ]
+  },
+  {
+   "form": "φανήναι",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φανῆναι",
+   "reasons": [
+    "φανῆναι with wrong accent",
+    "aorist passive infinitive has circumflex on long penult: φανῆναι"
+   ]
+  },
+  {
+   "form": "φανείται",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φανεῖται",
+   "reasons": [
+    "φανεῖται with wrong accent",
+    "contracted future φανεῖται"
+   ]
+  },
+  {
+   "form": "φερούσα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φέρουσα",
+   "reasons": [
+    "no word φερούσα; φέρουσα",
+    "participle φέρουσα is proparoxytone; no form φερούσα"
+   ]
+  },
+  {
+   "form": "φιλέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is φιλέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "φιλοσοφείν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φιλοσοφεῖν",
+   "reasons": [
+    "φιλοσοφεῖν with wrong accent",
+    "contracted infinitive"
+   ]
+  },
+  {
+   "form": "φοροῦς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φόρους",
+   "reasons": [
+    "no form φοροῦς (φορέω gives φορεῖς, φοροῦσι); misaccented φόρους or split φοροῦσι",
+    "no form of φόρος or φορέω; contexts are φόρους or truncated φοροῦσιν"
+   ]
+  },
+  {
+   "form": "φυγής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φυγῆς",
+   "reasons": [
+    "φυγῆς with wrong accent",
+    "gen. of φυγή is φυγῆς"
+   ]
+  },
+  {
+   "form": "φυλάκην",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φυλακὴν",
+   "reasons": [
+    "lowercase φυλάκην is no word; contexts are φυλακήν or the city Φυλάκη (capitalized)",
+    "lowercase φυλάκην is no word (the place name Φυλάκη would be capitalized); contexts are φυλακήν"
+   ]
+  },
+  {
+   "form": "φυλακῇς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φυλακῆς",
+   "reasons": [
+    "φυλακῆς with wrong accent",
+    "gen. of φυλακή has no iota subscript"
+   ]
+  },
+  {
+   "form": "φύτων",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "φυτῶν",
+   "reasons": [
+    "genitive plural of φυτόν is φυτῶν; contexts are φυτῶν or split compounds (ζωο-φύτων)",
+    "gen. pl. of φυτόν is φυτῶν; lowercase φύτων is no word (the name Φύτων is capitalized)"
+   ]
+  },
+  {
+   "form": "χέρσ̣ο̣ν̣",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is χέρσον",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "χαίρε",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "χαῖρε",
+   "reasons": [
+    "imperative χαῖρε requires circumflex (acute is monotonic)",
+    "imperative χαῖρε has circumflex; no form χαίρε"
+   ]
+  },
+  {
+   "form": "χειρώ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "χείρω",
+   "reasons": [
+    "no word χειρώ; comparative χείρω or a line-break split of χειρῶσαι",
+    "no word χειρώ (χειρόω 1sg is χειρῶ); contexts are χείρω and a line-broken χειρώ-σαι; the Arcadius index entry is OCR"
+   ]
+  },
+  {
+   "form": "χολής",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "χολῆς",
+   "reasons": [
+    "monotonic spelling; polytonic χολῆς",
+    "gen. of χολή is χολῆς; contexts are monotonic vernacular"
+   ]
+  },
+  {
+   "form": "χρήμα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "χρῆμα",
+   "reasons": [
+    "χρῆμα requires circumflex",
+    "χρῆμα has circumflex (long η, short α)"
+   ]
+  },
+  {
+   "form": "χρήναι",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "χρῆναι",
+   "reasons": [
+    "χρῆναι requires circumflex",
+    "infinitive χρῆναι has circumflex"
+   ]
+  },
+  {
+   "form": "χρήσιν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "χρῆσιν",
+   "reasons": [
+    "χρῆσιν requires circumflex",
+    "acc. of χρῆσις has circumflex"
+   ]
+  },
+  {
+   "form": "χρυσούν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "χρυσοῦν",
+   "reasons": [
+    "χρυσοῦν with wrong accent",
+    "contracted χρυσοῦν; no form χρυσούν"
+   ]
+  },
+  {
+   "form": "ψήφον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ψῆφον",
+   "reasons": [
+    "ψῆφον requires circumflex",
+    "acc. of ψῆφος has circumflex"
+   ]
+  },
+  {
+   "form": "ψευδείς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ψευδεῖς",
+   "reasons": [
+    "ψευδεῖς with wrong accent",
+    "contracted plural ψευδεῖς"
+   ]
+  },
+  {
+   "form": "ἀ̣πῃτή̣θ̣ην",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is ἀπῃτήθην",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἀγκυλομήτε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is ἀγκυλομήτεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἀκολ̣ούθος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is ἀκολούθος",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἀλεξάνδρω",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Ἀλεξάνδρῳ",
+   "reasons": [
+    "proper name must be capitalized and take iota subscript: Ἀλεξάνδρῳ",
+    "lowercase proper name without iota subscript; contexts are the dative Ἀλεξάνδρῳ in an apparatus"
+   ]
+  },
+  {
+   "form": "ἀξιόν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἄξιον",
+   "reasons": [
+    "ἄξιον misaccented; a second enclitic accent would give ἄξιόν",
+    "ἄξιος is proparoxytone; an enclitic adds a second accent (ἄξιόν) but never removes the first"
+   ]
+  },
+  {
+   "form": "ἀξιός",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἄξιος",
+   "reasons": [
+    "ἄξιος misaccented",
+    "ἄξιος is proparoxytone; no form ἀξιός"
+   ]
+  },
+  {
+   "form": "ἀπλῶν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἁπλῶν",
+   "reasons": [
+    "ἁπλῶν requires rough breathing",
+    "gen. pl. of ἁπλοῦς needs the rough breathing; the GLAUx hit in Galen is ἁπλῶν mis-tagged"
+   ]
+  },
+  {
+   "form": "ἀπόκληίσας",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "Ionic ἀποκληίσας is paroxytone; an acute on -πό- is impossible and no enclitic adds one there",
+    "spurious extra accent on a non-enclitic word; correct form is ἀποκληίσας, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἀσιάς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Ἀσίας",
+   "reasons": [
+    "lowercase ἀσιάς is no word; Ἀσίας (or capitalized Ἀσιάς)",
+    "lowercase ἀσιάς is no word (the adjective Ἀσιάς is capitalized); unattested"
+   ]
+  },
+  {
+   "form": "ἀτρεΐδε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is ἀτρεΐδεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἁναλαβεῖν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἀναλαβεῖν",
+   "reasons": [
+    "infinitive takes smooth breathing: ἀναλαβεῖν",
+    "no crasis can give ἁ- before an infinitive here; rough breathing is an error"
+   ]
+  },
+  {
+   "form": "ἄγραμμάτως",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἀγραμμάτως with a spurious acute on ἄ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἀγραμμάτως, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἄγχιστείας",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἀγχιστείας with a spurious acute on ἄ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἀγχιστείας, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἄθαλπέως",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἀθαλπέως with a spurious acute on ἄ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἀθαλπέως, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἄκρησίη",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "Ionic ἀκρησίη with a spurious acute on ἄ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἀκρησίη, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἄπερ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἅπερ",
+   "reasons": [
+    "relative ἅπερ requires rough breathing",
+    "relative ἅπερ needs the rough breathing; no treebank support; the name Ἄπερ would be capitalized"
+   ]
+  },
+  {
+   "form": "ἄργυρίω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἀργυρίῳ with a spurious acute on ἄ- (and missing iota subscript)",
+    "spurious extra accent on a non-enclitic word; correct form is ἀργυρίῳ, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἄρξαμένη",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἀρξαμένη with a spurious acute on ἄ- (typo in the Perseus Arrian)",
+    "spurious extra accent on a non-enclitic word; correct form is ἀρξαμένη, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἄρρωστίαν",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἀρρωστίαν with a spurious acute on ἄ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἀρρωστίαν, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἄτρεμέως",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἀτρεμέως with a spurious acute on ἄ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἀτρεμέως, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "Ἀκολ̣ούθος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Ἀκολούθος",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Ἀτρεΐδε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is Ἀτρεΐδεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "Ἄπερ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Ἅπερ",
+   "reasons": [
+    "capitalized ἅπερ with smooth for rough breathing; contexts are the relative",
+    "Sentence-initial relative ἅπερ with smooth instead of rough breathing; every context is the relative and no word ἄπερ exists."
+   ]
+  },
+  {
+   "form": "ἐ̣δικάσ̣α̣το",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is ἐδικάσατο",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἐαυτῶν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑαυτῶν",
+   "reasons": [
+    "reflexive with smooth for rough breathing",
+    "Reflexive ἑαυτῶν with smooth breathing; contexts are the reflexive (the GLAUx hits are mislemmatized typos)."
+   ]
+  },
+  {
+   "form": "ἐαυτῷ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑαυτῷ",
+   "reasons": [
+    "reflexive with smooth for rough breathing; treebank hit is a text typo",
+    "Reflexive ἑαυτῷ with smooth breathing; the one GLAUx hit (Diodorus) is a typo in the source text."
+   ]
+  },
+  {
+   "form": "ἐβδομήκοντα",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑβδομήκοντα",
+   "reasons": [
+    "numeral with smooth for rough breathing",
+    "Numeral ἑβδομήκοντα with smooth breathing; contexts are the numeral."
+   ]
+  },
+  {
+   "form": "ἐκάστη",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑκάστη",
+   "reasons": [
+    "ἕκαστος with smooth breathing; treebank lemma is spurious",
+    "ἑκάστη with smooth breathing; contexts are ἑκάστη (GLAUx lemmatizes nonsense ἐκάδιος)."
+   ]
+  },
+  {
+   "form": "ἐκάστου",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑκάστου",
+   "reasons": [
+    "ἕκαστος with smooth breathing",
+    "ἑκάστου with smooth breathing; contexts are the pronoun."
+   ]
+  },
+  {
+   "form": "ἐκατέρωθεν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑκατέρωθεν",
+   "reasons": [
+    "smooth for rough breathing; treebank lemmatizes it as ἑκατέρωθεν",
+    "Adverb ἑκατέρωθεν with smooth breathing; treebank hits are source typos lemmatized as ἑκατέρωθεν."
+   ]
+  },
+  {
+   "form": "ἐκεινέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is ἐκεινέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἐκών",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑκών",
+   "reasons": [
+    "ἑκών with smooth breathing",
+    "ἑκών with smooth breathing (Callim. Ep. 42 'Εἰ μὲν ἑκών'); no edition prints a psilotic ἐκών."
+   ]
+  },
+  {
+   "form": "ἐκὼν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑκὼν",
+   "reasons": [
+    "ἑκών with smooth breathing (a Lesbian psilotic form would be barytone ἔκων)",
+    "ἑκὼν with smooth breathing; contexts are ἑκών (ἂν ἑκὼν, Galen)."
+   ]
+  },
+  {
+   "form": "ἐπίδραμόντες",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἐπιδραμόντες with a spurious acute on -πί- (typo in the Perseus Appian)",
+    "spurious extra accent on a non-enclitic word; correct form is ἐπιδραμόντες, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἐπιβούλης",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἐπιβουλῆς",
+   "reasons": [
+    "genitive of ἐπιβουλή misaccented; no word ἐπιβούλης",
+    "Genitive of ἐπιβουλή with the accent misplaced; ἐπίβουλος is two-termination, so no feminine ἐπιβούλης exists. Contexts are ἐπιβουλῆς."
+   ]
+  },
+  {
+   "form": "ἐτέρου",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑτέρου",
+   "reasons": [
+    "ἕτερος with smooth breathing",
+    "ἑτέρου with smooth breathing; treebank hits are source typos (Galen, Aristeas)."
+   ]
+  },
+  {
+   "form": "ἐτέρῳ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἑτέρῳ",
+   "reasons": [
+    "ἕτερος with smooth breathing; treebank lemma spurious",
+    "ἑτέρῳ with smooth breathing; the Hippocratic GLAUx edition writes ἑτερ- 296 times and ἐτερ- twice, so its hits are typos."
+   ]
+  },
+  {
+   "form": "ἐτόλμαόμην",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "garbled; the double acute on -τό- and -ό- matches no rule (ἐτολμώμην is the real form)",
+    "spurious extra accent on a non-enclitic word; correct form is ἐτολμαόμην / ἐτολμώμην, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἐφεδρε̣ύ̣ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is ἐφεδρεύων",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἐχινέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is ἐχινέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἑσταουσέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is ἑσταουσέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling; the base form is itself garbled"
+   ]
+  },
+  {
+   "form": "ἑτοίμος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἕτοιμος",
+   "reasons": [
+    "impossible accent (acute on long penult before short final); ἕτοιμος or epic ἑτοῖμος",
+    "An acute on a long diphthong penult before short -ος is impossible (Homeric ἑτοῖμος, Attic ἕτοιμος); context 'ὡς ἕτοιμος ἐγώ'."
+   ]
+  },
+  {
+   "form": "ἔ̣ρ̣αστος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is ἔραστος",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἔκαστος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἕκαστος",
+   "reasons": [
+    "ἕκαστος with smooth breathing; the treebank hit is an Aristophanes typo",
+    "ἕκαστος with smooth breathing; the Aristophanes GLAUx hit (Plut. 785) is a source typo."
+   ]
+  },
+  {
+   "form": "ἔκδημήσας",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἐκδημήσας with a spurious acute on ἔ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἐκδημήσας, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἔξεράσαι",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἐξεράσαι with a spurious acute on ἔ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἐξεράσαι, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἔξην",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἐξῆν",
+   "reasons": [
+    "ἐξῆν misaccented; no word ἔξην",
+    "Imperfect ἐξῆν of ἔξεστι with wrong breathing position and accent; contexts are ἐξῆν."
+   ]
+  },
+  {
+   "form": "ἔξον",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἐξόν",
+   "reasons": [
+    "ἐξόν misaccented; no word ἔξον",
+    "Impersonal participle ἐξόν; a compound participle keeps the participle's accent, so ἔξον is impossible. Contexts are accusative absolutes 'ἐξὸν καλῶς'."
+   ]
+  },
+  {
+   "form": "ἔορτάζει",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἑορτάζει with a spurious acute (and wrong breathing) on the first syllable",
+    "spurious extra accent on a non-enclitic word; correct form is ἑορτάζει (breathing also wrong), no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἔπειπερ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἐπείπερ",
+   "reasons": [
+    "ἐπείπερ misaccented; treebank hits (Plato, Aristotle) are text typos",
+    "Conjunction ἐπείπερ with recessive accent; the GLAUx/Diorisis hits (Plato Laws, Aristotle Metaph. 10.5) are source typos mislemmatized as ἔπος."
+   ]
+  },
+  {
+   "form": "ἔπην",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἐπήν",
+   "reasons": [
+    "ἐπήν misaccented",
+    "Epic/Ionic ἐπήν 'when' (Hes., Diocles fr.) with the accent on the wrong syllable."
+   ]
+  },
+  {
+   "form": "ἔπιλείπει",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἐπιλείπει with a spurious acute on ἔ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἐπιλείπει, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἔρει",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἐρεῖ",
+   "reasons": [
+    "future ἐρεῖ misaccented; treebank hit (Theocritus) is a typo for ἐρεῖ",
+    "Future ἐρεῖ; a present ἔρει of ἔρομαι is 'not found' (LSJ), and the Theocritus GLAUx hit is also ἐρεῖ."
+   ]
+  },
+  {
+   "form": "ἔσμεν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἐσμέν",
+   "reasons": [
+    "ἐσμέν is always oxytone when accented; contexts are ἐσμέν or ἴσμεν",
+    "Only ἐστί has an orthotone recessive form; ἐσμέν never becomes ἔσμεν. Contexts are ἐσμέν and one ἴσμεν."
+   ]
+  },
+  {
+   "form": "ἔστεμμένος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἐστεμμένος with a spurious acute on ἔ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἐστεμμένος, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἔστιώντο",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "garbled ἑστιῶντο; two acutes that no rule produces",
+    "spurious extra accent on a non-enclitic word; correct form is ἑστιῶντο (breathing and circumflex also wrong), no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἔτεροι",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἕτεροι",
+   "reasons": [
+    "ἕτερος with smooth breathing",
+    "ἕτεροι with smooth breathing; contexts are the pronoun."
+   ]
+  },
+  {
+   "form": "ἔχομένους",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἐχομένους with a spurious acute on ἔ- (OCR in Stobaeus)",
+    "spurious extra accent on a non-enclitic word; correct form is ἐχομένους, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "Ἐχινέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is Ἐχινέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "Ἑρμ̣ίᾳ",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Ἑρμίᾳ",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Ἑτοίμος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Ἕτοιμος",
+   "reasons": [
+    "impossible accent (acute on long penult before short final)",
+    "Same impossible accentuation as ἑτοίμος (acute on a long diphthong penult before short final syllable); no such name."
+   ]
+  },
+  {
+   "form": "Ἔ̣ρ̣αστος",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "underdot (U+0323, editorial mark for an uncertain letter in papyrus/inscription editions); the typed word is Ἔραστος",
+    "editorial underdot (U+0323, uncertain letter) from a papyrus/inscription edition, not typed spelling"
+   ]
+  },
+  {
+   "form": "Ἔγεσταίων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "Ἐγεσταίων with a spurious acute on Ἔ-",
+    "spurious extra accent on a non-enclitic word; correct form is Ἐγεσταίων, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἡδέ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἠδέ",
+   "reasons": [
+    "epic ἠδέ \"and\" with rough for smooth breathing (the contexts gloss it as the conjunction)",
+    "Homeric conjunction ἠδέ with rough breathing; contexts are grammarians' lemmas for ἠδέ ('σύνδεσμος ἴσος τῷ καί'). Not a form of ἡδύς."
+   ]
+  },
+  {
+   "form": "ἡμήν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἤμην",
+   "reasons": [
+    "no word ἡμήν; ἤμην misaccented",
+    "No such word; the real forms are ἤμην, ἦ μήν and ἠμέν."
+   ]
+  },
+  {
+   "form": "ἤμερέων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "garbled ἡμερέων; an acute on the first syllable is impossible",
+    "spurious extra accent on a non-enclitic word; correct form is ἡμερέων (breathing also wrong), no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἤνιγμένον",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ᾐνιγμένον with a spurious acute on the augment",
+    "spurious extra accent on a non-enclitic word; correct form is ἠνιγμένον, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἤξει",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἥξει",
+   "reasons": [
+    "ἥξει with smooth breathing; treebank lemma spurious",
+    "Future of ἥκω with smooth breathing; all contexts, including the GLAUx hits, are ἥξει."
+   ]
+  },
+  {
+   "form": "ἥδη",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἤδη",
+   "reasons": [
+    "ἤδη with rough breathing; treebank hits are text typos for ἤδη",
+    "ἤδη 'already' with rough breathing; contexts and treebank hits (lemmatized as a nonexistent noun ἥδη) are the adverb."
+   ]
+  },
+  {
+   "form": "ἥς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἧς",
+   "reasons": [
+    "relative ἧς with acute; no word ἥς",
+    "Relative genitive ἧς with acute instead of circumflex; contexts are the relative."
+   ]
+  },
+  {
+   "form": "ἧπερ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ᾗπερ",
+   "reasons": [
+    "ᾗπερ missing iota subscript (or ἤπερ); contexts are these words",
+    "ᾗπερ with the iota subscript lost ('ᾗπερ ἐκ παλαιοῦ νενόμισται'); the Archimedes GLAUx hit is ἤπερ 'than'. No word ἧπερ."
+   ]
+  },
+  {
+   "form": "Ἤλιος",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Ἥλιος",
+   "reasons": [
+    "Ἥλιος with smooth breathing; Pausanias hit is a typo (Helios on a chariot)",
+    "Ἥλιος with smooth breathing; the Pausanias hit (5.11.8) is a typo for Ἥλιος and the PG line is a font specimen."
+   ]
+  },
+  {
+   "form": "ἰκανόν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἱκανόν",
+   "reasons": [
+    "ἱκανός with smooth breathing",
+    "ἱκανός with smooth breathing; contexts are ἱκανόν."
+   ]
+  },
+  {
+   "form": "ἰκανὸν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἱκανὸν",
+   "reasons": [
+    "ἱκανός with smooth breathing",
+    "ἱκανός with smooth breathing; the Athenaeus GLAUx hit is a source typo."
+   ]
+  },
+  {
+   "form": "ἱατρόν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἰατρόν",
+   "reasons": [
+    "ἰατρός with rough breathing",
+    "ἰατρός with rough instead of smooth breathing; no attestations."
+   ]
+  },
+  {
+   "form": "ἱατρὸν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ἰατρὸν",
+   "reasons": [
+    "ἰατρός with rough breathing",
+    "ἰατρός with rough instead of smooth breathing; contexts are ἰατρόν."
+   ]
+  },
+  {
+   "form": "ἱππότε͜ω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is ἱππότεω",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "ἴδιάζον",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἰδιάζον with a spurious acute on ἴ- (OCR)",
+    "spurious extra accent on a non-enclitic word; correct form is ἰδιάζον (Patrologia OCR), no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἴσοδαίμων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ἰσοδαίμων with a spurious acute on ἴ-",
+    "spurious extra accent on a non-enclitic word; correct form is ἰσοδαίμων, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ἵπποσόα",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "garbled (ἱππόσοα); an acute before the antepenult is impossible",
+    "spurious extra accent on a non-enclitic word; correct form is a single accent (ἱπποσόα / ἱππόσοα); the acute on the first syllable stands before the antepenult, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "Ἴππου",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "Ἵππου",
+   "reasons": [
+    "Ἵππου (ἄκρα) with smooth breathing",
+    "ἵππος/Ἵππος with smooth breathing; the only hits are a Stephanus note and a garbled papyrus line."
+   ]
+  },
+  {
+   "form": "Ἴταλίης",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "Ἰταλίης with a spurious acute on Ἴ-",
+    "spurious extra accent on a non-enclitic word; correct form is Ἰταλίης, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ὀλοί",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὅλοι",
+   "reasons": [
+    "no such word; ὅλοι with wrong breathing and accent",
+    "Not a form of any real word: ὀλός (cuttlefish ink; Herodian's adjective = ὀλοός, only vocative attested) has no attested plural. No contexts."
+   ]
+  },
+  {
+   "form": "ὀλούς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὅλους",
+   "reasons": [
+    "no such word; ὅλους with wrong breathing and accent",
+    "Same as ὀλοί: no attested plural of the marginal ὀλός; this is ὅλους with smooth breathing."
+   ]
+  },
+  {
+   "form": "ὀλοῖ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὅλοι",
+   "reasons": [
+    "no such word; contexts are truncated δηλοῖ or misread ὀλοῇ (Timon)",
+    "No Greek form ὀλοῖ; contexts are a clipped δηλοῖ and an index line."
+   ]
+  },
+  {
+   "form": "ὀλοῖς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὅλοις",
+   "reasons": [
+    "ὅλοις with smooth breathing; contexts are τοῖς ὅλοις",
+    "Contexts are ὅλοις/δόλοις; the marginal ὀλός has no attested dative plural."
+   ]
+  },
+  {
+   "form": "ὀξός",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὄξος",
+   "reasons": [
+    "no word ὀξός; ὄξος misaccented",
+    "Only ὄξος 'vinegar' exists; no oxytone ὀξός."
+   ]
+  },
+  {
+   "form": "ὀρία",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὅρια",
+   "reasons": [
+    "ὅρια with smooth breathing",
+    "Contexts are ὅρια 'boundaries'; there is no smooth-breathing word ὀρία (LSJ has only ὁρία, IG)."
+   ]
+  },
+  {
+   "form": "ὀρίᾳ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὅρια",
+   "reasons": [
+    "ὅρια with wrong breathing and subscript; no word ὀρίᾳ",
+    "Context is ὅρια πατέρων; no word ὀρίᾳ outside a theoretical dative of the one-off wind name ὀρίας."
+   ]
+  },
+  {
+   "form": "ὀρμήν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὁρμήν",
+   "reasons": [
+    "ὁρμή with smooth breathing",
+    "ὁρμή with smooth breathing; contexts are ὁρμήν."
+   ]
+  },
+  {
+   "form": "ὀρμὴν",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὁρμὴν",
+   "reasons": [
+    "ὁρμή with smooth breathing; treebank hit is a text typo",
+    "ὁρμή with smooth breathing; the Dionysius GLAUx hit is a source typo."
+   ]
+  },
+  {
+   "form": "ὁμόλογία",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ὁμολογία with a spurious acute on -μό-",
+    "spurious extra accent on a non-enclitic word; correct form is ὁμολογία, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ὁργῆς",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὀργῆς",
+   "reasons": [
+    "ὀργή with rough breathing",
+    "ὀργή with rough breathing; contexts are ὀργῆς (GLAUx lemmatizes nonsense ἑοργή)."
+   ]
+  },
+  {
+   "form": "ὄθονίου",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ὀθονίου with a spurious acute on ὄ-",
+    "spurious extra accent on a non-enclitic word; correct form is ὀθονίου, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ὄλεθρία",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ὀλεθρία with a spurious acute on ὄ- (OCR in PG)",
+    "spurious extra accent on a non-enclitic word; correct form is ὀλεθρία (Patrologia OCR), no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ὄρθη",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὀρθή",
+   "reasons": [
+    "no word ὄρθη; ὀρθή misaccented",
+    "Lowercase of the town name Ὄρθη; no common word ὄρθη. The context is ὄρθι' (Il. 11.11)."
+   ]
+  },
+  {
+   "form": "ὄρθῃ",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὀρθῇ",
+   "reasons": [
+    "no word ὄρθῃ; ὀρθῇ misaccented",
+    "No common word ὄρθῃ; contexts are ὀρθῇ."
+   ]
+  },
+  {
+   "form": "ὅρμης",
+   "decision": "reject",
+   "class": "respelling",
+   "correct": "ὁρμῆς",
+   "reasons": [
+    "no word ὅρμης; ὁρμῆς misaccented",
+    "ὁρμῆς with the accent retracted; no word ὅρμης."
+   ]
+  },
+  {
+   "form": "ὕστεραίῃ",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ὑστεραίῃ with a spurious acute on ὕ- (typo in the Perseus Hippocrates)",
+    "spurious extra accent on a non-enclitic word; correct form is ὑστεραίῃ, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "Ὕπεραίρων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "Ὑπεραίρων with a spurious acute on Ὕ-",
+    "spurious extra accent on a non-enclitic word; correct form is Ὑπεραίρων, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ὠκειέ͜ων",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "nonword_character",
+   "reasons": [
+    "synizesis tie (U+035C combining double breve below) is a metrical/editorial sign, not part of the word; the typed word is ὠκειέων",
+    "synizesis tie (U+035C double breve below) is a metrical siglum, not typed spelling"
+   ]
+  },
+  {
+   "form": "ὥραόμην",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "garbled (ὡρώμην / ὁρώμην); two accents that no rule produces",
+    "spurious extra accent on a non-enclitic word; correct form is ὡραόμην or similar; the first acute stands before the antepenult, impossible, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ῥηῖδίως",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ῥηιδίως/ῥηϊδίως with the diaeresis rendered as a circumflex",
+    "circumflex on the ι of Ionic ῥηιδίως (from ῥηΐδιος) is a misencoded diaeresis; with the acute on δί it is a double accent no rule produces"
+   ]
+  },
+  {
+   "form": "ῥηῖζέτω",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "circumflex on the antepenult plus a final acute is impossible; the diaeresis was rendered as a circumflex",
+    "circumflex on the ι of Ionic ῥηιζέτω (ῥηΐζω) is a misencoded diaeresis; double accent no rule produces"
+   ]
+  },
+  {
+   "form": "ῥᾴθυμία",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ῥᾳθυμία with a spurious acute on the first syllable",
+    "spurious extra accent on a non-enclitic word; correct form is ῥᾳθυμία, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "ῥᾴθυμίας",
+   "decision": "reject",
+   "class": "structural",
+   "rule": "misplaced_second_accent",
+   "reasons": [
+    "ῥᾳθυμίας with a spurious acute on the first syllable",
+    "spurious extra accent on a non-enclitic word; correct form is ῥᾳθυμίας, no accent rule produces two accents here"
+   ]
+  }
+ ]
+}

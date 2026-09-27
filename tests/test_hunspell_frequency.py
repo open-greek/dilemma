@@ -41,6 +41,7 @@ from export_hunspell import (
     load_canonical_ag_sets,
     load_form_profile_freq,
     load_grc_compatibility_forms,
+    load_grc_spelling_review,
     load_grc_textbook_forms,
     load_lm_head_required_forms,
     load_top_lsj9_lemmas,
@@ -168,7 +169,7 @@ def test_heldout_fixture_pins_all_five_corpus_samples():
         "1ac4f62ed6c3c5722f35ce518697220a6d5f41a5"
     )
     assert fixture["corpora"]["new_testament"]["total_tokens"] == 137_434
-    assert fixture["corpora"]["septuagint"]["total_tokens"] == 583_774
+    assert fixture["corpora"]["septuagint"]["total_tokens"] == 583_775
     assert all(
         source["files"] and len(source["manifest_sha256"]) == 64
         for source in fixture["sources"].values()
@@ -342,6 +343,7 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
             canonical_forms, top_lemmas, textbook_forms,
             load_lm_head_required_forms(),
         ),
+        reviewed_rejects=load_grc_spelling_review(),
     )
     assert report["invalid"]
     assert report["dominated"]

@@ -251,10 +251,17 @@ MEDIAL_BREATHING_PREFIXES = tuple(
     )
 )
 
+# Polytonic Modern Greek particles no lemma source proposes: the future
+# particle θὰ and the preposition γιὰ, which pre-1982 polytonic writes with
+# the grave (θὰ πάω, γιὰ τὸν πατέρα). They are the two words among the
+# language model's commonest that the dictionary rejected. νὰ comes in
+# through the lookup.
+MG_POLYTONIC_PARTICLES = {"θὰ": "θα", "γιὰ": "γιά"}
+
 # Every closed-list grc form, added after the lookup and frequency gates.
 GRC_CLOSED_LIST_FORMS = (
     AG_FUNCTION_WORDS | AG_EXPORT_OVERRIDES | HOMERIC_SHORT_PREPOSITIONS
-    | CONSONANT_FINAL_WORDS | GRC_CRASIS_EXCEPTIONS
+    | CONSONANT_FINAL_WORDS | GRC_CRASIS_EXCEPTIONS | MG_POLYTONIC_PARTICLES
 )
 
 # These lookup forms are not acceptable polytonic spellings. In particular,
@@ -269,6 +276,10 @@ GRC_REJECT_FORMS = frozenset({
     # or noisy corpus spelling, so the exporter must not treat it as proof.
     "τού", "τῷν", "τής", "αὐτου", "ταίς", "πᾶντα", "εἴπε", "ἆλλος",
     "ἵσον", "στό", "στά",
+    # The acute of the polytonic Modern Greek particles θὰ and γιὰ
+    # (MG_POLYTONIC_PARTICLES) is the monotonic misspelling in every
+    # convention: monotonic writes θα and για, polytonic the grave.
+    "θά", "γιά",
 })
 
 # lookup.db deliberately keeps these bare stems as tolerant lemmatizer
@@ -301,6 +312,8 @@ MG_FORM_FREQ = DATA / "mg_form_freq.json"
 FORM_PROFILE_DB = DATA / "form_profile.db"
 LSJ9_FREQUENCY = DATA / "lsj9_frequency.json"
 GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_shipped_compat.json.gz"
+# Spellings a recorded review rejected (see ``load_grc_spelling_review``).
+GRC_SPELLING_REVIEW = DATA / "hunspell_grc_spelling_review.json"
 GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # Curated iconic AG polytonic surface forms and lemmas that are always
 # promoted to bucket C, regardless of raw corpus token count. See the
@@ -1166,6 +1179,49 @@ def add_grc_reviewed_forms(
     return out, added
 
 
+def load_grc_spelling_review(path: Path = GRC_SPELLING_REVIEW) -> frozenset[str]:
+    """Spellings a recorded review rejected.
+
+    The corpus evidence cannot tell some wrong spellings from real ones: an
+    OCR'd Patrologia Graeca writes στρατηγού for στρατηγοῦ often enough to
+    look attested, and the respelling guard's thresholds were calibrated on
+    labelled forms, so they are not to be tightened by guess. Each listed
+    form was judged by two independent reviews, with the sentences it occurs
+    in, and is listed only where both rejected it. A rejected form goes with
+    its contextual grave or acute twin, whatever protected it.
+    """
+    if not path.exists():
+        return frozenset()
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 1:
+        raise ValueError(f"unsupported spelling review: {path}")
+    forms: set[str] = set()
+    for row in payload["reviews"]:
+        form = row["form"]
+        if form != unicodedata.normalize("NFC", form):
+            raise ValueError(f"spelling review form not NFC: {form!r}")
+        if form in forms:
+            raise ValueError(f"spelling review lists {form!r} twice")
+        if row["decision"] != "reject":
+            raise ValueError(f"unknown spelling review decision for {form!r}")
+        forms.add(form)
+    return frozenset(forms)
+
+
+def filter_reviewed_rejects(
+    form_lemma: list[tuple[str, str]],
+    rejects: frozenset[str],
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """Drop the forms a recorded review rejected, with their contextual
+    grave or acute twins."""
+    keys = {contextual_acute(form) for form in rejects}
+    kept: list[tuple[str, str]] = []
+    rejected: list[tuple[str, str]] = []
+    for pair in form_lemma:
+        (rejected if contextual_acute(pair[0]) in keys else kept).append(pair)
+    return kept, rejected
+
+
 def finalize_grc_pairs(
     form_lemma: list[tuple[str, str]],
     *,
@@ -1174,6 +1230,7 @@ def finalize_grc_pairs(
     textbook_forms: set[str],
     export_overrides: dict[str, str],
     protected_forms: set[str],
+    reviewed_rejects: frozenset[str] = frozenset(),
 ) -> tuple[list[tuple[str, str]], dict]:
     """Apply the grc structural and evidence filters in release order.
 
@@ -1221,6 +1278,9 @@ def finalize_grc_pairs(
         form_lemma, compatibility_forms, structural_protected,
     )
     report["twin_dropped"] = before_twins + acute_twins - len(form_lemma)
+    # A recorded review outranks every protection above.
+    form_lemma, reviewed = filter_reviewed_rejects(form_lemma, reviewed_rejects)
+    report["reviewed"] = len(reviewed)
     return form_lemma, report
 
 
@@ -2299,6 +2359,7 @@ def run_export(sanity: int | None, variants: list[str],
                 textbook_forms=textbook_forms,
                 export_overrides=export_overrides,
                 protected_forms=grc_protected_forms,
+                reviewed_rejects=load_grc_spelling_review(),
             )
             if report["invalid"]:
                 detail = ", ".join(
@@ -2313,6 +2374,7 @@ def run_export(sanity: int | None, variants: list[str],
                                "generated forms"),
                 ("dominated", "weak new respellings of a more common "
                               "spelling"),
+                ("reviewed", "spellings a recorded review rejected"),
             ):
                 if report[key]:
                     print(f"  Guard: dropped {report[key]:,} {message}")

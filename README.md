@@ -2103,6 +2103,22 @@ still fails them stays until it is reviewed in Tonos, because dropping it
 would count as a loss in the gate. The acute twin of a reviewed grave
 inherits its review.
 
+`data/hunspell_grc_spelling_review.json` records spellings a review
+rejected, which the exporter drops with their grave or acute twins whatever
+protects them, and which the audit no longer requires. Two reviewers
+labelled each candidate independently, from its attestation by source and
+up to three corpus sentences, and a form is listed only where both rejected
+it. It covers two groups: respellings of common words that OCR'd text
+admitted (191 of them, such as `στρατηγού` for `στρατηγοῦ` and `βοής` for
+`βοῆς`), since the respelling guard's thresholds were calibrated on
+labelled forms and are not to be tightened by guess; and reviewed-baseline
+entries that fail the structural rules and are not words anyone types
+(89: editorial underdots, synizesis ties, spurious extra accents such
+as `δόκιμάζω`). Two breathing variants both reviewers rejected, `αὗθις`
+and `ἄπαντα`, stay, because GLAUx attests them in held-out text. The
+exporter also accepts the polytonic Modern Greek particles `θὰ` and `γιὰ`,
+which no lemma source proposes.
+
 A content-hashed fixture measures rejection counts over the New Testament
 (Perseus), the Septuagint (First1KGreek), Iliad 1, Herodotus 1, and a
 Katharevousa sample. These are regression corpora, not held-out text:

@@ -868,6 +868,61 @@ def test_finalize_grc_pairs_applies_every_rule_in_release_order():
     assert report["acute_twins"] == 2
 
 
+def test_a_reviewed_reject_goes_with_its_twin_whatever_protected_it():
+    from export_hunspell import filter_reviewed_rejects
+    pairs = [("στρατηγού", "στρατηγός"), ("στρατηγοὺ", "στρατηγός"),
+             ("στρατηγοῦ", "στρατηγός"), ("ἁδελφὸς", "ἁδελφὸς")]
+    kept, rejected = filter_reviewed_rejects(pairs, frozenset({"στρατηγού"}))
+    assert [form for form, _ in kept] == ["στρατηγοῦ", "ἁδελφὸς"]
+    assert len(rejected) == 2
+    # Through the finalizer, a reviewed reject goes even from the baseline.
+    evidence = _evidence(exact={"ἁδελφὸς": 3})
+    kept, report = finalize_grc_pairs(
+        [("ἁδελφὸς", "ἁδελφὸς")],
+        evidence=evidence,
+        compatibility_forms={"ἁδελφὸς"},
+        textbook_forms=set(),
+        export_overrides={},
+        protected_forms=set(),
+        reviewed_rejects=frozenset({"ἁδελφός"}),
+    )
+    assert kept == []
+    assert report["reviewed"] == 2
+
+
+def test_polytonic_modern_greek_particles_are_accepted():
+    # θὰ and γιὰ have no lemma source; pre-1982 polytonic writes them so.
+    for form in ("θὰ", "γιὰ"):
+        assert form in GRC_CLOSED_LIST_FORMS
+        assert grc_orthography_reason(form) is None
+    # Their acute twins are the monotonic misspellings and stay rejected.
+    from export_hunspell import add_contextual_acute_twins
+    pairs, added = add_contextual_acute_twins([("θὰ", "θα"), ("γιὰ", "γιά")])
+    assert added == 0 and len(pairs) == 2
+    for form in ("θά", "γιά"):
+        assert grc_orthography_reason(form) == "explicit_reject"
+
+
+def test_the_spelling_review_is_checked_when_loaded(tmp_path):
+    import json
+    from export_hunspell import load_grc_spelling_review
+    assert load_grc_spelling_review(tmp_path / "absent.json") == frozenset()
+    def review(rows):
+        path = tmp_path / "review.json"
+        path.write_text(json.dumps({"schema_version": 1, "reviews": rows},
+                                   ensure_ascii=False), encoding="utf-8")
+        return path
+    ok = review([{"form": "στρατηγού", "decision": "reject"}])
+    assert load_grc_spelling_review(ok) == frozenset({"στρατηγού"})
+    for rows in (
+        [{"form": "βίω", "decision": "reject"}] * 2,
+        [{"form": unicodedata.normalize("NFD", "βίω"), "decision": "reject"}],
+        [{"form": "βίω", "decision": "keep"}],
+    ):
+        with pytest.raises(ValueError):
+            load_grc_spelling_review(review(rows))
+
+
 def test_add_grc_reviewed_forms_adds_baseline_forms_only_when_absent():
     pairs, added = add_grc_reviewed_forms(
         [("λόγος", "λόγος")],
