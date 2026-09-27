@@ -389,110 +389,195 @@ _NU_DISQUALIFIERS = frozenset([
     "subjunctive", "optative", "imperative", "infinitive", "participle",
 ])
 
+def _nu_reading(stripped: str, pos: str, tags: set[str]) -> str | None:
+    """How one analysis of a spelling stands on movable nu (Smyth 134).
+
+    ``stripped`` is the spelling without marks, lowercased, and without the
+    ν when the spelling is the one that already carries it. Returns
+    ``"takes"`` for the forms that take it:
+
+      1. Verb 3sg active indicative past (imperfect / aorist /
+         pluperfect / perfect) ending in ``-ε``.
+      2. Verb 3sg active indicative present ending in ``-σι``
+         (``δίδωσι``, ``τίθησι``), or in ``-στι``: ``ἐστί``, its compounds
+         and its crasis and prodelided spellings (``πάρεστι``, ``κἀστί``,
+         ``’στι``). The Doric ``-τι`` (``ἐντί``, ``δίδωτι``) takes none.
+      3. Verb 3pl active indicative (present / future / perfect)
+         ending in ``-σι``.
+      4. Dative plural ending in ``-σι``, ``-ξι``, or ``-ψι``, of any
+         word: the article's and the numerals' as much as a noun's
+         (``τοῖσιν``, ``τρισίν``), and a participle's. Diorisis files some
+         epic datives as adverbs (``ἀκλινέεσσι``); the case decides.
+      5. The subjunctive's third person in ``-σι``, the plural (ὦσιν,
+         λύωσιν) and the epic singular (ἐθέλῃσιν).
+
+    ``"never"`` for an analysis that cannot take it: another mood or a
+    non-finite form, a first or second person, a case other than the
+    dative, a dative singular or dual, an indeclinable word in ``-ε``
+    (the conjunction ``ηὖτε``, the interjection ``φέρε``). ``None`` when
+    the tags do not say,
+    as for an untagged adverb (Ἀθήνησι) or a verb form given a voice it
+    cannot have (GLAUx files half of ἔσκε as middle).
+    """
+    last = stripped[-1:]
+    if ("participle" in tags and "dative" in tags and "plural" in tags
+            and stripped.endswith(("σι", "ξι", "ψι"))):
+        return "takes"
+    if ("subjunctive" in tags and "third-person" in tags
+            and stripped.endswith("σι")):
+        return "takes"
+    if tags & _NU_DISQUALIFIERS:
+        return "never"
+    if (pos == "verb"
+            and "third-person" in tags and "singular" in tags
+            and "active" in tags and "indicative" in tags
+            and (tags & {"imperfect", "aorist", "pluperfect", "perfect"})
+            and last == "ε"):
+        return "takes"
+    if (pos == "verb"
+            and "third-person" in tags and "singular" in tags
+            and "active" in tags and "indicative" in tags
+            and "present" in tags
+            and stripped.endswith(("σι", "στι"))):
+        return "takes"
+    if (pos == "verb"
+            and "third-person" in tags and "plural" in tags
+            and "active" in tags and "indicative" in tags
+            and (tags & {"present", "future", "perfect"})
+            and stripped.endswith("σι")):
+        return "takes"
+    if (pos != "verb" and "dative" in tags and "plural" in tags
+            and stripped.endswith(("σι", "ξι", "ψι"))):
+        return "takes"
+    if tags & {"first-person", "second-person"}:
+        return "never"
+    if tags & {"nominative", "genitive", "accusative", "vocative"}:
+        return "never"
+    if "dative" in tags and tags & {"singular", "dual"}:
+        return "never"
+    if pos in ("adv", "conj", "particle", "prep", "intj") and last == "ε":
+        return "never"
+    return None
+
+
+def _entry_analyses(entry: dict) -> list[tuple[str, set[str], int]]:
+    """The token-counted analyses of a pairs entry: every analysis with its
+    count when its tokens carry several, else its one analysis with its
+    count. Empty for a pairs file without counts."""
+    if "analyses" in entry:
+        return [(pos or "", set(tags), n) for pos, tags, n in entry["analyses"]]
+    if "count" in entry:
+        return [(entry.get("pos", "") or "", set(entry.get("tags", [])),
+                 entry["count"])]
+    return []
+
 
 def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
     """Union set of NFC surface forms eligible for movable nu.
 
-    Linguistic rules applied (Smyth Greek Grammar 134):
+    A spelling is eligible when some analysis of it takes movable nu
+    (``_nu_reading``) and the texts do not mostly mean another one. Most
+    spellings mean one thing, but φέρε is an imperative 956 times in GLAUx
+    and the unaugmented imperfect 45, and the imperative takes no nu; a
+    pairs file keeps the first analysis it meets for each form and lemma,
+    so presence alone put φέρε, ἄκουε, ἴδε and some 130 other imperatives
+    on the list and the keyboard wrote φέρεν εἰπέ. So the token-counted
+    analyses vote: those that take nu, with the tokens of the spelling that
+    already carries it, against those that cannot, and a spelling the
+    ``never`` readings outnumber is dropped. μέλλε is an imperative 14
+    times and an imperfect 7, but the imperfect is spelled μέλλεν 17 more
+    times before a vowel, so it stays. Votes pool a word's capitalized and
+    lowercase spellings for a capitalized one, since a keyboard reads a
+    capital through the lowercase entry, but a lowercase word counts only
+    its lowercase spellings, so the vocative of a name (Κέλσε) does not
+    veto the verb (κέλσε). GLAUx is the only source tagged token by token;
+    Diorisis lists every candidate analysis of a spelling on each token, so
+    its analyses make a spelling eligible but cannot vote.
 
-      1. Verb 3sg active indicative past (imperfect / aorist /
-         pluperfect / perfect) ending in ``-ε``.
-      2. Verb 3sg active indicative present ending in ``-σι`` or
-         ``-τι`` (``ἐστί``, ``δίδωσι``, ``τίθησι``).
-      3. Verb 3pl active indicative (present / future / perfect)
-         ending in ``-σι``.
-      4. Noun / pronoun / adjective dative plural ending in ``-σι``,
-         ``-ξι``, or ``-ψι``.
+    A spelling in -σι, -ξι or -ψι is a dative plural or a third person,
+    both of which take nu, so an analysis that says otherwise is a tagging
+    slip (GLAUx files one ζηλῶσί as a first person) and abstains. An
+    adverb in -σι takes nu when the texts write it with one in at least a
+    tenth of its tokens (παντάπασιν 70%, Ἀθήνησιν 42%; Smyth 134); the
+    deictic οὑτωσί is written οὑτωσίν twice in 451, a slip.
 
-    Subjunctive, optative, imperative, infinitive, and participle tags
-    on the same token disqualify it outright, since none of those
-    moods / forms take movable nu even when the surface spelling ends
-    in a qualifying letter, except a participle's dative plural, which
-    rule 4 covers like any other, and the subjunctive's third person plural
-    in -σι. A spelling the orthography rules reject is never eligible. Relies on GLAUx / Diorisis morphological
-    tagging; no heuristic falls back to raw frequency counts because
-    corpus co-occurrence alone produces too many false positives on
-    neuter nominative participles (e.g. ``γραφέν``) that share the
-    ``-ε`` surface with a 3sg past.
+    A spelling the orthography rules reject is never eligible. There is no
+    fallback to raw frequency counts, because corpus co-occurrence alone
+    produces too many false positives on neuter nominative participles
+    (e.g. ``γραφέν``) that share the ``-ε`` surface with a 3sg past.
     """
-    nu_eligible: set[str] = set()
+    def key(bare: str) -> str:
+        return bare.lower()
+
+    entries_by_file = []
     for p in pairs_files:
         with open(p, encoding="utf-8") as f:
-            entries = json.load(f)
+            entries_by_file.append(json.load(f))
+
+    # [takes, never] over every spelling of a word, and over its
+    # lowercase spellings alone.
+    votes: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    lowercase_votes: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    # Adverbs in -σι: tokens without the ν and with it.
+    adverb_tokens: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    candidates: dict[str, bool] = {}  # form -> some analysis takes nu
+    for entries in entries_by_file:
         for entry in entries:
             form = _nfc(entry.get("form", "").strip())
             if not form or len(form) < 2 or has_editorial_sigla(form):
                 continue
-            # Trailing nu never needs a second movable nu. Skip.
-            if form.endswith("ν") or form.endswith("Ν"):
+            carries_nu = form.endswith("ν") or form.endswith("Ν")
+            bare = form[:-1] if carries_nu else form
+            stripped = _strip_lower(bare)
+            plural_ending = stripped.endswith(("σι", "ξι", "ψι"))
+            analyses = _entry_analyses(entry)
+            first = (entry.get("pos", "") or "", set(entry.get("tags", [])))
+            takes = False
+            lowercase = not bare[:1].isupper()
+            for pos, tags, n in analyses:
+                reading = _nu_reading(stripped, pos, tags)
+                slot = None
+                if reading == "takes":
+                    slot = 0
+                    takes = True
+                elif (reading == "never" and not carries_nu
+                        and not plural_ending):
+                    slot = 1
+                if slot is not None:
+                    votes[key(bare)][slot] += n
+                    if lowercase:
+                        lowercase_votes[key(bare)][slot] += n
+                if pos == "adv" and stripped.endswith("σι"):
+                    adverb_tokens[key(bare)][carries_nu] += n
+            if carries_nu:
                 continue
-            tags = set(entry.get("tags", []))
-            pos = entry.get("pos", "")
-            last = _last_base_vowel(form)
-            stripped = _strip_lower(form)
+            if _nu_reading(stripped, *first) == "takes":
+                takes = True
+            if first[0] == "adv" and stripped.endswith("σι"):
+                candidates.setdefault(form, False)
+            if takes:
+                candidates[form] = True
 
-            # A malformed spelling gets nothing: a ν appended to ἒστι or
-            # λέγουσὶ is written into the user's text as it stands. A
-            # prodelided form (’στι for ἐστι) is checked with the mark in
-            # the dictionary's own glyph.
-            probe = KORONIS + form[1:] if form[0] in ELISION_GLYPHS else form
-            if grc_orthography_reason(probe) is not None:
-                continue
+    def adverb_takes_nu(form: str) -> bool:
+        without, with_nu = adverb_tokens[key(form)]
+        return with_nu > 0 and 10 * with_nu >= without
 
-            # A participle's dative plural is a dative plural like any
-            # other, and takes movable nu the same way (οὖσιν, ἔχουσιν),
-            # and the third person plural in -σι takes it in the
-            # subjunctive too (ὦσιν, λύωσιν; Smyth 134).
-            if ("participle" in tags and "dative" in tags
-                    and "plural" in tags
-                    and stripped.endswith(("σι", "ξι", "ψι"))):
-                nu_eligible.add(form)
-                continue
-            if ("subjunctive" in tags and "third-person" in tags
-                    and "plural" in tags and stripped.endswith("σι")):
-                nu_eligible.add(form)
-                continue
-
-            # Disqualify: never-nu moods / forms.
-            if tags & _NU_DISQUALIFIERS:
-                continue
-
-            # Rule 1: verb 3sg active indicative past (-ε)
-            if (pos == "verb"
-                    and "third-person" in tags and "singular" in tags
-                    and "active" in tags and "indicative" in tags
-                    and (tags & {"imperfect", "aorist",
-                                  "pluperfect", "perfect"})
-                    and last == "ε"):
-                nu_eligible.add(form)
-                continue
-
-            # Rule 2: verb 3sg active indicative present (-σι / -τι)
-            if (pos == "verb"
-                    and "third-person" in tags and "singular" in tags
-                    and "active" in tags and "indicative" in tags
-                    and "present" in tags
-                    and last == "ι"
-                    and (stripped.endswith("σι")
-                         or stripped.endswith("τι"))):
-                nu_eligible.add(form)
-                continue
-
-            # Rule 3: verb 3pl active indicative (present / future / perfect) (-σι)
-            if (pos == "verb"
-                    and "third-person" in tags and "plural" in tags
-                    and "active" in tags and "indicative" in tags
-                    and (tags & {"present", "future", "perfect"})
-                    and last == "ι" and stripped.endswith("σι")):
-                nu_eligible.add(form)
-                continue
-
-            # Rule 4: noun / pron / adj dative plural (-σι / -ξι / -ψι)
-            if (pos in ("noun", "pron", "adj")
-                    and "dative" in tags and "plural" in tags):
-                if stripped.endswith(("σι", "ξι", "ψι")):
-                    nu_eligible.add(form)
-                    continue
+    nu_eligible: set[str] = set()
+    for form, takes in candidates.items():
+        if not takes and not adverb_takes_nu(form):
+            continue
+        # A malformed spelling gets nothing: a ν appended to ἒστι or
+        # λέγουσὶ is written into the user's text as it stands. A
+        # prodelided form (’στι for ἐστι) is checked with the mark in
+        # the dictionary's own glyph.
+        probe = KORONIS + form[1:] if form[0] in ELISION_GLYPHS else form
+        if grc_orthography_reason(probe) is not None:
+            continue
+        pool = votes if form[:1].isupper() else lowercase_votes
+        takes_votes, never_votes = pool[key(form)]
+        if never_votes > takes_votes:
+            continue
+        nu_eligible.add(form)
 
     # Closed-list numerals. Only ``εἴκοσι`` survives the morphological
     # audit; other -κοντα cardinals end in α, not ι / ε, so movable nu
@@ -501,6 +586,19 @@ def _derive_nu_forms(pairs_files: list[Path]) -> set[str]:
         nu_eligible.add(_nfc(w))
 
     return nu_eligible
+
+
+def _require_token_counts(glaux_pairs: Path) -> None:
+    """Stop when the GLAUx pairs file predates its token counts: without
+    them nothing votes on movable nu, and the imperatives come back
+    without a word of warning."""
+    with open(glaux_pairs, encoding="utf-8") as f:
+        head = f.read(1 << 16)
+    if '"count":' not in head:
+        raise SystemExit(
+            f"{glaux_pairs} has no token counts. Rebuild it with "
+            "build/build_glaux_pairs.py, or download the current file."
+        )
 
 
 def _dative_key(form: str) -> str:
@@ -731,6 +829,7 @@ def build(out_dir: Path) -> dict:
             file=sys.stderr,
         )
         sys.exit(1)
+    _require_token_counts(GLAUX_PAIRS)
 
     pairs_files = [GLAUX_PAIRS, DIORISIS_PAIRS]
     pairs_files = [p for p in pairs_files if p.exists()]

@@ -1831,6 +1831,10 @@ now carries onto the pairs: a form attested only in works marked Ionic,
 Epic, Doric or Aeolic is tagged with that dialect, so it fills that
 dialect's slice instead of competing for the Attic one. Works marked
 Attic, Attic/Koine or Koine share the default slice.
+Each pair also carries its token count (`count`) and, when its tokens were
+tagged more than one way, every analysis with its own count (`analyses`,
+`[pos, tags, count]`, commonest first); `pos` and `tags` stay the first
+token's analysis.
 
 #### Choosing the form that fills a cell
 
@@ -2198,9 +2202,22 @@ python eval_hunspell.py --n 200
 `export_morphology.py` writes `build/hunspell/grc_morph.json`, the table a
 keyboard uses to respell a word once the next word turns out to start with a
 vowel. `nu` lists the forms that take movable nu (Smyth 134): third-person
-singulars in -ε and in -σι or -τι, third-person plurals and dative plurals in
--σι, the dative plural of a participle and the subjunctive's third plural
-included. `el` maps a full form to its elided form, ending in U+1FBD. An
+singulars in -ε, in -σι, and in -στι (`ἐστί`, its compounds, crasis and
+prodelided spellings, but not the Doric `ἐντί`); third-person plurals in -σι,
+the subjunctive's included (`ὦσι`, epic `ἐθέλῃσι`); every dative plural in
+-σι, -ξι or -ψι, the article's and numerals' as much as a noun's or a
+participle's; and adverbs in -σι that the texts write with a nu in at least a
+tenth of their tokens (`παντάπασιν`, `Ἀθήνησιν`, `πέρυσιν`, but not the
+deictic `οὑτωσί`). Where a spelling has another reading that cannot take nu,
+GLAUx's token counts decide: `φέρε` is an imperative 956 times and an
+unaugmented imperfect 45, so it is left out, while `μέλλε`, an imperative 14
+times and an imperfect 7, stays, because the imperfect is spelled `μέλλεν` 17
+more times before a vowel. A capitalized spelling is weighed with its
+lowercase word; a lowercase one only with its lowercase spellings, so a name's
+vocative (`Κέλσε`) does not decide the verb (`κέλσε`). Diorisis lists every
+candidate analysis on each token, so it shows that a spelling can take nu but
+does not vote, and the export refuses a GLAUx pairs file without counts.
+`el` maps a full form to its elided form, ending in U+1FBD. An
 elision is written only in the spelling the rules give: the short final vowel
 goes, an oxytone throws its accent back onto the new last vowel as an acute
 unless it is a preposition, conjunction or enclitic, and every other mark

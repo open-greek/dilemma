@@ -7,6 +7,24 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- The movable-nu list follows what the texts mean by a spelling, not the
+  first analysis a pairs file met. `φέρε` is an imperative 956 times in GLAUx
+  and an unaugmented imperfect 45, and was on the list, so a keyboard wrote
+  `φέρεν εἰπέ`. The GLAUx pairs now carry each analysis's token count, and the
+  readings that take nu, with the tokens of the spelling that already has it
+  (`μέλλεν`), are weighed against those that cannot; a spelling in -σι, which
+  can only be a dative plural or a third person, ignores analyses that say
+  otherwise. 162 forms go, 420 GLAUx tokens before a vowel: 142 imperatives
+  (`ἄκουε`, `ἴδε`, `λάβε`), vocatives (`Κέλσε`, `βάσκανε`), `πέρατι`, which a
+  Diorisis candidate analysis filed as a verb, word pairs a tokenizer fused
+  (`βαδιεῖτι`), and the Doric 3sg in -τι (`δίδωτι`, `ἐντί`), since only
+  `ἐστί` and its compounds take nu there.
+  217 come in: the article's and the numerals' dative plurals (`τῇσι`, 784
+  GLAUx tokens, `ταῖσι`, `δεκατέσσαρσι`), the epic third singular
+  subjunctive (`ἐθέλῃσι`), adverbs in -σι the texts write with a nu
+  (`παντάπασι`, `πέρυσι`, `Ὀλυμπίασι`), and imperfects whose first token was
+  tagged an imperative (`πέλε`, 78 tokens to 1). The list ends at 26,277. The
+  export stops if the GLAUx pairs file has no counts.
 - Four orthography rules misread valid Greek and dropped 18 attested forms
   from the grc dictionary, which the keyboard's own gate had listed as words
   it must accept. In a Latin name `ου` between two vowels is the consonant v,

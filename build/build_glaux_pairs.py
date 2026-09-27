@@ -10,7 +10,13 @@ Extracts training pairs for Dilemma's multi-task learning heads:
 - Nominal group: Gender + Number + Case (positions 7, 3, 8)
 - Verbal group: Tense + Mood + Voice (positions 4, 5, 6)
 
-Output: data/glaux_pairs.json in Dilemma's training pair format.
+Output: data/glaux_pairs.json in Dilemma's training pair format. Each
+(form, lemma) pair is written once, with the analysis of its first token as
+``pos`` / ``tags``, its token count as ``count``, and, when its tokens carry
+more than one analysis, every analysis with its own count as ``analyses``
+(``[pos, tags, count]``, commonest first). GLAUx is tagged token by token, so
+the counts say which reading of an ambiguous spelling the texts mean (φέρε is
+an imperative 956 times and an unaugmented imperfect 45).
 
 Usage:
     python build_glaux_pairs.py                    # extract all
@@ -188,6 +194,7 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     pairs = []
     seen = set()  # (form, lemma) dedup
     entry_by_key = {}
+    analysis_counts = defaultdict(Counter)  # (form, lemma) -> (pos, tags) -> tokens
     dialect_votes = defaultdict(set)
     total_tokens = 0
     skipped_punct = 0
@@ -286,9 +293,11 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
                 pos, tags = parse_postag(postag)
 
                 # Dedup. A (form, lemma) pair is written once, but every
-                # work that attests it votes on its dialect below.
+                # work that attests it votes on its dialect below, and every
+                # token counts toward its analysis.
                 key = (form, lemma)
                 dialect_votes[key].add(file_dialect)
+                analysis_counts[key][(pos, tuple(tags))] += 1
                 if key in seen:
                     skipped_dup += 1
                     continue
@@ -317,6 +326,20 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
 
         if (i + 1) % 200 == 0:
             print(f"  {i+1}/{len(xml_files)} files, {len(pairs):,} pairs", flush=True)
+
+    # Token counts. Ties keep first-seen order (a Counter keeps insertion
+    # order and the sort is stable), so the output is deterministic.
+    ambiguous = 0
+    for key, entry in entry_by_key.items():
+        counts = analysis_counts[key]
+        entry["count"] = sum(counts.values())
+        if len(counts) > 1:
+            ambiguous += 1
+            entry["analyses"] = [
+                [pos, list(tags), n]
+                for (pos, tags), n in sorted(counts.items(), key=lambda kv: -kv[1])
+            ]
+    print(f"\nPairs whose tokens carry more than one analysis: {ambiguous:,}")
 
     # A form keeps the Attic default if any work attesting it is explicitly
     # Attic, Attic/Koine or Koine, or if no work attesting it records a
