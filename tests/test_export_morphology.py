@@ -216,6 +216,195 @@ def test_the_dative_ending_does_not_elide(tmp_path):
     assert pairs["τῷδε"] == "τῷδ᾽"
 
 
+IMPERATIVE = ["second-person", "singular", "present", "imperative", "active"]
+IMPERFECT = ["third-person", "singular", "imperfect", "indicative", "active"]
+
+
+def _write(path, entries):
+    path.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_the_reading_the_texts_mostly_mean_decides_movable_nu(tmp_path):
+    # GLAUx counts φέρε as an imperative 956 times and an unaugmented
+    # imperfect 45; the pairs file keeps the imperfect because it came
+    # first, and presence alone put φέρεν εἰπέ on the keyboard.
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "φέρε", "lemma": "φέρω", "pos": "verb", "tags": IMPERFECT,
+         "count": 1001,
+         "analyses": [["verb", IMPERATIVE, 956], ["verb", IMPERFECT, 45]]},
+        # μέλλε is an imperative 14 times and an imperfect 7, but before a
+        # vowel the imperfect is spelled μέλλεν, 17 more times, and with
+        # those it is the commoner reading.
+        {"form": "μέλλε", "lemma": "μέλλω", "pos": "verb", "tags": IMPERFECT,
+         "count": 21,
+         "analyses": [["verb", IMPERATIVE, 14], ["verb", IMPERFECT, 7]]},
+        {"form": "μέλλεν", "lemma": "μέλλω", "pos": "verb", "tags": IMPERFECT,
+         "count": 17},
+        {"form": "ἔλυε", "lemma": "λύω", "pos": "verb", "tags": IMPERFECT,
+         "count": 12},
+    ])
+    forms = _derive_nu_forms([glaux])
+    assert "φέρε" not in forms
+    assert "μέλλε" in forms
+    assert "ἔλυε" in forms
+
+
+def test_a_file_without_token_counts_does_not_vote(tmp_path):
+    # Diorisis lists every candidate analysis on each token, so its
+    # analyses show a spelling can take nu but cannot outvote GLAUx's.
+    glaux = _write(tmp_path / "glaux.json", [
+        # A tie keeps the nu; one more imperative from Diorisis would drop it.
+        {"form": "ἄγε", "lemma": "ἄγω", "pos": "verb", "tags": IMPERFECT,
+         "count": 20, "analyses": [["verb", IMPERFECT, 10], ["verb", IMPERATIVE, 10]]},
+    ])
+    diorisis = _write(tmp_path / "diorisis.json", [
+        {"form": "ἄγε", "lemma": "ἄγω", "pos": "verb", "tags": IMPERATIVE},
+        {"form": "κέλευε", "lemma": "κελεύω", "pos": "verb", "tags": IMPERFECT},
+    ])
+    forms = _derive_nu_forms([glaux, diorisis])
+    assert "ἄγε" in forms
+    assert "κέλευε" in forms
+
+
+def test_an_analysis_without_case_or_mood_abstains(tmp_path):
+    # GLAUx tags the locative Ἀθήνησι as a bare adverb; that says nothing
+    # against the dative reading that takes nu (Ἀθήνησιν).
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "Ἀθήνησι", "lemma": "Ἀθήνησι", "pos": "adv", "count": 403},
+    ])
+    diorisis = _write(tmp_path / "diorisis.json", [
+        {"form": "Ἀθήνησι", "lemma": "Ἀθῆναι", "pos": "noun",
+         "tags": ["feminine", "plural", "dative"]},
+    ])
+    assert "Ἀθήνησι" in _derive_nu_forms([glaux, diorisis])
+
+
+def test_the_article_numerals_and_epic_subjunctive_take_movable_nu(tmp_path):
+    # Smyth 134: every dative plural in -σι, the article's and the
+    # numerals' included (τῇσιν, τρισίν), and every third person in -σι,
+    # the epic subjunctive singular included (ἐθέλῃσιν).
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "τῇσι", "lemma": "ὁ", "pos": "article",
+         "tags": ["plural", "feminine", "dative"], "count": 784},
+        {"form": "τρισί", "lemma": "τρεῖς", "pos": "num",
+         "tags": ["plural", "dative"], "count": 28},
+        {"form": "ἐθέλῃσι", "lemma": "ἐθέλω", "pos": "verb",
+         "tags": ["third-person", "singular", "present", "subjunctive", "active"],
+         "count": 18},
+        {"form": "πέρατι", "lemma": "πέρας", "pos": "noun",
+         "tags": ["singular", "neuter", "dative"], "count": 135},
+    ])
+    diorisis = _write(tmp_path / "diorisis.json", [
+        # A candidate analysis Diorisis lists for every token of πέρατι.
+        {"form": "πέρατι", "lemma": "περάω", "pos": "verb",
+         "tags": ["singular", "present", "indicative", "active", "third-person"]},
+    ])
+    forms = _derive_nu_forms([glaux, diorisis])
+    assert {"τῇσι", "τρισί", "ἐθέλῃσι"} <= forms
+    assert "πέρατι" not in forms
+
+
+def test_any_counted_analysis_can_make_a_spelling_eligible(tmp_path):
+    # πέλε's first token was tagged an imperative, but 78 of its 79 are the
+    # epic imperfect.
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "πέλε", "lemma": "πέλω", "pos": "verb", "tags": IMPERATIVE,
+         "count": 79,
+         "analyses": [["verb", IMPERFECT, 78], ["verb", IMPERATIVE, 1]]},
+    ])
+    assert "πέλε" in _derive_nu_forms([glaux])
+
+
+def test_a_capital_pools_with_the_lowercase_word_but_not_the_reverse(tmp_path):
+    # Εἰσένεγκε at the head of a sentence is the imperative the lowercase
+    # word mostly is; the vocative of the name Κέλσος must not veto the
+    # verb κέλσε.
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "εἰσένεγκε", "lemma": "εἰσφέρω", "pos": "verb", "tags": IMPERATIVE,
+         "count": 5},
+        {"form": "Εἰσένεγκε", "lemma": "εἰσφέρω", "pos": "verb", "tags": IMPERFECT,
+         "count": 1},
+        {"form": "κέλσε", "lemma": "κέλλω", "pos": "verb", "tags": IMPERFECT,
+         "count": 1},
+        {"form": "Κέλσε", "lemma": "Κέλσος", "pos": "noun",
+         "tags": ["singular", "masculine", "vocative"], "count": 8},
+    ])
+    # Diorisis offers the verb as a candidate for the capitalized spelling
+    # too; its own eight vocatives outvote the one verb.
+    diorisis = _write(tmp_path / "diorisis.json", [
+        {"form": "Κέλσε", "lemma": "κέλλω", "pos": "verb", "tags": IMPERFECT},
+    ])
+    forms = _derive_nu_forms([glaux, diorisis])
+    assert "Εἰσένεγκε" not in forms
+    assert "κέλσε" in forms
+    assert "Κέλσε" not in forms
+
+
+def test_a_slip_the_ending_rules_out_does_not_vote(tmp_path):
+    # An ending in -σι is a dative plural or a third person; GLAUx files
+    # one ζηλῶσί as a first person, which cannot be.
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "ζηλῶσί", "lemma": "ζηλόω", "pos": "verb",
+         "tags": ["first-person", "singular", "present", "indicative", "active"],
+         "count": 1},
+    ])
+    diorisis = _write(tmp_path / "diorisis.json", [
+        {"form": "ζηλῶσί", "lemma": "ζηλόω", "pos": "verb",
+         "tags": ["third-person", "plural", "present", "subjunctive", "active"]},
+    ])
+    assert "ζηλῶσί" in _derive_nu_forms([glaux, diorisis])
+
+
+def test_an_adverb_in_si_takes_nu_when_the_texts_write_it(tmp_path):
+    # παντάπασιν is written with the nu in 70% of its tokens; οὑτωσίν is a
+    # slip, twice in 451, since the deictic -ί never takes it.
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "παντάπασι", "lemma": "παντάπασι", "pos": "adv", "count": 563},
+        {"form": "παντάπασιν", "lemma": "παντάπασι", "pos": "adv", "count": 1492},
+        {"form": "οὑτωσί", "lemma": "οὕτως", "pos": "adv", "count": 449},
+        {"form": "οὑτωσίν", "lemma": "οὕτως", "pos": "adv", "count": 2},
+    ])
+    forms = _derive_nu_forms([glaux])
+    assert "παντάπασι" in forms
+    assert "οὑτωσί" not in forms
+
+
+def test_the_third_singular_in_ti_is_esti_and_its_compounds(tmp_path):
+    present = ["third-person", "singular", "present", "indicative", "active"]
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": form, "lemma": lemma, "pos": "verb", "tags": present, "count": 3}
+        for form, lemma in [("πάρεστι", "πάρειμι"), ("κἀστί", "εἰμί"),
+                            ("ἐντί", "εἰμί"), ("δίδωτι", "δίδωμι")]
+    ])
+    forms = _derive_nu_forms([glaux])
+    assert {"πάρεστι", "κἀστί"} <= forms
+    # The Doric -τι takes no movable nu.
+    assert not {"ἐντί", "δίδωτι"} & forms
+
+
+def test_an_indeclinable_in_e_votes_against_nu(tmp_path):
+    # GLAUx tags one ηὖτε as an imperfect; five times it is the adverb.
+    glaux = _write(tmp_path / "glaux.json", [
+        {"form": "ηὖτε", "lemma": "αὔω", "pos": "verb", "tags": IMPERFECT, "count": 1},
+        {"form": "ηὖτε", "lemma": "ηὖτε", "pos": "adv", "count": 5},
+    ])
+    assert "ηὖτε" not in _derive_nu_forms([glaux])
+
+
+def test_a_pairs_file_without_counts_is_refused(tmp_path):
+    from export_morphology import _require_token_counts
+    stale = _write(tmp_path / "glaux.json", [
+        {"form": "φέρε", "lemma": "φέρω", "pos": "verb", "tags": IMPERFECT},
+    ])
+    with pytest.raises(SystemExit):
+        _require_token_counts(stale)
+    _require_token_counts(_write(tmp_path / "current.json", [
+        {"form": "φέρε", "lemma": "φέρω", "pos": "verb", "tags": IMPERFECT,
+         "count": 1},
+    ]))
+
+
 def test_a_participles_dative_plural_takes_movable_nu(tmp_path):
     pairs_path = tmp_path / "pairs.json"
     pairs_path.write_text(json.dumps([
@@ -361,6 +550,17 @@ def test_a_grave_before_the_last_syllable_is_not_an_accent():
 
 
 ARTIFACT = ROOT / "build" / "hunspell" / "grc_morph.json"
+
+
+@pytest.mark.skipif(not ARTIFACT.exists(), reason="grc_morph.json not built")
+def test_the_built_nu_list_follows_the_texts():
+    nu = set(json.loads(ARTIFACT.read_text(encoding="utf-8"))["nu"])
+    # Imperatives the texts mostly mean, a deictic, and the Doric -τι.
+    assert not {"φέρε", "ἄκουε", "ἴδε", "οὑτωσί", "ἐντί"} & nu
+    # An imperfect the ν spelling carries, the Ionic article's dative
+    # plural, an adverb in -σι, an epic subjunctive, ἐστί's compounds.
+    assert {"μέλλε", "τῇσι", "παντάπασι", "ἐθέλῃσι", "πάρεστι",
+            "ἔλεγε", "ἐστί", "λέγουσι"} <= nu
 
 
 @pytest.mark.skipif(not ARTIFACT.exists(), reason="grc_morph.json not built")
