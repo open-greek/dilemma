@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Compile the intermediate n-gram counts from ``train_lm.py`` into the
 mmap-friendly binary artifact ``build/lm/grc_ngram.bin`` consumed by
-the Tonos iOS keyboard extension.
+an iOS keyboard extension.
 
-This is the on-disk contract with the Swift reader. Once tonos ships a
+This is the on-disk contract with the Swift reader. Once a keyboard ships a
 reader against this, bumping the file format requires a version bump.
 
 BINARY FORMAT (v2)
@@ -24,6 +24,13 @@ Overall layout:
     [ BIGRAM SUGGESTION TABLE     ] packed top-Kbi per context
     [ TRIGRAM CONTEXT INDEX       ] sorted by (w1, w2); see below
     [ TRIGRAM SUGGESTION TABLE    ] packed top-Ktri per context
+    [ PADDING                     ] optional: zero bytes to a multiple of 8
+    [ OUT-OF-VOCABULARY UNIGRAMS  ] optional: u64 hash * M + u8 count * M
+    [ FOOTER                      ] optional: 16 bytes, ends in "GNUO"
+
+The last three sections are the out-of-vocabulary unigram table
+described below. A file without them ends at the trigram suggestion
+table, which is all a reader that does not know the table reads.
 
 Integers:
     u16 = uint16          u32 = uint32           u64 = uint64
@@ -47,6 +54,31 @@ Version 2 changes from v1
   (~320 KB for a 80 K vocab), and lets the mid-word completion path
   always return something useful even outside the context's top-K.
 
+Homograph spellings kept past the cut
+------------------------------------
+
+A context keeps its ``top_k_bi`` / ``top_k_tri`` most frequent
+continuations, and also, past that cut, every continuation that is one
+spelling of a homograph set and was seen at least
+``KEEP_HOMOGRAPH_MIN_COUNT`` (3) times in that context. A homograph
+spelling is a vocabulary token whose bare letters (no accents,
+breathings, iota subscript or diaeresis, final sigma as σ, lowercase,
+elision mark dropped) are shared with another vocabulary token that
+differs by more than an acute written as a grave, by case or by the
+elision glyph: ἢ and ἡ, ἐκείνῃ and ἐκείνη, αὐτοῦ and αὑτοῦ, but not
+καί and καὶ.
+
+The keyboard scores a spelling it is choosing between by looking it up
+in these rows, so a spelling cut from a row is scored by backoff while
+its twin keeps its trigram or bigram probability. After τῇ the bigram
+row held ἐκείνη but not ἐκείνῃ, and the dative lost to the nominative
+in the one context that decides between them. Kept entries follow the
+top-K entries in the same descending-count order, so the first
+``top_k`` entries of every row, and with them every next-word
+suggestion list, are what they were without the rule. Exporting with
+``--keep-homograph-min-count 0`` turns the rule off and reproduces the
+plain top-K export byte for byte.
+
 Header (128 bytes, zero-padded)
 -------------------------------
 
@@ -60,7 +92,7 @@ Header (128 bytes, zero-padded)
      24    4   id_unk  (u32)              sorted-vocab index of <UNK>
      28    4   id_bos  (u32)              sorted-vocab index of <s>
      32    4   id_eos  (u32)              sorted-vocab index of </s>
-     36    4   top_k_bi (u32)             (v2) per-bigram top-K cap
+     36    4   top_k_bi (u32)             (v2) the bigram top-K cut
      40    8   total_tokens (u64)         training corpus size
      48    8   vocab_offsets_off (u64)
      56    8   string_pool_off (u64)
@@ -81,9 +113,11 @@ section is recorded via its own pair of u64/u32 offsets which we
 squeeze into the previously-reserved slots at 36 (for top_k_bi) and
 via appending counts right after the string pool (so the reader
 can compute its offset from ``string_pool_off + string_pool_size``
-without another header field). ``top_k_tri`` is implied by the
-largest ``suggestion_count`` stored in any trigram row; the reader
-never needs to know the global cap, only the per-row count.
+without another header field). ``top_k_bi`` records where rows are
+cut, not how long they are: a row can run past it with kept homograph
+spellings. ``top_k_tri`` is not in the header at all (it is in the
+``.version`` sidecar). A reader needs neither, only each row's
+``suggestion_count``.
 
 Vocab
 -----
@@ -116,13 +150,14 @@ For both bigram and trigram sections:
 
     *_index       : context keys, sorted ascending, binary-searchable
     *_suggestions : flat array of (u32 word_id, i16 logprob_q16),
-                    top_k entries per context
+                    each context's top_k entries and kept homograph
+                    spellings, in descending probability
 
 Bigram index row (per context, w1):
 
     u32 w1
     u32 suggestion_offset   -- index into *_suggestions (NOT byte offset)
-    u16 suggestion_count    -- always <= top_k
+    u16 suggestion_count    -- top_k, plus any homograph spellings kept
     u16 reserved
 
 (12 bytes per row.)
@@ -154,7 +189,7 @@ suggestions: every suggestion entry in the bigram and trigram tables
 points to a real Greek word. The Swift reader does not need to filter
 reserved ids out of suggestion lists.
 
-Lookup algorithm (pseudocode, matches what Tonos needs)
+Lookup algorithm (pseudocode, matches what the keyboard needs)
 -------------------------------------------------------
 
     def id_of(token):
@@ -175,6 +210,62 @@ Lookup algorithm (pseudocode, matches what Tonos needs)
 
 If the user has typed zero tokens of context, start at the bigram
 lookup with ``j = BOS``.
+
+Out-of-vocabulary unigram table (optional, after the trigram tables)
+--------------------------------------------------------------------
+
+The vocabulary holds the 80K most frequent training types, so most
+spellings a keyboard proposes from its dictionary have no id, and every
+spelling of a set of letters that is out of the vocabulary scores the
+same (nothing). This table gives such spellings their exact training
+count, which a reader uses at the unigram tier,
+``α^2 * c(w) / total_tokens``, exactly as it scores a vocabulary word
+that no context row holds.
+
+It holds the training types a reader cannot resolve to a vocabulary
+id, seen at least ``OOV_UNIGRAM_MIN_COUNT`` times, that a keyboard
+weighs against another spelling of the same letters: types that, up to
+case and the elision glyph, are a spelling of the Hunspell dictionary
+(``--oov-dictionary``) whose bare letters another dictionary spelling
+shares with more than a grave, case or elision-glyph difference
+(:func:`spelling_key`). A type the dictionary cannot propose is never
+looked up, and one it has no twin for rarely is, so both stay out to
+keep the table small. A type whose lowercase or U+2019 spelling is in
+the vocabulary stays out too, since a reader resolves it to that id
+and never reaches the table (Κατ’ to κατ’, ὥστ᾽ to ὥστ’). Every
+elision glyph is stored as U+2019, the one a reader tries, with the
+counts of a word's glyph variants summed (μεθ᾿ and μεθ’ are one
+entry). Every out-of-vocabulary type was seen no more often than the
+rarest vocabulary word (20 times), so a key's count, at most the sum
+of one word's glyph variants, stays under the u8 cap of 255.
+
+The table's selection follows the dictionary it was built against, so
+the LM must be re-exported after every rebuild of the dictionary. The
+``.version`` sidecar records the dictionary's sha256
+(``oov_dictionary_sha256``); ``export_lm.py --check-dictionary`` and
+``export_hunspell.py`` both report when it no longer matches.
+
+Keys are hashes rather than strings, which keeps the table at 9 bytes
+an entry:
+
+    pad       : zero bytes to the next multiple of 8
+    keys      : u64 * M   FNV-1a 64-bit hash of the type's UTF-8 bytes
+                          (NFC, elision glyph as U+2019), ascending
+                          (binary-searchable), little-endian
+    counts    : u8  * M   exact training count, capped at 255
+    footer    : 16 bytes, the last in the file
+                u64 table_off   byte offset of ``keys``, little-endian
+                u32 M           number of entries, little-endian
+                4s  magic       "GNUO"
+
+A reader finds the table by the footer magic. The header does not
+point at it, and every header offset is unchanged, so a reader that
+does not know the table reads the file as before. A reader looks a
+spelling up in the order it resolves vocabulary ids: the literal
+spelling, then lowercased, then with its elision glyph written as
+U+2019, then both. A 64-bit hash collides with one of M entries with probability
+about M / 2^64 per lookup, which the table accepts in exchange for not
+storing strings; the exporter checks that no two entries collide.
 
 Probabilities
 -------------
@@ -199,12 +290,15 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import math
 import struct
 import subprocess
 import sys
 import time
+import unicodedata
+from collections import defaultdict
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -218,6 +312,26 @@ TOP_K_UNI = 10        # global fallback top-K
 TOP_K_BI = 30         # per-bigram top-K (mid-word prefix filtering wants depth)
 TOP_K_TRI = 15        # per-trigram top-K
 LOGP_SCALE = 1024.0   # q16 fixed-point scale
+# A homograph spelling seen at least this often in a context stays in
+# that context's row past the top-K cut. 0 turns the rule off. Measured
+# on held-out sentences typed as bare letters, 3 kept almost all of the
+# gain of 1 (+3.24 against +3.04 corrected words per 1,000 on sentences
+# with little overlap with training) for a fifth of the added size.
+KEEP_HOMOGRAPH_MIN_COUNT = 3
+# Glyphs that close an elided word in the corpus: U+2019 (the corpus
+# spelling), U+02BC, U+1FBD (koronis), ASCII apostrophe, U+1FBF (psili).
+ELISION_MARKS = "\u2019\u02bc\u1fbd'\u1fbf"
+RESERVED_TOKENS = ("<PAD>", "<UNK>", "<s>", "</s>")
+# Out-of-vocabulary unigram table: minimum training count of a type it
+# carries; 0 leaves the table out. On the same held-out sentences the
+# table corrected a further 4.5 words per 1,000 over the homograph rows
+# alone, the whole gain an unrestricted in-memory count table gave.
+OOV_UNIGRAM_MIN_COUNT = 1
+OOV_UNIGRAM_MAGIC = b"GNUO"
+OOV_COUNT_CAP = 255
+DEFAULT_OOV_DICTIONARY = SCRIPT_DIR / "build" / "hunspell" / "grc_polytonic.dic"
+FNV64_OFFSET = 0xCBF29CE484222325
+FNV64_PRIME = 0x100000001B3
 
 
 def quantize_logprob(p: float) -> int:
@@ -273,15 +387,232 @@ def load_trigrams(path: Path):
             yield int(a), int(b), int(c), int(k)
 
 
+def bare_letters(token: str) -> str:
+    """The letters of ``token`` as a user types them on a bare keyboard.
+
+    Accents, breathings, iota subscript and diaeresis are dropped, final
+    sigma becomes σ, case is folded and a trailing elision mark is
+    removed, so ἢ, ἡ and Ἡ all give η.
+    """
+    nfd = unicodedata.normalize("NFD", token)
+    letters = "".join(c for c in nfd if not unicodedata.combining(c))
+    return letters.replace("ς", "σ").lower().rstrip(ELISION_MARKS)
+
+
+def spelling_key(token: str) -> str:
+    """``token`` with the differences that do not make another word
+    folded away: a grave is the acute written before another word, case
+    is position, and the elision glyph is typography. καί and καὶ, Καί
+    and δ᾽ and δ’ each give one key; ἢ and ἡ give two.
+    """
+    nfd = unicodedata.normalize("NFD", token).replace("\u0300", "\u0301")
+    nfd = "".join("\u2019" if c in ELISION_MARKS else c for c in nfd)
+    return unicodedata.normalize("NFC", nfd).lower()
+
+
+def homograph_spelling_ids(vocab: list[str]) -> set[int]:
+    """Ids of the vocabulary tokens that are one spelling of a homograph
+    set: tokens whose bare letters another token shares with a different
+    :func:`spelling_key`. Reserved tokens are never included.
+    """
+    spellings: dict[str, set[str]] = defaultdict(set)
+    for tok in vocab:
+        if tok not in RESERVED_TOKENS:
+            spellings[bare_letters(tok)].add(spelling_key(tok))
+    return {
+        i for i, tok in enumerate(vocab)
+        if tok not in RESERVED_TOKENS and len(spellings[bare_letters(tok)]) > 1
+    }
+
+
+def keep_past_cut(
+    entries: list[tuple[int, int]], top_k: int,
+    keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
+) -> list[tuple[int, int]]:
+    """The ``top_k`` first of ``entries``, a context's (word id, count)
+    continuations sorted by descending count, followed by every later
+    entry in ``keep_ids`` whose count is at least ``keep_min_count``.
+
+    The kept entries stay in count order, so the row is still sorted and
+    its first ``top_k`` entries are the plain cut.
+    """
+    top = entries[:top_k]
+    if not keep_ids or keep_min_count <= 0:
+        return top
+    for wid, c in entries[top_k:]:
+        if c < keep_min_count:
+            break
+        if wid in keep_ids:
+            top.append((wid, c))
+    return top
+
+
+def fnv1a64(token: str) -> int:
+    """FNV-1a 64-bit hash of the UTF-8 bytes of ``token``: the key of the
+    out-of-vocabulary unigram table."""
+    h = FNV64_OFFSET
+    for b in token.encode("utf-8"):
+        h = ((h ^ b) * FNV64_PRIME) & 0xFFFFFFFFFFFFFFFF
+    return h
+
+
+def table_spelling(token: str) -> str:
+    """The spelling the out-of-vocabulary table stores ``token`` under:
+    NFC, a trailing elision glyph written as U+2019, case kept."""
+    token = unicodedata.normalize("NFC", token)
+    if token and token[-1] in ELISION_MARKS:
+        token = token[:-1] + "\u2019"
+    return token
+
+
+def lookup_key(token: str) -> str:
+    """``token`` as a reader looks it up at worst: NFC, lowercased, a
+    trailing elision glyph written as U+2019."""
+    return table_spelling(token).lower()
+
+
+def resolves_in_vocab(token: str, vocab: set[str]) -> bool:
+    """True when a reader finds a vocabulary id for ``token``: it tries
+    the literal spelling, then lowercased, then the U+2019 spelling and
+    its lowercase, and a type it resolves never reaches the table."""
+    spelling = table_spelling(token)
+    return any(v in vocab for v in (
+        token, token.lower(), spelling, spelling.lower()))
+
+
+def read_hunspell_words(dic_path: Path) -> set[str]:
+    """Every word a Hunspell .dic spells, its flagged stems expanded with
+    the SFX rules of the .aff beside it. Only zero-strip rules (the
+    only kind the Dilemma export writes) are applied."""
+    suffixes: dict[str, list[str]] = defaultdict(list)
+    aff_path = dic_path.with_suffix(".aff")
+    if aff_path.exists():
+        for line in aff_path.read_text(encoding="utf-8").splitlines():
+            f = line.split()
+            if len(f) >= 5 and f[0] == "SFX" and f[2] == "0":
+                suffixes[f[1]].append("" if f[3] == "0" else f[3])
+    words: set[str] = set()
+    with open(dic_path, encoding="utf-8") as fh:
+        for i, line in enumerate(fh):
+            entry = line.split("\t", 1)[0].split(" ", 1)[0].strip()
+            if not entry or (i == 0 and entry.isdigit()):
+                continue
+            stem, _, flags = entry.partition("/")
+            stem = unicodedata.normalize("NFC", stem)
+            words.add(stem)
+            for flag in filter(None, flags.split(",")):
+                words.update(stem + suf for suf in suffixes.get(flag, ()))
+    return words
+
+
+def contested_lookup_keys(words: set[str]) -> set[str]:
+    """:func:`lookup_key` of every dictionary spelling whose bare letters
+    another dictionary spelling shares with a different
+    :func:`spelling_key`: the spellings a keyboard chooses between when
+    those letters are typed."""
+    keys_by_letters: dict[str, set[str]] = defaultdict(set)
+    for w in words:
+        keys_by_letters[bare_letters(w)].add(spelling_key(w))
+    return {lookup_key(w) for w in words
+            if len(keys_by_letters[bare_letters(w)]) > 1}
+
+
+def load_type_counts(path: Path):
+    """Yield (token, count) from ``train_lm.py``'s type_counts.tsv.gz."""
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        for line in f:
+            tok, c = line.rstrip("\n").split("\t")
+            yield tok, int(c)
+
+
+def select_oov_unigrams(
+    type_counts, vocab: set[str], min_count: int,
+    lookup_keys: set[str] | None,
+) -> list[tuple[int, int]]:
+    """(hash, count) entries of the out-of-vocabulary unigram table,
+    sorted by hash. Training types a reader resolves to a vocabulary id
+    (:func:`resolves_in_vocab`) are left out; the rest are summed under
+    their :func:`table_spelling`, and a spelling is kept when its count
+    is at least ``min_count`` and its :func:`lookup_key` is in
+    ``lookup_keys`` (every spelling when it is None). Counts are capped
+    at 255. Two spellings with one hash raise ValueError."""
+    if min_count <= 0:
+        return []
+    summed: dict[str, int] = defaultdict(int)
+    for tok, c in type_counts:
+        if tok in RESERVED_TOKENS or resolves_in_vocab(tok, vocab):
+            continue
+        summed[table_spelling(tok)] += c
+    table: dict[int, tuple[str, int]] = {}
+    for spelling, c in summed.items():
+        if c < min_count:
+            continue
+        if lookup_keys is not None and spelling.lower() not in lookup_keys:
+            continue
+        h = fnv1a64(spelling)
+        if h in table:
+            raise ValueError(
+                f"FNV-1a collision: {table[h][0]!r} and {spelling!r}")
+        table[h] = (spelling, min(c, OOV_COUNT_CAP))
+    return sorted((h, c) for h, (_, c) in table.items())
+
+
+def oov_unigram_table(table_off: int, entries: list[tuple[int, int]]) -> bytes:
+    """The table and its footer, for a file whose table starts (after
+    padding) at ``table_off``, a multiple of 8."""
+    assert table_off % 8 == 0
+    keys = struct.pack(f"<{len(entries)}Q", *(h for h, _ in entries))
+    counts = bytes(c for _, c in entries)
+    footer = struct.pack("<QI4s", table_off, len(entries), OOV_UNIGRAM_MAGIC)
+    return keys + counts + footer
+
+
+def read_oov_unigram_table(data: bytes) -> dict[int, int]:
+    """{hash: count} of the out-of-vocabulary unigram table at the end of
+    an exported file, or {} when the file has none."""
+    if len(data) < 16 or data[-4:] != OOV_UNIGRAM_MAGIC:
+        return {}
+    off, n, _ = struct.unpack_from("<QI4s", data, len(data) - 16)
+    keys = struct.unpack_from(f"<{n}Q", data, off)
+    return dict(zip(keys, data[off + 8 * n: off + 9 * n]))
+
+
+def dictionary_drift(
+    version_path: Path = BUILD_DIR / "grc_ngram.version",
+    dic_path: Path = DEFAULT_OOV_DICTIONARY,
+) -> str | None:
+    """A warning when the LM described by ``version_path`` carries an
+    out-of-vocabulary table selected against another ``dic_path`` than
+    the one on disk now, else None (also when either file is missing or
+    the LM has no table)."""
+    version_path, dic_path = Path(version_path), Path(dic_path)
+    if not version_path.exists() or not dic_path.exists():
+        return None
+    recorded = json.loads(version_path.read_text(encoding="utf-8")).get(
+        "oov_dictionary_sha256")
+    if not recorded:
+        return None
+    current = hashlib.sha256(dic_path.read_bytes()).hexdigest()
+    if current == recorded:
+        return None
+    return (f"{version_path} was exported against a {dic_path.name} with "
+            f"sha256 {recorded[:12]}, and the one on disk now has "
+            f"{current[:12]}. Re-export the LM (python export_lm.py) so its "
+            f"out-of-vocabulary table follows the dictionary.")
+
+
 def build_bigram_contexts(
     bigrams, w1_total: dict[int, int], top_k: int,
     excluded_continuation_ids: set[int],
+    keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
 ):
     """Group bigrams by w1, sort continuations by prob, keep top_k.
 
     Continuations in ``excluded_continuation_ids`` (reserved tokens like
     <UNK>, <PAD>, <s>) are dropped from suggestions so the keyboard
-    never proposes them to the user.
+    never proposes them to the user. Continuations in ``keep_ids`` seen
+    at least ``keep_min_count`` times stay past the cut
+    (:func:`keep_past_cut`).
     """
     by_w1: dict[int, list[tuple[int, int]]] = {}
     for w1, w2, c in bigrams:
@@ -296,7 +627,7 @@ def build_bigram_contexts(
             continue
         entries = by_w1[w1]
         entries.sort(key=lambda t: (-t[1], t[0]))
-        top = entries[:top_k]
+        top = keep_past_cut(entries, top_k, keep_ids, keep_min_count)
         scored = [(w2, math.log(c / denom)) for w2, c in top]
         contexts.append((w1, scored))
     return contexts
@@ -305,12 +636,15 @@ def build_bigram_contexts(
 def build_trigram_contexts(
     trigrams, bigram_counts: dict[tuple[int, int], int], top_k: int,
     excluded_continuation_ids: set[int],
+    keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
 ):
     """Group trigrams by (w1, w2), rank continuations, keep top_k.
 
     Continuations in ``excluded_continuation_ids`` (reserved tokens like
     <UNK>, <PAD>, <s>) are dropped from suggestions so the keyboard
-    never proposes them to the user.
+    never proposes them to the user. Continuations in ``keep_ids`` seen
+    at least ``keep_min_count`` times stay past the cut
+    (:func:`keep_past_cut`).
     """
     by_ctx: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for w1, w2, w3, c in trigrams:
@@ -325,7 +659,7 @@ def build_trigram_contexts(
             continue
         entries = by_ctx[ctx]
         entries.sort(key=lambda t: (-t[1], t[0]))
-        top = entries[:top_k]
+        top = keep_past_cut(entries, top_k, keep_ids, keep_min_count)
         scored = [(w3, math.log(c / denom)) for w3, c in top]
         contexts.append((ctx, scored))
     return contexts
@@ -340,9 +674,17 @@ def write_binary(
     trigram_ctx: list[tuple[tuple[int, int], list[tuple[int, float]]]],
     total_tokens: int,
     reserved_ids: dict[str, int],
+    oov_unigrams: list[tuple[int, int]] | None = None,
 ):
+    """Write the artifact. ``oov_unigrams``, (hash, count) entries from
+    :func:`select_oov_unigrams`, appends the out-of-vocabulary unigram
+    table and its footer; without it the file ends at the trigram
+    suggestions."""
     V = len(id2tok)
     assert len(vocab_counts) == V, "vocab_counts must be one-per-vocab-id"
+    # suggestion_count is a u16.
+    for _, sug in list(bigram_ctx) + list(trigram_ctx):
+        assert len(sug) <= 0xFFFF, "a context row holds more than 65,535 entries"
 
     # serialize vocab string pool + offsets
     pool_parts = []
@@ -383,6 +725,12 @@ def write_binary(
     trigram_suggestions_bytes = trigram_suggestions_len * 6
 
     total_size = trigram_suggestions_off + trigram_suggestions_bytes
+    oov_part = b""
+    if oov_unigrams:
+        oov_table_off = (total_size + 7) // 8 * 8
+        oov_part = bytes(oov_table_off - total_size) + oov_unigram_table(
+            oov_table_off, oov_unigrams)
+        total_size += len(oov_part)
 
     # --- Header ---
     header = bytearray(HEADER_SIZE)
@@ -477,6 +825,7 @@ def write_binary(
         sug_cursor += len(sug_list)
     parts.append(bytes(tri_index))
     parts.append(bytes(tri_sug))
+    parts.append(oov_part)
 
     out_path.write_bytes(b"".join(parts))
     assert out_path.stat().st_size == total_size, \
@@ -490,11 +839,55 @@ def main():
     ap.add_argument("--out", default=str(BUILD_DIR / "grc_ngram.bin"))
     ap.add_argument("--version-out",
                     default=str(BUILD_DIR / "grc_ngram.version"))
+    ap.add_argument("--keep-homograph-min-count", type=int,
+                    default=KEEP_HOMOGRAPH_MIN_COUNT,
+                    help="Keep a homograph spelling past a context's "
+                         "top-K cut when it was seen at least this "
+                         "often in that context (default "
+                         f"{KEEP_HOMOGRAPH_MIN_COUNT}); 0 exports the "
+                         "plain top-K rows.")
+    ap.add_argument("--oov-min-count", type=int,
+                    default=OOV_UNIGRAM_MIN_COUNT,
+                    help="Carry the exact training count of each "
+                         "out-of-vocabulary spelling the dictionary "
+                         "proposes against another spelling of its "
+                         "letters, when seen at least this often "
+                         f"(default {OOV_UNIGRAM_MIN_COUNT}); 0 leaves "
+                         "the table out.")
+    ap.add_argument("--oov-dictionary", default=str(DEFAULT_OOV_DICTIONARY),
+                    help="Hunspell .dic (with its .aff beside it) whose "
+                         "spellings the out-of-vocabulary table serves "
+                         "(default: the grc export of export_hunspell.py).")
+    ap.add_argument("--check-dictionary", action="store_true",
+                    help="Export nothing; exit 1 when the LM at "
+                         "--version-out was exported against another "
+                         "--oov-dictionary than the one on disk.")
     args = ap.parse_args()
+
+    if args.check_dictionary:
+        drift = dictionary_drift(Path(args.version_out),
+                                 Path(args.oov_dictionary))
+        print(drift or "The LM's out-of-vocabulary table matches "
+              f"{args.oov_dictionary}.")
+        sys.exit(1 if drift else 0)
 
     in_dir = Path(args.in_dir)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+
+    oov_min = max(0, args.oov_min_count)
+    oov_dictionary = Path(args.oov_dictionary)
+    type_counts_path = in_dir / "type_counts.tsv.gz"
+    if oov_min:
+        for need, how in ((type_counts_path, "rerun train_lm.py, which "
+                           "writes it"),
+                          (oov_dictionary, "run export_hunspell.py "
+                           "--variant grc first, or pass --oov-dictionary")):
+            if not need.exists():
+                raise SystemExit(
+                    f"No {need}: the out-of-vocabulary unigram table needs "
+                    f"it ({how}). --oov-min-count 0 exports without the "
+                    f"table.")
 
     t0 = time.time()
     id2tok = load_vocab(in_dir / "vocab.json")
@@ -568,8 +961,16 @@ def main():
         reserved_ids["</s>"],
     }
 
+    keep_min = max(0, args.keep_homograph_min_count)
+    keep_ids = homograph_spelling_ids(sorted_vocab) if keep_min else set()
+    if keep_min:
+        print(f"  keeping {len(keep_ids):,} homograph spellings past the "
+              f"top-K cut when seen >= {keep_min} times in a context",
+              flush=True)
+
     bigram_ctx = build_bigram_contexts(
-        remapped_bigrams, w1_totals, TOP_K_BI, excluded
+        remapped_bigrams, w1_totals, TOP_K_BI, excluded,
+        keep_ids, keep_min,
     )
     print(f"  built {len(bigram_ctx):,} bigram contexts "
           f"(top_k={TOP_K_BI})", flush=True)
@@ -586,15 +987,30 @@ def main():
     print(f"  loaded {len(remapped_trigrams):,} trigrams", flush=True)
 
     trigram_ctx = build_trigram_contexts(
-        remapped_trigrams, bigram_counts, TOP_K_TRI, excluded
+        remapped_trigrams, bigram_counts, TOP_K_TRI, excluded,
+        keep_ids, keep_min,
     )
     print(f"  built {len(trigram_ctx):,} trigram contexts "
           f"(top_k={TOP_K_TRI})", flush=True)
 
+    oov_unigrams: list[tuple[int, int]] = []
+    oov_dictionary_sha256 = None
+    if oov_min:
+        dictionary_words = read_hunspell_words(oov_dictionary)
+        oov_unigrams = select_oov_unigrams(
+            load_type_counts(type_counts_path), set(sorted_vocab), oov_min,
+            contested_lookup_keys(dictionary_words),
+        )
+        oov_dictionary_sha256 = hashlib.sha256(
+            oov_dictionary.read_bytes()).hexdigest()
+        print(f"  {len(oov_unigrams):,} out-of-vocabulary spellings in the "
+              f"unigram table ({len(dictionary_words):,} dictionary words)",
+              flush=True)
+
     write_binary(
         out, sorted_vocab, vocab_counts, unigram_topk,
         bigram_ctx, trigram_ctx,
-        total_tokens, reserved_ids,
+        total_tokens, reserved_ids, oov_unigrams,
     )
 
     size_mb = out.stat().st_size / (1024 * 1024)
@@ -612,6 +1028,11 @@ def main():
         "top_k_uni": TOP_K_UNI,
         "top_k_bi": TOP_K_BI,
         "top_k_tri": TOP_K_TRI,
+        "keep_homograph_min_count": keep_min,
+        "homograph_spellings": len(keep_ids),
+        "oov_unigram_min_count": oov_min,
+        "oov_unigrams": len(oov_unigrams),
+        "oov_dictionary_sha256": oov_dictionary_sha256,
         "vocab_size": len(sorted_vocab),
         "bigram_contexts": len(bigram_ctx),
         "trigram_contexts": len(trigram_ctx),

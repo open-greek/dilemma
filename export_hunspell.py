@@ -2424,6 +2424,13 @@ def run_export(sanity: int | None, variants: list[str],
               f"({stats['aff_path']})")
         total_mb = (stats['dic_bytes'] + stats['aff_bytes']) / 1024 / 1024
         print(f"  total: {total_mb:.2f} MB")
+        if variant == "grc":
+            # The LM's out-of-vocabulary count table is chosen against this
+            # dictionary, so a new dictionary needs a re-exported LM.
+            from export_lm import dictionary_drift
+            drift = dictionary_drift(dic_path=Path(stats["dic_path"]))
+            if drift:
+                print(f"  NOTE: {drift}")
         print()
 
 

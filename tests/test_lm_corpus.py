@@ -22,8 +22,11 @@ Run with:
     python -m pytest tests/test_lm_corpus.py -x -v
 """
 
+import gzip
+import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -189,6 +192,46 @@ def test_no_excluded_token_reaches_the_model(read):
     # 9993-001's own manual sentence is legitimately ingested.
     banned -= set(SENTENCE_FORMS[("9993-001", "manual")])
     assert not (ingested & banned)
+
+
+def _train(monkeypatch, xml_dir: Path, out: Path) -> dict:
+    """Run train_lm.main on the mini corpus alone, with 9993-001's
+    automatic sentence (πάντες ἄνθρωποι εἰδέναι) as the only dev
+    sentence, and return {type: count} from type_counts.tsv.gz."""
+    monkeypatch.setattr(train_lm, "sentence_goes_to_dev",
+                        lambda sid: sid == "9993-001:2")
+    monkeypatch.setattr(sys, "argv", [
+        "train_lm.py", "--glaux", str(xml_dir), "--no-diorisis",
+        "--no-polytonic-mg", "--no-byzantine", "--out", str(out),
+        "--vocab-size", "6"])
+    train_lm.main()
+    with gzip.open(out / "type_counts.tsv.gz", "rt", encoding="utf-8") as f:
+        rows = [line.rstrip("\n").split("\t") for line in f]
+    assert rows == sorted(rows, key=lambda r: (-int(r[1]), r[0]))
+    return {tok: int(c) for tok, c in rows}
+
+
+def test_type_counts_are_the_training_split_and_every_type(
+        tmp_path, monkeypatch):
+    """export_lm.py scores out-of-vocabulary spellings with these counts,
+    so a dev token must not reach them, and a type the 2-word vocabulary
+    cuts must."""
+    xml_dir = _write_mini_glaux(tmp_path / "corpus")
+    counts = _train(monkeypatch, xml_dir, tmp_path / "a")
+    train = [f for (tlg, analysis), forms in SENTENCE_FORMS.items()
+             if (tlg, analysis) in {("9993-001", "manual"),
+                                    ("9992-001", "auto")}
+             for f in forms]
+    assert counts == dict(Counter(train))
+    # ἄνθρωποι also opens the dev sentence: counted once, not twice.
+    assert counts["ἄνθρωποι"] == 1
+    assert "πάντες" not in counts and "εἰδέναι" not in counts
+    vocab = json.loads((tmp_path / "a" / "vocab.json").read_text("utf-8"))
+    assert len(vocab) == 6 and set(counts) - set(vocab)
+    # Byte-stable: a second run writes the same file.
+    _train(monkeypatch, xml_dir, tmp_path / "b")
+    assert ((tmp_path / "a" / "type_counts.tsv.gz").read_bytes()
+            == (tmp_path / "b" / "type_counts.tsv.gz").read_bytes())
 
 
 def test_missing_metadata_is_refused(tmp_path):

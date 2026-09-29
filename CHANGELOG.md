@@ -6,6 +6,25 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The next-word language model (`grc_ngram.bin`) carries the training count
+  of spellings outside its 80,000-word vocabulary. When every spelling of
+  the letters a user typed was outside the vocabulary, the model scored them
+  all alike and a keyboard fell back to its dictionary's order; now a rarer
+  spelling loses to a commoner one (`κυλικεῖον` over `κυλίκειον`,
+  `περιτομῇ` over `περιτομὴ`). The table holds 125,357 dictionary spellings
+  that have a same-letter twin, at 9 bytes each (1.1 MB), after the existing
+  sections and behind a 16-byte footer, so a reader that does not know it
+  reads the file as before. `train_lm.py` writes the counts
+  (`type_counts.tsv.gz`, training split only); `export_lm.py` chooses the
+  entries against the grc Hunspell dictionary, records its sha256 in
+  `grc_ngram.version`, and `export_lm.py --check-dictionary` and
+  `export_hunspell.py` report when the dictionary has been rebuilt since, as
+  the LM must then be re-exported. On 26,906 held-out Ancient Greek
+  sentences typed as bare letters, a keyboard that reads the table restores
+  a further 2,317 words correctly (2,741 fixed, 424 broken), and 4.5 more
+  per 1,000 words on the sentences with little overlap with training.
+
 ### Fixed
 - The movable-nu list no longer gives a nu to imperatives the taggers file as
   unaugmented pasts. An unaugmented imperfect or thematic aorist in -ε is
@@ -77,6 +96,16 @@ All notable changes to Dilemma are documented here. The format follows
   goes.
 
 ### Changed
+- The language model keeps both spellings of a homograph in each context.
+  A context kept its 30 (bigram) or 15 (trigram) most frequent next words,
+  so the rarer of `ἢ` and `ἡ`, or of `ἐκείνῃ` and `ἐκείνη` after `τῇ`, fell
+  out of the row and was scored by backoff against its twin's full
+  probability. A spelling whose bare letters another vocabulary word shares
+  now stays in the row when it was seen there at least 3 times. Next-word
+  lists are unchanged (the rows' first entries are the same); the file grows
+  from 56.9 to 59.2 MB before the count table. On the same held-out
+  sentences a keyboard restores 1,423 more words correctly (1,972 fixed, 549
+  broken), 3.2 more per 1,000 words on the low-overlap sentences.
 - The compatibility baseline is rebased onto the dictionary Tonos ships now,
   the export of `2e633cc`: 1,363,275 reviewed forms that every export must
   keep.
