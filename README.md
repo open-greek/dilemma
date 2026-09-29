@@ -2295,7 +2295,16 @@ python eval_lm.py                   # writes eval_results.txt, ~90 s
 (`build/hunspell/grc_polytonic.dic`, from `export_hunspell.py --variant
 grc`) to choose which out-of-vocabulary counts it carries (see below),
 so export the dictionary first, or pass `--oov-min-count 0` to leave
-that table out.
+that table out. **Re-export the LM after every rebuild of the grc
+dictionary**: the table follows the dictionary it was chosen against,
+whose sha256 `grc_ngram.version` records. `export_hunspell.py` prints a
+note when the dictionary it wrote differs from that one, and
+
+```bash
+python export_lm.py --check-dictionary   # exit 1 when the LM needs re-exporting
+```
+
+checks the pair without exporting anything.
 
 Corpus loaders live in ``train_lm.py`` (GLAUx, inline) and
 ``extract_diorisis_lm.py`` (Diorisis, beta-code to NFC). To add
@@ -2384,9 +2393,12 @@ every section above byte-for-byte what a v2 reader expects:
   nothing and the dictionary's order decided. `train_lm.py` now writes
   the training count of every type, and the exporter appends the counts
   of the out-of-vocabulary types that are a dictionary spelling with a
-  same-letter twin: 130,559 entries at 9 bytes each (a 64-bit FNV-1a
+  same-letter twin: 125,357 entries at 9 bytes each (a 64-bit FNV-1a
   hash of the spelling and a count byte), found through a 16-byte footer
-  that ends the file. A reader that knows the footer scores such a
+  that ends the file. A type a reader resolves to a vocabulary id
+  through its lowercase or its U+2019 elision spelling is left out, and
+  a word's elision-glyph variants are summed under U+2019, the spelling
+  a reader asks for. A reader that knows the footer scores such a
   spelling at the unigram tier, `α² · c / N`, as it scores a vocabulary
   word no row holds; one that does not ignores the trailing bytes.
   `--oov-min-count 0` leaves the table out.
@@ -2395,8 +2407,8 @@ Measured by replaying the 26,906 held-out Ancient Greek sentences
 (474,220 words) of the dev split through a keyboard that types each
 word as bare letters and restores its marks, against the shipped 1.3.6
 model: the homograph rows correct 1,972 words and break 549 (net
-+1,423); the table on top of them corrects 2,740 and breaks 424 (net
-+2,316). GLAUx and Diorisis annotate largely the same texts, so most
++1,423); the table on top of them corrects 2,741 and breaks 424 (net
++2,317). GLAUx and Diorisis annotate largely the same texts, so most
 dev sentences have a twin in the training split; on the 7,449
 sentences with under 20% of their 5-grams in training (137,525 words)
 the two gains are +3.2 and +4.5 corrected words per 1,000.
@@ -2415,10 +2427,10 @@ Default knobs (defined in `export_lm.py`):
 | keep homograph spellings | 3 | A homograph spelling seen this often in a context stays in its row past the top-K cut (0: off) |
 | out-of-vocabulary count table | 1 | Minimum training count of a contested dictionary spelling the table carries (0: no table) |
 
-Current build: 60,338,967 bytes (57.5 MiB; 19.7 MB under xz -6), 80K
+Current build: 60,292,149 bytes (57.5 MiB; 19.7 MB under xz -6), 80K
 vocab, ~1.1M trigram contexts, ~80K bigram contexts. The plain top-K
 rows are 56.9 MB of that, the kept homograph spellings 2.3 MB and the
-out-of-vocabulary table 1.2 MB.
+out-of-vocabulary table 1.1 MB.
 
 Held-out evaluation, keyboard-realistic regime (exclude `</s>` and
 UNK targets):
