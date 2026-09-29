@@ -2291,6 +2291,12 @@ python export_lm.py                 # writes grc_ngram.bin + .version, ~30 s
 python eval_lm.py                   # writes eval_results.txt, ~90 s
 ```
 
+`export_lm.py` reads the grc Hunspell dictionary
+(`build/hunspell/grc_polytonic.dic`, from `export_hunspell.py --variant
+grc`) to choose which out-of-vocabulary counts it carries (see below),
+so export the dictionary first, or pass `--oov-min-count 0` to leave
+that table out.
+
 Corpus loaders live in ``train_lm.py`` (GLAUx, inline) and
 ``extract_diorisis_lm.py`` (Diorisis, beta-code to NFC). To add
 another Ancient Greek corpus, write a loader that yields
@@ -2323,6 +2329,7 @@ build/lm/
   unigrams.json                 intermediate
   bigrams.tsv.gz                intermediate
   trigrams.tsv.gz               intermediate
+  type_counts.tsv.gz            intermediate: training count of every type, in the vocabulary or not
   dev_sentences.txt             held-out dev set, deterministic split (seed 4242)
   dev_sentences_glaux.txt       same split, restricted to GLAUx sentences
   dev_sentences_diorisis.txt    same split, restricted to Diorisis sentences
@@ -2355,6 +2362,41 @@ Typeahead v2 (format_version = 2) adds two things versus v1:
   never starved of useful entries even for rare context / common
   stem combinations.
 
+Two later additions keep `format_version` at 2 and leave the header and
+every section above byte-for-byte what a v2 reader expects:
+
+- **Homograph spellings kept past the cut.** A context row also keeps,
+  after its top 30 (bigram) or 15 (trigram), every continuation seen at
+  least 3 times there whose bare letters another vocabulary spelling
+  shares with more than a grave, case or elision-glyph difference: ἢ
+  and ἡ, ἐκείνῃ and ἐκείνη, αὐτοῦ and αὑτοῦ. A keyboard choosing
+  between two spellings of the same letters then scores both from the
+  same row instead of one by backoff. The first 30 / 15 entries of every
+  row are unchanged, so next-word lists are too; mid-word completions
+  can change, because a kept spelling counts as a context entry.
+  `--keep-homograph-min-count 0` exports the plain top-K rows.
+- **Out-of-vocabulary unigram table.** When no spelling of the typed
+  letters is among the 80,000 vocabulary types, every spelling scored
+  nothing and the dictionary's order decided. `train_lm.py` now writes
+  the training count of every type, and the exporter appends the counts
+  of the out-of-vocabulary types that are a dictionary spelling with a
+  same-letter twin: 130,559 entries at 9 bytes each (a 64-bit FNV-1a
+  hash of the spelling and a count byte), found through a 16-byte footer
+  that ends the file. A reader that knows the footer scores such a
+  spelling at the unigram tier, `α² · c / N`, as it scores a vocabulary
+  word no row holds; one that does not ignores the trailing bytes.
+  `--oov-min-count 0` leaves the table out.
+
+Measured by replaying the 26,906 held-out Ancient Greek sentences
+(474,220 words) of the dev split through a keyboard that types each
+word as bare letters and restores its marks, against the shipped 1.3.6
+model: the homograph rows correct 1,972 words and break 549 (net
++1,423); the table on top of them corrects 2,740 and breaks 424 (net
++2,316). GLAUx and Diorisis annotate largely the same texts, so most
+dev sentences have a twin in the training split; on the 7,449
+sentences with under 20% of their 5-grams in training (137,525 words)
+the two gains are +3.2 and +4.5 corrected words per 1,000.
+
 Default knobs (defined in `export_lm.py`):
 
 | Knob | Value | Effect |
@@ -2366,10 +2408,13 @@ Default knobs (defined in `export_lm.py`):
 | min bigram count | 1 | Keep every observed bigram |
 | min trigram count | 1 | Keep every observed trigram... |
 | min bigram count for trigram | 3 | ...but only when the (w1, w2) bigram context is well attested. Rare contexts fall back to the bigram table at inference. This is the dominant size/quality knob. |
+| keep homograph spellings | 3 | A homograph spelling seen this often in a context stays in its row past the top-K cut (0: off) |
+| out-of-vocabulary count table | 1 | Minimum training count of a contested dictionary spelling the table carries (0: no table) |
 
-Current build: ~55 MB, ~80K vocab, ~1.1M trigram contexts,
-~80K bigram contexts. Within the 60 MB budget Tonos has for a
-single artifact inside a keyboard extension.
+Current build: 60,338,967 bytes (57.5 MiB; 19.7 MB under xz -6), 80K
+vocab, ~1.1M trigram contexts, ~80K bigram contexts. The plain top-K
+rows are 56.9 MB of that, the kept homograph spellings 2.3 MB and the
+out-of-vocabulary table 1.2 MB.
 
 Held-out evaluation, keyboard-realistic regime (exclude `</s>` and
 UNK targets):
