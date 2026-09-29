@@ -24,6 +24,13 @@ Overall layout:
     [ BIGRAM SUGGESTION TABLE     ] packed top-Kbi per context
     [ TRIGRAM CONTEXT INDEX       ] sorted by (w1, w2); see below
     [ TRIGRAM SUGGESTION TABLE    ] packed top-Ktri per context
+    [ PADDING                     ] optional: zero bytes to a multiple of 8
+    [ OUT-OF-VOCABULARY UNIGRAMS  ] optional: u64 hash * M + u8 count * M
+    [ FOOTER                      ] optional: 16 bytes, ends in "GNUO"
+
+The last three sections are the out-of-vocabulary unigram table
+described below. A file without them ends at the trigram suggestion
+table, which is all a reader that does not know the table reads.
 
 Integers:
     u16 = uint16          u32 = uint32           u64 = uint64
@@ -85,7 +92,7 @@ Header (128 bytes, zero-padded)
      24    4   id_unk  (u32)              sorted-vocab index of <UNK>
      28    4   id_bos  (u32)              sorted-vocab index of <s>
      32    4   id_eos  (u32)              sorted-vocab index of </s>
-     36    4   top_k_bi (u32)             (v2) per-bigram top-K cap
+     36    4   top_k_bi (u32)             (v2) the bigram top-K cut
      40    8   total_tokens (u64)         training corpus size
      48    8   vocab_offsets_off (u64)
      56    8   string_pool_off (u64)
@@ -106,9 +113,11 @@ section is recorded via its own pair of u64/u32 offsets which we
 squeeze into the previously-reserved slots at 36 (for top_k_bi) and
 via appending counts right after the string pool (so the reader
 can compute its offset from ``string_pool_off + string_pool_size``
-without another header field). ``top_k_tri`` is implied by the
-largest ``suggestion_count`` stored in any trigram row; the reader
-never needs to know the global cap, only the per-row count.
+without another header field). ``top_k_bi`` records where rows are
+cut, not how long they are: a row can run past it with kept homograph
+spellings. ``top_k_tri`` is not in the header at all (it is in the
+``.version`` sidecar). A reader needs neither, only each row's
+``suggestion_count``.
 
 Vocab
 -----
@@ -141,7 +150,8 @@ For both bigram and trigram sections:
 
     *_index       : context keys, sorted ascending, binary-searchable
     *_suggestions : flat array of (u32 word_id, i16 logprob_q16),
-                    top_k entries per context
+                    each context's top_k entries and kept homograph
+                    spellings, in descending probability
 
 Bigram index row (per context, w1):
 
@@ -212,28 +222,40 @@ count, which a reader uses at the unigram tier,
 ``α^2 * c(w) / total_tokens``, exactly as it scores a vocabulary word
 that no context row holds.
 
-It holds the out-of-vocabulary training types, seen at least
-``OOV_UNIGRAM_MIN_COUNT`` times, that a keyboard weighs against another
-spelling of the same letters: types that, up to case and the elision
-glyph, are a spelling of the Hunspell dictionary (``--oov-dictionary``)
-whose bare letters another dictionary spelling shares with more than a
-grave, case or elision-glyph difference (:func:`spelling_key`). A type
-the dictionary cannot propose is never looked up, and one it has no
-twin for rarely is, so both stay out to keep the table small (130,559
-entries, 1.2 MB, for the 80K-vocabulary build and the 1.3.6
-dictionary). Every out-of-vocabulary type was seen fewer times than the
-rarest vocabulary word (20), so the u8 count cap is never reached.
+It holds the training types a reader cannot resolve to a vocabulary
+id, seen at least ``OOV_UNIGRAM_MIN_COUNT`` times, that a keyboard
+weighs against another spelling of the same letters: types that, up to
+case and the elision glyph, are a spelling of the Hunspell dictionary
+(``--oov-dictionary``) whose bare letters another dictionary spelling
+shares with more than a grave, case or elision-glyph difference
+(:func:`spelling_key`). A type the dictionary cannot propose is never
+looked up, and one it has no twin for rarely is, so both stay out to
+keep the table small. A type whose lowercase or U+2019 spelling is in
+the vocabulary stays out too, since a reader resolves it to that id
+and never reaches the table (Κατ’ to κατ’, ὥστ᾽ to ὥστ’). Every
+elision glyph is stored as U+2019, the one a reader tries, with the
+counts of a word's glyph variants summed (μεθ᾿ and μεθ’ are one
+entry). Every out-of-vocabulary type was seen no more often than the
+rarest vocabulary word (20 times), so a key's count, at most the sum
+of one word's glyph variants, stays under the u8 cap of 255.
+
+The table's selection follows the dictionary it was built against, so
+the LM must be re-exported after every rebuild of the dictionary. The
+``.version`` sidecar records the dictionary's sha256
+(``oov_dictionary_sha256``); ``export_lm.py --check-dictionary`` and
+``export_hunspell.py`` both report when it no longer matches.
 
 Keys are hashes rather than strings, which keeps the table at 9 bytes
 an entry:
 
     pad       : zero bytes to the next multiple of 8
-    keys      : u64 * M   FNV-1a 64-bit hash of the type's UTF-8 bytes,
-                          ascending (binary-searchable)
+    keys      : u64 * M   FNV-1a 64-bit hash of the type's UTF-8 bytes
+                          (NFC, elision glyph as U+2019), ascending
+                          (binary-searchable), little-endian
     counts    : u8  * M   exact training count, capped at 255
     footer    : 16 bytes, the last in the file
-                u64 table_off   byte offset of ``keys``
-                u32 M           number of entries
+                u64 table_off   byte offset of ``keys``, little-endian
+                u32 M           number of entries, little-endian
                 4s  magic       "GNUO"
 
 A reader finds the table by the footer magic. The header does not
@@ -241,7 +263,7 @@ point at it, and every header offset is unchanged, so a reader that
 does not know the table reads the file as before. A reader looks a
 spelling up in the order it resolves vocabulary ids: the literal
 spelling, then lowercased, then with its elision glyph written as
-U+2019. A 64-bit hash collides with one of M entries with probability
+U+2019, then both. A 64-bit hash collides with one of M entries with probability
 about M / 2^64 per lookup, which the table accepts in exchange for not
 storing strings; the exporter checks that no two entries collide.
 
@@ -434,13 +456,28 @@ def fnv1a64(token: str) -> int:
     return h
 
 
-def lookup_key(token: str) -> str:
-    """``token`` as a reader looks it up at worst: NFC, lowercased, a
-    trailing elision glyph written as U+2019."""
+def table_spelling(token: str) -> str:
+    """The spelling the out-of-vocabulary table stores ``token`` under:
+    NFC, a trailing elision glyph written as U+2019, case kept."""
     token = unicodedata.normalize("NFC", token)
     if token and token[-1] in ELISION_MARKS:
         token = token[:-1] + "\u2019"
-    return token.lower()
+    return token
+
+
+def lookup_key(token: str) -> str:
+    """``token`` as a reader looks it up at worst: NFC, lowercased, a
+    trailing elision glyph written as U+2019."""
+    return table_spelling(token).lower()
+
+
+def resolves_in_vocab(token: str, vocab: set[str]) -> bool:
+    """True when a reader finds a vocabulary id for ``token``: it tries
+    the literal spelling, then lowercased, then the U+2019 spelling and
+    its lowercase, and a type it resolves never reaches the table."""
+    spelling = table_spelling(token)
+    return any(v in vocab for v in (
+        token, token.lower(), spelling, spelling.lower()))
 
 
 def read_hunspell_words(dic_path: Path) -> set[str]:
@@ -493,21 +530,30 @@ def select_oov_unigrams(
     lookup_keys: set[str] | None,
 ) -> list[tuple[int, int]]:
     """(hash, count) entries of the out-of-vocabulary unigram table,
-    sorted by hash: the training types outside ``vocab`` seen at least
-    ``min_count`` times whose :func:`lookup_key` is in ``lookup_keys``
-    (every such type when it is None). Counts are capped at 255."""
+    sorted by hash. Training types a reader resolves to a vocabulary id
+    (:func:`resolves_in_vocab`) are left out; the rest are summed under
+    their :func:`table_spelling`, and a spelling is kept when its count
+    is at least ``min_count`` and its :func:`lookup_key` is in
+    ``lookup_keys`` (every spelling when it is None). Counts are capped
+    at 255. Two spellings with one hash raise ValueError."""
     if min_count <= 0:
         return []
-    table: dict[int, tuple[str, int]] = {}
+    summed: dict[str, int] = defaultdict(int)
     for tok, c in type_counts:
-        if c < min_count or tok in vocab or tok in RESERVED_TOKENS:
+        if tok in RESERVED_TOKENS or resolves_in_vocab(tok, vocab):
             continue
-        if lookup_keys is not None and lookup_key(tok) not in lookup_keys:
+        summed[table_spelling(tok)] += c
+    table: dict[int, tuple[str, int]] = {}
+    for spelling, c in summed.items():
+        if c < min_count:
             continue
-        h = fnv1a64(tok)
+        if lookup_keys is not None and spelling.lower() not in lookup_keys:
+            continue
+        h = fnv1a64(spelling)
         if h in table:
-            raise ValueError(f"FNV-1a collision: {table[h][0]!r} and {tok!r}")
-        table[h] = (tok, min(c, OOV_COUNT_CAP))
+            raise ValueError(
+                f"FNV-1a collision: {table[h][0]!r} and {spelling!r}")
+        table[h] = (spelling, min(c, OOV_COUNT_CAP))
     return sorted((h, c) for h, (_, c) in table.items())
 
 
@@ -529,6 +575,30 @@ def read_oov_unigram_table(data: bytes) -> dict[int, int]:
     off, n, _ = struct.unpack_from("<QI4s", data, len(data) - 16)
     keys = struct.unpack_from(f"<{n}Q", data, off)
     return dict(zip(keys, data[off + 8 * n: off + 9 * n]))
+
+
+def dictionary_drift(
+    version_path: Path = BUILD_DIR / "grc_ngram.version",
+    dic_path: Path = DEFAULT_OOV_DICTIONARY,
+) -> str | None:
+    """A warning when the LM described by ``version_path`` carries an
+    out-of-vocabulary table selected against another ``dic_path`` than
+    the one on disk now, else None (also when either file is missing or
+    the LM has no table)."""
+    version_path, dic_path = Path(version_path), Path(dic_path)
+    if not version_path.exists() or not dic_path.exists():
+        return None
+    recorded = json.loads(version_path.read_text(encoding="utf-8")).get(
+        "oov_dictionary_sha256")
+    if not recorded:
+        return None
+    current = hashlib.sha256(dic_path.read_bytes()).hexdigest()
+    if current == recorded:
+        return None
+    return (f"{version_path} was exported against a {dic_path.name} with "
+            f"sha256 {recorded[:12]}, and the one on disk now has "
+            f"{current[:12]}. Re-export the LM (python export_lm.py) so its "
+            f"out-of-vocabulary table follows the dictionary.")
 
 
 def build_bigram_contexts(
@@ -788,7 +858,18 @@ def main():
                     help="Hunspell .dic (with its .aff beside it) whose "
                          "spellings the out-of-vocabulary table serves "
                          "(default: the grc export of export_hunspell.py).")
+    ap.add_argument("--check-dictionary", action="store_true",
+                    help="Export nothing; exit 1 when the LM at "
+                         "--version-out was exported against another "
+                         "--oov-dictionary than the one on disk.")
     args = ap.parse_args()
+
+    if args.check_dictionary:
+        drift = dictionary_drift(Path(args.version_out),
+                                 Path(args.oov_dictionary))
+        print(drift or "The LM's out-of-vocabulary table matches "
+              f"{args.oov_dictionary}.")
+        sys.exit(1 if drift else 0)
 
     in_dir = Path(args.in_dir)
     out = Path(args.out)

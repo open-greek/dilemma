@@ -17,9 +17,13 @@ Run with:
 """
 
 import gzip
+import hashlib
 import json
+import struct
 import subprocess
 import sys
+import unicodedata
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -38,8 +42,10 @@ from export_lm import (  # noqa: E402
     lookup_key,
     read_hunspell_words,
     read_oov_unigram_table,
+    resolves_in_vocab,
     select_oov_unigrams,
     spelling_key,
+    table_spelling,
 )
 
 
@@ -92,49 +98,96 @@ def test_lookup_key_lowercases_and_writes_elision_as_the_corpus_does():
     assert lookup_key("Δ᾽") == lookup_key("δ'") == "δ\u2019"
 
 
+def test_table_spelling_writes_every_elision_glyph_as_u2019():
+    assert table_spelling("ἄλλ᾿") == table_spelling("ἄλλ'") == "ἄλλ\u2019"
+    assert table_spelling("Δ᾽") == "Δ\u2019"
+    assert table_spelling(unicodedata.normalize("NFD", "καμπή")) == "καμπή"
+
+
+def test_a_type_the_reader_resolves_to_a_vocabulary_id_is_not_in_the_table():
+    vocab = {"κατ\u2019", "ἐκείνη"}
+    # Literal, lowercase, U+2019 spelling, and the lowercase of that.
+    assert resolves_in_vocab("ἐκείνη", vocab)
+    assert resolves_in_vocab("Ἐκείνη", vocab)
+    assert resolves_in_vocab("κατ᾽", vocab)
+    assert resolves_in_vocab("Κατ᾿", vocab)
+    assert not resolves_in_vocab("ἐκείνῃ", vocab)
+
+
+# NFD on purpose: the exporter must compare the dictionary in NFC.
+NFD_KAMPE = unicodedata.normalize("NFD", "καμπή")
+NFD_KAMPE_2 = unicodedata.normalize("NFD", "κάμπη")
+
+
 def _write_dictionary(root: Path) -> Path:
     """θεά/θεάς come from one flagged stem, θέα/θέας are plain lines, so
-    the contested pairs cross the affix expansion; ἀγαθός has no twin."""
+    the contested pairs cross the affix expansion; ἀγαθός has no twin;
+    καμπή/κάμπη are written in NFD; the elided pair carries the koronis,
+    as the Dilemma export writes elision."""
     (root / "d.aff").write_text(
         "SET UTF-8\nFLAG num\nSFX 1000 Y 2\nSFX 1000 0 0 .\n"
         "SFX 1000 0 ς .\n", encoding="utf-8")
     dic = root / "d.dic"
-    dic.write_text("6\nθεά/1000\tfr:R\nθέα\tfr:C\nθέας\tfr:C\n"
-                   "ἡμέρᾳ\tfr:C\nἡμέρα\tfr:C\nἀγαθός\tfr:C\n",
-                   encoding="utf-8")
+    dic.write_text(
+        "11\nθεά/1000\tfr:R\nθέα\tfr:C\nθέας\tfr:C\n"
+        "ἡμέρᾳ\tfr:C\nἡμέρα\tfr:C\nἀγαθός\tfr:C\n"
+        "ἐκείνη\tfr:C\nἐκείνῃ\tfr:C\n"
+        f"{NFD_KAMPE}\tfr:R\n{NFD_KAMPE_2}\tfr:R\n"
+        "ἀλλ᾽\tfr:C\nἄλλ᾽\tfr:R\n",
+        encoding="utf-8")
     return dic
 
 
 def test_dictionary_words_are_expanded_through_the_affix_rules(tmp_path):
     words = read_hunspell_words(_write_dictionary(tmp_path))
-    assert words == {"θεά", "θεάς", "θέα", "θέας", "ἡμέρᾳ", "ἡμέρα", "ἀγαθός"}
+    assert words == {"θεά", "θεάς", "θέα", "θέας", "ἡμέρᾳ", "ἡμέρα",
+                     "ἀγαθός", "ἐκείνη", "ἐκείνῃ", "καμπή", "κάμπη",
+                     "ἀλλ᾽", "ἄλλ᾽"}
 
 
 def test_contested_spellings_share_letters_with_another_spelling(tmp_path):
     words = read_hunspell_words(_write_dictionary(tmp_path))
     assert contested_lookup_keys(words) == {
-        "θεά", "θεάς", "θέα", "θέας", "ἡμέρᾳ", "ἡμέρα"}
+        "θεά", "θεάς", "θέα", "θέας", "ἡμέρᾳ", "ἡμέρα", "ἐκείνη",
+        "ἐκείνῃ", "καμπή", "κάμπη", "ἀλλ\u2019", "ἄλλ\u2019"}
     # A grave or a capital is not another spelling.
     assert contested_lookup_keys({"καί", "καὶ", "Καί"}) == set()
 
 
-# Training counts: in-vocabulary ἐκείνη, the contested out-of-vocabulary
-# spellings (one capitalized), the uncontested ἀγαθός, and a θεάς count
-# over the u8 cap.
-TYPE_COUNTS = [("ἐκείνη", 5), ("θεάς", 300), ("ἀγαθός", 9), ("θέας", 7),
-               ("ἡμέρᾳ", 4), ("Ἡμέρᾳ", 3), ("ἡμέρα", 1)]
+# The model's vocabulary (the end-to-end export below writes it as
+# vocab.json) and the training counts the table is chosen from.
+VOCAB = ["<PAD>", "<UNK>", "<s>", "</s>", "ἐν", "τῇ", "ἐκείνῃ", "ἐκείνη",
+         "λόγῳ", "ἀλλ\u2019"]
+TYPE_COUNTS = [
+    ("ἐκείνη", 5),      # in the vocabulary
+    ("Ἐκείνη", 2),      # capitalized; its lowercase is in the vocabulary
+    ("ἀλλ᾽", 4),        # koronis; its U+2019 spelling is in the vocabulary
+    ("θεάς", 300),      # over the u8 cap
+    ("ἀγαθός", 9),      # the dictionary has no twin for it
+    ("θέας", 7),
+    ("ἡμέρᾳ", 4), ("Ἡμέρᾳ", 3), ("ἡμέρα", 1),
+    ("καμπή", 6),       # NFC here, NFD in the dictionary
+    ("ἄλλ\u2019", 3), ("ἄλλ᾿", 2), ("ἄλλ'", 1),   # one word, three glyphs
+]
+EXPECTED_TABLE = {"θεάς": 255, "θέας": 7, "ἡμέρᾳ": 4, "Ἡμέρᾳ": 3,
+                  "ἡμέρα": 1, "καμπή": 6, "ἄλλ\u2019": 6}
 
 
-def test_table_selects_contested_out_of_vocabulary_spellings(tmp_path):
+def test_table_selects_contested_spellings_the_reader_cannot_resolve(tmp_path):
     keys = contested_lookup_keys(read_hunspell_words(_write_dictionary(tmp_path)))
-    table = select_oov_unigrams(TYPE_COUNTS, {"ἐκείνη"}, 1, keys)
+    table = select_oov_unigrams(TYPE_COUNTS, set(VOCAB), 1, keys)
     assert [h for h, _ in table] == sorted(h for h, _ in table)
-    assert dict(table) == {fnv1a64("θεάς"): 255, fnv1a64("θέας"): 7,
-                           fnv1a64("ἡμέρᾳ"): 4, fnv1a64("Ἡμέρᾳ"): 3,
-                           fnv1a64("ἡμέρα"): 1}
-    two = select_oov_unigrams(TYPE_COUNTS, {"ἐκείνη"}, 2, keys)
-    assert fnv1a64("ἡμέρα") not in dict(two) and len(two) == 4
-    assert select_oov_unigrams(TYPE_COUNTS, {"ἐκείνη"}, 0, keys) == []
+    assert dict(table) == {fnv1a64(w): c for w, c in EXPECTED_TABLE.items()}
+    two = select_oov_unigrams(TYPE_COUNTS, set(VOCAB), 2, keys)
+    assert dict(two) == {fnv1a64(w): c for w, c in EXPECTED_TABLE.items()
+                         if c >= 2}
+    assert select_oov_unigrams(TYPE_COUNTS, set(VOCAB), 0, keys) == []
+
+
+def test_a_hash_collision_is_refused(monkeypatch):
+    monkeypatch.setattr(export_lm, "fnv1a64", lambda token: 7)
+    with pytest.raises(ValueError, match="collision"):
+        select_oov_unigrams([("θέας", 7), ("θεάς", 3)], set(), 1, None)
 
 
 # --- end to end ---------------------------------------------------------------
@@ -148,8 +201,7 @@ FILLERS = ([f"φ{c}" for c in LETTERS] + [f"ψ{c}" for c in LETTERS])[:31]
 
 
 def _write_counts(root: Path) -> None:
-    vocab = ["<PAD>", "<UNK>", "<s>", "</s>", "ἐν", "τῇ", "ἐκείνῃ",
-             "ἐκείνη", "λόγῳ"] + FILLERS
+    vocab = VOCAB + FILLERS
     ids = {t: i for i, t in enumerate(vocab)}
     bigrams = {(ids["ἐν"], ids["τῇ"]): 400}
     trigrams = {}
@@ -255,28 +307,77 @@ def test_kept_entries_leave_the_top_k_and_its_order_unchanged(exports):
     assert probs == sorted(probs, reverse=True)
 
 
+def _parse_table(data: bytes) -> tuple[int, list[int], bytes]:
+    """The table as the keyboard's reader parses it, written out here
+    rather than borrowed from the exporter: the magic, a little-endian
+    footer, and little-endian keys followed by one count byte each."""
+    assert data[-4:] == b"GNUO"
+    off, n = struct.unpack("<QI", data[-16:-4])
+    assert off % 8 == 0
+    assert off + 9 * n + 16 == len(data)
+    keys = list(struct.unpack(f"<{n}Q", data[off:off + 8 * n]))
+    return off, keys, data[off + 8 * n:off + 9 * n]
+
+
 def test_default_export_appends_the_table_after_an_unchanged_model(exports):
     with_table = exports["default"][0].read_bytes()
     without = exports["no_table"][0].read_bytes()
-    table = read_oov_unigram_table(with_table)
-    assert table == {fnv1a64("θεάς"): 255, fnv1a64("θέας"): 7,
-                     fnv1a64("ἡμέρᾳ"): 4, fnv1a64("Ἡμέρᾳ"): 3,
-                     fnv1a64("ἡμέρα"): 1}
+    off, keys, counts = _parse_table(with_table)
+    assert keys == sorted(set(keys))
+    assert dict(zip(keys, counts)) == {
+        fnv1a64(w): c for w, c in EXPECTED_TABLE.items()}
+    assert read_oov_unigram_table(with_table) == dict(zip(keys, counts))
     assert read_oov_unigram_table(without) == {}
     # The header and every section before the table are byte-identical,
-    # so a reader that does not know the table reads the same model.
+    # so a reader that does not know the table reads the same model; the
+    # table starts at the next multiple of 8, after zero padding.
     assert with_table[:len(without)] == without
-    padding = -len(without) % 8
-    assert len(with_table) == len(without) + padding + 9 * 5 + 16
+    assert off == (len(without) + 7) // 8 * 8
+    assert with_table[len(without):off] == bytes(off - len(without))
     info = exports["default"][1]
     assert info["oov_unigram_min_count"] == export_lm.OOV_UNIGRAM_MIN_COUNT
-    assert info["oov_unigrams"] == 5
+    assert info["oov_unigrams"] == len(EXPECTED_TABLE)
     assert exports["no_table"][1]["oov_unigrams"] == 0
+    assert exports["no_table"][1]["oov_dictionary_sha256"] is None
     lm = NgramLM(exports["default"][0])
     try:
         assert lm._vocab[lm.id_of("τῇ")] == "τῇ"
     finally:
         lm.close()
+
+
+def test_version_records_the_dictionary_the_table_was_chosen_from(exports):
+    dic = exports["default"][0].parent / "d.dic"
+    assert exports["default"][1]["oov_dictionary_sha256"] == (
+        hashlib.sha256(dic.read_bytes()).hexdigest())
+
+
+def test_a_rebuilt_dictionary_is_reported_until_the_lm_is_re_exported(tmp_path):
+    _write_counts(tmp_path)
+    out, _ = _export(tmp_path, "m")
+    version, dic = tmp_path / "m.version", tmp_path / "d.dic"
+    assert export_lm.dictionary_drift(version, dic) is None
+
+    def check() -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, str(PROJECT_ROOT / "export_lm.py"),
+             "--check-dictionary", "--version-out", str(version),
+             "--oov-dictionary", str(dic)], capture_output=True, text=True)
+
+    assert check().returncode == 0
+    dic.write_text(dic.read_text(encoding="utf-8") + "ἄνθρωπος\tfr:C\n",
+                   encoding="utf-8")
+    warning = export_lm.dictionary_drift(version, dic)
+    assert warning and "Re-export" in warning
+    assert check().returncode == 1
+    # Re-exporting brings the two back in line; an LM without the table
+    # has no dictionary to drift from.
+    _export(tmp_path, "m")
+    assert export_lm.dictionary_drift(version, dic) is None
+    _export(tmp_path, "m", "--oov-min-count", "0")
+    dic.write_text(dic.read_text(encoding="utf-8") + "λόγος\tfr:C\n",
+                   encoding="utf-8")
+    assert export_lm.dictionary_drift(version, dic) is None
 
 
 def test_export_without_type_counts_stops_unless_the_table_is_off(tmp_path):
