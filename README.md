@@ -2372,8 +2372,12 @@ every section above byte-for-byte what a v2 reader expects:
   and ἡ, ἐκείνῃ and ἐκείνη, αὐτοῦ and αὑτοῦ. A keyboard choosing
   between two spellings of the same letters then scores both from the
   same row instead of one by backoff. The first 30 / 15 entries of every
-  row are unchanged, so next-word lists are too; mid-word completions
-  can change, because a kept spelling counts as a context entry.
+  row are unchanged, so next-word lists are too (20,000 of 20,000
+  held-out contexts gave the same six words). Mid-word completions
+  change, because a kept spelling counts as a context entry and so
+  ranks above completions found by scanning the vocabulary: on 4,000
+  held-out one- and two-letter prefixes, 1,207 top-3 lists changed and
+  the word that followed was in them 1,485 times against 1,473.
   `--keep-homograph-min-count 0` exports the plain top-K rows.
 - **Out-of-vocabulary unigram table.** When no spelling of the typed
   letters is among the 80,000 vocabulary types, every spelling scored
