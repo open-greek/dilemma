@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Compile the intermediate n-gram counts from ``train_lm.py`` into the
 mmap-friendly binary artifact ``build/lm/grc_ngram.bin`` consumed by
-the Tonos iOS keyboard extension.
+an iOS keyboard extension.
 
-This is the on-disk contract with the Swift reader. Once tonos ships a
+This is the on-disk contract with the Swift reader. Once a keyboard ships a
 reader against this, bumping the file format requires a version bump.
 
 BINARY FORMAT (v2)
@@ -46,6 +46,31 @@ Version 2 changes from v1
   to produce (data is already in ``unigrams.json``), cheap to carry
   (~320 KB for a 80 K vocab), and lets the mid-word completion path
   always return something useful even outside the context's top-K.
+
+Homograph spellings kept past the cut
+------------------------------------
+
+A context keeps its ``top_k_bi`` / ``top_k_tri`` most frequent
+continuations, and also, past that cut, every continuation that is one
+spelling of a homograph set and was seen at least
+``KEEP_HOMOGRAPH_MIN_COUNT`` (3) times in that context. A homograph
+spelling is a vocabulary token whose bare letters (no accents,
+breathings, iota subscript or diaeresis, final sigma as σ, lowercase,
+elision mark dropped) are shared with another vocabulary token that
+differs by more than an acute written as a grave, by case or by the
+elision glyph: ἢ and ἡ, ἐκείνῃ and ἐκείνη, αὐτοῦ and αὑτοῦ, but not
+καί and καὶ.
+
+The keyboard scores a spelling it is choosing between by looking it up
+in these rows, so a spelling cut from a row is scored by backoff while
+its twin keeps its trigram or bigram probability. After τῇ the bigram
+row held ἐκείνη but not ἐκείνῃ, and the dative lost to the nominative
+in the one context that decides between them. Kept entries follow the
+top-K entries in the same descending-count order, so the first
+``top_k`` entries of every row, and with them every next-word
+suggestion list, are what they were without the rule. Exporting with
+``--keep-homograph-min-count 0`` turns the rule off and reproduces the
+plain top-K export byte for byte.
 
 Header (128 bytes, zero-padded)
 -------------------------------
@@ -122,7 +147,7 @@ Bigram index row (per context, w1):
 
     u32 w1
     u32 suggestion_offset   -- index into *_suggestions (NOT byte offset)
-    u16 suggestion_count    -- always <= top_k
+    u16 suggestion_count    -- top_k, plus any homograph spellings kept
     u16 reserved
 
 (12 bytes per row.)
@@ -154,7 +179,7 @@ suggestions: every suggestion entry in the bigram and trigram tables
 points to a real Greek word. The Swift reader does not need to filter
 reserved ids out of suggestion lists.
 
-Lookup algorithm (pseudocode, matches what Tonos needs)
+Lookup algorithm (pseudocode, matches what the keyboard needs)
 -------------------------------------------------------
 
     def id_of(token):
@@ -205,6 +230,8 @@ import struct
 import subprocess
 import sys
 import time
+import unicodedata
+from collections import defaultdict
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -218,6 +245,16 @@ TOP_K_UNI = 10        # global fallback top-K
 TOP_K_BI = 30         # per-bigram top-K (mid-word prefix filtering wants depth)
 TOP_K_TRI = 15        # per-trigram top-K
 LOGP_SCALE = 1024.0   # q16 fixed-point scale
+# A homograph spelling seen at least this often in a context stays in
+# that context's row past the top-K cut. 0 turns the rule off. Measured
+# on held-out sentences typed as bare letters, 3 kept almost all of the
+# gain of 1 (+3.24 against +3.04 corrected words per 1,000 on sentences
+# with little overlap with training) for a fifth of the added size.
+KEEP_HOMOGRAPH_MIN_COUNT = 3
+# Glyphs that close an elided word in the corpus: U+2019 (the corpus
+# spelling), U+02BC, U+1FBD (koronis), ASCII apostrophe, U+1FBF (psili).
+ELISION_MARKS = "\u2019\u02bc\u1fbd'\u1fbf"
+RESERVED_TOKENS = ("<PAD>", "<UNK>", "<s>", "</s>")
 
 
 def quantize_logprob(p: float) -> int:
@@ -273,15 +310,78 @@ def load_trigrams(path: Path):
             yield int(a), int(b), int(c), int(k)
 
 
+def bare_letters(token: str) -> str:
+    """The letters of ``token`` as a user types them on a bare keyboard.
+
+    Accents, breathings, iota subscript and diaeresis are dropped, final
+    sigma becomes σ, case is folded and a trailing elision mark is
+    removed, so ἢ, ἡ and Ἡ all give η.
+    """
+    nfd = unicodedata.normalize("NFD", token)
+    letters = "".join(c for c in nfd if not unicodedata.combining(c))
+    return letters.replace("ς", "σ").lower().rstrip(ELISION_MARKS)
+
+
+def spelling_key(token: str) -> str:
+    """``token`` with the differences that do not make another word
+    folded away: a grave is the acute written before another word, case
+    is position, and the elision glyph is typography. καί and καὶ, Καί
+    and δ᾽ and δ’ each give one key; ἢ and ἡ give two.
+    """
+    nfd = unicodedata.normalize("NFD", token).replace("\u0300", "\u0301")
+    nfd = "".join("\u2019" if c in ELISION_MARKS else c for c in nfd)
+    return unicodedata.normalize("NFC", nfd).lower()
+
+
+def homograph_spelling_ids(vocab: list[str]) -> set[int]:
+    """Ids of the vocabulary tokens that are one spelling of a homograph
+    set: tokens whose bare letters another token shares with a different
+    :func:`spelling_key`. Reserved tokens are never included.
+    """
+    spellings: dict[str, set[str]] = defaultdict(set)
+    for tok in vocab:
+        if tok not in RESERVED_TOKENS:
+            spellings[bare_letters(tok)].add(spelling_key(tok))
+    return {
+        i for i, tok in enumerate(vocab)
+        if tok not in RESERVED_TOKENS and len(spellings[bare_letters(tok)]) > 1
+    }
+
+
+def keep_past_cut(
+    entries: list[tuple[int, int]], top_k: int,
+    keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
+) -> list[tuple[int, int]]:
+    """The ``top_k`` first of ``entries``, a context's (word id, count)
+    continuations sorted by descending count, followed by every later
+    entry in ``keep_ids`` whose count is at least ``keep_min_count``.
+
+    The kept entries stay in count order, so the row is still sorted and
+    its first ``top_k`` entries are the plain cut.
+    """
+    top = entries[:top_k]
+    if not keep_ids or keep_min_count <= 0:
+        return top
+    for wid, c in entries[top_k:]:
+        if c < keep_min_count:
+            break
+        if wid in keep_ids:
+            top.append((wid, c))
+    return top
+
+
 def build_bigram_contexts(
     bigrams, w1_total: dict[int, int], top_k: int,
     excluded_continuation_ids: set[int],
+    keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
 ):
     """Group bigrams by w1, sort continuations by prob, keep top_k.
 
     Continuations in ``excluded_continuation_ids`` (reserved tokens like
     <UNK>, <PAD>, <s>) are dropped from suggestions so the keyboard
-    never proposes them to the user.
+    never proposes them to the user. Continuations in ``keep_ids`` seen
+    at least ``keep_min_count`` times stay past the cut
+    (:func:`keep_past_cut`).
     """
     by_w1: dict[int, list[tuple[int, int]]] = {}
     for w1, w2, c in bigrams:
@@ -296,7 +396,7 @@ def build_bigram_contexts(
             continue
         entries = by_w1[w1]
         entries.sort(key=lambda t: (-t[1], t[0]))
-        top = entries[:top_k]
+        top = keep_past_cut(entries, top_k, keep_ids, keep_min_count)
         scored = [(w2, math.log(c / denom)) for w2, c in top]
         contexts.append((w1, scored))
     return contexts
@@ -305,12 +405,15 @@ def build_bigram_contexts(
 def build_trigram_contexts(
     trigrams, bigram_counts: dict[tuple[int, int], int], top_k: int,
     excluded_continuation_ids: set[int],
+    keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
 ):
     """Group trigrams by (w1, w2), rank continuations, keep top_k.
 
     Continuations in ``excluded_continuation_ids`` (reserved tokens like
     <UNK>, <PAD>, <s>) are dropped from suggestions so the keyboard
-    never proposes them to the user.
+    never proposes them to the user. Continuations in ``keep_ids`` seen
+    at least ``keep_min_count`` times stay past the cut
+    (:func:`keep_past_cut`).
     """
     by_ctx: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for w1, w2, w3, c in trigrams:
@@ -325,7 +428,7 @@ def build_trigram_contexts(
             continue
         entries = by_ctx[ctx]
         entries.sort(key=lambda t: (-t[1], t[0]))
-        top = entries[:top_k]
+        top = keep_past_cut(entries, top_k, keep_ids, keep_min_count)
         scored = [(w3, math.log(c / denom)) for w3, c in top]
         contexts.append((ctx, scored))
     return contexts
@@ -343,6 +446,9 @@ def write_binary(
 ):
     V = len(id2tok)
     assert len(vocab_counts) == V, "vocab_counts must be one-per-vocab-id"
+    # suggestion_count is a u16.
+    for _, sug in list(bigram_ctx) + list(trigram_ctx):
+        assert len(sug) <= 0xFFFF, "a context row holds more than 65,535 entries"
 
     # serialize vocab string pool + offsets
     pool_parts = []
@@ -490,6 +596,13 @@ def main():
     ap.add_argument("--out", default=str(BUILD_DIR / "grc_ngram.bin"))
     ap.add_argument("--version-out",
                     default=str(BUILD_DIR / "grc_ngram.version"))
+    ap.add_argument("--keep-homograph-min-count", type=int,
+                    default=KEEP_HOMOGRAPH_MIN_COUNT,
+                    help="Keep a homograph spelling past a context's "
+                         "top-K cut when it was seen at least this "
+                         "often in that context (default "
+                         f"{KEEP_HOMOGRAPH_MIN_COUNT}); 0 exports the "
+                         "plain top-K rows.")
     args = ap.parse_args()
 
     in_dir = Path(args.in_dir)
@@ -568,8 +681,16 @@ def main():
         reserved_ids["</s>"],
     }
 
+    keep_min = max(0, args.keep_homograph_min_count)
+    keep_ids = homograph_spelling_ids(sorted_vocab) if keep_min else set()
+    if keep_min:
+        print(f"  keeping {len(keep_ids):,} homograph spellings past the "
+              f"top-K cut when seen >= {keep_min} times in a context",
+              flush=True)
+
     bigram_ctx = build_bigram_contexts(
-        remapped_bigrams, w1_totals, TOP_K_BI, excluded
+        remapped_bigrams, w1_totals, TOP_K_BI, excluded,
+        keep_ids, keep_min,
     )
     print(f"  built {len(bigram_ctx):,} bigram contexts "
           f"(top_k={TOP_K_BI})", flush=True)
@@ -586,7 +707,8 @@ def main():
     print(f"  loaded {len(remapped_trigrams):,} trigrams", flush=True)
 
     trigram_ctx = build_trigram_contexts(
-        remapped_trigrams, bigram_counts, TOP_K_TRI, excluded
+        remapped_trigrams, bigram_counts, TOP_K_TRI, excluded,
+        keep_ids, keep_min,
     )
     print(f"  built {len(trigram_ctx):,} trigram contexts "
           f"(top_k={TOP_K_TRI})", flush=True)
@@ -612,6 +734,8 @@ def main():
         "top_k_uni": TOP_K_UNI,
         "top_k_bi": TOP_K_BI,
         "top_k_tri": TOP_K_TRI,
+        "keep_homograph_min_count": keep_min,
+        "homograph_spellings": len(keep_ids),
         "vocab_size": len(sorted_vocab),
         "bigram_contexts": len(bigram_ctx),
         "trigram_contexts": len(trigram_ctx),
