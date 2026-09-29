@@ -201,6 +201,50 @@ Lookup algorithm (pseudocode, matches what the keyboard needs)
 If the user has typed zero tokens of context, start at the bigram
 lookup with ``j = BOS``.
 
+Out-of-vocabulary unigram table (optional, after the trigram tables)
+--------------------------------------------------------------------
+
+The vocabulary holds the 80K most frequent training types, so most
+spellings a keyboard proposes from its dictionary have no id, and every
+spelling of a set of letters that is out of the vocabulary scores the
+same (nothing). This table gives such spellings their exact training
+count, which a reader uses at the unigram tier,
+``α^2 * c(w) / total_tokens``, exactly as it scores a vocabulary word
+that no context row holds.
+
+It holds the out-of-vocabulary training types, seen at least
+``OOV_UNIGRAM_MIN_COUNT`` times, that a keyboard weighs against another
+spelling of the same letters: types that, up to case and the elision
+glyph, are a spelling of the Hunspell dictionary (``--oov-dictionary``)
+whose bare letters another dictionary spelling shares with more than a
+grave, case or elision-glyph difference (:func:`spelling_key`). A type
+the dictionary cannot propose is never looked up, and one it has no
+twin for rarely is, so both stay out to keep the table small (130,559
+entries, 1.2 MB, for the 80K-vocabulary build and the 1.3.6
+dictionary). Every out-of-vocabulary type was seen fewer times than the
+rarest vocabulary word (20), so the u8 count cap is never reached.
+
+Keys are hashes rather than strings, which keeps the table at 9 bytes
+an entry:
+
+    pad       : zero bytes to the next multiple of 8
+    keys      : u64 * M   FNV-1a 64-bit hash of the type's UTF-8 bytes,
+                          ascending (binary-searchable)
+    counts    : u8  * M   exact training count, capped at 255
+    footer    : 16 bytes, the last in the file
+                u64 table_off   byte offset of ``keys``
+                u32 M           number of entries
+                4s  magic       "GNUO"
+
+A reader finds the table by the footer magic. The header does not
+point at it, and every header offset is unchanged, so a reader that
+does not know the table reads the file as before. A reader looks a
+spelling up in the order it resolves vocabulary ids: the literal
+spelling, then lowercased, then with its elision glyph written as
+U+2019. A 64-bit hash collides with one of M entries with probability
+about M / 2^64 per lookup, which the table accepts in exchange for not
+storing strings; the exporter checks that no two entries collide.
+
 Probabilities
 -------------
 
@@ -224,6 +268,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import math
 import struct
@@ -255,6 +300,16 @@ KEEP_HOMOGRAPH_MIN_COUNT = 3
 # spelling), U+02BC, U+1FBD (koronis), ASCII apostrophe, U+1FBF (psili).
 ELISION_MARKS = "\u2019\u02bc\u1fbd'\u1fbf"
 RESERVED_TOKENS = ("<PAD>", "<UNK>", "<s>", "</s>")
+# Out-of-vocabulary unigram table: minimum training count of a type it
+# carries; 0 leaves the table out. On the same held-out sentences the
+# table corrected a further 4.5 words per 1,000 over the homograph rows
+# alone, the whole gain an unrestricted in-memory count table gave.
+OOV_UNIGRAM_MIN_COUNT = 1
+OOV_UNIGRAM_MAGIC = b"GNUO"
+OOV_COUNT_CAP = 255
+DEFAULT_OOV_DICTIONARY = SCRIPT_DIR / "build" / "hunspell" / "grc_polytonic.dic"
+FNV64_OFFSET = 0xCBF29CE484222325
+FNV64_PRIME = 0x100000001B3
 
 
 def quantize_logprob(p: float) -> int:
@@ -370,6 +425,112 @@ def keep_past_cut(
     return top
 
 
+def fnv1a64(token: str) -> int:
+    """FNV-1a 64-bit hash of the UTF-8 bytes of ``token``: the key of the
+    out-of-vocabulary unigram table."""
+    h = FNV64_OFFSET
+    for b in token.encode("utf-8"):
+        h = ((h ^ b) * FNV64_PRIME) & 0xFFFFFFFFFFFFFFFF
+    return h
+
+
+def lookup_key(token: str) -> str:
+    """``token`` as a reader looks it up at worst: NFC, lowercased, a
+    trailing elision glyph written as U+2019."""
+    token = unicodedata.normalize("NFC", token)
+    if token and token[-1] in ELISION_MARKS:
+        token = token[:-1] + "\u2019"
+    return token.lower()
+
+
+def read_hunspell_words(dic_path: Path) -> set[str]:
+    """Every word a Hunspell .dic spells, its flagged stems expanded with
+    the SFX rules of the .aff beside it. Only zero-strip rules (the
+    only kind the Dilemma export writes) are applied."""
+    suffixes: dict[str, list[str]] = defaultdict(list)
+    aff_path = dic_path.with_suffix(".aff")
+    if aff_path.exists():
+        for line in aff_path.read_text(encoding="utf-8").splitlines():
+            f = line.split()
+            if len(f) >= 5 and f[0] == "SFX" and f[2] == "0":
+                suffixes[f[1]].append("" if f[3] == "0" else f[3])
+    words: set[str] = set()
+    with open(dic_path, encoding="utf-8") as fh:
+        for i, line in enumerate(fh):
+            entry = line.split("\t", 1)[0].split(" ", 1)[0].strip()
+            if not entry or (i == 0 and entry.isdigit()):
+                continue
+            stem, _, flags = entry.partition("/")
+            stem = unicodedata.normalize("NFC", stem)
+            words.add(stem)
+            for flag in filter(None, flags.split(",")):
+                words.update(stem + suf for suf in suffixes.get(flag, ()))
+    return words
+
+
+def contested_lookup_keys(words: set[str]) -> set[str]:
+    """:func:`lookup_key` of every dictionary spelling whose bare letters
+    another dictionary spelling shares with a different
+    :func:`spelling_key`: the spellings a keyboard chooses between when
+    those letters are typed."""
+    keys_by_letters: dict[str, set[str]] = defaultdict(set)
+    for w in words:
+        keys_by_letters[bare_letters(w)].add(spelling_key(w))
+    return {lookup_key(w) for w in words
+            if len(keys_by_letters[bare_letters(w)]) > 1}
+
+
+def load_type_counts(path: Path):
+    """Yield (token, count) from ``train_lm.py``'s type_counts.tsv.gz."""
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        for line in f:
+            tok, c = line.rstrip("\n").split("\t")
+            yield tok, int(c)
+
+
+def select_oov_unigrams(
+    type_counts, vocab: set[str], min_count: int,
+    lookup_keys: set[str] | None,
+) -> list[tuple[int, int]]:
+    """(hash, count) entries of the out-of-vocabulary unigram table,
+    sorted by hash: the training types outside ``vocab`` seen at least
+    ``min_count`` times whose :func:`lookup_key` is in ``lookup_keys``
+    (every such type when it is None). Counts are capped at 255."""
+    if min_count <= 0:
+        return []
+    table: dict[int, tuple[str, int]] = {}
+    for tok, c in type_counts:
+        if c < min_count or tok in vocab or tok in RESERVED_TOKENS:
+            continue
+        if lookup_keys is not None and lookup_key(tok) not in lookup_keys:
+            continue
+        h = fnv1a64(tok)
+        if h in table:
+            raise ValueError(f"FNV-1a collision: {table[h][0]!r} and {tok!r}")
+        table[h] = (tok, min(c, OOV_COUNT_CAP))
+    return sorted((h, c) for h, (_, c) in table.items())
+
+
+def oov_unigram_table(table_off: int, entries: list[tuple[int, int]]) -> bytes:
+    """The table and its footer, for a file whose table starts (after
+    padding) at ``table_off``, a multiple of 8."""
+    assert table_off % 8 == 0
+    keys = struct.pack(f"<{len(entries)}Q", *(h for h, _ in entries))
+    counts = bytes(c for _, c in entries)
+    footer = struct.pack("<QI4s", table_off, len(entries), OOV_UNIGRAM_MAGIC)
+    return keys + counts + footer
+
+
+def read_oov_unigram_table(data: bytes) -> dict[int, int]:
+    """{hash: count} of the out-of-vocabulary unigram table at the end of
+    an exported file, or {} when the file has none."""
+    if len(data) < 16 or data[-4:] != OOV_UNIGRAM_MAGIC:
+        return {}
+    off, n, _ = struct.unpack_from("<QI4s", data, len(data) - 16)
+    keys = struct.unpack_from(f"<{n}Q", data, off)
+    return dict(zip(keys, data[off + 8 * n: off + 9 * n]))
+
+
 def build_bigram_contexts(
     bigrams, w1_total: dict[int, int], top_k: int,
     excluded_continuation_ids: set[int],
@@ -443,7 +604,12 @@ def write_binary(
     trigram_ctx: list[tuple[tuple[int, int], list[tuple[int, float]]]],
     total_tokens: int,
     reserved_ids: dict[str, int],
+    oov_unigrams: list[tuple[int, int]] | None = None,
 ):
+    """Write the artifact. ``oov_unigrams``, (hash, count) entries from
+    :func:`select_oov_unigrams`, appends the out-of-vocabulary unigram
+    table and its footer; without it the file ends at the trigram
+    suggestions."""
     V = len(id2tok)
     assert len(vocab_counts) == V, "vocab_counts must be one-per-vocab-id"
     # suggestion_count is a u16.
@@ -489,6 +655,12 @@ def write_binary(
     trigram_suggestions_bytes = trigram_suggestions_len * 6
 
     total_size = trigram_suggestions_off + trigram_suggestions_bytes
+    oov_part = b""
+    if oov_unigrams:
+        oov_table_off = (total_size + 7) // 8 * 8
+        oov_part = bytes(oov_table_off - total_size) + oov_unigram_table(
+            oov_table_off, oov_unigrams)
+        total_size += len(oov_part)
 
     # --- Header ---
     header = bytearray(HEADER_SIZE)
@@ -583,6 +755,7 @@ def write_binary(
         sug_cursor += len(sug_list)
     parts.append(bytes(tri_index))
     parts.append(bytes(tri_sug))
+    parts.append(oov_part)
 
     out_path.write_bytes(b"".join(parts))
     assert out_path.stat().st_size == total_size, \
@@ -603,11 +776,37 @@ def main():
                          "often in that context (default "
                          f"{KEEP_HOMOGRAPH_MIN_COUNT}); 0 exports the "
                          "plain top-K rows.")
+    ap.add_argument("--oov-min-count", type=int,
+                    default=OOV_UNIGRAM_MIN_COUNT,
+                    help="Carry the exact training count of each "
+                         "out-of-vocabulary spelling the dictionary "
+                         "proposes against another spelling of its "
+                         "letters, when seen at least this often "
+                         f"(default {OOV_UNIGRAM_MIN_COUNT}); 0 leaves "
+                         "the table out.")
+    ap.add_argument("--oov-dictionary", default=str(DEFAULT_OOV_DICTIONARY),
+                    help="Hunspell .dic (with its .aff beside it) whose "
+                         "spellings the out-of-vocabulary table serves "
+                         "(default: the grc export of export_hunspell.py).")
     args = ap.parse_args()
 
     in_dir = Path(args.in_dir)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+
+    oov_min = max(0, args.oov_min_count)
+    oov_dictionary = Path(args.oov_dictionary)
+    type_counts_path = in_dir / "type_counts.tsv.gz"
+    if oov_min:
+        for need, how in ((type_counts_path, "rerun train_lm.py, which "
+                           "writes it"),
+                          (oov_dictionary, "run export_hunspell.py "
+                           "--variant grc first, or pass --oov-dictionary")):
+            if not need.exists():
+                raise SystemExit(
+                    f"No {need}: the out-of-vocabulary unigram table needs "
+                    f"it ({how}). --oov-min-count 0 exports without the "
+                    f"table.")
 
     t0 = time.time()
     id2tok = load_vocab(in_dir / "vocab.json")
@@ -713,10 +912,24 @@ def main():
     print(f"  built {len(trigram_ctx):,} trigram contexts "
           f"(top_k={TOP_K_TRI})", flush=True)
 
+    oov_unigrams: list[tuple[int, int]] = []
+    oov_dictionary_sha256 = None
+    if oov_min:
+        dictionary_words = read_hunspell_words(oov_dictionary)
+        oov_unigrams = select_oov_unigrams(
+            load_type_counts(type_counts_path), set(sorted_vocab), oov_min,
+            contested_lookup_keys(dictionary_words),
+        )
+        oov_dictionary_sha256 = hashlib.sha256(
+            oov_dictionary.read_bytes()).hexdigest()
+        print(f"  {len(oov_unigrams):,} out-of-vocabulary spellings in the "
+              f"unigram table ({len(dictionary_words):,} dictionary words)",
+              flush=True)
+
     write_binary(
         out, sorted_vocab, vocab_counts, unigram_topk,
         bigram_ctx, trigram_ctx,
-        total_tokens, reserved_ids,
+        total_tokens, reserved_ids, oov_unigrams,
     )
 
     size_mb = out.stat().st_size / (1024 * 1024)
@@ -736,6 +949,9 @@ def main():
         "top_k_tri": TOP_K_TRI,
         "keep_homograph_min_count": keep_min,
         "homograph_spellings": len(keep_ids),
+        "oov_unigram_min_count": oov_min,
+        "oov_unigrams": len(oov_unigrams),
+        "oov_dictionary_sha256": oov_dictionary_sha256,
         "vocab_size": len(sorted_vocab),
         "bigram_contexts": len(bigram_ctx),
         "trigram_contexts": len(trigram_ctx),
