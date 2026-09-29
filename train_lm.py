@@ -4,7 +4,7 @@ the polytonic next-word prediction LM.
 
 Produces intermediate JSON/NPZ files under ``build/lm/`` which the
 companion ``export_lm.py`` compiles into the mmap-friendly binary
-artifact ``grc_ngram.bin`` consumed by the Tonos iOS keyboard extension.
+artifact ``grc_ngram.bin`` consumed by an iOS keyboard extension.
 
 Corpora
 -------
@@ -64,6 +64,8 @@ Pipeline
        build/lm/unigrams.json       {id: count}
        build/lm/bigrams.tsv.gz      w1_id \t w2_id \t count
        build/lm/trigrams.tsv.gz     w1_id \t w2_id \t w3_id \t count
+       build/lm/type_counts.tsv.gz  token \t count, every training type,
+                                    in the vocabulary or not
        build/lm/dev_sentences.txt   one sentence per line, held-out eval
        build/lm/stats.json          corpus stats, for the README/report
 
@@ -270,6 +272,18 @@ def build_vocab(
     id2tok = list(RESERVED) + top
     tok2id = {t: i for i, t in enumerate(id2tok)}
     return id2tok, tok2id, raw
+
+
+def write_type_counts(path: Path, raw_counts: Counter) -> None:
+    """Write ``token \t count`` for every type in ``raw_counts``, most
+    frequent first and ties in code-point order, so the file is the same
+    on every run over the same corpora."""
+    # mtime=0 keeps the gzip header, and with it the file, byte-stable.
+    with open(path, "wb") as raw, gzip.GzipFile(
+        fileobj=raw, mode="wb", mtime=0
+    ) as gz:
+        for tok, c in sorted(raw_counts.items(), key=lambda t: (-t[1], t[0])):
+            gz.write(f"{tok}\t{c}\n".encode("utf-8"))
 
 
 def count_ngrams(
@@ -500,6 +514,13 @@ def main():
     with gzip.open(out / "trigrams.tsv.gz", "wt", encoding="utf-8") as f:
         for (a, b, c), k in tri.items():
             f.write(f"{a}\t{b}\t{c}\t{k}\n")
+
+    # Exact-spelling counts of every training type, the ones the
+    # vocabulary cut as well. export_lm.py carries the counts of
+    # out-of-vocabulary spellings in a unigram side table, so a keyboard
+    # can rank two spellings the model has no id for. Training split
+    # only, like every other count here, so the dev split stays unseen.
+    write_type_counts(out / "type_counts.tsv.gz", raw_counts)
 
     with open(out / "dev_sentences.txt", "w", encoding="utf-8") as f:
         for toks in dev_sents:
