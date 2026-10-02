@@ -58,6 +58,15 @@ def test_tokens_keep_elision_and_aphaeresis_marks_as_the_koronis():
     assert forms("στ᾿ ἀλώνι") == ["στ" + K, "ἀλώνι"]
 
 
+def test_the_spacing_dasia_is_an_aphaeresis_mark_or_a_breathing():
+    # Before a consonant it marks aphaeresis (νά ῾βρω for νὰ εὕρω) ...
+    assert forms("νά ῾βρω ἐδῶθε") == ["νά", K + "βρω", "ἐδῶθε"]
+    assert forms("῾κάστηκε") == [K + "κάστηκε"]
+    # ... and before a vowel it is the vowel's breathing, set before a
+    # capital the old way, as is the spacing psili.
+    assert forms("῾Η Πηγὴ ᾿Αφ᾿ οὗ") == ["Ἡ", "Πηγὴ", "Ἀφ" + K, "οὗ"]
+
+
 def test_a_mark_after_a_final_sigma_closes_a_quotation():
     assert forms("'ὁ λόγος' εἶπε") == ["ὁ", "λόγος", "εἶπε"]
 

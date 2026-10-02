@@ -129,8 +129,13 @@ DIC_NAME = "grc_mg_polytonic"
 KORONIS = "\u1FBD"
 # Marks the Wikisource texts write for elision (κι', ἀπ’) and aphaeresis
 # ('ς, ’ναι): ASCII apostrophe, U+2019, U+02BC, the koronis, and the spacing
-# psili. All are stored as the koronis, the grc dictionary's glyph.
-ELISION_MARKS = "'\u2019\u02BC\u1FBD\u1FBF"
+# psili and dasia (νά ῾βρω, 238 times). All are stored as the koronis, the
+# grc dictionary's glyph. U+2018 is left out: it opens quotations, and the
+# slice never writes it.
+ELISION_MARKS = "'\u2019\u02BC\u1FBD\u1FBF\u1FFE"
+# A spacing psili or dasia in front of a vowel is that vowel's breathing,
+# set before a capital the old way (῾Η, ᾿Αφ'), not a mark.
+_SPACING_BREATHINGS = {"\u1FBF": "\u0313", "\u1FFE": "\u0314"}
 
 # Greek letters and combining marks. The spacing koronis, psili, dasia and
 # the other spacing accents of the Greek Extended block are left out, so a
@@ -264,7 +269,7 @@ def tokenize(sentence: str) -> list[Token]:
     A mark after a final sigma closes a quotation rather than eliding a
     vowel, since elision leaves the medial σ (λέγουσ᾽), and a mark before a
     vowel opens one, since aphaeresis takes the initial vowel away ('ναι,
-    'ς); neither is kept.
+    'ς); neither is kept. A spacing breathing before a vowel is put on it.
     """
     text = unicodedata.normalize("NFC", sentence.translate(_LETTER_VARIANTS))
     tokens: list[Token] = []
@@ -281,7 +286,12 @@ def tokenize(sentence: str) -> list[Token]:
             before in _JOINERS or after in _JOINERS
             or (before and before.isalnum()) or (after and after.isalnum())
         )
-        lead = bool(match.group("lead")) and not _is_vowel(word[0])
+        mark = match.group("lead")
+        if mark in _SPACING_BREATHINGS and _is_vowel(word[0]):
+            nfd = unicodedata.normalize("NFD", word)
+            word = unicodedata.normalize(
+                "NFC", nfd[0] + _SPACING_BREATHINGS[mark] + nfd[1:])
+        lead = bool(mark) and not _is_vowel(word[0])
         trail = bool(match.group("trail")) and word[-1] not in "ςΣ"
         form = (KORONIS if lead else "") + word + (KORONIS if trail else "")
         tokens.append(Token(unicodedata.normalize("NFC", form), lead, trail,
