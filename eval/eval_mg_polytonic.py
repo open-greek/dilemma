@@ -144,15 +144,17 @@ def main() -> None:
             {"results": results, "sizes": sizes, "folds": folds},
             ensure_ascii=False, indent=1), encoding="utf-8")
     if args.write_lists:
+        import hashlib
         source = mg.corpus_identity()
+        grc_sha256 = hashlib.sha256(mg.GRC_DIC.read_bytes()).hexdigest()
         held = lists["documents held out"]
         mg.write_list(held.entries, args.write_lists / "documents_held_out",
-                      avoid=held.avoid,
+                      avoid=held.avoid, grc_sha256=grc_sha256,
                       variant="grc-mg (evaluation: documents with a dev "
                               "sentence held out)", source=source)
         for k, fold in by_fold.items():
             mg.write_list(fold.entries, args.write_lists / f"author_fold_{k}",
-                          avoid=fold.avoid,
+                          avoid=fold.avoid, grc_sha256=grc_sha256,
                           variant=f"grc-mg (evaluation: author fold {k} of "
                                   f"{folds} held out)", source=source)
 

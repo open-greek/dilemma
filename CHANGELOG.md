@@ -12,24 +12,32 @@ All notable changes to Dilemma are documented here. The format follows
   keyboard to merge into the grc dictionary, which is unchanged. grc holds
   Ancient and Medieval Greek only, so a keyboard shipping it alone rewrote
   polytonic Modern Greek into Ancient neighbors (`τώρα` -> `τἄρα`,
-  `ἀκόμη` -> `ἀκμὴ`) and rejected `του`, `κι` and `μας`. The 17,789
-  spellings come from the training sentences of the language model's
-  polytonic Modern Greek slice, from documents that are not monotonic or
-  partly so, with at least 3 tokens by 2 authors, well-formed under the grc
+  `ἀκόμη` -> `ἀκμὴ`) and rejected `του`, `κι` and `μας`. The 17,174 words
+  come from the training sentences of the language model's polytonic Modern
+  Greek slice, from documents that are not monotonic or partly so, with at
+  least 3 tokens by 2 authors in their own case, well-formed under the grc
   rules adapted to Modern Greek (unaccented weak pronouns and `κι`,
-  synizesis), and absent from grc; each oxytone gets its acute or grave
-  twin. Typed as bare letters into a keyboard's auto-correct, the polytonic
-  Modern Greek dev sentences come out with 6,321 wrong words instead of
-  9,553 of 38,622 when each sentence's author is held out from the list
-  (5,935 with the shipping list), while 474,220 held-out Ancient Greek words
-  gain 109 and lose 63. `eval/eval_mg_polytonic.py` measures the list's
-  coverage with documents or authors held out.
+  synizesis), not misspellings of a commoner spelling in the slice (a
+  breathing rule, a mark-level rule and the reviewed rejects in
+  `data/hunspell_mg_spelling_review.json`), and not accepted by grc; each
+  oxytone gets its acute or grave twin. The list also marks 932 grc
+  spellings Modern Greek writes another way (`με`, `που`) with
+  `form<TAB>mg:avoid` lines. Typed as bare letters into a keyboard's
+  auto-correct with the list merged in and each sentence's author held out
+  from it, the polytonic Modern Greek dev sentences have 6,332 wrong words
+  instead of 9,553 of 38,622; 474,220 held-out Ancient Greek words gain 108
+  and lose 62 under an unconditional merge, and none change in a keyboard
+  that offers the list only in Modern Greek text. That keyboard's Modern
+  register goes from 6,208 to 5,952 with the `mg:avoid` marks.
+  `eval/eval_mg_polytonic.py` measures the list's coverage with documents
+  or authors held out, and writes the evaluation lists.
 - `grc_morph.json` carries an optional `el_modern` table: the Modern Greek
   elisions the same slice attests (`γιὰ` -> `γι᾽`, `στὸ` -> `στ᾽`,
   `τώρα` -> `τώρ᾽`, `κι` -> `κι᾽`, 39 pairs), limited to those `el` lacks or
-  spells otherwise, for a keyboard writing Modern Greek to lay over `el`.
-  `el` and `nu` are unchanged; `export_morphology.py --no-modern-greek`
-  leaves the table out.
+  spells otherwise, for a keyboard writing Modern Greek to lay over `el`, and
+  `el_modern_share`, how often the texts elide each before a vowel (`γιὰ`
+  0.65, `τώρα` 0.06). `el` and `nu` are unchanged;
+  `export_morphology.py --no-modern-greek` leaves both tables out.
 - The next-word language model (`grc_ngram.bin`) carries the training count
   of spellings outside its 80,000-word vocabulary. When every spelling of
   the letters a user typed was outside the vocabulary, the model scored them

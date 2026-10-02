@@ -48,29 +48,35 @@ constant below, with its reason.
    breathing, or one of the monosyllables polytonic writing always
    accents (και, να, δεν, ...). Within the remaining documents, a
    sentence with any such word is skipped too.
-2. It is attested often and widely enough: at least ``MIN_TOKENS``
-   tokens from at least ``MIN_AUTHORS`` different authors. One author
-   can repeat a misspelling or an idiolect form many times; a second
-   author makes it a spelling of the language.
+2. It is attested often and widely enough, in its own case: at least
+   ``MIN_TOKENS`` tokens from at least ``MIN_AUTHORS`` different authors.
+   One author can repeat a misspelling or an idiolect form many times; a
+   second author makes it a spelling of the language. A lowercase spelling
+   counts its lowercase tokens, a capitalized one (a name) its capitals
+   inside a sentence; a capital opening a sentence, line or quotation
+   joins the case more authors write inside a sentence
+   (``gather_candidates``). All-capital headings are not read.
 3. It is well-formed polytonic Modern Greek (``mg_orthography_reason``):
-   the grc structural rules (breathing on an initial vowel or rho, one
-   accent within the last three syllables, grave only on the ultima, no
-   breathing inside the word, ...), except that the closed list of words
-   Modern Greek writes without an accent (``MG_UNACCENTED_WORDS``: the
-   weak possessive pronouns and κι) is accepted, and an elided word may
-   end in an unaccented ι (κι᾽, γι᾽).
-4. It is not a weak mark-only respelling of a much commoner spelling of
-   the same letters in the same corpus (``DOMINATED_SHARE``): the
-   monotonic μπορεί beside μπορεῖ, a dropped breathing beside the right
-   one.
-5. Its case is the case the texts give it: a lowercase entry when the
-   word occurs in lowercase at least as often as capitalized inside a
-   sentence, else the capitalized spelling (a proper name). All-capital
-   headings are not read.
-6. The grc dictionary does not already have it, and a recorded review did
-   not reject it (``data/hunspell_grc_spelling_review.json``, and the grc
-   explicit rejects such as the acute θά/γιά/στό/στά, apart from the
-   weak pronoun του).
+   the grc structural rules and explicit rejects (breathing on an initial
+   vowel or rho, one accent within the last three syllables, grave only on
+   the ultima, no breathing inside the word, ...), except that the closed
+   list of words Modern Greek writes without an accent
+   (``MG_UNACCENTED_WORDS``: the weak possessive pronouns and κι) is
+   accepted, syllables are counted with synizesis, a word may end in a
+   consonant unless it is a truncated word, and an elided word may end in
+   an unaccented ι (κι᾽, γι᾽). An unaccented elided spelling must stand
+   for an attested word accented on the vowel it lost (``FullForms``).
+4. It is not a misspelling of a commoner spelling of the same letters in
+   the slice: a weak mark-only respelling (``DOMINATED_SHARE``), the
+   monotonic μπορεί beside μπορεῖ, unless it is another word; a
+   breathing-only respelling (``BREATHING_TWIN_RATIO``), ἔτοιμος beside
+   ἕτοιμος, unless it is a reviewed homograph.
+5. A recorded review did not reject it
+   (``data/hunspell_grc_spelling_review.json`` and
+   ``data/hunspell_mg_spelling_review.json``).
+6. The grc dictionary does not accept it, as written or, for a
+   capitalized spelling, through its lowercase entry; nor does the list's
+   own lowercase entry.
 
 Each listed oxytone also gets its contextual twin: the acute of a grave
 (στὴν -> στήν) and the grave of a final acute (τοπικό -> τοπικὸ), as long
@@ -81,6 +87,9 @@ punctuation.
 The ``fr:`` field uses the grc bucket edges (``export_hunspell.freq_bucket``:
 C >= 1000, M >= 100, R >= 1) on the spelling's own token count in the
 Modern Greek slice, the acute and grave twins counted together.
+
+The ``mg:avoid`` lines name the grc spellings the slice gives under a tenth
+of their letters' tokens (``modern_greek_avoids``).
 
 Evaluation variants
 -------------------
