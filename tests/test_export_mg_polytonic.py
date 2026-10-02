@@ -424,6 +424,102 @@ def test_held_out_documents_and_authors_are_not_read():
     assert 0 not in mg.source_documents(counts, holdout_author_fold=(fold, 3))
 
 
+# The held-out text must stay out of the list: the language model's dev
+# sentences, the documents and authors an evaluation holds out, and the
+# sentences that read as monotonic. These tests feed count_corpus a
+# document of known sentences.
+
+LETTERS = "αβγδεζηθικ"
+
+
+def marker(i: int) -> str:
+    """A word that occurs in sentence ``i`` only."""
+    return "μ" + "".join(LETTERS[int(d)] for d in f"{i:03d}") + "ος"
+
+
+def fake_document(monkeypatch, sentences, key="wikisource/test", author="Α"):
+    import extract_polytonic_mg as E
+    doc = E.PolytonicMGDocument(key, author, "τίτλος", "1900",
+                                ". ".join(sentences) + ".")
+    monkeypatch.setattr(E, "iter_polytonic_mg_documents",
+                        lambda *a, **k: iter([doc]))
+
+
+def sentences_300():
+    """300 sentences; every third is too short to count but still takes a
+    sentence number, as the language model numbers them."""
+    out = []
+    for i in range(300):
+        if i % 3 == 1:
+            out.append("Ναί")
+        elif i == 0:
+            out.append(f"{marker(i)} και μέρα")       # a monotonic signal
+        elif i == 3:
+            out.append(f"{marker(i)} τοῦ τόμ")        # τόμ. Β΄
+        else:
+            out.append(f"{marker(i)} καλὴ μέρα")
+    return out
+
+
+def test_the_dev_sentences_are_the_language_models_and_are_not_counted(
+        monkeypatch):
+    import extract_polytonic_mg as E
+    import train_lm
+    fake_document(monkeypatch, sentences_300())
+    counts = mg.count_corpus()
+    markers = {marker(i) for i in range(300)}
+    dev_markers = {t.form for sents in counts.dev.values() for toks in sents
+                   for t in toks} & markers
+    lm_dev = {sid: toks for sid, toks in E.iter_polytonic_mg_sentences()
+              if train_lm.sentence_goes_to_dev(sid)}
+    # The same sentences, by the same numbering: the short ones count.
+    assert {int(sid.rsplit(":", 1)[1]) for sid in lm_dev} == {92, 180, 273}
+    assert dev_markers == {marker(i) for i in (92, 180, 273)}
+    counted = {form for (form, _position) in counts.forms}
+    assert not dev_markers & counted
+    trained = {marker(i) for i in range(300)
+               if i % 3 != 1 and i not in (0, 92, 180, 273)}
+    assert trained <= counted
+
+
+def test_the_sentence_ids_and_the_split_are_stable():
+    import train_lm
+    from extract_polytonic_mg import sentence_id
+    assert sentence_id("wikisource/test", 92) == "polymg:wikisource/test:92"
+    assert [i for i in range(300) if train_lm.sentence_goes_to_dev(
+        sentence_id("wikisource/test", i))] == [85, 92, 180, 273, 289]
+
+
+def test_a_sentence_with_a_monotonic_signal_and_an_abbreviation_add_nothing(
+        monkeypatch):
+    fake_document(monkeypatch, sentences_300())
+    counts = mg.count_corpus()
+    counted = {form for (form, _position) in counts.forms}
+    assert marker(0) not in counted and "και" not in counted
+    assert counts.skipped_sentences == 1
+    assert marker(3) in counted and "τόμ" not in counted
+
+
+def test_held_out_documents_give_no_tokens_and_no_authors():
+    counts = make_counts([
+        ("τώρα", "lower", {0: 5, 1: 4, 2: 3}),
+        ("Μαρούλα", "cap", {1: 6, 2: 2}),
+    ])
+    candidates = gather_candidates(counts, {0, 2})
+    assert candidates["τώρα"] == Candidate("τώρα", 8, 2, 2)
+    assert candidates["Μαρούλα"] == Candidate("Μαρούλα", 2, 1, 1)
+    candidates = gather_candidates(counts, {0})
+    assert candidates["τώρα"] == Candidate("τώρα", 5, 1, 1)
+    assert "Μαρούλα" not in candidates
+
+
+def test_author_folds_do_not_depend_on_the_process():
+    # Python's own hash() of a string changes from run to run.
+    assert [mg.author_fold(a, 5) for a in (
+        "Αλέξανδρος Παπαδιαμάντης", "Κωστής Παλαμάς", "Γεώργιος Βιζυηνός",
+        "Ανδρέας Καρκαβίτσας", "Διονύσιος Σολωμός")] == [1, 3, 3, 1, 4]
+
+
 def test_a_short_document_with_a_slip_or_two_is_not_monotonic():
     info = DocumentInfo("d", "Α", "t", words=40, signals=2)
     assert not info.monotonic
@@ -491,6 +587,17 @@ def test_modern_greek_elisions_pair_each_elided_spelling_with_its_word():
     rows = {f.full: f for f in found}
     assert rows["τώρα"].elided_tokens == 12
     assert rows["τώρα"].elided_before_vowel == 12
+
+
+def test_an_aspirated_preposition_is_left_to_its_plain_elision():
+    counts = make_counts([
+        ("ἀφ" + K, "lower", {0: 10, 1: 10}),
+        ("ἀπ" + K, "lower", {0: 10, 1: 10}),
+        # A word ἀφ᾽ could stand for, commoner than it.
+        ("ἀφοῦ", "lower", {0: 60, 1: 40}),
+    ])
+    pairs, _ = modern_greek_elisions(counts, {0, 1})
+    assert "ἀφοῦ" not in pairs
 
 
 def test_the_full_form_must_be_at_least_as_common_as_the_elided_one():
