@@ -231,7 +231,8 @@ def iter_polytonic_mg_documents(
         raise SystemExit(
             f"Polytonic MG parquet not found at {path}.\n"
             "Run `python build/build_polytonic_freq.py --stats` once to "
-            "seed the HuggingFace cache, or pass --mg-parquet explicitly."
+            "seed the HuggingFace cache, or pass the parquet path "
+            "explicitly."
         )
     df = pd.read_parquet(path)
 

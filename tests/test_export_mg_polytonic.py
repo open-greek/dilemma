@@ -449,6 +449,22 @@ def test_the_list_is_written_in_the_grc_format(tmp_path):
     assert stats["entries"] == 3
 
 
+def test_an_evaluation_list_never_replaces_the_shipping_list(tmp_path):
+    with pytest.raises(ValueError, match="shipping list"):
+        mg.write_list({"τώρα": 5}, mg.OUT, variant="grc-mg (evaluation)",
+                      source="test")
+    for argv in (["--holdout-author-fold", "0/5"],
+                 ["--holdout-dev-documents", "--out-dir", str(mg.OUT)]):
+        with pytest.raises(SystemExit) as exit_info:
+            mg.main(argv)
+        assert exit_info.value.code == 2
+    mg.write_list({"τώρα": 5}, tmp_path, variant="grc-mg (evaluation)",
+                  source="test", grc_sha256="abc123")
+    version = (tmp_path / "grc_mg_polytonic.version").read_text("utf-8")
+    assert "variant: grc-mg (evaluation)\n" in version
+    assert "grc_dictionary_sha256: abc123\n" in version
+
+
 # --------------------------------------------------------------------------
 # Modern Greek elisions
 # --------------------------------------------------------------------------
@@ -530,3 +546,13 @@ def test_the_built_list_holds_its_invariants():
     assert not {"το", "τα", "την", "και", "να", "θα", "δεν"} & set(entries)
     version = MG_DIC.with_suffix(".version").read_text("utf-8")
     assert f"entries: {len(entries)}\n" in version
+    # The shipping list, not an evaluation variant, and selected against
+    # the grc dictionary beside it.
+    assert "variant: grc-mg\n" in version
+    import hashlib
+    grc_sha = hashlib.sha256(GRC_DIC.read_bytes()).hexdigest()
+    assert f"grc_dictionary_sha256: {grc_sha}\n" in version
+    # No spelling a recorded review rejected, nor its contextual twin.
+    from export_hunspell import contextual_acute
+    rejects = {contextual_acute(f) for f in mg.load_mg_spelling_review()}
+    assert not [f for f in entries if contextual_acute(f) in rejects]

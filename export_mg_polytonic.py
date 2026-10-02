@@ -1197,6 +1197,9 @@ def corpus_identity(parquet_path: Path | None = None) -> str:
     return f"glossAPI/Wikisource_Greek_texts snapshot {path.parent.name}"
 
 
+SHIPPING_VARIANT = "grc-mg"
+
+
 def write_list(
     entries: dict[str, int],
     out_dir: Path,
@@ -1205,8 +1208,21 @@ def write_list(
     source: str,
     version: str | None = None,
     commit: str | None = None,
+    grc_sha256: str | None = None,
 ) -> dict:
-    """Write ``<DIC_NAME>.dic``, ``.aff`` and ``.version`` to ``out_dir``."""
+    """Write ``<DIC_NAME>.dic``, ``.aff`` and ``.version`` to ``out_dir``.
+
+    An evaluation variant is refused in ``build/hunspell``, where it would
+    replace the shipping list under the same name. ``grc_sha256`` records
+    the grc dictionary the list was selected against: the list holds only
+    what that dictionary lacks.
+    """
+    if (variant != SHIPPING_VARIANT
+            and Path(out_dir).resolve() == OUT.resolve()):
+        raise ValueError(
+            f"refusing to write the evaluation list ({variant}) to {OUT}, "
+            "where it would replace the shipping list; pass another "
+            "--out-dir")
     out_dir.mkdir(parents=True, exist_ok=True)
     version = version or read_version_file()
     commit = commit or get_git_commit()
@@ -1232,7 +1248,8 @@ def write_list(
         f"entries: {len(lines)}\n"
         f"aff_rules: 0\n"
         f"source: {source}\n"
-        f"buckets: C={buckets['C']} M={buckets['M']} R={buckets['R']}\n",
+        + (f"grc_dictionary_sha256: {grc_sha256}\n" if grc_sha256 else "")
+        + f"buckets: C={buckets['C']} M={buckets['M']} R={buckets['R']}\n",
         encoding="utf-8")
     return {"entries": len(lines), "dic_path": str(dic_path),
             "buckets": dict(buckets)}
@@ -1246,10 +1263,13 @@ def build(
     holdout_author_fold: tuple[int, int] | None = None,
     counts: CorpusCounts | None = None,
     grc_words: set[str] | None = None,
+    grc_dic: Path = GRC_DIC,
 ) -> tuple[Selection, dict]:
     """Read the slice, select the spellings and write the list."""
     counts = counts or count_corpus(parquet_path)
-    grc_words = grc_words if grc_words is not None else read_grc_words()
+    grc_words = grc_words if grc_words is not None else read_grc_words(grc_dic)
+    grc_sha256 = (hashlib.sha256(grc_dic.read_bytes()).hexdigest()
+                  if grc_dic.exists() else None)
     sources = source_documents(
         counts, holdout_dev_documents=holdout_dev_documents,
         holdout_author_fold=holdout_author_fold)
@@ -1266,9 +1286,9 @@ def build(
         k, n = holdout_author_fold
         variant = f"grc-mg (evaluation: author fold {k} of {n} held out)"
     else:
-        variant = "grc-mg"
+        variant = SHIPPING_VARIANT
     stats = write_list(
-        selection.entries, out_dir, variant=variant,
+        selection.entries, out_dir, variant=variant, grc_sha256=grc_sha256,
         source=f"{corpus_identity(parquet_path)}, language-model training "
                f"split, {len(sources)} of {len(counts.documents)} documents")
     return selection, stats
@@ -1284,8 +1304,9 @@ def _fold(text: str) -> tuple[int, int]:
 
 def main(argv: Iterable[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--out-dir", type=Path, default=OUT,
-                    help=f"output directory (default {OUT})")
+    ap.add_argument("--out-dir", type=Path, default=None,
+                    help=f"output directory (default {OUT}; an evaluation "
+                         "list needs another one)")
     ap.add_argument("--parquet", type=Path, default=None,
                     help="override the Wikisource parquet path")
     held = ap.add_mutually_exclusive_group()
@@ -1295,6 +1316,13 @@ def main(argv: Iterable[str] | None = None) -> None:
     held.add_argument("--holdout-author-fold", type=_fold, metavar="K/N",
                       help="evaluation list: drop the authors in fold K of N")
     args = ap.parse_args(list(argv) if argv is not None else None)
+    held_out = args.holdout_dev_documents or args.holdout_author_fold
+    if held_out and args.out_dir is None:
+        ap.error("an evaluation list needs --out-dir: written to "
+                 f"{OUT} it would replace the shipping list")
+    out_dir = args.out_dir or OUT
+    if held_out and out_dir.resolve() == OUT.resolve():
+        ap.error(f"an evaluation list may not be written to {OUT}")
 
     print("Reading the polytonic Modern Greek slice...")
     counts = count_corpus(args.parquet)
@@ -1305,7 +1333,7 @@ def main(argv: Iterable[str] | None = None) -> None:
     print(f"  {counts.skipped_sentences:,} training sentences skipped for a "
           "monotonic signal")
     selection, stats = build(
-        args.out_dir, parquet_path=args.parquet, counts=counts,
+        out_dir, parquet_path=args.parquet, counts=counts,
         holdout_dev_documents=args.holdout_dev_documents,
         holdout_author_fold=args.holdout_author_fold)
     for key, value in sorted(selection.report.items()):
