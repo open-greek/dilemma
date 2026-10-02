@@ -124,6 +124,9 @@ from export_hunspell import (
 ROOT = Path(__file__).parent
 GRC_DIC = OUT / "grc_polytonic.dic"
 LOOKUP_DB = ROOT / "data" / "lookup.db"
+# Spellings a recorded review of this list rejected, in the format of
+# data/hunspell_grc_spelling_review.json, which is read too.
+MG_SPELLING_REVIEW = ROOT / "data" / "hunspell_mg_spelling_review.json"
 DIC_NAME = "grc_mg_polytonic"
 
 KORONIS = "\u1FBD"
@@ -228,6 +231,24 @@ MG_UNACCENTED_WORDS = frozenset({
 # spelling is as often a real one.
 DOMINATED_SHARE = 0.05
 DOMINATED_MIN = 100
+
+# A spelling whose breathing alone differs from another is a misspelling of
+# it (ἔτοιμος for ἕτοιμος, ἐαυτήν for ἑαυτήν, εἷνε for εἶνε) when the other
+# is BREATHING_TWIN_RATIO times as common in the slice, or at least as
+# common and accepted by grc. There is no floor on the other's count: a
+# breathing slip is as common beside a rare word as beside a frequent one.
+# grc alone does not decide, since it carries breathing variants that are
+# themselves rare (ἧμαι beside ἦμαι, ἐαυτός beside ἑαυτός).
+BREATHING_TWIN_RATIO = 5
+
+# Real words that differ from a commoner word only in the breathing: the
+# relatives αἳ, ἣ, οἳ beside αἲ, ἢ ("or"), οἲ; ὅντας ("when") beside the
+# participle ὄντας; ἄρματα ("arms") beside ἅρματα ("chariots"); and the
+# dialect οὗλα ("all") beside οὖλα ("gums"). Reviewed, they are exempt from
+# rule 4 as well as from the breathing rule.
+MG_BREATHING_HOMOGRAPHS = frozenset({
+    "αἳ", "ἣ", "οἳ", "ὅντας", "ἄρματα", "ἄρματά", "οὗλα",
+})
 
 # Elided spellings may end in an unaccented iota: κι᾽, γι᾽, μι᾽, where the ι
 # is the glide left when γιὰ or μιὰ loses its α.
@@ -696,18 +717,37 @@ def load_known_words(path: Path = LOOKUP_DB):
     return known
 
 
-def distinct_word(form: str, dominant: str, known_word) -> bool:
+def distinct_word(form: str, dominant: str, known_word,
+                  full_forms: "FullForms | None" = None) -> bool:
     """Whether ``form``, a rare spelling of ``dominant``'s letters, is a
     different word rather than a misspelling of it: its monotonic spelling
-    is not ``dominant``'s and the lexicon knows it. An elided spelling is
-    judged by the words it can elide (κάθ᾽ from κάθε, beside καθ᾽ from
-    κατά)."""
+    is not ``dominant``'s, and the lexicon knows it. An elided spelling is
+    judged by the attested words it stands for (κάθ᾽ for κάθε, beside καθ᾽
+    for κατά); lookup.db cannot judge it, as its keys include every
+    spelling with the accents stripped (εινε, μητε)."""
     mono = monotonic_spelling(form)
     if mono == monotonic_spelling(dominant):
         return False
     if form.endswith(KORONIS):
-        return any(known_word(mono + vowel) for vowel in "αεηιουω")
+        return full_forms is not None and bool(full_forms.of(form))
     return known_word(mono)
+
+
+def breathing_twin(form: str) -> str | None:
+    """``form`` with its breathing changed, smooth for rough or rough for
+    smooth, or None when it has none."""
+    nfd = unicodedata.normalize("NFD", form)
+    for i, char in enumerate(nfd):
+        if char in (SMOOTH, ROUGH):
+            other = ROUGH if char == SMOOTH else SMOOTH
+            return unicodedata.normalize("NFC", nfd[:i] + other + nfd[i + 1:])
+    return None
+
+
+def load_mg_spelling_review() -> frozenset[str]:
+    """Spellings a recorded review rejected: grc's and this list's."""
+    return (load_grc_spelling_review()
+            | load_grc_spelling_review(MG_SPELLING_REVIEW))
 
 
 def spelling_skeleton(form: str) -> str:
@@ -775,6 +815,76 @@ def grc_accepts(form: str, grc_words: set[str]) -> bool:
     return form in grc_words or _lowercase(form) in grc_words
 
 
+# --------------------------------------------------------------------------
+# Elided spellings and the words they stand for
+# --------------------------------------------------------------------------
+
+# What Modern Greek elision removes from the end of a word: one vowel, or
+# the digraphs αι, ει, οι, ου that spell one (εἶναι -> εἶν᾽, ποὺ -> π᾽,
+# μοῦ -> μ᾽).
+MG_ELIDED_ENDINGS = frozenset({
+    "α", "ε", "η", "ι", "ο", "υ", "ω", "αι", "ει", "οι", "ου",
+})
+
+# The aspirated consonants elision before a rough breathing leaves (ἀφ᾽
+# ὅτου for ἀπ᾽, καθ᾽ ἑκάστην for κατ᾽), and the plain ones they stand for.
+_DEASPIRATED = {"φ": "π", "θ": "τ", "χ": "κ"}
+
+
+def _elided_ending(full: str, stem: str) -> str | None:
+    """The marked letters ``full`` has after ``stem``, when ``full`` is the
+    stem's letters and marks plus one of ``MG_ELIDED_ENDINGS``; else None."""
+    full_nfd = unicodedata.normalize("NFD", full)
+    stem_nfd = unicodedata.normalize("NFD", stem)
+    if not full_nfd.startswith(stem_nfd):
+        return None
+    rest = full_nfd[len(stem_nfd):]
+    if not rest or unicodedata.combining(rest[0]):
+        return None
+    letters = "".join(c for c in rest if not unicodedata.combining(c))
+    return rest if letters in MG_ELIDED_ENDINGS else None
+
+
+class FullForms:
+    """Attested words, indexed for the elided spellings that stand for them.
+
+    An elided spelling stands for a word that spells its letters and marks
+    plus one ending of ``MG_ELIDED_ENDINGS``: an unaccented ending when the
+    elided spelling keeps an accent (τώρ᾽ for τώρα, κάθ᾽ for κάθε), an
+    accented one when it has none, since a word accented on the vowel it
+    loses loses the accent with it (γι᾽ for γιὰ, γιατ᾽ for γιατὶ, ἐδ᾽ for
+    ἐδῶ). An aspirated final consonant also stands for the plain one,
+    before a rough breathing (καθ᾽ for κατὰ).
+    """
+
+    def __init__(self, words: Iterable[str]):
+        self._index: dict[str, set[str]] = defaultdict(set)
+        for word in words:
+            if word.endswith(KORONIS):
+                continue
+            skeleton = spelling_skeleton(word)
+            self._index[skeleton[:-1]].add(word)
+            self._index[skeleton[:-2]].add(word)
+
+    def of(self, elided: str, aspirated: bool = True) -> list[str]:
+        """The words ``elided`` can stand for."""
+        stem = elided.removesuffix(KORONIS)
+        if not stem:
+            return []
+        accented = any(c in TONAL for c in unicodedata.normalize("NFD", stem))
+        stems = [stem]
+        if aspirated and stem[-1] in _DEASPIRATED:
+            stems.append(stem[:-1] + _DEASPIRATED[stem[-1]])
+        out = []
+        for st in stems:
+            for word in sorted(self._index.get(spelling_skeleton(st), ())):
+                ending = _elided_ending(word, st)
+                if (ending is not None
+                        and accented != any(c in TONAL for c in ending)):
+                    out.append(word)
+        return out
+
+
 class Candidate(NamedTuple):
     form: str
     tokens: int
@@ -839,6 +949,14 @@ class Selection(NamedTuple):
     rejected: dict[str, list[str]]  # reason -> sample spellings
 
 
+_BREATHING_HOMOGRAPH_KEYS = frozenset(
+    contextual_acute(f) for f in MG_BREATHING_HOMOGRAPHS)
+
+
+def _has_tonal(form: str) -> bool:
+    return any(c in TONAL for c in unicodedata.normalize("NFD", form))
+
+
 def select_forms(
     candidates: dict[str, Candidate],
     grc_words: set[str],
@@ -848,7 +966,10 @@ def select_forms(
     """Apply rules 2, 3, 4 and 6 and add the oxytone twins.
 
     ``known_word`` (:func:`load_known_words`) lets a rare spelling that is a
-    different word survive rule 4; without it every such spelling goes.
+    different word survive rule 4; without it every such spelling goes. A
+    surviving spelling is still a misspelling of the commonest spelling
+    with its monotonic letters and accent, when it is that rare beside it
+    (ὄποιος beside ὅποιος, ὅνομά beside ὄνομά).
     """
     report: Counter = Counter()
     rejected: dict[str, list[str]] = defaultdict(list)
@@ -863,6 +984,11 @@ def select_forms(
     # spellings the slice attests MIN_TOKENS times. Not grc, whose paradigm
     # tables extend almost any stem by a vowel (ἄχε, ἄχι, ἄχω).
     lexicon = {f for f, c in candidates.items() if c.tokens >= MIN_TOKENS}
+    # The words an elided spelling can stand for: the slice's own,
+    # attested as the thresholds require.
+    full_forms = FullForms(
+        f for f, c in candidates.items()
+        if c.tokens >= MIN_TOKENS and c.authors >= MIN_AUTHORS)
 
     # Rule 4 needs the commonest well-formed spelling of each letter
     # sequence, with the twins counted together.
@@ -870,10 +996,17 @@ def select_forms(
     for form, cand in candidates.items():
         by_key[contextual_acute(form)] += cand.tokens
     dominant: dict[str, tuple[int, str]] = {}
+    same_monotonic: dict[str, tuple[int, str]] = {}
     for key, n in by_key.items():
         if mg_orthography_reason(key, lexicon) is None:
             skeleton = spelling_skeleton(key)
             dominant[skeleton] = max(dominant.get(skeleton, (0, "")), (n, key))
+            mono = monotonic_spelling(key)
+            same_monotonic[mono] = max(
+                same_monotonic.get(mono, (0, "")), (n, key))
+
+    def dominated(n: int, top: int) -> bool:
+        return top >= DOMINATED_MIN and n < top and n < DOMINATED_SHARE * top
 
     selected: dict[str, int] = {}
     for form, cand in sorted(candidates.items()):
@@ -887,14 +1020,34 @@ def select_forms(
         if reason is not None:
             reject(f"orthography:{reason}", form)
             continue
+        if (form.endswith(KORONIS) and not _has_tonal(form)
+                and _lowercase(form[:-1]) not in MG_UNACCENTED_WORDS
+                and not full_forms.of(form)):
+            # μητ᾽ for μήτ᾽, εἰν᾽ for εἶν᾽: only a word accented on the
+            # vowel it loses loses its accent (γι᾽, γιατ᾽, ἐδ᾽).
+            reject("unaccented_elision", form)
+            continue
         key = contextual_acute(form)
+        n = by_key[key]
         top, top_key = dominant.get(spelling_skeleton(key), (0, ""))
-        if (top >= DOMINATED_MIN and by_key[key] < top
-                and by_key[key] < DOMINATED_SHARE * top):
-            if known_word is None or not distinct_word(form, top_key, known_word):
+        homograph = key in _BREATHING_HOMOGRAPH_KEYS
+        if dominated(n, top) and not homograph:
+            if (known_word is None
+                    or not distinct_word(form, top_key, known_word, full_forms)
+                    or dominated(n, same_monotonic.get(
+                        monotonic_spelling(key), (0, ""))[0])):
                 reject("dominated_respelling", form)
                 continue
             report["distinct_rare_spelling"] += 1
+        twin = breathing_twin(key)
+        if twin is not None and not homograph:
+            twin_n = by_key[contextual_acute(twin)]
+            if (twin_n >= BREATHING_TWIN_RATIO * n
+                    or (twin_n >= n and (grc_accepts(twin, grc_words) or
+                                         grc_accepts(contextual_acute(twin),
+                                                     grc_words)))):
+                reject("breathing_respelling", form)
+                continue
         if key in reviewed:
             reject("reviewed_reject", form)
             continue
@@ -936,22 +1089,10 @@ def select_forms(
 MG_ELISION_MIN_TOKENS = 10
 MG_ELISION_MIN_AUTHORS = 2
 
-# What Modern Greek elision removes from the end of a word: one vowel, or
-# the digraphs αι, ει, οι, ου that spell one (εἶναι -> εἶν᾽, ποὺ -> π᾽,
-# μοῦ -> μ᾽).
-MG_ELIDED_ENDINGS = frozenset({
-    "α", "ε", "η", "ι", "ο", "υ", "ω", "αι", "ει", "οι", "ου",
-})
-
 # κι᾽ is no elided word but κι itself, the form of καὶ before a vowel,
 # written with the mark as most older polytonic print does (κι᾽ ἐγώ). It
 # has no longer full form, so the rule below cannot find it.
 MG_EXTRA_ELISIONS = {"κι": "κι\u1FBD"}
-
-
-# The aspirated consonants elision before a rough breathing leaves (ἀφ᾽
-# ὅτου for ἀπ᾽, καθ᾽ ἑκάστην for κατ᾽), and the plain ones they stand for.
-_DEASPIRATED = {"φ": "π", "θ": "τ", "χ": "κ"}
 
 
 class ElisionCandidate(NamedTuple):
@@ -960,20 +1101,6 @@ class ElisionCandidate(NamedTuple):
     elided_tokens: int
     elided_before_vowel: int
     full_before_vowel: int
-
-
-def _elided_ending(full: str, stem: str) -> str | None:
-    """The marked letters ``full`` has after ``stem``, when ``full`` is the
-    stem's letters and marks plus one of ``MG_ELIDED_ENDINGS``; else None."""
-    full_nfd = unicodedata.normalize("NFD", full)
-    stem_nfd = unicodedata.normalize("NFD", stem)
-    if not full_nfd.startswith(stem_nfd):
-        return None
-    rest = full_nfd[len(stem_nfd):]
-    if not rest or unicodedata.combining(rest[0]):
-        return None
-    letters = "".join(c for c in rest if not unicodedata.combining(c))
-    return rest if letters in MG_ELIDED_ENDINGS else None
 
 
 def modern_greek_elisions(
@@ -1018,13 +1145,10 @@ def modern_greek_elisions(
         before_vowel[form] = sum(n for d, n in per_doc.items() if d in sources)
 
     lexicon = {f for f, n in tokens.items() if n >= MIN_TOKENS}
-    words: dict[str, list[str]] = defaultdict(list)
-    for form, n in tokens.items():
-        if (n >= MIN_TOKENS and len(authors[form]) >= MIN_AUTHORS
-                and KORONIS not in form
-                and mg_orthography_reason(form, lexicon) is None):
-            words[spelling_skeleton(form)[:-1]].append(form)
-            words[spelling_skeleton(form)[:-2]].append(form)
+    words = FullForms(
+        form for form, n in tokens.items()
+        if n >= MIN_TOKENS and len(authors[form]) >= MIN_AUTHORS
+        and mg_orthography_reason(form, lexicon) is None)
 
     pairs: dict[str, str] = {}
     found: list[ElisionCandidate] = []
@@ -1040,14 +1164,9 @@ def modern_greek_elisions(
         if (not accented and len(stem) > 1 and stem[-1] in _DEASPIRATED
                 and tokens[plain] >= MG_ELISION_MIN_TOKENS):
             continue
-        fulls = []
-        for full in set(words.get(spelling_skeleton(stem), ())):
-            ending = _elided_ending(full, stem)
-            if ending is None or tokens[full] < n:
-                continue
-            if accented == any(c in TONAL for c in ending):
-                continue
-            fulls.append((tokens[full], full))
+        fulls = [(tokens[full], full)
+                 for full in words.of(elided, aspirated=False)
+                 if tokens[full] >= n]
         if not fulls:
             continue
         _, full = max(fulls)
@@ -1139,7 +1258,7 @@ def build(
     if known_word is None:
         print(f"  NOTE: {LOOKUP_DB} not found; every rare respelling of a "
               "commoner spelling is dropped", file=sys.stderr)
-    selection = select_forms(candidates, grc_words, load_grc_spelling_review(),
+    selection = select_forms(candidates, grc_words, load_mg_spelling_review(),
                              known_word)
     if holdout_dev_documents:
         variant = "grc-mg (evaluation: documents with a dev sentence held out)"

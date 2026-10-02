@@ -43,7 +43,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import export_mg_polytonic as mg  # noqa: E402
-from export_hunspell import load_grc_spelling_review  # noqa: E402
 
 
 def dev_words(counts: mg.CorpusCounts) -> list[tuple[int, str]]:
@@ -85,7 +84,7 @@ def main() -> None:
     counts = mg.count_corpus()
     grc_words = mg.read_grc_words()
     known_word = mg.load_known_words()
-    reviewed = load_grc_spelling_review()
+    reviewed = mg.load_mg_spelling_review()
     words = dev_words(counts)
     folds = args.folds
     fold_of = {d: mg.author_fold(info.author, folds)

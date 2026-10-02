@@ -10,6 +10,7 @@ Run with:
     python -m pytest tests/test_export_mg_polytonic.py -v
 """
 
+import json
 import sys
 import unicodedata
 from pathlib import Path
@@ -202,11 +203,33 @@ def test_monotonic_spelling():
 
 
 def test_a_rare_spelling_is_a_word_only_if_its_monotonic_spelling_differs():
-    known = {"χρονιά", "είχε", "κάθε"}.__contains__
+    known = {"χρονιά", "είχε", "εινε", "μητε"}.__contains__
+    full = mg.FullForms(["κάθε", "κατὰ", "εἶνε", "μήτε"])
     assert mg.distinct_word("χρονιά", "χρόνια", known)
     assert not mg.distinct_word("εἴχε", "εἶχε", known)      # a misspelling
     assert not mg.distinct_word("θάνατου", "θανάτου", known)  # not a word
-    assert mg.distinct_word("κάθ" + K, "καθ" + K, known)     # from κάθε
+    # An elided spelling is judged by the attested words it stands for, not
+    # by lookup.db, whose accent-stripped keys match any stem plus a vowel.
+    assert mg.distinct_word("κάθ" + K, "καθ" + K, known, full)   # κάθε
+    assert not mg.distinct_word("εἰν" + K, "εἶν" + K, known, full)
+    assert not mg.distinct_word("κάθ" + K, "καθ" + K, known)     # no words
+
+
+def test_the_words_an_elided_spelling_stands_for():
+    full = mg.FullForms(["τώρα", "γιὰ", "γιατὶ", "ἐδῶ", "μήτε", "κατὰ",
+                         "κάθε", "ποὺ", "εἶναι", K + "στὰ"])
+    assert full.of("τώρ" + K) == ["τώρα"]          # accent kept in place
+    assert full.of("γι" + K) == ["γιὰ"]            # an oxytone loses it
+    assert full.of("γιατ" + K) == ["γιατὶ"]
+    assert full.of("ἐδ" + K) == ["ἐδῶ"]
+    assert full.of("π" + K) == ["ποὺ"]             # the digraph ου
+    assert full.of("εἶν" + K) == ["εἶναι"]
+    assert full.of("καθ" + K) == ["κατὰ"]          # before a rough breathing
+    assert full.of("καθ" + K, aspirated=False) == []
+    assert full.of("κάθ" + K) == ["κάθε"]
+    assert full.of(K + "στ" + K) == [K + "στὰ"]
+    # A paroxytone keeps its accent when it is elided.
+    assert full.of("μητ" + K) == [] and full.of("μήτ" + K) == ["μήτε"]
 
 
 # --------------------------------------------------------------------------
@@ -258,6 +281,64 @@ def test_a_reviewed_reject_and_its_twin_are_not_listed():
     candidates = {"πράξιν": cand("πράξιν", 30)}
     sel = select_forms(candidates, set(), frozenset({"πράξιν"}))
     assert sel.entries == {}
+    candidates = {"τουκαὶ": cand("τουκαὶ", 4)}
+    sel = select_forms(candidates, set(), frozenset({"τουκαί"}))
+    assert sel.entries == {}
+
+
+def test_a_breathing_misspelling_goes_whatever_the_counts():
+    candidates = {c.form: c for c in [
+        # Five times commoner in the slice, with no floor on the count.
+        cand("ἕτοιμος", 65), cand("ἔτοιμος", 4),
+        cand("ἅγιο", 97), cand("ἄγιο", 3),
+        # At least as common and in grc.
+        cand("ἐμᾶς", 104), cand("ἑμᾶς", 25),
+        # grc's own breathing variants decide nothing when they are rarer:
+        # ἦμαι stays beside grc's ἧμαι.
+        cand("ἦμαι", 13), cand("ἧμαι", 2),
+        # Words that differ only in the breathing.
+        cand("ἢ", 4300), cand("ἣ", 30),
+        cand("ὄντας", 31), cand("ὅντας", 12),
+    ]}
+    sel = select_forms(candidates, grc_words={"ἐμᾶς", "ἧμαι", "ἢ", "ὄντας"},
+                       known_word=lambda word: True)
+    assert {"ἕτοιμος", "ἅγιο", "ἦμαι", "ἣ", "ὅντας"} <= set(sel.entries)
+    assert not {"ἔτοιμος", "ἄγιο", "ἑμᾶς"} & set(sel.entries)
+    assert sel.report["breathing_respelling"] == 3
+
+
+def test_a_rare_spelling_that_is_a_word_must_hold_its_own_beside_its_twin():
+    # ὄποιος is not ὁποῖος (another word by its monotonic spelling), but it
+    # is ὅποιος with the wrong breathing.
+    candidates = {c.form: c for c in [
+        cand("ὁποῖος", 900), cand("ὅποιος", 152), cand("ὄποιος", 3)]}
+    known = {"όποιος", "οποίος"}.__contains__
+    sel = select_forms(candidates, set(), known_word=known)
+    assert "ὅποιος" in sel.entries and "ὄποιος" not in sel.entries
+
+
+def test_an_unaccented_elision_must_stand_for_a_word_accented_on_its_end():
+    candidates = {c.form: c for c in [
+        cand("μήτε", 280), cand("μήτ" + K, 53), cand("μητ" + K, 3),
+        cand("γιὰ", 3500), cand("γι" + K, 290),
+        cand("κι" + K, 3900), cand("κι", 4000),
+    ]}
+    sel = select_forms(candidates, set())
+    assert {"μήτ" + K, "γι" + K, "κι" + K} <= set(sel.entries)
+    assert "μητ" + K not in sel.entries
+    assert sel.report["unaccented_elision"] == 1
+
+
+def test_the_reviewed_modern_greek_spellings_are_well_formed_and_correct():
+    from export_hunspell import load_grc_spelling_review
+    rejects = load_grc_spelling_review(mg.MG_SPELLING_REVIEW)
+    assert {"τουκαὶ", "τουναντίον", "ἤταν", "ἐδῷ", "ξῦλον"} <= rejects
+    # The variants the review accepted stay out of it.
+    assert not {"θέσῃ", "πᾷς", "τρομερᾶς", "ἀκριβῆς", "κορῶνα",
+                "ποιητῆ"} & rejects
+    payload = json.loads(mg.MG_SPELLING_REVIEW.read_text("utf-8"))
+    for row in payload["reviews"]:
+        assert row["correct"] not in rejects, row
 
 
 def make_counts(rows, authors=("Α", "Β", "Γ")):
