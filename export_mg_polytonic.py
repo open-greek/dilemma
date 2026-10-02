@@ -18,8 +18,13 @@ grc dictionary, leaving the grc dictionary itself untouched::
     build/hunspell/grc_mg_polytonic.aff       minimal, no affix rules
     build/hunspell/grc_mg_polytonic.version   version sidecar
 
-Every entry is a spelling the grc dictionary does not have, so the whole list
-is Modern-only by construction.
+Every word of the list is a spelling the grc dictionary does not accept, so
+the words are Modern-only by construction. The list also carries
+``form<TAB>mg:avoid`` lines, which name grc spellings polytonic Modern Greek
+writes another way (με for μὲ, που for ποὺ or ποῦ; see
+``modern_greek_avoids``), so that a keyboard writing Modern Greek can leave
+them out of its candidates. A Hunspell reader that does not know the field
+accepts those spellings, as grc does.
 
 Source
 ------
@@ -1208,6 +1213,109 @@ def modern_greek_elision_shares(
 
 
 # --------------------------------------------------------------------------
+# Spellings polytonic Modern Greek avoids (mg:avoid)
+# --------------------------------------------------------------------------
+
+# A spelling is one Modern Greek avoids when the slice writes its letters at
+# least AVOID_MIN_TOKENS times and gives it under AVOID_SHARE of them, while
+# another spelling of the letters takes at least that share: the slice writes
+# μὲ 14 times for each με, ποὺ and ποῦ for που, ὁ for ὅ. A keyboard writing
+# Modern Greek can then leave those spellings out of its candidates. These
+# are the thresholds a keyboard measured the rule with: in the Modern
+# register, held-out Modern Greek lost 378 errors and gained 105. Only
+# spellings the slice writes at all are marked; the closed list of unaccented
+# words never is.
+AVOID_SHARE = 0.10
+AVOID_MIN_TOKENS = 30
+
+
+def letters_key(form: str) -> str:
+    """The letters of ``form``, lowercase, without marks, final sigma
+    folded: the spellings that compete for the same typed letters."""
+    nfd = unicodedata.normalize("NFD", _lowercase(form).replace(KORONIS, ""))
+    return "".join(c for c in nfd if not unicodedata.combining(c)).replace(
+        "ς", "σ")
+
+
+class Avoided(NamedTuple):
+    spelling: str           # lowercase, contextual grave folded into acute
+    tokens: int
+    letters_tokens: int     # every spelling of the letters
+    preferred: str          # the commonest spelling of the letters
+
+
+def modern_greek_avoids(
+    counts: CorpusCounts, sources: set[int],
+) -> dict[str, Avoided]:
+    """The spellings polytonic Modern Greek avoids, keyed by the spelling
+    with its contextual grave folded into the acute. Only lowercase tokens
+    are read: a capital belongs to a name or to the start of a sentence,
+    and says nothing of how the word is spelled (Σοφιά, the name, beside
+    σοφία). Elided and aphaeresized spellings are not judged."""
+    tokens: Counter = Counter()
+    for (form, position), per_doc in counts.forms.items():
+        if KORONIS in form or position != "lower":
+            continue
+        n = sum(c for d, c in per_doc.items() if d in sources)
+        if n:
+            tokens[contextual_acute(form)] += n
+    groups: dict[str, dict[str, int]] = defaultdict(dict)
+    for spelling, n in tokens.items():
+        groups[letters_key(spelling)][spelling] = n
+    out: dict[str, Avoided] = {}
+    for spellings in groups.values():
+        total = sum(spellings.values())
+        if total < AVOID_MIN_TOKENS:
+            continue
+        preferred = max(spellings, key=lambda sp: (spellings[sp], sp))
+        if spellings[preferred] < AVOID_SHARE * total:
+            continue
+        for spelling, n in spellings.items():
+            if (n < AVOID_SHARE * total
+                    and spelling not in MG_UNACCENTED_WORDS):
+                out[spelling] = Avoided(spelling, n, total, preferred)
+    return dict(sorted(out.items()))
+
+
+def avoid_lines(avoided: dict[str, Avoided], grc_words: set[str]) -> list[str]:
+    """The grc spellings to mark ``mg:avoid``: each avoided spelling, and its
+    contextual grave twin, as grc spells them."""
+    return sorted({sp for key in avoided
+                   for sp in (key, *oxytone_twins(key)) if sp in grc_words})
+
+
+class ModernGreekList(NamedTuple):
+    entries: dict[str, int]     # spelling -> token count for fr:
+    avoid: list[str]            # grc spellings marked mg:avoid
+    report: dict[str, int]
+    rejected: dict[str, list[str]]
+
+
+def select_list(
+    counts: CorpusCounts,
+    sources: set[int],
+    grc_words: set[str],
+    reviewed_rejects: frozenset[str] = frozenset(),
+    known_word=None,
+) -> ModernGreekList:
+    """The list from the source documents: the spellings :func:`select_forms`
+    selects, and the grc spellings to mark mg:avoid.
+
+    The list's own spellings are not marked, though some are a minority
+    spelling of their letters: they are words in their own right (χρονιά
+    beside χρόνια, ὅποια beside ὁποῖα), and leaving the 175 of them out
+    changed no word in the keyboard measurement.
+    """
+    selection = select_forms(gather_candidates(counts, sources), grc_words,
+                             reviewed_rejects, known_word)
+    lines = avoid_lines(modern_greek_avoids(counts, sources), grc_words)
+    report = dict(selection.report)
+    report["mg_avoid_lines"] = len(lines)
+    return ModernGreekList(selection.entries, lines, report,
+                           selection.rejected)
+
+
+# --------------------------------------------------------------------------
 # Output
 # --------------------------------------------------------------------------
 
@@ -1231,13 +1339,15 @@ def write_list(
     version: str | None = None,
     commit: str | None = None,
     grc_sha256: str | None = None,
+    avoid: Iterable[str] = (),
 ) -> dict:
     """Write ``<DIC_NAME>.dic``, ``.aff`` and ``.version`` to ``out_dir``.
 
     An evaluation variant is refused in ``build/hunspell``, where it would
     replace the shipping list under the same name. ``grc_sha256`` records
     the grc dictionary the list was selected against: the list holds only
-    what that dictionary lacks.
+    what that dictionary lacks. ``avoid`` are grc spellings written as
+    ``form<TAB>mg:avoid`` lines (:func:`modern_greek_avoids`).
     """
     if (variant != SHIPPING_VARIANT
             and Path(out_dir).resolve() == OUT.resolve()):
@@ -1248,7 +1358,10 @@ def write_list(
     out_dir.mkdir(parents=True, exist_ok=True)
     version = version or read_version_file()
     commit = commit or get_git_commit()
-    lines = [f"{form}\tfr:{freq_bucket(n)}" for form, n in sorted(entries.items())]
+    avoid = sorted(avoid)
+    lines = sorted(
+        [f"{form}\tfr:{freq_bucket(n)}" for form, n in entries.items()]
+        + [f"{form}\tmg:avoid" for form in avoid])
     dic_path = out_dir / f"{DIC_NAME}.dic"
     dic_path.write_text(
         f"{len(lines)}\n" + "".join(line + "\n" for line in lines),
@@ -1267,14 +1380,15 @@ def write_list(
         f"version: {version}\n"
         f"commit: {commit}\n"
         f"variant: {variant}\n"
-        f"entries: {len(lines)}\n"
+        f"entries: {len(entries)}\n"
+        f"mg_avoid: {len(avoid)}\n"
         f"aff_rules: 0\n"
         f"source: {source}\n"
         + (f"grc_dictionary_sha256: {grc_sha256}\n" if grc_sha256 else "")
         + f"buckets: C={buckets['C']} M={buckets['M']} R={buckets['R']}\n",
         encoding="utf-8")
-    return {"entries": len(lines), "dic_path": str(dic_path),
-            "buckets": dict(buckets)}
+    return {"entries": len(entries), "mg_avoid": len(avoid),
+            "dic_path": str(dic_path), "buckets": dict(buckets)}
 
 
 def build(
@@ -1286,7 +1400,7 @@ def build(
     counts: CorpusCounts | None = None,
     grc_words: set[str] | None = None,
     grc_dic: Path = GRC_DIC,
-) -> tuple[Selection, dict]:
+) -> tuple[ModernGreekList, dict]:
     """Read the slice, select the spellings and write the list."""
     counts = counts or count_corpus(parquet_path)
     grc_words = grc_words if grc_words is not None else read_grc_words(grc_dic)
@@ -1295,13 +1409,12 @@ def build(
     sources = source_documents(
         counts, holdout_dev_documents=holdout_dev_documents,
         holdout_author_fold=holdout_author_fold)
-    candidates = gather_candidates(counts, sources)
     known_word = load_known_words()
     if known_word is None:
         print(f"  NOTE: {LOOKUP_DB} not found; every rare respelling of a "
               "commoner spelling is dropped", file=sys.stderr)
-    selection = select_forms(candidates, grc_words, load_mg_spelling_review(),
-                             known_word)
+    selection = select_list(counts, sources, grc_words,
+                            load_mg_spelling_review(), known_word)
     if holdout_dev_documents:
         variant = "grc-mg (evaluation: documents with a dev sentence held out)"
     elif holdout_author_fold is not None:
@@ -1311,6 +1424,7 @@ def build(
         variant = SHIPPING_VARIANT
     stats = write_list(
         selection.entries, out_dir, variant=variant, grc_sha256=grc_sha256,
+        avoid=selection.avoid,
         source=f"{corpus_identity(parquet_path)}, language-model training "
                f"split, {len(sources)} of {len(counts.documents)} documents")
     return selection, stats
@@ -1361,7 +1475,8 @@ def main(argv: Iterable[str] | None = None) -> None:
     for key, value in sorted(selection.report.items()):
         print(f"  {key}: {value:,}")
     print(f"  wrote {stats['dic_path']} ({stats['entries']:,} entries, "
-          f"buckets {stats['buckets']})")
+          f"buckets {stats['buckets']}, {stats['mg_avoid']:,} mg:avoid "
+          "lines)")
 
 
 if __name__ == "__main__":

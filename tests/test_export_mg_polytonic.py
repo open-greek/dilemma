@@ -562,6 +562,63 @@ def test_an_evaluation_list_never_replaces_the_shipping_list(tmp_path):
 
 
 # --------------------------------------------------------------------------
+# Spellings Modern Greek avoids (mg:avoid)
+# --------------------------------------------------------------------------
+
+def avoid_counts():
+    return make_counts([
+        # με beside μὲ: 6% of the letters' lowercase tokens.
+        ("μὲ", "lower", {0: 500, 1: 400}),
+        ("με", "lower", {0: 40, 1: 20}),
+        ("Με", "cap", {0: 300}),           # capitals say nothing
+        # που beside ποὺ and ποῦ.
+        ("ποὺ", "lower", {0: 50}),
+        ("ποῦ", "lower", {1: 40}),
+        ("που", "lower", {0: 3}),
+        # δυό beside δύο, as a word of the list and of grc.
+        ("δύο", "lower", {0: 200, 1: 100}),
+        ("δυό", "lower", {0: 10, 1: 5}),
+        # σας is a weak pronoun, unaccented by rule, however rare.
+        ("σᾶς", "lower", {0: 60}),
+        ("σας", "lower", {1: 3}),
+        # Too few tokens of these letters to judge.
+        ("ζῶ", "lower", {0: 20}),
+        ("ζω", "lower", {1: 1}),
+    ])
+
+
+def test_a_spelling_under_a_tenth_of_its_letters_is_avoided():
+    avoided = mg.modern_greek_avoids(avoid_counts(), {0, 1, 2})
+    assert set(avoided) == {"με", "που", "δυό"}
+    assert avoided["με"] == mg.Avoided("με", 60, 960, "μέ")
+    assert avoided["που"].preferred == "πού"
+    # A held-out document gives the rule nothing.
+    held_out = mg.modern_greek_avoids(avoid_counts(), {1, 2})
+    assert held_out["με"] == mg.Avoided("με", 20, 420, "μέ")
+
+
+def test_the_list_names_the_grc_spellings_modern_greek_avoids():
+    grc = {"με", "μὲ", "μέ", "που", "ποῦ", "δυό", "δυὸ", "ζω"}
+    lst = mg.select_list(avoid_counts(), {0, 1, 2}, grc)
+    # grc's spellings, with the grave twin of an avoided acute.
+    assert lst.avoid == ["δυό", "δυὸ", "με", "που"]
+    assert "δύο" in lst.entries
+    # A spelling grc lacks gets no line; the list keeps it as a word.
+    lst = mg.select_list(avoid_counts(), {0, 1, 2}, {"με"})
+    assert lst.avoid == ["με"]
+    assert "δυό" in lst.entries
+
+
+def test_avoid_lines_are_written_with_the_mg_avoid_field(tmp_path):
+    mg.write_list({"τώρα": 1500}, tmp_path, variant="grc-mg", source="t",
+                  avoid=["που", "με"])
+    lines = (tmp_path / "grc_mg_polytonic.dic").read_text("utf-8").splitlines()
+    assert lines == ["3", "με\tmg:avoid", "που\tmg:avoid", "τώρα\tfr:C"]
+    version = (tmp_path / "grc_mg_polytonic.version").read_text("utf-8")
+    assert "entries: 1\n" in version and "mg_avoid: 2\n" in version
+
+
+# --------------------------------------------------------------------------
 # Modern Greek elisions
 # --------------------------------------------------------------------------
 
@@ -625,26 +682,36 @@ MG_DIC = HUNSPELL / "grc_mg_polytonic.dic"
 GRC_DIC = HUNSPELL / "grc_polytonic.dic"
 
 
-def read_list(path: Path) -> dict[str, str]:
+def read_list(path: Path) -> tuple[dict[str, str], list[str]]:
+    """The list's words with their fr: field, and its mg:avoid spellings."""
     lines = path.read_text("utf-8").splitlines()
     assert int(lines[0]) == len(lines) - 1
-    out = {}
+    assert lines[1:] == sorted(lines[1:])
+    out: dict[str, str] = {}
+    avoid: list[str] = []
     for line in lines[1:]:
         form, _, field = line.partition("\t")
+        assert form == nfc(form) and form not in out and form not in avoid
+        if field == "mg:avoid":
+            avoid.append(form)
+            continue
         assert field in ("fr:C", "fr:M", "fr:R"), line
-        assert form == nfc(form) and form not in out, form
         out[form] = field
-    assert list(out) == sorted(out)
-    return out
+    return out, avoid
 
 
 @pytest.mark.skipif(not MG_DIC.exists() or not GRC_DIC.exists(),
                     reason="grc_mg_polytonic.dic not built")
 def test_the_built_list_holds_its_invariants():
     from export_lm import read_hunspell_words
-    entries = read_list(MG_DIC)
+    entries, avoid = read_list(MG_DIC)
     grc = read_hunspell_words(GRC_DIC)
-    assert not set(entries) & grc
+    assert not [f for f in entries if mg.grc_accepts(f, grc)]
+    # The mg:avoid lines name grc spellings: με and που, which Modern Greek
+    # writes μὲ and ποὺ or ποῦ, but not μὲ or ποὺ themselves.
+    assert set(avoid) <= grc
+    assert {"με", "που"} <= set(avoid)
+    assert not {"μὲ", "ποὺ", "ποῦ", "του", "κι"} & set(avoid)
     lexicon = set(entries)
     invalid = [f for f in entries if mg_orthography_reason(f, lexicon)]
     assert not invalid, invalid[:20]
@@ -660,6 +727,7 @@ def test_the_built_list_holds_its_invariants():
     assert not {"το", "τα", "την", "και", "να", "θα", "δεν"} & set(entries)
     version = MG_DIC.with_suffix(".version").read_text("utf-8")
     assert f"entries: {len(entries)}\n" in version
+    assert f"mg_avoid: {len(avoid)}\n" in version
     # The shipping list, not an evaluation variant, and selected against
     # the grc dictionary beside it.
     assert "variant: grc-mg\n" in version

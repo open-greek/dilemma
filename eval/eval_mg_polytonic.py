@@ -67,10 +67,9 @@ def accepted(word: str, words: set[str]) -> bool:
     return lower != word and lower in words
 
 
-def build_list(counts, grc_words, known_word, reviewed, **holdout) -> dict:
+def build_list(counts, grc_words, known_word, reviewed, **holdout):
     sources = mg.source_documents(counts, **holdout)
-    candidates = mg.gather_candidates(counts, sources)
-    return mg.select_forms(candidates, grc_words, reviewed, known_word).entries
+    return mg.select_list(counts, sources, grc_words, reviewed, known_word)
 
 
 def main() -> None:
@@ -105,7 +104,7 @@ def main() -> None:
             if accepted(word, grc_words):
                 covered += 1
                 continue
-            if accepted(word, choose(doc)):
+            if accepted(word, choose(doc).entries):
                 covered += 1
                 by_list += 1
             else:
@@ -114,7 +113,7 @@ def main() -> None:
                 "accepted_through_list": by_list,
                 "top_missing": missing.most_common(20)}
 
-    empty: set[str] = set()
+    empty = mg.ModernGreekList({}, [], {}, {})
     results = {
         "grc alone": coverage(lambda doc: empty),
         "train split": coverage(lambda doc: lists["train split"]),
@@ -123,9 +122,10 @@ def main() -> None:
         "other fold held out": coverage(
             lambda doc: by_fold[(fold_of[doc] + 1) % folds]),
     }
-    sizes = {"train split": len(lists["train split"]),
-             "documents held out": len(lists["documents held out"]),
-             "author held out": {k: len(v) for k, v in by_fold.items()}}
+    sizes = {"train split": len(lists["train split"].entries),
+             "documents held out": len(lists["documents held out"].entries),
+             "author held out": {k: len(v.entries)
+                                 for k, v in by_fold.items()}}
 
     base = results["grc alone"]
     print(f"{base['words']:,} words in the clean dev sentences of "
@@ -145,12 +145,14 @@ def main() -> None:
             ensure_ascii=False, indent=1), encoding="utf-8")
     if args.write_lists:
         source = mg.corpus_identity()
-        mg.write_list(lists["documents held out"],
-                      args.write_lists / "documents_held_out",
+        held = lists["documents held out"]
+        mg.write_list(held.entries, args.write_lists / "documents_held_out",
+                      avoid=held.avoid,
                       variant="grc-mg (evaluation: documents with a dev "
                               "sentence held out)", source=source)
-        for k, entries in by_fold.items():
-            mg.write_list(entries, args.write_lists / f"author_fold_{k}",
+        for k, fold in by_fold.items():
+            mg.write_list(fold.entries, args.write_lists / f"author_fold_{k}",
+                          avoid=fold.avoid,
                           variant=f"grc-mg (evaluation: author fold {k} of "
                                   f"{folds} held out)", source=source)
 
