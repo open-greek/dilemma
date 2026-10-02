@@ -276,13 +276,61 @@ def test_case_follows_the_texts():
         ("Τώρα", "initial", {0: 7}),
         ("Μαρούλα", "cap", {0: 6, 1: 2}),
         ("Μαρούλα", "initial", {1: 1}),
-        ("Ὅμως", "initial", {0: 9}),       # never seen lowercase
+        ("Φεῦγα", "initial", {0: 2, 1: 2}),   # only ever opening a line
     ])
     candidates = gather_candidates(counts, {0, 1, 2})
     assert candidates["τώρα"].tokens == 22
     assert candidates["τώρα"].authors == 2
-    assert "Μαρούλα" in candidates and "μαρούλα" not in candidates
-    assert "Ὅμως" not in candidates and "ὅμως" not in candidates
+    assert "Τώρα" not in candidates
+    assert candidates["Μαρούλα"] == Candidate("Μαρούλα", 9, 2, 2)
+    assert "μαρούλα" not in candidates
+    assert candidates["φεῦγα"].tokens == 4
+    assert "Φεῦγα" not in candidates
+
+
+def test_each_case_stands_on_its_own_tokens_and_authors():
+    counts = make_counts([
+        # A word and a name: the lowercase word by six authors, the name
+        # capitalized by one.
+        ("διάολος", "lower", {0: 4, 1: 3}),
+        ("Διάολος", "cap", {2: 12}),
+        # One author's word beside another author's name: neither borrows
+        # the other's author, and the capitals opening sentences go with
+        # the case more authors write inside a sentence.
+        ("λάζος", "lower", {0: 2}),
+        ("Λάζος", "cap", {1: 4, 2: 2}),
+        ("Λάζος", "initial", {0: 3}),
+    ])
+    candidates = gather_candidates(counts, {0, 1, 2})
+    assert candidates["διάολος"] == Candidate("διάολος", 7, 2, 2)
+    assert candidates["Διάολος"] == Candidate("Διάολος", 12, 1, 1)
+    assert candidates["λάζος"] == Candidate("λάζος", 2, 1, 1)
+    assert candidates["Λάζος"] == Candidate("Λάζος", 9, 3, 3)
+    sel = select_forms(candidates, grc_words=set())
+    assert set(sel.entries) == {"διάολος", "Λάζος"}
+
+
+def test_a_capital_hunspell_accepts_through_a_lowercase_entry_is_not_listed():
+    candidates = {c.form: c for c in [
+        cand("Βουλήν", 20), cand("τοπικός", 20), cand("Τοπικός", 20)]}
+    sel = select_forms(candidates, grc_words={"βουλήν", "βουλὴν"})
+    # grc accepts Βουλήν through βουλήν; the list's τοπικός covers its own
+    # capital.
+    assert set(sel.entries) == {"τοπικός", "τοπικὸς"}
+    assert mg.grc_accepts("Βουλήν", {"βουλήν"})
+    assert not mg.grc_accepts("βουλήν", {"Βουλήν"})
+
+
+def test_the_grc_rejects_and_the_unaccented_words_hold_in_either_case():
+    assert mg_orthography_reason("Θά") == "explicit_reject"
+    assert mg_orthography_reason("Γιά") == "explicit_reject"
+    assert mg_orthography_reason("Του") is None
+    assert mg_orthography_reason("Κι") is None
+
+
+def test_a_capital_after_a_quotation_dash_or_colon_is_initial():
+    tokens = tokenize("εἶπε: «Τώρα ἔλα» — Ναί, ἔλα")
+    assert [t.initial for t in tokens] == [True, True, False, True, False]
 
 
 def test_held_out_documents_and_authors_are_not_read():

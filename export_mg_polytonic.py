@@ -149,6 +149,10 @@ TOKEN_RE = re.compile(
     rf"(?P<lead>[{ELISION_MARKS}])?(?P<word>[{_LETTERS}]+)"
     rf"(?P<trail>[{ELISION_MARKS}])?"
 )
+# A capital after one of these may open a sentence the splitter does not
+# end: a line, a quotation, a dash of dialogue, or speech after a colon
+# (εἶπε: «Τώρα ...»).
+_OPENERS = frozenset("\n«\u201C\u201E\u201B\"([\u2014\u2013:")
 # A token touching one of these is part of something that is not a plain
 # word: a hyphenated or line-broken word (ἀπο-φασίζω), a numeral (αʹ, Β΄),
 # or letters run into digits or Latin script.
@@ -214,11 +218,6 @@ MG_UNACCENTED_WORDS = frozenset({
     "μου", "σου", "του", "της", "μας", "σας", "τους", "των", "κι",
 })
 
-# An explicit grc reject that is a correct Modern Greek spelling: the weak
-# pronoun του. The other grc rejects (θά, γιά, στό, στά, τού, ...) are wrong
-# in Modern Greek too.
-MG_REJECT_EXEMPT = frozenset({"του"})
-
 # A spelling whose count is below this share of the commonest spelling with
 # the same letters (marks aside, grave folded into acute) is a mark-level
 # misspelling of it (εἴχε beside εἶχε, ὄτι beside ὅτι), unless it is a
@@ -247,8 +246,9 @@ class Token(NamedTuple):
     """One word of a sentence.
 
     ``form`` is the NFC spelling with any elision or aphaeresis mark written
-    as the koronis. ``initial`` is true at the start of a sentence or a line,
-    where a capital says nothing about the word. ``plain`` is false for a
+    as the koronis. ``initial`` is true at the start of a sentence, a line,
+    a quotation or a stretch of dialogue, where a capital says nothing
+    about the word. ``plain`` is false for a
     word touching a hyphen, numeral sign, digit or Latin letter.
     """
 
@@ -280,7 +280,7 @@ def tokenize(sentence: str) -> list[Token]:
         before = text[start - 1] if start else ""
         after = text[end] if end < len(text) else ""
         gap = text[previous_end:start]
-        initial = not tokens or "\n" in gap
+        initial = not tokens or any(c in _OPENERS for c in gap)
         previous_end = end
         plain = not (
             before in _JOINERS or after in _JOINERS
@@ -593,13 +593,12 @@ def mg_orthography_reason(
 
     The grc structural rules hold for polytonic Modern Greek, which keeps
     the historical breathings and accents: :func:`grc_orthography_reason`
-    and :func:`new_form_structural_reason`. Four things differ:
+    and :func:`new_form_structural_reason`. Three things differ:
 
     * the closed list ``MG_UNACCENTED_WORDS`` (του, της, μας, σας, τους,
       των, κι) is correct without an accent, where grc rejects an
-      unaccented monosyllable;
-    * του, an explicit grc reject as a misspelled article, is the Modern
-      Greek weak pronoun;
+      unaccented monosyllable, and where grc rejects του explicitly as a
+      misspelled article;
     * syllables are counted as Modern Greek pronounces them
       (:func:`mg_accent_window_ok`), so τέλειωσε, πλάγιασε and γάϊδαρος
       keep their accent within the last three syllables;
@@ -612,9 +611,13 @@ def mg_orthography_reason(
     An elided word may also end in an unaccented ι, the glide of κι᾽,
     γι᾽, μι᾽, where Ancient Greek elision leaves a consonant.
     """
-    if form in MG_UNACCENTED_WORDS:
+    lower = _lowercase(form)
+    if lower in MG_UNACCENTED_WORDS:
         return None
-    if form in GRC_REJECT_FORMS and form not in MG_REJECT_EXEMPT:
+    # The grc rejects (θά, γιά, στό, στά, τού, ...) are wrong in Modern
+    # Greek too, in either case; του, among them as a misspelled article,
+    # is the weak pronoun, accepted above.
+    if form in GRC_REJECT_FORMS or lower in GRC_REJECT_FORMS:
         return "explicit_reject"
     reason = grc_orthography_reason(form)
     if reason in _ACCENT_WINDOW_REASONS and mg_accent_window_ok(form):
@@ -766,6 +769,12 @@ def _lowercase(form: str) -> str:
     return unicodedata.normalize("NFC", form.lower())
 
 
+def grc_accepts(form: str, grc_words: set[str]) -> bool:
+    """Whether a Hunspell dictionary of ``grc_words`` accepts ``form``: as
+    written, or, for a capitalized spelling, as its lowercase word."""
+    return form in grc_words or _lowercase(form) in grc_words
+
+
 class Candidate(NamedTuple):
     form: str
     tokens: int
@@ -776,33 +785,51 @@ class Candidate(NamedTuple):
 def gather_candidates(
     counts: CorpusCounts, sources: set[int],
 ) -> dict[str, Candidate]:
-    """Fold the per-position counts of the source documents into one
-    candidate per word, in the case the texts give it (rule 5)."""
-    lower: Counter = Counter()
-    cap: Counter = Counter()
-    initial: Counter = Counter()
-    docs: dict[str, set[int]] = defaultdict(set)
+    """One candidate per spelling and case, from the source documents
+    (rule 5).
+
+    The lowercase spelling is read from the lowercase tokens; the
+    capitalized spelling (a name) from the capitalized tokens inside a
+    sentence. A capital at the start of a sentence, line or quotation says
+    nothing about the word, so those tokens join the lowercase spelling when
+    as many authors write it lowercase as capitalized inside a sentence (a
+    word seen only there, such as an imperative opening lines of verse,
+    included), and the capitalized spelling otherwise.
+    Each spelling is held to the thresholds on its own tokens and authors,
+    so a word and a name can both be listed (διάολος, Διάολος), and neither
+    passes on the other's authors (λάζος, "blade", has one; Λάζος is a
+    name).
+    """
+    evidence: dict[str, dict[str, Counter]] = defaultdict(
+        lambda: {"lower": Counter(), "cap": Counter(), "initial": Counter()})
     capital_spelling: dict[str, Counter] = defaultdict(Counter)
     for (form, position), per_doc in counts.forms.items():
-        n = sum(c for d, c in per_doc.items() if d in sources)
-        if not n:
+        kept = Counter({d: c for d, c in per_doc.items() if d in sources})
+        if not kept:
             continue
         key = _lowercase(form)
-        {"lower": lower, "cap": cap, "initial": initial}[position][key] += n
+        evidence[key][position].update(kept)
         if position != "lower":
-            capital_spelling[key][form] += n
-        docs[key].update(d for d in per_doc if d in sources)
+            capital_spelling[key][form] += sum(kept.values())
+
+    def authors(*docs: Counter) -> set[str]:
+        return {counts.documents[d].author for c in docs for d in c}
+
+    def candidate(form: str, *docs: Counter) -> Candidate:
+        documents = {d for c in docs for d in c}
+        return Candidate(form, sum(sum(c.values()) for c in docs),
+                         len(authors(*docs)), len(documents))
+
     out: dict[str, Candidate] = {}
-    for key, documents in docs.items():
-        total = lower[key] + cap[key] + initial[key]
-        if lower[key] and lower[key] >= cap[key]:
-            form = key
-        elif cap[key] > lower[key]:
+    for key, ev in evidence.items():
+        lower, cap, initial = ev["lower"], ev["cap"], ev["initial"]
+        initial_is_lower = len(authors(lower)) >= len(authors(cap))
+        if lower or (initial and initial_is_lower):
+            out[key] = candidate(key, lower, *([initial] * initial_is_lower))
+        if cap:
             form = capital_spelling[key].most_common(1)[0][0]
-        else:
-            continue        # only ever seen opening a sentence or line
-        authors = {counts.documents[d].author for d in documents}
-        out[form] = Candidate(form, total, len(authors), len(documents))
+            out[form] = candidate(form, cap,
+                                  *([initial] * (not initial_is_lower)))
     return out
 
 
@@ -884,10 +911,16 @@ def select_forms(
                     report["twin_rejected"] += 1
                     continue
                 report["twins"] += 1
-            if spelling in grc_words:
+            if grc_accepts(spelling, grc_words):
                 report["in_grc"] += 1
                 continue
             entries[spelling] = n
+    # A capitalized spelling whose lowercase word is listed adds nothing a
+    # Hunspell reader does not accept already.
+    for spelling in [s for s in entries if _lowercase(s) != s]:
+        if _lowercase(spelling) in entries:
+            del entries[spelling]
+            report["capital_of_listed_word"] += 1
     report["entries"] = len(entries)
     return Selection(entries, dict(report), dict(rejected))
 
