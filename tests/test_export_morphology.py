@@ -860,3 +860,8 @@ def test_the_built_modern_greek_elisions_hold_their_invariants():
     # The Ancient Greek table is not touched: the article and ὅτι, which
     # Ancient Greek never elides, are elided only in the Modern overlay.
     assert "τὸ" not in ancient and "ὅτι" not in ancient
+    # Each pair carries how often the texts elide it before a vowel.
+    shares = payload["el_modern_share"]
+    assert set(shares) == set(modern)
+    assert all(0 <= v <= 1 for v in shares.values())
+    assert shares["γιὰ"] > 0.5 > shares["τώρα"]

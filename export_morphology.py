@@ -51,6 +51,13 @@ second:
   the particle ``ὅτι`` never elides. The key is optional: a reader that
   knows only ``nu`` and ``el`` ignores it.
 
+* ``el_modern_share`` - for each ``el_modern`` key, how often the slice
+  elides it: of the times it writes a word the elided spelling stands for
+  right before a vowel-initial word, the share it writes it elided
+  (``γιὰ`` 0.6, ``τώρα`` 0.06). Modern Greek elides optionally, and most
+  of these elisions are the minority spelling, so a keyboard can elide a
+  word automatically only where the texts mostly do.
+
 The derivation pulls from:
 
 * ``data/glaux_pairs.json`` + ``data/diorisis_pairs.json``: morpho-
@@ -1435,15 +1442,17 @@ def modern_only_elisions(
 
 def derive_modern_greek_elisions(parquet_path: Path | None = None):
     """Modern Greek elision pairs from the polytonic Modern Greek slice,
-    read as ``export_mg_polytonic`` reads it for the word list."""
+    read as ``export_mg_polytonic`` reads it for the word list, and each
+    pair's elided share before a vowel."""
     from export_mg_polytonic import (
         count_corpus,
+        modern_greek_elision_shares,
         modern_greek_elisions,
         source_documents,
     )
     counts = count_corpus(parquet_path)
-    pairs, _ = modern_greek_elisions(counts, source_documents(counts))
-    return pairs
+    pairs, found = modern_greek_elisions(counts, source_documents(counts))
+    return pairs, modern_greek_elision_shares(found)
 
 
 def build(out_dir: Path, modern_greek: bool = True,
@@ -1486,8 +1495,8 @@ def build(out_dir: Path, modern_greek: bool = True,
 
     el_modern: dict[str, str] = {}
     if modern_greek:
-        el_modern, conflicts = modern_only_elisions(
-            elision_pairs, derive_modern_greek_elisions(mg_parquet))
+        mg_pairs, mg_shares = derive_modern_greek_elisions(mg_parquet)
+        el_modern, conflicts = modern_only_elisions(elision_pairs, mg_pairs)
         print(f"  Modern Greek elision pairs the Ancient table lacks or "
               f"spells otherwise: {len(el_modern):,}")
         for full, (ancient, modern) in sorted(conflicts.items()):
@@ -1503,6 +1512,8 @@ def build(out_dir: Path, modern_greek: bool = True,
     }
     if modern_greek:
         payload["el_modern"] = el_modern
+        payload["el_modern_share"] = {
+            full: mg_shares[full] for full in el_modern}
     # Compact JSON: no extra whitespace, but pretty-ish for diffing.
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(

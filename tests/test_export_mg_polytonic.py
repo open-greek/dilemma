@@ -582,11 +582,18 @@ def test_modern_greek_elisions_pair_each_elided_spelling_with_its_word():
         ("ὅλα", "lower", {0: 50, 1: 30}),
     ])
     counts.before_vowel[nfc("τώρ" + K)].update({0: 8, 1: 4})
+    counts.before_vowel["τώρα"].update({0: 30, 1: 6})
+    # στ᾽ stands for στὸ and στὰ alike: its share is of both.
+    counts.before_vowel[nfc("στ" + K)].update({0: 6})
+    counts.before_vowel["στὸ"].update({0: 2})
+    counts.before_vowel["στὰ"].update({1: 4})
     pairs, found = modern_greek_elisions(counts, {0, 1, 2})
     assert pairs == {"τώρα": "τώρ" + K, "στὸ": "στ" + K, "κι": "κι" + K}
     rows = {f.full: f for f in found}
     assert rows["τώρα"].elided_tokens == 12
     assert rows["τώρα"].elided_before_vowel == 12
+    assert mg.modern_greek_elision_shares(found) == {
+        "τώρα": 0.25, "στὸ": 0.5, "κι": 0.0}
 
 
 def test_an_aspirated_preposition_is_left_to_its_plain_elision():

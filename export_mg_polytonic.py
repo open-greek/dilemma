@@ -1101,6 +1101,13 @@ class ElisionCandidate(NamedTuple):
     elided_tokens: int
     elided_before_vowel: int
     full_before_vowel: int
+    # Of the times the slice writes a word the elided spelling stands for
+    # right before a vowel-initial word, the share it writes it elided.
+    elided_share: float
+
+
+def _share(elided: int, full: int) -> float:
+    return elided / (elided + full) if elided + full else 0.0
 
 
 def modern_greek_elisions(
@@ -1127,9 +1134,12 @@ def modern_greek_elisions(
     κι -> κι᾽.
 
     Also returns, for each pair, how often the slice writes the elided and
-    the full spelling right before a vowel-initial word: elision in Modern
-    Greek is optional, and a keyboard deciding whether to rewrite a word
-    before every vowel needs to know how often the texts do.
+    the full spelling right before a vowel-initial word, and the elided
+    share: of the times it writes any word the elided spelling stands for
+    right before a vowel (στ᾽ stands for στὸ, στὰ and στὴ), the share it
+    writes it elided. Elision in Modern Greek is optional, and a keyboard
+    deciding whether to rewrite a word before every vowel needs to know how
+    often the texts do.
     """
     tokens: Counter = Counter()
     authors: dict[str, set[str]] = defaultdict(set)
@@ -1170,19 +1180,31 @@ def modern_greek_elisions(
         if not fulls:
             continue
         _, full = max(fulls)
+        share = _share(before_vowel[elided], sum(
+            before_vowel[word] for word in words.of(elided, aspirated=False)))
         for key in [full, *oxytone_twins(full)]:
             if key in pairs or (key != full and (
                     mg_orthography_reason(key, lexicon) is not None)):
                 continue
             pairs[key] = elided
             found.append(ElisionCandidate(
-                key, elided, n, before_vowel[elided], before_vowel[key]))
+                key, elided, n, before_vowel[elided], before_vowel[key],
+                share))
     for full, elided in MG_EXTRA_ELISIONS.items():
         pairs.setdefault(full, elided)
         found.append(ElisionCandidate(
             full, elided, tokens[elided], before_vowel[elided],
-            before_vowel[full]))
+            before_vowel[full],
+            _share(before_vowel[elided], before_vowel[full])))
     return dict(sorted(pairs.items())), found
+
+
+def modern_greek_elision_shares(
+    found: list[ElisionCandidate],
+) -> dict[str, float]:
+    """``{full: share}``: how often, before a vowel, the slice writes the
+    words a pair's elided spelling stands for elided, to three places."""
+    return {f.full: round(f.elided_share, 3) for f in found}
 
 
 # --------------------------------------------------------------------------
