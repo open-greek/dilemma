@@ -684,6 +684,9 @@ def test_a_short_document_with_a_slip_or_two_is_not_monotonic():
     assert not info.monotonic
     info.signals = 3
     assert info.monotonic
+    # Exactly 1% of the words is not over it.
+    assert not DocumentInfo("d", "Α", "t", words=300, signals=3).monotonic
+    assert DocumentInfo("d", "Α", "t", words=299, signals=3).monotonic
 
 
 def test_author_folds_are_deterministic():
@@ -733,6 +736,11 @@ def test_the_shipping_directory_is_known_by_any_spelling_of_its_path(
             mg.write_list({"τώρα": 5}, spelling,
                           variant="grc-mg (evaluation)", source="test")
     assert not mg.is_shipping_dir(tmp_path / "build" / "other")
+    # macOS also reaches the data volume through /System/Volumes/Data,
+    # which no resolve() undoes.
+    firmlink = Path("/System/Volumes/Data" + str(out.resolve()))
+    if firmlink.is_dir():
+        assert mg.is_shipping_dir(firmlink)
     # Before build/hunspell exists.
     monkeypatch.setattr(mg, "OUT", tmp_path / "new" / "hunspell")
     assert mg.is_shipping_dir(tmp_path / "new" / "x" / ".." / "Hunspell")
@@ -837,6 +845,8 @@ def test_the_preferred_spelling_must_be_a_word_written_as_widely():
     assert avoided(rows, {"παπποῦς", "παππούς"}) == set()
     rows[0] = ("παππούς", "lower", {0: 300, 1: 1})
     assert avoided(rows, {"παπποῦς", "παππούς"}) == {"παπποῦς"}
+    # Written as widely, but neither grc nor the list accepts it.
+    assert avoided(rows, {"παπποῦς"}) == set()
     # The list's own word is a word as well as grc's.
     assert avoided(rows, {"παπποῦς"}, {"παππούς": 300}) == {"παπποῦς"}
 
@@ -998,6 +1008,7 @@ def test_the_share_counts_only_the_words_the_elision_stands_for():
         ("τοῦ", "lower", {0: 200, 1: 200}),
         ("τῇ", "lower", {0: 40, 1: 40}),
         ("τῷ", "lower", {0: 40, 1: 40}),
+        ("τᾶ", "lower", {0: 40, 1: 40}),
     ])
     counts.before_vowel[nfc("τ" + K)].update({0: 10})
     counts.before_vowel["τὸ"].update({0: 12})
@@ -1005,12 +1016,13 @@ def test_the_share_counts_only_the_words_the_elision_stands_for():
     counts.before_vowel["τοῦ"].update({0: 100})
     counts.before_vowel["τῇ"].update({0: 50})
     counts.before_vowel["τῷ"].update({1: 50})
+    counts.before_vowel["τᾶ"].update({1: 50})
     pairs, found = modern_greek_elisions(counts, {0, 1})
     assert pairs["τὸ"] == "τ" + K
     # 10 of the 30 times τὸ or τὰ stands before a vowel, to three places.
     assert mg.modern_greek_elision_shares(found)["τὸ"] == 0.333
-    words = mg.FullForms(["τὸ", "τὰ", "τοῦ", "τῇ", "τῷ"])
-    assert words.of("τ" + K) == ["τοῦ", "τὰ", "τὸ"]
+    words = mg.FullForms(["τὸ", "τὰ", "τοῦ", "τῇ", "τῷ", "τᾶ"])
+    assert words.of("τ" + K) == ["τοῦ", "τὰ", "τὸ", "τᾶ"]
 
 
 def test_an_elided_spelling_needs_ten_tokens_to_enter():
@@ -1030,6 +1042,115 @@ def test_the_full_form_must_be_at_least_as_common_as_the_elided_one():
     ])
     pairs, _ = modern_greek_elisions(counts, {0, 1})
     assert "ἀμὴ" not in pairs
+    # As common is common enough.
+    counts.forms[("ἀμὴ", "lower")].update({0: 7, 1: 7})
+    pairs, _ = modern_greek_elisions(counts, {0, 1})
+    assert pairs["ἀμὴ"] == "ἀμ" + K
+
+
+def test_an_elision_and_its_word_agree_on_the_lost_accent():
+    # An unaccented elided spelling stands for a word accented on the vowel
+    # it lost, not for a misspelling without the accent (εἰναι, ᾽να).
+    full = mg.FullForms(["γιο", "γιὰ", "εἰναι", K + "να"])
+    assert full.of("γι" + K) == ["γιὰ"]
+    assert full.of("εἰν" + K) == [] and full.of(K + "ν" + K) == []
+
+
+def test_an_elision_needs_a_word_written_by_two_authors():
+    candidates = {c.form: c for c in [cand("γι" + K, 10), cand("γιὰ", 5, 1)]}
+    sel = select_forms(candidates, set())
+    assert sel.entries == {} and sel.report["unaccented_elision"] == 1
+    candidates["γιὰ"] = cand("γιὰ", 5, 2)
+    assert "γι" + K in select_forms(candidates, set()).entries
+
+
+def test_a_circumflex_stays_within_the_last_two_syllables():
+    assert mg_orthography_reason("πῶλησε") is not None
+    assert mg_orthography_reason("πώλησε") is None
+
+
+def test_a_diaeresis_keeps_its_vowel_a_syllable():
+    # κά-λα-ϊ-α: the ι with a diaeresis is no glide.
+    assert not mg.mg_accent_window_ok("κάλαϊα")
+    assert mg.mg_accent_window_ok("κάλαια")
+
+
+def test_letters_spread_over_many_spellings_avoid_none():
+    # Eleven spellings of the same letters, none taking a tenth.
+    spellings = ["α", "ἀ", "ἁ", "ἄ", "ἅ", "ἆ", "ἇ", "ά", "ᾶ", "ᾳ", "ᾷ"]
+    counts = make_counts([(sp, "lower", {0: 1000, 1: 1}) for sp in spellings])
+    assert mg.modern_greek_avoids(counts, {0, 1}, set(spellings)) == {}
+
+
+def test_an_unaccented_monosyllable_is_looked_up_without_its_accent(tmp_path):
+    import sqlite3
+    db = tmp_path / "lookup.db"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE lookup (form TEXT, lemma_id INTEGER, "
+                 "src TEXT, lang TEXT)")
+    conn.executemany("INSERT INTO lookup VALUES (?, 1, 'x', 'el')",
+                     [("μια",), ("χρονιά",)])
+    conn.commit()
+    conn.close()
+    known = mg.load_known_words(db)
+    # Monotonic writing leaves the accent off a monosyllable.
+    assert known("μιά") and known("χρονιά")
+    assert not known("χρόνια") and not known("βιά")
+
+
+def test_a_final_sigma_written_medial_competes_with_the_word():
+    counts = make_counts([("πῶς", "lower", {0: 900, 1: 100}),
+                          ("πῶσ", "lower", {0: 10})])
+    assert mg.letters_key("πῶς") == mg.letters_key("πῶσ")
+    assert set(mg.modern_greek_avoids(counts, {0, 1}, {"πῶς"})) == {"πῶσ"}
+
+
+def test_an_enclitic_accent_form_without_its_plain_spelling_is_judged():
+    # γυναῖκά stands beside the monotonic-accented γυναίκα, not beside
+    # γυναῖκα, so the enclitic's accent does not explain it.
+    counts = make_counts([("γυναίκα", "lower", {0: 900, 1: 100}),
+                          ("γυναῖκά", "lower", {0: 20, 1: 10})])
+    avoided = mg.modern_greek_avoids(counts, {0, 1}, {"γυναίκα"})
+    assert set(avoided) == {"γυναῖκά"}
+
+
+def test_the_ancient_counts_leave_out_the_vernacular_corpus(tmp_path):
+    import sqlite3
+    db = tmp_path / "form_profile.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        "CREATE TABLE forms (form_id INTEGER PRIMARY KEY, form TEXT, "
+        "form_norm TEXT);"
+        "CREATE TABLE form_profile (form_id INTEGER PRIMARY KEY, "
+        "total_count INTEGER, n_works INTEGER, source_counts_json TEXT);"
+        "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);"
+        "INSERT INTO meta VALUES ('content_hash', 'abc');")
+    conn.execute("INSERT INTO forms VALUES (1, 'ἐσὺ', 'ἐσυ')")
+    conn.execute("INSERT INTO form_profile VALUES (1, 27, 9, ?)", (json.dumps(
+        {"byzantine_vernacular": 23, "pg": 4, "glaux": 1, "diorisis": 2}),))
+    conn.commit()
+    conn.close()
+    corpora = mg.load_ancient_corpora(db)
+    assert corpora.identity == "form_profile.db abc"
+    assert corpora.tokens("ἐσὺ") == (4, 3)
+    assert corpora.tokens("ἐσύ") == (0, 0)
+    assert mg.load_ancient_corpora(tmp_path / "missing.db") is None
+
+
+def test_the_tokens_before_a_vowel_are_counted_for_the_elisions(monkeypatch):
+    sentences = sentences_300()
+    sentences[2] = f"{marker(2)} τώρα ἔλα τώρα ᾽ναι τώρα καλή"
+    fake_document(monkeypatch, sentences)
+    counts = mg.count_corpus()
+    # Only the τώρα before ἔλα: ᾽ναι starts with its mark, καλή with a
+    # consonant.
+    assert sum(counts.before_vowel["τώρα"].values()) == 1
+
+
+def test_a_twin_that_is_not_well_formed_is_not_added():
+    sel = select_forms({"γιὰ": cand("γιὰ", 3500)}, grc_words=set())
+    assert sel.entries == {"γιὰ": 3500}
+    assert sel.report["twin_rejected"] == 1
 
 
 # --------------------------------------------------------------------------

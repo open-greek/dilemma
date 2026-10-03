@@ -461,14 +461,13 @@ def is_capital(char: str) -> bool:
 
 
 def _position(token: Token) -> str | None:
-    """``lower``, ``cap``, ``initial``, or None for an all-capital word."""
+    """``lower``, ``cap``, ``initial``, or None for a word with a capital
+    after its first letter (an all-capital heading)."""
     capitals = [is_capital(c) for c in token.form if c.isalpha()]
     if not capitals:
         return None
     if not any(capitals):
         return "lower"
-    if len(capitals) > 1 and all(capitals):
-        return None
     if capitals[0] and not any(capitals[1:]):
         return "initial" if token.initial else "cap"
     return None
@@ -547,7 +546,8 @@ def count_corpus(
                     continue
                 counts.forms[(token.form, position)][index] += 1
                 following = tokens[k + 1] if k + 1 < len(tokens) else None
-                if (following is not None and not following.lead
+                # An aphaeresized word starts with its mark, not a vowel.
+                if (following is not None
                         and _is_vowel(following.form[0])):
                     counts.before_vowel[token.form][index] += 1
     return counts
@@ -1087,7 +1087,7 @@ def select_forms(
                 same_monotonic.get(mono, (0, "")), (n, key))
 
     def dominated(n: int, top: int) -> bool:
-        return top >= DOMINATED_MIN and n < top and n < DOMINATED_SHARE * top
+        return top >= DOMINATED_MIN and n < DOMINATED_SHARE * top
 
     selected: dict[str, int] = {}
     for form, cand in sorted(candidates.items()):
@@ -1125,9 +1125,7 @@ def select_forms(
         if twin is not None and not homograph:
             twin_n = by_key[contextual_acute(twin)]
             if (twin_n >= BREATHING_TWIN_RATIO * n
-                    or (twin_n >= n and (grc_accepts(twin, grc_words) or
-                                         grc_accepts(contextual_acute(twin),
-                                                     grc_words)))):
+                    or (twin_n >= n and grc_accepts(twin, grc_words))):
                 reject("breathing_respelling", form)
                 continue
         if key in reviewed:
@@ -1141,8 +1139,9 @@ def select_forms(
             if spelling in entries:
                 continue
             if spelling != form:
-                if (mg_orthography_reason(spelling, lexicon) is not None
-                        or contextual_acute(spelling) in reviewed):
+                # A twin shares its contextual acute, and so its review,
+                # with the selected spelling.
+                if mg_orthography_reason(spelling, lexicon) is not None:
                     report["twin_rejected"] += 1
                     continue
                 report["twins"] += 1
