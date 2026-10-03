@@ -88,9 +88,10 @@ punctuation.
 The ``fr:`` field uses the grc bucket edges (``export_hunspell.freq_bucket``:
 C >= 1000, M >= 100, R >= 1) on the spelling's own token count in the
 Modern Greek slice, the acute and grave twins counted together. A C or M
-spelling that is also an Ancient Greek word (του, the Ancient enclitic
-genitive) is written with fr:R, so that a keyboard does not take it for a
-sign of Modern Greek (``ancient_word``, from Dilemma's form attestation,
+spelling that is also an Ancient Greek word by the GLAUx and Diorisis
+treebanks (του, the Ancient enclitic genitive) is written with fr:R, so
+that a keyboard does not take it for a sign of Modern Greek
+(``ancient_word``, from Dilemma's form attestation,
 ``data/form_profile.db``).
 
 The ``mg:avoid`` lines name the grc spellings the slice gives under a tenth
@@ -1502,23 +1503,22 @@ def select_list(
 # --------------------------------------------------------------------------
 
 # A keyboard may read a C or M word of this list in a text as a sign that
-# the text is Modern Greek. A spelling that is also an Ancient or Medieval
-# Greek word is no such sign: του, the weak pronoun, is also the Ancient
-# enclitic genitive of τις (904 tokens in the GLAUx and Diorisis
-# treebanks), and μοναχὸς is the Ancient μοναχός inside a sentence. Such a
-# spelling keeps its place in the list with fr:R (``ancient_word``).
-# Dilemma's form attestation (form_profile.db, build_form_attestation.py)
-# gives the Ancient counts; the Byzantine vernacular corpus, which is
-# early Modern Greek, does not count.
+# the text is Modern Greek. A spelling that is also an Ancient Greek word is
+# no such sign: του, the weak pronoun, is also the Ancient enclitic
+# genitive of τις (904 tokens in the GLAUx and Diorisis treebanks). Such a
+# spelling keeps its place in the list with fr:R (``ancient_word``). The
+# counts come from Dilemma's form attestation (form_profile.db,
+# build_form_attestation.py), from the two treebanks only: the other
+# corpora are OCR'd editions (the Patrologia, First1KGreek), where a
+# Modern spelling turns up as a misprint or in a later text (θὲ, δὰ, στὴν),
+# and the Byzantine vernacular corpus is early Modern Greek itself.
 FORM_PROFILE = ROOT / "data" / "form_profile.db"
 ANCIENT_CAP_TOKENS = 20
 TREEBANK_SOURCES = ("glaux", "diorisis")
-VERNACULAR_SOURCES = frozenset({"byzantine_vernacular"})
 
 
 class AncientCorpora:
-    """Token counts of exact spellings in Dilemma's Ancient and Medieval
-    Greek corpora, from ``form_profile.db``."""
+    """Treebank token counts of exact spellings, from ``form_profile.db``."""
 
     def __init__(self, path: Path = FORM_PROFILE):
         import json
@@ -1530,22 +1530,16 @@ class AncientCorpora:
             "SELECT value FROM meta WHERE key = 'content_hash'").fetchone()
         self.identity = f"{path.name} {row[0] if row else 'unknown'}"
 
-    def tokens(self, form: str) -> tuple[int, int]:
-        """(tokens outside the vernacular corpus, deduplicated across
-        sources; tokens in GLAUx and Diorisis, each counted, since the two
-        treebanks annotate many of the same works) of ``form``."""
+    def tokens(self, form: str) -> int:
+        """The tokens of ``form`` in GLAUx and Diorisis, each counted: the
+        two treebanks annotate many of the same works, so a word both have
+        counts twice."""
         row = self._conn.execute(
-            "SELECT p.total_count, p.source_counts_json FROM forms f "
+            "SELECT p.source_counts_json FROM forms f "
             "JOIN form_profile p USING (form_id) WHERE f.form = ?",
             (form,)).fetchone()
-        if row is None:
-            return 0, 0
-        total, sources = row[0] or 0, self._json.loads(row[1] or "{}")
-        # The vernacular works carry no TLG id, so no other source claims
-        # them, and their tokens are a separate part of the total.
-        vernacular = sum(sources.get(s, 0) for s in VERNACULAR_SOURCES)
-        return (total - vernacular,
-                sum(sources.get(s, 0) for s in TREEBANK_SOURCES))
+        sources = self._json.loads(row[0] or "{}") if row else {}
+        return sum(sources.get(s, 0) for s in TREEBANK_SOURCES)
 
 
 def load_ancient_corpora(path: Path = FORM_PROFILE) -> AncientCorpora | None:
@@ -1556,23 +1550,15 @@ def load_ancient_corpora(path: Path = FORM_PROFILE) -> AncientCorpora | None:
 
 def ancient_word(spelling: str, grc_words: set[str] | frozenset[str],
                  corpora: AncientCorpora) -> bool:
-    """Whether a listed spelling is also an Ancient Greek word: GLAUx and
-    Diorisis attest it, with its contextual twin, ``ANCIENT_CAP_TOKENS``
-    times (του), or it is the contextual twin of a grc spelling and the
-    Ancient corpora outside the vernacular one attest the pair that often
-    (μοναχὸς beside μοναχός). Outside the treebanks the corpora are OCR'd
-    editions, where a Modern-only spelling turns up as a misprint (θὲ, δὰ
-    in the Patrologia), so only a grc word's twin is judged by them."""
-    pair = [spelling, *oxytone_twins(spelling)]
-    outside = treebank = 0
-    for form in pair:
-        o, t = corpora.tokens(form)
-        outside += o
-        treebank += t
-    if treebank >= ANCIENT_CAP_TOKENS:
+    """Whether a listed spelling is also an Ancient Greek word: the
+    treebanks attest it ``ANCIENT_CAP_TOKENS`` times (του), or it is the
+    contextual twin of a grc spelling the treebanks attest that often (an
+    oxytone grc has only with its acute)."""
+    if corpora.tokens(spelling) >= ANCIENT_CAP_TOKENS:
         return True
-    return (outside >= ANCIENT_CAP_TOKENS
-            and any(grc_accepts(twin, grc_words) for twin in pair[1:]))
+    return any(grc_accepts(twin, grc_words)
+               and corpora.tokens(twin) >= ANCIENT_CAP_TOKENS
+               for twin in oxytone_twins(spelling))
 
 
 # --------------------------------------------------------------------------

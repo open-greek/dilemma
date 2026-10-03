@@ -906,31 +906,71 @@ def test_avoid_lines_are_written_with_the_mg_avoid_field(tmp_path):
 # Spellings that are also Ancient Greek words
 # --------------------------------------------------------------------------
 
+def form_profile(tmp_path, rows):
+    """A form_profile.db with ``rows``: {form: source counts}."""
+    import sqlite3
+    db = tmp_path / "form_profile.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        "CREATE TABLE forms (form_id INTEGER PRIMARY KEY, form TEXT, "
+        "form_norm TEXT);"
+        "CREATE TABLE form_profile (form_id INTEGER PRIMARY KEY, "
+        "total_count INTEGER, n_works INTEGER, source_counts_json TEXT);"
+        "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);"
+        "INSERT INTO meta VALUES ('content_hash', 'abc');")
+    for i, (form, sources) in enumerate(rows.items(), 1):
+        conn.execute("INSERT INTO forms VALUES (?, ?, ?)", (i, form, form))
+        conn.execute("INSERT INTO form_profile VALUES (?, ?, 1, ?)",
+                     (i, sum(sources.values()), json.dumps(sources)))
+    conn.commit()
+    conn.close()
+    return mg.load_ancient_corpora(db)
+
+
+def test_the_ancient_counts_are_the_treebanks_only(tmp_path):
+    corpora = form_profile(tmp_path, {"ἐσὺ": {
+        "byzantine_vernacular": 23, "pg": 40, "first1k": 30, "oga": 30,
+        "glaux": 1, "diorisis": 2}})
+    assert corpora.identity == "form_profile.db abc"
+    assert corpora.tokens("ἐσὺ") == 3
+    assert corpora.tokens("ἐσύ") == 0
+    assert mg.load_ancient_corpora(tmp_path / "missing.db") is None
+
+
+def test_an_ancient_greek_word_is_known_by_the_treebanks_or_its_grc_twin(
+        tmp_path):
+    corpora = form_profile(tmp_path, {
+        "του": {"glaux": 542, "diorisis": 362, "pg": 2454},
+        "τὴ": {"glaux": 15, "diorisis": 11, "pg": 1067},
+        # A grc twin the treebanks attest: τόν inside a sentence.
+        "τὸν": {"pg": 3}, "τόν": {"glaux": 15, "diorisis": 5},
+        # An entry and a grc twin that only OCR'd editions attest.
+        "στὴν": {"first1k": 40, "pg": 29, "oga": 38},
+        "στήν": {"first1k": 2, "pg": 15, "oga": 3, "glaux": 1},
+        "θὲ": {"pg": 120, "first1k": 35},
+        "κυρὰ": {"byzantine_vernacular": 11, "pg": 20},
+        "κυρά": {"glaux": 8, "byzantine_vernacular": 4, "pg": 2},
+    })
+    grc = {"τόν", "στήν", "κυρά"}
+    assert mg.ancient_word("του", grc, corpora)
+    assert mg.ancient_word("τὴ", grc, corpora)
+    assert mg.ancient_word("τὸν", grc, corpora)
+    assert not mg.ancient_word("τὸν", set(), corpora)
+    # A twin attested only by OCR sources does not cap, nor do OCR or
+    # vernacular tokens of the entry itself.
+    assert not mg.ancient_word("στὴν", grc, corpora)
+    assert not mg.ancient_word("θὲ", grc, corpora)
+    assert not mg.ancient_word("κυρὰ", grc, corpora)
+
+
 class FakeCorpora:
     identity = "form_profile.db test"
 
     def __init__(self, tokens):
-        self._tokens = tokens       # form -> (outside vernacular, treebank)
+        self._tokens = tokens       # form -> treebank tokens
 
     def tokens(self, form):
-        return self._tokens.get(form, (0, 0))
-
-
-def test_an_ancient_greek_word_is_known_by_the_treebanks_or_its_grc_twin():
-    corpora = FakeCorpora({
-        "του": (4500, 904),          # the Ancient enclitic genitive
-        "μοναχὸς": (200, 0), "μοναχός": (70, 0),
-        "θὲ": (100, 0),              # misprints in OCR'd editions
-        "τὴ": (900, 19), "τή": (20, 1),
-    })
-    assert mg.ancient_word("του", set(), corpora)
-    assert mg.ancient_word("μοναχὸς", {"μοναχός"}, corpora)
-    assert not mg.ancient_word("μοναχὸς", set(), corpora)
-    assert not mg.ancient_word("θὲ", set(), corpora)
-    # The treebanks count the twin too: 19 + 1.
-    assert mg.ancient_word("τὴ", set(), corpora)
-    corpora._tokens["τή"] = (20, 0)
-    assert not mg.ancient_word("τὴ", set(), corpora)
+        return self._tokens.get(form, 0)
 
 
 def test_an_ancient_word_is_written_with_fr_r(tmp_path):
@@ -939,7 +979,7 @@ def test_an_ancient_word_is_written_with_fr_r(tmp_path):
         ("τώρα", "lower", {0: 1000, 1: 500}),
         ("σπίτι", "lower", {0: 10, 1: 5}),
     ])
-    corpora = FakeCorpora({"του": (4500, 904), "σπίτι": (0, 50)})
+    corpora = FakeCorpora({"του": 904, "σπίτι": 50})
     lst = mg.select_list(counts, {0, 1}, set(), ancient_corpora=corpora)
     # σπίτι is fr:R anyway.
     assert lst.ancient == {"του"}
@@ -1112,29 +1152,6 @@ def test_an_enclitic_accent_form_without_its_plain_spelling_is_judged():
                           ("γυναῖκά", "lower", {0: 20, 1: 10})])
     avoided = mg.modern_greek_avoids(counts, {0, 1}, {"γυναίκα"})
     assert set(avoided) == {"γυναῖκά"}
-
-
-def test_the_ancient_counts_leave_out_the_vernacular_corpus(tmp_path):
-    import sqlite3
-    db = tmp_path / "form_profile.db"
-    conn = sqlite3.connect(db)
-    conn.executescript(
-        "CREATE TABLE forms (form_id INTEGER PRIMARY KEY, form TEXT, "
-        "form_norm TEXT);"
-        "CREATE TABLE form_profile (form_id INTEGER PRIMARY KEY, "
-        "total_count INTEGER, n_works INTEGER, source_counts_json TEXT);"
-        "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);"
-        "INSERT INTO meta VALUES ('content_hash', 'abc');")
-    conn.execute("INSERT INTO forms VALUES (1, 'ἐσὺ', 'ἐσυ')")
-    conn.execute("INSERT INTO form_profile VALUES (1, 27, 9, ?)", (json.dumps(
-        {"byzantine_vernacular": 23, "pg": 4, "glaux": 1, "diorisis": 2}),))
-    conn.commit()
-    conn.close()
-    corpora = mg.load_ancient_corpora(db)
-    assert corpora.identity == "form_profile.db abc"
-    assert corpora.tokens("ἐσὺ") == (4, 3)
-    assert corpora.tokens("ἐσύ") == (0, 0)
-    assert mg.load_ancient_corpora(tmp_path / "missing.db") is None
 
 
 def test_the_tokens_before_a_vowel_are_counted_for_the_elisions(monkeypatch):

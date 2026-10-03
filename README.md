@@ -2318,16 +2318,15 @@ Each oxytone also gets its contextual twin (`στὴν` beside grc's `στήν`)
 the two twins counted together. A keyboard may take a `C` or `M` word for a
 sign that a text is Modern Greek, so a spelling that is also an Ancient
 Greek word gets `fr:R` whatever its count: one the GLAUx and Diorisis
-treebanks attest 20 times with its twin (`του`, the Ancient enclitic
-genitive of `τις`), or the twin of a grc spelling that the Ancient corpora
-outside the Byzantine vernacular one attest that often (`μοναχὸς` beside
-`μοναχός`). The counts come from Dilemma's form attestation
+treebanks attest 20 times (`του`, the Ancient enclitic genitive of `τις`),
+or the contextual twin of a grc spelling they attest that often. Only the
+treebanks count: the OCR'd Patristic and First1KGreek texts carry Modern
+spellings as misprints or in later texts (`στὴν`, `δὰ`), and the Byzantine
+vernacular corpus is early Modern Greek itself, so `στὴν` and `στὸν` stay
+signs of Modern Greek. The counts come from Dilemma's form attestation
 (`data/form_profile.db`, `python -m dilemma download --with-attestation`);
 without it the exporter warns and caps nothing, and the `.version` records
-which file decided. In the current list this caps 11 spellings: `του`,
-`των`, `τὴ`, `μοναχὸς`, `κὺρ`, `κυρὰ`, and, through grc spellings the OCR'd
-Patristic and First1KGreek texts attest, `στὴν`, `στὸν`, `στὴ`, `δὰ` and
-`τὲς`.
+which file decided. In the current list this caps `του`, `των` and `τὴ`.
 
 The list also names the grc spellings polytonic Modern Greek writes another
 way, with lines of the form `form<TAB>mg:avoid`, so that a keyboard writing
@@ -2352,7 +2351,7 @@ spellings are not judged, and only grc's spellings get a line, with the
 contextual grave of an avoided acute. A Hunspell reader that does not know
 the field accepts the marked spellings, as grc does.
 
-The list has 17,149 words (13 in `C`, 208 in `M`) and 206 `mg:avoid`
+The list has 17,149 words (16 in `C`, 213 in `M`) and 206 `mg:avoid`
 lines: 973 capitalized, 150 elided and 197 aphaeresized spellings (`᾽ναι`,
 `᾽ς`), the six weak
 pronouns, `κι` and `κι᾽`, `στὴν`, `στὸν`, `στὴ`, `στοὺς`, `τὴ`, `γι᾽`, and
