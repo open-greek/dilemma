@@ -13,7 +13,7 @@ This script measures the share of dev-sentence words the dictionary accepts
 
 * ``train split``: the shipping list, every document's training sentences;
 * ``documents held out``: only documents without any dev sentence, so no
-  dev sentence's document contributes (only 16% of the slice is left);
+  dev sentence's document contributes (18% of the slice's tokens are left);
 * ``author held out``: authors hashed into ``--folds`` folds; a dev word is
   checked against the list built without its author's fold, so neither its
   document nor anything else by its author contributes;
@@ -154,17 +154,18 @@ def main() -> None:
     if args.write_lists:
         import hashlib
         grc_sha256 = hashlib.sha256(mg.GRC_DIC.read_bytes()).hexdigest()
+        inputs = mg.input_digests()
         held, sources = built["documents held out"]
         mg.write_selection(
             held, args.write_lists / "documents_held_out",
-            grc_sha256=grc_sha256, ancient_corpora=ancient,
+            grc_sha256=grc_sha256, inputs=inputs,
             variant="grc-mg (evaluation: documents with a dev sentence "
                     "held out)",
             source=mg.source_description(counts, sources))
         for k, (fold, sources) in built_folds.items():
             mg.write_selection(
                 fold, args.write_lists / f"author_fold_{k}",
-                grc_sha256=grc_sha256, ancient_corpora=ancient,
+                grc_sha256=grc_sha256, inputs=inputs,
                 variant=f"grc-mg (evaluation: author fold {k} of {folds} "
                         "held out)",
                 source=mg.source_description(counts, sources))
