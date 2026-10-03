@@ -697,6 +697,30 @@ def test_an_aspirated_preposition_is_left_to_its_plain_elision():
     assert "ἀφοῦ" not in pairs
 
 
+def test_the_share_counts_only_the_words_the_elision_stands_for():
+    counts = make_counts([
+        ("τ" + K, "lower", {0: 20, 1: 10}),
+        ("τὸ", "lower", {0: 300, 1: 200}),
+        ("τὰ", "lower", {0: 100, 1: 100}),
+        # The article's genitive and datives: τ᾽ is none of them.
+        ("τοῦ", "lower", {0: 200, 1: 200}),
+        ("τῇ", "lower", {0: 40, 1: 40}),
+        ("τῷ", "lower", {0: 40, 1: 40}),
+    ])
+    counts.before_vowel[nfc("τ" + K)].update({0: 10})
+    counts.before_vowel["τὸ"].update({0: 12})
+    counts.before_vowel["τὰ"].update({1: 8})
+    counts.before_vowel["τοῦ"].update({0: 100})
+    counts.before_vowel["τῇ"].update({0: 50})
+    counts.before_vowel["τῷ"].update({1: 50})
+    pairs, found = modern_greek_elisions(counts, {0, 1})
+    assert pairs["τὸ"] == "τ" + K
+    # 10 of the 30 times τὸ or τὰ stands before a vowel, to three places.
+    assert mg.modern_greek_elision_shares(found)["τὸ"] == 0.333
+    words = mg.FullForms(["τὸ", "τὰ", "τοῦ", "τῇ", "τῷ"])
+    assert words.of("τ" + K) == ["τοῦ", "τὰ", "τὸ"]
+
+
 def test_the_full_form_must_be_at_least_as_common_as_the_elided_one():
     counts = make_counts([
         ("ἀμ" + K, "lower", {0: 10, 1: 10}),

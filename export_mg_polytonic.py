@@ -875,16 +875,26 @@ _DEASPIRATED = {"φ": "π", "θ": "τ", "χ": "κ"}
 
 def _elided_ending(full: str, stem: str) -> str | None:
     """The marked letters ``full`` has after ``stem``, when ``full`` is the
-    stem's letters and marks plus one of ``MG_ELIDED_ENDINGS``; else None."""
+    stem's letters and marks plus one of ``MG_ELIDED_ENDINGS``; else None.
+    An ending with an iota subscript is none: a dative's long ῃ, ῳ, ᾳ does
+    not elide (τῷ, τῇ are no words τ᾽ stands for)."""
     full_nfd = unicodedata.normalize("NFD", full)
     stem_nfd = unicodedata.normalize("NFD", stem)
     if not full_nfd.startswith(stem_nfd):
         return None
     rest = full_nfd[len(stem_nfd):]
-    if not rest or unicodedata.combining(rest[0]):
+    if not rest or unicodedata.combining(rest[0]) or "\u0345" in rest:
         return None
     letters = "".join(c for c in rest if not unicodedata.combining(c))
     return rest if letters in MG_ELIDED_ENDINGS else None
+
+
+def _short_vowel(ending: str) -> bool:
+    """Whether an ending (from :func:`_elided_ending`) is one short vowel,
+    the vowel elision drops in Ancient and Modern Greek alike: α, ε, ι, ο
+    without a circumflex, which marks a long one."""
+    letters = "".join(c for c in ending if not unicodedata.combining(c))
+    return letters in ("α", "ε", "ι", "ο") and "\u0342" not in ending
 
 
 class FullForms:
@@ -897,9 +907,14 @@ class FullForms:
     loses loses the accent with it (γι᾽ for γιὰ, γιατ᾽ for γιατὶ, ἐδ᾽ for
     ἐδῶ). An aspirated final consonant also stands for the plain one,
     before a rough breathing (καθ᾽ for κατὰ).
+
+    ``counts`` gives the words' token counts, for :meth:`of`'s
+    ``at_least``.
     """
 
-    def __init__(self, words: Iterable[str]):
+    def __init__(self, words: Iterable[str],
+                 counts: dict[str, int] | None = None):
+        self._counts = counts or {}
         self._index: dict[str, set[str]] = defaultdict(set)
         for word in words:
             if word.endswith(KORONIS):
@@ -908,8 +923,9 @@ class FullForms:
             self._index[skeleton[:-1]].add(word)
             self._index[skeleton[:-2]].add(word)
 
-    def of(self, elided: str, aspirated: bool = True) -> list[str]:
-        """The words ``elided`` can stand for."""
+    def of(self, elided: str, aspirated: bool = True,
+           at_least: int = 0) -> list[str]:
+        """The words ``elided`` can stand for, with ``at_least`` tokens."""
         stem = elided.removesuffix(KORONIS)
         if not stem:
             return []
@@ -922,7 +938,8 @@ class FullForms:
             for word in sorted(self._index.get(spelling_skeleton(st), ())):
                 ending = _elided_ending(word, st)
                 if (ending is not None
-                        and accented != any(c in TONAL for c in ending)):
+                        and accented != any(c in TONAL for c in ending)
+                        and self._counts.get(word, 0) >= at_least):
                     out.append(word)
         return out
 
@@ -1026,17 +1043,17 @@ def select_forms(
     # spellings the slice attests MIN_TOKENS times. Not grc, whose paradigm
     # tables extend almost any stem by a vowel (ἄχε, ἄχι, ἄχω).
     lexicon = {f for f, c in candidates.items() if c.tokens >= MIN_TOKENS}
-    # The words an elided spelling can stand for: the slice's own,
-    # attested as the thresholds require.
-    full_forms = FullForms(
-        f for f, c in candidates.items()
-        if c.tokens >= MIN_TOKENS and c.authors >= MIN_AUTHORS)
 
     # Rule 4 needs the commonest well-formed spelling of each letter
     # sequence, with the twins counted together.
     by_key: Counter = Counter()
     for form, cand in candidates.items():
         by_key[contextual_acute(form)] += cand.tokens
+    # The words an elided spelling can stand for: the slice's own,
+    # attested as the thresholds require.
+    full_forms = FullForms(
+        f for f, c in candidates.items()
+        if c.tokens >= MIN_TOKENS and c.authors >= MIN_AUTHORS)
     dominant: dict[str, tuple[int, str]] = {}
     same_monotonic: dict[str, tuple[int, str]] = {}
     for key, n in by_key.items():
@@ -1075,7 +1092,8 @@ def select_forms(
         homograph = key in _BREATHING_HOMOGRAPH_KEYS
         if dominated(n, top) and not homograph:
             if (known_word is None
-                    or not distinct_word(form, top_key, known_word, full_forms)
+                    or not distinct_word(form, top_key, known_word,
+                                         full_forms)
                     or dominated(n, same_monotonic.get(
                         monotonic_spelling(key), (0, ""))[0])):
                 reject("dominated_respelling", form)
@@ -1198,9 +1216,10 @@ def modern_greek_elisions(
 
     lexicon = {f for f, n in tokens.items() if n >= MIN_TOKENS}
     words = FullForms(
-        form for form, n in tokens.items()
-        if n >= MIN_TOKENS and len(authors[form]) >= MIN_AUTHORS
-        and mg_orthography_reason(form, lexicon) is None)
+        (form for form, n in tokens.items()
+         if n >= MIN_TOKENS and len(authors[form]) >= MIN_AUTHORS
+         and mg_orthography_reason(form, lexicon) is None),
+        counts=tokens)
 
     pairs: dict[str, str] = {}
     found: list[ElisionCandidate] = []
@@ -1217,14 +1236,21 @@ def modern_greek_elisions(
                 and tokens[plain] >= MG_ELISION_MIN_TOKENS):
             continue
         fulls = [(tokens[full], full)
-                 for full in words.of(elided, aspirated=False)
-                 if tokens[full] >= n]
+                 for full in words.of(elided, aspirated=False, at_least=n)]
         if not fulls:
             continue
         _, full = max(fulls)
-        share = _share(before_vowel[elided], sum(
-            before_vowel[word] for word in words.of(elided, aspirated=False)))
-        for key in [full, *oxytone_twins(full)]:
+        keys = [full, *oxytone_twins(full)]
+        # The words the elided spelling stands for before a vowel: the
+        # pair's own, and the others that end in a short vowel (στὰ beside
+        # στὸ for στ᾽). Not those with a longer ending, which elide only
+        # in particular words: τοῦ, the article, is not τ᾽.
+        standing = [word for word in words.of(elided, aspirated=False)
+                    if word in keys
+                    or _short_vowel(_elided_ending(word, stem))]
+        share = _share(before_vowel[elided],
+                       sum(before_vowel[word] for word in standing))
+        for key in keys:
             if key in pairs or (key != full and (
                     mg_orthography_reason(key, lexicon) is not None)):
                 continue
