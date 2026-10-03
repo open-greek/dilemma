@@ -26,6 +26,19 @@ All notable changes to Dilemma are documented here. The format follows
   per 1,000 words on the sentences with little overlap with training.
 
 ### Fixed
+- The grc Hunspell dictionary has the relative pronoun's graves `ἣ`, `οἳ` and
+  `αἳ` and the dual article's `τὼ`, which the next-word language model's
+  training text uses 4,144, 9,854, 1,978 and 1,363 times. `lookup.db` has none
+  of them: `build_lookup_db.py` leaves out every form it maps to the article
+  `ὁ` whose letters are an article's, and AGDT, the first treebank it reads,
+  files Homer's demonstrative `ἣ`, `οἳ`, `αἳ` and `ὃ` under `ὁ`; only the
+  first lemma of a form is kept, so GLAUx's relative `ὅς` never gets in. The
+  exporter's closed list, which puts the article's spellings back, listed `αἵ`
+  and `οἵ` (the acute, and under `ὁ`) where the graves belong, and lacked
+  `τὼ`. It now carries `ὃ`, `ἣ`, `οἳ` and `αἳ` under `ὅς` and `τὼ` under `ὁ`;
+  `ὃ` was in the dictionary only through the reviewed April surface. A
+  keyboard that writes a grave only where the dictionary has the grave
+  spelling wrote the article `οἱ`, `αἱ`, `ἡ` or the conjunction `ἢ` for them.
 - The movable-nu list no longer gives a nu to imperatives the taggers file as
   unaugmented pasts. An unaugmented imperfect or thematic aorist in -ε is
   spelled like the 2sg imperative (`κατένεγκε`, `ἐντύγχανε`, Galen's
