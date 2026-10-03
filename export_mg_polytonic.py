@@ -398,8 +398,8 @@ class DocumentInfo:
     key: str
     author: str
     title: str
-    words: int = 0              # lowercase words, the signal share's base
-    signals: int = 0
+    words: int = 0              # lowercase words of the training sentences
+    signals: int = 0            # of them, monotonic signals
     sentences: int = 0
     dev_sentences: int = 0
 
@@ -459,7 +459,10 @@ def count_corpus(
     the training sentences, and the dev sentences.
 
     Short sentences (fewer than three words) are skipped, as the language
-    model's loader skips them. A sentence with a monotonic signal is counted
+    model's loader skips them. Whether a document reads as monotonic is
+    decided on its training sentences alone (``DocumentInfo.words`` and
+    ``signals``), so a held-out dev sentence never decides which documents
+    the list reads. A training sentence with a monotonic signal is counted
     towards its document's share but contributes no tokens.
     """
     from extract_polytonic_mg import (
@@ -482,6 +485,10 @@ def count_corpus(
             if closer.startswith(".") and is_abbreviation(tokens[-1]):
                 tokens[-1] = tokens[-1]._replace(plain=False)
             info.sentences += 1
+            if sentence_goes_to_dev(sentence_id(doc.key, i)):
+                info.dev_sentences += 1
+                counts.dev[index].append(tokens)
+                continue
             signals = 0
             for token in tokens:
                 if _position(token) == "lower":
@@ -489,10 +496,6 @@ def count_corpus(
                     if monotonic_signal(token):
                         signals += 1
             info.signals += signals
-            if sentence_goes_to_dev(sentence_id(doc.key, i)):
-                info.dev_sentences += 1
-                counts.dev[index].append(tokens)
-                continue
             if signals:
                 counts.skipped_sentences += 1
                 continue

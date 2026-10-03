@@ -482,6 +482,20 @@ def test_the_dev_sentences_are_the_language_models_and_are_not_counted(
     assert trained <= counted
 
 
+def test_dev_sentences_do_not_decide_whether_a_document_is_read(monkeypatch):
+    # Monotonic dev sentences: 9 signal words, over 1% of the document's
+    # words, but none in its training sentences.
+    sentences = sentences_300()
+    for i in (92, 180, 273):
+        sentences[i] = f"{marker(i)} και να δεν"
+    fake_document(monkeypatch, sentences)
+    counts = mg.count_corpus()
+    info = counts.documents[0]
+    assert info.signals == 1            # sentence 0's και, a training one
+    assert not info.monotonic
+    assert mg.source_documents(counts) == {0}
+
+
 def test_the_sentence_ids_and_the_split_are_stable():
     import train_lm
     from extract_polytonic_mg import sentence_id
