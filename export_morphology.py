@@ -54,9 +54,11 @@ second:
 * ``el_modern_share`` - for each ``el_modern`` key, how often the slice
   elides it: of the times it writes a word the elided spelling stands for
   right before a vowel-initial word, the share it writes it elided
-  (``γιὰ`` 0.6, ``τώρα`` 0.06). Modern Greek elides optionally, and most
-  of these elisions are the minority spelling, so a keyboard can elide a
-  word automatically only where the texts mostly do.
+  (``γιὰ`` 0.651, ``τὸ`` 0.204, ``τώρα`` 0.057). A word the elided
+  spelling stands for only through a long ending does not count (the
+  article's ``τοῦ`` is not ``τ᾽``). Modern Greek elides optionally, and
+  most of these elisions are the minority spelling, so a keyboard can
+  elide a word automatically only where the texts mostly do.
 
 The derivation pulls from:
 
@@ -1540,8 +1542,9 @@ def main():
     )
     ap.add_argument(
         "--no-modern-greek", action="store_true",
-        help="leave out the el_modern table (it needs the Wikisource "
-             "parquet of the polytonic Modern Greek slice)",
+        help="leave out the el_modern and el_modern_share tables (they "
+             "need the Wikisource parquet of the polytonic Modern Greek "
+             "slice)",
     )
     ap.add_argument(
         "--mg-parquet", type=Path, default=None,

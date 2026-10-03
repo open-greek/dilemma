@@ -1165,9 +1165,9 @@ def select_forms(
 # --------------------------------------------------------------------------
 
 # An elided spelling enters the Modern Greek elision table when the slice
-# writes it at least this often, by this many authors: the measured
-# keyboard change behind the table used these thresholds, and one author's
-# habit is not the language's.
+# writes it at least this often, by this many authors: one author's habit
+# is not the language's, and a rarer elision is not worth a rewrite a
+# keyboard applies before every vowel.
 MG_ELISION_MIN_TOKENS = 10
 MG_ELISION_MIN_AUTHORS = 2
 

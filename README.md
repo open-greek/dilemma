@@ -2249,14 +2249,16 @@ grc rebuild. An evaluation variant needs `--out-dir` and is refused in
 `build/hunspell`, where it would replace the shipping list. The source is the
 polytonic Modern Greek slice of Wikisource that the next-word language model
 also reads (`extract_polytonic_mg.py`), and only the language model's
-training sentences, so its dev sentences stay held out. A spelling is listed
-when:
+training sentences, so its dev sentences stay held out; a training sentence
+that repeats a dev sentence word for word, as Wikisource's duplicate copies
+of a text do, is left out too. A spelling is listed when:
 
 - it comes from a polytonic source. A document is dropped when more than 1%
   of its lowercase words, and at least three, read as monotonic: a
   vowel-initial word without a breathing, or a monosyllable polytonic writing
-  always accents (`και`, `να`, `δεν`, `στο`, ...). That drops 57 of 2,213
-  documents, 11% of the slice's words; inside the rest, a sentence with any
+  always accents (`και`, `να`, `δεν`, `στο`, ...), counted on the training
+  sentences. That drops 58 of 2,213 documents, 11% of the slice's words;
+  inside the rest, a sentence with any
   such word is skipped, which also drops the monotonic license note
   Wikisource adds to its pages. Elision and aphaeresis marks are read as
   the texts write them: the apostrophes, the koronis, and the spacing psili
@@ -2265,8 +2267,12 @@ when:
 - it has at least 3 tokens from at least 2 authors, in its own case: the
   lowercase spelling counts its lowercase tokens, a capitalized one (a name)
   its capitals inside a sentence, and a capital that opens a sentence, line,
-  quotation or stretch of dialogue joins the case more authors write inside
-  a sentence. So a word and a name are both listed when each qualifies
+  quotation or stretch of dialogue, or follows an ellipsis or a closing
+  bracket (`[Γελῶσα] Χάχ`), goes with the case in which more authors write
+  the word inside a sentence, the word's grave and acute spellings
+  together. A capital carrying the iota (`ᾍδη`) is a capital, though
+  Unicode makes it a titlecase letter. So a word and a name are both listed
+  when each qualifies
   (`διάολος`), and neither passes on the other's authors (`λάζος`, one
   author's "blade", beside the name `Λάζος`); a capitalized spelling whose
   lowercase is listed adds nothing a Hunspell reader does not accept, and is
@@ -2304,26 +2310,51 @@ when:
   and `data/hunspell_mg_spelling_review.json`, which lists the accent-type
   and iota-subscript misspellings no rule catches (`ἤταν`, `ἐδῷ`, `ξῦλον`,
   `χειμώνα` beside the slice's five times commoner `χειμῶνα`), two words run
-  together (`τουκαὶ`) and `τουναντίον` without its koronis.
+  together (`τουκαὶ`, and `εἰδ᾽`, written for `εἰ δ᾽`) and `τουναντίον`
+  without its koronis.
 
 Each oxytone also gets its contextual twin (`στὴν` beside grc's `στήν`), and
 `fr:` uses the grc bucket edges on the spelling's token count in the slice,
-the two twins counted together.
+the two twins counted together. A keyboard may take a `C` or `M` word for a
+sign that a text is Modern Greek, so a spelling that is also an Ancient
+Greek word gets `fr:R` whatever its count: one the GLAUx and Diorisis
+treebanks attest 20 times with its twin (`του`, the Ancient enclitic
+genitive of `τις`), or the twin of a grc spelling that the Ancient corpora
+outside the Byzantine vernacular one attest that often (`μοναχὸς` beside
+`μοναχός`). The counts come from Dilemma's form attestation
+(`data/form_profile.db`, `python -m dilemma download --with-attestation`);
+without it the exporter warns and caps nothing, and the `.version` records
+which file decided. In the current list this caps 11 spellings: `του`,
+`των`, `τὴ`, `μοναχὸς`, `κὺρ`, `κυρὰ`, and, through grc spellings the OCR'd
+Patristic and First1KGreek texts attest, `στὴν`, `στὸν`, `στὴ`, `δὰ` and
+`τὲς`.
 
 The list also names the grc spellings polytonic Modern Greek writes another
 way, with lines of the form `form<TAB>mg:avoid`, so that a keyboard writing
-Modern Greek can leave them out of its candidates: `με`, which the slice
-writes `μὲ` 25 times as often, `που` beside `ποὺ` and `ποῦ`, `ὅ` beside `ὁ`.
-A spelling is marked when the slice writes its letters at least 30 times in
-lowercase and gives it under a tenth of them, another spelling taking at
-least a tenth; only spellings the slice writes are judged, the unaccented
-closed list never is, and only grc's spellings get a line, with the
-contextual grave of an avoided acute (932 lines). The list's own minority
-spellings stay words (`χρονιά` beside `χρόνια`). A Hunspell reader that does
-not know the field accepts the marked spellings, as grc does.
+Modern Greek can leave them out of its candidates: the Katharevousa dative
+`ἐκείνῃ` beside `ἐκείνη`, misspellings such as `εἷναι` beside `εἶναι`, and
+the weak forms `με`, which the slice writes `μὲ` 25 times as often, `σε`,
+`που` beside `ποὺ` and `ποῦ`, and `πως`. A lowercase spelling is marked when
+its share of its letters' lowercase tokens is under a tenth with 95%
+confidence (the Wilson upper bound, which needs at least 53 tokens of the
+letters), and the commonest spelling takes at least a tenth, is a word grc
+or the list accepts, and is written by at least as many authors. A spelling
+is never marked when Dilemma's lexicon shows it is another word (its
+monotonic spelling differs from the commoner one's and `lookup.db` knows
+it: `ὅ` of `ὅ,τι`, the numerals `ἕν` and `ἕξ`, `πάρα`, `ὥς`), when it is a
+word with the second acute an enclitic gives it (`γυναῖκά` beside
+`γυναῖκα`), when it or its contextual twin is a word of the list, or when
+it is one of the unaccented closed list. The weak forms `με`, `σε`, `που`,
+`πως` and `ποτε` are reviewed exceptions to the other-word test: the
+lexicon knows them as clitics and Ancient enclitics, but polytonic Modern
+Greek writes them accented in most of their uses. Elided and aphaeresized
+spellings are not judged, and only grc's spellings get a line, with the
+contextual grave of an avoided acute. A Hunspell reader that does not know
+the field accepts the marked spellings, as grc does.
 
-The list has 17,174 words (21 in `C`, 212 in `M`): 986 capitalized,
-154 elided and 198 aphaeresized spellings (`᾽ναι`, `᾽ς`), the six weak
+The list has 17,149 words (13 in `C`, 208 in `M`) and 206 `mg:avoid`
+lines: 973 capitalized, 150 elided and 197 aphaeresized spellings (`᾽ναι`,
+`᾽ς`), the six weak
 pronouns, `κι` and `κι᾽`, `στὴν`, `στὸν`, `στὴ`, `στοὺς`, `τὴ`, `γι᾽`, and
 the Modern vocabulary (`τώρα`, `ἀκόμη`, `σπίτι`, `ὄχι`, `μπορεῖ`). `θὰ`,
 `νὰ`, `γιὰ`, `στὸ`, `στὰ`, `δὲν`, `ἀπ᾽`, `μου` and `σου` are in grc already.
@@ -2334,40 +2365,39 @@ and the review file above remove all of them but `ποιητῆ`, which a second
 look found correct (the genitive, beside the accusative `ποιητή`). Of a new
 random sample of 200 entries none is an Ancient-only or OCR-damaged
 spelling; the rarest are older spellings and dialect words (`θᾶμμα`,
-`κἀμμία`, `ὁλοκαιρὶς`, `μίλαε`, crasis such as `σὅλους`).
+`κἀμμία`, `ὁλοκαιρὶς`, `μίλαε`, crasis such as `σὅλους`). A later review of
+300 random entries (every `C`, 100 `M`, 179 `R`) and 50 each of the
+capitalized, elided and aphaeresized ones found three errors, all fixed
+since: `εἰδ᾽` (now in the review file) and the interjections `Χάχ` and
+`Ἀετὲ`, which only sentence-initial capitals had made names.
 
 The language model's dev split is per sentence, so a dev sentence's document
 and author also supply training sentences. `eval/eval_mg_polytonic.py`
-measures how many of the 34,187 words in its clean dev sentences the
+measures how many of the 34,168 words in its clean dev sentences the
 dictionary accepts, with the list built four ways:
 
 | Dictionary | Accepted | Out-of-dictionary words removed |
 |------------|---------:|-------------------------------:|
 | grc alone | 79.6% | |
 | grc + list from the training split | 92.2% | 62% |
-| grc + list without the documents holding a dev sentence (16% of the slice) | 88.7% | 45% |
+| grc + list without the documents holding a dev sentence (16% of the slice) | 88.7% | 44% |
 | grc + list without each dev word's author (5 author folds) | 90.9% | 56% |
 | grc + list without another author fold (control) | 91.8% | 60% |
 
-The authors' own texts account for about 0.9 points of the 12.7 the list
-adds. Typed as bare letters into a keyboard's auto-correct (default
-settings) with the list merged into grc, the 38,622 words of the polytonic
-Modern Greek dev sentences come out wrong 9,553 times with grc alone, 5,943
-times with the training-split list (3,721 fixed, 111 broken) and 6,332 times
-with each author held out (3,333 fixed, 112 broken). On the 474,220 words of
-26,906 held-out Ancient Greek sentences the training-split list fixes 108
-words and breaks 62 when it is merged unconditionally: the fixes are
-grave spellings grc lacks (`οἳ`, `αἳ`, `ἣ`), the breaks the same graves where
-the text has the article (`οἱ` -> `οἳ`), the weak pronouns where it has the
-article (`τῆς` -> `της`), and Modern spellings chosen in Ancient text
-(`χερὶ` -> `χέρι`). A keyboard with a Modern Greek register that offers the
-list's words only in Modern Greek text, and reads the `mg:avoid` marks there,
-measured on the same sentences with each author held out from the list and
-the marks: 6,208 wrong words in its Modern register without the marks and
-5,952 with them (371 fixed, 115 broken), 8,250 and 8,130 in its Automatic
-register (153 fixed, 33 broken); on the Ancient Greek sentences in the
-Automatic register the 474,220 words come out exactly as with grc alone,
-with the marks or without them.
+The authors' own texts account for about 0.9 points of the 12.6 the list
+adds. `--write-lists DIR` writes the author-fold lists, each with the
+`mg:avoid` lines read from its own authors, for a keyboard harness. One such
+measurement was made outside this repository, with a keyboard (not part of
+Dilemma) that has a Modern Greek register, offers the list's words only in
+Modern Greek text and reads the `mg:avoid` marks there: the dev sentences'
+38,622 words, typed as bare letters with each author's fold held out from
+the list and its marks, came out wrong 6,209 times in its Modern register
+without the marks and 5,944 times with them (334 fixed, 69 broken), and
+8,251 and 8,139 times in its Automatic register (135 fixed, 23 broken). The
+earlier mark rule, a point share under a tenth with none of the exemptions
+above, gave 5,953 and 8,131 with 923 lines. On 474,220 words of held-out
+Ancient Greek sentences, the keyboard's Ancient and Automatic registers gave
+the same words with the list as without it.
 
 #### Boundary rewrites (`grc_morph.json`)
 
@@ -2440,15 +2470,16 @@ word before every vowel, and Ancient Greek never elides the article `τὸ` or
 Modern Greek elides optionally, and most of these elisions are the minority
 spelling, so `el_modern_share` gives each `el_modern` key its rate: of the
 times the slice writes a word the elided spelling stands for right before a
-vowel-initial word, the share it writes it elided (`στ᾽` counts `στὸ`, `στὰ`
-and `στὴ` together). Only `γιὰ` (0.65), `στὸ` (0.54) and `κι` (0.49) reach
-half; `νὰ` is at 0.29, `τὸ` at 0.12, `τώρα` at 0.06 and `ὅτι` at 0.01. With
-automatic elision off, a keyboard reads the table only to decide whether an
-apostrophe after a word is an elision mark; laid over `el` in the
-measurement above, it changed one Ancient Greek word and three Modern Greek
-ones, since that keyboard already read `στ’` and the like as elisions. A
-reader that knows only `nu` and `el` ignores both keys; `--no-modern-greek`
-leaves them out, as the slice's parquet is needed to build them.
+vowel-initial word, the share it writes it elided (`στ᾽` counts `στὸ` and
+`στὰ` together). A word the elided spelling stands for only through a long
+ending does not count: the article's `τοῦ` and the dative `τῷ` are not
+`τ᾽`. Only `γιὰ` (0.65) and `στὸ` (0.58) pass
+half, and `κι` is just under it (0.49); `νὰ` is at 0.29, `τὸ` at 0.20,
+`τώρα` at 0.06 and `ὅτι` at 0.01. With automatic elision off, a keyboard
+reads the table only to decide whether an apostrophe after a word is an
+elision mark. A reader that knows only `nu` and `el` ignores both keys;
+`--no-modern-greek` leaves them out, as the slice's parquet is needed to
+build them.
 
 `tests/test_export_morphology.py` checks the built table against these rules.
 
