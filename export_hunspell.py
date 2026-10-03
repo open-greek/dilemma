@@ -107,7 +107,18 @@ AG_FUNCTION_WORDS = {
     "τοῖν": "ὁ", "ταῖν": "ὁ", "οἱ": "ὁ", "αἱ": "ὁ", "τώ": "ὁ",
     # Grave variants
     "τὸ": "ὁ", "τοὺς": "ὁ", "τὰ": "ὁ", "τὸν": "ὁ", "τὴν": "ὁ",
-    "τὰς": "ὁ", "αἵ": "ὁ", "οἵ": "ὁ",
+    "τὰς": "ὁ", "τὼ": "ὁ",
+    # The relative pronoun's vowel-only forms before another word.
+    # build_lookup_db.py leaves out every mapping to the article whose
+    # form has an article's letters, so that resolve_articles decides it,
+    # and the AGDT treebank, the first treebank it reads, files Homer's
+    # demonstrative ὃ, ἣ, οἳ, αἳ under ὁ. Only one lemma per form is kept,
+    # so that entry shuts out GLAUx's relative ὅς, and the forms never reach
+    # lookup.db, though GLAUx reads them as the relative 3,596 (οἳ), 1,598
+    # (ἣ) and 793 (αἳ) times. A keyboard that writes a grave only where the
+    # dictionary has it then writes οἱ, αἱ, ἡ or ἢ in their place. Their
+    # acute spellings come in as contextual twins.
+    "ὃ": "ὅς", "ἣ": "ὅς", "οἳ": "ὅς", "αἳ": "ὅς",
     # 1st/2nd person pronouns
     "μοι": "ἐγώ", "μοί": "ἐγώ", "μου": "ἐγώ", "με": "ἐγώ",
     "ἐμοί": "ἐγώ", "ἐμοῦ": "ἐγώ", "ἐμέ": "ἐγώ", "ἐγώ": "ἐγώ",

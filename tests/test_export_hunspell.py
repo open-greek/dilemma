@@ -903,6 +903,32 @@ def test_polytonic_modern_greek_particles_are_accepted():
         assert grc_orthography_reason(form) == "explicit_reject"
 
 
+def test_relative_pronoun_graves_come_in_with_their_acute_twins():
+    # lookup.db has none of these: its article exclusion takes them, so the
+    # closed list is their only way into the dictionary.
+    relatives = {"ὃ", "ἣ", "οἳ", "αἳ"}
+    assert {AG_FUNCTION_WORDS[form] for form in relatives} == {"ὅς"}
+    assert AG_FUNCTION_WORDS["τὼ"] == "ὁ"
+    # An accented ὅ, ἥ, οἵ or αἵ is the relative, not the proclitic article.
+    assert not any(
+        AG_FUNCTION_WORDS.get(form) == "ὁ"
+        for form in relatives | {"ὅ", "ἥ", "οἵ", "αἵ"}
+    )
+    pairs, _added = add_grc_reviewed_forms(
+        [], GRC_CLOSED_LIST_FORMS, {}, set()
+    )
+    kept, _report = finalize_grc_pairs(
+        pairs,
+        evidence=_evidence(exact={}),
+        compatibility_forms=set(),
+        textbook_forms=set(),
+        export_overrides=GRC_CLOSED_LIST_FORMS,
+        protected_forms=set(GRC_CLOSED_LIST_FORMS),
+    )
+    forms = {form for form, _lemma in kept}
+    assert relatives | {"ὅ", "ἥ", "οἵ", "αἵ", "τὼ", "τώ"} <= forms
+
+
 def test_the_spelling_review_is_checked_when_loaded(tmp_path):
     import json
     from export_hunspell import load_grc_spelling_review
