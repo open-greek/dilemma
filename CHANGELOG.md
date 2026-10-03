@@ -24,21 +24,21 @@ All notable changes to Dilemma are documented here. The format follows
   or later Greek word by the GLAUx and Diorisis treebanks, or by the
   patristic texts and First1KGreek at a comparable rate (`του`, the Ancient
   enclitic genitive; `μοναχὸς`), is written with `fr:R`, so that it is no
-  sign of Modern Greek. The list also marks 211 grc spellings Modern Greek
-  writes another way (`ἐκείνῃ`, `σὰς`, `με`, `που`) with `form<TAB>mg:avoid`
-  lines: a respelling of a commoner word of the same letters (the same
-  monotonic spelling, and for a breathing or accent-type difference no
-  treebank evidence of a word of its own) with a share under a tenth of the
-  letters' tokens at 95% confidence. Another word is never marked (`ὅ`,
-  `ἕν`, the reflexive `αὑτοῦ`, `ὄν`); the weak forms `με`, `σε`, `που` and
-  `πως` are reviewed exceptions. Replayed as bare-letter typing through a
-  keyboard outside this repository that offers the list only in Modern
-  Greek text, with each sentence's author held out from the list and its
-  marks and the monotonic dev sentences left out, the 36,129 words of the
-  polytonic Modern Greek dev sentences come out wrong 5,248 times in its
-  Modern register without the marks and 4,965 times with them, and 474,220
-  held-out Ancient Greek words change only where grc's own new spellings
-  `ἣ`, `οἳ`, `αἳ` and `τὼ` change them.
+  sign of Modern Greek. The list also marks 187 grc spellings Modern Greek
+  writes another way (`ἐκείνῃ`, `μὰς`, `με`, `που`) with `form<TAB>mg:avoid`
+  lines: a respelling of a commoner spelling of the same word (the same
+  monotonic spelling, and for a breathing, accent-type or dropped-subscript
+  difference no treebank evidence of a word of its own) with a share under
+  a tenth of that word's tokens at 95% confidence. Another word is never
+  marked (`ὅ`, `ἕν`, the reflexive `αὑτοῦ`, `ὄν`); the weak forms `με`,
+  `σε`, `που` and `πως` are reviewed exceptions. Replayed as bare-letter
+  typing through a keyboard outside this repository that offers the list
+  only in Modern Greek text, with each sentence's author held out from the
+  list and its marks and the monotonic dev sentences left out, the 36,129
+  words of the polytonic Modern Greek dev sentences come out wrong 5,248
+  times in its Modern register without the marks and 4,965 times with them,
+  and 474,220 held-out Ancient Greek words come out the same with the list
+  as without it.
   `eval/eval_mg_polytonic.py` measures the list's coverage with documents
   or authors held out, and writes the evaluation lists.
 - `grc_morph.json` carries an optional `el_modern` table: the Modern Greek

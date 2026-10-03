@@ -2345,26 +2345,36 @@ The list also names the grc spellings polytonic Modern Greek writes another
 way, with lines of the form `form<TAB>mg:avoid`, so that a keyboard writing
 Modern Greek can leave them out of its candidates: the Katharevousa dative
 `ἐκείνῃ` beside `ἐκείνη`, misspellings such as `εἷναι` beside `εἶναι` or
-`σὰς` beside `σᾶς`, and the weak forms `με`, which the slice writes `μὲ` 25
+`μὰς` beside `μᾶς`, and the weak forms `με`, which the slice writes `μὲ` 25
 times as often, `σε`, `που` beside `ποὺ` and `ποῦ`, and `πως`. A lowercase
-spelling is marked when its share of its letters' lowercase tokens is under
-a tenth with 95% confidence (the Wilson upper bound, which needs at least 53
-tokens of the letters), the commonest spelling takes at least a tenth, is a
-word grc or the list accepts and is written by at least as many authors,
-and the spelling is a respelling of a word the slice writes more often:
+spelling is marked when it is a respelling of its word, the spellings of the
+same letters with the same monotonic spelling (accents as the acute,
+breathings and iota subscript dropped):
 
-- a spelling of the same letters that the slice writes more often and grc or
-  the list accepts has the same monotonic spelling (accents as the acute,
-  breathings and iota subscript dropped), so the two differ only in marks;
-- where they differ in the breathing or the accent type, other than the
-  accent an added iota subscript brings (the dative `ψυχῇ` beside `ψυχή`),
-  the GLAUx and Diorisis treebanks do not write the rarer one 20 times and a
-  twentieth as often as the other, each with its contextual twin. That keeps the Katharevousa reflexive
-  `αὑτοῦ` beside `αὐτοῦ`, `ὄν` beside `ὅν`, `ἤν` ("if") beside `ἦν` and the
-  relative `ἥ` beside the dative `ᾗ`, while every breathing misspelling the
-  slice writes (`εἷναι`, `ἃν`, `ἄμα`, `ὦν`) is at 3.3% of its word or below.
-  The rarest reflexives (`αὑτά`, `αὑτήν`, `αὑτοῖς`, 3.8 to 4.4%) stay
-  marked.
+- its share of the word's lowercase tokens is under a tenth with 95%
+  confidence (the Wilson upper bound, which needs at least 53 tokens of the
+  word), and the word's commonest spelling takes at least a tenth, is a word
+  grc or the list accepts and is written by at least as many authors. Another
+  word of the same letters does not count: `ὁπού`, 26% of the demotic
+  relative's spellings, is not marked though `ὅπου` fills its letters;
+- a spelling of the word that the slice writes more often and grc or the
+  list accepts differs from it only in marks, and where they differ in the
+  breathing, the accent type or a dropped iota subscript, the GLAUx and
+  Diorisis treebanks do not write the rarer one 20 times and a twentieth as
+  often as the other, each with its contextual twin and both treebanks
+  counted. An added subscript, with the accent it brings, is a respelling
+  outright: polytonic Modern Greek writes the Katharevousa dative `ψυχῇ` as
+  `ψυχή`, while the treebanks, where the dative is a word, cannot say so
+  (taking the datives to the treebanks too unmarks 45 lines and costs 15
+  words on the folds below). The test keeps the Katharevousa reflexive
+  `αὑτοῦ` beside `αὐτοῦ`, `ὄν` beside `ὅν`, `ἤν` ("if") beside `ἦν` and
+  the relative `ἥ` beside the dative `ᾗ`. The breathing misspellings the
+  slice writes (`εἷναι`, `ἃν`, `ἄμα`, `ὦν`) are at 3.3% of their word or
+  below, but a misspelling whose spelling is also an Ancient word goes
+  unmarked (`ὀποῦ`, the genitive of `ὀπός` "sap", beside the relative
+  `ὁποῦ`; `σάς` beside `σᾶς`), and the rarest reflexives (`αὑτά`, `αὑτήν`,
+  `αὑτοῖς`, 4.0 to 4.6%) stay marked, as does the subjunctive `ᾖ`, which
+  adds a subscript to `ἤ`.
 
 So a spelling that is another word is never marked: `ὅ` of `ὅ,τι`, the
 numerals `ἕν`, `εἷς` and `ἕξ`, `πάρα`, `ὥς`, `πασᾶν` and the crasis
@@ -2381,7 +2391,7 @@ grc's spellings get a line, with the contextual grave of an avoided acute.
 A Hunspell reader that does not know the field accepts the marked
 spellings, as grc does.
 
-The list has 17,184 words (19 in `C`, 212 in `M`) and 211 `mg:avoid`
+The list has 17,184 words (19 in `C`, 212 in `M`) and 187 `mg:avoid`
 lines: 976 capitalized, 151 elided and 197 aphaeresized spellings (`᾽ναι`,
 `᾽ς`), the six weak
 pronouns, `κι` and `κι᾽`, `στὴν`, `στὸν`, `στὴ`, `στοὺς`, `τὴ`, `γι᾽`, and
@@ -2427,13 +2437,15 @@ are monotonic in the gold text itself, so they are left out; on the other
 
 | Register | Without `mg:avoid` | With `mg:avoid` | Fixed | Broken |
 |----------|-------------------:|----------------:|------:|-------:|
-| Modern | 5,248 | 4,965 | 334 | 51 |
+| Modern | 5,248 | 4,965 | 332 | 49 |
 | Automatic | 7,210 | 7,088 | 136 | 14 |
 
 With the monotonic sentences counted as well, the 38,622 words give 6,210
-and 5,942 in the Modern register, 8,250 and 8,137 in the Automatic one. The
-earlier mark rule (a share test with the lexicon's different-word check,
-207 lines on the same list) gave 4,966 and 7,089. The weak forms carry
+and 5,943 in the Modern register, 8,250 and 8,137 in the Automatic one. Two
+earlier mark rules gave the same within a word: a share of all the letters'
+tokens with the lexicon's different-word check (207 lines on the same list)
+4,966 and 7,089, and the same share with the respelling test (211 lines)
+4,965 and 7,088. The weak forms carry
 nearly all of the gain: 126 `με`, 30 `σε`, 49 `που` and 4 `πως` fixed,
 against 5 `με`, 6 `σε`, 2 `που` and 4 `πως` that were correct enclitics
 (`ἄφησέ με`, `οὕτω πως`), 3 `πῶς` written `πὼς`, and 13 of the older

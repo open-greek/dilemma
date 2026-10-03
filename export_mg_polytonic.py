@@ -95,8 +95,8 @@ so that a keyboard does not take it for a sign of Modern Greek
 ``data/form_profile.db``).
 
 The ``mg:avoid`` lines name the grc spellings the slice gives under a tenth
-of their letters' tokens with 95% confidence, as respellings of a commoner
-word of the same letters (σὰς for σᾶς, ἐκείνῃ for ἐκείνη); a spelling that
+of their word's tokens with 95% confidence, as respellings of a commoner
+spelling of the same word (μὰς for μᾶς, ἐκείνῃ for ἐκείνη); a spelling that
 is another word (ὅ beside ὁ, αὑτοῦ beside αὐτοῦ) is never marked
 (``modern_greek_avoids``).
 
@@ -1336,15 +1336,18 @@ def modern_greek_elision_shares(
 # --------------------------------------------------------------------------
 
 # A spelling is one Modern Greek avoids when the slice gives it under
-# AVOID_SHARE of its letters' tokens with 95% confidence (the Wilson upper
+# AVOID_SHARE of its word's tokens with 95% confidence (the Wilson upper
 # bound of its share, ``wilson_bounds``), while another spelling of the
-# letters takes at least that share: the slice writes ἐκείνη for ἐκείνῃ, μὲ
-# for με, ποὺ and ποῦ for που. A keyboard writing Modern Greek can then
-# leave those spellings out of its candidates. The bound needs at least 53
-# tokens of the letters to mark a spelling written once, and it keeps a
-# share that one author's texts could tip from deciding. Only spellings the
-# slice writes at all are marked; the closed list of unaccented words
-# never is.
+# word takes at least that share: the slice writes ἐκείνη for ἐκείνῃ, μὲ
+# for με, ποὺ and ποῦ for που. The word is the spellings of the same
+# letters with the same monotonic spelling (``modern_greek_avoids``), so
+# another word of the letters does not decide: ὁπού, 26% of the demotic
+# relative's spellings, is not marked beside ὅπου. A keyboard writing
+# Modern Greek can then leave those spellings out of its candidates. The
+# bound needs at least 53 tokens of the word to mark a spelling written
+# once, and it keeps a share that one author's texts could tip from
+# deciding. Only spellings the slice writes at all are marked; the closed
+# list of unaccented words never is.
 AVOID_SHARE = 0.10
 
 # Weak forms polytonic Modern Greek writes accented in most of their uses,
@@ -1365,20 +1368,21 @@ MG_AVOIDED_WEAK_FORMS = frozenset({"με", "σε", "που", "πως"})
 
 # Spellings a review found to be words of their own that no rule below can
 # tell from a misspelling: τῶ, τῶν without its final ν in Εφταλιώτης and
-# Μαβίλης (τῶ Φαιάκων, 118 tokens), which has the monotonic spelling of the
+# Μαβίλης (τῶ Φαιάκων, 119 tokens), which has the monotonic spelling of the
 # dative τῷ.
 MG_NOT_AVOIDED = frozenset({"τῶ"})
 
-# A spelling that differs from a commoner one in its breathing or accent
-# type is a word of its own when the GLAUx and Diorisis treebanks write it
-# at least TREEBANK_WORD_TOKENS times and at least TREEBANK_WORD_SHARE as
-# often as the commoner spelling, each counted with its contextual twin:
-# the Katharevousa reflexive αὑτοῦ beside αὐτοῦ, ὄν "being" beside ὅν, ἤν
-# "if" beside ἦν. The breathing misspellings the slice writes (εἷναι, ἃν,
-# ἄμα, ἕξω, ὦν) come out at 3.3% or below, ὄν at 45%, and the reflexives
-# at 3.8 to 9.2%, so the rarest of them (αὑτά, αὑτήν, αὑτοῖς, under 5%)
-# stay marked; a share of 3.5% would free them, and with them the
-# Ancient-only εἶς and the enclitic σού, which the slice writes as slips.
+# A spelling that differs from a commoner one in its breathing, its accent
+# type or a dropped iota subscript is a word of its own when the GLAUx and
+# Diorisis treebanks together write it at least TREEBANK_WORD_TOKENS times
+# and at least TREEBANK_WORD_SHARE as often as the commoner spelling, each
+# counted with its contextual twin: the Katharevousa reflexive αὑτοῦ beside
+# αὐτοῦ, ὄν "being" beside ὅν, ἤν "if" beside ἦν. The breathing
+# misspellings the slice writes (εἷναι, ἃν, ἄμα, ἕξω, ὦν) come out at 3.3%
+# or below, ὄν at 43%, and the reflexives at 4.0 to 9.9%, so the rarest of
+# them (αὑτά, αὑτήν, αὑτοῖς, under 5%) stay marked. A misspelling whose
+# spelling is also an Ancient word goes unmarked: ὀποῦ (the genitive of
+# ὀπός "sap") beside the relative ὁποῦ, σάς beside σᾶς.
 TREEBANK_WORD_TOKENS = 20
 TREEBANK_WORD_SHARE = 0.05
 
@@ -1409,7 +1413,8 @@ def treebank_word(spelling: str, other: str,
     """Whether ``spelling`` is a word of its own beside ``other`` by the
     treebanks (``TREEBANK_WORD_TOKENS``, ``TREEBANK_WORD_SHARE``)."""
     def tokens(form: str) -> int:
-        return sum(corpora.tokens(f) for f in (form, *oxytone_twins(form)))
+        return sum(corpora.treebank_tokens(f)
+                   for f in (form, *oxytone_twins(form)))
 
     n = tokens(spelling)
     return (n >= TREEBANK_WORD_TOKENS
@@ -1422,6 +1427,7 @@ def _marks(form: str, marks: str) -> list[str]:
             if c in marks]
 
 
+# The marks that can tell two words of one monotonic spelling apart.
 _BREATHINGS = SMOOTH + ROUGH
 _ACCENTS = "\u0300\u0301\u0342"
 _SUBSCRIPT = "\u0345"
@@ -1430,19 +1436,26 @@ _SUBSCRIPT = "\u0345"
 def respelling_of(spelling: str, other: str,
                   corpora: "AncientCorpora | None" = None) -> bool:
     """Whether ``spelling`` is the word ``other`` spells, respelled: the two
-    have the same monotonic spelling (:func:`monotonic_spelling`), and
-    unless they differ only in the iota subscript or vowel-length marks
-    (ἧ beside ᾗ), or ``spelling`` adds an iota subscript with the accent it
-    brings (the dative ψυχῇ beside ψυχή, which polytonic Modern Greek writes
-    ψυχή), the treebanks do not show ``spelling`` a word of its own beside
-    ``other`` (:func:`treebank_word`): εἷναι beside εἶναι is a respelling,
-    αὑτοῦ beside αὐτοῦ, ἤν beside ἦν, ᾗ beside ἤ and ἥ beside ᾗ are not."""
+    have the same monotonic spelling (:func:`monotonic_spelling`), and they
+    differ only in vowel-length marks, or ``spelling`` adds an iota
+    subscript (with the accent it brings) to ``other`` and nothing else,
+    or else the treebanks do not show ``spelling`` a word of its own beside
+    ``other`` (:func:`treebank_word`). The added subscript is a respelling
+    outright: polytonic Modern Greek writes the Katharevousa dative ψυχῇ as
+    ψυχή, and the treebanks, where the dative is a word, cannot say so. Any
+    other difference, in the breathing, the accent type or a dropped
+    subscript, is the treebanks' to judge: εἷναι beside εἶναι and ἧ beside
+    ᾗ are respellings; αὑτοῦ beside αὐτοῦ, ἤν beside ἦν and ἦ beside ᾗ are
+    words."""
     if monotonic_spelling(spelling) != monotonic_spelling(other):
         return False
-    if (_marks(spelling, _BREATHINGS) == _marks(other, _BREATHINGS)
-            and (_marks(spelling, _ACCENTS) == _marks(other, _ACCENTS)
-                 or len(_marks(spelling, _SUBSCRIPT))
-                 > len(_marks(other, _SUBSCRIPT)))):
+    same = [_marks(spelling, m) == _marks(other, m)
+            for m in (_BREATHINGS, _ACCENTS, _SUBSCRIPT)]
+    if all(same):
+        return True
+    adds_subscript = (len(_marks(spelling, _SUBSCRIPT))
+                      > len(_marks(other, _SUBSCRIPT)))
+    if same[0] and adds_subscript:
         return True
     return corpora is None or not treebank_word(spelling, other, corpora)
 
@@ -1450,8 +1463,8 @@ def respelling_of(spelling: str, other: str,
 class Avoided(NamedTuple):
     spelling: str           # lowercase, contextual grave folded into acute
     tokens: int
-    letters_tokens: int     # every spelling of the letters
-    preferred: str          # the commonest spelling of the letters
+    word_tokens: int        # every spelling of the word (see below)
+    preferred: str          # the commonest spelling of the word
 
 
 def modern_greek_avoids(
@@ -1468,8 +1481,11 @@ def modern_greek_avoids(
     Only lowercase tokens of the ``sources`` are read: a capital belongs to
     a name or to the start of a sentence, and says nothing of how the word
     is spelled (Σοφιά, the name, beside σοφία). Elided and aphaeresized
-    spellings are not judged. A spelling under the share (``AVOID_SHARE``,
-    with 95% confidence) is still not avoided when
+    spellings are not judged. A spelling's share (``AVOID_SHARE``, with 95%
+    confidence), its preferred spelling and their authors are read within
+    its word: the spellings of its letters with its monotonic spelling, or
+    for one of ``MG_AVOIDED_WEAK_FORMS`` all of its letters. A spelling
+    under the share is still not avoided when
 
     * it is the closed list's unaccented word (``MG_UNACCENTED_WORDS``);
     * it is an enclitic-accent form of a word of its letters
@@ -1509,12 +1525,19 @@ def modern_greek_avoids(
 
     out: dict[str, Avoided] = {}
     for spellings in groups.values():
-        total = sum(spellings.values())
-        preferred = max(spellings, key=lambda sp: (spellings[sp], sp))
-        if spellings[preferred] < AVOID_SHARE * total:
-            continue
+        monotonic = {sp: monotonic_spelling(sp) for sp in spellings}
         for spelling, n in spellings.items():
+            # The word the spelling is judged within: the spellings of its
+            # letters with its monotonic spelling, or for a weak form all of
+            # its letters (με beside μὲ).
+            weak = spelling in MG_AVOIDED_WEAK_FORMS
+            word = spellings if weak else {
+                sp: m for sp, m in spellings.items()
+                if monotonic[sp] == monotonic[spelling]}
+            total = sum(word.values())
+            preferred = max(word, key=lambda sp: (word[sp], sp))
             if (spelling == preferred
+                    or word[preferred] < AVOID_SHARE * total
                     or wilson_upper(n, total) >= AVOID_SHARE):
                 continue
             if spelling in MG_UNACCENTED_WORDS:
@@ -1527,11 +1550,9 @@ def modern_greek_avoids(
                 reason = "preferred_fewer_authors"
             elif spelling in MG_NOT_AVOIDED:
                 reason = "reviewed"
-            elif (spelling not in MG_AVOIDED_WEAK_FORMS
-                  and not any(
-                      respelling_of(spelling, sp, ancient_corpora)
-                      for sp, m in spellings.items()
-                      if m > n and accepted(sp))):
+            elif not weak and not any(
+                    respelling_of(spelling, sp, ancient_corpora)
+                    for sp, m in word.items() if m > n and accepted(sp)):
                 reason = "different_word"
             elif any(sp in entries
                      for sp in (spelling, *oxytone_twins(spelling))):
@@ -1647,14 +1668,25 @@ class AncientCorpora:
         return self._sources[form]
 
     def tokens(self, form: str) -> int:
-        """The tokens of ``form`` in the GLAUx and Diorisis treebanks: the
-        larger of their two counts. The treebanks annotate largely the same
-        works, so their sum counts most tokens twice (τὴ: 15 and 11, 9 of
-        them the same lines of Aristophanes), and they spell some words
-        differently, so taking each work from GLAUx alone would lose a
-        word GLAUx writes otherwise (οὔτε: GLAUx 0, Diorisis 13,323)."""
+        """The tokens of ``form`` in the GLAUx and Diorisis treebanks, as an
+        absolute count (the fr:R cap): the larger of their two counts. The
+        treebanks annotate largely the same works, so their sum counts most
+        tokens twice (τὴ: 15 and 11, 9 of them the same lines of
+        Aristophanes), and they spell some words differently, so taking
+        each work from GLAUx alone would lose a word GLAUx writes otherwise
+        (οὔτε: GLAUx 0, Diorisis 13,323). The larger count stands in for
+        counting each work once."""
         sources = self._source_counts(form)
         return max(sources.get("glaux", 0), sources.get("diorisis", 0))
+
+    def treebank_tokens(self, form: str) -> int:
+        """The tokens of ``form`` in GLAUx and Diorisis together, each
+        counted, for a ratio of two spellings (:func:`treebank_word`): both
+        sides then come from the same two treebanks, where the larger of
+        two counts could set one treebank's spelling convention against the
+        other's (ὦν, ὀποῦ, ἔξ)."""
+        sources = self._source_counts(form)
+        return sources.get("glaux", 0) + sources.get("diorisis", 0)
 
     def later_tokens(self, form: str, source: str) -> int:
         """The tokens of ``form`` in one of ``LATER_SOURCES``."""

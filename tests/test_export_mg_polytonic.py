@@ -796,6 +796,11 @@ class FakeCorpora:
     def tokens(self, form):
         return self._tokens.get(form, 0)
 
+    def treebank_tokens(self, form):
+        return self.treebank.get(form, self._tokens.get(form, 0))
+
+    treebank: dict = {}
+
     def later_tokens(self, form, source):
         return self._later.get((form, source), 0)
 
@@ -840,9 +845,10 @@ def test_a_spelling_under_a_tenth_of_its_letters_is_avoided():
     assert set(avoided) == {"με", "που", "ἐκείνῃ"}
     assert avoided["με"] == mg.Avoided("με", 60, 960, "μέ")
     assert avoided["που"].preferred == "πού"
-    # ὅ (ὅ,τι) is another word than ὁ.
-    assert report["avoid_kept:different_word"] == 1
-    assert report["avoid_kept:enclitic_accent"] == 1
+    # ὅ (ὅ,τι) is another word than ὁ, and γυναῖκά, the enclitic's second
+    # acute, is no other spelling of γυναῖκα's word: each is the commonest
+    # spelling of its own.
+    assert not {"ὅ", "γυναῖκά"} & set(avoided)
     # A held-out document gives the rule nothing.
     held_out = mg.modern_greek_avoids(avoid_counts(), {1, 2}, AVOID_GRC)
     assert held_out["με"] == mg.Avoided("με", 20, 420, "μέ")
@@ -869,21 +875,27 @@ def test_a_respelling_has_the_same_monotonic_spelling():
         "ἤν": 8186, "ἦν": 29302,            # "if" beside "was"
         "ψυχῇ": 9000, "ψυχή": 4000,
         "ἥ": 5445, "ἣ": 1598, "ᾗ": 5589,    # the relative's cases
+        "ἦ": 5834, "ᾖ": 9325, "ἤ": 143966,
+        "σάς": 133, "σᾶς": 53,              # Ancient σάς, "your"
     })
     respelling = mg.respelling_of
     assert not respelling("ὅ", "ὁ")                     # ὅ,τι
-    # The iota subscript, with the accent it brings, decides nothing.
+    # An added iota subscript, with the accent it brings, is a respelling
+    # whatever the treebanks say: the dative, and ᾖ beside ἤ.
     assert respelling("ἐκείνῃ", "ἐκείνη", corpora)
     assert respelling("ψυχῇ", "ψυχή", corpora)
+    assert respelling("ᾖ", "ἤ", corpora)
+    # A dropped subscript is the treebanks' to judge: ἧ is a slip for ᾗ,
+    # ἥ and ἦ are words beside it.
     assert respelling("ἧ", "ᾗ", corpora)
-    # Dropping a subscript with its accent makes another case: ἥ is no
-    # respelling of the dative ᾗ when the treebanks write it as a word.
     assert not respelling("ἥ", "ᾗ", corpora) and respelling("ἥ", "ᾗ")
+    assert not respelling("ἦ", "ᾗ", corpora)
     # The breathing or the accent type, unless the treebanks show a word.
     assert respelling("εἷναι", "εἶναι", corpora)
     assert not respelling("αὑτοῦ", "αὐτοῦ", corpora)
     assert not respelling("ἤν", "ἦν", corpora)
-    assert respelling("σάς", "σᾶς", corpora)
+    assert respelling("μάς", "μᾶς", corpora)
+    assert not respelling("σάς", "σᾶς", corpora)
     # Without the treebanks no respelling is another word.
     assert respelling("αὑτοῦ", "αὐτοῦ") and respelling("ἤν", "ἦν")
 
@@ -898,6 +910,10 @@ def test_a_treebank_word_needs_twenty_tokens_and_a_twentieth():
     # A spelling is counted with its contextual twin.
     corpora = FakeCorpora({"ὄν": 10, "ὂν": 10, "ὅν": 400})
     assert mg.treebank_word("ὄν", "ὅν", corpora)
+    # Both sides count both treebanks, not the larger of the two.
+    corpora = FakeCorpora({"ὦν": 50, "ὧν": 1000})
+    corpora.treebank = {"ὦν": 60, "ὧν": 1300}
+    assert not mg.treebank_word("ὦν", "ὧν", corpora)
 
 
 def test_a_breathing_word_of_the_treebanks_is_not_avoided():
@@ -925,11 +941,23 @@ def test_a_reviewed_word_is_not_avoided():
     assert mg.MG_NOT_AVOIDED == {"τῶ"}
 
 
-def test_a_spelling_is_judged_against_every_commoner_word_of_its_letters():
-    # ἧ is ᾗ without its subscript, though the commonest spelling of its
-    # letters, ἡ, is another word.
+def test_a_spelling_is_judged_within_its_word():
+    # ὁπού is 26% of the demotic relative's spellings; ὅπου, another word,
+    # fills the letters but does not decide.
+    counts = make_counts([("ὅπου", "lower", {0: 1000, 1: 357}),
+                          ("ὁποῦ", "lower", {0: 300, 1: 89}),
+                          ("ὁπού", "lower", {0: 100, 1: 40})])
+    grc = {"ὅπου", "ὁποῦ", "ὁπού"}
+    assert mg.modern_greek_avoids(counts, {0, 1}, grc) == {}
+    counts = make_counts([("ὅπου", "lower", {0: 1000, 1: 357}),
+                          ("ὁποῦ", "lower", {0: 300, 1: 89}),
+                          ("ὁπού", "lower", {0: 10, 1: 4})])
+    avoided = mg.modern_greek_avoids(counts, {0, 1}, grc)
+    assert avoided == {"ὁπού": mg.Avoided("ὁπού", 14, 403, "ὁποῦ")}
+    # The authors are the word's too: ἧ beside ᾗ, the commonest spelling of
+    # its word, though ἡ fills its letters.
     counts = make_counts([("ἡ", "lower", {0: 9000, 1: 9000}),
-                          ("ᾗ", "lower", {0: 100, 1: 10}),
+                          ("ᾗ", "lower", {0: 900, 1: 100}),
                           ("ἧ", "lower", {0: 30, 1: 10})])
     grc = {"ἡ", "ᾗ", "ἧ"}
     assert set(mg.modern_greek_avoids(counts, {0, 1}, grc)) == {"ἧ"}
@@ -1085,6 +1113,9 @@ def test_the_treebank_count_is_the_larger_treebanks(tmp_path):
     })
     assert corpora.tokens("τὴ") == 15
     assert corpora.tokens("οὔτε") == 13323
+    # A ratio of two spellings counts both treebanks on both sides.
+    assert corpora.treebank_tokens("τὴ") == 26
+    assert corpora.treebank_tokens("οὔτε") == 13323
     assert corpora.tokens("ἐσὺ") == 0 and corpora.tokens("ἐσύ") == 0
     assert corpora.later_tokens("οὔτε", "first1k") == 27265
     assert corpora.sizes == {"pta": 99_000, "first1k": 1_026_265}
@@ -1333,14 +1364,15 @@ def test_an_unaccented_monosyllable_is_looked_up_without_its_accent(tmp_path):
 
 
 def test_a_final_sigma_written_medial_competes_with_the_word():
-    # πῶσ, an OCR slip, counts among the tokens of πῶς's letters: 76 of
-    # 1,000 is under a tenth with confidence, 76 of the other 940 is not.
+    # A weak form is judged within all of its letters, and πῶσ, an OCR
+    # slip, counts among them: 76 of 1,000 is under a tenth with
+    # confidence, 76 of the other 940 is not.
     counts = make_counts([("πῶς", "lower", {0: 800, 1: 64}),
                           ("πῶσ", "lower", {0: 60}),
-                          ("πώς", "lower", {0: 70, 1: 6})])
+                          ("πως", "lower", {0: 70, 1: 6})])
     assert mg.letters_key("πῶς") == mg.letters_key("πῶσ")
-    assert set(mg.modern_greek_avoids(counts, {0, 1}, {"πῶς", "πώς"})) == {
-        "πώς"}
+    assert set(mg.modern_greek_avoids(counts, {0, 1}, {"πῶς", "πως"})) == {
+        "πως"}
 
 
 def test_an_enclitic_accent_form_without_its_plain_spelling_is_judged():
@@ -1440,8 +1472,11 @@ def test_the_built_list_holds_its_invariants():
     # του is the Ancient enclitic genitive too: no sign of Modern Greek.
     assert entries["του"] == "fr:R" and entries["τώρα"] == "fr:C"
     # Every input that decides the list is recorded.
-    for name in ("lookup_db", "form_profile"):
-        assert re.search(rf"^{name}_sha256: [0-9a-f]{{64}}$", version, re.M)
+    # Every input that decides the list is recorded, as it is on disk now.
+    for name, path in (("lookup_db", mg.LOOKUP_DB),
+                       ("form_profile", mg.FORM_PROFILE)):
+        digest = mg.sha256_file(path) if path.exists() else "not read"
+        assert f"{name}_sha256: {digest}\n" in version, name
     # No spelling a recorded review rejected, nor its contextual twin.
     rejects = {contextual_acute(f) for f in mg.load_mg_spelling_review()}
     assert not [f for f in entries if contextual_acute(f) in rejects]
