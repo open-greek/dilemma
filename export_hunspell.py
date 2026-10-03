@@ -111,7 +111,7 @@ AG_FUNCTION_WORDS = {
     # The relative pronoun's vowel-only forms before another word.
     # build_lookup_db.py leaves out every mapping to the article whose
     # form has an article's letters, so that resolve_articles decides it,
-    # and the AGDT treebank, the first corpus it reads, files Homer's
+    # and the AGDT treebank, the first treebank it reads, files Homer's
     # demonstrative ὃ, ἣ, οἳ, αἳ under ὁ. Only one lemma per form is kept,
     # so that entry shuts out GLAUx's relative ὅς, and the forms never reach
     # lookup.db, though GLAUx reads them as the relative 3,596 (οἳ), 1,598
