@@ -875,7 +875,7 @@ def test_a_respelling_has_the_same_monotonic_spelling():
         "ἤν": 8186, "ἦν": 29302,            # "if" beside "was"
         "ψυχῇ": 9000, "ψυχή": 4000,
         "ἥ": 5445, "ἣ": 1598, "ᾗ": 5589,    # the relative's cases
-        "ἦ": 5834, "ᾖ": 9325, "ἤ": 143966,
+        "ἦ": 5834, "ᾖ": 9325, "ἤ": 143966, "ᾗ": 8785,
         "σάς": 133, "σᾶς": 53,              # Ancient σάς, "your"
     })
     respelling = mg.respelling_of
@@ -885,6 +885,8 @@ def test_a_respelling_has_the_same_monotonic_spelling():
     assert respelling("ἐκείνῃ", "ἐκείνη", corpora)
     assert respelling("ψυχῇ", "ψυχή", corpora)
     assert respelling("ᾖ", "ἤ", corpora)
+    # Not when the breathing changes too: ᾗ is the relative, not ἤ.
+    assert not respelling("ᾗ", "ἤ", corpora)
     # A dropped subscript is the treebanks' to judge: ἧ is a slip for ᾗ,
     # ἥ and ἦ are words beside it.
     assert respelling("ἧ", "ᾗ", corpora)
@@ -963,6 +965,27 @@ def test_a_spelling_is_judged_within_its_word():
     assert set(mg.modern_greek_avoids(counts, {0, 1}, grc)) == {"ἧ"}
     # Only a commoner spelling grc or the list accepts counts.
     assert mg.modern_greek_avoids(counts, {0, 1}, {"ἡ", "ἧ"}) == {}
+
+
+def test_a_respelling_of_any_commoner_spelling_of_the_word_is_avoided():
+    # ᾔ is no respelling of ἥ, the commonest spelling of its word (another
+    # breathing, and the treebanks write it as a word), but it is ἤ with a
+    # subscript added.
+    counts = make_counts([("ἥ", "lower", {0: 600, 1: 400}),
+                          ("ἤ", "lower", {0: 500, 1: 400}),
+                          ("ᾔ", "lower", {0: 20, 1: 10})])
+    corpora = FakeCorpora({"ᾔ": 100, "ἥ": 1000, "ἤ": 900})
+    assert set(mg.modern_greek_avoids(counts, {0, 1}, {"ἥ", "ἤ", "ᾔ"},
+                                      ancient_corpora=corpora)) == {"ᾔ"}
+
+
+def test_an_elided_spelling_is_never_avoided():
+    # εἷν᾽, a breathing slip, is under a tenth of εἶν᾽'s word, but an elided
+    # spelling's accent and breathing are the full word's, not its own.
+    counts = make_counts([("εἶν" + K, "lower", {0: 600, 1: 300}),
+                          ("εἷν" + K, "lower", {0: 10, 1: 5})])
+    assert mg.modern_greek_avoids(counts, {0, 1},
+                                  {"εἶν" + K, "εἷν" + K}) == {}
 
 
 def test_the_share_must_be_under_a_tenth_with_confidence():
