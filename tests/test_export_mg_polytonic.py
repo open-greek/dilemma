@@ -12,6 +12,7 @@ Run with:
 
 import json
 import sys
+from collections import Counter
 import unicodedata
 from pathlib import Path
 
@@ -114,6 +115,41 @@ def test_an_abbreviation_is_a_consonant_final_word_before_a_period():
         return mg.is_abbreviation(Token(word, False, False, False, True))
     assert abbr("τόμ") and abbr("σελ") and abbr("Θεόδ")
     assert not abbr("λόγος") and not abbr("τώρα") and not abbr("ἀήρ")
+
+
+def test_a_capital_that_carries_the_iota_is_a_capital():
+    # ᾍ and ᾘ are titlecase letters, which str.isupper() does not count.
+    tokens = tokenize("εἶπε τοῦ ᾍδη καὶ ᾘσθανόμην")
+    assert [mg._position(t) for t in tokens] == [
+        "lower", "lower", "cap", "lower", "cap"]
+    assert mg.is_capital("ᾍ") and not mg.is_capital("ᾅ")
+
+
+def test_a_capital_after_an_ellipsis_a_bracket_or_a_colon_is_initial():
+    assert [t.initial for t in tokenize(
+        "ἴσως… Χάχ, Χάχ (γελᾷ) Χάχ [γελᾷ] Χάχ")] == [
+        True, True, False, True, True, True, True]
+    assert [t.initial for t in tokenize("εἶπε: Τώρα, Τώρα")] == [
+        True, True, False]
+
+
+def test_a_word_broken_by_a_soft_hyphen_is_not_plain():
+    plain = [t.plain for t in tokenize("ἀπο" + chr(0xAD) + "φασίζω καλός")]
+    assert plain == [False, False, True]
+
+
+@pytest.mark.parametrize("word", [
+    "και", "να", "θα", "δεν", "δε", "για", "μια", "πια",
+    "στο", "στα", "στη", "στην", "στον", "στις", "στους"])
+def test_an_unaccented_particle_or_article_is_a_monotonic_signal(word):
+    token = Token(word, False, False, False, True)
+    assert monotonic_signal(token) == "unaccented_monosyllable"
+
+
+def test_a_word_ending_in_a_final_consonant_is_no_abbreviation():
+    def abbr(word):
+        return mg.is_abbreviation(Token(word, False, False, False, True))
+    assert not any(abbr(w) for w in ("λόγον", "αἴξ", "Πέλοψ", "πάρ", "λόγος"))
 
 
 def test_split_sentences_with_closers_matches_the_language_model_split():
@@ -329,6 +365,72 @@ def test_an_unaccented_elision_must_stand_for_a_word_accented_on_its_end():
     assert sel.report["unaccented_elision"] == 1
 
 
+def test_the_rare_spelling_rule_starts_at_a_hundred_tokens_and_a_twentieth():
+    def kept(top, rare):
+        candidates = {c.form: c for c in [cand("εἶχε", top), cand("εἴχε", rare)]}
+        return "εἴχε" in select_forms(candidates, grc_words=set()).entries
+    assert not kept(100, 4)
+    assert kept(99, 4)       # beside a rarer word the rule does not apply
+    assert kept(100, 5)      # a twentieth is not under a twentieth
+
+
+def test_the_breathing_rule_needs_five_times_the_tokens_or_grc():
+    def kept(twin, rare, grc=frozenset()):
+        candidates = {c.form: c for c in [
+            cand("ἕτοιμος", twin), cand("ἔτοιμος", rare)]}
+        return "ἔτοιμος" in select_forms(candidates, grc_words=set(grc)).entries
+    assert not kept(20, 4)
+    assert kept(19, 4)
+    # As common as the other spelling, which grc has.
+    assert not kept(4, 4, {"ἕτοιμος"})
+    assert kept(3, 4, {"ἕτοιμος"})
+
+
+@pytest.mark.parametrize("word", [
+    "αἳ", "ἣ", "οἳ", "ὅντας", "ἄρματα", "ἄρματά", "οὗλα"])
+def test_a_reviewed_breathing_homograph_stands_beside_a_commoner_twin(word):
+    twin = mg.breathing_twin(word)
+    candidates = {c.form: c for c in [cand(twin, 2000), cand(word, 20)]}
+    sel = select_forms(candidates, grc_words=set())
+    assert word in sel.entries
+
+
+def test_a_name_does_not_compete_with_a_word_of_its_letters():
+    candidates = {c.form: c for c in [cand("διά", 5000), cand("Δία", 50)]}
+    sel = select_forms(candidates, grc_words={"διά", "διὰ"})
+    assert set(sel.entries) == {"Δία"}
+
+
+def test_a_word_is_a_truncation_only_of_a_word_the_slice_attests():
+    # ἄχα has too few tokens to be a word ἄχ could have lost its vowel from.
+    candidates = {c.form: c for c in [cand("ἄχ", 10), cand("ἄχα", 2)]}
+    assert "ἄχ" in select_forms(candidates, grc_words=set()).entries
+    candidates["ἄχα"] = cand("ἄχα", 3)
+    assert "ἄχ" not in select_forms(candidates, grc_words=set()).entries
+
+
+def test_a_rare_spelling_that_is_a_word_is_still_a_misspelling_of_its_own():
+    # δώρα is a word (its monotonic spelling differs from δωρά's), but it
+    # is δῶρα with the wrong accent: the same monotonic spelling, and that
+    # rare beside it.
+    candidates = {c.form: c for c in [
+        cand("δωρά", 1000), cand("δῶρα", 300), cand("δώρα", 10)]}
+    known = {"δώρα", "δωρά"}.__contains__
+    sel = select_forms(candidates, set(), known_word=known)
+    assert "δῶρα" in sel.entries and "δώρα" not in sel.entries
+    candidates["δῶρα"] = cand("δῶρα", 199)
+    sel = select_forms(candidates, set(), known_word=known)
+    assert "δώρα" in sel.entries
+
+
+def test_a_capital_final_sigma_is_the_lowercase_final_sigma():
+    assert mg._lowercase(K + "Σ") == K + "ς"
+    assert mg._lowercase("ΣΑΣ") == "σας"
+    candidates = {c.form: c for c in [cand(K + "ς", 50), cand(K + "Σ", 10)]}
+    sel = select_forms(candidates, grc_words=set())
+    assert set(sel.entries) == {K + "ς"}
+
+
 def test_the_reviewed_modern_greek_spellings_are_well_formed_and_correct():
     from export_hunspell import load_grc_spelling_review
     rejects = load_grc_spelling_review(mg.MG_SPELLING_REVIEW)
@@ -389,6 +491,22 @@ def test_each_case_stands_on_its_own_tokens_and_authors():
     assert candidates["Λάζος"] == Candidate("Λάζος", 9, 3, 3)
     sel = select_forms(candidates, grc_words=set())
     assert set(sel.entries) == {"διάολος", "Λάζος"}
+
+
+def test_a_word_and_its_contextual_twin_share_their_case():
+    counts = make_counts([
+        ("ἀετὲ", "lower", {0: 1}),
+        ("Ἀετέ", "cap", {1: 1}),
+        # Lines of verse opening with the word, acute and grave.
+        ("Ἀετέ", "initial", {2: 2}),
+        ("Ἀετὲ", "initial", {2: 1}),
+    ])
+    candidates = gather_candidates(counts, {0, 1, 2})
+    # One author writes the word lowercase and one capitalized inside a
+    # sentence, so the line-initial capitals go with the lowercase word.
+    assert candidates["ἀετέ"] == Candidate("ἀετέ", 2, 1, 1)
+    assert candidates["ἀετὲ"] == Candidate("ἀετὲ", 2, 2, 2)
+    assert candidates["Ἀετέ"] == Candidate("Ἀετέ", 1, 1, 1)
 
 
 def test_a_capital_hunspell_accepts_through_a_lowercase_entry_is_not_listed():
@@ -515,6 +633,14 @@ def test_a_training_copy_of_a_dev_sentence_adds_nothing(monkeypatch):
     assert counts.documents[1].words == 6
 
 
+def test_a_two_word_sentence_is_too_short_to_count(monkeypatch):
+    sentences = sentences_300()
+    sentences[2] = f"{marker(2)} μέρα"
+    fake_document(monkeypatch, sentences)
+    counted = {form for (form, _position) in mg.count_corpus().forms}
+    assert marker(2) not in counted and marker(5) in counted
+
+
 def test_the_sentence_ids_and_the_split_are_stable():
     import train_lm
     from extract_polytonic_mg import sentence_id
@@ -594,6 +720,35 @@ def test_an_evaluation_list_never_replaces_the_shipping_list(tmp_path):
     assert "grc_dictionary_sha256: abc123\n" in version
 
 
+def test_the_shipping_directory_is_known_by_any_spelling_of_its_path(
+        tmp_path, monkeypatch):
+    out = tmp_path / "build" / "hunspell"
+    out.mkdir(parents=True)
+    monkeypatch.setattr(mg, "OUT", out)
+    (tmp_path / "link").symlink_to(out)
+    for spelling in (out, tmp_path / "build" / "x" / ".." / "hunspell",
+                     tmp_path / "link", tmp_path / "build" / "HUNSPELL"):
+        assert mg.is_shipping_dir(spelling), spelling
+        with pytest.raises(ValueError, match="shipping list"):
+            mg.write_list({"τώρα": 5}, spelling,
+                          variant="grc-mg (evaluation)", source="test")
+    assert not mg.is_shipping_dir(tmp_path / "build" / "other")
+    # Before build/hunspell exists.
+    monkeypatch.setattr(mg, "OUT", tmp_path / "new" / "hunspell")
+    assert mg.is_shipping_dir(tmp_path / "new" / "x" / ".." / "Hunspell")
+    assert not list((tmp_path / "build" / "hunspell").iterdir())
+
+
+def test_the_version_marks_a_build_from_uncommitted_code(monkeypatch):
+    import subprocess
+    monkeypatch.setattr(mg, "get_git_commit", lambda: "abc123")
+    monkeypatch.setattr(subprocess, "check_output",
+                        lambda cmd, **kw: b" M export_mg_polytonic.py\n")
+    assert mg.build_commit() == "abc123-dirty"
+    monkeypatch.setattr(subprocess, "check_output", lambda cmd, **kw: b"")
+    assert mg.build_commit() == "abc123"
+
+
 # --------------------------------------------------------------------------
 # Spellings Modern Greek avoids (mg:avoid)
 # --------------------------------------------------------------------------
@@ -604,42 +759,128 @@ def avoid_counts():
         ("μὲ", "lower", {0: 500, 1: 400}),
         ("με", "lower", {0: 40, 1: 20}),
         ("Με", "cap", {0: 300}),           # capitals say nothing
+        ("Μὲ", "initial", {0: 5000}),
         # που beside ποὺ and ποῦ.
         ("ποὺ", "lower", {0: 50}),
         ("ποῦ", "lower", {1: 40}),
         ("που", "lower", {0: 3}),
-        # δυό beside δύο, as a word of the list and of grc.
-        ("δύο", "lower", {0: 200, 1: 100}),
-        ("δυό", "lower", {0: 10, 1: 5}),
+        # ἐκείνῃ beside ἐκείνη, the same word.
+        ("ἐκείνη", "lower", {0: 300, 1: 300}),
+        ("ἐκείνῃ", "lower", {0: 20, 1: 5}),
+        # ὅ beside ὁ: another word (ὅ,τι).
+        ("ὁ", "lower", {0: 900, 1: 900}),
+        ("ὅ", "lower", {0: 60, 1: 30}),
+        # The enclitic's second acute: γυναῖκά με.
+        ("γυναῖκα", "lower", {0: 300, 1: 300}),
+        ("γυναῖκά", "lower", {0: 20, 1: 10}),
         # σας is a weak pronoun, unaccented by rule, however rare.
-        ("σᾶς", "lower", {0: 60}),
+        ("σᾶς", "lower", {0: 600}),
         ("σας", "lower", {1: 3}),
-        # Too few tokens of these letters to judge.
-        ("ζῶ", "lower", {0: 20}),
-        ("ζω", "lower", {1: 1}),
+        # Elided spellings are not judged: ἄλλ᾽ is ἄλλο, not a slip.
+        ("ἀλλ" + K, "lower", {0: 1000, 1: 900}),
+        ("ἄλλ" + K, "lower", {0: 15, 1: 15}),
     ])
 
 
+AVOID_GRC = {"με", "μὲ", "μέ", "που", "ποὺ", "ποῦ", "ἐκείνη", "ἐκείνῃ", "ὁ",
+             "ὅ", "γυναῖκα", "γυναῖκά", "σᾶς", "σας", "ἀλλ" + K, "ἄλλ" + K}
+KNOWN = {"με", "που", "ό", "ο", "γυναίκα"}.__contains__
+
+
 def test_a_spelling_under_a_tenth_of_its_letters_is_avoided():
-    avoided = mg.modern_greek_avoids(avoid_counts(), {0, 1, 2})
-    assert set(avoided) == {"με", "που", "δυό"}
+    avoided = mg.modern_greek_avoids(avoid_counts(), {0, 1, 2}, AVOID_GRC,
+                                     known_word=KNOWN)
+    assert set(avoided) == {"με", "που", "ἐκείνῃ"}
     assert avoided["με"] == mg.Avoided("με", 60, 960, "μέ")
     assert avoided["που"].preferred == "πού"
     # A held-out document gives the rule nothing.
-    held_out = mg.modern_greek_avoids(avoid_counts(), {1, 2})
+    held_out = mg.modern_greek_avoids(avoid_counts(), {1, 2}, AVOID_GRC,
+                                      known_word=KNOWN)
     assert held_out["με"] == mg.Avoided("με", 20, 420, "μέ")
 
 
-def test_the_list_names_the_grc_spellings_modern_greek_avoids():
-    grc = {"με", "μὲ", "μέ", "που", "ποῦ", "δυό", "δυὸ", "ζω"}
-    lst = mg.select_list(avoid_counts(), {0, 1, 2}, grc)
-    # grc's spellings, with the grave twin of an avoided acute.
-    assert lst.avoid == ["δυό", "δυὸ", "με", "που"]
-    assert "δύο" in lst.entries
-    # A spelling grc lacks gets no line; the list keeps it as a word.
-    lst = mg.select_list(avoid_counts(), {0, 1, 2}, {"με"})
+def test_another_word_is_not_avoided_but_the_reviewed_weak_forms_are():
+    report = Counter()
+    avoided = mg.modern_greek_avoids(avoid_counts(), {0, 1, 2}, AVOID_GRC,
+                                     known_word=KNOWN, report=report)
+    # ὅ (ὅ,τι) is another word than ὁ; με and που are words too, but
+    # reviewed weak forms Modern Greek writes accented.
+    assert "ὅ" not in avoided and {"με", "που"} <= set(avoided)
+    assert report["avoid_kept:different_word"] == 1
+    assert report["avoid_kept:enclitic_accent"] == 1
+    # Without the lexicon no spelling is shown to be another word.
+    avoided = mg.modern_greek_avoids(avoid_counts(), {0, 1, 2}, AVOID_GRC)
+    assert "ὅ" in avoided
+
+
+def test_the_share_must_be_under_a_tenth_with_confidence():
+    def avoided(n, total):
+        counts = make_counts([("δύο", "lower", {0: total - n, 1: 1}),
+                              ("δυό", "lower", {0: n})])
+        return "δυό" in mg.modern_greek_avoids(counts, {0, 1}, {"δύο"})
+    # 900 of 10,000 is under a tenth with 95% confidence, 950 is not.
+    assert avoided(900, 10_000)
+    assert not avoided(950, 10_000)
+    # 9 of 100 is under a tenth, but not with confidence.
+    assert not avoided(9, 100)
+    assert mg.wilson_upper(900, 10_000) < 0.1 < mg.wilson_upper(950, 10_000)
+
+
+def test_the_preferred_spelling_must_be_a_word_written_as_widely():
+    def avoided(rows, grc, entries=None):
+        return set(mg.modern_greek_avoids(make_counts(rows), {0, 1, 2}, grc,
+                                          entries))
+    rows = [("παππούς", "lower", {0: 300}), ("παπποῦς", "lower", {1: 2, 2: 2})]
+    # Neither grc nor the list accepts παππούς.
+    assert avoided(rows, {"παπποῦς"}) == set()
+    # One author writes παππούς, two write παπποῦς.
+    assert avoided(rows, {"παπποῦς", "παππούς"}) == set()
+    rows[0] = ("παππούς", "lower", {0: 300, 1: 1})
+    assert avoided(rows, {"παπποῦς", "παππούς"}) == {"παπποῦς"}
+    # The list's own word is a word as well as grc's.
+    assert avoided(rows, {"παπποῦς"}, {"παππούς": 300}) == {"παπποῦς"}
+
+
+def test_a_spelling_the_list_carries_is_not_avoided():
+    rows = [("ἐδῶ", "lower", {0: 1300, 1: 100}), ("ἐδώ", "lower", {1: 100})]
+    counts = make_counts(rows)
+    grc = {"ἐδῶ", "ἐδώ"}
+    assert set(mg.modern_greek_avoids(counts, {0, 1}, grc)) == {"ἐδώ"}
+    # The list carries ἐδὼ, the grave twin of grc's ἐδώ.
+    assert mg.modern_greek_avoids(counts, {0, 1}, grc, {"ἐδὼ": 100}) == {}
+
+
+def test_the_avoid_lines_are_read_from_the_lists_own_sources():
+    counts = make_counts([
+        ("μὲ", "lower", {0: 500, 1: 400}),
+        ("με", "lower", {0: 40, 1: 20}),
+        # A held-out author and a monotonic document, each of which would
+        # lift με over a tenth.
+        ("με", "lower", {2: 900}),
+        ("με", "lower", {3: 900}),
+    ], authors=("Α", "Β", "Ε", "Δ"))
+    counts.documents[3].signals = 900
+    fold = mg.author_fold("Ε", 5)
+    sources = mg.source_documents(counts, holdout_author_fold=(fold, 5))
+    assert sources == {0, 1}
+    lst = mg.select_list(counts, sources, {"με", "μὲ"})
     assert lst.avoid == ["με"]
-    assert "δυό" in lst.entries
+
+
+def test_the_list_names_the_grc_spellings_modern_greek_avoids():
+    grc = AVOID_GRC | {"ἐκείνῃ"}
+    lst = mg.select_list(avoid_counts(), {0, 1, 2}, grc, known_word=KNOWN)
+    # grc's spellings; an elided or enclitic-accent spelling never.
+    assert lst.avoid == ["με", "που", "ἐκείνῃ"]
+    # A spelling grc lacks gets no line.
+    lst = mg.select_list(avoid_counts(), {0, 1, 2}, AVOID_GRC - {"που"},
+                         known_word=KNOWN)
+    assert lst.avoid == ["με", "ἐκείνῃ"]
+    # The contextual grave twin of an avoided acute is marked as well.
+    counts = make_counts([("δύο", "lower", {0: 2000, 1: 1000}),
+                          ("δυό", "lower", {0: 50, 1: 20})])
+    lst = mg.select_list(counts, {0, 1}, {"δύο", "δυό", "δυὸ"})
+    assert lst.avoid == ["δυό", "δυὸ"]
 
 
 def test_avoid_lines_are_written_with_the_mg_avoid_field(tmp_path):
@@ -649,6 +890,57 @@ def test_avoid_lines_are_written_with_the_mg_avoid_field(tmp_path):
     assert lines == ["3", "με\tmg:avoid", "που\tmg:avoid", "τώρα\tfr:C"]
     version = (tmp_path / "grc_mg_polytonic.version").read_text("utf-8")
     assert "entries: 1\n" in version and "mg_avoid: 2\n" in version
+
+
+# --------------------------------------------------------------------------
+# Spellings that are also Ancient Greek words
+# --------------------------------------------------------------------------
+
+class FakeCorpora:
+    identity = "form_profile.db test"
+
+    def __init__(self, tokens):
+        self._tokens = tokens       # form -> (outside vernacular, treebank)
+
+    def tokens(self, form):
+        return self._tokens.get(form, (0, 0))
+
+
+def test_an_ancient_greek_word_is_known_by_the_treebanks_or_its_grc_twin():
+    corpora = FakeCorpora({
+        "του": (4500, 904),          # the Ancient enclitic genitive
+        "μοναχὸς": (200, 0), "μοναχός": (70, 0),
+        "θὲ": (100, 0),              # misprints in OCR'd editions
+        "τὴ": (900, 19), "τή": (20, 1),
+    })
+    assert mg.ancient_word("του", set(), corpora)
+    assert mg.ancient_word("μοναχὸς", {"μοναχός"}, corpora)
+    assert not mg.ancient_word("μοναχὸς", set(), corpora)
+    assert not mg.ancient_word("θὲ", set(), corpora)
+    # The treebanks count the twin too: 19 + 1.
+    assert mg.ancient_word("τὴ", set(), corpora)
+    corpora._tokens["τή"] = (20, 0)
+    assert not mg.ancient_word("τὴ", set(), corpora)
+
+
+def test_an_ancient_word_is_written_with_fr_r(tmp_path):
+    counts = make_counts([
+        ("του", "lower", {0: 3000, 1: 2000}),
+        ("τώρα", "lower", {0: 1000, 1: 500}),
+        ("σπίτι", "lower", {0: 10, 1: 5}),
+    ])
+    corpora = FakeCorpora({"του": (4500, 904), "σπίτι": (0, 50)})
+    lst = mg.select_list(counts, {0, 1}, set(), ancient_corpora=corpora)
+    # σπίτι is fr:R anyway.
+    assert lst.ancient == {"του"}
+    mg.write_selection(lst, tmp_path, variant="grc-mg", source="t",
+                       ancient_corpora=corpora)
+    lines = (tmp_path / "grc_mg_polytonic.dic").read_text("utf-8").splitlines()
+    assert lines == ["3", "σπίτι\tfr:R", "του\tfr:R", "τώρα\tfr:C"]
+    version = (tmp_path / "grc_mg_polytonic.version").read_text("utf-8")
+    assert "ancient_corpora: form_profile.db test\n" in version
+    assert "ancient_capped: 1\n" in version
+    assert "buckets: C=1 M=0 R=2\n" in version
 
 
 # --------------------------------------------------------------------------
@@ -721,6 +1013,16 @@ def test_the_share_counts_only_the_words_the_elision_stands_for():
     assert words.of("τ" + K) == ["τοῦ", "τὰ", "τὸ"]
 
 
+def test_an_elided_spelling_needs_ten_tokens_to_enter():
+    def paired(n):
+        counts = make_counts([
+            ("ὅλ" + K, "lower", {0: n - 1, 1: 1}),
+            ("ὅλα", "lower", {0: 50, 1: 30}),
+        ])
+        return "ὅλα" in modern_greek_elisions(counts, {0, 1})[0]
+    assert paired(10) and not paired(9)
+
+
 def test_the_full_form_must_be_at_least_as_common_as_the_elided_one():
     counts = make_counts([
         ("ἀμ" + K, "lower", {0: 10, 1: 10}),
@@ -765,10 +1067,16 @@ def test_the_built_list_holds_its_invariants():
     grc = read_hunspell_words(GRC_DIC)
     assert not [f for f in entries if mg.grc_accepts(f, grc)]
     # The mg:avoid lines name grc spellings: με and που, which Modern Greek
-    # writes μὲ and ποὺ or ποῦ, but not μὲ or ποὺ themselves.
+    # writes μὲ and ποὺ or ποῦ, but not μὲ or ποὺ themselves, nor another
+    # word (ὅ, as in ὅ,τι; the numeral ἕν), nor an enclitic-accent form.
     assert set(avoid) <= grc
-    assert {"με", "που"} <= set(avoid)
-    assert not {"μὲ", "ποὺ", "ποῦ", "του", "κι"} & set(avoid)
+    assert {"με", "που", "σε"} <= set(avoid)
+    assert not {"μὲ", "ποὺ", "ποῦ", "του", "κι", "ὅ", "ἕν", "ἓν",
+                "γυναῖκά"} & set(avoid)
+    # Nor the contextual twin of a listed spelling.
+    from export_hunspell import contextual_acute
+    listed = {contextual_acute(f) for f in entries}
+    assert not [f for f in avoid if contextual_acute(f) in listed]
     lexicon = set(entries)
     invalid = [f for f in entries if mg_orthography_reason(f, lexicon)]
     assert not invalid, invalid[:20]
@@ -791,7 +1099,9 @@ def test_the_built_list_holds_its_invariants():
     import hashlib
     grc_sha = hashlib.sha256(GRC_DIC.read_bytes()).hexdigest()
     assert f"grc_dictionary_sha256: {grc_sha}\n" in version
+    # του is the Ancient enclitic genitive too: no sign of Modern Greek.
+    assert entries["του"] == "fr:R" and entries["τώρα"] == "fr:C"
+    assert "ancient_corpora: form_profile.db " in version
     # No spelling a recorded review rejected, nor its contextual twin.
-    from export_hunspell import contextual_acute
     rejects = {contextual_acute(f) for f in mg.load_mg_spelling_review()}
     assert not [f for f in entries if contextual_acute(f) in rejects]

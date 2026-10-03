@@ -21,7 +21,7 @@ grc dictionary, leaving the grc dictionary itself untouched::
 Every word of the list is a spelling the grc dictionary does not accept, so
 the words are Modern-only by construction. The list also carries
 ``form<TAB>mg:avoid`` lines, which name grc spellings polytonic Modern Greek
-writes another way (με for μὲ, που for ποὺ or ποῦ; see
+writes another way (με for μὲ, που for ποὺ or ποῦ, ἐκείνῃ for ἐκείνη; see
 ``modern_greek_avoids``), so that a keyboard writing Modern Greek can leave
 them out of its candidates. A Hunspell reader that does not know the field
 accepts those spellings, as grc does.
@@ -54,8 +54,9 @@ constant below, with its reason.
    second author makes it a spelling of the language. A lowercase spelling
    counts its lowercase tokens, a capitalized one (a name) its capitals
    inside a sentence; a capital opening a sentence, line or quotation
-   joins the case more authors write inside a sentence
-   (``gather_candidates``). All-capital headings are not read.
+   goes with the case in which more authors write the word (with its
+   contextual twin) inside a sentence (``gather_candidates``). All-capital
+   headings are not read.
 3. It is well-formed polytonic Modern Greek (``mg_orthography_reason``):
    the grc structural rules and explicit rejects (breathing on an initial
    vowel or rho, one accent within the last three syllables, grave only on
@@ -86,10 +87,16 @@ punctuation.
 
 The ``fr:`` field uses the grc bucket edges (``export_hunspell.freq_bucket``:
 C >= 1000, M >= 100, R >= 1) on the spelling's own token count in the
-Modern Greek slice, the acute and grave twins counted together.
+Modern Greek slice, the acute and grave twins counted together. A C or M
+spelling that is also an Ancient Greek word (του, the Ancient enclitic
+genitive) is written with fr:R, so that a keyboard does not take it for a
+sign of Modern Greek (``ancient_word``, from Dilemma's form attestation,
+``data/form_profile.db``).
 
 The ``mg:avoid`` lines name the grc spellings the slice gives under a tenth
-of their letters' tokens (``modern_greek_avoids``).
+of their letters' tokens with 95% confidence, when the commoner spelling is
+a word written by as many authors, and the rare one is not another word, an
+enclitic-accent form or a spelling of the list (``modern_greek_avoids``).
 
 Evaluation variants
 -------------------
@@ -167,9 +174,10 @@ TOKEN_RE = re.compile(
     rf"(?P<trail>[{ELISION_MARKS}])?"
 )
 # A capital after one of these may open a sentence the splitter does not
-# end: a line, a quotation, a dash of dialogue, or speech after a colon
-# (εἶπε: «Τώρα ...»).
-_OPENERS = frozenset("\n«\u201C\u201E\u201B\"([\u2014\u2013:")
+# end: a line, a quotation, a dash of dialogue, speech after a colon
+# (εἶπε: «Τώρα ...»), or the text after an ellipsis or a closing bracket
+# or parenthesis ([Γελῶσα] Χάχ, ἴσως… Χάχ).
+_OPENERS = frozenset("\n«\u201C\u201E\u201B\"([\u2014\u2013:\u2026)]")
 # A token touching one of these is part of something that is not a plain
 # word: a hyphenated or line-broken word (ἀπο-φασίζω), a numeral (αʹ, Β΄),
 # or letters run into digits or Latin script.
@@ -445,16 +453,23 @@ def _sentence_text(tokens: list[Token]) -> tuple[str, ...]:
     return tuple(t.form for t in tokens)
 
 
+def is_capital(char: str) -> bool:
+    """Whether ``char`` is a capital letter. A capital that carries the
+    iota (ᾍ, ᾘ, ᾼ) is a titlecase letter in Unicode, which str.isupper()
+    does not count."""
+    return char.isupper() or char.istitle()
+
+
 def _position(token: Token) -> str | None:
     """``lower``, ``cap``, ``initial``, or None for an all-capital word."""
-    letters = [c for c in token.form if c.isalpha()]
-    if not letters:
+    capitals = [is_capital(c) for c in token.form if c.isalpha()]
+    if not capitals:
         return None
-    if all(not c.isupper() for c in letters):
+    if not any(capitals):
         return "lower"
-    if len(letters) > 1 and all(c.isupper() for c in letters):
+    if len(capitals) > 1 and all(capitals):
         return None
-    if letters[0].isupper() and all(not c.isupper() for c in letters[1:]):
+    if capitals[0] and not any(capitals[1:]):
         return "initial" if token.initial else "cap"
     return None
 
@@ -839,16 +854,13 @@ def read_grc_words(path: Path = GRC_DIC) -> set[str]:
     return read_hunspell_words(path)
 
 
-def _capitalized(form: str) -> str:
-    """``form`` with its first letter capitalized (a lead koronis aside)."""
-    offset = 1 if form.startswith(KORONIS) else 0
-    head = form[offset:offset + 1]
-    return unicodedata.normalize(
-        "NFC", form[:offset] + head.upper() + form[offset + 1:])
-
-
 def _lowercase(form: str) -> str:
-    return unicodedata.normalize("NFC", form.lower())
+    """``form`` in lowercase. A final capital sigma becomes ς also when no
+    letter comes before it (᾽Σ -> ᾽ς), where str.lower() writes σ."""
+    lower = unicodedata.normalize("NFC", form.lower())
+    if form.endswith("Σ"):
+        lower = lower[:-1] + "ς"
+    return lower
 
 
 def grc_accepts(form: str, grc_words: set[str]) -> bool:
@@ -955,15 +967,17 @@ def gather_candidates(
     counts: CorpusCounts, sources: set[int],
 ) -> dict[str, Candidate]:
     """One candidate per spelling and case, from the source documents
-    (rule 5).
+    (rule 2).
 
     The lowercase spelling is read from the lowercase tokens; the
     capitalized spelling (a name) from the capitalized tokens inside a
     sentence. A capital at the start of a sentence, line or quotation says
     nothing about the word, so those tokens join the lowercase spelling when
-    as many authors write it lowercase as capitalized inside a sentence (a
-    word seen only there, such as an imperative opening lines of verse,
-    included), and the capitalized spelling otherwise.
+    as many authors write the word lowercase as capitalized inside a
+    sentence (a word seen only there, such as an imperative opening lines
+    of verse, included), and the capitalized spelling otherwise. The word
+    is the spelling with its contextual twin: Ἀετὲ opening a line of verse
+    goes with ἀετὲ and ἀετέ alike.
     Each spelling is held to the thresholds on its own tokens and authors,
     so a word and a name can both be listed (διάολος, Διάολος), and neither
     passes on the other's authors (λάζος, "blade", has one; Λάζος is a
@@ -989,10 +1003,18 @@ def gather_candidates(
         return Candidate(form, sum(sum(c.values()) for c in docs),
                          len(authors(*docs)), len(documents))
 
+    word_authors: dict[str, dict[str, set[str]]] = defaultdict(
+        lambda: {"lower": set(), "cap": set()})
+    for key, ev in evidence.items():
+        word = word_authors[contextual_acute(key)]
+        word["lower"] |= authors(ev["lower"])
+        word["cap"] |= authors(ev["cap"])
+
     out: dict[str, Candidate] = {}
     for key, ev in evidence.items():
         lower, cap, initial = ev["lower"], ev["cap"], ev["initial"]
-        initial_is_lower = len(authors(lower)) >= len(authors(cap))
+        word = word_authors[contextual_acute(key)]
+        initial_is_lower = len(word["lower"]) >= len(word["cap"])
         if lower or (initial and initial_is_lower):
             out[key] = candidate(key, lower, *([initial] * initial_is_lower))
         if cap:
@@ -1022,7 +1044,7 @@ def select_forms(
     reviewed_rejects: frozenset[str] = frozenset(),
     known_word=None,
 ) -> Selection:
-    """Apply rules 2, 3, 4 and 6 and add the oxytone twins.
+    """Apply rules 2 to 6 and add the oxytone twins.
 
     ``known_word`` (:func:`load_known_words`) lets a rare spelling that is a
     different word survive rule 4; without it every such spelling goes. A
@@ -1279,17 +1301,35 @@ def modern_greek_elision_shares(
 # Spellings polytonic Modern Greek avoids (mg:avoid)
 # --------------------------------------------------------------------------
 
-# A spelling is one Modern Greek avoids when the slice writes its letters at
-# least AVOID_MIN_TOKENS times and gives it under AVOID_SHARE of them, while
-# another spelling of the letters takes at least that share: the slice writes
-# μὲ 14 times for each με, ποὺ and ποῦ for που, ὁ for ὅ. A keyboard writing
-# Modern Greek can then leave those spellings out of its candidates. These
-# are the thresholds a keyboard measured the rule with: in the Modern
-# register, held-out Modern Greek lost 378 errors and gained 105. Only
-# spellings the slice writes at all are marked; the closed list of unaccented
-# words never is.
+# A spelling is one Modern Greek avoids when the slice gives it under
+# AVOID_SHARE of its letters' tokens with 95% confidence (the Wilson upper
+# bound of its share, AVOID_CONFIDENCE_Z), while another spelling of the
+# letters takes at least that share: the slice writes ἐκείνη for ἐκείνῃ, μὲ
+# for με, ποὺ and ποῦ for που. A keyboard writing Modern Greek can then
+# leave those spellings out of its candidates. The bound needs at least 53
+# tokens of the letters to mark a spelling written once, and it keeps a
+# share one author's texts could tip (ἕν, at 836 of 8,379) from deciding:
+# of the lines a point share of 10% gives, a bound under it keeps 206 of
+# 366, and those agree better across the five author folds (52% of the
+# lines in all five, against 46%). Only spellings the slice writes at all
+# are marked; the closed list of unaccented words never is.
 AVOID_SHARE = 0.10
-AVOID_MIN_TOKENS = 30
+AVOID_CONFIDENCE_Z = 1.96
+
+# Weak forms the lexicon knows as words of their own (the clitic pronouns
+# με and σε, the Ancient enclitics που, πως, ποτε), which polytonic Modern
+# Greek nonetheless writes accented in most of its uses: μὲ is the
+# preposition and the proclitic pronoun alike, ποὺ the relative, πὼς the
+# conjunction, ποτὲ "never". Reviewed, they are exempt from the different-
+# word rule, so the share rule decides them like any misspelling. Replayed
+# through a keyboard on the language model's dev sentences, with each
+# author's fold held out of the list, these lines carried all of the
+# measured benefit of the avoid lines (με 146, που 65, σε 25, πως and ποτε 1
+# each, net words fixed); the known cost is the enclitic after an
+# imperative, where the unaccented spelling is right (ἄφησέ με becomes
+# ἄφησε μὲ: 12 με, 13 σε and 20 που). The keyboard and its replay are not
+# part of this repository.
+MG_AVOIDED_WEAK_FORMS = frozenset({"με", "σε", "που", "πως", "ποτε"})
 
 
 def letters_key(form: str) -> str:
@@ -1300,6 +1340,30 @@ def letters_key(form: str) -> str:
         "ς", "σ")
 
 
+def wilson_upper(n: int, total: int, z: float = AVOID_CONFIDENCE_Z) -> float:
+    """The Wilson score upper bound of the share ``n`` / ``total``."""
+    if not total:
+        return 1.0
+    p = n / total
+    zz = z * z
+    centre = p + zz / (2 * total)
+    spread = z * (p * (1 - p) / total + zz / (4 * total * total)) ** 0.5
+    return (centre + spread) / (1 + zz / total)
+
+
+def enclitic_accent_form(spelling: str, spellings) -> bool:
+    """Whether ``spelling`` carries the second acute an enclitic after it
+    adds (γυναῖκά, εἶπέ, πράγματά) and its spelling without that acute is
+    among ``spellings``. It is the same word, right before an enclitic, so
+    the share of all the word's tokens cannot judge it."""
+    nfd = unicodedata.normalize("NFD", spelling)
+    tonal = [i for i, c in enumerate(nfd) if c in TONAL]
+    if len(tonal) != 2 or nfd[tonal[1]] != "\u0301":
+        return False
+    plain = unicodedata.normalize("NFC", nfd[:tonal[1]] + nfd[tonal[1] + 1:])
+    return plain in spellings
+
+
 class Avoided(NamedTuple):
     spelling: str           # lowercase, contextual grave folded into acute
     tokens: int
@@ -1308,35 +1372,84 @@ class Avoided(NamedTuple):
 
 
 def modern_greek_avoids(
-    counts: CorpusCounts, sources: set[int],
+    counts: CorpusCounts,
+    sources: set[int],
+    grc_words: set[str] | frozenset[str] = frozenset(),
+    entries: dict[str, int] | set[str] | None = None,
+    known_word=None,
+    report: Counter | None = None,
 ) -> dict[str, Avoided]:
     """The spellings polytonic Modern Greek avoids, keyed by the spelling
-    with its contextual grave folded into the acute. Only lowercase tokens
-    are read: a capital belongs to a name or to the start of a sentence,
-    and says nothing of how the word is spelled (Σοφιά, the name, beside
-    σοφία). Elided and aphaeresized spellings are not judged."""
+    with its contextual grave folded into the acute.
+
+    Only lowercase tokens of the ``sources`` are read: a capital belongs to
+    a name or to the start of a sentence, and says nothing of how the word
+    is spelled (Σοφιά, the name, beside σοφία). Elided and aphaeresized
+    spellings are not judged. A spelling under the share
+    (``AVOID_SHARE``, ``AVOID_CONFIDENCE_Z``) is still not avoided when
+
+    * it is the closed list's unaccented word (``MG_UNACCENTED_WORDS``);
+    * it is an enclitic-accent form of a word of its letters
+      (:func:`enclitic_accent_form`);
+    * the preferred spelling is not a word: neither grc nor the list
+      ``entries`` accepts it, or fewer authors write it;
+    * it is another word than the preferred spelling (:func:`distinct_word`
+      with ``known_word``): ὅ beside ὁ, ἕν beside ἐν, πάρα beside παρά.
+      ``MG_AVOIDED_WEAK_FORMS`` are exempt from this rule;
+    * the list ``entries`` carry it or its contextual twin: the list's own
+      spellings are words in their own right.
+
+    ``report`` counts the spellings each rule keeps.
+    """
+    entries = entries if entries is not None else {}
+    report = report if report is not None else Counter()
     tokens: Counter = Counter()
+    writers: dict[str, set[str]] = defaultdict(set)
     for (form, position), per_doc in counts.forms.items():
         if KORONIS in form or position != "lower":
             continue
-        n = sum(c for d, c in per_doc.items() if d in sources)
-        if n:
-            tokens[contextual_acute(form)] += n
+        key = contextual_acute(form)
+        for d, c in per_doc.items():
+            if d in sources:
+                tokens[key] += c
+                writers[key].add(counts.documents[d].author)
     groups: dict[str, dict[str, int]] = defaultdict(dict)
     for spelling, n in tokens.items():
         groups[letters_key(spelling)][spelling] = n
+
+    def accepted(spelling: str) -> bool:
+        return any(sp in grc_words or sp in entries
+                   for sp in (spelling, *oxytone_twins(spelling)))
+
     out: dict[str, Avoided] = {}
     for spellings in groups.values():
         total = sum(spellings.values())
-        if total < AVOID_MIN_TOKENS:
-            continue
         preferred = max(spellings, key=lambda sp: (spellings[sp], sp))
         if spellings[preferred] < AVOID_SHARE * total:
             continue
         for spelling, n in spellings.items():
-            if (n < AVOID_SHARE * total
-                    and spelling not in MG_UNACCENTED_WORDS):
+            if (spelling == preferred
+                    or wilson_upper(n, total) >= AVOID_SHARE):
+                continue
+            if spelling in MG_UNACCENTED_WORDS:
+                reason = "unaccented_word"
+            elif enclitic_accent_form(spelling, spellings):
+                reason = "enclitic_accent"
+            elif not accepted(preferred):
+                reason = "preferred_not_a_word"
+            elif len(writers[preferred]) < len(writers[spelling]):
+                reason = "preferred_fewer_authors"
+            elif (spelling not in MG_AVOIDED_WEAK_FORMS
+                  and known_word is not None
+                  and distinct_word(spelling, preferred, known_word)):
+                reason = "different_word"
+            elif any(sp in entries
+                     for sp in (spelling, *oxytone_twins(spelling))):
+                reason = "listed"
+            else:
                 out[spelling] = Avoided(spelling, n, total, preferred)
+                continue
+            report[f"avoid_kept:{reason}"] += 1
     return dict(sorted(out.items()))
 
 
@@ -1352,6 +1465,7 @@ class ModernGreekList(NamedTuple):
     avoid: list[str]            # grc spellings marked mg:avoid
     report: dict[str, int]
     rejected: dict[str, list[str]]
+    ancient: frozenset[str] = frozenset()   # entries capped at fr:R
 
 
 def select_list(
@@ -1360,22 +1474,106 @@ def select_list(
     grc_words: set[str],
     reviewed_rejects: frozenset[str] = frozenset(),
     known_word=None,
+    ancient_corpora: "AncientCorpora | None" = None,
 ) -> ModernGreekList:
     """The list from the source documents: the spellings :func:`select_forms`
-    selects, and the grc spellings to mark mg:avoid.
-
-    The list's own spellings are not marked, though some are a minority
-    spelling of their letters: they are words in their own right (χρονιά
-    beside χρόνια, ὅποια beside ὁποῖα), and leaving the 175 of them out
-    changed no word in the keyboard measurement.
+    selects, the grc spellings to mark mg:avoid
+    (:func:`modern_greek_avoids`), and the C and M spellings that are also
+    Ancient Greek words (:func:`ancient_word`), whose fr: is capped at R.
     """
     selection = select_forms(gather_candidates(counts, sources), grc_words,
                              reviewed_rejects, known_word)
-    lines = avoid_lines(modern_greek_avoids(counts, sources), grc_words)
-    report = dict(selection.report)
+    report = Counter(selection.report)
+    avoided = modern_greek_avoids(counts, sources, grc_words,
+                                  selection.entries, known_word, report)
+    lines = avoid_lines(avoided, grc_words)
     report["mg_avoid_lines"] = len(lines)
-    return ModernGreekList(selection.entries, lines, report,
-                           selection.rejected)
+    ancient: set[str] = set()
+    if ancient_corpora is not None:
+        ancient = {spelling for spelling, n in selection.entries.items()
+                   if freq_bucket(n) != "R"
+                   and ancient_word(spelling, grc_words, ancient_corpora)}
+        report["ancient_capped"] = len(ancient)
+    return ModernGreekList(selection.entries, lines, dict(report),
+                           selection.rejected, frozenset(ancient))
+
+
+# --------------------------------------------------------------------------
+# Spellings that are also Ancient Greek words (fr: capped at R)
+# --------------------------------------------------------------------------
+
+# A keyboard may read a C or M word of this list in a text as a sign that
+# the text is Modern Greek. A spelling that is also an Ancient or Medieval
+# Greek word is no such sign: του, the weak pronoun, is also the Ancient
+# enclitic genitive of τις (904 tokens in the GLAUx and Diorisis
+# treebanks), and μοναχὸς is the Ancient μοναχός inside a sentence. Such a
+# spelling keeps its place in the list with fr:R (``ancient_word``).
+# Dilemma's form attestation (form_profile.db, build_form_attestation.py)
+# gives the Ancient counts; the Byzantine vernacular corpus, which is
+# early Modern Greek, does not count.
+FORM_PROFILE = ROOT / "data" / "form_profile.db"
+ANCIENT_CAP_TOKENS = 20
+TREEBANK_SOURCES = ("glaux", "diorisis")
+VERNACULAR_SOURCES = frozenset({"byzantine_vernacular"})
+
+
+class AncientCorpora:
+    """Token counts of exact spellings in Dilemma's Ancient and Medieval
+    Greek corpora, from ``form_profile.db``."""
+
+    def __init__(self, path: Path = FORM_PROFILE):
+        import json
+        import sqlite3
+
+        self._json = json
+        self._conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        row = self._conn.execute(
+            "SELECT value FROM meta WHERE key = 'content_hash'").fetchone()
+        self.identity = f"{path.name} {row[0] if row else 'unknown'}"
+
+    def tokens(self, form: str) -> tuple[int, int]:
+        """(tokens outside the vernacular corpus, deduplicated across
+        sources; tokens in GLAUx and Diorisis, each counted, since the two
+        treebanks annotate many of the same works) of ``form``."""
+        row = self._conn.execute(
+            "SELECT p.total_count, p.source_counts_json FROM forms f "
+            "JOIN form_profile p USING (form_id) WHERE f.form = ?",
+            (form,)).fetchone()
+        if row is None:
+            return 0, 0
+        total, sources = row[0] or 0, self._json.loads(row[1] or "{}")
+        # The vernacular works carry no TLG id, so no other source claims
+        # them, and their tokens are a separate part of the total.
+        vernacular = sum(sources.get(s, 0) for s in VERNACULAR_SOURCES)
+        return (total - vernacular,
+                sum(sources.get(s, 0) for s in TREEBANK_SOURCES))
+
+
+def load_ancient_corpora(path: Path = FORM_PROFILE) -> AncientCorpora | None:
+    """The Ancient corpora, or None when ``form_profile.db`` is not on
+    disk (``python -m dilemma download --with-attestation``)."""
+    return AncientCorpora(path) if path.exists() else None
+
+
+def ancient_word(spelling: str, grc_words: set[str] | frozenset[str],
+                 corpora: AncientCorpora) -> bool:
+    """Whether a listed spelling is also an Ancient Greek word: GLAUx and
+    Diorisis attest it, with its contextual twin, ``ANCIENT_CAP_TOKENS``
+    times (του), or it is the contextual twin of a grc spelling and the
+    Ancient corpora outside the vernacular one attest the pair that often
+    (μοναχὸς beside μοναχός). Outside the treebanks the corpora are OCR'd
+    editions, where a Modern-only spelling turns up as a misprint (θὲ, δὰ
+    in the Patrologia), so only a grc word's twin is judged by them."""
+    pair = [spelling, *oxytone_twins(spelling)]
+    outside = treebank = 0
+    for form in pair:
+        o, t = corpora.tokens(form)
+        outside += o
+        treebank += t
+    if treebank >= ANCIENT_CAP_TOKENS:
+        return True
+    return (outside >= ANCIENT_CAP_TOKENS
+            and any(grc_accepts(twin, grc_words) for twin in pair[1:]))
 
 
 # --------------------------------------------------------------------------
@@ -1390,7 +1588,42 @@ def corpus_identity(parquet_path: Path | None = None) -> str:
     return f"glossAPI/Wikisource_Greek_texts snapshot {path.parent.name}"
 
 
+def source_description(counts: CorpusCounts, sources: set[int],
+                       parquet_path: Path | None = None) -> str:
+    """The ``source:`` line of a list read from ``sources``."""
+    return (f"{corpus_identity(parquet_path)}, language-model training "
+            f"split, {len(sources)} of {len(counts.documents)} documents")
+
+
+def build_commit() -> str:
+    """The commit the list is built from, marked ``-dirty`` when tracked
+    files differ from it."""
+    import subprocess
+
+    commit = get_git_commit()
+    try:
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=ROOT, stderr=subprocess.DEVNULL).decode()
+    except Exception:
+        return commit
+    return f"{commit}-dirty" if status.strip() else commit
+
+
 SHIPPING_VARIANT = "grc-mg"
+
+
+def is_shipping_dir(out_dir: Path) -> bool:
+    """Whether ``out_dir`` is ``build/hunspell``, by any spelling of the
+    path: through a symbolic link or ``..``, or in another case on a
+    case-insensitive file system. When either directory does not exist
+    yet, the resolved paths are compared with their case folded."""
+    out_dir = Path(out_dir)
+    try:
+        return out_dir.samefile(OUT)
+    except OSError:
+        return (str(out_dir.resolve()).casefold()
+                == str(OUT.resolve()).casefold())
 
 
 def write_list(
@@ -1403,27 +1636,34 @@ def write_list(
     commit: str | None = None,
     grc_sha256: str | None = None,
     avoid: Iterable[str] = (),
+    ancient: Iterable[str] = (),
+    ancient_corpora: str | None = None,
 ) -> dict:
     """Write ``<DIC_NAME>.dic``, ``.aff`` and ``.version`` to ``out_dir``.
 
-    An evaluation variant is refused in ``build/hunspell``, where it would
-    replace the shipping list under the same name. ``grc_sha256`` records
-    the grc dictionary the list was selected against: the list holds only
-    what that dictionary lacks. ``avoid`` are grc spellings written as
-    ``form<TAB>mg:avoid`` lines (:func:`modern_greek_avoids`).
+    An evaluation variant is refused in ``build/hunspell``
+    (:func:`is_shipping_dir`), where it would replace the shipping list
+    under the same name. ``grc_sha256`` records the grc dictionary the list
+    was selected against: the list holds only what that dictionary lacks.
+    ``avoid`` are grc spellings written as ``form<TAB>mg:avoid`` lines
+    (:func:`modern_greek_avoids`); ``ancient`` are entries written with
+    fr:R whatever their count (:func:`ancient_word`), and
+    ``ancient_corpora`` names the corpora that decided them.
     """
-    if (variant != SHIPPING_VARIANT
-            and Path(out_dir).resolve() == OUT.resolve()):
+    if variant != SHIPPING_VARIANT and is_shipping_dir(out_dir):
         raise ValueError(
             f"refusing to write the evaluation list ({variant}) to {OUT}, "
             "where it would replace the shipping list; pass another "
             "--out-dir")
     out_dir.mkdir(parents=True, exist_ok=True)
     version = version or read_version_file()
-    commit = commit or get_git_commit()
+    commit = commit or build_commit()
     avoid = sorted(avoid)
+    ancient = set(ancient)
+    buckets = {form: "R" if form in ancient else freq_bucket(n)
+               for form, n in entries.items()}
     lines = sorted(
-        [f"{form}\tfr:{freq_bucket(n)}" for form, n in entries.items()]
+        [f"{form}\tfr:{bucket}" for form, bucket in buckets.items()]
         + [f"{form}\tmg:avoid" for form in avoid])
     dic_path = out_dir / f"{DIC_NAME}.dic"
     dic_path.write_text(
@@ -1437,7 +1677,7 @@ def write_list(
         "# flags, so this file only makes the pair loadable on its own.\n"
         "SET UTF-8\nLANG grc\nFLAG num\n",
         encoding="utf-8")
-    buckets = Counter(freq_bucket(n) for n in entries.values())
+    counted = Counter(buckets.values())
     ver_path = out_dir / f"{DIC_NAME}.version"
     ver_path.write_text(
         f"version: {version}\n"
@@ -1448,10 +1688,24 @@ def write_list(
         f"aff_rules: 0\n"
         f"source: {source}\n"
         + (f"grc_dictionary_sha256: {grc_sha256}\n" if grc_sha256 else "")
-        + f"buckets: C={buckets['C']} M={buckets['M']} R={buckets['R']}\n",
+        + f"ancient_corpora: {ancient_corpora or 'not read'}\n"
+        f"ancient_capped: {len(ancient & set(entries))}\n"
+        f"buckets: C={counted['C']} M={counted['M']} R={counted['R']}\n",
         encoding="utf-8")
     return {"entries": len(entries), "mg_avoid": len(avoid),
-            "dic_path": str(dic_path), "buckets": dict(buckets)}
+            "dic_path": str(dic_path), "buckets": dict(counted)}
+
+
+def write_selection(selection: ModernGreekList, out_dir: Path, *,
+                    variant: str, source: str,
+                    grc_sha256: str | None = None,
+                    ancient_corpora: AncientCorpora | None = None) -> dict:
+    """:func:`write_list` for a :func:`select_list` result."""
+    return write_list(
+        selection.entries, out_dir, variant=variant, source=source,
+        grc_sha256=grc_sha256, avoid=selection.avoid,
+        ancient=selection.ancient,
+        ancient_corpora=ancient_corpora.identity if ancient_corpora else None)
 
 
 def build(
@@ -1475,9 +1729,15 @@ def build(
     known_word = load_known_words()
     if known_word is None:
         print(f"  NOTE: {LOOKUP_DB} not found; every rare respelling of a "
-              "commoner spelling is dropped", file=sys.stderr)
+              "commoner spelling is dropped, and no spelling is spared "
+              "mg:avoid as another word", file=sys.stderr)
+    ancient_corpora = load_ancient_corpora()
+    if ancient_corpora is None:
+        print(f"  NOTE: {FORM_PROFILE} not found; no C or M spelling is "
+              "capped at R as an Ancient Greek word", file=sys.stderr)
     selection = select_list(counts, sources, grc_words,
-                            load_mg_spelling_review(), known_word)
+                            load_mg_spelling_review(), known_word,
+                            ancient_corpora)
     if holdout_dev_documents:
         variant = "grc-mg (evaluation: documents with a dev sentence held out)"
     elif holdout_author_fold is not None:
@@ -1485,11 +1745,10 @@ def build(
         variant = f"grc-mg (evaluation: author fold {k} of {n} held out)"
     else:
         variant = SHIPPING_VARIANT
-    stats = write_list(
-        selection.entries, out_dir, variant=variant, grc_sha256=grc_sha256,
-        avoid=selection.avoid,
-        source=f"{corpus_identity(parquet_path)}, language-model training "
-               f"split, {len(sources)} of {len(counts.documents)} documents")
+    stats = write_selection(
+        selection, out_dir, variant=variant, grc_sha256=grc_sha256,
+        source=source_description(counts, sources, parquet_path),
+        ancient_corpora=ancient_corpora)
     return selection, stats
 
 
@@ -1520,7 +1779,7 @@ def main(argv: Iterable[str] | None = None) -> None:
         ap.error("an evaluation list needs --out-dir: written to "
                  f"{OUT} it would replace the shipping list")
     out_dir = args.out_dir or OUT
-    if held_out and out_dir.resolve() == OUT.resolve():
+    if held_out and is_shipping_dir(out_dir):
         ap.error(f"an evaluation list may not be written to {OUT}")
 
     print("Reading the polytonic Modern Greek slice...")

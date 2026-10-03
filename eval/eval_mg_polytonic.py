@@ -67,9 +67,12 @@ def accepted(word: str, words: set[str]) -> bool:
     return lower != word and lower in words
 
 
-def build_list(counts, grc_words, known_word, reviewed, **holdout):
+def build_list(counts, grc_words, known_word, reviewed, ancient, **holdout):
+    """The list built from the documents ``holdout`` leaves, and those
+    documents."""
     sources = mg.source_documents(counts, **holdout)
-    return mg.select_list(counts, sources, grc_words, reviewed, known_word)
+    return (mg.select_list(counts, sources, grc_words, reviewed, known_word,
+                           ancient), sources)
 
 
 def main() -> None:
@@ -84,17 +87,22 @@ def main() -> None:
     grc_words = mg.read_grc_words()
     known_word = mg.load_known_words()
     reviewed = mg.load_mg_spelling_review()
+    ancient = mg.load_ancient_corpora()
     words = dev_words(counts)
     folds = args.folds
     fold_of = {d: mg.author_fold(info.author, folds)
                for d, info in enumerate(counts.documents)}
 
-    lists = {"train split": build_list(counts, grc_words, known_word, reviewed)}
-    lists["documents held out"] = build_list(
-        counts, grc_words, known_word, reviewed, holdout_dev_documents=True)
-    by_fold = {k: build_list(counts, grc_words, known_word, reviewed,
-                             holdout_author_fold=(k, folds))
-               for k in range(folds)}
+    built = {"train split": build_list(counts, grc_words, known_word,
+                                       reviewed, ancient)}
+    built["documents held out"] = build_list(
+        counts, grc_words, known_word, reviewed, ancient,
+        holdout_dev_documents=True)
+    built_folds = {k: build_list(counts, grc_words, known_word, reviewed,
+                                 ancient, holdout_author_fold=(k, folds))
+                   for k in range(folds)}
+    lists = {name: lst for name, (lst, _sources) in built.items()}
+    by_fold = {k: lst for k, (lst, _sources) in built_folds.items()}
 
     def coverage(choose) -> dict:
         n = covered = by_list = 0
@@ -145,18 +153,21 @@ def main() -> None:
             ensure_ascii=False, indent=1), encoding="utf-8")
     if args.write_lists:
         import hashlib
-        source = mg.corpus_identity()
         grc_sha256 = hashlib.sha256(mg.GRC_DIC.read_bytes()).hexdigest()
-        held = lists["documents held out"]
-        mg.write_list(held.entries, args.write_lists / "documents_held_out",
-                      avoid=held.avoid, grc_sha256=grc_sha256,
-                      variant="grc-mg (evaluation: documents with a dev "
-                              "sentence held out)", source=source)
-        for k, fold in by_fold.items():
-            mg.write_list(fold.entries, args.write_lists / f"author_fold_{k}",
-                          avoid=fold.avoid, grc_sha256=grc_sha256,
-                          variant=f"grc-mg (evaluation: author fold {k} of "
-                                  f"{folds} held out)", source=source)
+        held, sources = built["documents held out"]
+        mg.write_selection(
+            held, args.write_lists / "documents_held_out",
+            grc_sha256=grc_sha256, ancient_corpora=ancient,
+            variant="grc-mg (evaluation: documents with a dev sentence "
+                    "held out)",
+            source=mg.source_description(counts, sources))
+        for k, (fold, sources) in built_folds.items():
+            mg.write_selection(
+                fold, args.write_lists / f"author_fold_{k}",
+                grc_sha256=grc_sha256, ancient_corpora=ancient,
+                variant=f"grc-mg (evaluation: author fold {k} of {folds} "
+                        "held out)",
+                source=mg.source_description(counts, sources))
 
 
 if __name__ == "__main__":
