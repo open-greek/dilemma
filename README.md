@@ -2297,7 +2297,7 @@ of a text do, is left out too. A spelling is listed when:
   breathing alone differs from another is one when the other is five times
   as common, or at least as common and accepted by grc, however rare both
   are (`ἔτοιμος` beside `ἕτοιμος`, `εἷνε` beside `εἶνε`); a reviewed list
-  keeps the real homographs (`αἳ`, `ἣ`, `οἳ`, `ὅντας`, `ἄρματα`, `οὗλα`).
+  keeps the real homographs (`ὅντας`, `ἄρματα`, `οὗλα`).
   Any other mark-only respelling with under 5% of the count of a spelling of
   the same letters that has at least 100 tokens is one too (`εἴχε` beside
   `εἶχε`), unless its monotonic spelling differs and Dilemma's lexicon knows

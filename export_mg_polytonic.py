@@ -293,13 +293,13 @@ DOMINATED_MIN = 100
 # themselves rare (ἧμαι beside ἦμαι, ἐαυτός beside ἑαυτός).
 BREATHING_TWIN_RATIO = 5
 
-# Real words that differ from a commoner word only in the breathing: the
-# relatives αἳ, ἣ, οἳ beside αἲ, ἢ ("or"), οἲ; ὅντας ("when") beside the
-# participle ὄντας; ἄρματα ("arms") beside ἅρματα ("chariots"); and the
-# dialect οὗλα ("all") beside οὖλα ("gums"). Reviewed, they are exempt from
-# rule 4 as well as from the breathing rule.
+# Real words that differ from a commoner word only in the breathing: ὅντας
+# ("when") beside the participle ὄντας; ἄρματα ("arms") beside ἅρματα
+# ("chariots"); and the dialect οὗλα ("all") beside οὖλα ("gums").
+# Reviewed, they are exempt from rule 4 as well as from the breathing rule.
+# (The relatives' graves αἳ, ἣ, οἳ, once here, are grc spellings now.)
 MG_BREATHING_HOMOGRAPHS = frozenset({
-    "αἳ", "ἣ", "οἳ", "ὅντας", "ἄρματα", "ἄρματά", "οὗλα",
+    "ὅντας", "ἄρματα", "ἄρματά", "οὗλα",
 })
 
 # Elided spellings may end in an unaccented iota: κι᾽, γι᾽, μι᾽, where the ι

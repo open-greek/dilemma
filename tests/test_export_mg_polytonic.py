@@ -333,12 +333,11 @@ def test_a_breathing_misspelling_goes_whatever_the_counts():
         # ἦμαι stays beside grc's ἧμαι.
         cand("ἦμαι", 13), cand("ἧμαι", 2),
         # Words that differ only in the breathing.
-        cand("ἢ", 4300), cand("ἣ", 30),
-        cand("ὄντας", 31), cand("ὅντας", 12),
+        cand("ὄντας", 61), cand("ὅντας", 12),
     ]}
-    sel = select_forms(candidates, grc_words={"ἐμᾶς", "ἧμαι", "ἢ", "ὄντας"},
+    sel = select_forms(candidates, grc_words={"ἐμᾶς", "ἧμαι", "ὄντας"},
                        known_word=lambda word: True)
-    assert {"ἕτοιμος", "ἅγιο", "ἦμαι", "ἣ", "ὅντας"} <= set(sel.entries)
+    assert {"ἕτοιμος", "ἅγιο", "ἦμαι", "ὅντας"} <= set(sel.entries)
     assert not {"ἔτοιμος", "ἄγιο", "ἑμᾶς"} & set(sel.entries)
     assert sel.report["breathing_respelling"] == 3
 
@@ -386,8 +385,7 @@ def test_the_breathing_rule_needs_five_times_the_tokens_or_grc():
     assert kept(3, 4, {"ἕτοιμος"})
 
 
-@pytest.mark.parametrize("word", [
-    "αἳ", "ἣ", "οἳ", "ὅντας", "ἄρματα", "ἄρματά", "οὗλα"])
+@pytest.mark.parametrize("word", ["ὅντας", "ἄρματα", "ἄρματά", "οὗλα"])
 def test_a_reviewed_breathing_homograph_stands_beside_a_commoner_twin(word):
     twin = mg.breathing_twin(word)
     candidates = {c.form: c for c in [cand(twin, 2000), cand(word, 20)]}
