@@ -11,6 +11,7 @@ Run with:
 """
 
 import json
+import re
 import sys
 from collections import Counter
 import unicodedata
@@ -858,6 +859,7 @@ def test_a_respelling_has_the_same_monotonic_spelling():
         "εἷναι": 3, "εἶναι": 9000,          # a breathing slip
         "ἤν": 8186, "ἦν": 29302,            # "if" beside "was"
         "ψυχῇ": 9000, "ψυχή": 4000,
+        "ἥ": 5445, "ἣ": 1598, "ᾗ": 5589,    # the relative's cases
     })
     respelling = mg.respelling_of
     assert not respelling("ὅ", "ὁ")                     # ὅ,τι
@@ -865,6 +867,9 @@ def test_a_respelling_has_the_same_monotonic_spelling():
     assert respelling("ἐκείνῃ", "ἐκείνη", corpora)
     assert respelling("ψυχῇ", "ψυχή", corpora)
     assert respelling("ἧ", "ᾗ", corpora)
+    # Dropping a subscript with its accent makes another case: ἥ is no
+    # respelling of the dative ᾗ when the treebanks write it as a word.
+    assert not respelling("ἥ", "ᾗ", corpora) and respelling("ἥ", "ᾗ")
     # The breathing or the accent type, unless the treebanks show a word.
     assert respelling("εἷναι", "εἶναι", corpora)
     assert not respelling("αὑτοῦ", "αὐτοῦ", corpora)
@@ -1400,7 +1405,9 @@ def test_the_built_list_holds_its_invariants():
     assert f"grc_dictionary_sha256: {grc_sha}\n" in version
     # του is the Ancient enclitic genitive too: no sign of Modern Greek.
     assert entries["του"] == "fr:R" and entries["τώρα"] == "fr:C"
-    assert "ancient_corpora: form_profile.db " in version
+    # Every input that decides the list is recorded.
+    for name in ("lookup_db", "form_profile"):
+        assert re.search(rf"^{name}_sha256: [0-9a-f]{{64}}$", version, re.M)
     # No spelling a recorded review rejected, nor its contextual twin.
     rejects = {contextual_acute(f) for f in mg.load_mg_spelling_review()}
     assert not [f for f in entries if contextual_acute(f) in rejects]

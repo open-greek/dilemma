@@ -1424,17 +1424,18 @@ def respelling_of(spelling: str, other: str,
                   corpora: "AncientCorpora | None" = None) -> bool:
     """Whether ``spelling`` is the word ``other`` spells, respelled: the two
     have the same monotonic spelling (:func:`monotonic_spelling`), and
-    unless they differ only in the iota subscript, vowel-length marks or
-    the accent the subscript brings (ἧ beside ᾗ, ψυχῇ beside ψυχή), the
-    treebanks do not show ``spelling`` a word of its own
-    (:func:`treebank_word`) beside ``other``: εἷναι beside εἶναι is a
-    respelling, αὑτοῦ beside αὐτοῦ, ἤν beside ἦν and ᾗ beside ἤ are not."""
+    unless they differ only in the iota subscript or vowel-length marks
+    (ἧ beside ᾗ), or ``spelling`` adds an iota subscript with the accent it
+    brings (the dative ψυχῇ beside ψυχή, which polytonic Modern Greek writes
+    ψυχή), the treebanks do not show ``spelling`` a word of its own beside
+    ``other`` (:func:`treebank_word`): εἷναι beside εἶναι is a respelling,
+    αὑτοῦ beside αὐτοῦ, ἤν beside ἦν, ᾗ beside ἤ and ἥ beside ᾗ are not."""
     if monotonic_spelling(spelling) != monotonic_spelling(other):
         return False
     if (_marks(spelling, _BREATHINGS) == _marks(other, _BREATHINGS)
             and (_marks(spelling, _ACCENTS) == _marks(other, _ACCENTS)
-                 or _marks(spelling, _SUBSCRIPT)
-                 != _marks(other, _SUBSCRIPT))):
+                 or len(_marks(spelling, _SUBSCRIPT))
+                 > len(_marks(other, _SUBSCRIPT)))):
         return True
     return corpora is None or not treebank_word(spelling, other, corpora)
 
