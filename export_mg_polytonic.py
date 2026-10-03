@@ -1355,7 +1355,12 @@ AVOID_SHARE = 0.10
 # any misspelling. They carry nearly all of the avoid lines' benefit; the
 # known cost is the enclitic, where the unaccented spelling is right: after
 # a word that carries its accent (ἄφησέ με becomes ἄφησε μὲ), in fixed
-# phrases (οὕτω πως, ἄλλως πως), and πῶς ("how") written πὼς.
+# phrases (οὕτω πως, ἄλλως πως), and πῶς ("how") written πὼς. Replayed
+# through a keyboard outside this repository on the language model's dev
+# sentences, monotonic ones left out, with each author's fold held out of
+# the list: 126 με, 30 σε, 49 που and 4 πως fixed; 5 με, 6 σε, 2 που and 4
+# πως broken, 3 πῶς written πὼς, and 13 of the older relative ποῦ written
+# ποὺ.
 MG_AVOIDED_WEAK_FORMS = frozenset({"με", "σε", "που", "πως"})
 
 # Spellings a review found to be words of their own that no rule below can
@@ -1369,9 +1374,11 @@ MG_NOT_AVOIDED = frozenset({"τῶ"})
 # at least TREEBANK_WORD_TOKENS times and at least TREEBANK_WORD_SHARE as
 # often as the commoner spelling, each counted with its contextual twin:
 # the Katharevousa reflexive αὑτοῦ beside αὐτοῦ, ὄν "being" beside ὅν, ἤν
-# "if" beside ἦν. On the treebanks the reflexives come out at 4 to 10% of
-# their αὐτ- spellings, ὄν at 43%, while the breathing misspellings the
-# slice writes (εἷναι, ἃν, ἄμα, ἕξω, ὦν) are at 3.3% or below.
+# "if" beside ἦν. The breathing misspellings the slice writes (εἷναι, ἃν,
+# ἄμα, ἕξω, ὦν) come out at 3.3% or below, ὄν at 45%, and the reflexives
+# at 3.8 to 9.2%, so the rarest of them (αὑτά, αὑτήν, αὑτοῖς, under 5%)
+# stay marked; a share of 3.5% would free them, and with them the
+# Ancient-only εἶς and the enclitic σού, which the slice writes as slips.
 TREEBANK_WORD_TOKENS = 20
 TREEBANK_WORD_SHARE = 0.05
 

@@ -118,6 +118,11 @@ def test_an_abbreviation_is_a_consonant_final_word_before_a_period():
     assert not abbr("λόγος") and not abbr("τώρα") and not abbr("ἀήρ")
 
 
+def test_an_all_capital_word_has_no_case_position():
+    tokens = tokenize("εἶπε ΤΟΝ Ἄνθρωπο")
+    assert [mg._position(t) for t in tokens] == ["lower", None, "cap"]
+
+
 def test_a_capital_that_carries_the_iota_is_a_capital():
     # ᾍ and ᾘ are titlecase letters, which str.isupper() does not count.
     tokens = tokenize("εἶπε τοῦ ᾍδη καὶ ᾘσθανόμην")
@@ -765,9 +770,13 @@ def test_the_shipping_directory_is_known_by_any_spelling_of_its_path(
 def test_the_version_marks_a_build_from_uncommitted_code(monkeypatch):
     import subprocess
     monkeypatch.setattr(mg, "get_git_commit", lambda: "abc123")
+    commands = []
     monkeypatch.setattr(subprocess, "check_output",
-                        lambda cmd, **kw: b" M export_mg_polytonic.py\n")
+                        lambda cmd, **kw: commands.append(cmd)
+                        or b" M export_mg_polytonic.py\n")
     assert mg.build_commit() == "abc123-dirty"
+    # Untracked files (scratch output, local data) do not make it dirty.
+    assert "--untracked-files=no" in commands[0]
     monkeypatch.setattr(subprocess, "check_output", lambda cmd, **kw: b"")
     assert mg.build_commit() == "abc123"
 
@@ -968,6 +977,30 @@ def test_the_preferred_spelling_must_be_a_word_written_as_widely():
     assert avoided(rows, {"παπποῦς"}, {"παππούς": 300}) == {"παπποῦς"}
 
 
+def test_a_respelling_of_a_word_beside_a_commoner_non_word_is_kept():
+    # ρήγα, without its breathing, is the commonest spelling; ῥῆγα is a
+    # respelling of the word ῥήγα, but the letters' preferred spelling is
+    # no word, so the slice's convention cannot be read off them.
+    rows = [("ρήγα", "lower", {0: 200, 1: 100}),
+            ("ῥήγα", "lower", {0: 30, 1: 10}),
+            ("ῥῆγα", "lower", {0: 6, 1: 4})]
+    counts = make_counts(rows)
+    assert mg.modern_greek_avoids(counts, {0, 1}, {"ῥήγα", "ῥῆγα"}) == {}
+    rows[0] = ("ῥήγα", "lower", {0: 200, 1: 100})
+    counts = make_counts(rows[:1] + rows[2:])
+    assert set(mg.modern_greek_avoids(counts, {0, 1}, {"ῥήγα", "ῥῆγα"})) == {
+        "ῥῆγα"}
+
+
+def test_the_authors_are_counted_not_their_documents():
+    # One author writes παππούς in three documents, two authors παπποῦς.
+    counts = make_counts([("παππούς", "lower", {0: 100, 1: 100, 2: 100}),
+                          ("παπποῦς", "lower", {3: 2, 4: 2})],
+                         authors=("Α", "Α", "Α", "Β", "Γ"))
+    grc = {"παπποῦς", "παππούς"}
+    assert mg.modern_greek_avoids(counts, set(range(5)), grc) == {}
+
+
 def test_a_spelling_the_list_carries_is_not_avoided():
     rows = [("ἐδῶ", "lower", {0: 1300, 1: 100}), ("ἐδώ", "lower", {1: 100})]
     counts = make_counts(rows)
@@ -1128,8 +1161,8 @@ def test_the_slice_rate_is_the_entrys_share_of_the_source_tokens():
     class Recording(FakeCorpora):
         pass
 
-    counts = make_counts([("τώρα", "lower", {0: 1000, 1: 500}),
-                          ("καλά", "cap", {0: 500})])
+    counts = make_counts([("τώρα", "lower", {0: 1000, 1: 500, 2: 9000}),
+                          ("καλά", "cap", {0: 500, 2: 9000})])
     real = mg.ancient_word
     try:
         mg.ancient_word = lambda sp, grc, corpora, rate: seen.append(
@@ -1137,6 +1170,7 @@ def test_the_slice_rate_is_the_entrys_share_of_the_source_tokens():
         mg.select_list(counts, {0, 1}, set(), ancient_corpora=Recording({}))
     finally:
         mg.ancient_word = real
+    # The held-out document 2 counts for neither.
     assert ("τώρα", 1500 / 2000) in seen
 
 

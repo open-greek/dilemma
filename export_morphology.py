@@ -54,7 +54,7 @@ second:
 * ``el_modern_share`` - for each ``el_modern`` key, how often the slice
   elides it: of the times it writes a word the elided spelling stands for
   right before a vowel-initial word, the share it writes it elided
-  (``γιὰ`` 0.651, ``τὸ`` 0.204, ``τώρα`` 0.057). A word the elided
+  (``γιὰ`` 0.648, ``τὸ`` 0.204, ``τώρα`` 0.057). A word the elided
   spelling stands for only through a long ending does not count (the
   article's ``τοῦ`` is not ``τ᾽``). Modern Greek elides optionally, and
   most of these elisions are the minority spelling, so a keyboard can
