@@ -3,7 +3,8 @@
 
 Produces a single compact JSON at ``build/hunspell/grc_morph.json`` that
 the Tonos iOS keyboard reads at install time. The file carries two
-boundary-sensitive rewrite tables:
+boundary-sensitive rewrite tables, and a Modern Greek overlay for the
+second:
 
 * ``nu`` - surface forms that take movable nu (``ἐστί`` -> ``ἐστίν``)
   when the next word is vowel-initial. Includes:
@@ -37,6 +38,27 @@ boundary-sensitive rewrite tables:
   hardcoded particle table). The Tonos output layer rewrites the
   koronis to the user's chosen elision glyph via
   ``GreekStyle.applyingElisionMark``.
+
+* ``el_modern`` - the Modern Greek elisions (``τώρα`` -> ``τώρ᾽``,
+  ``γιὰ`` -> ``γι᾽``, ``στὸ`` -> ``στ᾽``, ``ποὺ`` -> ``π᾽``), in the same
+  ``{full: elided}`` shape, derived from the polytonic Modern Greek slice
+  by ``export_mg_polytonic.modern_greek_elisions``. Only the pairs the
+  Ancient Greek ``el`` table lacks, or spells otherwise, are listed, so a
+  keyboard writing Modern Greek reads ``el`` with ``el_modern`` laid over
+  it, and one writing Ancient Greek reads ``el`` alone, as before. They are
+  kept out of ``el`` because a keyboard that elides automatically would
+  otherwise apply them to Ancient Greek text, where the article ``τὸ`` or
+  the particle ``ὅτι`` never elides. The key is optional: a reader that
+  knows only ``nu`` and ``el`` ignores it.
+
+* ``el_modern_share`` - for each ``el_modern`` key, how often the slice
+  elides it: of the times it writes a word the elided spelling stands for
+  right before a vowel-initial word, the share it writes it elided
+  (``γιὰ`` 0.648, ``τὸ`` 0.204, ``τώρα`` 0.057). A word the elided
+  spelling stands for only through a long ending does not count (the
+  article's ``τοῦ`` is not ``τ᾽``). Modern Greek elides optionally, and
+  most of these elisions are the minority spelling, so a keyboard can
+  elide a word automatically only where the texts mostly do.
 
 The derivation pulls from:
 
@@ -1408,9 +1430,40 @@ def _derive_elision_pairs(
     return pairs
 
 
-def build(out_dir: Path) -> dict:
+def modern_only_elisions(
+    ancient: dict[str, str], modern: dict[str, str],
+) -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
+    """The Modern Greek pairs ``ancient`` lacks or spells otherwise, and
+    those conflicts: ``{full: (ancient elided, modern elided)}``."""
+    only = {full: elided for full, elided in modern.items()
+            if ancient.get(full) != elided}
+    conflicts = {full: (ancient[full], elided) for full, elided in only.items()
+                 if full in ancient}
+    return dict(sorted(only.items())), conflicts
+
+
+def derive_modern_greek_elisions(parquet_path: Path | None = None):
+    """Modern Greek elision pairs from the polytonic Modern Greek slice,
+    read as ``export_mg_polytonic`` reads it for the word list, and each
+    pair's elided share before a vowel."""
+    from export_mg_polytonic import (
+        count_corpus,
+        modern_greek_elision_shares,
+        modern_greek_elisions,
+        source_documents,
+    )
+    counts = count_corpus(parquet_path)
+    pairs, found = modern_greek_elisions(counts, source_documents(counts))
+    return pairs, modern_greek_elision_shares(found)
+
+
+def build(out_dir: Path, modern_greek: bool = True,
+          mg_parquet: Path | None = None) -> dict:
     """Drive the full morphology export end to end and write
     ``<out_dir>/grc_morph.json``. Returns a stats dict.
+
+    ``modern_greek`` adds the ``el_modern`` table, which needs the
+    Wikisource parquet ``extract_polytonic_mg`` reads.
     """
     if not GLAUX_PAIRS.exists():
         print(
@@ -1442,6 +1495,16 @@ def build(out_dir: Path) -> dict:
     elision_pairs = _derive_elision_pairs(lemma_to_forms, dative_keys)
     print(f"  elision full -> elided pairs: {len(elision_pairs):,}")
 
+    el_modern: dict[str, str] = {}
+    if modern_greek:
+        mg_pairs, mg_shares = derive_modern_greek_elisions(mg_parquet)
+        el_modern, conflicts = modern_only_elisions(elision_pairs, mg_pairs)
+        print(f"  Modern Greek elision pairs the Ancient table lacks or "
+              f"spells otherwise: {len(el_modern):,}")
+        for full, (ancient, modern) in sorted(conflicts.items()):
+            print(f"    differs from el: {full} -> {ancient} (Ancient), "
+                  f"{modern} (Modern)")
+
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "grc_morph.json"
     payload = {
@@ -1449,6 +1512,10 @@ def build(out_dir: Path) -> dict:
         "nu": sorted(nu_forms),
         "el": dict(sorted(elision_pairs.items())),
     }
+    if modern_greek:
+        payload["el_modern"] = el_modern
+        payload["el_modern_share"] = {
+            full: mg_shares[full] for full in el_modern}
     # Compact JSON: no extra whitespace, but pretty-ish for diffing.
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(
@@ -1461,6 +1528,7 @@ def build(out_dir: Path) -> dict:
     return {
         "nu_count": len(nu_forms),
         "elision_count": len(elision_pairs),
+        "modern_elision_count": len(el_modern),
         "bytes": size,
         "path": str(out_path),
     }
@@ -1472,8 +1540,19 @@ def main():
         "--out-dir", default=str(OUT),
         help=f"Output directory (default: {OUT})",
     )
+    ap.add_argument(
+        "--no-modern-greek", action="store_true",
+        help="leave out the el_modern and el_modern_share tables (they "
+             "need the Wikisource parquet of the polytonic Modern Greek "
+             "slice)",
+    )
+    ap.add_argument(
+        "--mg-parquet", type=Path, default=None,
+        help="override the Wikisource parquet path",
+    )
     args = ap.parse_args()
-    build(Path(args.out_dir))
+    build(Path(args.out_dir), modern_greek=not args.no_modern_greek,
+          mg_parquet=args.mg_parquet)
 
 
 if __name__ == "__main__":

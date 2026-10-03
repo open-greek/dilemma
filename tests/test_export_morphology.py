@@ -820,3 +820,48 @@ def test_the_built_elision_table_holds_its_invariants():
         f"elided oxytones left bare carry {weight:,} occurrences: "
         f"{sorted(bare, key=lambda k: -freq.get(exact_form_key(k), 0))[:10]}"
     )
+
+
+# --------------------------------------------------------------------------
+# The Modern Greek elision overlay (el_modern)
+# --------------------------------------------------------------------------
+
+KORONIS = "\u1FBD"
+
+
+def test_modern_only_elisions_keep_only_what_the_ancient_table_lacks():
+    from export_morphology import modern_only_elisions
+    ancient = {"ἀλλά": "ἀλλ" + KORONIS, "μιά": "μί" + KORONIS}
+    modern = {"ἀλλά": "ἀλλ" + KORONIS, "μιά": "μι" + KORONIS,
+              "τώρα": "τώρ" + KORONIS}
+    only, conflicts = modern_only_elisions(ancient, modern)
+    assert only == {"μιά": "μι" + KORONIS, "τώρα": "τώρ" + KORONIS}
+    assert conflicts == {"μιά": ("μί" + KORONIS, "μι" + KORONIS)}
+
+
+@pytest.mark.skipif(not ARTIFACT.exists(), reason="grc_morph.json not built")
+def test_the_built_modern_greek_elisions_hold_their_invariants():
+    """el_modern lays the Modern Greek elisions over el: only pairs el
+    lacks or spells otherwise, each a well-formed elided spelling."""
+    from export_mg_polytonic import mg_orthography_reason
+
+    payload = json.loads(ARTIFACT.read_text(encoding="utf-8"))
+    if "el_modern" not in payload:
+        pytest.skip("grc_morph.json built without the Modern Greek table")
+    ancient, modern = payload["el"], payload["el_modern"]
+    assert modern
+    assert not [k for k, v in modern.items() if ancient.get(k) == v]
+    bad = {k: v for k, v in modern.items()
+           if not v.endswith(KORONIS) or mg_orthography_reason(v) is not None}
+    assert not bad, bad
+    for full, stem in [("γιὰ", "γι"), ("στὸ", "στ"), ("τώρα", "τώρ"),
+                       ("ὅλα", "ὅλ"), ("κι", "κι")]:
+        assert modern.get(full) == stem + KORONIS, full
+    # The Ancient Greek table is not touched: the article and ὅτι, which
+    # Ancient Greek never elides, are elided only in the Modern overlay.
+    assert "τὸ" not in ancient and "ὅτι" not in ancient
+    # Each pair carries how often the texts elide it before a vowel.
+    shares = payload["el_modern_share"]
+    assert set(shares) == set(modern)
+    assert all(0 <= v <= 1 for v in shares.values())
+    assert shares["γιὰ"] > 0.5 > shares["τώρα"]

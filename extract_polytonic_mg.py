@@ -56,7 +56,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, NamedTuple
 
 BOS_TOK = "<s>"
 EOS_TOK = "</s>"
@@ -132,6 +132,17 @@ def _split_sentences(text: str) -> Iterator[str]:
     yielded sentence is a raw substring; token extraction happens in the
     caller.
     """
+    for sent, _closer in split_sentences_with_closers(text):
+        yield sent
+
+
+def split_sentences_with_closers(text: str) -> Iterator[tuple[str, str]]:
+    """:func:`_split_sentences`, with the punctuation that closed each
+    sentence when it follows the last word directly (``τόμ.``), else ''.
+
+    A word right before a period may be an abbreviation (τόμ., σελ.),
+    which a word list must not take for a word.
+    """
     if not text:
         return
     # Normalize to NFC once up front so composed forms match the LM vocab.
@@ -158,11 +169,12 @@ def _split_sentences(text: str) -> Iterator[str]:
                 # punctuation chunk; close off the sentence here
                 sent = "".join(buf).strip()
                 if sent:
-                    yield sent
+                    closer = p if not buf[-1][-1:].isspace() else ""
+                    yield sent, closer
                 buf = []
         tail = "".join(buf).strip()
         if tail:
-            yield tail
+            yield tail, ""
 
 
 def _tokenize(sentence: str) -> list[str]:
@@ -179,6 +191,78 @@ def _tokenize(sentence: str) -> list[str]:
     return toks
 
 
+class PolytonicMGDocument(NamedTuple):
+    """One Wikisource document that passes the register filter."""
+
+    key: str            # url, else ``author::title``; stable across runs
+    author: str
+    title: str
+    author_year: str
+    text: str
+
+
+def sentence_id(doc_key: str, index: int) -> str:
+    """The sentence id the LM's train/dev split hashes.
+
+    ``index`` is the sentence's ordinal among everything
+    :func:`_split_sentences` yields for the document, counting the short
+    sentences the LM skips, so ids are stable whatever filter a caller
+    applies afterwards.
+    """
+    return f"polymg:{doc_key}:{index}"
+
+
+def iter_polytonic_mg_documents(
+    parquet_path: Path | None = None,
+    min_poly_ratio: float = 0.4,
+    max_docs: int | None = None,
+) -> Iterator[PolytonicMGDocument]:
+    """Yield every Wikisource document that passes the register filter.
+
+    This is the one place that decides which documents form the slice, so
+    the language model (:func:`iter_polytonic_mg_sentences`) and the
+    polytonic Modern Greek word list (``export_mg_polytonic.py``) read the
+    same documents under the same keys.
+    """
+    import pandas as pd
+
+    path = Path(parquet_path or DEFAULT_PARQUET)
+    if not path.exists():
+        raise SystemExit(
+            f"Polytonic MG parquet not found at {path}.\n"
+            "Run `python build/build_polytonic_freq.py --stats` once to "
+            "seed the HuggingFace cache, or pass the parquet path "
+            "explicitly."
+        )
+    df = pd.read_parquet(path)
+
+    if max_docs is not None:
+        df = df.head(max_docs)
+
+    def field(row, name: str) -> str:
+        value = row.get(name, "")
+        return value if isinstance(value, str) else ""
+
+    for _, row in df.iterrows():
+        text = row.get("text", "")
+        author_year = row.get("author_year", "")
+        if not isinstance(text, str) or not text:
+            continue
+        if not _passes_register_filter(
+            author_year, text, min_poly_ratio=min_poly_ratio
+        ):
+            continue
+        # Stable doc key: url if present, else title+author.
+        url, title, author = field(row, "url"), field(row, "title"), field(row, "author")
+        yield PolytonicMGDocument(
+            key=url or f"{author}::{title}",
+            author=author,
+            title=title,
+            author_year=author_year,
+            text=text,
+        )
+
+
 def iter_polytonic_mg_sentences(
     parquet_path: Path | None = None,
     min_poly_ratio: float = 0.4,
@@ -192,41 +276,14 @@ def iter_polytonic_mg_sentences(
     deterministically. We key it on ``polymg:{url_or_title}:{i}`` where
     ``i`` is the sentence ordinal within the document.
     """
-    import pandas as pd
-
-    path = Path(parquet_path or DEFAULT_PARQUET)
-    if not path.exists():
-        raise SystemExit(
-            f"Polytonic MG parquet not found at {path}.\n"
-            "Run `python build/build_polytonic_freq.py --stats` once to "
-            "seed the HuggingFace cache, or pass --mg-parquet explicitly."
-        )
-    df = pd.read_parquet(path)
-
-    if max_docs is not None:
-        df = df.head(max_docs)
-
-    for _, row in df.iterrows():
-        text = row.get("text", "")
-        author_year = row.get("author_year", "")
-        if not isinstance(text, str) or not text:
-            continue
-        if not _passes_register_filter(
-            author_year, text, min_poly_ratio=min_poly_ratio
-        ):
-            continue
-        # Stable doc key: url if present, else title+author.
-        url = row.get("url", "") if isinstance(row.get("url", ""), str) else ""
-        title = row.get("title", "") if isinstance(row.get("title", ""), str) else ""
-        author = row.get("author", "") if isinstance(row.get("author", ""), str) else ""
-        doc_key = url or f"{author}::{title}"
-
-        for i, sent in enumerate(_split_sentences(text)):
+    for doc in iter_polytonic_mg_documents(
+        parquet_path, min_poly_ratio=min_poly_ratio, max_docs=max_docs
+    ):
+        for i, sent in enumerate(_split_sentences(doc.text)):
             toks = _tokenize(sent)
             if len(toks) < min_sentence_tokens:
                 continue
-            sid = f"polymg:{doc_key}:{i}"
-            yield sid, [BOS_TOK] + toks + [EOS_TOK]
+            yield sentence_id(doc.key, i), [BOS_TOK] + toks + [EOS_TOK]
 
 
 def summarize(parquet_path: Path | None = None) -> None:

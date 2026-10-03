@@ -7,6 +7,48 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- A word list of attested polytonic Modern Greek spellings,
+  `build/hunspell/grc_mg_polytonic.dic` (`export_mg_polytonic.py`), for a
+  keyboard to merge into the grc dictionary, which is unchanged. grc holds
+  Ancient and Medieval Greek only, so a keyboard shipping it alone rewrote
+  polytonic Modern Greek into Ancient neighbors (`τώρα` -> `τἄρα`,
+  `ἀκόμη` -> `ἀκμὴ`) and rejected `του`, `κι` and `μας`. The 17,184 words
+  come from the training sentences of the language model's polytonic Modern
+  Greek slice, from documents that are not monotonic or partly so, with at
+  least 3 tokens by 2 authors in their own case, well-formed under the grc
+  rules adapted to Modern Greek (unaccented weak pronouns and `κι`,
+  synizesis), not misspellings of a commoner spelling in the slice (a
+  breathing rule, a mark-level rule and the reviewed rejects in
+  `data/hunspell_mg_spelling_review.json`), and not accepted by grc; each
+  oxytone gets its acute or grave twin. A spelling that is also an Ancient
+  or later Greek word by the GLAUx and Diorisis treebanks, or by the
+  patristic texts and First1KGreek at a comparable rate (`του`, the Ancient
+  enclitic genitive; `μοναχὸς`), is written with `fr:R`, so that it is no
+  sign of Modern Greek. The list also marks 187 grc spellings Modern Greek
+  writes another way (`ἐκείνῃ`, `μὰς`, `με`, `που`) with `form<TAB>mg:avoid`
+  lines: a respelling of a commoner spelling of the same word (the same
+  monotonic spelling, and for a breathing, accent-type or dropped-subscript
+  difference no treebank evidence of a word of its own) with a share under
+  a tenth of that word's tokens at 95% confidence. Another word is never
+  marked (`ὅ`, `ἕν`, the reflexive `αὑτοῦ`, `ὄν`); the weak forms `με`,
+  `σε`, `που` and `πως` are reviewed exceptions. Replayed as bare-letter
+  typing through a keyboard outside this repository that offers the list
+  only in Modern Greek text, with each sentence's author held out from the
+  list and its marks and the monotonic dev sentences left out, the 36,129
+  words of the polytonic Modern Greek dev sentences come out wrong 5,248
+  times in its Modern register without the marks and 4,965 times with them,
+  and 474,220 held-out Ancient Greek words come out the same with the list
+  as without it.
+  `eval/eval_mg_polytonic.py` measures the list's coverage with documents
+  or authors held out, and writes the evaluation lists.
+- `grc_morph.json` carries an optional `el_modern` table: the Modern Greek
+  elisions the same slice attests (`γιὰ` -> `γι᾽`, `στὸ` -> `στ᾽`,
+  `τώρα` -> `τώρ᾽`, `κι` -> `κι᾽`, 39 pairs), limited to those `el` lacks or
+  spells otherwise, for a keyboard writing Modern Greek to lay over `el`, and
+  `el_modern_share`, how often the texts elide the words each elided
+  spelling stands for before a vowel (`γιὰ` 0.65, `τὸ` 0.20, `τώρα` 0.06).
+  `el` and `nu` are unchanged;
+  `export_morphology.py --no-modern-greek` leaves both tables out.
 - The next-word language model (`grc_ngram.bin`) carries the training count
   of spellings outside its 80,000-word vocabulary. When every spelling of
   the letters a user typed was outside the vocabulary, the model scored them

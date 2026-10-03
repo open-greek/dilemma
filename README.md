@@ -2034,6 +2034,11 @@ monotonic) is retained for other downstream consumers via
 | `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. New forms require exact evidence from the complete accent-preserving `form_profile.db`, including hapaxes, or membership in a pinned citation, textbook-paradigm, grammar, or productive second-accent class; arbitrary unattested generator output is not admitted. A productive second accent needs a proparoxytone or properispomenon host (`θάλασσάν`, `δῶρόν`, but not `λύκοί`). A new spelling that differs only in accent, breathing, diaeresis, or iota subscript from a well-formed spelling with at least 1,000 corpus tokens (`ἑγώ` beside `ἐγώ`, `ταΐς` beside `ταῖς`) must also be attested in the GLAUx or Diorisis treebanks: at least 25 tokens when it has under 1% of the common spelling's count, at least 5 when it has under 5%. A spelling both treebanks annotate independently, more than once each and at a rate of at least one treebank token per thousand of the dominant spelling, is confirmed instead of counted, which keeps the dual `πρώτω`, Doric `γλώσσᾳ` and the contract `πειρᾷς`. This keeps genuine dialect spellings such as Doric `τᾷ` and `τῶ`. Outside the reviewed April surface (see the release audit below), a vowel- or rho-initial form without a breathing is rejected, and so are a grave accent before the final syllable (`καὶτοὺς`, `ὓστερον`) or on an elided word (`γὰρ᾽`), and a second accent anywhere but on the ultima of a proparoxytone or properispomenon, or before a fused enclitic (`Αἴγυπτόνδε`). Valid elisions normalize their final textual apostrophe to U+1FBD koronis. Same-lemma bare elision fallbacks are excluded unless an independent DGE/Cunliffe headword proves the collision, while the reviewed historical fallback set catches malformed self-headwords and preserves genuine `ἄν`. The closed Homeric apocope set preserves `κὰτ`/`κάτ` through `κὰγ`/`κάγ` and `ἂμ`/`ἄμ`. A closed grammatical list preserves legitimate unaccented words: enclitics including the `τις`, `φημί`, and `εἰμί` forms, dialect proclitics (`ἁ`, `αἰ`), and crasis with a proclitic (`κἀν`, `χὠ`), while `του` and `τῳ` remain deliberately excluded. The same list carries the article's graves (`τὸ`, `τὼ`) and the relative pronoun's (`ὃ`, `ἣ`, `οἳ`, `αἳ`), which `lookup.db` lacks: `build_lookup_db.py` leaves out every form it maps to the article `ὁ` whose letters are an article's, and the AGDT treebank files Homer's demonstrative `ὃ`, `ἣ`, `οἳ`, `αἳ` under `ὁ`. Crasis inside a word may carry its breathing past the first syllable (`ἐγᾦμαι`, `καλοκἀγαθία`, `ταὧν`), crasis with `ὦ` keeps the interjection's circumflex wherever it lands (`ὦνθρωπε`, `ὦλεθρε`), and reviewed lists keep complete words that end in a consonant (`ἔκ`, `παρέκ`, `ὑπέκ`, `χερουβίμ`). A fused enclitic's host keeps its own accent window: the `-τις` of `ὅστις` (`οὗτινος`), `-περ` (`οἷονπερ`), and the `-δε` of the epic and Ionic datives of `ὅδε` (`τῇσιδε`); any other `-δε` takes the second accent (`πόλεμόνδε`). In a Latin name `ου` between two vowels is the consonant v, not a syllable (`Ὀκτάουιος`), and the Ionic enclitics `τεο`, `τεῳ` and `τεων` are written without an accent. Every retained contextual grave receives its citation/before-pause acute twin unless the twin fails a structural rule. |
 | `el_GR_monotonic.{dic,aff,version}` | `el` | `el_GR` | Modern Greek monotonic forms, including MG-relevant vocabulary drawn from the AG side of `lookup.db` (articles, common verbs, proper names). Not shipped in Tonos. |
 
+A third list, `grc_mg_polytonic.{dic,aff,version}`, holds attested polytonic
+Modern Greek spellings for a keyboard to merge into grc. It comes from
+`export_mg_polytonic.py`; see
+[below](#polytonic-modern-greek-word-list-grc_mg_polytonicdic).
+
 Each dictionary entry carries a morphological field `fr:<bucket>` where
 the bucket is one of `C` (common), `M` (medium), `R` (rare), or `X`
 (unseen in corpus). This lets consumers rank spelling candidates
@@ -2189,6 +2194,9 @@ build/hunspell/
   grc_polytonic.dic
   grc_polytonic.aff
   grc_polytonic.version
+  grc_mg_polytonic.dic      # from export_mg_polytonic.py
+  grc_mg_polytonic.aff
+  grc_mg_polytonic.version
   eval_results.txt          # from eval_hunspell.py
 ```
 
@@ -2212,6 +2220,238 @@ To regenerate both artifacts and the eval report end-to-end:
 python export_hunspell.py
 python eval_hunspell.py --n 200
 ```
+
+#### Polytonic Modern Greek word list (`grc_mg_polytonic.dic`)
+
+The grc dictionary is built from Ancient and Medieval Greek sources, so it
+has almost no Modern Greek vocabulary, and on purpose it rejects the
+unaccented `του` and the Modern spellings among the language model's
+commonest words (`κι`, `της`, `μας`, `τώρα`). A keyboard that ships only grc
+turns polytonic Modern Greek (Modern Greek written with breathings and
+accents, as in print before 1982, in church texts and by some writers
+today) into Ancient Greek neighbors: `τώρα` becomes `τἄρα`, `ἀκόμη`
+becomes `ἀκμὴ`, `σπίτι` becomes `σπίτιν`. `export_mg_polytonic.py` writes a
+separate list that such a keyboard can merge into grc, and leaves
+`grc_polytonic.dic` as it is:
+
+```bash
+python export_mg_polytonic.py     # build/hunspell/grc_mg_polytonic.{dic,aff,version}
+python export_mg_polytonic.py --holdout-author-fold 0/5 --out-dir DIR   # evaluation list
+```
+
+The `.dic` is a plain list, one spelling per line with the grc `fr:` field
+and no affix flags; the `.aff` only makes the pair loadable on its own. No
+entry is a spelling `grc_polytonic.dic` accepts, as written or, for a
+capitalized spelling, through its lowercase entry, so the whole list is
+Modern-only. The `.version` sidecar records the sha256 of the grc dictionary
+the list was selected against, and the exporter must be rerun after every
+grc rebuild. An evaluation variant needs `--out-dir` and is refused in
+`build/hunspell`, where it would replace the shipping list. The source is the
+polytonic Modern Greek slice of Wikisource that the next-word language model
+also reads (`extract_polytonic_mg.py`), and only the language model's
+training sentences, so its dev sentences stay held out; a training sentence
+that repeats a dev sentence word for word, case aside, as Wikisource's
+duplicate copies of a text do, is left out too. A spelling is listed when:
+
+- it comes from a polytonic source. A document is dropped when more than 1%
+  of its lowercase words, with 95% confidence (the Wilson lower bound), and
+  at least three, read as monotonic: a vowel-initial word without a
+  breathing, or a monosyllable polytonic writing always accents (`και`,
+  `να`, `δεν`, `στο`, ...), counted on the training sentences. The bound
+  keeps a short polytonic poem with three OCR slips; it drops 39 of 2,213
+  documents, 10.5% of the slice's words. Inside the rest, a sentence with any
+  such word is skipped, which also drops the monotonic license note
+  Wikisource adds to its pages. Elision and aphaeresis marks are read as
+  the texts write them: the apostrophes, the koronis, and the spacing psili
+  and dasia (`νά ῾βρω`), which in front of a vowel is that vowel's breathing
+  (`῾Η` is `Ἡ`);
+- it has at least 3 tokens from at least 2 authors, in its own case: the
+  lowercase spelling counts its lowercase tokens, a capitalized one (a name)
+  its capitals inside a sentence, and a capital that opens a sentence, line,
+  quotation or stretch of dialogue, or follows an ellipsis or a closing
+  bracket (`[Γελῶσα] Χάχ`), goes with the case in which more authors write
+  the word inside a sentence, the word's grave and acute spellings
+  together. A capital carrying the iota (`ᾍδη`) is a capital, though
+  Unicode makes it a titlecase letter. So a word and a name are both listed
+  when each qualifies
+  (`διάολος`), and neither passes on the other's authors (`λάζος`, one
+  author's "blade", beside the name `Λάζος`); a capitalized spelling whose
+  lowercase is listed adds nothing a Hunspell reader does not accept, and is
+  left out. Measured with each dev word's author held out (below),
+  one-author spellings would add 3,200 entries that cover 0.8% more of the
+  dev words when their authors are read and 0.2% more when they are not; a
+  floor of 2 tokens would add 9,100 entries, of which 60% have a monotonic
+  spelling Dilemma's lexicon knows, against 68% at 3 or 4 tokens;
+- it is well-formed polytonic Modern Greek: the grc structural rules and
+  explicit rejects, in either case, except that the weak possessive pronouns
+  `του`, `της`, `μας`, `σας`, `τους`, `των` and `κι` are correct unaccented,
+  syllables are counted with synizesis (`τέλειωσε`, `πλάγιασε`, `γάϊδαρος`
+  keep their accent within three), a lowercase word may end in a consonant
+  when it is not an attested word that lost its last vowel (`ἄχ`, `κονιάκ`,
+  but not `τόμ`), and an elided word may end in the glide ι (`κι᾽`,
+  `γι᾽`). An unaccented elided spelling must stand for an attested word
+  accented on the vowel it lost (`γι᾽`, `γιατ᾽`, `ἐδ᾽`), so `μητ᾽`, `φερ᾽`
+  and `μεσ᾽` are out: a paroxytone keeps its accent (`μήτ᾽`, `μέσ᾽`). The
+  weak accusatives `το`, `τα`, `τον`, `την` stay out: a bare-typed `το` is
+  almost always the article `τὸ`;
+- it is not a misspelling of another spelling in the slice. A spelling whose
+  breathing alone differs from another is one when the other is five times
+  as common, or at least as common and accepted by grc, however rare both
+  are (`ἔτοιμος` beside `ἕτοιμος`, `εἷνε` beside `εἶνε`); a reviewed list
+  keeps the real homographs (`ὅντας`, `ἄρματα`, `οὗλα`).
+  Any other mark-only respelling with under 5% of the count of a spelling of
+  the same letters that has at least 100 tokens is one too (`εἴχε` beside
+  `εἶχε`), unless its monotonic spelling differs and Dilemma's lexicon knows
+  it, which keeps different words (`χρονιά` beside `χρόνια`, `ἔμενα` beside
+  `ἐμένα`); such a word must still not be that rare beside the commonest
+  spelling with its own monotonic letters and accent (`ὄποιος` goes beside
+  `ὅποιος`). An elided spelling counts as another word only through an
+  attested word it stands for (`κάθ᾽`, for `κάθε`, beside `καθ᾽`);
+- a recorded review did not reject it: `data/hunspell_grc_spelling_review.json`
+  and `data/hunspell_mg_spelling_review.json`, which lists the accent-type
+  and iota-subscript misspellings no rule catches (`ἤταν`, `ἐδῷ`, `ξῦλον`,
+  `χειμώνα` beside the slice's five times commoner `χειμῶνα`), two words run
+  together (`τουκαὶ`, and `εἰδ᾽`, written for `εἰ δ᾽`) and `τουναντίον`
+  without its koronis.
+
+Each oxytone also gets its contextual twin (`στὴν` beside grc's `στήν`), and
+`fr:` uses the grc bucket edges on the spelling's token count in the slice,
+the two twins counted together. A keyboard may take a `C` or `M` word for a
+sign that a text is Modern Greek, so a spelling that is also an Ancient or
+later Greek word gets `fr:R` whatever its count:
+
+- one the GLAUx and Diorisis treebanks attest 20 times (`του`, the Ancient
+  enclitic genitive of `τις`), or the contextual twin of a grc spelling they
+  attest that often. A treebank count is the larger of the two treebanks'
+  counts: they annotate largely the same works, so their sum counts most
+  tokens twice (`τὴ`: 15 and 11, 9 of them the same lines of Aristophanes),
+  and taking each work from one of them would lose a word the other spells
+  differently (`οὔτε`: GLAUx 0, Diorisis 13,323);
+- one the patristic texts (PTA) or First1KGreek write, with its twin, 20
+  times and at a rate at least a thirtieth of its rate in the Modern Greek
+  slice (`μοναχὸς`, beside the patristic and Byzantine `μοναχός`). Below
+  that rate a Modern spelling in those OCR'd editions is a misprint or a
+  quotation (`στήν`, `δὰ`), so `στὴν` and `στὸν` stay signs of Modern Greek.
+
+The Patrologia's OCR is not read, nor the Byzantine vernacular corpus, which
+is early Modern Greek itself. The counts come from Dilemma's form
+attestation (`data/form_profile.db`, `python -m dilemma download
+--with-attestation`); without it the exporter warns and caps nothing. In the
+current list this caps `του`, `των` and `μοναχὸς`. The `.version` records
+the sha256 of every file that decides the list: the grc dictionary,
+`lookup.db` and `form_profile.db`.
+
+The list also names the grc spellings polytonic Modern Greek writes another
+way, with lines of the form `form<TAB>mg:avoid`, so that a keyboard writing
+Modern Greek can leave them out of its candidates: the Katharevousa dative
+`ἐκείνῃ` beside `ἐκείνη`, misspellings such as `εἷναι` beside `εἶναι` or
+`μὰς` beside `μᾶς`, and the weak forms `με`, which the slice writes `μὲ` 25
+times as often, `σε`, `που` beside `ποὺ` and `ποῦ`, and `πως`. A lowercase
+spelling is marked when it is a respelling of its word, the spellings of the
+same letters with the same monotonic spelling (accents as the acute,
+breathings and iota subscript dropped):
+
+- its share of the word's lowercase tokens is under a tenth with 95%
+  confidence (the Wilson upper bound, which needs at least 53 tokens of the
+  word), and the word's commonest spelling takes at least a tenth, is a word
+  grc or the list accepts and is written by at least as many authors. Another
+  word of the same letters does not count: `ὁπού`, 26% of the demotic
+  relative's spellings, is not marked though `ὅπου` fills its letters;
+- a spelling of the word that the slice writes more often and grc or the
+  list accepts differs from it only in marks, and where they differ in the
+  breathing, the accent type or a dropped iota subscript, the GLAUx and
+  Diorisis treebanks do not write the rarer one 20 times and a twentieth as
+  often as the other, each with its contextual twin and both treebanks
+  counted. An added subscript, with the accent it brings, is a respelling
+  outright: polytonic Modern Greek writes the Katharevousa dative `ψυχῇ` as
+  `ψυχή`, while the treebanks, where the dative is a word, cannot say so
+  (taking the datives to the treebanks too unmarks 45 lines and costs 15
+  words on the folds below). The test keeps the Katharevousa reflexive
+  `αὑτοῦ` beside `αὐτοῦ`, `ὄν` beside `ὅν`, `ἤν` ("if") beside `ἦν` and
+  the relative `ἥ` beside the dative `ᾗ`. The breathing misspellings the
+  slice writes (`εἷναι`, `ἃν`, `ἄμα`, `ὦν`) are at 3.3% of their word or
+  below, but a misspelling whose spelling is also an Ancient word goes
+  unmarked (`ὀποῦ`, the genitive of `ὀπός` "sap", beside the relative
+  `ὁποῦ`; `σάς` beside `σᾶς`), and the rarest reflexives (`αὑτά`, `αὑτήν`,
+  `αὑτοῖς`, 4.0 to 4.6%) stay marked, as does the subjunctive `ᾖ`, which
+  adds a subscript to `ἤ`.
+
+So a spelling that is another word is never marked: `ὅ` of `ὅ,τι`, the
+numerals `ἕν`, `εἷς` and `ἕξ`, `πάρα`, `ὥς`, `πασᾶν` and the crasis
+`ταὐτά` differ from their commoner neighbors in the monotonic spelling. The
+weak forms `με`, `σε`, `που` and `πως` are reviewed exceptions: unaccented,
+they are words of their own (clitics and Ancient enclitics), but polytonic
+Modern Greek writes them accented in most of their uses. So is `τῶ`, the
+`τῶν` of Εφταλιώτης and Μαβίλης without its final ν, which has the
+monotonic spelling of the dative `τῷ` and is never marked. Nor is a word
+with the second acute an enclitic gives it (`γυναῖκά` beside `γυναῖκα`), a
+spelling the list or its contextual twin carries, or one of the unaccented
+closed list. Elided and aphaeresized spellings are not judged, and only
+grc's spellings get a line, with the contextual grave of an avoided acute.
+A Hunspell reader that does not know the field accepts the marked
+spellings, as grc does.
+
+The list has 17,184 words (19 in `C`, 212 in `M`) and 187 `mg:avoid`
+lines: 976 capitalized, 151 elided and 197 aphaeresized spellings (`᾽ναι`,
+`᾽ς`), the six weak
+pronouns, `κι` and `κι᾽`, `στὴν`, `στὸν`, `στὴ`, `στοὺς`, `τὴ`, `γι᾽`, and
+the Modern vocabulary (`τώρα`, `ἀκόμη`, `σπίτι`, `ὄχι`, `μπορεῖ`). `θὰ`,
+`νὰ`, `γιὰ`, `στὸ`, `στὰ`, `δὲν`, `ἀπ᾽`, `μου` and `σου` are in grc already.
+An adversarial review of the earlier 17,789-entry list judged 500 random
+entries and every entry whose breathing, accent-type or iota-subscript twin
+is five times commoner, and confirmed 82 errors, about 1 in 200; the rules
+and the review file above remove all of them but `ποιητῆ`, which a second
+look found correct (the genitive, beside the accusative `ποιητή`). Of a new
+random sample of 200 entries none is an Ancient-only or OCR-damaged
+spelling; the rarest are older spellings and dialect words (`θᾶμμα`,
+`κἀμμία`, `ὁλοκαιρὶς`, `μίλαε`, crasis such as `σὅλους`). A later review found
+no error in 300 random entries (every `C`, 100 `M`, 179 `R`) and two in 50
+each of the capitalized, elided and aphaeresized ones: `εἰδ᾽` (now in the
+review file) and `Χὰχ`, an interjection that only sentence-initial capitals
+had made a name; a scan of every capitalized entry added `Χάχ`, `Ἀετὲ`, and
+`᾽Σ` beside `᾽ς`. The rules above now leave all of them out.
+
+The language model's dev split is per sentence, so a dev sentence's document
+and author also supply training sentences. `eval/eval_mg_polytonic.py`
+measures how many of the 34,315 words in its clean dev sentences the
+dictionary accepts, with the list built four ways:
+
+| Dictionary | Accepted | Out-of-dictionary words removed |
+|------------|---------:|-------------------------------:|
+| grc alone | 79.6% | |
+| grc + list from the training split | 92.2% | 62% |
+| grc + list without the documents holding a dev sentence (18% of the slice's tokens left) | 88.7% | 45% |
+| grc + list without each dev word's author (5 author folds) | 90.9% | 56% |
+| grc + list without another author fold (control) | 91.8% | 60% |
+
+The authors' own texts account for about 0.9 points of the 12.6 the list
+adds. `--write-lists DIR` writes the author-fold lists, each with the
+`mg:avoid` lines and `fr:R` caps read from its own authors, for a keyboard
+harness. One such measurement was made outside this repository, with a
+keyboard (not part of Dilemma) that has a Modern Greek register, offers the
+list's words only in Modern Greek text and reads the `mg:avoid` marks there.
+The dev sentences were typed as bare letters, with each author's fold held
+out from the list and its marks. Of the 2,415 sentences, 149 (2,493 words)
+are monotonic in the gold text itself, so they are left out; on the other
+36,129 words the keyboard made these errors:
+
+| Register | Without `mg:avoid` | With `mg:avoid` | Fixed | Broken |
+|----------|-------------------:|----------------:|------:|-------:|
+| Modern | 5,248 | 4,965 | 332 | 49 |
+| Automatic | 7,210 | 7,088 | 136 | 14 |
+
+With the monotonic sentences counted as well, the 38,622 words give 6,210
+and 5,943 in the Modern register, 8,250 and 8,137 in the Automatic one. Two
+earlier mark rules gave the same within a word: a share of all the letters'
+tokens with the lexicon's different-word check (207 lines on the same list)
+4,966 and 7,089, and the same share with the respelling test (211 lines)
+4,965 and 7,088. The weak forms carry
+nearly all of the gain: 126 `με`, 30 `σε`, 49 `που` and 4 `πως` fixed,
+against 5 `με`, 6 `σε`, 2 `που` and 4 `πως` that were correct enclitics
+(`ἄφησέ με`, `οὕτω πως`), 3 `πῶς` written `πὼς`, and 13 of the older
+relative `ποῦ` written `ποὺ`. On 474,220 words of held-out Ancient Greek
+sentences, the keyboard's Ancient and Automatic registers gave the same
+words with the list as without it.
 
 #### Boundary rewrites (`grc_morph.json`)
 
@@ -2262,6 +2502,39 @@ as `δμητῆρι`), the forms of its lemma decide: a genitive in -ος beside
 uncontracted -εϊ of an s-stem, or a third-declension stem that yields the -σι.
 A present participle's dative plural is also the verb's third person plural
 (`κεύθουσι`, `τιμῶσι`), so those keep their elision.
+`el_modern` holds the Modern Greek elisions in the same `{full: elided}`
+shape, read from the polytonic Modern Greek slice as the word list reads it:
+39 pairs such as `γιὰ` -> `γι᾽`, `στὸ` -> `στ᾽`, `τώρα` -> `τώρ᾽`,
+`ὅλα` -> `ὅλ᾽`, `ποὺ` -> `π᾽`, `εἶναι` -> `εἶν᾽`, `νὰ` -> `ν᾽`, and `κι` ->
+`κι᾽`, which the slice writes for `κι` about half the times it precedes a
+vowel. An elided spelling qualifies with 10 tokens from 2 authors, and its
+full form is the commonest attested word that spells its letters and marks
+plus one vowel or vowel digraph (unaccented when the elided spelling keeps
+an accent, accented when it has lost it, as an oxytone's does) and is at
+least as common; an unaccented preposition's aspirated spelling (`ἀφ᾽`,
+`καθ᾽`) is left to the plain one. Only the pairs `el` lacks or spells
+otherwise are listed: 51 Modern Greek pairs agree with `el` (`διὰ`, `ἀπὸ`,
+`μέσα`, `σὲ`), and one differs (`μιά` is `μί᾽` in `el` by the Ancient rule,
+`μι᾽` here). A keyboard writing Modern Greek reads `el` with `el_modern`
+laid over it, and one writing Ancient Greek reads `el` alone. The pairs are
+kept out of `el` because a keyboard that elides automatically rewrites the
+word before every vowel, and Ancient Greek never elides the article `τὸ` or
+`ὅτι`.
+
+Modern Greek elides optionally, and most of these elisions are the minority
+spelling, so `el_modern_share` gives each `el_modern` key its rate: of the
+times the slice writes a word the elided spelling stands for right before a
+vowel-initial word, the share it writes it elided (`στ᾽` counts `στὸ` and
+`στὰ` together). A word the elided spelling stands for only through a long
+ending does not count: the article's `τοῦ` and the dative `τῷ` are not
+`τ᾽`. Only `γιὰ` (0.65) and `στὸ` (0.58) pass
+half, and `κι` is just under it (0.49); `νὰ` is at 0.29, `τὸ` at 0.20,
+`τώρα` at 0.06 and `ὅτι` at 0.01. With automatic elision off, a keyboard
+reads the table only to decide whether an apostrophe after a word is an
+elision mark. A reader that knows only `nu` and `el` ignores both keys;
+`--no-modern-greek` leaves them out, as the slice's parquet is needed to
+build them.
+
 `tests/test_export_morphology.py` checks the built table against these rules.
 
 ### Polytonic next-word prediction LM
