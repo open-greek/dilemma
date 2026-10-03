@@ -2365,11 +2365,12 @@ and the review file above remove all of them but `ποιητῆ`, which a second
 look found correct (the genitive, beside the accusative `ποιητή`). Of a new
 random sample of 200 entries none is an Ancient-only or OCR-damaged
 spelling; the rarest are older spellings and dialect words (`θᾶμμα`,
-`κἀμμία`, `ὁλοκαιρὶς`, `μίλαε`, crasis such as `σὅλους`). A later review of
-300 random entries (every `C`, 100 `M`, 179 `R`) and 50 each of the
-capitalized, elided and aphaeresized ones found three errors, all fixed
-since: `εἰδ᾽` (now in the review file) and the interjections `Χάχ` and
-`Ἀετὲ`, which only sentence-initial capitals had made names.
+`κἀμμία`, `ὁλοκαιρὶς`, `μίλαε`, crasis such as `σὅλους`). A later review found
+no error in 300 random entries (every `C`, 100 `M`, 179 `R`) and two in 50
+each of the capitalized, elided and aphaeresized ones: `εἰδ᾽` (now in the
+review file) and `Χὰχ`, an interjection that only sentence-initial capitals
+had made a name; a scan of every capitalized entry added `Χάχ`, `Ἀετὲ`, and
+`᾽Σ` beside `᾽ς`. The rules above now leave all of them out.
 
 The language model's dev split is per sentence, so a dev sentence's document
 and author also supply training sentences. `eval/eval_mg_polytonic.py`
