@@ -437,12 +437,16 @@ def marker(i: int) -> str:
     return "μ" + "".join(LETTERS[int(d)] for d in f"{i:03d}") + "ος"
 
 
-def fake_document(monkeypatch, sentences, key="wikisource/test", author="Α"):
+def fake_document(monkeypatch, sentences, key="wikisource/test", author="Α",
+                  more=()):
+    """Serve the slice as one document of ``sentences`` (and the documents
+    ``more``, as (key, author, sentences))."""
     import extract_polytonic_mg as E
-    doc = E.PolytonicMGDocument(key, author, "τίτλος", "1900",
-                                ". ".join(sentences) + ".")
+    docs = [E.PolytonicMGDocument(k, a, "τίτλος", "1900",
+                                  ". ".join(sents) + ".")
+            for k, a, sents in [(key, author, sentences), *more]]
     monkeypatch.setattr(E, "iter_polytonic_mg_documents",
-                        lambda *a, **k: iter([doc]))
+                        lambda *a, **k: iter(docs))
 
 
 def sentences_300():
@@ -494,6 +498,21 @@ def test_dev_sentences_do_not_decide_whether_a_document_is_read(monkeypatch):
     assert info.signals == 1            # sentence 0's και, a training one
     assert not info.monotonic
     assert mg.source_documents(counts) == {0}
+
+
+def test_a_training_copy_of_a_dev_sentence_adds_nothing(monkeypatch):
+    # Another document repeats dev sentence 92 word for word, beside a
+    # sentence of its own.
+    copy = [f"{marker(92)} καλὴ μέρα", "ἄλλη λέξη ἐδῶ", "Ναί"]
+    fake_document(monkeypatch, sentences_300(),
+                  more=[("wikisource/copy", "Β", copy)])
+    counts = mg.count_corpus()
+    counted = {form for (form, _position) in counts.forms}
+    assert marker(92) not in counted
+    assert counts.dev_repeats == 1
+    assert {"ἄλλη", "λέξη", "ἐδῶ"} <= counted
+    # Its lowercase words still count towards its document's share.
+    assert counts.documents[1].words == 6
 
 
 def test_the_sentence_ids_and_the_split_are_stable():

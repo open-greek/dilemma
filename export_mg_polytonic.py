@@ -425,6 +425,8 @@ class CorpusCounts:
     or line). ``before_vowel`` counts, per spelling, the tokens followed in
     their sentence by a vowel-initial word, for the elision table.
     ``dev`` holds the dev sentences' tokens, per document.
+    ``dev_repeats`` counts the training sentences left out because they
+    repeat a dev sentence word for word.
     """
 
     documents: list[DocumentInfo] = field(default_factory=list)
@@ -435,6 +437,12 @@ class CorpusCounts:
     dev: dict[int, list[list[Token]]] = field(
         default_factory=lambda: defaultdict(list))
     skipped_sentences: int = 0
+    dev_repeats: int = 0
+
+
+def _sentence_text(tokens: list[Token]) -> tuple[str, ...]:
+    """A sentence's words as written: what two copies of it share."""
+    return tuple(t.form for t in tokens)
 
 
 def _position(token: Token) -> str | None:
@@ -463,7 +471,10 @@ def count_corpus(
     decided on its training sentences alone (``DocumentInfo.words`` and
     ``signals``), so a held-out dev sentence never decides which documents
     the list reads. A training sentence with a monotonic signal is counted
-    towards its document's share but contributes no tokens.
+    towards its document's share but contributes no tokens, and so is one
+    that repeats a dev sentence, in any document, word for word: Wikisource
+    holds some texts twice, and the copy would carry the dev sentence's
+    words into the list.
     """
     from extract_polytonic_mg import (
         iter_polytonic_mg_documents,
@@ -472,11 +483,7 @@ def count_corpus(
     )
     from train_lm import sentence_goes_to_dev
 
-    counts = CorpusCounts()
-    for doc in iter_polytonic_mg_documents(parquet_path, max_docs=max_docs):
-        index = len(counts.documents)
-        info = DocumentInfo(doc.key, doc.author, doc.title)
-        counts.documents.append(info)
+    def sentences(doc):
         for i, (sentence, closer) in enumerate(
                 split_sentences_with_closers(doc.text)):
             tokens = tokenize(sentence)
@@ -484,8 +491,23 @@ def count_corpus(
                 continue
             if closer.startswith(".") and is_abbreviation(tokens[-1]):
                 tokens[-1] = tokens[-1]._replace(plain=False)
+            yield tokens, sentence_goes_to_dev(sentence_id(doc.key, i))
+
+    documents = list(iter_polytonic_mg_documents(parquet_path,
+                                                 max_docs=max_docs))
+    # Wikisource holds some texts twice, so a dev sentence can also stand,
+    # word for word, among another document's training sentences.
+    dev_texts = {_sentence_text(tokens) for doc in documents
+                 for tokens, dev in sentences(doc) if dev}
+
+    counts = CorpusCounts()
+    for doc in documents:
+        index = len(counts.documents)
+        info = DocumentInfo(doc.key, doc.author, doc.title)
+        counts.documents.append(info)
+        for tokens, dev in sentences(doc):
             info.sentences += 1
-            if sentence_goes_to_dev(sentence_id(doc.key, i)):
+            if dev:
                 info.dev_sentences += 1
                 counts.dev[index].append(tokens)
                 continue
@@ -498,6 +520,9 @@ def count_corpus(
             info.signals += signals
             if signals:
                 counts.skipped_sentences += 1
+                continue
+            if _sentence_text(tokens) in dev_texts:
+                counts.dev_repeats += 1
                 continue
             for k, token in enumerate(tokens):
                 if not token.plain:
@@ -1479,7 +1504,8 @@ def main(argv: Iterable[str] | None = None) -> None:
     print(f"  {len(docs):,} documents, {len(monotonic):,} monotonic or partly "
           f"monotonic (> {DOC_MONOTONIC_MAX:.0%} signal words) not read")
     print(f"  {counts.skipped_sentences:,} training sentences skipped for a "
-          "monotonic signal")
+          f"monotonic signal, {counts.dev_repeats:,} for repeating a dev "
+          "sentence word for word")
     selection, stats = build(
         out_dir, parquet_path=args.parquet, counts=counts,
         holdout_dev_documents=args.holdout_dev_documents,
