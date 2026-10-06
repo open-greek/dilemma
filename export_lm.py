@@ -76,8 +76,24 @@ in the one context that decides between them. Kept entries follow the
 top-K entries in the same descending-count order, so the first
 ``top_k`` entries of every row, and with them every next-word
 suggestion list, are what they were without the rule. Exporting with
-``--keep-homograph-min-count 0`` turns the rule off and reproduces the
-plain top-K export byte for byte.
+``--keep-homograph-min-count 0`` turns the rule off.
+
+Rows completed after a homograph spelling
+-----------------------------------------
+
+The rule above keeps a homograph spelling as a continuation. The other
+side of the same choice is the row a homograph spelling heads: to choose
+between ἢ and ἡ, a keyboard scores the word typed next after each of
+them, and the cut leaves almost every next word out of both bigram rows,
+so both readings fall back to that word's unigram probability and the
+choice is made without evidence. The bigram row of every homograph
+spelling (as a context, the same set of vocabulary tokens) therefore
+also keeps, past its cut, every continuation seen at least
+``HOMOGRAPH_CONTEXT_MIN_COUNT`` (3) times after it. Trigram rows are cut
+as before. The completed rows stay in descending-count order, so their
+first ``top_k`` entries and the next-word lists are unchanged.
+Exporting with ``--homograph-context-min-count 0`` turns this off, and
+with both minimums at 0 the exporter writes the plain top-K rows.
 
 Header (128 bytes, zero-padded)
 -------------------------------
@@ -115,7 +131,7 @@ via appending counts right after the string pool (so the reader
 can compute its offset from ``string_pool_off + string_pool_size``
 without another header field). ``top_k_bi`` records where rows are
 cut, not how long they are: a row can run past it with kept homograph
-spellings. ``top_k_tri`` is not in the header at all (it is in the
+spellings, and the row of a homograph spelling with its completion. ``top_k_tri`` is not in the header at all (it is in the
 ``.version`` sidecar). A reader needs neither, only each row's
 ``suggestion_count``.
 
@@ -150,14 +166,16 @@ For both bigram and trigram sections:
 
     *_index       : context keys, sorted ascending, binary-searchable
     *_suggestions : flat array of (u32 word_id, i16 logprob_q16),
-                    each context's top_k entries and kept homograph
-                    spellings, in descending probability
+                    each context's top_k entries, kept homograph
+                    spellings and, in the row of a homograph
+                    spelling, its completion, in descending
+                    probability
 
 Bigram index row (per context, w1):
 
     u32 w1
     u32 suggestion_offset   -- index into *_suggestions (NOT byte offset)
-    u16 suggestion_count    -- top_k, plus any homograph spellings kept
+    u16 suggestion_count    -- top_k, plus any entries kept past it
     u16 reserved
 
 (12 bytes per row.)
@@ -318,6 +336,12 @@ LOGP_SCALE = 1024.0   # q16 fixed-point scale
 # gain of 1 (+3.24 against +3.04 corrected words per 1,000 on sentences
 # with little overlap with training) for a fifth of the added size.
 KEEP_HOMOGRAPH_MIN_COUNT = 3
+# The bigram row of a homograph spelling keeps every continuation seen at
+# least this often after it. 0 turns the rule off. Measured on the
+# held-out sentences typed as bare letters, sentences with little overlap
+# with training: 104 words fixed and 2 broken in 137,525 (+0.74 per
+# 1,000), for 1.6 MB.
+HOMOGRAPH_CONTEXT_MIN_COUNT = 3
 # Glyphs that close an elided word in the corpus: U+2019 (the corpus
 # spelling), U+02BC, U+1FBD (koronis), ASCII apostrophe, U+1FBF (psili).
 ELISION_MARKS = "\u2019\u02bc\u1fbd'\u1fbf"
@@ -428,21 +452,29 @@ def homograph_spelling_ids(vocab: list[str]) -> set[int]:
 def keep_past_cut(
     entries: list[tuple[int, int]], top_k: int,
     keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
+    keep_all_min_count: int = 0,
 ) -> list[tuple[int, int]]:
     """The ``top_k`` first of ``entries``, a context's (word id, count)
     continuations sorted by descending count, followed by every later
-    entry in ``keep_ids`` whose count is at least ``keep_min_count``.
+    entry in ``keep_ids`` whose count is at least ``keep_min_count``, and
+    by every later entry at all whose count is at least
+    ``keep_all_min_count`` (0: none).
 
     The kept entries stay in count order, so the row is still sorted and
     its first ``top_k`` entries are the plain cut.
     """
     top = entries[:top_k]
-    if not keep_ids or keep_min_count <= 0:
+    floors = [m for m, on in ((keep_min_count, bool(keep_ids)),
+                              (keep_all_min_count, True)) if on and m > 0]
+    if not floors:
         return top
+    floor = min(floors)
     for wid, c in entries[top_k:]:
-        if c < keep_min_count:
+        if c < floor:
             break
-        if wid in keep_ids:
+        if ((keep_all_min_count > 0 and c >= keep_all_min_count)
+                or (keep_min_count > 0 and c >= keep_min_count
+                    and wid in keep_ids)):
             top.append((wid, c))
     return top
 
@@ -605,6 +637,9 @@ def build_bigram_contexts(
     bigrams, w1_total: dict[int, int], top_k: int,
     excluded_continuation_ids: set[int],
     keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
+    complete_ids: set[int] | frozenset = frozenset(),
+    complete_min_count: int = 0,
+    stats: dict | None = None,
 ):
     """Group bigrams by w1, sort continuations by prob, keep top_k.
 
@@ -612,7 +647,11 @@ def build_bigram_contexts(
     <UNK>, <PAD>, <s>) are dropped from suggestions so the keyboard
     never proposes them to the user. Continuations in ``keep_ids`` seen
     at least ``keep_min_count`` times stay past the cut
-    (:func:`keep_past_cut`).
+    (:func:`keep_past_cut`), and so does every continuation seen at least
+    ``complete_min_count`` times after a context in ``complete_ids``.
+    ``stats``, when given, receives the number of completed rows
+    (``context_rows``) and of the entries they gained over the first two
+    rules (``context_entries``).
     """
     by_w1: dict[int, list[tuple[int, int]]] = {}
     for w1, w2, c in bigrams:
@@ -620,6 +659,7 @@ def build_bigram_contexts(
             continue
         by_w1.setdefault(w1, []).append((w2, c))
 
+    rows = added = 0
     contexts: list[tuple[int, list[tuple[int, float]]]] = []
     for w1 in sorted(by_w1):
         denom = w1_total.get(w1, 0)
@@ -628,8 +668,18 @@ def build_bigram_contexts(
         entries = by_w1[w1]
         entries.sort(key=lambda t: (-t[1], t[0]))
         top = keep_past_cut(entries, top_k, keep_ids, keep_min_count)
+        if complete_min_count > 0 and w1 in complete_ids:
+            completed = keep_past_cut(entries, top_k, keep_ids,
+                                      keep_min_count, complete_min_count)
+            if len(completed) > len(top):
+                rows += 1
+                added += len(completed) - len(top)
+            top = completed
         scored = [(w2, math.log(c / denom)) for w2, c in top]
         contexts.append((w1, scored))
+    if stats is not None:
+        stats["context_rows"] = rows
+        stats["context_entries"] = added
     return contexts
 
 
@@ -846,6 +896,13 @@ def main():
                          "often in that context (default "
                          f"{KEEP_HOMOGRAPH_MIN_COUNT}); 0 exports the "
                          "plain top-K rows.")
+    ap.add_argument("--homograph-context-min-count", type=int,
+                    default=HOMOGRAPH_CONTEXT_MIN_COUNT,
+                    help="Keep, past the cut of the bigram row of a "
+                         "homograph spelling, every continuation seen at "
+                         "least this often after it (default "
+                         f"{HOMOGRAPH_CONTEXT_MIN_COUNT}); 0 cuts those "
+                         "rows like any other.")
     ap.add_argument("--oov-min-count", type=int,
                     default=OOV_UNIGRAM_MIN_COUNT,
                     help="Carry the exact training count of each "
@@ -962,16 +1019,27 @@ def main():
     }
 
     keep_min = max(0, args.keep_homograph_min_count)
-    keep_ids = homograph_spelling_ids(sorted_vocab) if keep_min else set()
+    context_min = max(0, args.homograph_context_min_count)
+    homograph_ids = (homograph_spelling_ids(sorted_vocab)
+                     if keep_min or context_min else set())
+    keep_ids = homograph_ids if keep_min else set()
     if keep_min:
         print(f"  keeping {len(keep_ids):,} homograph spellings past the "
               f"top-K cut when seen >= {keep_min} times in a context",
               flush=True)
 
+    context_stats: dict[str, int] = {}
     bigram_ctx = build_bigram_contexts(
         remapped_bigrams, w1_totals, TOP_K_BI, excluded,
         keep_ids, keep_min,
+        homograph_ids if context_min else set(), context_min,
+        context_stats,
     )
+    if context_min:
+        print(f"  completed {context_stats['context_rows']:,} bigram rows "
+              f"of homograph spellings with "
+              f"{context_stats['context_entries']:,} continuations seen "
+              f">= {context_min} times", flush=True)
     print(f"  built {len(bigram_ctx):,} bigram contexts "
           f"(top_k={TOP_K_BI})", flush=True)
 
@@ -1030,6 +1098,9 @@ def main():
         "top_k_tri": TOP_K_TRI,
         "keep_homograph_min_count": keep_min,
         "homograph_spellings": len(keep_ids),
+        "homograph_context_min_count": context_min,
+        "homograph_context_rows": context_stats.get("context_rows", 0),
+        "homograph_context_entries": context_stats.get("context_entries", 0),
         "oov_unigram_min_count": oov_min,
         "oov_unigrams": len(oov_unigrams),
         "oov_dictionary_sha256": oov_dictionary_sha256,

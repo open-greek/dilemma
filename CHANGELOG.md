@@ -151,6 +151,24 @@ All notable changes to Dilemma are documented here. The format follows
   goes.
 
 ### Changed
+- The language model completes the bigram row of every homograph spelling.
+  To choose between `ἢ` and `ἡ`, or `ὃ` and `ὁ`, a keyboard scores the word
+  typed next after each reading, but a row kept only its 30 most frequent
+  continuations, so the next word was almost never in either row and both
+  readings fell back to its unigram probability: the choice was made
+  without evidence, and the commoner spelling won. Past the cut, the row of
+  a homograph spelling now also keeps every continuation seen there at
+  least 3 times (`--homograph-context-min-count`, 0 to turn it off): 266,694
+  continuations in 1,491 rows, 1.6 MB, the file growing from 60.3 to 61.9
+  MB. Trigram rows and the rows' first 30 entries, with them the next-word
+  lists, are unchanged. Replayed as bare-letter typing through a keyboard
+  outside this repository, the 474,220 words of the held-out GLAUx and
+  Diorisis sentences come out right 259 more times and wrong 23 more, 104
+  and 2 of them in the 137,525 words with little overlap with training;
+  typed with their punctuation, 265 and 20 (116 and 1). Every running-text
+  corpus gains in both registers (+51 words in the Ancient register, +76 in
+  the Automatic), and so does polytonic Modern Greek with each author held
+  out (+31 Automatic, +62 Modern).
 - The language model keeps both spellings of a homograph in each context.
   A context kept its 30 (bigram) or 15 (trigram) most frequent next words,
   so the rarer of `ἢ` and `ἡ`, or of `ἐκείνῃ` and `ἐκείνη` after `τῇ`, fell

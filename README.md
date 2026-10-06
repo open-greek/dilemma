@@ -2644,7 +2644,7 @@ Typeahead v2 (format_version = 2) adds two things versus v1:
   never starved of useful entries even for rare context / common
   stem combinations.
 
-Two later additions keep `format_version` at 2 and leave the header and
+Three later additions keep `format_version` at 2 and leave the header and
 every section above byte-for-byte what a v2 reader expects:
 
 - **Homograph spellings kept past the cut.** A context row also keeps,
@@ -2660,7 +2660,17 @@ every section above byte-for-byte what a v2 reader expects:
   ranks above completions found by scanning the vocabulary: on 4,000
   held-out one- and two-letter prefixes, 1,207 top-3 lists changed and
   the word that followed was in them 1,485 times against 1,473.
-  `--keep-homograph-min-count 0` exports the plain top-K rows.
+  `--keep-homograph-min-count 0` turns this off.
+- **Rows completed after a homograph spelling.** To choose between `ἢ` and
+  `ἡ`, a keyboard scores the word typed next after each of them, and the
+  cut left almost every next word out of both bigram rows, so both
+  readings fell back to that word's unigram probability and the choice was
+  made without evidence. The bigram row of every homograph spelling now
+  also keeps, past its cut, every continuation seen at least 3 times after
+  it: 266,694 continuations in 1,491 rows, 1.6 MB. Trigram rows are cut as
+  before, and the first 30 entries of every row, with them the next-word
+  lists, are unchanged. `--homograph-context-min-count 0` turns this off;
+  with both minimums at 0 the exporter writes the plain top-K rows.
 - **Out-of-vocabulary unigram table.** When no spelling of the typed
   letters is among the 80,000 vocabulary types, every spelling scored
   nothing and the dictionary's order decided. `train_lm.py` now writes
@@ -2684,7 +2694,12 @@ model: the homograph rows correct 1,972 words and break 549 (net
 +2,317). GLAUx and Diorisis annotate largely the same texts, so most
 dev sentences have a twin in the training split; on the 7,449
 sentences with under 20% of their 5-grams in training (137,525 words)
-the two gains are +3.2 and +4.5 corrected words per 1,000.
+the two gains are +3.2 and +4.5 corrected words per 1,000. The completed
+rows, measured the same way against the model with the other two, correct
+259 words and break 23 (net +236), and 104 and 2 on the low-overlap
+sentences (+0.74 per 1,000); typed with their punctuation, 265 and 20 (116
+and 1). Every corpus of running text gains, and so does polytonic Modern
+Greek with each author held out.
 
 Default knobs (defined in `export_lm.py`):
 
@@ -2698,12 +2713,13 @@ Default knobs (defined in `export_lm.py`):
 | min trigram count | 1 | Keep every observed trigram... |
 | min bigram count for trigram | 3 | ...but only when the (w1, w2) bigram context is well attested. Rare contexts fall back to the bigram table at inference. This is the dominant size/quality knob. |
 | keep homograph spellings | 3 | A homograph spelling seen this often in a context stays in its row past the top-K cut (0: off) |
+| complete homograph rows | 3 | The bigram row of a homograph spelling keeps every continuation seen this often after it (0: off) |
 | out-of-vocabulary count table | 1 | Minimum training count of a contested dictionary spelling the table carries (0: no table) |
 
-Current build: 60,292,149 bytes (57.5 MiB; 19.7 MB under xz -6), 80K
+Current build: 61,892,317 bytes (59.0 MiB; 20.2 MB under xz -6), 80K
 vocab, ~1.1M trigram contexts, ~80K bigram contexts. The plain top-K
-rows are 56.9 MB of that, the kept homograph spellings 2.3 MB and the
-out-of-vocabulary table 1.1 MB.
+rows are 56.9 MB of that, the kept homograph spellings 2.3 MB, the
+completed homograph rows 1.6 MB and the out-of-vocabulary table 1.1 MB.
 
 Held-out evaluation, keyboard-realistic regime (exclude `</s>` and
 UNK targets):

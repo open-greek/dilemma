@@ -5,7 +5,9 @@ The exporter cuts every context to its most frequent continuations, and
 keeps past that cut the spellings of homograph sets (ἢ and ἡ, ἐκείνῃ and
 ἐκείνη) seen at least ``KEEP_HOMOGRAPH_MIN_COUNT`` times in the context, so
 a keyboard choosing between two spellings of the same letters scores both
-from the same row. It also appends a table of exact training counts for the
+from the same row, and completes the bigram row of each homograph spelling
+down to ``HOMOGRAPH_CONTEXT_MIN_COUNT``, so the word typed after either
+spelling is scored from evidence. It also appends a table of exact training counts for the
 out-of-vocabulary spellings a dictionary proposes against another spelling
 of the same letters, so such spellings are no longer all tied at nothing.
 These tests pin the grouping, the cut, the table's selection and layout,
@@ -83,6 +85,18 @@ def test_keep_past_cut_appends_kept_spellings_in_count_order():
         (10, 50), (11, 40), (13, 5), (14, 3), (15, 2)]
     # A kept id inside the cut is not repeated.
     assert keep_past_cut(entries, 2, {10}, 1) == entries[:2]
+
+
+def test_keep_past_cut_can_keep_every_entry_down_to_a_count():
+    entries = [(10, 50), (11, 40), (12, 9), (13, 5), (14, 3), (15, 2)]
+    assert keep_past_cut(entries, 2, keep_all_min_count=5) == entries[:4]
+    assert keep_past_cut(entries, 2, keep_all_min_count=3) == entries[:5]
+    # The homograph rule still reaches below the floor of the other one,
+    # and the row stays in count order.
+    assert keep_past_cut(entries, 2, {15}, 1, keep_all_min_count=5) == [
+        (10, 50), (11, 40), (12, 9), (13, 5), (15, 2)]
+    assert keep_past_cut(entries, 2, set(), 3, keep_all_min_count=0) == (
+        entries[:2])
 
 
 # --- out-of-vocabulary unigram table -----------------------------------------
@@ -196,6 +210,9 @@ def test_a_hash_collision_is_refused(monkeypatch):
 # 30, then the dative ἐκείνῃ (3 times) and the plain word λόγῳ (3 times).
 # The nominative ἐκείνη follows τῇ once; it and the dative are the
 # homograph pair. After ἐν τῇ the same holds for the trigram row (cut 15).
+# The dative also heads a row of its own: the same 31 continuations, then
+# λόγῳ (3 times) and ἐν (twice). τῇ is not a homograph spelling, so only
+# the dative's row is completed.
 LETTERS = "αβγδεζηθικλμνξοπρστυφχψω"
 FILLERS = ([f"φ{c}" for c in LETTERS] + [f"ψ{c}" for c in LETTERS])[:31]
 
@@ -212,11 +229,16 @@ def _write_counts(root: Path) -> None:
     bigrams[(ids["τῇ"], ids["ἐκείνῃ"])] = 3
     bigrams[(ids["τῇ"], ids["λόγῳ"])] = 3
     bigrams[(ids["τῇ"], ids["ἐκείνη"])] = 1
+    for n, w in enumerate(FILLERS):
+        bigrams[(ids["ἐκείνῃ"], ids[w])] = 50 - n
+    bigrams[(ids["ἐκείνῃ"], ids["λόγῳ"])] = 3
+    bigrams[(ids["ἐκείνῃ"], ids["ἐν"])] = 2
     trigrams[(ids["ἐν"], ids["τῇ"], ids["ἐκείνῃ"])] = 3
     trigrams[(ids["ἐν"], ids["τῇ"], ids["λόγῳ"])] = 3
     unigrams = {i: 5 for i in range(1, len(vocab))}
     unigrams[ids["τῇ"]] = 3000
     unigrams[ids["ἐν"]] = 1000
+    unigrams[ids["ἐκείνῃ"]] = 2000
     (root / "vocab.json").write_text(json.dumps(vocab, ensure_ascii=False),
                                      encoding="utf-8")
     (root / "unigrams.json").write_text(json.dumps(unigrams), encoding="utf-8")
@@ -256,6 +278,16 @@ def _rows(path: Path) -> tuple[list[str], list[str]]:
     return bi, tri
 
 
+def _context_row(path: Path) -> list[tuple[str, float]]:
+    """The bigram row headed by the homograph spelling ἐκείνῃ."""
+    lm = NgramLM(path)
+    try:
+        return [(lm._vocab[w], p)
+                for w, p in lm._bigram_lookup(lm.id_of("ἐκείνῃ"))]
+    finally:
+        lm.close()
+
+
 @pytest.fixture(scope="module")
 def exports(tmp_path_factory):
     root = tmp_path_factory.mktemp("lm")
@@ -263,6 +295,10 @@ def exports(tmp_path_factory):
     return {
         "default": _export(root, "default"),
         "off": _export(root, "off", "--keep-homograph-min-count", "0"),
+        "no_context": _export(root, "no_context",
+                              "--homograph-context-min-count", "0"),
+        "plain": _export(root, "plain", "--keep-homograph-min-count", "0",
+                         "--homograph-context-min-count", "0"),
         "one": _export(root, "one", "--keep-homograph-min-count", "1"),
         "no_table": _export(root, "no_table", "--oov-min-count", "0"),
     }
@@ -305,6 +341,47 @@ def test_kept_entries_leave_the_top_k_and_its_order_unchanged(exports):
     finally:
         lm.close()
     assert probs == sorted(probs, reverse=True)
+
+
+def test_the_row_of_a_homograph_spelling_keeps_every_word_seen_three_times(
+        exports):
+    row = [w for w, _ in _context_row(exports["default"][0])]
+    # The 31st ordinary continuation and λόγῳ are past the cut of 30; ἐν,
+    # seen twice, is below the minimum.
+    assert row == FILLERS + ["λόγῳ"]
+    info = exports["default"][1]
+    assert info["homograph_context_min_count"] == (
+        export_lm.HOMOGRAPH_CONTEXT_MIN_COUNT) == 3
+    assert info["homograph_context_rows"] == 1
+    assert info["homograph_context_entries"] == 2
+    # Only bigram rows are completed; τῇ heads no homograph row.
+    bi, tri = _rows(exports["default"][0])
+    assert "λόγῳ" not in bi and "λόγῳ" not in tri
+
+
+def test_completed_rows_leave_the_top_k_and_its_order_unchanged(exports):
+    full = _context_row(exports["default"][0])
+    cut = _context_row(exports["no_context"][0])
+    assert [w for w, _ in cut] == FILLERS[:export_lm.TOP_K_BI]
+    assert full[:export_lm.TOP_K_BI] == cut
+    probs = [p for _, p in full]
+    assert probs == sorted(probs, reverse=True)
+    assert exports["no_context"][1]["homograph_context_rows"] == 0
+    assert exports["no_context"][1]["homograph_context_entries"] == 0
+
+
+def test_both_rules_off_export_the_plain_top_k(exports):
+    bi, tri = _rows(exports["plain"][0])
+    assert bi == FILLERS[:export_lm.TOP_K_BI]
+    assert tri == FILLERS[:export_lm.TOP_K_TRI]
+    assert [w for w, _ in _context_row(exports["plain"][0])] == (
+        FILLERS[:export_lm.TOP_K_BI])
+    info = exports["plain"][1]
+    assert info["homograph_spellings"] == 0
+    assert info["homograph_context_min_count"] == 0
+    # With the homograph rule off, the dative's row is still completed.
+    assert [w for w, _ in _context_row(exports["off"][0])] == (
+        FILLERS + ["λόγῳ"])
 
 
 def _parse_table(data: bytes) -> tuple[int, list[int], bytes]:
