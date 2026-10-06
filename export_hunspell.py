@@ -160,6 +160,7 @@ AG_FUNCTION_WORDS = {
     "ἁ": "ὁ", "αἰ": "εἰ", "εἰν": "ἐν",
     "ἐντι": "εἰμί", "ἐσσι": "εἰμί", "εἰμεν": "εἰμί", "ἐστον": "εἰμί",
     "κἀν": "καί", "κᾀν": "καί", "κἀκ": "καί", "κἀξ": "καί",
+    "κᾀκ": "καί", "κᾀξ": "καί",
     "κοὐ": "καί", "κοὐκ": "καί", "κοὐχ": "καί",
     "κεἰ": "καί", "κεἰς": "καί", "χὠ": "καί", "τἀν": "ὁ",
 }
@@ -249,6 +250,23 @@ GRC_CRASIS_EXCEPTIONS = {
     "ὦγαθοί": "ἀγαθός", "Ὦπολλον": "Ἀπόλλων",
 }
 
+# Crasis of καί written with its iota as a subscript, as some editions print
+# it (κᾂν for κἂν, κᾀπὶ for κἀπὶ). lookup.db has no row for these: the
+# treebanks lemmatize them, but not under a headword its sources know. Listed
+# here is every such spelling GLAUx or Diorisis has at least 4 times that the
+# lookup does not bring in; κᾀκ and κᾀξ, which stay unaccented like κἀκ and
+# κἀξ, are with the proclitics above. The commonest: κᾂν (1,005 GLAUx
+# tokens), κᾀπὶ (356), κᾀπειδὰν (113), κᾄπειτ᾽ (65), κᾄπειθ᾽ (64).
+GRC_IOTA_SUBSCRIPT_CRASIS = {
+    "κᾂν": "καί", "κᾄν": "καί",
+    "κᾀπὶ": "ἐπί", "κᾀπειδὰν": "ἐπειδάν", "κᾀπειδάν": "ἐπειδάν",
+    "κᾄπειτ᾽": "ἔπειτα", "κᾄπειθ᾽": "ἔπειτα", "κᾀνταῦθ᾽": "ἐνταῦθα",
+    "κᾀκτὸς": "ἐκτός", "κᾀκεῖσε": "ἐκεῖσε",
+    "κᾀκεῖνα": "ἐκεῖνος", "κᾀκεῖνον": "ἐκεῖνος", "κᾀκεῖναι": "ἐκεῖνος",
+    "κᾀκείνη": "ἐκεῖνος", "κᾀκείνην": "ἐκεῖνος", "κᾀκείνης": "ἐκεῖνος",
+    "κᾀκείνῳ": "ἐκεῖνος", "κᾀκείνας": "ἐκεῖνος",
+}
+
 # Stems whose breathing legitimately sits past the first syllable, because a
 # crasis sits inside the word: ἐγᾦδα, μέντἄν, καλοκἀγαθία, and the Attic
 # ταὧς with its forms (ταὧνα, ταὧσι).
@@ -270,6 +288,7 @@ MG_POLYTONIC_PARTICLES = {"θὰ": "θα", "γιὰ": "γιά"}
 GRC_CLOSED_LIST_FORMS = (
     AG_FUNCTION_WORDS | AG_EXPORT_OVERRIDES | HOMERIC_SHORT_PREPOSITIONS
     | CONSONANT_FINAL_WORDS | GRC_CRASIS_EXCEPTIONS | MG_POLYTONIC_PARTICLES
+    | GRC_IOTA_SUBSCRIPT_CRASIS
 )
 
 # These lookup forms are not acceptable polytonic spellings. In particular,

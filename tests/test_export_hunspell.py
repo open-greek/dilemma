@@ -948,6 +948,31 @@ def test_relative_pronoun_graves_come_in_with_their_acute_twins():
     assert relatives | {"ὅ", "ἥ", "οἵ", "αἵ", "τὼ", "τώ"} <= forms
 
 
+def test_iota_subscript_crasis_spellings_come_in_through_the_closed_list():
+    from export_hunspell import GRC_IOTA_SUBSCRIPT_CRASIS
+    forms = set(GRC_IOTA_SUBSCRIPT_CRASIS) | {"κᾀκ", "κᾀξ"}
+    assert {"κᾂν", "κᾀπὶ", "κᾀπειδὰν", "κᾄπειτ᾽", "κᾀκ", "κᾀξ"} <= forms
+    for form in forms:
+        assert form == unicodedata.normalize("NFC", form)
+        # κ, then a vowel carrying the crasis breathing and an iota subscript.
+        nfd = unicodedata.normalize("NFD", form)
+        assert nfd[0] == "κ" and "\u0313" in nfd and "\u0345" in nfd
+        assert form in GRC_CLOSED_LIST_FORMS
+    # The unaccented proclitic crasis stays with κἀκ and κἀξ.
+    assert AG_FUNCTION_WORDS["κᾀκ"] == AG_FUNCTION_WORDS["κἀκ"] == "καί"
+    pairs, _added = add_grc_reviewed_forms([], GRC_CLOSED_LIST_FORMS, {}, set())
+    kept, _report = finalize_grc_pairs(
+        pairs,
+        evidence=_evidence(exact={}),
+        compatibility_forms=set(),
+        textbook_forms=set(),
+        export_overrides=GRC_CLOSED_LIST_FORMS,
+        protected_forms=set(GRC_CLOSED_LIST_FORMS),
+    )
+    out = {form for form, _lemma in kept}
+    assert forms | {"κᾀπί"} <= out
+
+
 def test_the_spelling_review_is_checked_when_loaded(tmp_path):
     import json
     from export_hunspell import load_grc_spelling_review

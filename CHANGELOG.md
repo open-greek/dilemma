@@ -85,6 +85,18 @@ All notable changes to Dilemma are documented here. The format follows
   Greek list, which had the forms from the exporter's closed list.
   `data/citation_hygiene_rejections.tsv` loses 22 editorial-siglum rows that
   `glaux_pairs.json` has not carried since its last rebuild.
+- The grc dictionary has the crasis of `καί` written with an iota subscript,
+  as some editions print it: `κᾂν`, `κᾄν`, `κᾀπί`, `κᾀπειδάν`, `κᾄπειτ᾽`,
+  `κᾄπειθ᾽`, `κᾀνταῦθ᾽`, `κᾀκτός`, `κᾀκεῖσε`, eight forms of `κᾀκεῖνος`,
+  and the unaccented `κᾀκ` and `κᾀξ` beside `κἀκ` and `κἀξ` (22 words with
+  the contextual graves). These are every such spelling GLAUx or Diorisis
+  has at least 4 times that the lookup does not bring in; `κᾂν` has 1,005
+  GLAUx tokens, `κᾀπὶ` 356, `κᾀκ` 277. `lookup.db` has no row for them, and
+  `κᾂν` and `κᾄν` were only in the polytonic Modern Greek list, so Ancient
+  text could not get them; that list now marks them as spellings Modern
+  Greek writes otherwise. No held-out sentence has one, and replayed through
+  a keyboard outside this repository every held-out and running-text word
+  comes out as before.
 - The grc Hunspell dictionary has the relative pronoun's graves `ἣ`, `οἳ` and
   `αἳ` and the dual article's `τὼ`, which the next-word language model's
   training text uses 4,144, 9,854, 1,978 and 1,363 times. `lookup.db` has none
