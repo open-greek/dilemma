@@ -366,6 +366,26 @@ def test_select_forms_rejects_el_only_language_shared_lemma():
     assert admitted == []
 
 
+@pytest.mark.skipif(
+    not __import__("export_hunspell").LOOKUP_DB.exists(),
+    reason="lookup.db not downloaded",
+)
+def test_lookup_db_files_the_relative_graves_under_the_relative():
+    from export_hunspell import LOOKUP_DB
+    conn = sqlite3.connect(f"file:{LOOKUP_DB}?mode=ro", uri=True)
+    try:
+        rows = dict(conn.execute(
+            "SELECT k.form, l.text FROM lookup k JOIN lemmas l "
+            "ON l.id = k.lemma_id WHERE k.lang = 'all' AND k.form IN "
+            "('ὃ', 'ἣ', 'οἳ', 'αἳ', 'τὼ', 'τὸ', 'τὴν')"
+        ))
+    finally:
+        conn.close()
+    # AGDT's demonstrative ὁ no longer shuts out GLAUx's relative ὅς; the
+    # article's own spellings, the dual τὼ among them, stay out.
+    assert rows == {"ὃ": "ὅς", "ἣ": "ὅς", "οἳ": "ὅς", "αἳ": "ὅς"}
+
+
 def test_select_forms_keeps_corpus_attested_acute_only_lemma():
     conn = _lookup_db([
         ("χάρις", "χάρις", "grc"),
@@ -770,11 +790,15 @@ def test_consonant_final_complete_words_are_kept(form, lemma):
 
 def test_reviewed_lm_head_is_pinned():
     forms = load_lm_head_required_forms()
-    assert len(forms) == 971
+    assert len(forms) == 973
     # The polytonic Modern article and the anastrophe accent of ἐκ are
-    # required; the Diorisis macron artifact δῑ is a reviewed nonword.
+    # required. The Diorisis macron artifact δῑ is gone from the LM since
+    # its retraining, and the Modern Greek στὴν, which the LM writes only
+    # with the grave, is a reviewed nonword, so στήν is not pinned.
     assert {"τή", "ἔκ"} <= forms
-    assert "δῑ" not in forms
+    assert "δῑ" not in forms and "στήν" not in forms
+    # A grave whose acute twin is a reviewed nonword pins nothing.
+    assert "γιά" not in forms and "θά" not in forms
 
 
 @pytest.mark.parametrize("form", ["καὶτοὺς", "ὓστερον", "ἀποθνῂσκει"])
@@ -904,8 +928,7 @@ def test_polytonic_modern_greek_particles_are_accepted():
 
 
 def test_relative_pronoun_graves_come_in_with_their_acute_twins():
-    # lookup.db has none of these: its article exclusion takes them, so the
-    # closed list is their only way into the dictionary.
+    # The closed list carries these whatever lookup.db holds.
     relatives = {"ὃ", "ἣ", "οἳ", "αἳ"}
     assert {AG_FUNCTION_WORDS[form] for form in relatives} == {"ὅς"}
     assert AG_FUNCTION_WORDS["τὼ"] == "ὁ"
@@ -927,6 +950,31 @@ def test_relative_pronoun_graves_come_in_with_their_acute_twins():
     )
     forms = {form for form, _lemma in kept}
     assert relatives | {"ὅ", "ἥ", "οἵ", "αἵ", "τὼ", "τώ"} <= forms
+
+
+def test_iota_subscript_crasis_spellings_come_in_through_the_closed_list():
+    from export_hunspell import GRC_IOTA_SUBSCRIPT_CRASIS
+    forms = set(GRC_IOTA_SUBSCRIPT_CRASIS) | {"κᾀκ", "κᾀξ"}
+    assert {"κᾂν", "κᾀπὶ", "κᾀπειδὰν", "κᾄπειτ᾽", "κᾀκ", "κᾀξ"} <= forms
+    for form in forms:
+        assert form == unicodedata.normalize("NFC", form)
+        # κ, then a vowel carrying the crasis breathing and an iota subscript.
+        nfd = unicodedata.normalize("NFD", form)
+        assert nfd[0] == "κ" and "\u0313" in nfd and "\u0345" in nfd
+        assert form in GRC_CLOSED_LIST_FORMS
+    # The unaccented proclitic crasis stays with κἀκ and κἀξ.
+    assert AG_FUNCTION_WORDS["κᾀκ"] == AG_FUNCTION_WORDS["κἀκ"] == "καί"
+    pairs, _added = add_grc_reviewed_forms([], GRC_CLOSED_LIST_FORMS, {}, set())
+    kept, _report = finalize_grc_pairs(
+        pairs,
+        evidence=_evidence(exact={}),
+        compatibility_forms=set(),
+        textbook_forms=set(),
+        export_overrides=GRC_CLOSED_LIST_FORMS,
+        protected_forms=set(GRC_CLOSED_LIST_FORMS),
+    )
+    out = {form for form, _lemma in kept}
+    assert forms | {"κᾀπί"} <= out
 
 
 def test_the_spelling_review_is_checked_when_loaded(tmp_path):
@@ -1230,3 +1278,114 @@ def test_confirmation_is_absent_by_default():
         pairs, exact, {"πρωτω": 4_006}, {exact_form_key("πρώτω"): 9}, set(),
     )
     assert not kept and len(rejected) == 1
+
+
+# --- treebank spellings no lemma source proposes ----------------------------
+
+
+def test_treebank_spelling_reasons():
+    from export_hunspell import treebank_spelling_reason
+    for form in ("σπανίως", "κτήσεις", "ὁρμόν", "Δηριάδη", "ῥόδον",
+                 "Ῥώμη", "συνελήμφθη"):
+        assert treebank_spelling_reason(form) is None, form
+    assert treebank_spelling_reason("ὄντα᾽") == "elided"
+    assert treebank_spelling_reason("ΚαὶΤὸ") == "inner_capital"
+    assert treebank_spelling_reason("ὑλικῶι") == "iota_adscript"
+    assert treebank_spelling_reason("λῠ́ω") == "length_mark"
+    assert treebank_spelling_reason("δὔ") == "breathing_after_consonant"
+    assert treebank_spelling_reason("κᾂν") == "breathing_after_consonant"
+    assert treebank_spelling_reason("τάγαθόν") == "second_accent"
+    assert treebank_spelling_reason("τοὺ") == "explicit_reject"
+    assert treebank_spelling_reason("ἀλλ") == "bare_elision"
+
+
+def test_treebank_spellings_are_admitted_on_their_own_count():
+    from export_hunspell import add_treebank_spellings, treebank_spelling_key
+    counts = {
+        treebank_spelling_key("σπανίως"): 271,
+        treebank_spelling_key("ὁρμόν"): 13,
+        treebank_spelling_key("Δηριάδη"): 5,
+        treebank_spelling_key("θυίσκην"): 4,
+        treebank_spelling_key("Λόγος"): 40,
+        treebank_spelling_key("τάγαθόν"): 6,
+    }
+    spellings = {
+        treebank_spelling_key("σπανίως"): {"σπανίως"},
+        treebank_spelling_key("ὁρμόν"): {"ὁρμόν", "ὁρμὸν"},
+        treebank_spelling_key("Δηριάδη"): {"Δηριάδη"},
+        treebank_spelling_key("θυίσκην"): {"θυίσκην"},
+        treebank_spelling_key("Λόγος"): {"Λόγος"},
+        treebank_spelling_key("τάγαθόν"): {"τάγαθόν"},
+    }
+    # A grave counts with its acute, and case is kept.
+    assert treebank_spelling_key("ὁρμὸν") == "ὁρμόν"
+    assert treebank_spelling_key("Λόγος") != treebank_spelling_key("λόγος")
+    existing = [("λόγος", "λόγος"), ("σπανίως", "σπανίως")]
+    out, added = add_treebank_spellings(existing, counts, spellings, 5)
+    # σπανίως is there already; θυίσκην has 4 tokens; Λόγος is a capitalized
+    # λόγος; τάγαθόν carries a second accent.
+    assert set(out) - set(existing) == {
+        ("ὁρμόν", "ὁρμόν"), ("ὁρμὸν", "ὁρμὸν"), ("Δηριάδη", "Δηριάδη")}
+    assert added == 3
+    assert add_treebank_spellings(existing, counts, spellings, 0) == (
+        existing, 0)
+
+
+def test_treebank_counts_leave_out_the_held_out_sentences(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import (
+        load_heldout_free_treebank_counts, treebank_spelling_key)
+    db = tmp_path / "form_profile.db"
+    conn = sqlite3.connect(str(db))
+    conn.execute("CREATE TABLE forms (form_id INTEGER PRIMARY KEY, "
+                 "form TEXT NOT NULL, form_norm TEXT NOT NULL)")
+    conn.execute("CREATE TABLE form_profile (form_id INTEGER PRIMARY KEY, "
+                 "total_count INTEGER, source_counts_json TEXT)")
+    rows = [
+        ("σπανίως", {"glaux": 9, "diorisis": 4, "pg": 50}),
+        ("ὁρμὸν", {"glaux": 2}), ("ὁρμόν", {"diorisis": 4}),
+        ("Δηριάδη", {"glaux": 6}),
+        ("λόγῳ", {"pg": 30}),
+    ]
+    for i, (form, sources) in enumerate(rows, 1):
+        conn.execute("INSERT INTO forms VALUES (?, ?, ?)", (i, form, form))
+        conn.execute("INSERT INTO form_profile VALUES (?, ?, ?)",
+                     (i, sum(sources.values()), json.dumps(sources)))
+    conn.commit()
+    conn.close()
+    counts, spellings = load_heldout_free_treebank_counts(
+        Counter({"σπανίως": 3, "Δηριάδη": 6}), db)
+    # Each treebank loses every held-out occurrence; the larger one counts.
+    assert counts[treebank_spelling_key("σπανίως")] == 6
+    # GLAUx's grave and Diorisis's acute: the larger treebank, not the sum.
+    assert counts[treebank_spelling_key("ὁρμόν")] == 4
+    assert spellings[treebank_spelling_key("ὁρμόν")] == {"ὁρμόν", "ὁρμὸν"}
+    # All of Δηριάδη's tokens are held out, and the OCR'd Patrologia is no
+    # treebank.
+    assert treebank_spelling_key("Δηριάδη") not in counts
+    assert treebank_spelling_key("λόγῳ") not in counts
+
+
+def test_select_forms_takes_modern_greek_rows_the_treebanks_attest():
+    from export_hunspell import treebank_spelling_key
+    conn = _lookup_db([
+        ("σπανίως", "σπανίως", "el"),
+        ("κτήσεις", "κτήσεις", "el"),
+        ("τώρα", "τώρα", "el"),
+        ("Βία", "Βία", "el"),
+        ("ἑκατέρως", "ἑκατέρως", "el"),
+        ("λόγος", "λόγος", "grc"),
+    ])
+    counts = {treebank_spelling_key(form): n for form, n in (
+        ("σπανίως", 271), ("κτήσεις", 129), ("τώρα", 2), ("Βία", 5),
+        ("ἑκατέρως", 40))}
+    freq = {exact_form_key("λόγος"): 100}
+    assert set(select_forms(conn, "grc", attestation_freq=freq)) == {
+        ("λόγος", "λόγος")}
+    taken = set(select_forms(conn, "grc", attestation_freq=freq,
+                             treebank_counts=counts, treebank_min_count=5))
+    # τώρα has 2 tokens; the capitalized Βία is left to the treebank-spelling
+    # rule; ἑκατέρως keeps the lemma the closed list gives it.
+    assert taken == {("λόγος", "λόγος"), ("σπανίως", "σπανίως"),
+                     ("κτήσεις", "κτήσεις")}

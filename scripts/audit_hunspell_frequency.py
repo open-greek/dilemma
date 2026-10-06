@@ -3,10 +3,14 @@
 
 The LM vocabulary contains structural sentinels, punctuation-bearing tokens,
 Modern Greek intrusions, and source defects as well as words. This gate ranks
-every token containing Greek text, folds contextual grave accents to acute,
-canonicalizes a final textual apostrophe to the lookup koronis, and aggregates
-counts after normalization. A reviewed fixture records the nonwords that must
-remain rejected; every other top-frequency form must be accepted.
+every token containing Greek text by its exact NFC spelling and looks each one
+up as spelled, after canonicalizing a final textual apostrophe to the lookup
+koronis. A contextual grave is its own spelling: a keyboard writes the grave
+only where the dictionary has the grave spelling, so its acute twin does not
+stand in for it. A reviewed fixture records the nonwords that must remain
+rejected, among them the Modern Greek spellings the grc dictionary leaves to
+the polytonic Modern Greek list; every other top-frequency form must be
+accepted.
 
 The committed fixture lets CI enforce the coverage invariant without shipping
 the complete LM build. Its source hashes make regeneration against a different
@@ -102,8 +106,16 @@ def normalize_form(form: str) -> str:
 
 
 def lookup_form(form: str) -> str:
-    """Return the spelling stored in the exported Hunspell dictionary."""
+    """Return the spelling stored in the exported Hunspell dictionary, a
+    contextual grave read as the acute (the held-out corpus fixture and
+    the baseline comparison count words this way)."""
     return canonicalize_final_elision(normalize_form(form))
+
+
+def exact_lookup_form(form: str) -> str:
+    """Return ``form`` as the dictionary must spell it, grave included:
+    NFC, with a final textual apostrophe canonicalized to the koronis."""
+    return canonicalize_final_elision(unicodedata.normalize("NFC", form))
 
 
 def exact_attestation_payload(
@@ -157,7 +169,7 @@ def _ranked_forms(vocab: list[str], unigrams: dict[int, int]) -> list[tuple[str,
         form = vocab[index]
         if not isinstance(form, str) or not contains_greek_text(form):
             continue
-        counts[normalize_form(form)] += int(raw_count)
+        counts[unicodedata.normalize("NFC", form)] += int(raw_count)
     return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
 
 
@@ -173,16 +185,31 @@ def ranked_forms(vocab_path: Path, unigrams_path: Path) -> list[tuple[str, int]]
 
 def _payload(forms: list[tuple[str, int]], top_n: int, sources: dict,
              training: dict) -> dict:
-    selected = forms[:top_n]
-    if len(selected) != top_n:
-        raise ValueError(f"only {len(selected)} lexical forms available for top {top_n}")
+    """The ``top_n`` most frequent words, a word being a spelling with its
+    contextual grave read as the acute, each listed in every spelling the
+    LM writes it with (acute and grave), most frequent first."""
+    words: Counter[str] = Counter()
+    for form, count in forms:
+        words[normalize_form(form)] += count
+    ranked = sorted(words.items(), key=lambda item: (-item[1], item[0]))
+    head = {word for word, _count in ranked[:top_n]}
+    if len(head) != top_n:
+        raise ValueError(f"only {len(head)} lexical words available for top {top_n}")
+    selected = sorted(
+        ((form, count) for form, count in forms if normalize_form(form) in head),
+        key=lambda item: (-item[1], item[0]),
+    )
     return {
         "schema_version": 1,
         "top_n": top_n,
-        "selection": "whitespace-free LM tokens containing at least one Greek letter",
+        "selection": (
+            "whitespace-free LM tokens containing at least one Greek letter; "
+            "the top_n words, each in every spelling the LM writes it with"
+        ),
         "normalization": (
-            "NFC; combining grave U+0300 folded to acute U+0301; "
-            "counts aggregated; final textual apostrophe canonicalized only at lookup"
+            "NFC; words ranked with a contextual grave read as the acute; "
+            "each spelling listed and looked up as written, grave included; "
+            "final textual apostrophe canonicalized only at lookup"
         ),
         "training": training,
         "sources": sources,
@@ -316,7 +343,7 @@ def audit_dictionary(
     accepted_exclusions: list[str] = []
     for row in fixture["forms"]:
         form = row["form"]
-        accepted = dictionary.lookup(lookup_form(form))
+        accepted = dictionary.lookup(exact_lookup_form(form))
         if form in exclusions:
             if accepted:
                 accepted_exclusions.append(form)
