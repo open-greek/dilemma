@@ -68,6 +68,23 @@ All notable changes to Dilemma are documented here. The format follows
   per 1,000 words on the sentences with little overlap with training.
 
 ### Fixed
+- `lookup.db` has the relative pronoun's graves `ὃ`, `ἣ`, `οἳ` and `αἳ`,
+  under `ὅς`. `build_lookup_db.py` keeps the first lemma a source gives a
+  form, and AGDT, the first treebank it reads, files Homer's demonstrative
+  `ὃ`, `ἣ`, `οἳ` and `αἳ` under the article `ὁ`, which the article filter
+  then drops; so GLAUx's relative `ὅς` never got in, and the forms had no
+  row at all. The article is a proclitic: it has no accent of its own and
+  before an enclitic takes an acute (`ὅ γε`), never a grave. A grave spelling
+  of its vowel-only letters that an earlier source filed under the article
+  now gives way to a later source's reading; every other article spelling,
+  the dual `τὼ` among them, stays with the article and out of the lookup.
+  The rebuilt `lookup.db` gains exactly those four rows and `ὂ`, a
+  misspelling of `ὃ`, also under `ὅς`. Lemmatization is unchanged on the
+  fast benchmark (AG Classical 99.7%, Katharevousa 94.7%, Demotic 94.8%), and
+  so are the grc dictionary, the morphology table and the polytonic Modern
+  Greek list, which had the forms from the exporter's closed list.
+  `data/citation_hygiene_rejections.tsv` loses 22 editorial-siglum rows that
+  `glaux_pairs.json` has not carried since its last rebuild.
 - The grc Hunspell dictionary has the relative pronoun's graves `ἣ`, `οἳ` and
   `αἳ` and the dual article's `τὼ`, which the next-word language model's
   training text uses 4,144, 9,854, 1,978 and 1,363 times. `lookup.db` has none

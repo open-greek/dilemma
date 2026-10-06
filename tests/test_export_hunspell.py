@@ -366,6 +366,26 @@ def test_select_forms_rejects_el_only_language_shared_lemma():
     assert admitted == []
 
 
+@pytest.mark.skipif(
+    not __import__("export_hunspell").LOOKUP_DB.exists(),
+    reason="lookup.db not downloaded",
+)
+def test_lookup_db_files_the_relative_graves_under_the_relative():
+    from export_hunspell import LOOKUP_DB
+    conn = sqlite3.connect(f"file:{LOOKUP_DB}?mode=ro", uri=True)
+    try:
+        rows = dict(conn.execute(
+            "SELECT k.form, l.text FROM lookup k JOIN lemmas l "
+            "ON l.id = k.lemma_id WHERE k.lang = 'all' AND k.form IN "
+            "('ὃ', 'ἣ', 'οἳ', 'αἳ', 'τὼ', 'τὸ', 'τὴν')"
+        ))
+    finally:
+        conn.close()
+    # AGDT's demonstrative ὁ no longer shuts out GLAUx's relative ὅς; the
+    # article's own spellings, the dual τὼ among them, stay out.
+    assert rows == {"ὃ": "ὅς", "ἣ": "ὅς", "οἳ": "ὅς", "αἳ": "ὅς"}
+
+
 def test_select_forms_keeps_corpus_attested_acute_only_lemma():
     conn = _lookup_db([
         ("χάρις", "χάρις", "grc"),
@@ -904,8 +924,7 @@ def test_polytonic_modern_greek_particles_are_accepted():
 
 
 def test_relative_pronoun_graves_come_in_with_their_acute_twins():
-    # lookup.db has none of these: its article exclusion takes them, so the
-    # closed list is their only way into the dictionary.
+    # The closed list carries these whatever lookup.db holds.
     relatives = {"ὃ", "ἣ", "οἳ", "αἳ"}
     assert {AG_FUNCTION_WORDS[form] for form in relatives} == {"ὅς"}
     assert AG_FUNCTION_WORDS["τὼ"] == "ὁ"
