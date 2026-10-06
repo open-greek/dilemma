@@ -97,6 +97,32 @@ All notable changes to Dilemma are documented here. The format follows
   Greek writes otherwise. No held-out sentence has one, and replayed through
   a keyboard outside this repository every held-out and running-text word
   comes out as before.
+- The grc dictionary takes the spellings the treebanks attest that no lemma
+  source proposes, or that only the Modern Greek lexicon does. A spelling
+  GLAUx or Diorisis has at least 5 times, case kept and a contextual grave
+  counted with its acute, comes in under itself; a `lookup.db` form whose
+  lemma has only Modern Greek rows comes in under that lemma (`σπανίως`, 521
+  corpus tokens, and `κτήσεις`, 219, were dropped because the exporter took
+  only lemmas with an Ancient row). The counts leave out every occurrence in
+  the language model's held-out GLAUx and Diorisis sentences, whose spelling
+  counts `data/hunspell_grc_lm_dev_spellings.json.gz` records
+  (`scripts/build_hunspell_dev_spellings_fixture.py`), so the dictionary is
+  not vouched for by the sentences it is measured on. Elided spellings, inner
+  capitals, an iota adscript, a length mark, a breathing after a consonant
+  (`δὔ`, an elision mark converted into a breathing), a second accent
+  (`τάγαθόν`) and the grave of an explicitly rejected spelling (`τοὺ`) stay
+  out, a capitalized spelling comes in only when its lowercase is not a word,
+  and the respelling rule applies as to every new form. Below 5 tokens most
+  candidates are Modern Greek words of late texts and names written in
+  lowercase. The dictionary gains 178 words, mostly names and rare words
+  (`Δηριάδη`, `ὁρμόν`, `καταλήμψεται`). Replayed as bare-letter typing
+  through a keyboard outside this repository, the 474,220 words of the
+  held-out GLAUx and Diorisis sentences come out right 30 more times and
+  wrong 3 more (11 and 2 of them in the 137,525 words with little overlap
+  with training), with or without their punctuation typed; the running-text
+  passages gain 6 words in either register, and polytonic Modern Greek, with
+  each author held out, 4 in the Automatic register.
+  `--treebank-spelling-min-count 0` turns both rules off.
 - The grc Hunspell dictionary has the relative pronoun's graves `ἣ`, `οἳ` and
   `αἳ` and the dual article's `τὼ`, which the next-word language model's
   training text uses 4,144, 9,854, 1,978 and 1,363 times. `lookup.db` has none

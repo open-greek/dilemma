@@ -1274,3 +1274,114 @@ def test_confirmation_is_absent_by_default():
         pairs, exact, {"πρωτω": 4_006}, {exact_form_key("πρώτω"): 9}, set(),
     )
     assert not kept and len(rejected) == 1
+
+
+# --- treebank spellings no lemma source proposes ----------------------------
+
+
+def test_treebank_spelling_reasons():
+    from export_hunspell import treebank_spelling_reason
+    for form in ("σπανίως", "κτήσεις", "ὁρμόν", "Δηριάδη", "ῥόδον",
+                 "Ῥώμη", "συνελήμφθη"):
+        assert treebank_spelling_reason(form) is None, form
+    assert treebank_spelling_reason("ὄντα᾽") == "elided"
+    assert treebank_spelling_reason("ΚαὶΤὸ") == "inner_capital"
+    assert treebank_spelling_reason("ὑλικῶι") == "iota_adscript"
+    assert treebank_spelling_reason("λῠ́ω") == "length_mark"
+    assert treebank_spelling_reason("δὔ") == "breathing_after_consonant"
+    assert treebank_spelling_reason("κᾂν") == "breathing_after_consonant"
+    assert treebank_spelling_reason("τάγαθόν") == "second_accent"
+    assert treebank_spelling_reason("τοὺ") == "explicit_reject"
+    assert treebank_spelling_reason("ἀλλ") == "bare_elision"
+
+
+def test_treebank_spellings_are_admitted_on_their_own_count():
+    from export_hunspell import add_treebank_spellings, treebank_spelling_key
+    counts = {
+        treebank_spelling_key("σπανίως"): 271,
+        treebank_spelling_key("ὁρμόν"): 13,
+        treebank_spelling_key("Δηριάδη"): 5,
+        treebank_spelling_key("θυίσκην"): 4,
+        treebank_spelling_key("Λόγος"): 40,
+        treebank_spelling_key("τάγαθόν"): 6,
+    }
+    spellings = {
+        treebank_spelling_key("σπανίως"): {"σπανίως"},
+        treebank_spelling_key("ὁρμόν"): {"ὁρμόν", "ὁρμὸν"},
+        treebank_spelling_key("Δηριάδη"): {"Δηριάδη"},
+        treebank_spelling_key("θυίσκην"): {"θυίσκην"},
+        treebank_spelling_key("Λόγος"): {"Λόγος"},
+        treebank_spelling_key("τάγαθόν"): {"τάγαθόν"},
+    }
+    # A grave counts with its acute, and case is kept.
+    assert treebank_spelling_key("ὁρμὸν") == "ὁρμόν"
+    assert treebank_spelling_key("Λόγος") != treebank_spelling_key("λόγος")
+    existing = [("λόγος", "λόγος"), ("σπανίως", "σπανίως")]
+    out, added = add_treebank_spellings(existing, counts, spellings, 5)
+    # σπανίως is there already; θυίσκην has 4 tokens; Λόγος is a capitalized
+    # λόγος; τάγαθόν carries a second accent.
+    assert set(out) - set(existing) == {
+        ("ὁρμόν", "ὁρμόν"), ("ὁρμὸν", "ὁρμὸν"), ("Δηριάδη", "Δηριάδη")}
+    assert added == 3
+    assert add_treebank_spellings(existing, counts, spellings, 0) == (
+        existing, 0)
+
+
+def test_treebank_counts_leave_out_the_held_out_sentences(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import (
+        load_heldout_free_treebank_counts, treebank_spelling_key)
+    db = tmp_path / "form_profile.db"
+    conn = sqlite3.connect(str(db))
+    conn.execute("CREATE TABLE forms (form_id INTEGER PRIMARY KEY, "
+                 "form TEXT NOT NULL, form_norm TEXT NOT NULL)")
+    conn.execute("CREATE TABLE form_profile (form_id INTEGER PRIMARY KEY, "
+                 "total_count INTEGER, source_counts_json TEXT)")
+    rows = [
+        ("σπανίως", {"glaux": 9, "diorisis": 4, "pg": 50}),
+        ("ὁρμὸν", {"glaux": 2}), ("ὁρμόν", {"diorisis": 4}),
+        ("Δηριάδη", {"glaux": 6}),
+        ("λόγῳ", {"pg": 30}),
+    ]
+    for i, (form, sources) in enumerate(rows, 1):
+        conn.execute("INSERT INTO forms VALUES (?, ?, ?)", (i, form, form))
+        conn.execute("INSERT INTO form_profile VALUES (?, ?, ?)",
+                     (i, sum(sources.values()), json.dumps(sources)))
+    conn.commit()
+    conn.close()
+    counts, spellings = load_heldout_free_treebank_counts(
+        Counter({"σπανίως": 3, "Δηριάδη": 6}), db)
+    # Each treebank loses every held-out occurrence; the larger one counts.
+    assert counts[treebank_spelling_key("σπανίως")] == 6
+    # GLAUx's grave and Diorisis's acute: the larger treebank, not the sum.
+    assert counts[treebank_spelling_key("ὁρμόν")] == 4
+    assert spellings[treebank_spelling_key("ὁρμόν")] == {"ὁρμόν", "ὁρμὸν"}
+    # All of Δηριάδη's tokens are held out, and the OCR'd Patrologia is no
+    # treebank.
+    assert treebank_spelling_key("Δηριάδη") not in counts
+    assert treebank_spelling_key("λόγῳ") not in counts
+
+
+def test_select_forms_takes_modern_greek_rows_the_treebanks_attest():
+    from export_hunspell import treebank_spelling_key
+    conn = _lookup_db([
+        ("σπανίως", "σπανίως", "el"),
+        ("κτήσεις", "κτήσεις", "el"),
+        ("τώρα", "τώρα", "el"),
+        ("Βία", "Βία", "el"),
+        ("ἑκατέρως", "ἑκατέρως", "el"),
+        ("λόγος", "λόγος", "grc"),
+    ])
+    counts = {treebank_spelling_key(form): n for form, n in (
+        ("σπανίως", 271), ("κτήσεις", 129), ("τώρα", 2), ("Βία", 5),
+        ("ἑκατέρως", 40))}
+    freq = {exact_form_key("λόγος"): 100}
+    assert set(select_forms(conn, "grc", attestation_freq=freq)) == {
+        ("λόγος", "λόγος")}
+    taken = set(select_forms(conn, "grc", attestation_freq=freq,
+                             treebank_counts=counts, treebank_min_count=5))
+    # τώρα has 2 tokens; the capitalized Βία is left to the treebank-spelling
+    # rule; ἑκατέρως keeps the lemma the closed list gives it.
+    assert taken == {("λόγος", "λόγος"), ("σπανίως", "σπανίως"),
+                     ("κτήσεις", "κτήσεις")}

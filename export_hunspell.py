@@ -75,8 +75,10 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -396,6 +398,23 @@ TREEBANK_CONFIRMATION_SHARE = 1000
 # Sources in form_profile.db that are lemmatized treebanks of edited texts,
 # as opposed to digitized or OCR editions.
 TREEBANK_PROFILE_SOURCES = ("glaux", "diorisis")
+# A spelling the treebanks have this many times, outside the language
+# model's held-out sentences, is a word even when no lemma source proposes it
+# (``add_treebank_spellings``), and even when only the Modern Greek lexicon
+# does (``select_forms``); 0 turns both rules off. At 1 to 4 tokens the
+# spellings these rules would add are mostly Modern Greek words of late texts
+# and names written in lowercase.
+TREEBANK_SPELLING_MIN_COUNT = 5
+# How often each spelling occurs in the language model's held-out GLAUx and
+# Diorisis sentences (``train_lm.py``'s dev split), built from them by
+# scripts/build_hunspell_dev_spellings_fixture.py. Treebank counts that admit
+# a spelling leave out its occurrences there, so the held-out sentences stay
+# an honest test of the dictionary as well as of the model.
+LM_DEV_SPELLINGS = DATA / "hunspell_grc_lm_dev_spellings.json.gz"
+LM_DEV_SENTENCES = (
+    ROOT / "build" / "lm" / "dev_sentences_glaux.txt",
+    ROOT / "build" / "lm" / "dev_sentences_diorisis.txt",
+)
 
 # Greek combining marks considered polytonic (absent in monotonic text)
 POLYTONIC_MARKS = {0x0313, 0x0314, 0x0342, 0x0345}
@@ -1559,6 +1578,185 @@ def load_form_profile_freq() -> FormProfileEvidence:
                                frozenset(treebank_confirmed))
 
 
+def count_dev_spellings(paths: tuple[Path, ...] = LM_DEV_SENTENCES) -> Counter:
+    """How often each NFC spelling occurs in the given held-out sentence
+    files (one sentence per line, words separated by spaces, between
+    ``<s>`` and ``</s>``)."""
+    counts: Counter = Counter()
+    for path in paths:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                counts.update(
+                    unicodedata.normalize("NFC", token)
+                    for token in line.split()
+                    if token not in ("<s>", "</s>")
+                )
+    return counts
+
+
+def load_lm_dev_spellings(path: Path = LM_DEV_SPELLINGS) -> Counter:
+    """The held-out spelling counts of ``LM_DEV_SPELLINGS``. Notes when the
+    held-out sentences on disk are not the ones it was built from."""
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} is missing; build it with "
+            "scripts/build_hunspell_dev_spellings_fixture.py, or turn the "
+            "treebank rules off with --treebank-spelling-min-count 0")
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        payload = json.load(fh)
+    if payload.get("schema_version") != 1:
+        raise ValueError(f"unsupported held-out spelling fixture: {path}")
+    for name, meta in payload["sources"].items():
+        on_disk = ROOT / "build" / "lm" / name
+        if on_disk.exists():
+            digest = hashlib.sha256(on_disk.read_bytes()).hexdigest()
+            if digest != meta["sha256"]:
+                print(f"  NOTE: {on_disk} differs from the held-out "
+                      f"sentences {path.name} was built from; rebuild it "
+                      "with scripts/build_hunspell_dev_spellings_fixture.py",
+                      file=sys.stderr)
+    return Counter(payload["forms"])
+
+
+def treebank_spelling_key(form: str) -> str:
+    """The key treebank spelling counts are kept under: the spelling as the
+    dictionary stores it (NFC, final elision mark canonicalized), with a
+    contextual grave read as the acute. Case is kept: a name's capitalized
+    tokens do not vouch for its lowercase spelling."""
+    return contextual_acute(canonicalize_final_elision(
+        sanitize_form(unicodedata.normalize("NFC", form))))
+
+
+def load_heldout_free_treebank_counts(
+    dev_spellings: Counter,
+    db_path: Path = FORM_PROFILE_DB,
+) -> tuple[dict[str, int], dict[str, set[str]]]:
+    """Treebank evidence that leaves out the language model's held-out
+    sentences.
+
+    Returns ``(counts, spellings)``: ``counts`` maps
+    :func:`treebank_spelling_key` to the larger of the GLAUx and Diorisis
+    counts, each less every held-out occurrence of the spelling (both
+    treebanks annotate largely the same texts, so a held-out sentence of
+    one is likely in the other); ``spellings`` maps the same key to the
+    spellings the treebanks write it with, as the dictionary stores them.
+    """
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute(
+            "SELECT f.form, p.source_counts_json "
+            "FROM forms f JOIN form_profile p USING(form_id)"
+        )
+        by_source: dict[str, dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
+        spellings: dict[str, set[str]] = defaultdict(set)
+        for form, source_counts in rows:
+            sources = json.loads(source_counts or "{}")
+            if not any(sources.get(s) for s in TREEBANK_PROFILE_SOURCES):
+                continue
+            held = dev_spellings.get(unicodedata.normalize("NFC", form), 0)
+            key = treebank_spelling_key(form)
+            for source in TREEBANK_PROFILE_SOURCES:
+                count = int(sources.get(source, 0)) - held
+                if count > 0:
+                    by_source[key][source] += count
+                    spellings[key].add(
+                        canonicalize_final_elision(sanitize_form(form)))
+    finally:
+        conn.close()
+    counts = {key: max(c.values()) for key, c in by_source.items()}
+    return counts, {key: spellings[key] for key in counts}
+
+
+# An iota written beside its long vowel instead of under it (ὑλικῶι), the
+# convention of some editions, which the dictionary writes with a subscript.
+_IOTA_ADSCRIPT = re.compile(
+    "[αηωΑΗΩ][\u0300\u0301\u0342\u0313\u0314]+ι(?![\u0300-\u036f])"
+    "|[ηωΗΩ]ι(?![\u0300-\u036f])(?=$|[^αεηιουω\u0300-\u036f])"
+)
+
+
+def treebank_spelling_reason(form: str) -> str | None:
+    """Why a treebank spelling no lemma source proposes is not admitted
+    (``add_treebank_spellings``), or None. Besides the structural rules,
+    an elided spelling is the morphology table's job (and the treebanks
+    attach quotation marks that read as elision marks: ὄντα᾽), a capital
+    inside a word is two words run together, an iota adscript is a
+    convention the dictionary writes as a subscript, a vowel-length mark is
+    a lexicon's notation, a breathing after a consonant marks crasis, which
+    the closed lists cover (κᾂν), and in a treebank spelling is more often
+    an elision mark read as a breathing (δὔ for δύ’), a second accent
+    belongs to a host before an enclitic, which the host's own entry covers
+    (τάγαθόν), and the grave of an explicitly rejected spelling goes with
+    it (τοὺ beside τού)."""
+    acute = contextual_acute(form)
+    if form in BARE_ELISION_STEMS or acute in BARE_ELISION_STEMS:
+        return "bare_elision"
+    if ord(form[-1]) in SPACING_DIACRITICS:
+        return "elided"
+    if any(char.isupper() for char in form[1:]):
+        return "inner_capital"
+    nfd = unicodedata.normalize("NFD", form)
+    if _IOTA_ADSCRIPT.search(nfd):
+        return "iota_adscript"
+    if "\u0304" in nfd or "\u0306" in nfd:
+        return "length_mark"
+    consonant_before = seen_consonant = False
+    for char in nfd:
+        if ord(char) in BREATHING_MARKS and consonant_before:
+            return "breathing_after_consonant"
+        if not unicodedata.combining(char) and char.isalpha():
+            consonant_before = seen_consonant
+            seen_consonant = seen_consonant or char not in GREEK_VOWELS
+    if sum(1 for char in nfd if ord(char) in TONAL_MARKS) > 1:
+        return "second_accent"
+    if acute in GRC_REJECT_FORMS:
+        return "explicit_reject"
+    if grc_orthography_reason(form) is not None:
+        return "orthography"
+    if new_form_structural_reason(form) is not None:
+        return "structure"
+    return None
+
+
+def add_treebank_spellings(
+    form_lemma: list[tuple[str, str]],
+    counts: dict[str, int],
+    spellings: dict[str, set[str]],
+    min_count: int = TREEBANK_SPELLING_MIN_COUNT,
+) -> tuple[list[tuple[str, str]], int]:
+    """Add the treebank spellings no lemma source proposes.
+
+    A spelling GLAUx or Diorisis has at least ``min_count`` times outside
+    the language model's held-out sentences (``counts``, by
+    :func:`treebank_spelling_key`, so a contextual grave counts with its
+    acute) is added under itself as lemma, unless the dictionary already
+    has it or its lowercase, or :func:`treebank_spelling_reason` excludes
+    it. A capitalized spelling comes in only when its lowercase is not a
+    word. The release filters that follow (weak respellings, acute twins,
+    the recorded review) apply to these as to every new form.
+    """
+    if min_count <= 0:
+        return form_lemma, 0
+    existing = {form for form, _lemma in form_lemma}
+    lowered = {form.lower() for form in existing}
+    out = list(form_lemma)
+    added = 0
+    for key in sorted(counts):
+        if counts[key] < min_count:
+            continue
+        for form in sorted(spellings.get(key, ())):
+            if not form or form in existing or form.lower() in lowered:
+                continue
+            if treebank_spelling_reason(form) is not None:
+                continue
+            out.append((form, form))
+            existing.add(form)
+            added += 1
+    return out, added
+
+
 def load_top_lsj9_lemmas(limit: int = 2000) -> set[str]:
     """Return the highest-frequency LSJ9 citation headwords."""
     if not LSJ9_FREQUENCY.exists():
@@ -1712,6 +1910,8 @@ def select_forms(
     variant: str,
     keep_lemmas: set[str] | None = None,
     attestation_freq: dict[str, int] | None = None,
+    treebank_counts: dict[str, int] | None = None,
+    treebank_min_count: int = 0,
 ) -> list[tuple[str, str]]:
     """Return [(form, lemma_text)] for the given variant.
 
@@ -1738,6 +1938,17 @@ def select_forms(
                      excluded as 'pure-monotonic, not AG'.
                      If attestation_freq is provided, a corpus-attested lemma
                      is also kept when all its forms are acute-only.
+                     A form whose lemma has no src='grc' row at all (its
+                     rows are Modern Greek: σπανίως, κτήσεις) is taken too
+                     when ``treebank_counts`` (treebank counts by
+                     treebank_spelling_key, see
+                     load_heldout_free_treebank_counts) has its spelling,
+                     in its case, at least ``treebank_min_count`` times:
+                     the Ancient treebanks attest the word, though only the
+                     Modern Greek lexicon lists it. The closed lists keep
+                     their own lemmas, and a capitalized form is left to
+                     add_treebank_spellings, which takes one only when its
+                     lowercase is not a word.
     """
     cur = conn.cursor()
 
@@ -1832,6 +2043,30 @@ def select_forms(
                     continue
                 seen.add(key)
                 out.append(key)
+        if treebank_counts is not None and treebank_min_count > 0:
+            selected = {form for form, _lemma in out}
+            rows = cur.execute(
+                """
+                SELECT k.form, l.text
+                FROM lookup k
+                JOIN lemmas l ON k.lemma_id = l.id
+                WHERE k.lang = 'all'
+                  AND k.lemma_id NOT IN (
+                      SELECT lemma_id FROM lookup WHERE src = 'grc'
+                  )
+                """
+            )
+            for form, lemma in rows:
+                if (form in selected or form in BARE_ELISION_STEMS
+                        or form in GRC_CLOSED_LIST_FORMS
+                        or form[:1].isupper()
+                        or not has_any_diacritic(form)
+                        or treebank_counts.get(
+                            treebank_spelling_key(form), 0)
+                        < treebank_min_count):
+                    continue
+                selected.add(form)
+                out.append((form, lemma))
         return out
 
     raise ValueError(f"Unknown variant {variant!r}")
@@ -2188,7 +2423,9 @@ DEFAULT_MIN_LEMMA_FREQ = {"el": 1, "grc": 3}
 
 
 def run_export(sanity: int | None, variants: list[str],
-               min_lemma_freq: int | None = None) -> None:
+               min_lemma_freq: int | None = None,
+               treebank_spelling_min_count: int = TREEBANK_SPELLING_MIN_COUNT,
+               ) -> None:
     if not LOOKUP_DB.exists():
         print(f"ERROR: {LOOKUP_DB} not found. Download with "
               f"`huggingface-cli download ciscoriordan/dilemma --local-dir . "
@@ -2249,6 +2486,19 @@ def run_export(sanity: int | None, variants: list[str],
     grc_protected_forms = grc_pinned_forms(
         canonical_forms, top_lsj9_lemmas, textbook_forms, lm_head_forms
     )
+    treebank_counts: dict[str, int] = {}
+    treebank_spellings: dict[str, set[str]] = {}
+    if "grc" in variants and treebank_spelling_min_count > 0:
+        try:
+            dev_spellings = load_lm_dev_spellings()
+        except FileNotFoundError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
+        treebank_counts, treebank_spellings = (
+            load_heldout_free_treebank_counts(dev_spellings))
+        print(f"  AG treebank spellings outside the LM's held-out "
+              f"sentences: {len(treebank_counts):,} "
+              f"({sum(dev_spellings.values()):,} held-out tokens left out)")
     print(f"  AG canonical forms (pin to C): {len(canonical_forms):,}")
     print(f"  AG canonical lemmas (pin to C): {len(canonical_lemmas):,}")
     if "grc" in variants:
@@ -2274,6 +2524,9 @@ def run_export(sanity: int | None, variants: list[str],
             variant,
             keep_lemmas=keep,
             attestation_freq=grc_form_freq if variant == "grc" else None,
+            treebank_counts=(treebank_counts if variant == "grc"
+                             else None),
+            treebank_min_count=treebank_spelling_min_count,
         )
         print(f"  {len(form_lemma):,} raw (form, lemma) pairs from lookup.db")
 
@@ -2361,6 +2614,16 @@ def run_export(sanity: int | None, variants: list[str],
             if added["compatibility"]:
                 print(f"  +{added['compatibility']:,} reviewed shipped "
                       "compatibility forms")
+            if not sanity:
+                form_lemma, added_treebank = add_treebank_spellings(
+                    form_lemma, treebank_counts, treebank_spellings,
+                    treebank_spelling_min_count,
+                )
+                if added_treebank:
+                    print(f"  +{added_treebank:,} treebank spellings no "
+                          f"lemma source proposes (>= "
+                          f"{treebank_spelling_min_count} tokens outside "
+                          "the LM's held-out sentences)")
 
         # Belt-and-braces guard: sanitize every form so a misplaced combining
         # breathing (leading U+0313/U+0314 or trailing U+0313/U+0314 used as
@@ -2476,10 +2739,19 @@ def main():
                     help="Override per-variant default: drop lemmas "
                          "whose most-attested form has corpus count < "
                          "this value. Defaults are el=1, grc=3.")
+    ap.add_argument("--treebank-spelling-min-count", type=int,
+                    default=TREEBANK_SPELLING_MIN_COUNT,
+                    help="Add a spelling GLAUx or Diorisis has at least "
+                         "this often outside the LM's held-out sentences "
+                         "when no lemma source, or only the Modern Greek "
+                         "lexicon, proposes it (default "
+                         f"{TREEBANK_SPELLING_MIN_COUNT}; 0: off).")
     args = ap.parse_args()
 
     variants = ["el", "grc"] if args.variant == "both" else [args.variant]
-    run_export(args.sanity, variants, min_lemma_freq=args.min_lemma_freq)
+    run_export(args.sanity, variants, min_lemma_freq=args.min_lemma_freq,
+               treebank_spelling_min_count=max(
+                   0, args.treebank_spelling_min_count))
 
 
 if __name__ == "__main__":
