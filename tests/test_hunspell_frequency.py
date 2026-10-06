@@ -21,6 +21,7 @@ from scripts.audit_hunspell_frequency import (
     fixture_payload_from_binary,
     fixture_payload_from_json,
     load_gzip_fixture,
+    exact_lookup_form,
     load_exclusions,
     lookup_form,
 )
@@ -79,7 +80,11 @@ def _fixture() -> dict:
 def test_frequency_fixture_is_well_formed():
     fixture = _fixture()
     rows = fixture["forms"]
-    assert fixture["top_n"] == 1000 == len(rows)
+    assert fixture["top_n"] == 1000
+    # Every spelling of the 1,000 commonest words, acute and grave apart.
+    assert len(rows) == 1_215
+    assert len({lookup_form(row["form"]) for row in rows}) == 1000
+    assert len({row["form"] for row in rows}) == len(rows)
     assert all(row["count"] > 0 for row in rows)
     assert [row["count"] for row in rows] == sorted(
         (row["count"] for row in rows), reverse=True
@@ -87,16 +92,35 @@ def test_frequency_fixture_is_well_formed():
     assert fixture["training"]["sanity"] is False
     assert fixture["training"]["total_tokens"] == 30_933_396
     assert next(row for row in rows if row["form"] == "γε")["count"] == 43_741
-    assert sum(row["count"] for row in rows) == 16_543_630
+    forms = {row["form"] for row in rows}
+    assert {"καί", "καὶ", "τό", "τὸ", "ἣ", "οἳ", "αἳ"} <= forms
+    assert sum(row["count"] for row in rows) == 16_545_810
 
 
 def test_frequency_exclusions_are_explicit_and_within_fixture():
     fixture_forms = {row["form"] for row in _fixture()["forms"]}
     exclusions = load_exclusions(EXCLUSIONS)
 
-    assert len(exclusions) == 29
+    assert len(exclusions) == 32
     assert set(exclusions) <= fixture_forms
     assert {"του", "ἀλλ", "ἀπ", "αʹ", "βʹ", "τώρα"} <= set(exclusions)
+    # Modern Greek graves the grc dictionary leaves to the Modern Greek list.
+    assert {"τὴ", "στὴν"} <= set(exclusions)
+
+
+def test_frequency_head_checks_a_grave_spelling_exactly(tmp_path):
+    pytest.importorskip("spylls.hunspell")
+    (tmp_path / "d.aff").write_text("SET UTF-8\n", encoding="utf-8")
+    (tmp_path / "d.dic").write_text("3\nκαί\nκαὶ\nἥ\n", encoding="utf-8")
+    fixture = {"forms": [{"form": form, "count": 1}
+                         for form in ("καί", "καὶ", "ἥ", "ἣ", "στὴν")]}
+    # A keyboard writes the grave only where the dictionary has it, so the
+    # acute ἥ does not stand in for the relative's ἣ.
+    missing, accepted = audit_dictionary(tmp_path / "d", fixture,
+                                         {"στὴν": "Modern Greek"})
+    assert missing == ["ἣ"] and accepted == []
+    assert exact_lookup_form("ἐπ’") == "ἐπ᾽"
+    assert exact_lookup_form("ἣ") == "ἣ" and lookup_form("ἣ") == "ἥ"
 
 
 @pytest.mark.skipif(
@@ -361,14 +385,16 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
     dictionary = Dictionary.from_files(str(tmp_path / "coverage"))
     exclusions = load_exclusions(EXCLUSIONS)
     expected = {
-        lookup_form(row["form"])
+        exact_lookup_form(row["form"])
         for row in fixture["forms"]
         if row["form"] not in exclusions
     }
     expected.update(REPORTED_REGRESSIONS)
     missing = sorted(form for form in expected if not dictionary.lookup(form))
     assert missing == []
-    assert not any(dictionary.lookup(lookup_form(form)) for form in exclusions)
+    assert not any(
+        dictionary.lookup(exact_lookup_form(form)) for form in exclusions
+    )
     assert not any(dictionary.lookup(stem) for stem in BARE_ELISION_STEMS)
     assert not any(
         dictionary.lookup(stem) for stem in REPORTED_BARE_ELISION_FALLBACKS

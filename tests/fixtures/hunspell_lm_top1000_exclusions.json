@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "exclusions": [
-    {"form": "δῑ", "reason": "Diorisis Beta Code artifact: di' (elided διά) converted with a macron in place of the elision mark"},
     {"form": "του", "reason": "Modern/unaccented spelling; polytonic article is τοῦ"},
     {"form": "τα-", "reason": "hyphenated corpus fragment"},
     {"form": "μη", "reason": "unaccented corpus token; polytonic particle is μή"},
@@ -10,7 +9,6 @@
     {"form": "της", "reason": "Modern/unaccented spelling; polytonic article is τῆς"},
     {"form": "κ", "reason": "single-letter corpus fragment"},
     {"form": "το-", "reason": "hyphenated corpus fragment"},
-    {"form": "στό", "reason": "Modern Greek contraction"},
     {"form": "γιά", "reason": "Modern Greek spelling"},
     {"form": "τ", "reason": "single-letter corpus fragment"},
     {"form": "μ", "reason": "single-letter corpus fragment"},
@@ -20,7 +18,6 @@
     {"form": "των", "reason": "Modern/unaccented spelling; polytonic article is τῶν"},
     {"form": "αʹ", "reason": "Greek numeral"},
     {"form": "Ισραηλ", "reason": "unaccented proper-name spelling"},
-    {"form": "στά", "reason": "Modern Greek contraction"},
     {"form": "τους", "reason": "Modern/unaccented spelling; polytonic article is τούς"},
     {"form": "ἀπ", "reason": "apostrophe-tokenized bare elision stem"},
     {"form": "ΑΒ", "reason": "uppercase abbreviation"},
@@ -29,6 +26,12 @@
     {"form": "βʹ", "reason": "Greek numeral"},
     {"form": "τώρα", "reason": "Modern Greek adverb"},
     {"form": "δ", "reason": "apostrophe-tokenized bare elision stem"},
-    {"form": "Ϛ", "reason": "Greek numeral sign"}
+    {"form": "Ϛ", "reason": "Greek numeral sign"},
+    {"form": "τὴ", "reason": "Modern Greek article; the polytonic Modern Greek list carries it"},
+    {"form": "στὴν", "reason": "Modern Greek contraction; the polytonic Modern Greek list carries it"},
+    {"form": "ἢδη", "reason": "corpus misspelling: a grave before the ultima (ἤδη)"},
+    {"form": "ἣκιστα", "reason": "corpus misspelling: a grave before the ultima (ἥκιστα)"},
+    {"form": "ὃτι", "reason": "corpus misspelling: a grave before the ultima (ὅτι)"},
+    {"form": "τοῦτὸ", "reason": "corpus misspelling: a second accent on τοῦτο"}
   ]
 }

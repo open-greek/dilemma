@@ -123,6 +123,21 @@ All notable changes to Dilemma are documented here. The format follows
   passages gain 6 words in either register, and polytonic Modern Greek, with
   each author held out, 4 in the Automatic register.
   `--treebank-spelling-min-count 0` turns both rules off.
+- `scripts/audit_hunspell_frequency.py` checks the corpus head's graves as
+  spelled. It read a contextual grave as its acute, but a keyboard writes the
+  grave only where the dictionary has the grave spelling, so a missing `ἣ`
+  passed while `ἥ` was there. The fixture now ranks the language model's
+  1,000 most frequent words as before and lists each in every spelling the
+  model writes it with (1,215 spellings; `καί` and `καὶ` apart), each looked
+  up as written. Its exclusions gain the Modern Greek graves `τὴ` and `στὴν`,
+  which the polytonic Modern Greek list carries, and four corpus misspellings
+  (`ὃτι`, `ἢδη`, `ἣκιστα`, `τοῦτὸ`); `στό` and `στά`, which the model writes
+  only with the grave, and `δῑ`, gone from the model since its retraining,
+  leave them. The fixture is now read from the training run's JSON files.
+  The exporter pins the same head words, except `στήν`, which the model
+  writes only as the Modern Greek `στὴν`, and `ἐνδέχεται`, which replaces
+  `δῑ` among the 1,000; `στήν` stays in the dictionary, in bucket M rather
+  than C.
 - The grc Hunspell dictionary has the relative pronoun's graves `ἣ`, `οἳ` and
   `αἳ` and the dual article's `τὼ`, which the next-word language model's
   training text uses 4,144, 9,854, 1,978 and 1,363 times. `lookup.db` has none

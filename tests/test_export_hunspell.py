@@ -790,11 +790,15 @@ def test_consonant_final_complete_words_are_kept(form, lemma):
 
 def test_reviewed_lm_head_is_pinned():
     forms = load_lm_head_required_forms()
-    assert len(forms) == 971
+    assert len(forms) == 973
     # The polytonic Modern article and the anastrophe accent of ἐκ are
-    # required; the Diorisis macron artifact δῑ is a reviewed nonword.
+    # required. The Diorisis macron artifact δῑ is gone from the LM since
+    # its retraining, and the Modern Greek στὴν, which the LM writes only
+    # with the grave, is a reviewed nonword, so στήν is not pinned.
     assert {"τή", "ἔκ"} <= forms
-    assert "δῑ" not in forms
+    assert "δῑ" not in forms and "στήν" not in forms
+    # A grave whose acute twin is a reviewed nonword pins nothing.
+    assert "γιά" not in forms and "θά" not in forms
 
 
 @pytest.mark.parametrize("form", ["καὶτοὺς", "ὓστερον", "ἀποθνῂσκει"])

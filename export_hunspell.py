@@ -349,8 +349,9 @@ GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # file's own _comment field for rationale.
 CANONICAL_AG_FORMS = DATA / "canonical_ag_forms.json"
 # The reviewed head of the language-model vocabulary: its 1,000 most frequent
-# Greek forms, minus reviewed nonwords. The release audit requires every one,
-# so the exporter pins them. This includes polytonic Modern spellings such as
+# Greek words (a contextual grave read as the acute), each in every spelling
+# the LM writes it with, minus reviewed nonwords. The release audit requires
+# every spelling exactly, so the exporter pins the words. This includes polytonic Modern spellings such as
 # the article τή, which the Ancient Greek corpora behind form_profile.db
 # barely attest.
 LM_HEAD_FIXTURE = ROOT / "tests" / "fixtures" / "hunspell_lm_top1000.json"
@@ -1780,9 +1781,11 @@ def load_top_lsj9_lemmas(limit: int = 2000) -> set[str]:
 
 
 def load_lm_head_required_forms() -> set[str]:
-    """Return the reviewed real words among the LM's most frequent forms,
-    in the spelling the dictionary stores (contextual grave read as acute,
-    final elision mark canonicalized)."""
+    """Return the reviewed real words among the LM's most frequent words,
+    in the acute spelling the dictionary stores (contextual grave read as
+    acute, final elision mark canonicalized). The fixture lists each word
+    in every spelling the LM writes it with; a spelling that is excluded,
+    or whose acute twin is (γιὰ beside the excluded γιά), pins nothing."""
     if not LM_HEAD_FIXTURE.exists() or not LM_HEAD_EXCLUSIONS.exists():
         return set()
     fixture = json.loads(LM_HEAD_FIXTURE.read_text(encoding="utf-8"))
@@ -1791,13 +1794,13 @@ def load_lm_head_required_forms() -> set[str]:
             LM_HEAD_EXCLUSIONS.read_text(encoding="utf-8")
         )["exclusions"]
     }
-    return {
-        canonicalize_final_elision(
-            contextual_acute(unicodedata.normalize("NFC", row["form"]))
-        )
-        for row in fixture["forms"]
-        if row["form"] not in excluded
-    }
+    required: set[str] = set()
+    for row in fixture["forms"]:
+        acute = contextual_acute(unicodedata.normalize("NFC", row["form"]))
+        if row["form"] in excluded or acute in excluded:
+            continue
+        required.add(canonicalize_final_elision(acute))
+    return required
 
 
 def load_grc_compatibility_forms() -> tuple[set[str], dict]:

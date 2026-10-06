@@ -2080,11 +2080,17 @@ python export_hunspell.py --sanity 10000  # 10K-lemma sanity pass (no April surf
 ```
 
 The release audit loads the expanded `.dic`/`.aff` pair with `spylls` and
-checks both the corpus head and the complete artifact. The LM fixture requires
-971 real forms among the 1,000 most frequent Greek-bearing tokens to be
-accepted and 29 reviewed Modern spellings, fragments, numerals, bare stems,
-and a conversion artifact to remain rejected (16,543,630 LM tokens); the
-exporter pins the 971 required forms. The whole-artifact gates additionally
+checks both the corpus head and the complete artifact. The LM fixture lists
+the 1,000 most frequent Greek-bearing words of the language model (ranked
+with a contextual grave read as the acute) in each of the 1,215 spellings the
+model writes them with, `καί` and `καὶ` apart (16,545,810 LM tokens). Each
+spelling is looked up as written: a keyboard writes a grave only where the
+dictionary has the grave spelling, so an acute twin does not stand in for it.
+All must be accepted except 32 reviewed Modern spellings (among them the
+graves `τὴ` and `στὴν`, which the polytonic Modern Greek list carries),
+fragments, numerals, bare stems and corpus misspellings (`ὃτι`, `ἢδη`),
+which must remain rejected; the exporter pins the 973 required words in their
+acute spelling. The whole-artifact gates additionally
 require every one of 1,363,275 reviewed forms of the dictionary Tonos ships
 (the export of commit `2e633cc`, as the keyboard compiled it, minus the forms
 Tonos's candidate gate classes as structural junk, must-reject, accepted
@@ -2152,8 +2158,10 @@ python scripts/build_hunspell_heldout_fixture.py \
   --ogc-root /path/to/open-greek-corpus
 ```
 
-The corpus-head fixture remains pinned to the format-v2 Dilemma 1.3.3 full LM
-artifact: 30,933,396 training tokens, not a `train_lm.py --sanity` output.
+The corpus-head fixture is built from the full `train_lm.py` run behind the
+current language model (`--source json`: `vocab.json`, `unigrams.json` and
+`stats.json`, 30,933,396 training tokens), not a `train_lm.py --sanity`
+output.
 JSON fixture regeneration reads `stats.json` and fails unless
 `"sanity": false`; the binary route reads the exact vocabulary and unigram
 counts embedded by `export_lm.py`. The exporter itself uses
