@@ -68,6 +68,76 @@ All notable changes to Dilemma are documented here. The format follows
   per 1,000 words on the sentences with little overlap with training.
 
 ### Fixed
+- `lookup.db` has the relative pronoun's graves `ὃ`, `ἣ`, `οἳ` and `αἳ`,
+  under `ὅς`. `build_lookup_db.py` keeps the first lemma a source gives a
+  form, and AGDT, the first treebank it reads, files Homer's demonstrative
+  `ὃ`, `ἣ`, `οἳ` and `αἳ` under the article `ὁ`, which the article filter
+  then drops; so GLAUx's relative `ὅς` never got in, and the forms had no
+  row at all. The article is a proclitic: it has no accent of its own and
+  before an enclitic takes an acute (`ὅ γε`), never a grave. A grave spelling
+  of its vowel-only letters that an earlier source filed under the article
+  now gives way to a later source's reading; every other article spelling,
+  the dual `τὼ` among them, stays with the article and out of the lookup.
+  The rebuilt `lookup.db` gains exactly those four rows and `ὂ`, a
+  misspelling of `ὃ`, also under `ὅς`. Lemmatization is unchanged on the
+  fast benchmark (AG Classical 99.7%, Katharevousa 94.7%, Demotic 94.8%), and
+  so are the grc dictionary, the morphology table and the polytonic Modern
+  Greek list, which had the forms from the exporter's closed list.
+  `data/citation_hygiene_rejections.tsv` loses 22 editorial-siglum rows that
+  `glaux_pairs.json` has not carried since its last rebuild.
+- The grc dictionary has the crasis of `καί` written with an iota subscript,
+  as some editions print it: `κᾂν`, `κᾄν`, `κᾀπί`, `κᾀπειδάν`, `κᾄπειτ᾽`,
+  `κᾄπειθ᾽`, `κᾀνταῦθ᾽`, `κᾀκτός`, `κᾀκεῖσε`, eight forms of `κᾀκεῖνος`,
+  and the unaccented `κᾀκ` and `κᾀξ` beside `κἀκ` and `κἀξ` (22 words with
+  the contextual graves). These are every such spelling GLAUx or Diorisis
+  has at least 4 times that the lookup does not bring in; `κᾂν` has 1,005
+  GLAUx tokens, `κᾀπὶ` 356, `κᾀκ` 277. `lookup.db` has no row for them, and
+  `κᾂν` and `κᾄν` were only in the polytonic Modern Greek list, so Ancient
+  text could not get them; that list now marks them as spellings Modern
+  Greek writes otherwise. No held-out sentence has one, and replayed through
+  a keyboard outside this repository every held-out and running-text word
+  comes out as before.
+- The grc dictionary takes the spellings the treebanks attest that no lemma
+  source proposes, or that only the Modern Greek lexicon does. A spelling
+  GLAUx or Diorisis has at least 5 times, case kept and a contextual grave
+  counted with its acute, comes in under itself; a `lookup.db` form whose
+  lemma has only Modern Greek rows comes in under that lemma (`σπανίως`, 521
+  corpus tokens, and `κτήσεις`, 219, were dropped because the exporter took
+  only lemmas with an Ancient row). The counts leave out every occurrence in
+  the language model's held-out GLAUx and Diorisis sentences, whose spelling
+  counts `data/hunspell_grc_lm_dev_spellings.json.gz` records
+  (`scripts/build_hunspell_dev_spellings_fixture.py`), so the dictionary is
+  not vouched for by the sentences it is measured on. Elided spellings, inner
+  capitals, an iota adscript, a length mark, a breathing after a consonant
+  (`δὔ`, an elision mark converted into a breathing), a second accent
+  (`τάγαθόν`) and the grave of an explicitly rejected spelling (`τοὺ`) stay
+  out, a capitalized spelling comes in only when its lowercase is not a word,
+  and the respelling rule applies as to every new form. Below 5 tokens most
+  candidates are Modern Greek words of late texts and names written in
+  lowercase. The dictionary gains 178 words, mostly names and rare words
+  (`Δηριάδη`, `ὁρμόν`, `καταλήμψεται`). Replayed as bare-letter typing
+  through a keyboard outside this repository, the 474,220 words of the
+  held-out GLAUx and Diorisis sentences come out right 30 more times and
+  wrong 3 more (11 and 2 of them in the 137,525 words with little overlap
+  with training), with or without their punctuation typed; the running-text
+  passages gain 6 words in either register, and polytonic Modern Greek, with
+  each author held out, 4 in the Automatic register.
+  `--treebank-spelling-min-count 0` turns both rules off.
+- `scripts/audit_hunspell_frequency.py` checks the corpus head's graves as
+  spelled. It read a contextual grave as its acute, but a keyboard writes the
+  grave only where the dictionary has the grave spelling, so a missing `ἣ`
+  passed while `ἥ` was there. The fixture now ranks the language model's
+  1,000 most frequent words as before and lists each in every spelling the
+  model writes it with (1,215 spellings; `καί` and `καὶ` apart), each looked
+  up as written. Its exclusions gain the Modern Greek graves `τὴ` and `στὴν`,
+  which the polytonic Modern Greek list carries, and four corpus misspellings
+  (`ὃτι`, `ἢδη`, `ἣκιστα`, `τοῦτὸ`); `στό` and `στά`, which the model writes
+  only with the grave, and `δῑ`, gone from the model since its retraining,
+  leave them. The fixture is now read from the training run's JSON files.
+  The exporter pins the same head words, except `στήν`, which the model
+  writes only as the Modern Greek `στὴν`, and `ἐνδέχεται`, which replaces
+  `δῑ` among the 1,000; `στήν` stays in the dictionary, in bucket M rather
+  than C.
 - The grc Hunspell dictionary has the relative pronoun's graves `ἣ`, `οἳ` and
   `αἳ` and the dual article's `τὼ`, which the next-word language model's
   training text uses 4,144, 9,854, 1,978 and 1,363 times. `lookup.db` has none

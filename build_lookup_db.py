@@ -325,6 +325,83 @@ def build():
     # lookup entries and nothing measurable on any benchmark, while
     # keeping a genuinely independent 554K-token gold standard.
 
+    # Article and pronoun forms excluded from the lookup so that
+    # resolve_articles=True/False in Dilemma controls their resolution.
+    # Without this, fresh Wiktionary data maps τοῦ -> ὁ etc. in the
+    # lookup itself, bypassing the resolve_articles flag.
+    #
+    # Only AG article mappings are excluded (form -> polytonic ὁ/ἡ/τό
+    # or a polytonic article form). MG article self-maps like ο -> ο
+    # must stay in the lookup so MG lemmatization of function words
+    # works without requiring resolve_articles=True. The AG vs MG
+    # distinction is made by checking for breathing marks / polytonic
+    # diacritics on the lemma.
+    _EXCLUDED_ARTICLE_MAPS = {
+        "ὁ", "ἡ", "τό", "τοῦ", "τῆς", "τῶν", "τόν", "τήν",
+        "τά", "τοῖς", "ταῖς", "τῷ", "τῇ", "τούς", "τάς", "τοῖν", "ταῖν",
+        "οἱ", "αἱ", "τώ",
+        "τὸ", "τοὺς", "τὰ", "τὸν", "τὴν", "τὰς", "αἵ", "οἵ",
+    }
+    _ARTICLE_LEMMA = "ὁ"
+    _excluded_stripped = {strip_accents(a.lower()) for a in _EXCLUDED_ARTICLE_MAPS}
+
+    def _has_polytonic(s):
+        """True if the string carries a breathing or circumflex
+        (i.e. it's an AG polytonic form, not MG monotonic)."""
+        nfd = unicodedata.normalize("NFD", s)
+        for ch in nfd:
+            cp = ord(ch)
+            # Combining smooth/rough breathing, circumflex, iota subscript,
+            # psili/dasia precomposed glyphs
+            if cp in (0x0313, 0x0314, 0x0342, 0x0345, 0x1FBD, 0x1FBF,
+                      0x1FFE, 0x1FC0, 0x1FC1):
+                return True
+        return False
+
+    def _is_article_map(form, lemma):
+        """True for form -> polytonic-AG-article mappings only.
+
+        Exclude mappings like ο -> ὁ, τοῦ -> ὁ (AG article paradigm),
+        but KEEP MG monotonic self-maps like ο -> ο so that MG
+        lemmatization of function words works without requiring
+        resolve_articles=True. The AG vs MG distinction is made by
+        checking for breathing marks / polytonic diacritics on the
+        lemma - MG lemmas are always monotonic.
+        """
+        if strip_accents(form.lower()) not in _excluded_stripped:
+            return False
+        if strip_accents(lemma.lower()) != strip_accents(_ARTICLE_LEMMA.lower()):
+            return False
+        # Lemma stripped matches ὁ (i.e. "ο"). Keep the entry if the
+        # lemma is a monotonic MG form (no breathings) - that's the
+        # legitimate MG self-map we want to preserve. Exclude only
+        # when the lemma is polytonic AG (ὁ, ὁ̓, ὅ, etc).
+        return _has_polytonic(lemma)
+
+    _VOWEL_ONLY_ARTICLE_LETTERS = {"ο", "η", "οι", "αι"}
+
+    def _fills_ag_gap(form, lemma):
+        """True when a corpus pair may set ``ag[form]``.
+
+        Corpus sources only fill gaps: the first one to name a form keeps
+        it. The exception is a grave ὃ, ἣ, οἳ or αἳ that an earlier source
+        filed under the article, which the article filter below then drops.
+        The article ὁ, ἡ, οἱ, αἱ is a proclitic: it has no accent of its
+        own, and before an enclitic it takes an acute (ὅ γε), never a
+        grave. A grave spelling of these letters is the relative or Homer's
+        demonstrative, and AGDT, read first, files the demonstrative under
+        ὁ, so the article entry shut out GLAUx's relative ὅς and the forms
+        had no row at all. Such an entry gives way to a later source's
+        other reading. Every other article spelling (τὸ, τὴν, the dual
+        τὼ) stays the article's, and the filter keeps it out as before.
+        """
+        if form not in ag:
+            return True
+        return (_is_article_map(form, ag[form])
+                and not _is_article_map(form, lemma)
+                and "\u0300" in unicodedata.normalize("NFD", form)
+                and strip_accents(form.lower()) in _VOWEL_ONLY_ARTICLE_LETTERS)
+
     # Expand AG with AGDT/Perseus treebank pairs (the 33 Greek AGDT works:
     # Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch,
     # Polybius, Athenaeus). Sourced from the AGDT original
@@ -336,7 +413,7 @@ def build():
             perseus_pairs = json.load(f)
         for p in perseus_pairs:
             form, lemma = p["form"], p["lemma"]
-            if form not in ag:
+            if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = PERSEUS_PAIRS_PATH.name
                 perseus_added_ag += 1
@@ -489,7 +566,7 @@ def build():
                 glaux_bad_lemma += 1
                 continue
             # Add to AG if not already present
-            if form not in ag:
+            if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = GLAUX_PAIRS_PATH.name
                 glaux_added_ag += 1
@@ -537,7 +614,7 @@ def build():
                 dior_bad_lemma += 1
                 continue
             # Add to AG if not already present from any source
-            if form not in ag:
+            if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = DIORISIS_PAIRS_PATH.name
                 dior_added_ag += 1
@@ -577,7 +654,7 @@ def build():
             if ag_headwords_exact and lemma not in ag_headwords_exact:
                 nt_bad_lemma += 1
                 continue
-            if form not in ag:
+            if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = NT_PAIRS_PATH.name
                 nt_added_ag += 1
@@ -611,7 +688,7 @@ def build():
             if ag_headwords_exact and lemma not in ag_headwords_exact:
                 bad_lemma += 1
                 continue
-            if form not in ag:
+            if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = path.name
                 added_ag += 1
@@ -621,58 +698,6 @@ def build():
         print(f"  {label}: +{added_ag:,} to AG, "
               f"{bad_lemma:,} bad lemmas rejected ({time.time()-t_g:.1f}s)")
 
-    # Article and pronoun forms excluded from the lookup so that
-    # resolve_articles=True/False in Dilemma controls their resolution.
-    # Without this, fresh Wiktionary data maps τοῦ -> ὁ etc. in the
-    # lookup itself, bypassing the resolve_articles flag.
-    #
-    # Only AG article mappings are excluded (form -> polytonic ὁ/ἡ/τό
-    # or a polytonic article form). MG article self-maps like ο -> ο
-    # must stay in the lookup so MG lemmatization of function words
-    # works without requiring resolve_articles=True. The AG vs MG
-    # distinction is made by checking for breathing marks / polytonic
-    # diacritics on the lemma.
-    _EXCLUDED_ARTICLE_MAPS = {
-        "ὁ", "ἡ", "τό", "τοῦ", "τῆς", "τῶν", "τόν", "τήν",
-        "τά", "τοῖς", "ταῖς", "τῷ", "τῇ", "τούς", "τάς", "τοῖν", "ταῖν",
-        "οἱ", "αἱ", "τώ",
-        "τὸ", "τοὺς", "τὰ", "τὸν", "τὴν", "τὰς", "αἵ", "οἵ",
-    }
-    _ARTICLE_LEMMA = "ὁ"
-    _excluded_stripped = {strip_accents(a.lower()) for a in _EXCLUDED_ARTICLE_MAPS}
-
-    def _has_polytonic(s):
-        """True if the string carries a breathing or circumflex
-        (i.e. it's an AG polytonic form, not MG monotonic)."""
-        nfd = unicodedata.normalize("NFD", s)
-        for ch in nfd:
-            cp = ord(ch)
-            # Combining smooth/rough breathing, circumflex, iota subscript,
-            # psili/dasia precomposed glyphs
-            if cp in (0x0313, 0x0314, 0x0342, 0x0345, 0x1FBD, 0x1FBF,
-                      0x1FFE, 0x1FC0, 0x1FC1):
-                return True
-        return False
-
-    def _is_article_map(form, lemma):
-        """True for form -> polytonic-AG-article mappings only.
-
-        Exclude mappings like ο -> ὁ, τοῦ -> ὁ (AG article paradigm),
-        but KEEP MG monotonic self-maps like ο -> ο so that MG
-        lemmatization of function words works without requiring
-        resolve_articles=True. The AG vs MG distinction is made by
-        checking for breathing marks / polytonic diacritics on the
-        lemma - MG lemmas are always monotonic.
-        """
-        if strip_accents(form.lower()) not in _excluded_stripped:
-            return False
-        if strip_accents(lemma.lower()) != strip_accents(_ARTICLE_LEMMA.lower()):
-            return False
-        # Lemma stripped matches ὁ (i.e. "ο"). Keep the entry if the
-        # lemma is a monotonic MG form (no breathings) - that's the
-        # legitimate MG self-map we want to preserve. Exclude only
-        # when the lemma is polytonic AG (ὁ, ὁ̓, ὅ, etc).
-        return _has_polytonic(lemma)
 
     trusted_grave_targets = trusted_ag_citation_headwords(
         _TRUSTED_BUILD_HEADWORD_PATHS)
