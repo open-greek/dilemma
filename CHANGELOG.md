@@ -7,6 +7,31 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- The polytonic Modern Greek word list carries generated spellings for the
+  frequent verb forms its source texts do not attest (`ἔρθεις`, `ἔρθῃς`,
+  `μιλήσεις`, `πιεῖς`, `καταλάβεις`), written `form<TAB>fr:R mg:generated`
+  (`mg_polytonic_paradigms.py`). They come from Wiktionary's monotonic
+  verb paradigms, for the forms monotonic text has at least 50 times; the
+  breathing, the accent type and the iota subscript follow the verb's
+  attested polytonic forms, the grc words with the same first letters and
+  the Ancient accent rules, and the second and third person singular of
+  the subjunctive is generated both ways (`πάρεις` and `πάρῃς`). A
+  generated spelling only fills a monotonic form that neither grc nor the
+  list covers, with letters no attested spelling of the list has, so
+  20,253 spellings join the 17,176 attested ones. Held out from their own
+  evidence, attested verb forms are generated as the texts write them
+  97.6% of the time, their subjunctive spellings 89.9%
+  (`eval/eval_mg_paradigms.py`), and with each dev word's author held out
+  the list's coverage of the dev words rises from 90.9% to 91.5%.
+  Typed as bare letters into a keyboard outside this repository with
+  each author held out, those dev words come out wrong 6,462 times
+  instead of 6,666 in its Modern register (204 fixed, none broken), and
+  the common verb forms typed after `θα` and `να` come out as intended
+  98.2% of the time instead of 53.3%; held-out Ancient Greek comes out
+  the same.
+  `--no-generated-verbs` leaves them out. The `.version` counts `attested`
+  and `generated` entries (`entries` is their sum) and records the sha256
+  of the paradigms and the frequencies.
 - A word list of attested polytonic Modern Greek spellings,
   `build/hunspell/grc_mg_polytonic.dic` (`export_mg_polytonic.py`), for a
   keyboard to merge into the grc dictionary, which is unchanged. grc holds

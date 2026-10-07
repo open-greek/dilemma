@@ -26,6 +26,13 @@ writes another way (με for μὲ, που for ποὺ or ποῦ, ἐκείν�
 them out of its candidates. A Hunspell reader that does not know the field
 accepts those spellings, as grc does.
 
+The texts are mostly older prose, so they rarely attest the second person
+and the spoken forms of common verbs (ἔρθεις, μιλήσεις, πιεῖς). The list
+adds polytonic spellings for the frequent verb forms that neither it nor
+grc covers, generated from Wiktionary's monotonic paradigms by
+``mg_polytonic_paradigms`` and written ``form<TAB>fr:R mg:generated``
+(``generated_verb_forms``).
+
 Source
 ------
 The polytonic Modern Greek slice of Wikisource that the next-word language
@@ -1577,6 +1584,9 @@ class ModernGreekList(NamedTuple):
     report: dict[str, int]
     rejected: dict[str, list[str]]
     ancient: frozenset[str] = frozenset()   # entries capped at fr:R
+    # Generated verb forms (``generated_verb_forms``), written fr:R
+    # mg:generated; not in ``entries``.
+    generated: frozenset[str] = frozenset()
 
 
 def select_list(
@@ -1586,12 +1596,14 @@ def select_list(
     reviewed_rejects: frozenset[str] = frozenset(),
     known_word=None,
     ancient_corpora: "AncientCorpora | None" = None,
+    generate_verbs: bool = False,
 ) -> ModernGreekList:
     """The list from the source documents: the spellings :func:`select_forms`
     selects, the grc spellings to mark mg:avoid
-    (:func:`modern_greek_avoids`), and the C and M spellings that are also
+    (:func:`modern_greek_avoids`), the C and M spellings that are also
     Ancient or later Greek words (:func:`ancient_word`), whose fr: is
-    capped at R.
+    capped at R, and, with ``generate_verbs``, the generated forms of
+    frequent verbs (:func:`generated_verb_forms`).
     """
     selection = select_forms(gather_candidates(counts, sources), grc_words,
                              reviewed_rejects, known_word)
@@ -1609,8 +1621,134 @@ def select_list(
                    and ancient_word(spelling, grc_words, ancient_corpora,
                                     n / slice_tokens)}
         report["ancient_capped"] = len(ancient)
+    generated: set[str] = set()
+    if generate_verbs:
+        generated = generated_verb_forms(
+            counts, sources, grc_words, set(selection.entries),
+            reviewed_rejects, report)
     return ModernGreekList(selection.entries, lines, dict(report),
-                           selection.rejected, frozenset(ancient))
+                           selection.rejected, frozenset(ancient),
+                           frozenset(generated))
+
+
+# --------------------------------------------------------------------------
+# Generated forms of frequent verbs
+# --------------------------------------------------------------------------
+
+def attested_lowercase(counts: CorpusCounts,
+                       sources: set[int]) -> dict[str, Counter]:
+    """The well-formed lowercase spellings of the source documents, by
+    monotonic key (``mg_polytonic_paradigms.monotonic_key``), with their
+    token counts: the evidence verb-form generation reads."""
+    import mg_polytonic_paradigms as paradigms
+
+    out: dict[str, Counter] = defaultdict(Counter)
+    for (form, position), per_doc in counts.forms.items():
+        if position != "lower":
+            continue
+        n = sum(c for d, c in per_doc.items() if d in sources)
+        if n and mg_orthography_reason(form) is None:
+            out[paradigms.monotonic_key(form)][form] += n
+    return dict(out)
+
+
+# A generated spelling must not share its bare letters with a spelling the
+# list attests, so it never competes with one: a typed ξεχνα keeps the
+# attested ξεχνᾷ rather than also offering the generated imperative ξέχνα,
+# and τρεχᾶτε is not joined by the imperfect τρέχατε. A grc spelling of the
+# same letters does not stop it. Those are Ancient words (καταλαβεῖς, of
+# καταλαβεύς "clamp"; μαθεῖς), and Modern Greek text needs the frequent
+# Modern form (καταλάβεις, μάθεις). Letting grc letters stop it too gives
+# up 2 fixed words on the author-held-out folds typed into a keyboard, and
+# 7 common verb forms typed after θα and να.
+GENERATED_LETTERS_TAKEN_BY_GRC = False
+
+_VERB_INPUTS: dict[str, object] = {}
+
+
+def _verb_inputs():
+    """Wiktionary's verb paradigms and the monotonic frequencies, read once
+    per process (the evaluation builds several lists), or None when either
+    file is missing."""
+    import mg_polytonic_paradigms as paradigms
+
+    if "paradigms" not in _VERB_INPUTS:
+        if not (paradigms.VERB_PARADIGMS.exists()
+                and paradigms.MG_FORM_FREQ.exists()):
+            return None
+        _VERB_INPUTS["paradigms"] = paradigms.load_verb_paradigms()
+        _VERB_INPUTS["frequencies"] = paradigms.load_form_frequencies()
+    return _VERB_INPUTS["paradigms"], _VERB_INPUTS["frequencies"]
+
+
+def generated_verb_forms(
+    counts: CorpusCounts,
+    sources: set[int],
+    grc_words: set[str],
+    listed: set[str],
+    reviewed_rejects: frozenset[str],
+    report: Counter,
+) -> set[str]:
+    """Polytonic spellings of the frequent verb forms the list and grc lack
+    (``mg_polytonic_paradigms``), with their contextual twins.
+
+    A generated spelling is kept only where neither grc nor the list has
+    a spelling of its monotonic form, and the list no spelling of its
+    letters at all (``GENERATED_LETTERS_TAKEN_BY_GRC``), so it never
+    competes with an attested Modern spelling: it fills a gap. It must be
+    well-formed (:func:`mg_orthography_reason`) and not rejected by a
+    recorded review. Generation reads the attested
+    spellings of the same ``sources`` only, so an evaluation list built
+    without some authors generates without their texts as well.
+    """
+    import mg_polytonic_paradigms as paradigms
+
+    inputs = _verb_inputs()
+    if inputs is None:
+        print(f"  NOTE: {paradigms.VERB_PARADIGMS} or "
+              f"{paradigms.MG_FORM_FREQ} not found; no verb forms are "
+              "generated", file=sys.stderr)
+        return set()
+    verb_paradigms, frequencies = inputs
+    attested = attested_lowercase(counts, sources)
+    evidence = paradigms.Evidence(attested, grc_words, verb_paradigms)
+    candidates = paradigms.generate(verb_paradigms, frequencies, evidence)
+    wanted = {paradigms.bare(g.spelling) for g in candidates}
+    covered: set[str] = set()
+    covered_letters: set[str] = set()
+    for word in [*grc_words, *listed]:
+        lower = _lowercase(word)
+        letters = paradigms.bare(lower)
+        if letters in wanted:
+            covered.add(paradigms.monotonic_key(lower))
+            if word in listed or GENERATED_LETTERS_TAKEN_BY_GRC:
+                covered_letters.add(letters)
+    reviewed = {contextual_acute(f) for f in reviewed_rejects}
+    kept: set[str] = set()
+    for g in candidates:
+        if g.spelling in kept:
+            continue
+        if paradigms.monotonic_key(g.spelling) in covered:
+            report["generated_covered"] += 1
+            continue
+        if paradigms.bare(g.spelling) in covered_letters:
+            report["generated_letters_taken"] += 1
+            continue
+        if mg_orthography_reason(g.spelling) is not None:
+            report["generated_orthography"] += 1
+            continue
+        if contextual_acute(g.spelling) in reviewed:
+            report["generated_reviewed_reject"] += 1
+            continue
+        report[f"generated_{g.kind}"] += 1
+        kept.add(g.spelling)
+        for twin in oxytone_twins(g.spelling):
+            if (mg_orthography_reason(twin) is None
+                    and not grc_accepts(twin, grc_words)
+                    and contextual_acute(twin) not in reviewed):
+                kept.add(twin)
+    report["generated"] = len(kept)
+    return kept
 
 
 # --------------------------------------------------------------------------
@@ -1784,6 +1922,7 @@ def write_list(
     grc_sha256: str | None = None,
     avoid: Iterable[str] = (),
     ancient: Iterable[str] = (),
+    generated: Iterable[str] = (),
     inputs: dict[str, str | None] | None = None,
 ) -> dict:
     """Write ``<DIC_NAME>.dic``, ``.aff`` and ``.version`` to ``out_dir``.
@@ -1810,8 +1949,10 @@ def write_list(
     ancient = set(ancient)
     buckets = {form: "R" if form in ancient else freq_bucket(n)
                for form, n in entries.items()}
+    generated = sorted(set(generated) - set(entries))
     lines = sorted(
         [f"{form}\tfr:{bucket}" for form, bucket in buckets.items()]
+        + [f"{form}\tfr:R mg:generated" for form in generated]
         + [f"{form}\tmg:avoid" for form in avoid])
     dic_path = out_dir / f"{DIC_NAME}.dic"
     dic_path.write_text(
@@ -1831,7 +1972,9 @@ def write_list(
         f"version: {version}\n"
         f"commit: {commit}\n"
         f"variant: {variant}\n"
-        f"entries: {len(entries)}\n"
+        f"entries: {len(entries) + len(generated)}\n"
+        f"attested: {len(entries)}\n"
+        f"generated: {len(generated)}\n"
         f"mg_avoid: {len(avoid)}\n"
         f"aff_rules: 0\n"
         f"source: {source}\n"
@@ -1841,7 +1984,9 @@ def write_list(
         + f"ancient_capped: {len(ancient & set(entries))}\n"
         f"buckets: C={counted['C']} M={counted['M']} R={counted['R']}\n",
         encoding="utf-8")
-    return {"entries": len(entries), "mg_avoid": len(avoid),
+    return {"entries": len(entries) + len(generated),
+            "attested": len(entries), "generated": len(generated),
+            "mg_avoid": len(avoid),
             "dic_path": str(dic_path), "buckets": dict(counted)}
 
 
@@ -1853,7 +1998,8 @@ def write_selection(selection: ModernGreekList, out_dir: Path, *,
     return write_list(
         selection.entries, out_dir, variant=variant, source=source,
         grc_sha256=grc_sha256, avoid=selection.avoid,
-        ancient=selection.ancient, inputs=inputs)
+        ancient=selection.ancient, generated=selection.generated,
+        inputs=inputs)
 
 
 def sha256_file(path: Path) -> str:
@@ -1864,13 +2010,19 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def input_digests() -> dict[str, str | None]:
+def input_digests(generate_verbs: bool = True) -> dict[str, str | None]:
     """The sha256 of the files besides grc that decide the list, None for
-    one not on disk: lookup.db (the rare-respelling test) and
-    form_profile.db (the Ancient counts)."""
+    one not on disk: lookup.db (the rare-respelling test), form_profile.db
+    (the Ancient counts) and, when verb forms are generated, the verb
+    paradigms and the monotonic form frequencies."""
+    import mg_polytonic_paradigms as paradigms
+
+    files = [("lookup_db", LOOKUP_DB), ("form_profile", FORM_PROFILE)]
+    if generate_verbs:
+        files += [("verb_paradigms", paradigms.VERB_PARADIGMS),
+                  ("form_frequencies", paradigms.MG_FORM_FREQ)]
     return {name: sha256_file(path) if path.exists() else None
-            for name, path in (("lookup_db", LOOKUP_DB),
-                               ("form_profile", FORM_PROFILE))}
+            for name, path in files}
 
 
 def build(
@@ -1882,6 +2034,7 @@ def build(
     counts: CorpusCounts | None = None,
     grc_words: set[str] | None = None,
     grc_dic: Path = GRC_DIC,
+    generate_verbs: bool = True,
 ) -> tuple[ModernGreekList, dict]:
     """Read the slice, select the spellings and write the list."""
     counts = counts or count_corpus(parquet_path)
@@ -1902,7 +2055,7 @@ def build(
               "spared mg:avoid as a treebank word", file=sys.stderr)
     selection = select_list(counts, sources, grc_words,
                             load_mg_spelling_review(), known_word,
-                            ancient_corpora)
+                            ancient_corpora, generate_verbs=generate_verbs)
     if holdout_dev_documents:
         variant = "grc-mg (evaluation: documents with a dev sentence held out)"
     elif holdout_author_fold is not None:
@@ -1913,7 +2066,7 @@ def build(
     stats = write_selection(
         selection, out_dir, variant=variant, grc_sha256=grc_sha256,
         source=source_description(counts, sources, parquet_path),
-        inputs=input_digests())
+        inputs=input_digests(generate_verbs))
     return selection, stats
 
 
@@ -1938,6 +2091,9 @@ def main(argv: Iterable[str] | None = None) -> None:
                            "a language-model dev sentence")
     held.add_argument("--holdout-author-fold", type=_fold, metavar="K/N",
                       help="evaluation list: drop the authors in fold K of N")
+    ap.add_argument("--no-generated-verbs", action="store_true",
+                    help="leave out the generated forms of frequent verbs "
+                         "(mg_polytonic_paradigms)")
     args = ap.parse_args(list(argv) if argv is not None else None)
     held_out = args.holdout_dev_documents or args.holdout_author_fold
     if held_out and args.out_dir is None:
@@ -1959,11 +2115,13 @@ def main(argv: Iterable[str] | None = None) -> None:
     selection, stats = build(
         out_dir, parquet_path=args.parquet, counts=counts,
         holdout_dev_documents=args.holdout_dev_documents,
-        holdout_author_fold=args.holdout_author_fold)
+        holdout_author_fold=args.holdout_author_fold,
+        generate_verbs=not args.no_generated_verbs)
     for key, value in sorted(selection.report.items()):
         print(f"  {key}: {value:,}")
-    print(f"  wrote {stats['dic_path']} ({stats['entries']:,} entries, "
-          f"buckets {stats['buckets']}, {stats['mg_avoid']:,} mg:avoid "
+    print(f"  wrote {stats['dic_path']} ({stats['entries']:,} entries: "
+          f"{stats['attested']:,} attested, buckets {stats['buckets']}, and "
+          f"{stats['generated']:,} generated; {stats['mg_avoid']:,} mg:avoid "
           "lines)")
 
 
