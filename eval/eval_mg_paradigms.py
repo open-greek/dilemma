@@ -16,8 +16,14 @@ Precision is reported by verb class (A γράφω, B1 μιλάω, B2 μπορώ,
 -μαι, other) and by paradigm cell (present, imperfect, past, dependent,
 imperative, participle).
 
+The forms the list generates are the ones the slice does not attest, so a
+second number comes from a hand-checked sample of them
+(``eval/mg_generated_sample.tsv``, stratified by class and cell): the share
+of its spellings judged right, among those the built list still generates.
+
 Usage:
     python eval/eval_mg_paradigms.py [--json OUT] [--examples N]
+        [--sample TSV] [--list DIC]
 """
 from __future__ import annotations
 
@@ -36,6 +42,33 @@ from export_hunspell import contextual_acute  # noqa: E402
 
 MIN_TOKENS = 3
 MIN_SHARE = 0.5
+SAMPLE = ROOT / "eval" / "mg_generated_sample.tsv"
+BUILT_LIST = ROOT / "build" / "hunspell" / "grc_mg_polytonic.dic"
+
+
+def sample_precision(sample: Path = SAMPLE, dic: Path = BUILT_LIST) -> dict:
+    """The hand-checked sample's verdicts on the spellings ``dic`` still
+    generates; a sampled monotonic form now generated with another spelling
+    is counted apart, unchecked."""
+    generated: dict[str, set[str]] = defaultdict(set)
+    for line in dic.read_text("utf-8").splitlines()[1:]:
+        form, _, fields = line.partition("\t")
+        if "mg:generated" in fields:
+            generated[P.monotonic_key(form)].add(form)
+    out = Counter()
+    for line in sample.read_text("utf-8").splitlines():
+        if not line or line.startswith(("#", "spelling\t")):
+            continue
+        spelling, mono, *_rest = line.split("\t")
+        verdict = _rest[4]
+        now = generated.get(P.monotonic_key(spelling))
+        if now and spelling in now:
+            out[verdict] += 1
+        elif now:
+            out["respelled"] += 1
+        else:
+            out["no longer generated"] += 1
+    return dict(out)
 
 
 def attested_spellings(counts, sources) -> dict[str, Counter]:
@@ -63,7 +96,6 @@ def dominant(spellings: Counter | None) -> str | None:
 def evaluate(paradigms, attested, grc_words, examples: int = 0,
              frequencies: dict[str, int] | None = None) -> dict:
     evidence = P.Evidence(attested, grc_words, paradigms)
-    print('contract subscript shares', evidence.subscript_share)
     table: dict[tuple[str, str, str], Counter] = defaultdict(Counter)
     wrong: list[tuple] = []
     for lemma, forms in paradigms.items():
@@ -72,7 +104,7 @@ def evaluate(paradigms, attested, grc_words, examples: int = 0,
             key = P.monotonic_key(form)
             gold = dominant(attested.get(key))
             gold_variant = None
-            if P.is_subjunctive_cell(tags):
+            if P.is_subjunctive_cell(tags, form):
                 # The variant's key: the form's letters with -ει- as -η-.
                 probe = P.subjunctive_variant(
                     P.polytonic(form, tags, vclass, [], evidence, lemma)
@@ -114,6 +146,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--json", type=Path)
     ap.add_argument("--examples", type=int, default=40)
+    ap.add_argument("--sample", type=Path, default=SAMPLE)
+    ap.add_argument("--list", type=Path, default=BUILT_LIST)
     args = ap.parse_args()
 
     counts = mg.count_corpus()
@@ -143,6 +177,13 @@ def main() -> None:
         line(f"  of them forms generated (>= {P.GENERATED_MIN_TOKENS} "
              "monotonic tokens)",
              [k for k in keys if k[2] == kind and "(frequent)" in k[1]])
+    if args.sample.exists() and args.list.exists():
+        found = sample_precision(args.sample, args.list)
+        checked = found.get("ok", 0) + found.get("wrong", 0)
+        if checked:
+            print(f"\nhand-checked sample of generated spellings: "
+                  f"{found.get('ok', 0):,} / {checked:,} right "
+                  f"{found.get('ok', 0) / checked:6.1%}; {found}")
     print("\nsome misses (verb, form, generated, attested):")
     for row in result["wrong"][:args.examples]:
         print("  ", *row)

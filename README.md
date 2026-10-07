@@ -2034,8 +2034,9 @@ monotonic) is retained for other downstream consumers via
 | `grc_polytonic.{dic,aff,version}` | `grc` | `grc` | Ancient + Medieval polytonic forms. Rows owned by `src='grc'` are eligible, as are language-shared rows for a lemma that also has `grc` evidence; this preserves AG headwords such as `λέγω`, `πατήρ`, and `γῆ` without admitting unrelated Modern lemmas. New forms require exact evidence from the complete accent-preserving `form_profile.db`, including hapaxes, or membership in a pinned citation, textbook-paradigm, grammar, or productive second-accent class; arbitrary unattested generator output is not admitted. A productive second accent needs a proparoxytone or properispomenon host (`θάλασσάν`, `δῶρόν`, but not `λύκοί`). A new spelling that differs only in accent, breathing, diaeresis, or iota subscript from a well-formed spelling with at least 1,000 corpus tokens (`ἑγώ` beside `ἐγώ`, `ταΐς` beside `ταῖς`) must also be attested in the GLAUx or Diorisis treebanks: at least 25 tokens when it has under 1% of the common spelling's count, at least 5 when it has under 5%. A spelling both treebanks annotate independently, more than once each and at a rate of at least one treebank token per thousand of the dominant spelling, is confirmed instead of counted, which keeps the dual `πρώτω`, Doric `γλώσσᾳ` and the contract `πειρᾷς`. This keeps genuine dialect spellings such as Doric `τᾷ` and `τῶ`. Outside the reviewed April surface (see the release audit below), a vowel- or rho-initial form without a breathing is rejected, and so are a grave accent before the final syllable (`καὶτοὺς`, `ὓστερον`) or on an elided word (`γὰρ᾽`), and a second accent anywhere but on the ultima of a proparoxytone or properispomenon, or before a fused enclitic (`Αἴγυπτόνδε`). Valid elisions normalize their final textual apostrophe to U+1FBD koronis. Same-lemma bare elision fallbacks are excluded unless an independent DGE/Cunliffe headword proves the collision, while the reviewed historical fallback set catches malformed self-headwords and preserves genuine `ἄν`. The closed Homeric apocope set preserves `κὰτ`/`κάτ` through `κὰγ`/`κάγ` and `ἂμ`/`ἄμ`. A closed grammatical list preserves legitimate unaccented words: enclitics including the `τις`, `φημί`, and `εἰμί` forms, dialect proclitics (`ἁ`, `αἰ`), and crasis with a proclitic (`κἀν`, `χὠ`), while `του` and `τῳ` remain deliberately excluded. The same list carries the article's graves (`τὸ`, `τὼ`), which `lookup.db` leaves to `resolve_articles`, the relative pronoun's (`ὃ`, `ἣ`, `οἳ`, `αἳ`), and the crasis of `καί` written with an iota subscript that GLAUx or Diorisis has at least 4 times (`κᾂν`, `κᾀπὶ`, `κᾀπειδὰν`, `κᾄπειτ᾽`, the unaccented `κᾀκ` and `κᾀξ`), for which `lookup.db` has no row. A spelling GLAUx or Diorisis has at least 5 times outside the language model's held-out sentences comes in even when no lemma source proposes it, under itself, or when only the Modern Greek lexicon does, under that lexicon's lemma (`σπανίως`, `κτήσεις`, `χαίρετε`); the counts are case-sensitive, a contextual grave counts with its acute, and the held-out sentences' own occurrences are left out (`data/hunspell_grc_lm_dev_spellings.json.gz`, written from `build/lm/dev_sentences_{glaux,diorisis}.txt` by `scripts/build_hunspell_dev_spellings_fixture.py`), so those sentences stay a fair test of the dictionary. An elided spelling, an inner capital, an iota adscript, a vowel-length mark, a breathing after a consonant (`δὔ`, a converted elision mark), a second accent, or the grave of an explicitly rejected spelling (`τοὺ`) keeps a treebank spelling out, a capitalized one comes in only when its lowercase is not a word, and the respelling rule above applies to them as to every new form; `--treebank-spelling-min-count 0` turns both rules off. Crasis inside a word may carry its breathing past the first syllable (`ἐγᾦμαι`, `καλοκἀγαθία`, `ταὧν`), crasis with `ὦ` keeps the interjection's circumflex wherever it lands (`ὦνθρωπε`, `ὦλεθρε`), and reviewed lists keep complete words that end in a consonant (`ἔκ`, `παρέκ`, `ὑπέκ`, `χερουβίμ`). A fused enclitic's host keeps its own accent window: the `-τις` of `ὅστις` (`οὗτινος`), `-περ` (`οἷονπερ`), and the `-δε` of the epic and Ionic datives of `ὅδε` (`τῇσιδε`); any other `-δε` takes the second accent (`πόλεμόνδε`). In a Latin name `ου` between two vowels is the consonant v, not a syllable (`Ὀκτάουιος`), and the Ionic enclitics `τεο`, `τεῳ` and `τεων` are written without an accent. Every retained contextual grave receives its citation/before-pause acute twin unless the twin fails a structural rule. |
 | `el_GR_monotonic.{dic,aff,version}` | `el` | `el_GR` | Modern Greek monotonic forms, including MG-relevant vocabulary drawn from the AG side of `lookup.db` (articles, common verbs, proper names). Not shipped in Tonos. |
 
-A third list, `grc_mg_polytonic.{dic,aff,version}`, holds attested polytonic
-Modern Greek spellings for a keyboard to merge into grc. It comes from
+A third list, `grc_mg_polytonic.{dic,aff,version}`, holds polytonic Modern
+Greek spellings, attested ones and the generated forms of frequent verbs,
+for a keyboard to merge into grc. It comes from
 `export_mg_polytonic.py`; see
 [below](#polytonic-modern-greek-word-list-grc_mg_polytonicdic).
 
@@ -2330,8 +2331,15 @@ its monotonic form's count in monotonic Modern Greek text
 grc's edges on its 27M-token corpus: `C` from 37 per million (9,724
 tokens), `M` from 3.7 (973). A traditional subjunctive in -ῃ or -ῃς counts
 with its monotonic spelling in -ει or -εις, and an elided spelling has no
-monotonic count. The slice is 1.7M tokens of older prose, so its counts
-alone put 231 spellings above `R`; monotonic text raises 3,174 more from
+monotonic count. The counts are of lowercased text, so they count a name
+with the word of the same letters: a lowercase spelling whose monotonic
+form the slice writes more often capitalized inside a sentence gets no
+bucket from them (`κίνα`, beside `Κίνα`), nor a capitalized one the slice
+writes more often in lowercase. A name the slice does not write still
+lends its tokens to a generated form (the imperative `κίνα` is `M`, and
+`μάσα`); Wiktionary's list of names is no guard, since it lists rare ones
+too (`Σταμάτα`, beside the imperative `σταμάτα`). The slice is 1.7M tokens of older prose, so its counts
+alone put 231 spellings above `R`; monotonic text raises 3,160 more from
 `R` (`βρήκαμε`, `ἀγόρια`, `καλοκαῖρι`, `λέμε`) and 121 from `M` to `C`, and
 gives the generated forms below their only bucket. The `.version` records where the buckets come
 from (`bucket_source`). A keyboard may take a `C` or `M` word for a sign
@@ -2362,7 +2370,9 @@ attestation (`data/form_profile.db`, `python -m dilemma download
 current list this caps `του`, `των`, `μοναχὸς`, `μίας`, `κό`, `πὲ` and
 `τάκ`, with their twins. The `.version` records
 the sha256 of every file that decides the list: the grc dictionary,
-`lookup.db` and `form_profile.db`.
+`lookup.db`, `form_profile.db`, and for the generated forms and the
+monotonic buckets the verb paradigms (`data/mg_pairs.json`) and the
+monotonic counts (`data/mg_freq.txt`).
 
 The list also names the grc spellings polytonic Modern Greek writes another
 way, with lines of the form `form<TAB>mg:avoid`, so that a keyboard writing
@@ -2414,8 +2424,8 @@ grc's spellings get a line, with the contextual grave of an avoided acute.
 A Hunspell reader that does not know the field accepts the marked
 spellings, as grc does.
 
-The list has 17,176 attested words (859 in `C` and 2,540 in `M`; 19 and
-212 by the slice's counts alone), 20,275 generated verb forms (below) and
+The list has 17,176 attested words (857 in `C` and 2,528 in `M`; 19 and
+212 by the slice's counts alone), 20,564 generated verb forms (below) and
 189 `mg:avoid` lines. The attested words include 976 capitalized, 155
 elided and 197 aphaeresized spellings (`᾽ναι`,
 `᾽ς`), the six weak
@@ -2443,79 +2453,122 @@ the attested list alone turns into Ancient neighbors (`μιμήσεις`, `πι�
 `mg_polytonic_paradigms.py` writes polytonic spellings for the inflected
 forms of Modern Greek verbs from Wiktionary's monotonic paradigms
 (`data/mg_pairs.json`, written by `build_data.py`), for every form that
-monotonic text has at least 50 times (`data/mg_freq.txt`, OpenSubtitles);
-cells tagged rare, archaic, dialectal, Katharevousa, obsolete or dated are
-skipped. A monotonic spelling has the letters, the accented vowel and any
-diaeresis of the polytonic one. The rest is decided as follows:
+monotonic text has at least 50 times (`data/mg_freq.txt`, OpenSubtitles).
+A cell Wiktionary tags rare, archaic, dialectal, Katharevousa, obsolete or
+dated is generated like any other (`ὑπακούουν`, `συντριβεῖ`,
+`ἀπεχθάνεσαι`), unless another part of speech has its letters, whose count
+it would borrow (`πιάνου`, the piano's). Three kinds of Wiktionary row are
+left out: verb forms filed under an abbreviation in capitals (`ΔΕΣ` for
+`δες`), whereas a page title in a heading's capitals is read in lowercase
+(`Ερωτώ`, with `ρώτησα`); and the pieces of tables it could not split into
+stem and ending (`σαλπάρω`'s `ούμε`, `όμαστε`, `όσουν`). Such a piece starts
+with another letter than its verb, even after an augment, and is the very
+ending of the same cell in at least 5% of the verbs; a suppletive form
+(`φάγατε`, `είπα`, `ήρθα`) also starts otherwise but ends no other verbs'
+forms. A form several verbs share gets one spelling, from the verb that is
+a verb rather than another word's page, then the one whose letters it
+shares the longest beginning with (`πουλᾶμε` is `πουλάω`'s, not `πωλώ`'s),
+reading the attested spellings of all of them (`ἑπόμενες`, beside the
+attested `ἑπόμενη` of `επόμενος`). A monotonic spelling has the letters,
+the accented vowel and any diaeresis of the polytonic one. The rest is
+decided as follows:
 
 - the breathing of an initial vowel or `ρ`: the verb's attested polytonic
   forms with the same first two letters (`ἔρθω`, `ἔρθει` -> `ἔρθεις`);
-  without them, the grc words with the same first four, three or two
-  letters, when at least 5 of them write one breathing 90% of the time
-  (`ἀναρωτιέμαι` from `ἀνα-`, `εὑρέθηκα` from `εὑρε-`); failing those, the
-  smooth breathing, and the rough one on `υ` and `ρ`. An augment before a
-  consonant is smooth (`ἦβρε`, not `ἧβρε` after `ἥβη`). On a diphthong
-  the breathing goes on the second vowel;
+  without them, the grc words with the longest prefix of the word, up to 7
+  letters, that at least 5 of them share, when 90% of those agree
+  (`ἀναρωτιέμαι` from `ἀνα-`, `εὑρέθηκα` from `εὑρε-`, `ἑστιάζω` from
+  `ἑστια-`). A prefix that many words share but do not agree on decides for
+  the default, since its words are already further from the word than
+  those of the longer one: `εστι-` is split by `ἐστί`, and `εσ-` below it,
+  smooth almost throughout, would make `ἐστιάζω`. The default is the smooth
+  breathing, the rough one on `υ` and `ρ`. An augment before a consonant is
+  smooth (`ἦβρε`, not `ἧβρε` after `ἥβη`). On a diphthong the breathing
+  goes on the second vowel;
 - the type of the accent, by the Ancient rule that polytonic Modern Greek
   keeps, with syllables counted the Ancient way (`ἤ-πι-ε`): an accented
   antepenult takes the acute; an accented penult the circumflex when its
   vowel is long and the last syllable short (`δῶσε`, `ποῦμε`, `ἦρθα`,
   `εἶσαι`), else the acute; an accented last syllable the circumflex when
-  its vowel is long (`μπορεῖς`, `δοθεῖ`, `πιῶ`), else the acute (`πές`).
-  `η`, `ω` and the diphthongs are long, `ε` and `ο` short, and a final `αι`
-  or `οι` counts short. For `α`, `ι` and `υ` the verb's attested forms
-  decide, where the type of their accent shows the length; before the `σ`,
-  `ξ` or `ψ` of a perfective stem only forms with that letter too count,
-  since the long `α` of a contraction (`γελᾶτε`, `κοιτᾶς`) says nothing of
-  the stem's (`γελάστε`, `κοιτάξτε`). Without such forms, the contracted
-  endings of the `-άω` verbs are long (`μιλᾶμε`, `μιλᾶτε`, `μιλᾶς`), as is
-  the imperative plural `-ᾶτε` (`ἐλᾶτε`), and any other vowel is short
-  (`κάνε`, `σκάσε`). The `-α` of an imperative counts long (`ζήτα`,
-  `φεύγα`). Monotonic writing leaves a monosyllable unaccented (`πιω`,
-  `πεις`), so its accent goes on its last vowel (`πιῶ`, `πιεῖς`). The
-  gerund keeps the acute, which the slice writes 303 times to the
-  circumflex's 267 (`μιλώντας`, `ζητῶντας`);
-- the iota subscript: the verb's attested forms carry it over to the same
-  vowel before the same letter (`σῴσει` beside `σῴσῃ`, but `ἀγαπάει`
-  beside `ἀγαπᾷ`), and the contracted `-ᾶς` and `-ᾶ` take it as most of the
-  slice's tokens of such forms do (69% and 83%: `ἀγαπᾷς`), except in a
-  monosyllable (`πᾶς`).
+  its vowel is long (`μπορεῖς`, `δοθεῖ`, `πιῶ`, `ἐπιζῶν`), else the acute
+  (`πές`). Only the aorist passive participle in -είς takes the acute on
+  its long last syllable (`γραφείς`, beside the dependent `γραφεῖς`). `η`,
+  `ω` and the diphthongs are long, `ε` and `ο` short, and a final `αι` or
+  `οι` counts short. For `α`, `ι` and `υ` the verb's attested forms decide,
+  where the type of their accent shows the length, if they have at least 3
+  tokens, the list's own floor: one token of `γελᾶστε` is a misspelling.
+  Before a consonant of a perfective stem only forms with that consonant
+  too count, since the long `α` of a contraction (`γελᾶτε`, `κοιτᾶς`) says
+  nothing of the stem's (`γελάστε`, `κοιτάξτε`, `κοιτάχτε`); and a
+  perfective form's acute (`σκάσε`) says nothing of an imperfective
+  contraction (`σκᾶς`, `σκᾶνε`). Without such forms, the contracted endings
+  are long: of the `-άω` verbs and of those filed under a polytonic `-ῶ`
+  (`μιλᾶμε`, `μιλᾶτε`, `μιλᾶς`, `μιλᾶνε`), of the passive `-άμαι` and
+  `-ώμαι` (`θυμᾶμαι`, `αὐταπατᾶσαι`) and of any imperative plural in `-ᾶτε`
+  (`ἐλᾶτε`); any other vowel is short (`κάνε`, `σκάσε`). The `-α` of an
+  imperative counts long (`ζήτα`, `φεύγα`). Monotonic writing leaves a
+  monosyllable unaccented (`πιω`, `πεις`), so its accent goes on its last
+  vowel (`πιῶ`, `πιεῖς`). The gerund keeps the acute, which the slice writes
+  283 times to the circumflex's 241 in the paradigms' gerunds (`μιλώντας`,
+  `ζητῶντας`);
+- the iota subscript: the verb's attested forms with at least 3 tokens
+  carry it over to the same vowel before the same letter (`σῴσει` beside
+  `σῴσῃ`, but `ἀγαπάει` beside `ἀγαπᾷ`), and the contracted `-ᾶς` and `-ᾶ`
+  take it as most of the slice's tokens of such forms do (69% and 83%:
+  `ἀγαπᾷς`), except in a monosyllable (`πᾶς`).
 
 The texts write the subjunctive of the second and third person singular
 both as the indicative (`νὰ πάρεις`, `νὰ πάρει`) and the traditional way
-(`νὰ πάρῃς`, `νὰ πάρῃ`), so both are generated, for the dependent forms and
-for the present forms that serve as their imperfective subjunctive. A
-generated spelling is listed only where neither grc nor the attested list
-has a spelling of its monotonic form (a diaeresis aside: `χάιδεψε` is the
-attested `χάϊδεψε`), so it fills a gap. Where the attested list has a
-spelling of its letters, the two compete for the same typed letters, so the
-generated one goes in only when it is another paradigm cell, and monotonic
-text has its form at least twice as often as the attested spelling's: the
-imperative `σταμάτα` (93,732 monotonic tokens) beside the attested present
-`σταματᾷ` (2,994), `μίλα` beside `μιλᾶ`, `ξέχνα` beside `ξεχνᾷ`. A typed
-`ξεκινα` keeps the attested imperative `ξεκίνα` (8,995) without the present
-`ξεκινᾷ` (3,725), and `ἀνεβοῦμε` is not joined by `ἀνέβουμε`, the same
-cell. At half as often, the imperfect `τρέχατε` (157) went in beside the
-attested imperative `τρεχᾶτε` (129) and broke both a held-out word and the
-imperative typed alone. A grc spelling of the same letters does not stop a
-generated one, since that is an Ancient word (`καταλαβεῖς`, of
-`καταλαβεύς` "clamp", beside `καταλάβεις`); letting grc stop it too would
-give up 2 fixed words on the author folds and 7 on the verb probe of the
-keyboard measurement below. A generated spelling must pass the list's
-orthography rules and recorded reviews, and each oxytone gets its
-contextual twin. It is written `form<TAB>fr:B mg:generated`, with the
-bucket `B` of its monotonic form's count (above), so a reader can tell it
-from the attested spellings; a Hunspell reader that does not know the
+(`νὰ πάρῃς`, `νὰ πάρῃ`), so both are generated, for the dependent forms, for
+the present forms that serve as their imperfective subjunctive, and for any
+form in `-ει` or `-εις` that Wiktionary tags only as a form of its verb
+(`ξαναδῇ`, `ὁδηγῇς`). Monotonic writing spells the subjunctive `-ει(ς)` and
+writes it `-η(ς)` only by mistake, a few times in a hundred; where it has
+the traditional spelling's letters and accent 50 times and a tenth as often
+as the form, they are another word's, and the twin is left out (the noun
+`υπολογιστή`, 12,664 tokens, beside the subjunctive `ὑπολογιστῇ`).
+
+A generated spelling is listed only where neither grc nor the attested list
+has a lowercase spelling of its monotonic form (a diaeresis aside:
+`χάιδεψε` is the attested `χάϊδεψε`; a name such as `Δροῦσε` covers no
+`δροῦσε`), so it fills a gap. Where the attested list has a spelling of its
+letters, the two compete for the same typed letters, so the generated one
+goes in only when it is another paradigm cell, and monotonic text has its
+form at least twice as often as the attested spelling's: the imperative
+`σταμάτα` (93,732 monotonic tokens) beside the attested present `σταματᾷ`
+(2,994), `μίλα` beside `μιλᾶ`, `ξέχνα` beside `ξεχνᾷ`. A typed `ξεκινα`
+keeps the attested imperative `ξεκίνα` (8,995) without the present
+`ξεκινᾷ` (3,725), and `ἀνεβοῦμε` is not joined by `ἀνέβουμε`, the same cell.
+Letting a same-cell spelling in at twice the tokens too (`τελείωσα`, 10,636
+monotonic tokens, beside the attested `τέλειωσα`, 2,772; `κάηκαν` beside
+`καῆκαν`) changed nothing on the author folds and traded 4 fixed verb
+forms for 4 broken ones after `θα` and `να` in the keyboard measurement
+below: both spellings are words, and a user typing their letters means
+either. At half as often, the imperfect `τρέχατε` (157) went
+in beside the attested imperative `τρεχᾶτε` (129) and broke both a held-out
+word and the imperative typed alone. Generated spellings of the same letters
+compete the same way, most frequent first: a later one is left out when it
+is the same cell (`πεθάναν`, 61 tokens, after `πέθαναν`, 8,404) or the
+earlier has twice its tokens (`ξεπέρνα`, 71, after `ξεπερνᾷ`, 918), and
+stays otherwise (`πουλᾷ`, 442, beside `πούλα`, 797). A grc spelling of the
+same letters does not stop a generated one, since that is an Ancient word
+(`καταλαβεῖς`, of `καταλαβεύς` "clamp", beside `καταλάβεις`); letting grc
+stop it too would give up 2 fixed words on the author folds and 7 on the
+verb probe of the keyboard measurement below. A generated spelling must
+pass the list's orthography rules and recorded reviews, and each oxytone
+gets its contextual twin. It is written `form<TAB>fr:B mg:generated`, with
+the bucket `B` of its monotonic form's count (above), so a reader can tell
+it from the attested spellings; a Hunspell reader that does not know the
 field accepts it like any entry. The `.version` counts the `attested` and
 `generated` entries and their buckets, and records the sha256 of the
 paradigms and the frequencies (`verb_paradigms_sha256`,
 `form_frequencies_sha256`). Without those files the exporter says so and
 generates nothing, and `--no-generated-verbs` leaves the generated forms
-out. In the current list, 11,890 candidate spellings are covered by grc or
-the attested list, 22 go in beside an attested spelling of the same letters
-and 23 lose to one; the 20,275 generated entries are 18,011 indicative and
-2,251 subjunctive spellings and 13 contextual twins, 124 of them in `C` and
-2,080 in `M`.
+out. In the current list, 11,131 candidate spellings are covered by grc or
+the attested list, 27 go in beside a spelling of the same letters and 41
+lose to one; the 20,564 generated entries are 17,997 indicative and 2,558
+subjunctive spellings and 9 contextual twins, 126 of them in `C` and 2,094
+in `M`.
 
 `eval/eval_mg_paradigms.py` measures precision. It holds out, in turn,
 every verb form the slice attests at least 3 times with one spelling
@@ -2525,24 +2578,32 @@ contextual grave and acute counted as one:
 
 | Verb class | Indicative spelling | Subjunctive spelling |
 |------------|--------------------:|---------------------:|
-| `-ω` (`γράφω`) | 98.8% of 4,552 | 90.1% of 867 |
-| `-άω` (`μιλάω`) | 95.3% of 847 | 93.5% of 123 |
-| `-ώ`, `-είς` (`μπορώ`) | 98.4% of 515 | 85.1% of 161 |
-| `-μαι` (`έρχομαι`) | 96.1% of 866 | 92.0% of 75 |
-| other (`πρέπει`, `έλα`) | 95.0% of 1,091 | 6 of 6 |
-| all | 97.6% of 7,871 | 89.9% of 1,232 |
-| forms with 50 monotonic tokens (those generated) | 98.3% of 5,436 | 92.8% of 1,034 |
+| `-ω` (`γράφω`) | 99.0% of 4,614 | 90.6% of 965 |
+| `-άω` (`μιλάω`) | 94.9% of 850 | 93.8% of 130 |
+| `-ώ`, `-είς` (`μπορώ`) | 98.5% of 529 | 85.4% of 164 |
+| `-μαι` (`έρχομαι`) | 96.4% of 879 | 86.3% of 146 |
+| other (`πρέπει`, `έλα`) | 95.9% of 1,086 | 89.0% of 73 |
+| all | 97.8% of 7,958 | 89.8% of 1,478 |
+| forms with 50 monotonic tokens (those generated) | 98.4% of 5,433 | 93.1% of 1,188 |
 
-By cell, the past is right 99.8% of the time, the imperfect 99.3%, the
-present 99.2%, the imperative 97.3%, participles 96.9% and dependent forms
-96.1%. Most misses are spellings the texts disagree on, or an attested
+By cell, the past is right 99.9% of the time, the imperfect 99.5%, the
+present 99.1%, the imperative 97.0%, participles 97.8% and dependent forms
+96.4%. Most misses are spellings the texts disagree on, or an attested
 spelling that is another word: the Katharevousa participle `γραφεὶς`
 beside the dependent `γραφεῖς`, `ζητῶντας` beside `ζητώντας`, `μιλᾶς`
 beside `μιλᾷς`, the nouns `γραφή`, `λάμψη` and `δύση` beside the
 subjunctives `γραφῇ`, `λάμψῃ` and `δύσῃ`, the relative `ὃν` beside the
 participle `ὄν`, and subjunctives that some texts write without the
-subscript (`κρύβης`). Of the 1,232 subjunctive spellings, 86 misses differ
-only in the subscript and 38 also in the accent.
+subscript (`κρύβης`). Of the 1,478 subjunctive spellings, 106 misses differ
+only in the subscript and 45 also in the accent.
+
+The forms the list generates are the ones the slice does not attest, so a
+hand-checked sample of them gives a second number:
+`eval/mg_generated_sample.tsv` holds 356 of the 20,564, stratified by verb
+class and cell, each checked for its breathing, accent type and subscript,
+and all 356 are right (95% Wilson lower bound 98.9%).
+`eval/eval_mg_paradigms.py` reports the sample's verdicts on the spellings
+the built list still generates.
 
 The language model's dev split is per sentence, so a dev sentence's document
 and author also supply training sentences. `eval/eval_mg_polytonic.py`
@@ -2589,47 +2650,30 @@ relative `ποῦ` written `ποὺ`. On 474,220 words of held-out Ancient Greek
 sentences, the keyboard's Ancient and Automatic registers gave the same
 words with the list as without it.
 
-A later build of the same keyboard measured the generated verb forms
-against the same list without them. On the author folds above (all 38,622
-words), its errors went from 6,666 to 6,462 in the Modern register (204
-words fixed, none broken) and from 8,232 to 8,110 in the Automatic one
-(122 fixed, none broken); the Ancient register gave the same words. Typed
-as bare letters after `θα` and `να`, the active dependent forms of all six
-persons and the present second and third person singular of the 400 verbs
-with the most monotonic tokens (3,562 cases, each form at least 50 tokens)
-came out as the intended word 53.3% of the time without the generated
-forms and 98.2% with them, in the Modern and Automatic registers alike,
-and none was lost. Most of the 63 left are another spelling of the same
-letters, often an Ancient one, that the keyboard ranks first (`παρεὶς` for `πάρεις`,
-`βαλεῖς` for `βάλεις`, `κοίτας` for `κοιτάς`). On the 474,220 held-out
-Ancient Greek words above and on passages of Classical, Septuagint, New
-Testament, patristic and learned Byzantine Greek, both registers gave the
-same words. Only text written in Modern Greek, Katharevousa or Byzantine
-vernacular changed, in the Automatic register: 218 words fixed and 2
-broken.
-
-The monotonic buckets and the generated forms that go in beside an
-attested spelling of another cell were measured the same way, against the
-list with neither. The `C` and `M` buckets let the keyboard read more text
-as Modern Greek in its Automatic register, and write letters only a
-frequent list word has as that word. On the author folds the Automatic
-register's errors went from 8,110 to 7,566 (569 words fixed, 25 broken) and
-the Modern register's stayed at 6,462 (5 fixed, 5 broken); the Ancient
-register gave the same words. Of 1,440 imperatives typed alone (360 forms
-of the 400 verbs, opening a sentence or after `Ἄκου,`, before `!` or `.`),
-the Automatic register wrote 626 as intended instead of 198 and the Modern
-register 1,352 instead of 1,332, none lost; the generated imperatives had
-already taken the Modern register from 428. After `θα` and `να`, 2 of the
-3,562 forms were lost: `να ξεχνά` and `να κουνά` now come out as the
-imperatives `ξέχνα` and `κούνα`, which monotonic text has 36 and 16 times
-as often. On the held-out Ancient Greek sentences and passages, the Ancient
-register gave the same words. In the Automatic register the held-out
-sentences gained 580 words and lost 18, all but one gained in the Modern
-Greek and Byzantine ones (one GLAUx word, none in Diorisis), and the
-passages gained 190 and lost 15, all in Modern Greek, Katharevousa and
-Byzantine vernacular but 4 gained elsewhere. A scholion apparatus that writes the
-Modern-looking `νότο` was read as Modern Greek once, so the question
-`Τίνες` after it came out `Τινές`.
+A later build of the same keyboard measured the generated verb forms and
+the monotonic buckets against the attested words alone, as the earlier
+lists had them. On the author folds above (all 38,622 words), its errors
+went from 6,661 to 6,457 in the Modern register (209 words fixed, 5 broken)
+and from 8,014 to 7,396 in the Automatic one (634 fixed, 16 broken); the
+`C` and `M` buckets let it read more text as Modern Greek there, and write
+letters only a frequent list word has as that word. The Ancient register
+gave the same words. Typed as bare letters after `θα` and `να`, the active
+dependent forms of all six persons and the present second and third person
+singular of the 400 verbs with the most monotonic tokens (3,562 cases, each
+form at least 50 tokens) came out as the intended word 53.8% of the time
+before and 99.1% after, in the Modern and Automatic registers alike. Of
+1,440 imperatives typed alone (360 forms of the same verbs, opening a
+sentence or after `Ἄκου,`, before `!` or `.`), the Modern register wrote
+31.3% as intended before and 96.0% after, the Automatic one 13.8% and
+44.0%, none lost. On the held-out Ancient Greek sentences and passages the
+Ancient register gave the same words, byte for byte. In the Automatic
+register the held-out sentences gained 612 words and lost 14, all but 9
+gained in the Modern Greek ones (8 Byzantine vernacular, 1 GLAUx), and the
+passages gained 287 and lost 17, in Modern Greek, Katharevousa and
+Byzantine vernacular but for 5 gained in patristic, capitalized and New
+Testament ones; a scholion apparatus that writes the Modern-looking `νότο`
+was read as Modern Greek once, so the question `Τίνες` after it came out
+`Τινές`.
 
 #### Boundary rewrites (`grc_morph.json`)
 
