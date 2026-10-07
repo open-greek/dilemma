@@ -1468,7 +1468,7 @@ def read_list(path: Path) -> tuple[dict[str, str], list[str]]:
         if field == "mg:avoid":
             avoid.append(form)
             continue
-        assert field in ("fr:C", "fr:M", "fr:R", "fr:R mg:generated"), line
+        assert re.fullmatch(r"fr:[CMR]( mg:generated)?", field), line
         out[form] = field
     return out, avoid
 
@@ -1509,6 +1509,8 @@ def test_the_built_list_holds_its_invariants():
     assert f"mg_avoid: {len(avoid)}\n" in version
     generated = [f for f, field in entries.items() if "mg:generated" in field]
     assert f"generated: {len(generated)}\n" in version
+    # The buckets say where they come from.
+    assert "bucket_source: " in version
     # The common verb forms the texts do not attest are generated.
     for word in ("ἔρθεις", "ἔρθῃς", "μιλήσεις", "πιεῖς", "καταλάβεις"):
         assert nfc(word) in entries or nfc(word) in grc, word
