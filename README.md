@@ -2322,11 +2322,21 @@ duplicate copies of a text do, is left out too. A spelling is listed when:
   together (`τουκαὶ`, and `εἰδ᾽`, written for `εἰ δ᾽`) and `τουναντίον`
   without its koronis.
 
-Each oxytone also gets its contextual twin (`στὴν` beside grc's `στήν`), and
-`fr:` uses the grc bucket edges on the spelling's token count in the slice,
-the two twins counted together. A keyboard may take a `C` or `M` word for a
-sign that a text is Modern Greek, so a spelling that is also an Ancient or
-later Greek word gets `fr:R` whatever its count:
+Each oxytone also gets its contextual twin (`στὴν` beside grc's `στήν`).
+`fr:` is the higher of two buckets: the grc bucket edges on the spelling's
+token count in the slice, the two twins counted together, and the bucket of
+its monotonic form's count in monotonic Modern Greek text
+(`data/mg_freq.txt`, OpenSubtitles, 263M tokens) at the rates per token of
+grc's edges on its 27M-token corpus: `C` from 37 per million (9,724
+tokens), `M` from 3.7 (973). A traditional subjunctive in -ῃ or -ῃς counts
+with its monotonic spelling in -ει or -εις, and an elided spelling has no
+monotonic count. The slice is 1.7M tokens of older prose, so its counts
+alone put 231 spellings above `R`; monotonic text raises 3,174 more from
+`R` (`βρήκαμε`, `ἀγόρια`, `καλοκαῖρι`, `λέμε`) and 121 from `M` to `C`, and
+gives the generated forms below their only bucket. The `.version` records where the buckets come
+from (`bucket_source`). A keyboard may take a `C` or `M` word for a sign
+that a text is Modern Greek, or write letters that only such a word has as
+that word, so these get `fr:R` whatever their count:
 
 - one the GLAUx and Diorisis treebanks attest 20 times (`του`, the Ancient
   enclitic genitive of `τις`), or the contextual twin of a grc spelling they
@@ -2339,13 +2349,18 @@ later Greek word gets `fr:R` whatever its count:
   times and at a rate at least a thirtieth of its rate in the Modern Greek
   slice (`μοναχὸς`, beside the patristic and Byzantine `μοναχός`). Below
   that rate a Modern spelling in those OCR'd editions is a misprint or a
-  quotation (`στήν`, `δὰ`), so `στὴν` and `στὸν` stay signs of Modern Greek.
+  quotation (`στήν`, `δὰ`), so `στὴν` and `στὸν` stay signs of Modern Greek;
+- one whose letters grc has under no spelling while the treebanks write
+  them 20 times: the interjection `τάκ`, whose letters are those of the
+  crasis `τἀκ`, would otherwise turn a passage of Ancient Greek that
+  writes `τἀκ` into Modern Greek.
 
 The Patrologia's OCR is not read, nor the Byzantine vernacular corpus, which
 is early Modern Greek itself. The counts come from Dilemma's form
 attestation (`data/form_profile.db`, `python -m dilemma download
 --with-attestation`); without it the exporter warns and caps nothing. In the
-current list this caps `του`, `των` and `μοναχὸς`. The `.version` records
+current list this caps `του`, `των`, `μοναχὸς`, `μίας`, `κό`, `πὲ` and
+`τάκ`, with their twins. The `.version` records
 the sha256 of every file that decides the list: the grc dictionary,
 `lookup.db` and `form_profile.db`.
 
@@ -2399,9 +2414,10 @@ grc's spellings get a line, with the contextual grave of an avoided acute.
 A Hunspell reader that does not know the field accepts the marked
 spellings, as grc does.
 
-The list has 17,176 attested words (19 in `C`, 212 in `M`), 20,253
-generated verb forms (below) and 189 `mg:avoid` lines. The attested words
-are 976 capitalized, 155 elided and 197 aphaeresized spellings (`᾽ναι`,
+The list has 17,176 attested words (859 in `C` and 2,540 in `M`; 19 and
+212 by the slice's counts alone), 20,275 generated verb forms (below) and
+189 `mg:avoid` lines. The attested words include 976 capitalized, 155
+elided and 197 aphaeresized spellings (`᾽ναι`,
 `᾽ς`), the six weak
 pronouns, `κι` and `κι᾽`, `στὴν`, `στὸν`, `στὴ`, `στοὺς`, `τὴ`, `γι᾽`, and
 the Modern vocabulary (`τώρα`, `ἀκόμη`, `σπίτι`, `ὄχι`, `μπορεῖ`). `θὰ`,
@@ -2470,26 +2486,36 @@ both as the indicative (`νὰ πάρεις`, `νὰ πάρει`) and the tradit
 (`νὰ πάρῃς`, `νὰ πάρῃ`), so both are generated, for the dependent forms and
 for the present forms that serve as their imperfective subjunctive. A
 generated spelling is listed only where neither grc nor the attested list
-has a spelling of its monotonic form, and the attested list has no
-spelling of its letters at all, so it fills a gap and never competes with
-an attested Modern spelling: a typed `ξεχνα` keeps the attested `ξεχνᾷ`
-without the imperative `ξέχνα`, and the imperfect `τρέχατε` is not added
-beside the attested `τρεχᾶτε`. A grc spelling of the same letters does not
-stop it, since that is an Ancient word (`καταλαβεῖς`, of `καταλαβεύς`
-"clamp", beside `καταλάβεις`); letting grc stop it too would give up 2
-fixed words on the author folds and 7 on the verb probe of the keyboard
-measurement below. A generated spelling must pass the list's orthography
-rules and recorded reviews, and each oxytone gets its contextual twin. It is written
-`form<TAB>fr:R mg:generated`, so that a reader can rank it below the
-attested spellings; a Hunspell reader that does not know the field accepts
-it like any entry. The `.version` counts the `attested` and `generated`
-entries and records the sha256 of the paradigms and the frequencies
-(`verb_paradigms_sha256`, `form_frequencies_sha256`). Without those files
-the exporter says so and generates nothing, and `--no-generated-verbs`
-leaves the generated forms out. In the current list, 11,889 candidate
-spellings are covered by grc or the attested list and 50 lose to an
-attested spelling of the same letters; the 20,253 generated entries are
-17,994 indicative and 2,246 subjunctive spellings and 13 contextual twins.
+has a spelling of its monotonic form (a diaeresis aside: `χάιδεψε` is the
+attested `χάϊδεψε`), so it fills a gap. Where the attested list has a
+spelling of its letters, the two compete for the same typed letters, so the
+generated one goes in only when it is another paradigm cell, and monotonic
+text has its form at least twice as often as the attested spelling's: the
+imperative `σταμάτα` (93,732 monotonic tokens) beside the attested present
+`σταματᾷ` (2,994), `μίλα` beside `μιλᾶ`, `ξέχνα` beside `ξεχνᾷ`. A typed
+`ξεκινα` keeps the attested imperative `ξεκίνα` (8,995) without the present
+`ξεκινᾷ` (3,725), and `ἀνεβοῦμε` is not joined by `ἀνέβουμε`, the same
+cell. At half as often, the imperfect `τρέχατε` (157) went in beside the
+attested imperative `τρεχᾶτε` (129) and broke both a held-out word and the
+imperative typed alone. A grc spelling of the same letters does not stop a
+generated one, since that is an Ancient word (`καταλαβεῖς`, of
+`καταλαβεύς` "clamp", beside `καταλάβεις`); letting grc stop it too would
+give up 2 fixed words on the author folds and 7 on the verb probe of the
+keyboard measurement below. A generated spelling must pass the list's
+orthography rules and recorded reviews, and each oxytone gets its
+contextual twin. It is written `form<TAB>fr:B mg:generated`, with the
+bucket `B` of its monotonic form's count (above), so a reader can tell it
+from the attested spellings; a Hunspell reader that does not know the
+field accepts it like any entry. The `.version` counts the `attested` and
+`generated` entries and their buckets, and records the sha256 of the
+paradigms and the frequencies (`verb_paradigms_sha256`,
+`form_frequencies_sha256`). Without those files the exporter says so and
+generates nothing, and `--no-generated-verbs` leaves the generated forms
+out. In the current list, 11,890 candidate spellings are covered by grc or
+the attested list, 22 go in beside an attested spelling of the same letters
+and 23 lose to one; the 20,275 generated entries are 18,011 indicative and
+2,251 subjunctive spellings and 13 contextual twins, 124 of them in `C` and
+2,080 in `M`.
 
 `eval/eval_mg_paradigms.py` measures precision. It holds out, in turn,
 every verb form the slice attests at least 3 times with one spelling
@@ -2581,6 +2607,29 @@ Testament, patristic and learned Byzantine Greek, both registers gave the
 same words. Only text written in Modern Greek, Katharevousa or Byzantine
 vernacular changed, in the Automatic register: 218 words fixed and 2
 broken.
+
+The monotonic buckets and the generated forms that go in beside an
+attested spelling of another cell were measured the same way, against the
+list with neither. The `C` and `M` buckets let the keyboard read more text
+as Modern Greek in its Automatic register, and write letters only a
+frequent list word has as that word. On the author folds the Automatic
+register's errors went from 8,110 to 7,566 (569 words fixed, 25 broken) and
+the Modern register's stayed at 6,462 (5 fixed, 5 broken); the Ancient
+register gave the same words. Of 1,440 imperatives typed alone (360 forms
+of the 400 verbs, opening a sentence or after `Ἄκου,`, before `!` or `.`),
+the Automatic register wrote 626 as intended instead of 198 and the Modern
+register 1,352 instead of 1,332, none lost; the generated imperatives had
+already taken the Modern register from 428. After `θα` and `να`, 2 of the
+3,562 forms were lost: `να ξεχνά` and `να κουνά` now come out as the
+imperatives `ξέχνα` and `κούνα`, which monotonic text has 36 and 16 times
+as often. On the held-out Ancient Greek sentences and passages, the Ancient
+register gave the same words. In the Automatic register the held-out
+sentences gained 580 words and lost 18, all but one gained in the Modern
+Greek and Byzantine ones (one GLAUx word, none in Diorisis), and the
+passages gained 190 and lost 15, all in Modern Greek, Katharevousa and
+Byzantine vernacular but 4 gained elsewhere. A scholion apparatus that writes the
+Modern-looking `νότο` was read as Modern Greek once, so the question
+`Τίνες` after it came out `Τινές`.
 
 #### Boundary rewrites (`grc_morph.json`)
 

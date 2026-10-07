@@ -41,6 +41,13 @@ from export_mg_polytonic import (  # noqa: E402
 K = mg.KORONIS
 
 
+
+@pytest.fixture(autouse=True)
+def _slice_buckets(monkeypatch):
+    """These tests read the slice's counts alone: the monotonic buckets
+    (``MONOTONIC_BUCKETS``) would read data/mg_freq.txt."""
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+
 def nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
@@ -1246,6 +1253,11 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     assert mg.input_digests(generate_verbs=False) == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None}
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    assert mg.input_digests(generate_verbs=False) == {
+        "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
+        "form_profile": None,
+        "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
 
 
 # --------------------------------------------------------------------------

@@ -30,7 +30,7 @@ The texts are mostly older prose, so they rarely attest the second person
 and the spoken forms of common verbs (ἔρθεις, μιλήσεις, πιεῖς). The list
 adds polytonic spellings for the frequent verb forms that neither it nor
 grc covers, generated from Wiktionary's monotonic paradigms by
-``mg_polytonic_paradigms`` and written ``form<TAB>fr:R mg:generated``
+``mg_polytonic_paradigms`` and written with an ``mg:generated`` field
 (``generated_verb_forms``).
 
 Source
@@ -94,12 +94,15 @@ punctuation.
 
 The ``fr:`` field uses the grc bucket edges (``export_hunspell.freq_bucket``:
 C >= 1000, M >= 100, R >= 1) on the spelling's own token count in the
-Modern Greek slice, the acute and grave twins counted together. A C or M
-spelling that is also an Ancient or later Greek word (του, the Ancient
-enclitic genitive; μοναχὸς, the patristic μοναχός) is written with fr:R,
-so that a keyboard does not take it for a sign of Modern Greek
-(``ancient_word``, from Dilemma's form attestation,
-``data/form_profile.db``).
+Modern Greek slice, the acute and grave twins counted together, or, when
+higher, the bucket of its monotonic form's count in monotonic Modern Greek
+text at grc's rates per token (``MONOTONIC_BUCKETS``, ``list_buckets``).
+A C or M spelling that is also an Ancient or later Greek word (του, the
+Ancient enclitic genitive; μοναχὸς, the patristic μοναχός), or whose
+letters only an Ancient word grc lacks has (τάκ beside the crasis τἀκ), is
+written with fr:R, so that a keyboard does not take it for a sign of
+Modern Greek (``ancient_word``, ``ancient_letters``, from Dilemma's form
+attestation, ``data/form_profile.db``).
 
 The ``mg:avoid`` lines name the grc spellings the slice gives under a tenth
 of their word's tokens with 95% confidence, as respellings of a commoner
@@ -1584,9 +1587,14 @@ class ModernGreekList(NamedTuple):
     report: dict[str, int]
     rejected: dict[str, list[str]]
     ancient: frozenset[str] = frozenset()   # entries capped at fr:R
-    # Generated verb forms (``generated_verb_forms``), written fr:R
+    # Generated verb forms (``generated_verb_forms``), written with
     # mg:generated; not in ``entries``.
     generated: frozenset[str] = frozenset()
+    # The fr: bucket of every entry and generated form, when the buckets
+    # read the monotonic frequencies too (``list_buckets``); otherwise
+    # ``write_list`` derives them from ``entries`` and writes R for the
+    # generated forms.
+    buckets: dict[str, str] | None = None
 
 
 def select_list(
@@ -1612,23 +1620,40 @@ def select_list(
                                   selection.entries, ancient_corpora, report)
     lines = avoid_lines(avoided, grc_words)
     report["mg_avoid_lines"] = len(lines)
-    ancient: set[str] = set()
-    if ancient_corpora is not None:
-        slice_tokens = sum(c for per_doc in counts.forms.values()
-                           for d, c in per_doc.items() if d in sources)
-        ancient = {spelling for spelling, n in selection.entries.items()
-                   if freq_bucket(n) != "R"
-                   and ancient_word(spelling, grc_words, ancient_corpora,
-                                    n / slice_tokens)}
-        report["ancient_capped"] = len(ancient)
-    generated: set[str] = set()
+    slice_tokens = sum(c for per_doc in counts.forms.values()
+                       for d, c in per_doc.items() if d in sources)
+    generated: dict[str, int] = {}
     if generate_verbs:
         generated = generated_verb_forms(
             counts, sources, grc_words, set(selection.entries),
             reviewed_rejects, report)
+    buckets = None
+    frequencies = _monotonic_frequencies() if MONOTONIC_BUCKETS else None
+    if frequencies is not None:
+        buckets = list_buckets(selection.entries, generated, frequencies,
+                               report)
+    ancient: set[str] = set()
+    if ancient_corpora is not None:
+        if buckets is None:
+            ancient = {spelling for spelling, n in selection.entries.items()
+                       if freq_bucket(n) != "R"
+                       and ancient_word(spelling, grc_words, ancient_corpora,
+                                        n / slice_tokens)}
+        else:
+            grc_letters = _grc_letters(grc_words)
+            ancient = {spelling for spelling, bucket in buckets.items()
+                       if bucket != "R"
+                       and (ancient_word(spelling, grc_words, ancient_corpora,
+                                         _rate(spelling, selection.entries,
+                                               slice_tokens))
+                            or ancient_letters(spelling, grc_letters,
+                                               ancient_corpora))}
+            for spelling in ancient:
+                buckets[spelling] = "R"
+        report["ancient_capped"] = len(ancient)
     return ModernGreekList(selection.entries, lines, dict(report),
                            selection.rejected, frozenset(ancient),
-                           frozenset(generated))
+                           frozenset(generated), buckets)
 
 
 # --------------------------------------------------------------------------
@@ -1663,6 +1688,18 @@ def attested_lowercase(counts: CorpusCounts,
 # 7 common verb forms typed after θα and να.
 GENERATED_LETTERS_TAKEN_BY_GRC = False
 
+# ...unless the generated spelling is another paradigm cell's, which
+# monotonic text has at least this many times as often as the attested
+# spelling's form (``LETTERS_SHARED_ACROSS_CELLS``): the imperative σταμάτα
+# (93,732 monotonic tokens) beside the attested present σταματᾷ (σταματά,
+# 2,994), but not the present ξεκινᾷ (3,725) beside the attested imperative
+# ξεκίνα (8,995), nor ἀνέβουμε beside ἀνεβοῦμε, the same cell, nor χάιδεψε
+# beside χάϊδεψε, the same form with a diaeresis. At half as often, the
+# imperfect τρέχατε (157) beside the attested imperative τρεχᾶτε (129)
+# broke a held-out word and the imperative typed alone, and fixed nothing.
+# None: the letters of an attested spelling stop every generated one.
+LETTERS_SHARED_ACROSS_CELLS: float | None = 2.0
+
 _VERB_INPUTS: dict[str, object] = {}
 
 
@@ -1688,18 +1725,21 @@ def generated_verb_forms(
     listed: set[str],
     reviewed_rejects: frozenset[str],
     report: Counter,
-) -> set[str]:
+) -> dict[str, int]:
     """Polytonic spellings of the frequent verb forms the list and grc lack
-    (``mg_polytonic_paradigms``), with their contextual twins.
+    (``mg_polytonic_paradigms``), with their contextual twins, and the
+    monotonic token count of the form each spells.
 
     A generated spelling is kept only where neither grc nor the list has
-    a spelling of its monotonic form, and the list no spelling of its
-    letters at all (``GENERATED_LETTERS_TAKEN_BY_GRC``), so it never
-    competes with an attested Modern spelling: it fills a gap. It must be
+    a spelling of its monotonic form (a diaeresis aside), and the list no
+    spelling of its letters (``GENERATED_LETTERS_TAKEN_BY_GRC``) of the
+    same paradigm cell or of a form monotonic text has more than half as
+    often (``LETTERS_SHARED_ACROSS_CELLS``), so it fills a gap and does not
+    compete with the attested spelling of the same word. It must be
     well-formed (:func:`mg_orthography_reason`) and not rejected by a
-    recorded review. Generation reads the attested
-    spellings of the same ``sources`` only, so an evaluation list built
-    without some authors generates without their texts as well.
+    recorded review. Generation reads the attested spellings of the same
+    ``sources`` only, so an evaluation list built without some authors
+    generates without their texts as well.
     """
     import mg_polytonic_paradigms as paradigms
 
@@ -1708,32 +1748,40 @@ def generated_verb_forms(
         print(f"  NOTE: {paradigms.VERB_PARADIGMS} or "
               f"{paradigms.MG_FORM_FREQ} not found; no verb forms are "
               "generated", file=sys.stderr)
-        return set()
+        return {}
     verb_paradigms, frequencies = inputs
     attested = attested_lowercase(counts, sources)
     evidence = paradigms.Evidence(attested, grc_words, verb_paradigms)
     candidates = paradigms.generate(verb_paradigms, frequencies, evidence)
     wanted = {paradigms.bare(g.spelling) for g in candidates}
     covered: set[str] = set()
-    covered_letters: set[str] = set()
+    # The letters' attested spellings, by their monotonic form.
+    covered_letters: dict[str, set[str]] = defaultdict(set)
     for word in [*grc_words, *listed]:
         lower = _lowercase(word)
         letters = paradigms.bare(lower)
         if letters in wanted:
-            covered.add(paradigms.monotonic_key(lower))
+            covered.add(_without_diaeresis(paradigms.monotonic_key(lower)))
             if word in listed or GENERATED_LETTERS_TAKEN_BY_GRC:
-                covered_letters.add(letters)
+                covered_letters[letters].add(paradigms.monotonic_key(lower))
+    cells = _paradigm_cells()
     reviewed = {contextual_acute(f) for f in reviewed_rejects}
-    kept: set[str] = set()
+    kept: dict[str, int] = {}
     for g in candidates:
         if g.spelling in kept:
             continue
-        if paradigms.monotonic_key(g.spelling) in covered:
+        if _without_diaeresis(paradigms.monotonic_key(g.spelling)) in covered:
             report["generated_covered"] += 1
             continue
-        if paradigms.bare(g.spelling) in covered_letters:
-            report["generated_letters_taken"] += 1
-            continue
+        taken = covered_letters.get(paradigms.bare(g.spelling))
+        if taken:
+            if LETTERS_SHARED_ACROSS_CELLS is None or any(
+                    g.cell in cells.get(key, ())
+                    or g.tokens < LETTERS_SHARED_ACROSS_CELLS
+                    * frequencies.get(key, 0) for key in taken):
+                report["generated_letters_taken"] += 1
+                continue
+            report["generated_letters_shared"] += 1
         if mg_orthography_reason(g.spelling) is not None:
             report["generated_orthography"] += 1
             continue
@@ -1741,14 +1789,144 @@ def generated_verb_forms(
             report["generated_reviewed_reject"] += 1
             continue
         report[f"generated_{g.kind}"] += 1
-        kept.add(g.spelling)
+        kept[g.spelling] = g.tokens
         for twin in oxytone_twins(g.spelling):
             if (mg_orthography_reason(twin) is None
                     and not grc_accepts(twin, grc_words)
                     and contextual_acute(twin) not in reviewed):
-                kept.add(twin)
+                kept[twin] = g.tokens
     report["generated"] = len(kept)
     return kept
+
+
+def _without_diaeresis(key: str) -> str:
+    """A monotonic spelling without its diaeresis: χάϊδεψε is χάιδεψε."""
+    return unicodedata.normalize("NFC", unicodedata.normalize(
+        "NFD", key).replace("\u0308", ""))
+
+
+def _paradigm_cells() -> dict[str, set[str]]:
+    """Monotonic verb form -> the paradigm cells it fills, of any verb."""
+    import mg_polytonic_paradigms as paradigms
+
+    if "cells" not in _VERB_INPUTS:
+        cells: dict[str, set[str]] = defaultdict(set)
+        inputs = _verb_inputs()
+        for forms in (inputs[0] if inputs else {}).values():
+            for form, tags in forms.items():
+                cells[form].add(paradigms.cell(tags))
+        _VERB_INPUTS["cells"] = dict(cells)
+    return _VERB_INPUTS["cells"]
+
+
+# --------------------------------------------------------------------------
+# Frequency buckets from monotonic text
+# --------------------------------------------------------------------------
+
+# The slice is small (1.7M tokens of older prose), so its counts put 231
+# spellings above R and none of the generated forms, which it does not
+# attest. Monotonic Modern Greek text (MG_FORM_FREQ, OpenSubtitles, 263M
+# tokens) counts the same words by their monotonic spelling. With
+# MONOTONIC_BUCKETS, a spelling's fr: is the higher of its slice bucket and
+# the bucket of its monotonic form's count; a generated form has only the
+# latter. The edges are grc's per token (export_hunspell.freq_bucket: 1,000
+# and 100 tokens of corpus_freq.json's 27M), 37 and 3.7 per million, so
+# that a keyboard comparing the two lists' buckets compares like with like.
+# "generated" applies them to the generated forms only, "" to none.
+MONOTONIC_BUCKETS = "all"
+MONOTONIC_C_PER_MILLION = 37.0
+MONOTONIC_M_PER_MILLION = 3.7
+
+
+def _monotonic_frequencies() -> dict[str, int] | None:
+    """The monotonic form counts, read once per process, or None when the
+    file is missing."""
+    import mg_polytonic_paradigms as paradigms
+
+    inputs = _verb_inputs()
+    if inputs is not None:
+        return inputs[1]
+    if "frequencies" not in _VERB_INPUTS:
+        if not paradigms.MG_FORM_FREQ.exists():
+            return None
+        _VERB_INPUTS["frequencies"] = paradigms.load_form_frequencies()
+    return _VERB_INPUTS["frequencies"]
+
+
+def monotonic_count(spelling: str, frequencies: dict[str, int]) -> int:
+    """The monotonic tokens of a spelling's word: its monotonic form's
+    count, and for a traditional subjunctive in -ῃ or -ῃς (ἔρθῃς), which
+    monotonic writing spells -ει or -εις, that spelling's count. An elided
+    or aphaeresized spelling has none."""
+    import mg_polytonic_paradigms as paradigms
+
+    if any(mark in spelling for mark in ELISION_MARKS):
+        return 0
+    lower = _lowercase(spelling)
+    n = frequencies.get(paradigms.monotonic_key(lower), 0)
+    nfd = unicodedata.normalize("NFD", lower)
+    subjunctive = re.search("η([\u0301\u0342]?)\u0345(ς?)$", nfd)
+    if subjunctive is None:
+        return n
+    indicative = unicodedata.normalize(
+        "NFC", nfd[:subjunctive.start()] + "ει" + subjunctive.group(1)
+        + subjunctive.group(2))
+    return max(n, frequencies.get(paradigms.monotonic_key(indicative), 0))
+
+
+def monotonic_bucket(count: int, total: int) -> str:
+    rate = count * 1_000_000 / total if total else 0.0
+    if rate >= MONOTONIC_C_PER_MILLION:
+        return "C"
+    if rate >= MONOTONIC_M_PER_MILLION:
+        return "M"
+    return "R"
+
+
+def list_buckets(entries: dict[str, int], generated: dict[str, int],
+                 frequencies: dict[str, int],
+                 report: Counter) -> dict[str, str]:
+    """The fr: bucket of every entry and generated form
+    (``MONOTONIC_BUCKETS``), before the Ancient-word cap."""
+    total = sum(frequencies.values())
+    order = "RMC"
+    buckets: dict[str, str] = {}
+    for spelling, n in entries.items():
+        bucket = freq_bucket(n)
+        if MONOTONIC_BUCKETS == "all":
+            mono = monotonic_bucket(monotonic_count(spelling, frequencies),
+                                    total)
+            if order.index(mono) > order.index(bucket):
+                report[f"bucket_raised_{bucket}_{mono}"] += 1
+                bucket = mono
+        buckets[spelling] = bucket
+    for spelling, n in generated.items():
+        buckets[spelling] = monotonic_bucket(n, total)
+        report[f"generated_bucket_{buckets[spelling]}"] += 1
+    return buckets
+
+
+def bucket_source() -> str:
+    """The ``bucket_source:`` line of the .version."""
+    import mg_polytonic_paradigms as paradigms
+
+    frequencies = _monotonic_frequencies() or {}
+    monotonic = (f"the bucket of the monotonic form's count in "
+                 f"data/{paradigms.MG_FORM_FREQ.name} "
+                 f"({sum(frequencies.values())} tokens; C >= "
+                 f"{MONOTONIC_C_PER_MILLION:g}, M >= "
+                 f"{MONOTONIC_M_PER_MILLION:g} per million)")
+    slice_counts = "the slice count's (C >= 1000, M >= 100 tokens)"
+    attested = (f"the higher of {slice_counts} and {monotonic}"
+                if MONOTONIC_BUCKETS == "all" else slice_counts)
+    return (f"attested entries: {attested}; generated forms: {monotonic}; "
+            "Ancient words and letters capped at R")
+
+
+def _rate(spelling: str, entries: dict[str, int], slice_tokens: int) -> float:
+    """A spelling's rate in the slice, for ``ancient_word``'s comparison
+    with the later Greek texts: 0 for a generated form."""
+    return entries.get(spelling, 0) / (slice_tokens or 1)
 
 
 # --------------------------------------------------------------------------
@@ -1830,11 +2008,49 @@ class AncientCorpora:
         """The tokens of ``form`` in one of ``LATER_SOURCES``."""
         return self._source_counts(form).get(source, 0)
 
+    def letters_tokens(self, letters: str) -> int:
+        """The treebank tokens (:meth:`tokens`) of every spelling with
+        these bare letters (``mg_polytonic_paradigms.bare``)."""
+        if not hasattr(self, "_letters"):
+            import mg_polytonic_paradigms as paradigms
+
+            index: dict[str, int] = defaultdict(int)
+            for form, counts in self._profile.execute(
+                    "SELECT f.form, p.source_counts_json FROM forms f "
+                    "JOIN form_profile p USING (form_id)"):
+                sources = self._json.loads(counts or "{}")
+                n = max(sources.get("glaux", 0), sources.get("diorisis", 0))
+                if n:
+                    index[paradigms.bare(form)] += n
+            self._letters = dict(index)
+        return self._letters.get(letters, 0)
+
 
 def load_ancient_corpora(path: Path = FORM_PROFILE) -> AncientCorpora | None:
     """The Ancient corpora, or None when ``form_profile.db`` is not on
     disk (``python -m dilemma download --with-attestation``)."""
     return AncientCorpora(path) if path.exists() else None
+
+
+def _grc_letters(grc_words: set[str] | frozenset[str]) -> set[str]:
+    import mg_polytonic_paradigms as paradigms
+
+    return {paradigms.bare(word) for word in grc_words}
+
+
+def ancient_letters(spelling: str, grc_letters: set[str],
+                    corpora: AncientCorpora) -> bool:
+    """Whether a listed spelling's letters are, for grc, only an Ancient
+    word's that grc lacks: no grc spelling has them, and the treebanks
+    write them ``ANCIENT_CAP_TOKENS`` times (the interjection τάκ, whose
+    letters are the crasis τἀκ, 22 tokens). A keyboard that writes letters
+    only Modern words have as Modern Greek would take such Ancient text
+    for Modern Greek."""
+    import mg_polytonic_paradigms as paradigms
+
+    letters = paradigms.bare(spelling)
+    return (letters not in grc_letters
+            and corpora.letters_tokens(letters) >= ANCIENT_CAP_TOKENS)
 
 
 def ancient_word(spelling: str, grc_words: set[str] | frozenset[str],
@@ -1924,6 +2140,8 @@ def write_list(
     ancient: Iterable[str] = (),
     generated: Iterable[str] = (),
     inputs: dict[str, str | None] | None = None,
+    buckets: dict[str, str] | None = None,
+    bucket_source: str | None = None,
 ) -> dict:
     """Write ``<DIC_NAME>.dic``, ``.aff`` and ``.version`` to ``out_dir``.
 
@@ -1935,7 +2153,11 @@ def write_list(
     (:func:`modern_greek_avoids`); ``ancient`` are entries written with
     fr:R whatever their count (:func:`ancient_word`). ``inputs`` records
     the sha256 of the other files that decide the list
-    (:func:`input_digests`), None for one that was not read.
+    (:func:`input_digests`), None for one that was not read. ``buckets``
+    gives the fr: of entries and generated forms where they also read
+    monotonic text (:func:`list_buckets`), as ``bucket_source`` records;
+    without it the entries' come from their counts and the generated forms
+    get R.
     """
     if variant != SHIPPING_VARIANT and is_shipping_dir(out_dir):
         raise ValueError(
@@ -1947,12 +2169,16 @@ def write_list(
     commit = commit or build_commit()
     avoid = sorted(avoid)
     ancient = set(ancient)
-    buckets = {form: "R" if form in ancient else freq_bucket(n)
+    given = buckets or {}
+    buckets = {form: given.get(form) or (
+                   "R" if form in ancient else freq_bucket(n))
                for form, n in entries.items()}
     generated = sorted(set(generated) - set(entries))
+    generated_buckets = {form: given.get(form, "R") for form in generated}
     lines = sorted(
         [f"{form}\tfr:{bucket}" for form, bucket in buckets.items()]
-        + [f"{form}\tfr:R mg:generated" for form in generated]
+        + [f"{form}\tfr:{bucket} mg:generated"
+           for form, bucket in generated_buckets.items()]
         + [f"{form}\tmg:avoid" for form in avoid])
     dic_path = out_dir / f"{DIC_NAME}.dic"
     dic_path.write_text(
@@ -1967,6 +2193,7 @@ def write_list(
         "SET UTF-8\nLANG grc\nFLAG num\n",
         encoding="utf-8")
     counted = Counter(buckets.values())
+    counted_generated = Counter(generated_buckets.values())
     ver_path = out_dir / f"{DIC_NAME}.version"
     ver_path.write_text(
         f"version: {version}\n"
@@ -1981,13 +2208,17 @@ def write_list(
         + (f"grc_dictionary_sha256: {grc_sha256}\n" if grc_sha256 else "")
         + "".join(f"{name}_sha256: {digest or 'not read'}\n"
                   for name, digest in (inputs or {}).items())
-        + f"ancient_capped: {len(ancient & set(entries))}\n"
-        f"buckets: C={counted['C']} M={counted['M']} R={counted['R']}\n",
+        + f"ancient_capped: {len(ancient & (set(entries) | set(generated)))}\n"
+        f"buckets: C={counted['C']} M={counted['M']} R={counted['R']}\n"
+        f"generated_buckets: C={counted_generated['C']} "
+        f"M={counted_generated['M']} R={counted_generated['R']}\n"
+        + (f"bucket_source: {bucket_source}\n" if bucket_source else ""),
         encoding="utf-8")
     return {"entries": len(entries) + len(generated),
             "attested": len(entries), "generated": len(generated),
             "mg_avoid": len(avoid),
-            "dic_path": str(dic_path), "buckets": dict(counted)}
+            "dic_path": str(dic_path), "buckets": dict(counted),
+            "generated_buckets": dict(counted_generated)}
 
 
 def write_selection(selection: ModernGreekList, out_dir: Path, *,
@@ -1999,7 +2230,8 @@ def write_selection(selection: ModernGreekList, out_dir: Path, *,
         selection.entries, out_dir, variant=variant, source=source,
         grc_sha256=grc_sha256, avoid=selection.avoid,
         ancient=selection.ancient, generated=selection.generated,
-        inputs=inputs)
+        inputs=inputs, buckets=selection.buckets,
+        bucket_source=bucket_source() if selection.buckets else None)
 
 
 def sha256_file(path: Path) -> str:
@@ -2013,14 +2245,16 @@ def sha256_file(path: Path) -> str:
 def input_digests(generate_verbs: bool = True) -> dict[str, str | None]:
     """The sha256 of the files besides grc that decide the list, None for
     one not on disk: lookup.db (the rare-respelling test), form_profile.db
-    (the Ancient counts) and, when verb forms are generated, the verb
-    paradigms and the monotonic form frequencies."""
+    (the Ancient counts), the verb paradigms when verb forms are generated,
+    and the monotonic form frequencies when they are generated or the
+    buckets read them (``MONOTONIC_BUCKETS``)."""
     import mg_polytonic_paradigms as paradigms
 
     files = [("lookup_db", LOOKUP_DB), ("form_profile", FORM_PROFILE)]
     if generate_verbs:
-        files += [("verb_paradigms", paradigms.VERB_PARADIGMS),
-                  ("form_frequencies", paradigms.MG_FORM_FREQ)]
+        files.append(("verb_paradigms", paradigms.VERB_PARADIGMS))
+    if generate_verbs or MONOTONIC_BUCKETS:
+        files.append(("form_frequencies", paradigms.MG_FORM_FREQ))
     return {name: sha256_file(path) if path.exists() else None
             for name, path in files}
 

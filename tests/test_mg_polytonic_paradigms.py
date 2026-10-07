@@ -189,6 +189,7 @@ def _counts(rows):
 def test_the_list_marks_generated_forms_and_fills_only_gaps(
         tmp_path, monkeypatch):
     monkeypatch.setattr(mg, "_verb_inputs", lambda: (PARADIGMS, FREQUENCIES))
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
     counts = _counts([
         ("ἔρθει", "lower", {0: 4, 1: 3}),
         ("ἔρθουν", "lower", {0: 10, 1: 10}),
@@ -226,10 +227,12 @@ def test_only_an_attested_spelling_of_the_same_letters_stops_a_form(
         "μάθει": frozenset({"dependent", "perfective", "third-person",
                             "singular", "finite"}),
     }}
-    monkeypatch.setattr(mg, "_verb_inputs",
-                        lambda: (paradigms, {"μάθεις": 900, "μάθει": 900}))
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (
+        paradigms, {"μάθεις": 900, "μάθει": 900, "μαθεί": 2000}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
     # grc's μαθεῖς, an Ancient word of the same letters, does not stop the
-    # Modern μάθεις; the list's attested μαθεῖ stops the generated μάθει.
+    # Modern μάθεις; the list's attested μαθεῖ, whose monotonic form is
+    # more than twice as frequent, stops the generated μάθει.
     counts = _counts([("μαθεῖ", "lower", {0: 2, 1: 2})])
     lst = mg.select_list(counts, {0, 1, 2}, set(GRC) | {nfc("μαθεῖς")},
                          generate_verbs=True)
@@ -238,3 +241,117 @@ def test_only_an_attested_spelling_of_the_same_letters_stops_a_form(
     assert nfc("μάθει") not in lst.generated
     # Its subjunctive spelling has other letters, and is generated.
     assert nfc("μάθῃ") in lst.generated
+
+
+IMPERATIVES = {"σταματάω": {
+    "σταμάτα": frozenset({"imperative", "second-person", "singular",
+                          "finite", "active"}),
+    "σταματά": frozenset({"present", "third-person", "singular", "finite",
+                          "active"}),
+}, "ξεκινάω": {
+    "ξεκινά": frozenset({"present", "third-person", "singular", "finite",
+                         "active"}),
+    "ξεκίνα": frozenset({"imperative", "second-person", "singular",
+                         "finite", "active"}),
+}, "ανεβαίνω": {
+    "ανέβουμε": frozenset({"dependent", "first-person", "plural", "finite",
+                           "active"}),
+    "ανεβούμε": frozenset({"dependent", "first-person", "plural", "finite",
+                           "active"}),
+}, "τρέχω": {
+    "τρέχατε": frozenset({"imperfect", "second-person", "plural", "finite",
+                          "active"}),
+    "τρεχάτε": frozenset({"imperative", "second-person", "plural", "finite",
+                          "active"}),
+}, "χαϊδεύω": {
+    "χάιδεψε": frozenset({"past", "third-person", "singular", "finite",
+                          "active"}),
+}}
+
+
+def test_another_cell_of_the_same_letters_goes_in_when_frequent(
+        monkeypatch):
+    freq = {"σταμάτα": 93_732, "σταματά": 2_994, "ξεκινά": 3_725,
+            "ξεκίνα": 8_995, "ανέβουμε": 987, "ανεβούμε": 793,
+            "τρέχατε": 157, "τρεχάτε": 129, "χάιδεψε": 195}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (IMPERATIVES, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+    counts = _counts([("σταματᾷ", "lower", {0: 2, 1: 2}),
+                      ("ξεκίνα", "lower", {0: 2, 1: 2}),
+                      ("ἀνεβοῦμε", "lower", {0: 2, 1: 2}),
+                      ("τρεχᾶτε", "lower", {0: 2, 1: 2}),
+                      ("χάϊδεψε", "lower", {0: 2, 1: 2})])
+    lst = mg.select_list(counts, {0, 1, 2}, set(GRC), generate_verbs=True)
+    assert {nfc("σταματᾷ"), nfc("ξεκίνα"), nfc("ἀνεβοῦμε"), nfc("τρεχᾶτε"),
+            nfc("χάϊδεψε")} <= set(lst.entries)
+    # The imperative, a cell of its own and 31 times as frequent, goes in
+    # beside the attested present.
+    assert nfc("σταμάτα") in lst.generated
+    # The present beside the attested imperative is under half as frequent.
+    assert nfc("ξεκινᾷ") not in lst.generated
+    # Another spelling of the same cell competes with the attested one.
+    assert nfc("ἀνέβουμε") not in lst.generated
+    # Nor does a form only 1.2 times as frequent (157 to 129).
+    assert nfc("τρέχατε") not in lst.generated
+    # A diaeresis aside, χάιδεψε is the attested χάϊδεψε.
+    assert nfc("χάιδεψε") not in lst.generated
+    monkeypatch.setattr(mg, "LETTERS_SHARED_ACROSS_CELLS", None)
+    lst = mg.select_list(counts, {0, 1, 2}, set(GRC), generate_verbs=True)
+    assert nfc("σταμάτα") not in lst.generated
+
+
+def test_buckets_read_the_monotonic_counts(tmp_path, monkeypatch):
+    total = 10_000_000
+    freq = {"έρθεις": 400, "έρθει": 50, "έρθουν": 10, "πολύ": total - 460}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (PARADIGMS, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    assert mg.monotonic_bucket(370, total) == "C"
+    assert mg.monotonic_bucket(369, total) == "M"
+    assert mg.monotonic_bucket(37, total) == "M"
+    assert mg.monotonic_bucket(36, total) == "R"
+    # Monotonic writing spells the traditional subjunctive -εις.
+    assert mg.monotonic_count(nfc("ἔρθῃς"), freq) == 400
+    assert mg.monotonic_count(nfc("Ἔρθει"), freq) == 50
+    assert mg.monotonic_count("κι" + mg.ELISION_MARKS[3], {"κι": 9}) == 0
+    counts = _counts([("ἔρθει", "lower", {0: 4, 1: 3}),
+                      ("ἔρθουν", "lower", {0: 10, 1: 10})])
+    for setting, attested in (("all", "M"), ("generated", "R")):
+        monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", setting)
+        lst = mg.select_list(counts, {0, 1, 2}, set(GRC),
+                             generate_verbs=True)
+        # ἔρθει: slice R, monotonic 5 per million, M; ἔρθεις generated,
+        # 40 per million, C.
+        assert lst.buckets[nfc("ἔρθει")] == attested
+        assert lst.buckets[nfc("ἔρθεις")] == "C"
+        out = tmp_path / setting
+        mg.write_selection(lst, out, variant="grc-mg", source="test")
+        lines = (out / "grc_mg_polytonic.dic").read_text("utf-8").splitlines()
+        assert nfc("ἔρθεις\tfr:C mg:generated") in lines
+        assert nfc(f"ἔρθει\tfr:{attested}") in lines
+        version = (out / "grc_mg_polytonic.version").read_text("utf-8")
+        assert "bucket_source: attested entries: " in version
+        assert "data/mg_freq.txt" in version
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+    assert mg.select_list(counts, {0, 1, 2}, set(GRC),
+                          generate_verbs=True).buckets is None
+
+
+class _Corpora:
+    """A stand-in for ``AncientCorpora`` with treebank tokens by letters."""
+    def __init__(self, letters):
+        self.letters = letters
+
+    def letters_tokens(self, letters):
+        return self.letters.get(letters, 0)
+
+
+def test_letters_only_an_ancient_word_has_cap_the_bucket():
+    corpora = _Corpora({"τακ": 22, "θε": 8})
+    grc_letters = {"θε", "πολυ"}
+    # τάκ: grc has no τακ, and the treebanks write τἀκ 22 times.
+    assert mg.ancient_letters(nfc("τάκ"), grc_letters, corpora)
+    # θέ: grc has θε, so a keyboard does not take its letters for Modern.
+    assert not mg.ancient_letters(nfc("θέ"), grc_letters, corpora)
+    assert not mg.ancient_letters(nfc("τώρα"), grc_letters, corpora)
+    assert mg._without_diaeresis(nfc("χάϊδεψε")) == nfc("χάιδεψε")

@@ -37,7 +37,7 @@ as the indicative (νὰ πάρεις, νὰ πάρει) and the traditional way
 forms that serve as their imperfective subjunctive.
 
 Generated spellings are written with the field ``mg:generated``, so that a
-reader can weight them below the attested spellings of the list.
+reader can tell them from the attested spellings of the list.
 ``eval/eval_mg_paradigms.py`` measures how often the generation reproduces an
 attested spelling held out from its evidence.
 """

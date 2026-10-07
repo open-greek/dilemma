@@ -9,29 +9,44 @@ All notable changes to Dilemma are documented here. The format follows
 ### Added
 - The polytonic Modern Greek word list carries generated spellings for the
   frequent verb forms its source texts do not attest (`ἔρθεις`, `ἔρθῃς`,
-  `μιλήσεις`, `πιεῖς`, `καταλάβεις`), written `form<TAB>fr:R mg:generated`
-  (`mg_polytonic_paradigms.py`). They come from Wiktionary's monotonic
-  verb paradigms, for the forms monotonic text has at least 50 times; the
-  breathing, the accent type and the iota subscript follow the verb's
-  attested polytonic forms, the grc words with the same first letters and
-  the Ancient accent rules, and the second and third person singular of
-  the subjunctive is generated both ways (`πάρεις` and `πάρῃς`). A
-  generated spelling only fills a monotonic form that neither grc nor the
-  list covers, with letters no attested spelling of the list has, so
-  20,253 spellings join the 17,176 attested ones. Held out from their own
-  evidence, attested verb forms are generated as the texts write them
-  97.6% of the time, their subjunctive spellings 89.9%
+  `μιλήσεις`, `πιεῖς`, `καταλάβεις`, `σταμάτα`), written with an
+  `mg:generated` field (`mg_polytonic_paradigms.py`). They come from
+  Wiktionary's monotonic verb paradigms, for the forms monotonic text has at
+  least 50 times; the breathing, the accent type and the iota subscript
+  follow the verb's attested polytonic forms, the grc words with the same
+  first letters and the Ancient accent rules, and the second and third
+  person singular of the subjunctive is generated both ways (`πάρεις` and
+  `πάρῃς`). A generated spelling only fills a monotonic form that neither
+  grc nor the list covers, and goes in beside an attested spelling of the
+  same letters only when it is another paradigm cell that monotonic text
+  has at least twice as often (the imperative `σταμάτα` beside the present
+  `σταματᾷ`), so 20,275 spellings join the 17,176 attested ones. Held out
+  from their own evidence, attested verb forms are generated as the texts
+  write them 97.6% of the time, their subjunctive spellings 89.9%
   (`eval/eval_mg_paradigms.py`), and with each dev word's author held out
   the list's coverage of the dev words rises from 90.9% to 91.5%.
-  Typed as bare letters into a keyboard outside this repository with
-  each author held out, those dev words come out wrong 6,462 times
-  instead of 6,666 in its Modern register (204 fixed, none broken), and
-  the common verb forms typed after `θα` and `να` come out as intended
-  98.2% of the time instead of 53.3%; held-out Ancient Greek comes out
-  the same.
   `--no-generated-verbs` leaves them out. The `.version` counts `attested`
   and `generated` entries (`entries` is their sum) and records the sha256
   of the paradigms and the frequencies.
+- The list's `fr:` buckets also read monotonic Modern Greek text: each
+  spelling takes the higher of its slice bucket and the bucket of its
+  monotonic form's count in `data/mg_freq.txt` (OpenSubtitles, 263M
+  tokens) at the rates per token of grc's edges, `C` from 37 per million
+  and `M` from 3.7; a generated form has only the latter. The slice's
+  counts alone put 231 spellings above `R`; now 3,399 attested and 2,204
+  generated ones are. A spelling whose letters grc has under no spelling
+  while the treebanks write them 20 times (`τάκ`, beside the crasis `τἀκ`)
+  is capped at `R` like an Ancient word. The `.version` says where the
+  buckets come from (`bucket_source`) and counts the generated forms'.
+  Typed as bare letters into a keyboard outside this repository, with each
+  author held out, the polytonic Modern Greek dev words come out wrong
+  6,462 times instead of 6,666 in its Modern register (209 fixed, 5
+  broken) and 7,566 instead of 8,232 in its Automatic one (691 fixed, 25
+  broken); common verb forms typed after `θα` and `να` come out as
+  intended 98.2% of the time instead of 53.3%, and imperatives typed alone
+  93.9% instead of 29.7% in the Modern register and 43.5% instead of 13.8%
+  in the Automatic one. Held-out Ancient Greek comes out the same in its
+  Ancient register.
 - A word list of attested polytonic Modern Greek spellings,
   `build/hunspell/grc_mg_polytonic.dic` (`export_mg_polytonic.py`), for a
   keyboard to merge into the grc dictionary, which is unchanged. grc holds
