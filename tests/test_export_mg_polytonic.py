@@ -1455,21 +1455,31 @@ MG_DIC = HUNSPELL / "grc_mg_polytonic.dic"
 GRC_DIC = HUNSPELL / "grc_polytonic.dic"
 
 
-def read_list(path: Path) -> tuple[dict[str, str], list[str]]:
-    """The list's words with their fr: field, and its mg:avoid spellings."""
+def read_list(path: Path, shared: dict[str, str] | None = None
+              ) -> tuple[dict[str, str], list[str]]:
+    """The list's words with their fr: field, and its mg:avoid spellings;
+    its mg:shared ratings go into ``shared``."""
     lines = path.read_text("utf-8").splitlines()
     assert int(lines[0]) == len(lines) - 1
     assert lines[1:] == sorted(lines[1:])
     out: dict[str, str] = {}
     avoid: list[str] = []
+    rated: dict[str, str] = {}
     for line in lines[1:]:
         form, _, field = line.partition("\t")
         assert form == nfc(form) and form not in out and form not in avoid
+        assert form not in rated
         if field == "mg:avoid":
             avoid.append(form)
             continue
+        if field.endswith(" mg:shared"):
+            assert re.fullmatch(r"fr:[CM] mg:shared", field), line
+            rated[form] = field
+            continue
         assert re.fullmatch(r"fr:[CMR]( mg:generated)?", field), line
         out[form] = field
+    if shared is not None:
+        shared.update(rated)
     return out, avoid
 
 
@@ -1477,9 +1487,13 @@ def read_list(path: Path) -> tuple[dict[str, str], list[str]]:
                     reason="grc_mg_polytonic.dic not built")
 def test_the_built_list_holds_its_invariants():
     from export_lm import read_hunspell_words
-    entries, avoid = read_list(MG_DIC)
+    shared: dict[str, str] = {}
+    entries, avoid = read_list(MG_DIC, shared)
     grc = read_hunspell_words(GRC_DIC)
     assert not [f for f in entries if mg.grc_accepts(f, grc)]
+    # The mg:shared lines rate lowercase grc spellings, none of them avoided.
+    assert set(shared) <= grc and not set(shared) & set(avoid)
+    assert all(f[:1].islower() for f in shared)
     # The mg:avoid lines name grc spellings: με and που, which Modern Greek
     # writes μὲ and ποὺ or ποῦ, but not μὲ or ποὺ themselves, nor another
     # word (ὅ, as in ὅ,τι; the numeral ἕν), nor an enclitic-accent form.
@@ -1491,8 +1505,15 @@ def test_the_built_list_holds_its_invariants():
     from export_hunspell import contextual_acute
     listed = {contextual_acute(f) for f in entries}
     assert not [f for f in avoid if contextual_acute(f) in listed]
-    lexicon = set(entries)
-    invalid = [f for f in entries if mg_orthography_reason(f, lexicon)]
+    # No attested spelling is a fragment of another (τόμ for τόμο), nor a
+    # generated one of an attested one or of grc's: a loanword of
+    # Wiktionary's may be the other's letters without a vowel (καρτέλ,
+    # καρτέλα).
+    attested = {f for f, field in entries.items() if "mg:generated" not in field}
+    wide = attested | grc
+    invalid = [f for f in entries
+               if mg_orthography_reason(f, attested if f in attested
+                                        else wide)]
     assert not invalid, invalid[:20]
     # The core function words of polytonic Modern Greek are accepted:
     # by the list, or already by grc.
@@ -1507,6 +1528,7 @@ def test_the_built_list_holds_its_invariants():
     version = MG_DIC.with_suffix(".version").read_text("utf-8")
     assert f"entries: {len(entries)}\n" in version
     assert f"mg_avoid: {len(avoid)}\n" in version
+    assert f"mg_shared: {len(shared)}\n" in version
     generated = [f for f, field in entries.items() if "mg:generated" in field]
     assert f"generated: {len(generated)}\n" in version
     # The buckets say where they come from.

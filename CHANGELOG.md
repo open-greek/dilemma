@@ -7,6 +7,12 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- The polytonic Modern Greek list rates the frequent Modern Greek spellings
+  grc has (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`), which it leaves out, with
+  lines of their own, `θέση<TAB>fr:C mg:shared`: 6,301 of them, `C` or `M`
+  by the slice and monotonic counts. They are no entries: a reader that
+  merges the lists keeps grc's, and reads the field to rank Modern Greek
+  readings by it.
 - The polytonic Modern Greek word list carries generated spellings for the
   frequent forms its source texts do not attest, of verbs (`ἔρθεις`,
   `ἔρθῃς`, `μιλήσεις`, `πιεῖς`, `σταμάτα`), nouns (`τηλέφωνο`, `κινητό`,
@@ -140,6 +146,51 @@ All notable changes to Dilemma are documented here. The format follows
   per 1,000 words on the sentences with little overlap with training.
 
 ### Fixed
+- `data/mg_pairs.json` has the conjugation of `ρωτάω` and the other verbs
+  whose forms went under a capitalized page. In the Modern Greek dumps a
+  capitalized page (the female name `Ερωτώ`, the abbreviation `ΔΕΣ`, a
+  heading in sentence case) took the lowercase key of a word whose own page
+  is a form-of page (`ερωτώ`, `δες`), so that word's pairs went under the
+  page; it now reaches its lowercase keys only where nothing lowercase
+  claims them (`build_data.py`). And a form-of reference of one Wiktionary
+  that pointed a lemma back at a word the other files under it (EN's
+  `ρωτώ`, a form of `ρωτάω`; EL's `ρωτώ` table, which lists `ρωτάω`) made a
+  cycle that the chain-breaking deleted with both conjugations; it is no
+  longer followed. 168 capitalized verb lemmas come down to 9, and the
+  polytonic Modern Greek list generates `ῥωτήσω`, `ῥώτησε` and `ῥωτᾷς`.
+  The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
+  takes the fix up when it is next rebuilt. A pronoun table that spans
+  several persons, the shared personal-pronoun grid, is skipped whatever its
+  template's name: those dumps carry it on EN's `τα` page under a generic
+  template, which made `εγώ`, `εσύ`, `αυτός` and `μου` forms of `τα`.
+- In the polytonic Modern Greek list, two paradigm cells of the same
+  letters both go in, whatever their counts: the present `περπατᾷ`,
+  `προχωρᾷ` and `τηλεφωνᾷ` are back beside the imperatives `περπάτα`,
+  `προχώρα` and `τηλεφώνα`. Within a cell (the same form of the same word;
+  a noun's or adjective's case and number), a generated spelling gives way
+  to the list's spelling and to a grc spelling monotonic text writes at
+  least as often, which grc's spellings did not take part in before
+  (`φάκελους` to `φακέλους`, `ὑπάλληλους` to `ὑπαλλήλους`, `χειροῦργος` to
+  `χειρουργός`); a spelling of no cell stops it at twice the count, and a
+  subjunctive twin gives way to any spelling of its letters at twice its
+  own (`ἐνημερώσῃ` to `ἐνημέρωση`).
+- A name whose only other spelling is a dative is generated: grc's
+  `Ῥωσίᾳ` and `ῥωσίᾳ` no longer keep out `Ῥωσία`, and a name with two
+  frequent declined forms is generated though rare (`Δανία`, `Δανίας`). A
+  nominative singular in `-α` and a genitive singular in `-ας` are a
+  feminine's whatever lemma Wiktionary files them under (`σκούπα`, not
+  `σκοῦπα`, under `σκουπόχορτο`). A capitalized form gives way where its
+  lowercase spelling does (`Ἅγιους` to grc's `ἁγίους`, `Αὔγουστου` to
+  `Αὐγούστου`).
+- A spelling in `-ῃ` or `-ῃς` is rated by its own use, not by all of the
+  `-ει` or `-εις` form it stands for, which monotonic text also writes for
+  the indicative, the perfect and the dative: it takes the share of that
+  count which the slice writes with the subscript (`θέσῃ`, half of
+  `θέσει`'s 2,110 tokens, is `M`, below `θέση`'s `C`).
+- The color adjectives in `-ής`, `-ιά`, `-ί` (`λεμονής`, `κερασής`) are no
+  s-stems: their feminine plural `-ιές` was taken for an s-stem's neuter
+  `-ές`, and the noun `λεμονιά`, filed under the adjective, was generated
+  `λεμονιᾶ`.
 - `lookup.db` has the relative pronoun's graves `ὃ`, `ἣ`, `οἳ` and `αἳ`,
   under `ὅς`. `build_lookup_db.py` keeps the first lemma a source gives a
   form, and AGDT, the first treebank it reads, files Homer's demonstrative

@@ -711,10 +711,18 @@ def _nominal_final_length(word: list[Letter], tags: frozenset,
         return "long"
     if not letters_.endswith(("α", "ασ")):
         return None
-    feminine = "feminine" in tags or (
-        not {"masculine", "neuter"} & tags
-        and lemma.endswith(FEMININE_LEMMA_ENDINGS)
-        and not lemma.endswith(NEUTER_LEMMA_ENDINGS))
+    ungendered = not {"masculine", "neuter"} & tags
+    feminine = "feminine" in tags or (ungendered and (
+        lemma.endswith(FEMININE_LEMMA_ENDINGS)
+        and not lemma.endswith(NEUTER_LEMMA_ENDINGS)
+        # A nominative singular in -α, or a genitive singular in -ας, is a
+        # feminine's whatever lemma Wiktionary files it under (σκούπα under
+        # σκουπόχορτο): a masculine's ends in -ας and -α, a neuter's in
+        # -μα, -ο or -ι.
+        or ({"nominative", "singular"} <= tags
+            and letters_.endswith("α") and not letters_.endswith("μα"))
+        or ({"genitive", "singular"} <= tags
+            and letters_.endswith("ασ") and not letters_.endswith("ματοσ"))))
     if not feminine or "plural" in tags:
         return "short"
     if letters_.endswith("ασ"):
@@ -958,8 +966,11 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
             if not out[lemma]:
                 del out[lemma]
     for lemma, forms in out.items():
+        # The neuter singular is the lemma's own -ής turned -ές (ἀληθές);
+        # a feminine plural in -ιές (λεμονιές, ζερβιές) is the other
+        # declension's.
         if lemma.endswith("ής") and any(
-                f.endswith("ές") and "adj" in parts_of_speech(t)
+                f == lemma[:-2] + "ές" and "adj" in parts_of_speech(t)
                 for f, t in forms.items()):
             for f, t in forms.items():
                 if "adj" in parts_of_speech(t):
