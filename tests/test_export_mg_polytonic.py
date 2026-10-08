@@ -41,6 +41,13 @@ from export_mg_polytonic import (  # noqa: E402
 K = mg.KORONIS
 
 
+
+@pytest.fixture(autouse=True)
+def _slice_buckets(monkeypatch):
+    """These tests read the slice's counts alone: the monotonic buckets
+    (``MONOTONIC_BUCKETS``) would read data/mg_freq.txt."""
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+
 def nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
@@ -1234,9 +1241,23 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     monkeypatch.setattr(mg, "LOOKUP_DB", lookup)
     monkeypatch.setattr(mg, "FORM_PROFILE", tmp_path / "missing.db")
     import hashlib
+    import mg_polytonic_paradigms as paradigms
+    freq = tmp_path / "mg_freq.txt"
+    freq.write_bytes(b"freq")
+    monkeypatch.setattr(paradigms, "VERB_PARADIGMS", tmp_path / "none.json")
+    monkeypatch.setattr(paradigms, "MG_FORM_FREQ", freq)
     assert mg.input_digests() == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
+        "form_profile": None, "verb_paradigms": None,
+        "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
+    assert mg.input_digests(generate_verbs=False) == {
+        "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None}
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    assert mg.input_digests(generate_verbs=False) == {
+        "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
+        "form_profile": None,
+        "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
 
 
 # --------------------------------------------------------------------------
@@ -1447,7 +1468,7 @@ def read_list(path: Path) -> tuple[dict[str, str], list[str]]:
         if field == "mg:avoid":
             avoid.append(form)
             continue
-        assert field in ("fr:C", "fr:M", "fr:R"), line
+        assert re.fullmatch(r"fr:[CMR]( mg:generated)?", field), line
         out[form] = field
     return out, avoid
 
@@ -1486,6 +1507,13 @@ def test_the_built_list_holds_its_invariants():
     version = MG_DIC.with_suffix(".version").read_text("utf-8")
     assert f"entries: {len(entries)}\n" in version
     assert f"mg_avoid: {len(avoid)}\n" in version
+    generated = [f for f, field in entries.items() if "mg:generated" in field]
+    assert f"generated: {len(generated)}\n" in version
+    # The buckets say where they come from.
+    assert "bucket_source: " in version
+    # The common verb forms the texts do not attest are generated.
+    for word in ("ἔρθεις", "ἔρθῃς", "μιλήσεις", "πιεῖς", "καταλάβεις"):
+        assert nfc(word) in entries or nfc(word) in grc, word
     # The shipping list, not an evaluation variant, and selected against
     # the grc dictionary beside it.
     assert "variant: grc-mg\n" in version
@@ -1494,10 +1522,12 @@ def test_the_built_list_holds_its_invariants():
     assert f"grc_dictionary_sha256: {grc_sha}\n" in version
     # του is the Ancient enclitic genitive too: no sign of Modern Greek.
     assert entries["του"] == "fr:R" and entries["τώρα"] == "fr:C"
-    # Every input that decides the list is recorded.
     # Every input that decides the list is recorded, as it is on disk now.
+    import mg_polytonic_paradigms as paradigms
     for name, path in (("lookup_db", mg.LOOKUP_DB),
-                       ("form_profile", mg.FORM_PROFILE)):
+                       ("form_profile", mg.FORM_PROFILE),
+                       ("verb_paradigms", paradigms.VERB_PARADIGMS),
+                       ("form_frequencies", paradigms.MG_FORM_FREQ)):
         digest = mg.sha256_file(path) if path.exists() else "not read"
         assert f"{name}_sha256: {digest}\n" in version, name
     # No spelling a recorded review rejected, nor its contextual twin.

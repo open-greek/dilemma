@@ -72,7 +72,7 @@ def build_list(counts, grc_words, known_word, reviewed, ancient, **holdout):
     documents."""
     sources = mg.source_documents(counts, **holdout)
     return (mg.select_list(counts, sources, grc_words, reviewed, known_word,
-                           ancient), sources)
+                           ancient, generate_verbs=True), sources)
 
 
 def main() -> None:
@@ -112,7 +112,9 @@ def main() -> None:
             if accepted(word, grc_words):
                 covered += 1
                 continue
-            if accepted(word, choose(doc).entries):
+            chosen = choose(doc)
+            if (accepted(word, chosen.entries)
+                    or accepted(word, chosen.generated)):
                 covered += 1
                 by_list += 1
             else:
@@ -130,10 +132,12 @@ def main() -> None:
         "other fold held out": coverage(
             lambda doc: by_fold[(fold_of[doc] + 1) % folds]),
     }
-    sizes = {"train split": len(lists["train split"].entries),
-             "documents held out": len(lists["documents held out"].entries),
-             "author held out": {k: len(v.entries)
-                                 for k, v in by_fold.items()}}
+    def size(lst):
+        return {"attested": len(lst.entries), "generated": len(lst.generated)}
+
+    sizes = {"train split": size(lists["train split"]),
+             "documents held out": size(lists["documents held out"]),
+             "author held out": {k: size(v) for k, v in by_fold.items()}}
 
     base = results["grc alone"]
     print(f"{base['words']:,} words in the clean dev sentences of "
