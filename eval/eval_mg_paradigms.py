@@ -71,11 +71,14 @@ def sample_precision(sample: Path = SAMPLE, dic: Path = BUILT_LIST) -> dict:
     return dict(out)
 
 
-def attested_spellings(counts, sources) -> dict[str, Counter]:
-    """Monotonic key -> well-formed lowercase spellings and their tokens."""
+def attested_spellings(counts, sources, position: str = "lower"
+                       ) -> dict[str, Counter]:
+    """Monotonic key -> well-formed spellings and their tokens, of the
+    words in lowercase (or, with ``position`` ``cap``, of the capitalized
+    words inside a sentence)."""
     out: dict[str, Counter] = defaultdict(Counter)
-    for (form, position), per_doc in counts.forms.items():
-        if position != "lower":
+    for (form, where), per_doc in counts.forms.items():
+        if where != position:
             continue
         n = sum(c for d, c in per_doc.items() if d in sources)
         if n and mg.mg_orthography_reason(form) is None:
@@ -93,8 +96,24 @@ def dominant(spellings: Counter | None) -> str | None:
     return s
 
 
+def same(generated: str, gold: str) -> bool:
+    """Whether a generated spelling is the attested one, the grave of a
+    word in running text counted as its acute and a capital (a name, or a
+    word at the start of a sentence) as its small letter."""
+    return (contextual_acute(generated.lower())
+            == contextual_acute(gold.lower()))
+
+
 def evaluate(paradigms, attested, grc_words, examples: int = 0,
-             frequencies: dict[str, int] | None = None) -> dict:
+             frequencies: dict[str, int] | None = None,
+             capitalized: dict[str, Counter] | None = None) -> dict:
+    """Generated against attested spellings, by verb class or part of
+    speech and cell; a form the generator declines (an unaccented word of
+    several syllables, a clitic of one) is counted apart, as undecided. A
+    capitalized form (a name, a month) is compared with the capitalized
+    spellings inside a sentence, ``capitalized``, and left out without
+    them: a lowercase spelling of its letters is another word's (the
+    surname Γράψη, the subjunctive γράψῃ)."""
     evidence = P.Evidence(attested, grc_words, paradigms)
     table: dict[tuple[str, str, str], Counter] = defaultdict(Counter)
     wrong: list[tuple] = []
@@ -102,7 +121,10 @@ def evaluate(paradigms, attested, grc_words, examples: int = 0,
         vclass = P.verb_class(lemma, forms)
         for form, tags in forms.items():
             key = P.monotonic_key(form)
-            gold = dominant(attested.get(key))
+            if form[:1].isupper():
+                gold = dominant((capitalized or {}).get(key))
+            else:
+                gold = dominant(attested.get(key))
             gold_variant = None
             if P.is_subjunctive_cell(tags, form):
                 # The variant's key: the form's letters with -ει- as -η-.
@@ -120,20 +142,23 @@ def evaluate(paradigms, attested, grc_words, examples: int = 0,
             generated = P.polytonic(form, tags, vclass, siblings, evidence,
                                     lemma)
             frequent = frequencies is not None and \
-                frequencies.get(form, 0) >= P.GENERATED_MIN_TOKENS
-            group = (vclass, P.cell(tags) + (" (frequent)" if frequent
+                P.form_tokens(form, frequencies) >= P.GENERATED_MIN_TOKENS
+            group = (vclass, P.report_cell(tags) + (" (frequent)" if frequent
                                             else ""))
+            if generated is None:
+                # Not generated at all (an unaccented word of several
+                # syllables, a clitic of one): no spelling to judge.
+                table[group + ("indicative",)]["undecided"] += 1
+                continue
             if gold is not None:
-                ok = generated is not None and \
-                    contextual_acute(generated) == contextual_acute(gold)
+                ok = same(generated, gold)
                 table[group + ("indicative",)]["n"] += 1
                 table[group + ("indicative",)]["ok"] += ok
                 if not ok:
                     wrong.append((lemma, form, generated, gold))
             if gold_variant and gold_variant[1] and generated:
                 variant = P.subjunctive_variant(generated)
-                ok = variant is not None and contextual_acute(variant) == \
-                    contextual_acute(gold_variant[1])
+                ok = variant is not None and same(variant, gold_variant[1])
                 table[group + ("subjunctive",)]["n"] += 1
                 table[group + ("subjunctive",)]["ok"] += ok
                 if not ok:
@@ -151,11 +176,13 @@ def main() -> None:
     args = ap.parse_args()
 
     counts = mg.count_corpus()
-    attested = attested_spellings(counts, mg.source_documents(counts))
-    paradigms = P.load_verb_paradigms()
+    sources = mg.source_documents(counts)
+    attested = attested_spellings(counts, sources)
+    paradigms = P.load_paradigms()
     grc_words = mg.read_grc_words()
     result = evaluate(paradigms, attested, grc_words,
-                      frequencies=P.load_form_frequencies())
+                      frequencies=P.load_form_frequencies(),
+                      capitalized=attested_spellings(counts, sources, "cap"))
     table = result["table"]
 
     def line(label, rows):
@@ -166,9 +193,13 @@ def main() -> None:
 
     keys = sorted(table)
     for kind in ("indicative", "subjunctive"):
-        print(f"\n{kind} spellings, by verb class")
+        print(f"\n{kind} spellings, by verb class or part of speech")
         for c in sorted({k[0] for k in keys}):
             line(c, [k for k in keys if k[0] == c and k[2] == kind])
+        line("all verbs", [k for k in keys if k[2] == kind
+                           and k[0] in P.VERB_CLASSES])
+        line("all other parts of speech", [k for k in keys if k[2] == kind
+                                           and k[0] not in P.VERB_CLASSES])
         print(f"{kind} spellings, by cell")
         for c in sorted({k[1].replace(" (frequent)", "") for k in keys}):
             line(c, [k for k in keys if k[1].replace(" (frequent)", "") == c
@@ -177,6 +208,9 @@ def main() -> None:
         line(f"  of them forms generated (>= {P.GENERATED_MIN_TOKENS} "
              "monotonic tokens)",
              [k for k in keys if k[2] == kind and "(frequent)" in k[1]])
+        undecided = sum(table[k]["undecided"] for k in keys if k[2] == kind)
+        if undecided:
+            print(f"  not generated (no spelling to judge): {undecided:,}")
     if args.sample.exists() and args.list.exists():
         found = sample_precision(args.sample, args.list)
         checked = found.get("ok", 0) + found.get("wrong", 0)

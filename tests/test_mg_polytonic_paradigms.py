@@ -343,6 +343,16 @@ def test_buckets_read_the_monotonic_counts(tmp_path, monkeypatch):
         version = (out / "grc_mg_polytonic.version").read_text("utf-8")
         assert "bucket_source: attested entries: " in version
         assert "data/mg_freq.txt" in version
+        # The buckets line counts the attested and the generated entries.
+        fields = dict(line.split(": ", 1) for line in version.splitlines())
+
+        def tally(name):
+            return {b: int(n) for b, n in (part.split("=")
+                                           for part in fields[name].split())}
+        both, attested_n, generated_n = (tally(k) for k in (
+            "buckets", "attested_buckets", "generated_buckets"))
+        assert generated_n["C"] >= 1
+        assert both == {b: attested_n[b] + generated_n[b] for b in "CMR"}
     monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
     assert mg.select_list(counts, {0, 1, 2}, set(GRC),
                           generate_verbs=True).buckets is None
@@ -609,14 +619,17 @@ def test_a_name_neither_covers_a_verb_form_nor_lends_it_its_count(
         monkeypatch):
     third = frozenset({"imperfect", "third-person", "singular", "finite"})
     paradigms = {"δρω": {"δρούσε": third}, "κινάω": {"κινά": frozenset(
-        {"present", "third-person", "singular", "finite"})}}
-    freq = {"δρούσε": 173, "κινά": 2000, "πολύ": 100_000_000}
+        {"present", "third-person", "singular", "finite"})},
+        "μασάω": {"μάσα": frozenset({"imperative", "second-person",
+                                     "singular", "finite"})}}
+    freq = {"δρούσε": 173, "κινά": 2000, "μάσα": 2000, "πολύ": 100_000_000}
     monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
     monkeypatch.setattr(mg, "_VERB_INPUTS", {})
     monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
     # The slice writes Κινᾶ mostly capitalized inside a sentence: a name.
     # Κίνα is a name; κίνα, listed, is rarer in lowercase.
     counts = _counts([("Κινᾶ", "cap", {0: 5, 1: 5}),
+                      ("Μάσα", "cap", {0: 5, 1: 5}),
                       ("Κίνα", "cap", {0: 9, 1: 9}),
                       ("κίνα", "lower", {0: 2, 1: 2})])
     freq["κίνα"] = 500
@@ -624,11 +637,264 @@ def test_a_name_neither_covers_a_verb_form_nor_lends_it_its_count(
                          generate_verbs=True)
     assert nfc("δροῦσε") in lst.generated
     assert lst.buckets[nfc("δροῦσε")] == "R"
-    # κινᾶ's 2,000 monotonic tokens are mostly the name's.
+    # κινᾶ's 2,000 monotonic tokens are mostly the name's, and μάσα's.
     assert lst.buckets[nfc("κινᾶ")] == "R"
-    assert mg.slice_names(counts, {0, 1, 2}) == {nfc("κινά"), nfc("κίνα")}
+    assert lst.buckets[nfc("μάσα")] == "R"
+    assert mg.slice_names(counts, {0, 1, 2}) == {
+        nfc("κινά"), nfc("κίνα"), nfc("μάσα")}
+    # A handful of capitals is no name: 4 Τσάντα beside 2 τσάντα, or one
+    # Μαλάκας beside none.
+    few = _counts([("Τσάντα", "cap", {0: 2, 1: 2}),
+                   ("τσάντα", "lower", {0: 1, 1: 1}),
+                   ("Μαλάκας", "cap", {0: 1})])
+    assert mg.slice_names(few, {0, 1, 2}) == set()
     # The listed lowercase κίνα keeps its slice bucket, R: its monotonic
     # count, M, is mostly the name Κίνα's.
     assert lst.buckets[nfc("κίνα")] == "R"
     # grc's names spell no lowercase letters.
     assert mg._grc_letters({nfc("Τάκ"), nfc("θέ")}) == {"θε"}
+
+
+def _pos(pos: str, *tags: str) -> frozenset:
+    return frozenset({P.POS_PREFIX + pos, *tags})
+
+
+@pytest.mark.parametrize("mono, tags, lemma, expected", [
+    # Proparoxytones and the plain oxytone take the acute.
+    ("τηλέφωνο", _pos("noun", "neuter", "nominative", "singular"),
+     "τηλέφωνο", "τηλέφωνο"),
+    ("κινητό", _pos("noun", "neuter", "nominative", "singular"), "κινητό",
+     "κινητό"),
+    ("ενημέρωση", _pos("noun", "feminine", "nominative", "singular"),
+     "ενημέρωση", "ἐνημέρωση"),
+    # A long penult before a short last syllable takes the circumflex: the
+    # neuters in -ο and -μα (a noun in -μα is neuter when its tags do not
+    # say), the plural -α.
+    ("φαρμακείο", _pos("noun", "neuter", "nominative", "singular"),
+     "φαρμακείο", "φαρμακεῖο"),
+    ("νήμα", _pos("noun", "nominative", "singular"), "νήμα", "νῆμα"),
+    ("σχολεία", _pos("noun", "neuter", "nominative", "plural"), "σχολείο",
+     "σχολεῖα"),
+    # A final -ι is long: the neuters from -ιον keep the acute.
+    ("τσεκούρι", _pos("noun", "neuter", "nominative", "singular"),
+     "τσεκούρι", "τσεκούρι"),
+    # The feminine -α is long, but short in the -εια of an adjective in
+    # -ύς (ταχεῖα), and the acute stays (χώρα).
+    ("χώρα", _pos("noun", "feminine", "nominative", "singular"), "χώρα",
+     "χώρα"),
+    ("ταχεία", _pos("adj", "feminine", "nominative", "singular"), "ταχύς",
+     "ταχεῖα"),
+    # Synizesis: the -ιά of a feminine is long, so its genitive takes the
+    # circumflex; a neuter plural's -ιά is short.
+    ("καρδιά", _pos("noun", "feminine", "nominative", "singular"),
+     "καρδιά", "καρδιά"),
+    ("καρδιάς", _pos("noun", "feminine", "genitive", "singular"),
+     "καρδιά", "καρδιᾶς"),
+    ("καρδιών", _pos("noun", "feminine", "genitive", "plural"), "καρδιά",
+     "καρδιῶν"),
+    ("παιδιά", _pos("noun", "neuter", "nominative", "plural"), "παιδί",
+     "παιδιά"),
+    ("καλής", _pos("adj", "feminine", "genitive", "singular"), "καλός",
+     "καλῆς"),
+    # The nouns in -άς keep the circumflex in every case.
+    ("μπαμπάς", _pos("noun", "nominative", "singular"), "μπαμπάς",
+     "μπαμπᾶς"),
+    ("μπαμπά", _pos("noun", "genitive", "singular"), "μπαμπάς", "μπαμπᾶ"),
+    # The contracted plural -εῖς, but not an aorist passive participle
+    # filed under its own form.
+    ("γονείς", _pos("noun", "nominative", "plural"), "γονέας", "γονεῖς"),
+    ("γραφείς", _pos("noun", "nominative", "singular"), "γραφείς",
+     "γραφείς"),
+    # An s-stem adjective: the acute in the nominative singular only.
+    ("ασθενής", _pos("adj", "nominative", "singular", P.S_STEM), "ασθενής",
+     "ἀσθενής"),
+    ("ασθενή", _pos("adj", "accusative", "singular", P.S_STEM), "ασθενής",
+     "ἀσθενῆ"),
+    ("ζερβή", _pos("adj", "accusative", "singular"), "ζερβής", "ζερβή"),
+    # A form Wiktionary files with no cell, in -ού, is a genitive.
+    ("καλού", _pos("adj", "form-of"), "καλός", "καλοῦ"),
+    # An adverb's -ά is short.
+    ("ξανά", _pos("adv"), "ξανά", "ξανά"),
+    # A name keeps its capital.
+    ("Λονδίνο", _pos("name", "neuter"), "λονδίνο", "Λονδίνο"),
+])
+def test_nouns_and_adjectives_follow_the_ancient_rules(mono, tags, lemma,
+                                                       expected):
+    assert P.polytonic(mono, tags, P.verb_class(lemma, {mono: tags}), [],
+                       EVIDENCE, lemma) == nfc(expected)
+
+
+def test_every_part_of_speech_is_read(tmp_path):
+    rows = [
+        ("τηλέφωνο", "τηλέφωνο", "noun", ["nominative", "singular"]),
+        ("τηλεφώνου", "τηλέφωνο", "noun", ["genitive", "singular"]),
+        ("τηλεφωνώ", "τηλεφωνώ", "verb", ["present", "first-person"]),
+        # A page filed only as a form of another, under a lemma in sentence
+        # case, where the word's own table places the form.
+        ("τηλεφώνου", "Τηλέφωνο", "noun", ["form-of"]),
+        # A name with the letters of another word, one without, and a
+        # foreign name Wiktionary does not decline.
+        ("Τηλεφώνου", "Τηλέφωνος", "name", ["genitive"]),
+        ("Λονδίνο", "Λονδίνο", "name", ["nominative", "singular"]),
+        ("Λονδίνου", "Λονδίνο", "name", ["genitive", "singular"]),
+        ("Λόνδρα", "Λονδίνο", "name", ["alt-of"]),
+        ("Τέσα", "Τέσα", "name", ["feminine"]),
+        # A polytonic spelling filed as a form.
+        ("ζᾶ", "ζώο", "noun", ["form-of"]),
+        # The adjectives in -ής: an s-stem, and one of another declension.
+        ("ασθενής", "ασθενής", "adj", ["nominative", "singular"]),
+        ("ασθενές", "ασθενής", "adj", ["neuter", "nominative", "singular"]),
+        ("ζερβής", "ζερβής", "adj", ["nominative", "singular"]),
+        ("ζερβί", "ζερβής", "adj", ["neuter", "nominative", "singular"]),
+        # A romanization is no Greek word.
+        ("tilefono", "τηλέφωνο", "romanization", []),
+    ]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    assert set(par["τηλέφωνο"]) == {"τηλέφωνο", "τηλεφώνου"}
+    assert P.is_verb(par["τηλεφωνώ"]["τηλεφωνώ"])
+    assert P.pos_of(par["τηλέφωνο"]["τηλεφώνου"]) == "noun"
+    assert "τηλέφωνο" not in par or "form-of" not in \
+        par["τηλέφωνο"]["τηλεφώνου"]
+    assert "τηλέφωνος" not in par and "Λονδίνο" in par["λονδίνο"]
+    assert "τέσα" not in par and "Λόνδρα" in par["λονδίνο"]
+    assert "ζώο" not in par
+    assert P.S_STEM in par["ασθενής"]["ασθενής"]
+    assert P.S_STEM not in par["ζερβής"]["ζερβής"]
+    assert P.verb_class("λονδίνο", par["λονδίνο"]) == "name"
+    # The verbs alone, as the verb evaluation reads them.
+    assert set(P.load_verb_paradigms(_write_pairs(tmp_path, rows))) == {
+        "τηλεφωνώ"}
+
+
+def test_a_verbs_twin_gives_way_to_a_far_commoner_noun(monkeypatch):
+    # The subjunctive twin ἐνημερώσῃ has the letters of the noun
+    # ἐνημέρωση, which monotonic text writes far more often than the
+    # twin's own letters (ενημερώση): the twin is left out, the noun and
+    # the indicative ἐνημερώσει go in.
+    paradigms = {
+        "ενημερώνω": {"ενημερώσει": frozenset({
+            "dependent", "third-person", "singular", "finite", "perfective",
+            P.VERB})},
+        "ενημέρωση": {"ενημέρωση": _pos("noun", "feminine", "nominative",
+                                        "singular")},
+    }
+    # The verb form is commoner than the noun, its twin's own letters are
+    # not: the twin is ranked by the latter.
+    freq = {"ενημερώσει": 50_000, "ενημέρωση": 40_000, "ενημερώση": 4}
+    order = [g.spelling for g in P.generate(paradigms, freq, EVIDENCE)]
+    # The commonest spelling of the letters comes first.
+    assert order.index(nfc("ἐνημέρωση")) < order.index(nfc("ἐνημερώσῃ"))
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+    lst = mg.select_list(_counts([]), {0, 1, 2}, set(GRC),
+                         generate_verbs=True)
+    assert {nfc("ἐνημέρωση"), nfc("ἐνημερώσει")} <= lst.generated
+    assert nfc("ἐνημερώσῃ") not in lst.generated
+    # A noun's form in -εις is no subjunctive, even filed with no cell: no
+    # twin (πόλεις, not πόλῃς).
+    nouns = {"πόλη": {"πόλεις": _pos("noun", "form-of")}}
+    assert {g.spelling for g in P.generate(nouns, {"πόλεις": 5000},
+                                           EVIDENCE)} == {nfc("πόλεις")}
+
+
+def test_a_spelling_with_another_words_letters_gives_way(monkeypatch):
+    # εὑρῶ, the Ancient subjunctive, has the letters of εὐρώ, the currency.
+    paradigms = {"ευρώ": {"ευρώ": _pos("noun", "neuter", "invariable")}}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms,
+                                                     {"ευρώ": 4311}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+    counts = _counts([("εὑρῶ", "lower", {0: 2, 1: 2, 2: 1})])
+    lst = mg.select_list(counts, {0, 1, 2}, set(GRC), generate_verbs=True)
+    assert nfc("εὑρῶ") not in lst.entries
+    # Its rough breathing does not pass to the generated spelling.
+    assert nfc("εὐρώ") in lst.generated
+    lst = mg.select_list(counts, {0, 1, 2}, set(GRC) | {nfc("εὑρῶ")},
+                         generate_verbs=True)
+    assert nfc("εὐρώ") in lst.generated and nfc("εὑρῶ") in lst.avoid
+
+
+def test_datives_capitals_and_the_bucket_ceiling(monkeypatch):
+    noun = _pos("noun", "neuter", "nominative", "singular")
+    paradigms = {
+        "κέντρο": {"κέντρο": noun},
+        "Ιούνιος": {"Ιούνιο": _pos("name", "accusative", "singular")},
+        "γράψης": {"Γράψη": _pos("name", "genitive", "singular")},
+        "τζίμας": {"Τζίμα": _pos("name", "genitive", "singular")},
+        "λονδίνο": {"Λονδίνο": _pos("name", "nominative", "singular")},
+        "μιλάω": {"μίλα": frozenset({
+            "imperative", "second-person", "singular", "finite", P.VERB})},
+        "κοιτάζω": {"κοίταξε": frozenset({
+            "past", "third-person", "singular", "finite", P.VERB})},
+    }
+    total = 100_000_000
+    freq = {"κέντρο": 60_000, "ιούνιο": 3_000, "γράψη": 80, "μίλα": 9_000,
+            "μιλά": 1_000, "κοίταξε": 6_000, "τζίμα": 85, "λονδίνο": 14_283,
+            "πολύ": total - 93_448}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    counts = _counts([("κέντρῳ", "lower", {0: 3, 1: 3}),
+                      ("γράψῃ", "lower", {0: 3, 1: 3}),
+                      ("μιλᾶ", "lower", {0: 3, 1: 3}),
+                      ("κοίταξέ", "lower", {0: 2, 1: 2})])
+    lst = mg.select_list(counts, {0, 1, 2}, set(GRC), generate_verbs=True)
+    # A Katharevousa dative does not cover the plain spelling.
+    assert nfc("κέντρῳ") in lst.entries and nfc("κέντρο") in lst.generated
+    assert lst.buckets[nfc("κέντρο")] == "C"
+    # A month is generated with its capital, at R; a surname with the
+    # letters of a lowercase word is not.
+    assert nfc("Ἰούνιο") in lst.generated
+    assert lst.buckets[nfc("Ἰούνιο")] == "R"
+    assert not any(s.lower() == nfc("γράψη") for s in lst.generated)
+    # A name with the plain acute is generated where monotonic text has it
+    # often enough to rank (Λονδίνο), not where it is rare (Τζίμα).
+    assert nfc("Λονδίνο") in lst.generated
+    assert nfc("Τζίμα") not in lst.generated
+    # The imperative μίλα, C by its count, ranks no higher than the
+    # attested μιλᾶ of its letters, M.
+    assert nfc("μίλα") in lst.generated
+    assert lst.buckets[nfc("μιλᾶ")] == "M"
+    assert lst.buckets[nfc("μίλα")] == "M"
+    # The enclitic's second accent makes no other word: κοίταξέ, R by its
+    # count, sets no ceiling for κοίταξε.
+    assert lst.buckets[nfc("κοίταξέ")] == "R"
+    assert lst.buckets[nfc("κοίταξε")] == "C"
+
+
+def test_a_clitic_of_one_syllable_is_not_generated():
+    # Polytonic writing leaves an article or a weak pronoun unaccented
+    # where it leans on its neighbor; a paradigm does not say where.
+    assert P.polytonic("τσου", _pos("article"), "article", [], EVIDENCE,
+                       "τσι") is None
+    assert P.polytonic("ντα", _pos("pron"), "pron", [], EVIDENCE,
+                       "είντα") is None
+    # A noun of one syllable takes its accent.
+    assert P.polytonic("φως", _pos("noun", "nominative", "singular"),
+                       "noun", [], EVIDENCE, "φως") == nfc("φῶς")
+
+
+def test_a_first_declension_dative_and_a_loanword(monkeypatch):
+    noun = _pos("noun", "feminine", "nominative", "singular")
+    paradigms = {
+        "πρωτοβουλία": {"πρωτοβουλία": noun},
+        "μπάσκετ": {"μπάσκετ": _pos("noun", "neuter", "invariable")},
+        "γράψης": {"Γράψη": _pos("name", "genitive", "singular")},
+    }
+    freq = {"πρωτοβουλία": 5000, "μπάσκετ": 3000, "γράψη": 5000,
+            "πολύ": 100_000_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+    counts = _counts([("πρωτοβουλίᾳ", "lower", {0: 3, 1: 3}),
+                      ("γράψῃ", "lower", {0: 3, 1: 3})])
+    lst = mg.select_list(counts, {0, 1, 2}, set(GRC), generate_verbs=True)
+    # The Katharevousa dative covers no plain spelling of its letters.
+    assert nfc("πρωτοβουλίᾳ") in lst.entries
+    assert nfc("πρωτοβουλία") in lst.generated
+    # A loanword may end in a consonant.
+    assert nfc("μπάσκετ") in lst.generated
+    # A surname with the letters of a lowercase subjunctive is not
+    # generated, however common its letters.
+    assert nfc("Γράψη") not in lst.generated

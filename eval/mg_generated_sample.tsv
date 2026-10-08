@@ -1,7 +1,9 @@
-# A stratified sample of the generated verb spellings of the polytonic Modern
-# Greek list (by verb class and cell), each checked by hand against the rules of
-# polytonic orthography: breathing, accent type, iota subscript. verdict is ok or
-# wrong; correct gives the right spelling of a wrong one.
+# Stratified samples of the generated spellings of the polytonic Modern Greek
+# list, each checked by hand against the rules of polytonic orthography:
+# breathing, accent type, iota subscript. The verbs are sampled by verb class
+# and cell; the nouns and adjectives (class noun or adj) by part of speech, case
+# and number, and fr: bucket. verdict is ok or wrong; correct gives the right
+# spelling of a wrong one.
 spelling	monotonic	lemma	class	cell	tokens	verdict	correct
 βουρτσίσεις	βουρτσίσεις	βουρτσίζω	A	dependent	105	ok	
 δανειστεῖς	δανειστείς	δανείζω	A	dependent	633	ok	
@@ -359,3 +361,382 @@ spelling	monotonic	lemma	class	cell	tokens	verdict	correct
 σιχαθῇ	σιχαθεί	σιχαίνομαι	passive	subjunctive	563	ok	
 συμπεριφερθῇ	συμπεριφερθεί	συμπεριφέρομαι	passive	subjunctive	242	ok	
 φανταστῇς	φανταστείς	φαντάζομαι	passive	subjunctive	4106	ok	
+βραζιλιάνικο	βραζιλιάνικο	βραζιλιάνικος	adj	adj	153	ok	
+γαλακτικό	γαλακτικό	γαλακτικός	adj	adj	70	ok	
+καστανή	καστανή	καστανός	adj	adj	284	ok	
+κατώτατο	κατώτατο	κατώτατος	adj	adj	181	ok	
+καυτερή	καυτερή	καυτός	adj	adj	326	ok	
+κωδικό	κωδικό	κωδικός	adj	adj	6694	ok	
+ματαιόδοξη	ματαιόδοξη	ματαιόδοξος	adj	adj	134	ok	
+μολυσματικό	μολυσματικό	μολυσματικός	adj	adj	52	ok	
+παράλληλη	παράλληλη	παράλληλος	adj	adj	302	ok	
+πελώριο	πελώριο	πελώριος	adj	adj	189	ok	
+περαστικά	περαστικά	περαστικός	adj	adj	457	ok	
+σημαντικό	σημαντικό	σημαντικός	adj	adj	46071	ok	
+τρομοκρατική	τρομοκρατική	τρομοκρατικός	adj	adj	1320	ok	
+τσουχτερό	τσουχτερό	τσουχτερός	adj	adj	95	ok	
+φανατική	φανατική	φανατικός	adj	adj	324	ok	
+ψυχαγωγική	ψυχαγωγική	ψυχαγωγικός	adj	adj	88	ok	
+ἀβάσταχτο	αβάσταχτο	αβάσταχτος	adj	adj	212	ok	
+ἀδιαίρετο	αδιαίρετο	αδιαίρετος	adj	adj	53	ok	
+ἀκατόρθωτο	ακατόρθωτο	ακατόρθωτος	adj	adj	414	ok	
+ἀλάνθαστη	αλάνθαστη	αλάνθαστος	adj	adj	124	ok	
+ἀνήκουστο	ανήκουστο	ανήκουστος	adj	adj	440	ok	
+ἀναδρομική	αναδρομική	αναδρομικός	adj	adj	82	ok	
+ἀναρρωτική	αναρρωτική	αναρρωτικός	adj	adj	397	ok	
+ἀνεγκέφαλη	ανεγκέφαλη	ανεγκέφαλος	adj	adj	57	ok	
+ἀνώτατη	ανώτατη	ανώτατος	adj	adj	577	ok	
+ἀπωθητικό	απωθητικό	απωθητικός	adj	adj	172	ok	
+ἀρειανό	αρειανό	αρειανός	adj	adj	107	ok	
+ἀφόρητο	αφόρητο	αφόρητος	adj	adj	167	ok	
+ἄγονο	άγονο	άγονος	adj	adj	101	ok	
+ἄστεγη	άστεγη	άστεγος	adj	adj	436	ok	
+ἐθελοντικά	εθελοντικά	εθελοντικός	adj	adj	1561	ok	
+ἐπικίνδυνο	επικίνδυνο	επικίνδυνος	adj	adj	15382	ok	
+ἰνδικό	ινδικό	ινδικός	adj	adj	1018	ok	
+ὑπομονετικό	υπομονετικό	υπομονετικός	adj	adj	56	ok	
+ζεστούς	ζεστούς	ζεστός	adj	adj accusative plural	118	ok	
+τέλειους	τέλειους	τέλειος	adj	adj accusative plural	197	ok	
+φανατικούς	φανατικούς	φανατικός	adj	adj accusative plural	262	ok	
+φιλανθρωπικούς	φιλανθρωπικούς	φιλανθρωπικός	adj	adj accusative plural	154	ok	
+ὁμοσπονδιακούς	ομοσπονδιακούς	ομοσπονδιακός	adj	adj accusative plural	1056	ok	
+ὑπόλοιπους	υπόλοιπους	υπόλοιπος	adj	adj accusative plural	5137	ok	
+συνοδό	συνοδό	συνοδός	adj	adj accusative singular	1630	ok	
+ψυχοπαθῆ	ψυχοπαθή	ψυχοπαθής	adj	adj accusative singular	1124	ok	
+ἐνστικτώδη	ενστικτώδη	ενστικτώδης	adj	adj accusative singular	71	ok	
+λατινικῶν	λατινικών	λατινικός	adj	adj genitive plural	86	ok	
+περίεργων	περίεργων	περίεργος	adj	adj genitive plural	101	ok	
+χιλιοστῶν	χιλιοστών	χιλιοστός	adj	adj genitive plural	1096	ok	
+ἀεροπορικῶν	αεροπορικών	αεροπορικός	adj	adj genitive plural	86	ok	
+βαριᾶς	βαριάς	βαρύς	adj	adj genitive singular	85	ok	
+γλυκούλη	γλυκούλη	γλυκούλης	adj	adj genitive singular	471	ok	
+μικρούλη	μικρούλη	μικρούλης	adj	adj genitive singular	1754	ok	
+σεξουαλικῆς	σεξουαλικής	σεξουαλικός	adj	adj genitive singular	1230	ok	
+χιονάτης	χιονάτης	χιονάτος	adj	adj genitive singular	87	ok	
+ἀσφαλιστικῆς	ασφαλιστικής	ασφαλιστικός	adj	adj genitive singular	282	ok	
+ἀτμοσφαιρικῆς	ατμοσφαιρικής	ατμοσφαιρικός	adj	adj genitive singular	51	ok	
+ἰαπωνικοῦ	ιαπωνικού	ιαπωνικός	adj	adj genitive singular	80	ok	
+ῥωσικῆς	ρωσικής	ρωσικός	adj	adj genitive singular	258	ok	
+βάρβαρες	βάρβαρες	βάρβαρος	adj	adj nominative plural	74	ok	
+βέρες	βέρες	βέρος	adj	adj nominative plural	465	ok	
+βασικά	βασικά	βασικός	adj	adj nominative plural	45083	ok	
+βιομηχανικά	βιομηχανικά	βιομηχανικός	adj	adj nominative plural	194	ok	
+γαμάτα	γαμάτα	γαμάτος	adj	adj nominative plural	1049	ok	
+γενναιόδωρες	γενναιόδωρες	γενναιόδωρος	adj	adj nominative plural	90	ok	
+δικαστικές	δικαστικές	δικαστικός	adj	adj nominative plural	197	ok	
+δυνατότερες	δυνατότερες	δυνατός	adj	adj nominative plural	73	ok	
+εὐχάριστες	ευχάριστες	ευχάριστος	adj	adj nominative plural	452	ok	
+θανατηφόρες	θανατηφόρες	θανατηφόρος	adj	adj nominative plural	341	ok	
+θρησκόληπτοι	θρησκόληπτοι	θρησκόληπτος	adj	adj nominative plural	77	ok	
+καλύτεροι	καλύτεροι	καλύτερος	adj	adj nominative plural	5787	ok	
+κατασκοπευτικά	κατασκοπευτικά	κατασκοπευτικός	adj	adj nominative plural	68	ok	
+μικρούλια	μικρούλια	μικρούλης	adj	adj nominative plural	179	ok	
+περίφημες	περίφημες	περίφημος	adj	adj nominative plural	57	ok	
+προϊστορικά	προϊστορικά	προϊστορικός	adj	adj nominative plural	77	ok	
+σοκαριστικά	σοκαριστικά	σοκαριστικός	adj	adj nominative plural	93	ok	
+σποραδικές	σποραδικές	σποραδικός	adj	adj nominative plural	58	ok	
+ταχύπλοα	ταχύπλοα	ταχύπλοος	adj	adj nominative plural	62	ok	
+τελευταῖες	τελευταίες	τελευταίος	adj	adj nominative plural	11016	ok	
+τραυματικές	τραυματικές	τραυματικός	adj	adj nominative plural	103	ok	
+φανατικοί	φανατικοί	φανατικός	adj	adj nominative plural	366	ok	
+ἀδικαιολόγητες	αδικαιολόγητες	αδικαιολόγητος	adj	adj nominative plural	60	ok	
+ἀνεπιθύμητα	ανεπιθύμητα	ανεπιθύμητος	adj	adj nominative plural	139	ok	
+ἀνταγωνιστικοί	ανταγωνιστικοί	ανταγωνιστικός	adj	adj nominative plural	145	ok	
+ἀξιολύπητοι	αξιολύπητοι	αξιολύπητος	adj	adj nominative plural	277	ok	
+ἀξιοσέβαστοι	αξιοσέβαστοι	αξιοσέβαστος	adj	adj nominative plural	103	ok	
+ἀπόμερα	απόμερα	απόμερος	adj	adj nominative plural	139	ok	
+ἐγκληματικά	εγκληματικά	εγκληματικός	adj	adj nominative plural	199	ok	
+ἐξωτικές	εξωτικές	εξωτικός	adj	adj nominative plural	137	ok	
+ὑπάκουοι	υπάκουοι	υπάκουος	adj	adj nominative plural	81	ok	
+δακρυγόνα	δακρυγόνα	δακρυγόνος	adj	adj nominative singular	262	ok	
+εὐφάνταστο	ευφάνταστο	ευφάνταστος	adj	adj nominative singular	74	ok	
+κατακόρυφο	κατακόρυφο	κατακόρυφος	adj	adj nominative singular	111	ok	
+κινητό	κινητό	κινητός	adj	adj nominative singular	20469	ok	
+κοινόχρηστο	κοινόχρηστο	κοινόχρηστος	adj	adj nominative singular	111	ok	
+κολακευτικό	κολακευτικό	κολακευτικός	adj	adj nominative singular	622	ok	
+κουνιστός	κουνιστός	κουνιστός	adj	adj nominative singular	98	ok	
+κρουστικό	κρουστικό	κρουστικός	adj	adj nominative singular	53	ok	
+λατρευτό	λατρευτό	λατρευτός	adj	adj nominative singular	51	ok	
+μασκοφόρο	μασκοφόρο	μασκοφόρος	adj	adj nominative singular	165	ok	
+νοσηρό	νοσηρό	νοσηρός	adj	adj nominative singular	131	ok	
+παροδικό	παροδικό	παροδικός	adj	adj nominative singular	95	ok	
+παχουλός	παχουλός	παχουλός	adj	adj nominative singular	95	ok	
+προσωπικό	προσωπικό	προσωπικός	adj	adj nominative singular	19817	ok	
+σαχλό	σαχλό	σαχλός	adj	adj nominative singular	172	ok	
+σκληροπυρηνικός	σκληροπυρηνικός	σκληροπυρηνικός	adj	adj nominative singular	88	ok	
+συμβατικό	συμβατικό	συμβατικός	adj	adj nominative singular	211	ok	
+τεθωρακισμένο	τεθωρακισμένο	τεθωρακισμένος	adj	adj nominative singular	241	ok	
+τετράχρονο	τετράχρονο	τετράχρονος	adj	adj nominative singular	113	ok	
+τονωτικό	τονωτικό	τονωτικός	adj	adj nominative singular	456	ok	
+τροχιακό	τροχιακό	τροχιακός	adj	adj nominative singular	69	ok	
+φτωχότερος	φτωχότερος	φτωχός	adj	adj nominative singular	55	ok	
+χάρτινος	χάρτινος	χάρτινος	adj	adj nominative singular	59	ok	
+ψύχραιμος	ψύχραιμος	ψύχραιμος	adj	adj nominative singular	838	ok	
+ἀντικειμενικός	αντικειμενικός	αντικειμενικός	adj	adj nominative singular	293	ok	
+ἀπέθαντος	απέθαντος	απέθαντος	adj	adj nominative singular	108	ok	
+ἐλαφρύτερη	ελαφρύτερη	ελαφρύτερος	adj	adj nominative singular	92	ok	
+ἐνοχλητικός	ενοχλητικός	ενοχλητικός	adj	adj nominative singular	1179	ok	
+ἐπικοινωνιακό	επικοινωνιακό	επικοινωνιακός	adj	adj nominative singular	63	ok	
+ἱεραποστολική	ιεραποστολική	ιεραποστολικός	adj	adj nominative singular	93	ok	
+ἱστιοπλοϊκό	ιστιοπλοϊκό	ιστιοπλοϊκός	adj	adj nominative singular	72	ok	
+ὀχυρό	οχυρό	οχυρός	adj	adj nominative singular	3017	ok	
+ὑπερευαίσθητη	υπερευαίσθητη	υπερευαίσθητος	adj	adj nominative singular	93	ok	
+ἀναλυτές	αναλυτές	αναλυτός	adj	adj plural	406	ok	
+ἀνταλλακτικά	ανταλλακτικά	ανταλλακτικός	adj	adj plural	974	ok	
+δικέ	δικέ	δικός	adj	adj vocative singular	14255	ok	
+πρωτόγονε	πρωτόγονε	πρωτόγονος	adj	adj vocative singular	67	ok	
+χαζέ	χαζέ	χαζός	adj	adj vocative singular	1213	ok	
+ἐντιμότατε	εντιμότατε	έντιμος	adj	adj vocative singular	2691	ok	
+εἰδικότερα	ειδικότερα	ειδικότερος	adj	adv	584	ok	
+παλιότερα	παλιότερα	παλιότερος	adj	adv	2505	ok	
+πιθανότατα	πιθανότατα	πιθανότατος	adj	adv	11077	ok	
+ἐλαστικά	ελαστικά	ελαστικός	adj	adv nominative plural	710	ok	
+μαρή	μαρή	μωρός	adj	intj	214	ok	
+μαροκινό	μαροκινό	μαροκινός	adj	noun	100	ok	
+ἀποφοίτους	αποφοίτους	απόφοιτος	adj	noun accusative plural	84	ok	
+μηχανικό	μηχανικό	μηχανικός	adj	noun accusative singular	1550	ok	
+τενόρο	τενόρο	τενόρος	adj	noun accusative singular	63	ok	
+τροχαῖο	τροχαίο	τροχαίος	adj	noun accusative singular	1795	ok	
+συλλυπητηρίων	συλλυπητηρίων	συλλυπητήριος	adj	noun genitive plural	53	ok	
+συνέχειας	συνέχειας	ενωτικός	adj	noun genitive singular	57	ok	
+δουλευταράδες	δουλευταράδες	δουλευταράς	adj	noun nominative plural	54	ok	
+μανιακός	μανιακός	μανιακός	adj	noun nominative singular	1529	ok	
+συνοδός	συνοδός	συνοδός	adj	noun nominative singular	1815	ok	
+ἀλογάκι	αλογάκι	άλογος	adj	noun nominative singular	624	ok	
+κοῦτες	κούτες	κουτός	adj	noun plural	720	ok	
+δωδέκατο	δωδέκατο	δωδέκατος	adj	num	89	ok	
+ἄει	άει	άγιος	adj	particle	525	ok	
+δικιᾶς	δικιάς	δικός	adj	pron genitive singular	206	ok	
+βαφτισιμιά	βαφτισιμιά	βαφτισιμιός	noun	adj	73	ok	
+ὑπάλληλους	υπάλληλους	υπάλληλος	noun	adj accusative plural	126	ok	
+συνεταιρισμό	συνεταιρισμό	συνεταιρισμός	noun	adj accusative singular	255	ok	
+ἄγνοιας	άγνοιας	άγνοια	noun	adj genitive singular	167	ok	
+φίλες	φίλες	φίλος	noun	adj nominative plural	8261	ok	
+ἀδελφές	αδελφές	αδελφός	noun	adj nominative plural	3769	ok	
+καινοτόμο	καινοτόμο	καινοτόμος	noun	adj nominative singular	142	ok	
+γρί	γρι	γρυ	noun	adv	101	ok	
+κάργα	κάργα	κάργα	noun	adv genitive singular	61	ok	
+μόλο	μόλο	μόλος	noun	conj accusative singular	126	ok	
+πωπώ	πωπώ	ποπός	noun	intj	359	ok	
+ποπό	ποπό	ποπός	noun	intj accusative singular	410	ok	
+κούκου	κούκου	κούκος	noun	intj genitive singular	451	ok	
+συγνώμη	συγνώμη	συγγνώμη	noun	intj nominative singular	95309	ok	
+τσάγια	τσάγια	τσάι	noun	intj plural	207	ok	
+γιέτι	γιέτι	γιέτι	noun	noun	104	ok	
+γκαρσόν	γκαρσόν	γκαρσόνι	noun	noun	491	ok	
+κιουρί	κιουρί	κιουρί	noun	noun	126	ok	
+κόμικς	κόμικς	κόμικς	noun	noun	1208	ok	
+λαμπραντόρ	λαμπραντόρ	λαμπραντόρ	noun	noun	212	ok	
+μοντέρ	μοντέρ	μοντέρ	noun	noun	52	ok	
+μπίλι	μπίλι	μπίλι	noun	noun	9903	ok	
+μπαζοῦκα	μπαζούκα	μπαζούκα	noun	noun	247	ok	
+μπουζοῦ	μπουζού	μπουζού	noun	noun	65	ok	
+πάρτι	πάρτι	πάρτι	noun	noun	39163	ok	
+σέρβερ	σέρβερ	σέρβερ	noun	noun	1317	ok	
+σαντιγί	σαντιγί	σαντιγί	noun	noun	421	ok	
+φλαμένκο	φλαμένκο	φλαμένκο	noun	noun	71	ok	
+ῥουά	ρουά	ρουά	noun	noun	341	ok	
+τάρταρο	τάρταρο	τάρταρος	noun	noun accusative	70	ok	
+δολοφόνους	δολοφόνους	δολοφόνος	noun	noun accusative plural	2653	ok	
+μπάτσους	μπάτσους	μπάτσος	noun	noun accusative plural	7157	ok	
+νέγρους	νέγρους	νέγρος	noun	noun accusative plural	564	ok	
+οὔγγρους	ούγγρους	ούγγρος	noun	noun accusative plural	76	ok	
+πολέμαρχους	πολέμαρχους	πολέμαρχος	noun	noun accusative plural	90	ok	
+βελονισμό	βελονισμό	βελονισμός	noun	noun accusative singular	121	ok	
+γλάρο	γλάρο	γλάρος	noun	noun accusative singular	120	ok	
+γυναικολόγο	γυναικολόγο	γυναικολόγος	noun	noun accusative singular	310	ok	
+δολοφόνο	δολοφόνο	δολοφόνος	noun	noun accusative singular	11032	ok	
+καθορισμό	καθορισμό	καθορισμός	noun	noun accusative singular	174	ok	
+κτηνίατρο	κτηνίατρο	κτηνίατρος	noun	noun accusative singular	727	ok	
+μαξιλαροπόλεμο	μαξιλαροπόλεμο	μαξιλαροπόλεμος	noun	noun accusative singular	91	ok	
+σκεπτικισμό	σκεπτικισμό	σκεπτικισμός	noun	noun accusative singular	143	ok	
+σταθμό	σταθμό	σταθμός	noun	noun accusative singular	13451	ok	
+σύνδεσμο	σύνδεσμο	σύνδεσμος	noun	noun accusative singular	1199	ok	
+τύμβο	τύμβο	τύμβος	noun	noun accusative singular	89	ok	
+ἀεραγωγό	αεραγωγό	αεραγωγός	noun	noun accusative singular	577	ok	
+ἀστυνόμο	αστυνόμο	αστυνόμος	noun	noun accusative singular	1824	ok	
+ἄγγλο	άγγλο	άγγλος	noun	noun accusative singular	245	ok	
+ῥαδιοσταθμό	ραδιοσταθμό	ραδιοσταθμός	noun	noun accusative singular	51	ok	
+εἰσβολέων	εισβολέων	εισβολέας	noun	noun genitive plural	111	ok	
+κονδυλίων	κονδυλίων	κονδύλι	noun	noun genitive plural	104	ok	
+πρωταθλητῶν	πρωταθλητών	πρωταθλητής	noun	noun genitive plural	180	ok	
+συλλεκτῶν	συλλεκτών	συλλέκτης	noun	noun genitive plural	54	ok	
+τραίνων	τραίνων	τρένο	noun	noun genitive plural	131	ok	
+ἀπαγωγέων	απαγωγέων	απαγωγέας	noun	noun genitive plural	120	ok	
+ὑπολογιστῶν	υπολογιστών	υπολογιστής	noun	noun genitive plural	1406	ok	
+ὑποτίτλων	υποτίτλων	υπότιτλος	noun	noun genitive plural	4990	ok	
+ῥαδιοκυμάτων	ραδιοκυμάτων	ραδιοκύμα	noun	noun genitive plural	62	ok	
+βιαιότητας	βιαιότητας	βιαιότητα	noun	noun genitive singular	54	ok	
+γονάτου	γονάτου	γόνατο	noun	noun genitive singular	50	ok	
+μίνας	μίνας	μίνα	noun	noun genitive singular	61	ok	
+μαχαιριοῦ	μαχαιριού	μαχαίρι	noun	noun genitive singular	295	ok	
+μπάντας	μπάντας	μπάντα	noun	noun genitive singular	519	ok	
+μπανάνας	μπανάνας	μπανάνα	noun	noun genitive singular	272	ok	
+νάνου	νάνου	νάνος	noun	noun genitive singular	113	ok	
+νονοῦ	νονού	νονός	noun	noun genitive singular	79	ok	
+παιδαρᾶ	παιδαρά	παιδαράς	noun	noun genitive singular	80	ok	
+παντελονιοῦ	παντελονιού	παντελόνι	noun	noun genitive singular	229	ok	
+πλεξίματος	πλεξίματος	πλέξιμο	noun	noun genitive singular	107	ok	
+πορτοκαλιοῦ	πορτοκαλιού	πορτοκάλι	noun	noun genitive singular	299	ok	
+σερίφη	σερίφη	σερίφης	noun	noun genitive singular	14711	ok	
+σολομοῦ	σολομού	σολομός	noun	noun genitive singular	138	ok	
+σούπας	σούπας	σούπα	noun	noun genitive singular	303	ok	
+σπιτονοικοκύρη	σπιτονοικοκύρη	σπιτονοικοκύρης	noun	noun genitive singular	263	ok	
+τζακιοῦ	τζακιού	τζάκι	noun	noun genitive singular	91	ok	
+φασολιοῦ	φασολιού	φασόλι	noun	noun genitive singular	64	ok	
+φυσιοθεραπευτῆ	φυσιοθεραπευτή	φυσιοθεραπευτής	noun	noun genitive singular	69	ok	
+χιμπατζῆ	χιμπατζή	χιμπατζής	noun	noun genitive singular	315	ok	
+χρήστη	χρήστη	χρήστης	noun	noun genitive singular	551	ok	
+ἀθλητῆ	αθλητή	αθλητής	noun	noun genitive singular	448	ok	
+ἀντικαταστάτη	αντικαταστάτη	αντικαταστάτης	noun	noun genitive singular	1123	ok	
+ἀντρούλη	αντρούλη	άντρας	noun	noun genitive singular	111	ok	
+ἀποτεφρωτῆρα	αποτεφρωτήρα	αποτεφρωτήρας	noun	noun genitive singular	94	ok	
+ἐθελοντῆ	εθελοντή	εθελοντής	noun	noun genitive singular	439	ok	
+ἐκδίκησης	εκδίκησης	εκδίκηση	noun	noun genitive singular	1037	ok	
+ἐκσκαφέα	εκσκαφέα	εκσκαφέας	noun	noun genitive singular	86	ok	
+ἐξαερισμοῦ	εξαερισμού	εξαερισμός	noun	noun genitive singular	555	ok	
+ἐπέμβασης	επέμβασης	επέμβαση	noun	noun genitive singular	442	ok	
+ἱστοσελίδας	ιστοσελίδας	ιστοσελίδα	noun	noun genitive singular	195	ok	
+ὀρυχείου	ορυχείου	ορυχείο	noun	noun genitive singular	445	ok	
+ὑπολογιστῆ	υπολογιστή	υπολογιστής	noun	noun genitive singular	12664	ok	
+ὑψομέτρου	υψομέτρου	υψόμετρο	noun	noun genitive singular	61	ok	
+ῥόδας	ρόδας	ρόδο	noun	noun genitive singular	51	ok	
+γραφιάδες	γραφιάδες	γραφιάς	noun	noun nominative plural	67	ok	
+δοξασίες	δοξασίες	δοξασία	noun	noun nominative plural	76	ok	
+καρτοτηλέφωνα	καρτοτηλέφωνα	καρτοτηλέφωνο	noun	noun nominative plural	70	ok	
+κοπρόσκυλα	κοπρόσκυλα	κοπρόσκυλο	noun	noun nominative plural	124	ok	
+μακέτες	μακέτες	μακέτα	noun	noun nominative plural	72	ok	
+μαμούνια	μαμούνια	μαμούνι	noun	noun nominative plural	120	ok	
+πίκλες	πίκλες	πίκλα	noun	noun nominative plural	678	ok	
+παγοπέδιλα	παγοπέδιλα	παγοπέδιλο	noun	noun nominative plural	99	ok	
+πυρομαχικά	πυρομαχικά	πυρομαχικό	noun	noun nominative plural	2976	ok	
+σκοτοῦρες	σκοτούρες	σκοτούρα	noun	noun nominative plural	362	ok	
+στασιαστές	στασιαστές	στασιαστής	noun	noun nominative plural	211	ok	
+τράκα	τράκα	τράκο	noun	noun nominative plural	168	ok	
+τσουβάλια	τσουβάλια	τσουβάλι	noun	noun nominative plural	111	ok	
+ἀντιπροσωπεῖες	αντιπροσωπείες	αντιπροσωπεία	noun	noun nominative plural	92	ok	
+ἐκτοξευτές	εκτοξευτές	εκτοξευτής	noun	noun nominative plural	143	ok	
+ἐπιτηρητές	επιτηρητές	επιτηρητής	noun	noun nominative plural	61	ok	
+ἰνδιάνοι	ινδιάνοι	ινδιάνος	noun	noun nominative plural	2527	ok	
+αὐτισμός	αυτισμός	αυτισμός	noun	noun nominative singular	71	ok	
+αὐτοσυγκέντρωση	αυτοσυγκέντρωση	αυτοσυγκέντρωση	noun	noun nominative singular	227	ok	
+αὐτοσχεδιασμός	αυτοσχεδιασμός	αυτοσχεδιασμός	noun	noun nominative singular	173	ok	
+βιασύνη	βιασύνη	βιασύνη	noun	noun nominative singular	2504	ok	
+γελοιότητα	γελοιότητα	γελοιότητα	noun	noun nominative singular	105	ok	
+γιαούρτι	γιαούρτι	γιαούρτι	noun	noun nominative singular	1173	ok	
+γονιδίωμα	γονιδίωμα	γονιδίωμα	noun	noun nominative singular	130	ok	
+γούρνα	γούρνα	γούρνα	noun	noun nominative singular	110	ok	
+διαιτησία	διαιτησία	διαιτησία	noun	noun nominative singular	152	ok	
+εἰρηνιστής	ειρηνιστής	ειρηνιστής	noun	noun nominative singular	197	ok	
+ζαχαροπλαστεῖο	ζαχαροπλαστείο	ζαχαροπλαστείο	noun	noun nominative singular	461	ok	
+ζωντάνια	ζωντάνια	ζωντάνια	noun	noun nominative singular	774	ok	
+θηριοδαμαστής	θηριοδαμαστής	θηριοδαμαστής	noun	noun nominative singular	73	ok	
+κοριτσόπουλο	κοριτσόπουλο	κορίτσι	noun	noun nominative singular	87	ok	
+κουβάλημα	κουβάλημα	κουβάλημα	noun	noun nominative singular	137	ok	
+κούκλα	κούκλα	κούκλα	noun	noun nominative singular	10139	ok	
+κύπελλο	κύπελλο	κύπελλο	noun	noun nominative singular	2039	ok	
+μαρτίνι	μαρτίνι	μαρτίνι	noun	noun nominative singular	1958	ok	
+μεσολαβητής	μεσολαβητής	μεσολαβητής	noun	noun nominative singular	181	ok	
+μπριάνα	μπριάνα	μπριάνα	noun	noun nominative singular	411	ok	
+νεκρανάσταση	νεκρανάσταση	νεκρανάσταση	noun	noun nominative singular	87	ok	
+νινί	νινί	νινί	noun	noun nominative singular	107	ok	
+ντίβα	ντίβα	ντίβα	noun	noun nominative singular	372	ok	
+ξίδι	ξίδι	ξίδι	noun	noun nominative singular	140	ok	
+παΐδι	παΐδι	παΐδι	noun	noun nominative singular	56	ok	
+παλιοθήλυκο	παλιοθήλυκο	παλιοθήλυκο	noun	noun nominative singular	189	ok	
+πλατίνα	πλατίνα	πλατίνα	noun	noun nominative singular	164	ok	
+πολυβόλο	πολυβόλο	πολυβόλο	noun	noun nominative singular	836	ok	
+πραίτορας	πραίτορας	πραίτορας	noun	noun nominative singular	118	ok	
+πριμαντόνα	πριμαντόνα	πριμαντόνα	noun	noun nominative singular	86	ok	
+πρωτεΐνη	πρωτεΐνη	πρωτεΐνη	noun	noun nominative singular	555	ok	
+πρόζα	πρόζα	πρόζα	noun	noun nominative singular	67	ok	
+πτερύγιο	πτερύγιο	πτερύγιο	noun	noun nominative singular	293	ok	
+πυροβολητής	πυροβολητής	πυροβολητής	noun	noun nominative singular	123	ok	
+σάκχαρο	σάκχαρο	σάκχαρο	noun	noun nominative singular	157	ok	
+σίγαση	σίγαση	σίγαση	noun	noun nominative singular	79	ok	
+σκατᾶς	σκατάς	σκατάς	noun	noun nominative singular	132	ok	
+σλιπάκι	σλιπάκι	σλιπάκι	noun	noun nominative singular	93	ok	
+σπρώξιμο	σπρώξιμο	σπρώξιμο	noun	noun nominative singular	612	ok	
+σταυροφορία	σταυροφορία	σταυροφορία	noun	noun nominative singular	624	ok	
+στιλέτο	στιλέτο	στιλέτο	noun	noun nominative singular	1409	ok	
+σφαγεῖο	σφαγείο	σφαγείο	noun	noun nominative singular	624	ok	
+σχολιαρόπαιδο	σχολιαρόπαιδο	σχολειαρόπαιδο	noun	noun nominative singular	203	ok	
+ταμποῦρλο	ταμπούρλο	ταμπούρλο	noun	noun nominative singular	109	ok	
+τηλεπαιχνίδι	τηλεπαιχνίδι	τηλεπαιχνίδι	noun	noun nominative singular	297	ok	
+τραυματισμός	τραυματισμός	τραυματισμός	noun	noun nominative singular	656	ok	
+τριχόμπαλα	τριχόμπαλα	τριχόμπαλα	noun	noun nominative singular	58	ok	
+τσάκα	τσάκα	τσάκα	noun	noun nominative singular	173	ok	
+τσιμπούρι	τσιμπούρι	τσιμπούρι	noun	noun nominative singular	340	ok	
+τσουλάκι	τσουλάκι	τσουλάκι	noun	noun nominative singular	441	ok	
+φακελάκι	φακελάκι	φάκελος	noun	noun nominative singular	105	ok	
+φαράσι	φαράσι	φαράσι	noun	noun nominative singular	59	ok	
+φιλαράκος	φιλαράκος	φίλος	noun	noun nominative singular	852	ok	
+φυστίκι	φυστίκι	φιστίκι	noun	noun nominative singular	227	ok	
+φυτοφάρμακο	φυτοφάρμακο	φυτοφάρμακο	noun	noun nominative singular	53	ok	
+φώκια	φώκια	φώκια	noun	noun nominative singular	458	ok	
+χρονολόγιο	χρονολόγιο	χρονολόγιο	noun	noun nominative singular	64	ok	
+χωρίο	χωρίο	χωρίο	noun	noun nominative singular	191	ok	
+ψεματάκι	ψεματάκι	ψεματάκι	noun	noun nominative singular	160	ok	
+ψιψίνα	ψιψίνα	ψιψίνα	noun	noun nominative singular	524	ok	
+ψυχαναλύτρια	ψυχαναλύτρια	ψυχαναλύτρια	noun	noun nominative singular	102	ok	
+ἀεροσκάφος	αεροσκάφος	αεροσκάφος	noun	noun nominative singular	1977	ok	
+ἀλεξιπτωτιστής	αλεξιπτωτιστής	αλεξιπτωτιστής	noun	noun nominative singular	134	ok	
+ἀνακάτεμα	ανακάτεμα	ανακάτεμα	noun	noun nominative singular	204	ok	
+ἀναπνευστῆρας	αναπνευστήρας	αναπνευστήρας	noun	noun nominative singular	100	ok	
+ἀνισορροπία	ανισορροπία	ανισορροπία	noun	noun nominative singular	164	ok	
+ἀντικατοπτρισμός	αντικατοπτρισμός	αντικατοπτρισμός	noun	noun nominative singular	112	ok	
+ἀπαίτηση	απαίτηση	απαίτηση	noun	noun nominative singular	1087	ok	
+ἀποδοτικότητα	αποδοτικότητα	αποδοτικότητα	noun	noun nominative singular	202	ok	
+ἀπόδοση	απόδοση	απόδοση	noun	noun nominative singular	43923	ok	
+ἀσπράδι	ασπράδι	ασπράδι	noun	noun nominative singular	80	ok	
+ἁγιοσύνη	αγιοσύνη	αγιοσύνη	noun	noun nominative singular	64	ok	
+ἐκμεταλλεύτρια	εκμεταλλεύτρια	εκμεταλλεύτρια	noun	noun nominative singular	106	ok	
+ἐμφύτευμα	εμφύτευμα	εμφύτευμα	noun	noun nominative singular	608	ok	
+ἐξομολογήτρια	εξομολογήτρια	εξομολογήτρια	noun	noun nominative singular	315	ok	
+ἐπέλαση	επέλαση	επέλαση	noun	noun nominative singular	99	ok	
+ἐπισήμανση	επισήμανση	επισήμανση	noun	noun nominative singular	146	ok	
+ἔκπτωση	έκπτωση	έκπτωση	noun	noun nominative singular	2062	ok	
+ὀρφανοτροφεῖο	ορφανοτροφείο	ορφανοτροφείο	noun	noun nominative singular	1926	ok	
+ὑπέρταση	υπέρταση	υπέρταση	noun	noun nominative singular	247	ok	
+ὑπερένταση	υπερένταση	υπερένταση	noun	noun nominative singular	374	ok	
+ὑποτιτλισμός	υποτιτλισμός	υποτιτλισμός	noun	noun nominative singular	2185	ok	
+ῥίσκο	ρίσκο	ρίσκο	noun	noun nominative singular	6937	ok	
+ῥοζάριο	ροζάριο	ροζάριο	noun	noun nominative singular	346	ok	
+γοῦνες	γούνες	γούνα	noun	noun plural	548	ok	
+δαμάσκηνα	δαμάσκηνα	δαμάσκηνο	noun	noun plural	318	ok	
+δεῖκτες	δείκτες	δείκτης	noun	noun plural	624	ok	
+διασυνδέσεις	διασυνδέσεις	διασύνδεση	noun	noun plural	1718	ok	
+ζαχαροκάλαμα	ζαχαροκάλαμα	ζαχαροκάλαμο	noun	noun plural	61	ok	
+κοσμηματοπωλεῖα	κοσμηματοπωλεία	κοσμηματοπωλείο	noun	noun plural	81	ok	
+λεσβίες	λεσβίες	λέσβια	noun	noun plural	1348	ok	
+μαρτυρίες	μαρτυρίες	μαρτυρία	noun	noun plural	519	ok	
+μεταπτυχιακά	μεταπτυχιακά	μεταπτυχιακό	noun	noun plural	67	ok	
+μπουκιές	μπουκιές	μπουκιά	noun	noun plural	175	ok	
+πανεπιστήμια	πανεπιστήμια	πανεπιστήμιο	noun	noun plural	609	ok	
+παράγκες	παράγκες	παράγκα	noun	noun plural	79	ok	
+περιθώρια	περιθώρια	περιθώριο	noun	noun plural	1106	ok	
+περοῦκες	περούκες	περούκα	noun	noun plural	412	ok	
+πλαστογραφίες	πλαστογραφίες	πλαστογραφία	noun	noun plural	85	ok	
+πληθυσμοί	πληθυσμοί	πληθυσμός	noun	noun plural	50	ok	
+ποικιλίες	ποικιλίες	ποικιλία	noun	noun plural	217	ok	
+πορεῖες	πορείες	πορεία	noun	noun plural	272	ok	
+συγγνῶμες	συγγνώμες	συγγνώμη	noun	noun plural	317	ok	
+τάρανδοι	τάρανδοι	τάρανδος	noun	noun plural	217	ok	
+ταξιτζῆδες	ταξιτζήδες	ταξιτζής	noun	noun plural	150	ok	
+τομάτες	τομάτες	ντομάτα	noun	noun plural	218	ok	
+τυφέκια	τυφέκια	τουφέκι	noun	noun plural	65	ok	
+φεμινίστριες	φεμινίστριες	φεμινίστρια	noun	noun plural	138	ok	
+χρονόμετρα	χρονόμετρα	χρονόμετρο	noun	noun plural	61	ok	
+ψεῦτες	ψεύτες	ψεύτης	noun	noun plural	1290	ok	
+ἀμινοξέα	αμινοξέα	αμινοξύ	noun	noun plural	144	ok	
+ἀνταμοιβές	ανταμοιβές	ανταμοιβή	noun	noun plural	151	ok	
+ἀπατεωνιές	απατεωνιές	απατεωνιά	noun	noun plural	130	ok	
+ἀρχές	αρχές	αρχή	noun	noun plural	9932	ok	
+ἐκδρομές	εκδρομές	εκδρομή	noun	noun plural	390	ok	
+ἐλεγκτές	ελεγκτές	ελεγκτής	noun	noun plural	279	ok	
+ἐνοχές	ενοχές	ενοχή	noun	noun plural	2911	ok	
+ἐπιλογές	επιλογές	επιλογή	noun	noun plural	10691	ok	
+κόπανε	κόπανε	κόπανος	noun	noun vocative singular	1425	ok	
+φαντάρε	φαντάρε	φαντάρος	noun	noun vocative singular	80	ok	
+ἐπισμηναγέ	επισμηναγέ	επισμηναγός	noun	noun vocative singular	1042	ok	
+ἐφημέριε	εφημέριε	εφημέριος	noun	noun vocative singular	226	ok	
