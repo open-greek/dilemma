@@ -246,7 +246,8 @@ def download_dump(filename: str, dest_dir: Path):
 
 
 def _add_lookup(lookup: dict, form: str, lemma: str, confidence: int = 1,
-                proper_noun: bool = False, closed_class_capital: bool = False):
+                proper_noun: bool = False, closed_class_capital: bool = False,
+                capitals_last: bool = False):
     """Add a form to the lookup under original, lowercase, monotonic, and stripped keys.
 
     Confidence levels (assigned during merge):
@@ -263,6 +264,10 @@ def _add_lookup(lookup: dict, form: str, lemma: str, confidence: int = 1,
     prevents proper noun forms (e.g. Φᾶσιν -> Φᾶσις) from winning over
     common words (e.g. φασίν -> φημί) on accent-stripped keys.
 
+    When capitals_last=True (the Modern Greek dumps), a capitalized
+    headword's lowercase keys (Ερωτώ's ερωτώ, ΔΕΣ's δες) get confidence 0:
+    they fill a key only when nothing lowercase claims it.
+
     When closed_class_capital=True (a capitalized closed-class entry
     like the formal MG pronouns Αυτού, Αυτής), the mapping is NOT
     propagated to the lowercase / stripped keys. Otherwise the formal
@@ -273,6 +278,7 @@ def _add_lookup(lookup: dict, form: str, lemma: str, confidence: int = 1,
     uppercase / lowercase distinction is semantically meaningful;
     general nouns or adjectives stay with propagation.
     """
+    capitalized = form != form.lower()
     for key in (form, form.lower(), to_monotonic(form), to_monotonic(form).lower(),
                 strip_accents(form.lower())):
         if not key:
@@ -282,6 +288,13 @@ def _add_lookup(lookup: dict, form: str, lemma: str, confidence: int = 1,
         conf = confidence
         if proper_noun and key != form:
             conf = max(0, confidence - 1)
+        if capitals_last and capitalized and key != form and key == key.lower():
+            # A capitalized headword reaches its lowercase keys only where
+            # no lowercase page or table claims them: the female name
+            # Ερωτώ must not take ερωτώ from the verb, nor the abbreviation
+            # ΔΕΣ, the name Πέις or Λες take δες, πεις or λες from βλέπω
+            # and λέω, whose form-of pages have the lowest confidence.
+            conf = 0
         existing = lookup.get(key)
         if existing is None or conf > existing[1]:
             lookup[key] = (lemma, conf)
@@ -340,6 +353,12 @@ def extract_pairs(jsonl_path: Path, lang: str,
     pairs = []
     page_headwords = set()
     lookup = {}
+    # Modern Greek pages in sentence case (names, abbreviations, headings)
+    # must not take the lowercase keys of common words (_add_lookup).
+    capitals_last = lang.split("-", 1)[0] == "el"
+
+    def _add_lookup_here(*args, **kwargs):
+        return _add_lookup(*args, capitals_last=capitals_last, **kwargs)
     # form_of/alt_of targets: {key_variant: target_lemma}
     # Used in pass 2 to resolve self-map artifacts.
     form_of_targets = {}
@@ -372,6 +391,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
         "l-self",
         # EL Wiktionary Modern Greek personal-pronoun grid
         "προσωπική αντωνυμία",
+        "el-προσωπική αντωνυμία",
         # EL Wiktionary Ancient Greek personal-pronoun grid
         "grc-προσωπική αντωνυμία",
         # EN Wiktionary Ancient Greek personal-pronoun grid
@@ -560,7 +580,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # hijack the lowercase αυτής key from regular αυτής -> αυτός.
             _cc_cap = (pos in ("pron", "det", "adj")
                        and lemma and lemma != lemma.lower())
-            _add_lookup(lookup, lemma, lemma, confidence=hw_confidence,
+            _add_lookup_here(lookup, lemma, lemma, confidence=hw_confidence,
                         proper_noun=(pos == "name"),
                         closed_class_capital=_cc_cap)
 
@@ -595,7 +615,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if " " in ref_word:  # skip multi-word
                     continue
                 # This entry (lemma) is a form of ref_word
-                _add_lookup(lookup, lemma, ref_word, proper_noun=(pos == "name"))
+                _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
                 # Record for pass-2 self-map resolution (skip proper nouns
                 # since variant names like Βησσαρίων should self-map)
                 if pos != "name" and lemma != ref_word:
@@ -631,7 +651,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     continue
                 if " " in ref_word:
                     continue
-                _add_lookup(lookup, lemma, ref_word, proper_noun=(pos == "name"))
+                _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
                 if pos != "name" and lemma != ref_word:
                     for key in (lemma, lemma.lower(),
                                 to_monotonic(lemma), to_monotonic(lemma).lower(),
@@ -668,7 +688,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 for fe in entry.get("forms", []):
                     form = strip_length_marks(fe.get("form", ""))
                     if form and _is_greek(form) and " " not in form:
-                        _add_lookup(lookup, form, form, confidence=3)
+                        _add_lookup_here(lookup, form, form, confidence=3)
                 continue
 
             # Personal-pronoun template detection. If a pron entry uses
@@ -684,7 +704,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         if tmpl in _SHARED_PERSON_TEMPLATES:
                             uses_shared_person_template = True
                         break
-                if uses_shared_person_template:
+                # The grid is also told by its persons, since the dumps
+                # rename its template (EN's τα came as the generic
+                # inflection-table-top in the 2026-09 dump): a pronoun's
+                # own table has one person.
+                persons = {t for fe in forms for t in fe.get("tags", [])
+                           if t in _PERSON_TAGS}
+                if uses_shared_person_template or len(persons) > 1:
                     continue
 
             # Track current dialect from table-tags headers.
@@ -814,7 +840,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # Lookup: original, lowercase, monotonic, accent-stripped
                 _form_cc_cap = (pos in ("pron", "det", "adj")
                                 and form and form != form.lower())
-                _add_lookup(lookup, form, lemma, proper_noun=(pos == "name"),
+                _add_lookup_here(lookup, form, lemma, proper_noun=(pos == "name"),
                             closed_class_capital=_form_cc_cap)
                 _add_pos_map(pos_map, form, lemma, pos)
 
@@ -823,7 +849,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     _extra_cc_cap = (pos in ("pron", "det", "adj")
                                      and extra_form
                                      and extra_form != extra_form.lower())
-                    _add_lookup(lookup, extra_form, lemma,
+                    _add_lookup_here(lookup, extra_form, lemma,
                                 proper_noun=(pos == "name"),
                                 closed_class_capital=_extra_cc_cap)
                     _add_pos_map(pos_map, extra_form, lemma, pos)
@@ -885,6 +911,33 @@ def extract_pairs(jsonl_path: Path, lang: str,
     if selfmap_resolved:
         print(f"    self-maps resolved via form_of/alt_of: {selfmap_resolved:,}")
     return pairs, lookup, page_headwords, pos_map, form_of_targets
+
+
+def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
+                         el_form_of_targets: dict, en_headwords: set,
+                         skip: set = frozenset()) -> int:
+    """Point each self-mapped key of the merged lookup at the lemma EN's
+    form-of reference gives it, else EL's where EN has no page for the key
+    (see main), and return how many moved. A target that maps back to the
+    key is left alone: the cycle would make chain-breaking delete both
+    lemmas with all their pairs (EN files ρωτώ as a form of ρωτάω, while
+    EL's ρωτώ table lists ρωτάω, and both conjugations were lost)."""
+    cross_resolved = 0
+    for k, (lemma, _) in list(all_lookup.items()):
+        if lemma != k:
+            continue  # not a self-map
+        if k in skip:
+            continue
+        target = en_form_of_targets.get(k)
+        if target is None and k not in en_headwords:
+            # EN says nothing; only fall back to EL's target if EN
+            # also doesn't claim this key as a real lemma headword.
+            target = el_form_of_targets.get(k)
+        if (target and target != k
+                and all_lookup.get(target, (None,))[0] != k):
+            all_lookup[k] = (target, 1)
+            cross_resolved += 1
+    return cross_resolved
 
 
 def main():
@@ -1025,20 +1078,9 @@ def main():
             "ο", "η", "το", "τον", "την", "του", "της",
             "τους", "τις", "τα", "των", "τη", "οι",
         }
-        cross_resolved = 0
-        for k, (lemma, _) in list(all_lookup.items()):
-            if lemma != k:
-                continue  # not a self-map
-            if k in _MG_ARTICLE_FORMS:
-                continue
-            target = en_form_of_targets.get(k)
-            if target is None and k not in en_headwords:
-                # EN says nothing; only fall back to EL's target if EN
-                # also doesn't claim this key as a real lemma headword.
-                target = el_form_of_targets.get(k)
-            if target and target != k:
-                all_lookup[k] = (target, 1)
-                cross_resolved += 1
+        cross_resolved = resolve_cross_source(
+            all_lookup, en_form_of_targets, el_form_of_targets,
+            en_headwords, _MG_ARTICLE_FORMS)
         if cross_resolved:
             print(f"Cross-source form-of resolutions: {cross_resolved:,}")
 

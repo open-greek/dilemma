@@ -280,8 +280,7 @@ IMPERATIVES = {"σταματάω": {
 }}
 
 
-def test_another_cell_of_the_same_letters_goes_in_when_frequent(
-        monkeypatch):
+def test_another_cell_of_the_same_letters_goes_in(monkeypatch):
     freq = {"σταμάτα": 93_732, "σταματά": 2_994, "ξεκινά": 3_725,
             "ξεκίνα": 8_995, "ανέβουμε": 987, "ανεβούμε": 793,
             "τρέχατε": 157, "τρεχάτε": 129, "χάιδεψε": 195}
@@ -296,20 +295,17 @@ def test_another_cell_of_the_same_letters_goes_in_when_frequent(
     lst = mg.select_list(counts, {0, 1, 2}, set(GRC), generate_verbs=True)
     assert {nfc("σταματᾷ"), nfc("ξεκίνα"), nfc("ἀνεβοῦμε"), nfc("τρεχᾶτε"),
             nfc("χάϊδεψε")} <= set(lst.entries)
-    # The imperative, a cell of its own and 31 times as frequent, goes in
-    # beside the attested present.
-    assert nfc("σταμάτα") in lst.generated
-    # The present beside the attested imperative is under half as frequent.
-    assert nfc("ξεκινᾷ") not in lst.generated
-    # Another spelling of the same cell competes with the attested one.
+    # Another cell of the same letters goes in beside the attested
+    # spelling, whatever their counts: the imperative σταμάτα beside the
+    # present σταματᾷ, the present ξεκινᾶ beside the imperative ξεκίνα (at
+    # less than half its count), the imperfect τρέχατε beside the
+    # imperative τρεχᾶτε.
+    assert {nfc("σταμάτα"), nfc("τρέχατε")} <= lst.generated
+    assert {nfc("ξεκινᾶ"), nfc("ξεκινᾷ")} & lst.generated
+    # Another spelling of the same cell gives way to the attested one.
     assert nfc("ἀνέβουμε") not in lst.generated
-    # Nor does a form only 1.2 times as frequent (157 to 129).
-    assert nfc("τρέχατε") not in lst.generated
     # A diaeresis aside, χάιδεψε is the attested χάϊδεψε.
     assert nfc("χάιδεψε") not in lst.generated
-    monkeypatch.setattr(mg, "LETTERS_SHARED_ACROSS_CELLS", None)
-    lst = mg.select_list(counts, {0, 1, 2}, set(GRC), generate_verbs=True)
-    assert nfc("σταμάτα") not in lst.generated
 
 
 def test_buckets_read_the_monotonic_counts(tmp_path, monkeypatch):
@@ -607,11 +603,10 @@ def test_generated_spellings_of_the_same_letters_compete(monkeypatch):
     assert nfc("πεθάναν") not in lst.generated
     assert nfc("ἀνέβουμε") in lst.generated
     assert nfc("ἀνεβοῦμε") not in lst.generated
-    # Another cell, at less than half: the commoner only. (No attested
-    # contraction here to give the -ᾶ its subscript.)
-    assert nfc("ξεπερνᾶ") in lst.generated
-    assert nfc("ξεπέρνα") not in lst.generated
-    # Another cell, as common: both.
+    # Another cell: both, at any ratio (περπάτα and περπατᾷ; here ξεπερνᾶ,
+    # 918, and ξεπέρνα, 71). (No attested contraction here to give the -ᾶ
+    # its subscript.)
+    assert {nfc("ξεπερνᾶ"), nfc("ξεπέρνα")} <= lst.generated
     assert {nfc("πούλα"), nfc("πουλᾶ")} <= lst.generated
 
 
@@ -684,6 +679,10 @@ def _pos(pos: str, *tags: str) -> frozenset:
      "χώρα"),
     ("ταχεία", _pos("adj", "feminine", "nominative", "singular"), "ταχύς",
      "ταχεῖα"),
+    # A nominative singular in -α is a feminine's whatever lemma it is
+    # filed under (σκούπα under the neuter σκουπόχορτο).
+    ("σκούπα", _pos("noun", "nominative", "singular"), "σκουπόχορτο",
+     "σκούπα"),
     # Synizesis: the -ιά of a feminine is long, so its genitive takes the
     # circumflex; a neuter plural's -ιά is short.
     ("καρδιά", _pos("noun", "feminine", "nominative", "singular"),
@@ -746,6 +745,8 @@ def test_every_part_of_speech_is_read(tmp_path):
         ("ασθενές", "ασθενής", "adj", ["neuter", "nominative", "singular"]),
         ("ζερβής", "ζερβής", "adj", ["nominative", "singular"]),
         ("ζερβί", "ζερβής", "adj", ["neuter", "nominative", "singular"]),
+        # Its feminine plural in -ιές is no s-stem's neuter in -ές.
+        ("ζερβιές", "ζερβής", "adj", ["feminine", "nominative", "plural"]),
         # A romanization is no Greek word.
         ("tilefono", "τηλέφωνο", "romanization", []),
     ]
@@ -898,3 +899,124 @@ def test_a_first_declension_dative_and_a_loanword(monkeypatch):
     # A surname with the letters of a lowercase subjunctive is not
     # generated, however common its letters.
     assert nfc("Γράψη") not in lst.generated
+
+
+def test_grc_spellings_compete_by_their_monotonic_counts(monkeypatch):
+    paradigms = {
+        # The same form of the same word: grc's φακέλους, far commoner,
+        # keeps out φάκελους; χειρουργός, commoner, keeps out the
+        # misaccented χειρούργος; the rarer grc spelling keeps out nothing.
+        "φάκελος": {"φάκελους": _pos("noun", "accusative", "plural"),
+                    "φακέλους": _pos("noun", "accusative", "plural")},
+        "χειρουργός": {"χειρούργος": _pos("noun", "nominative", "singular"),
+                       "χειρουργός": _pos("noun", "nominative",
+                                          "singular")},
+        "επίπεδος": {"επίπεδου": _pos("adj", "genitive", "singular"),
+                     "επιπέδου": _pos("adj", "genitive", "singular")},
+        # The same case and number of one word filed under the noun and the
+        # adjective is one form.
+        # A capitalized form gives way as its lowercase one does.
+        "υπάλληλος": {"υπάλληλους": _pos("adj", "accusative", "plural"),
+                      "Υπάλληλους": _pos("adj", "accusative", "plural"),
+                      "υπαλλήλους": _pos("noun", "accusative", "plural")},
+        # Another word of the same letters: both.
+        "ένοχος": {"ένοχη": _pos("adj", "feminine", "nominative",
+                                  "singular")},
+        "ενοχή": {"ενοχή": _pos("noun", "nominative", "singular")},
+    }
+    freq = {"φάκελους": 59, "φακέλους": 2712, "χειρούργος": 1286,
+            "χειρουργός": 1643, "επίπεδου": 400, "επιπέδου": 300,
+            "υπάλληλους": 126, "υπαλλήλους": 2388, "ένοχη": 3072,
+            "ενοχή": 3213}
+    grc = set(GRC) | {nfc(w) for w in ("φακέλους", "χειρουργός",
+                                       "ἐπιπέδου", "ὑπαλλήλους", "ἐνοχή")}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+    lst = mg.select_list(_counts([]), {0, 1, 2}, grc, generate_verbs=True)
+    assert not {nfc("φάκελους"), nfc("χειροῦργος"),
+                nfc("ὑπάλληλους"), nfc("Ὑπάλληλους")} & lst.generated
+    assert {nfc("ἐπίπεδου"), nfc("ἔνοχη")} <= lst.generated
+
+
+def test_shared_spellings_get_a_modern_rating(tmp_path, monkeypatch):
+    total = 100_000_000
+    paradigms = {
+        "θέση": {"θέση": _pos("noun", "feminine", "nominative",
+                              "singular")},
+        "κοιτάζω": {"κοίτα": frozenset({"imperative", "second-person",
+                                        "singular", "finite", P.VERB})},
+        "θέτω": {"θέσει": frozenset({"dependent", "third-person",
+                                     "singular", "finite", P.VERB})},
+    }
+    freq = {"θέση": 30_000, "κοίτα": 20_000, "θέσει": 9_000,
+            "πολύ": total - 59_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    grc = set(GRC) | {nfc("θέση"), nfc("κοίτα")}
+    # θέση is attested in the slice; κοίτα only generated; grc has both.
+    counts = _counts([("θέση", "lower", {0: 3, 1: 3}),
+                      ("θέσῃ", "lower", {0: 3, 1: 3}),
+                      ("θέσει", "lower", {0: 27, 1: 27})])
+    lst = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert lst.shared == {nfc("θέση"): "C", nfc("κοίτα"): "C"}
+    # The subjunctive θέσῃ is rated by its own use: the slice writes these
+    # letters θέσῃ 6 times and θέσει 54, so θέσῃ takes 7/62 of θέσει's 9,000
+    # tokens, M, not all of them, C.
+    assert lst.buckets[nfc("θέσῃ")] == "M"
+    mg.write_selection(lst, tmp_path, variant="grc-mg", source="test")
+    lines = (tmp_path / "grc_mg_polytonic.dic").read_text("utf-8")
+    assert nfc("θέση\tfr:C mg:shared\n") in lines
+    version = (tmp_path / "grc_mg_polytonic.version").read_text("utf-8")
+    assert "mg_shared: 2\n" in version
+    assert "shared_buckets: C=2 M=0\n" in version
+
+
+def test_no_shared_rating_for_a_spelling_the_slice_writes_otherwise(
+        monkeypatch):
+    total = 100_000_000
+    paradigms = {"εγώ": {"εμάς": _pos("pron", "accusative", "plural")}}
+    freq = {"εμάς": 30_000, "πολύ": total - 30_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    grc = set(GRC) | {nfc("ἐμάς"), nfc("ἐμᾶς")}
+    # The slice writes ἐμᾶς; grc's ἐμάς, the generated spelling, gets no
+    # Modern Greek rating.
+    counts = _counts([("ἐμᾶς", "lower", {0: 3, 1: 3})])
+    lst = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert lst.shared == {nfc("ἐμᾶς"): "C"}
+
+
+def test_a_subscript_spelling_takes_its_share_of_the_monotonic_count():
+    frequencies = {"θέσει": 2110, "σταματήσει": 25119}
+    assert mg.subscript_count(nfc("θέσῃ"), frequencies,
+                              {nfc("θέσῃ"): 19, nfc("θέσει"): 19}) == 1055
+    # The slice's -ει spelling of a perispomenon takes the circumflex on
+    # its ι (μπεῖ beside μπῇ).
+    assert mg.subscript_count(nfc("μπῇ"), {"μπει": 800},
+                              {nfc("μπῇ"): 2, nfc("μπεῖ"): 4}) == 300
+    # A twin the slice has in neither spelling takes half.
+    assert mg.subscript_count(nfc("σταματήσῃς"), {"σταματήσεις": 800},
+                              {}) == 400
+
+
+def test_a_name_whose_only_reading_is_a_dative(monkeypatch):
+    paradigms = {
+        "ρωσία": {"Ρωσία": _pos("name", "nominative", "singular"),
+                  "Ρωσίας": _pos("name", "genitive", "singular")},
+        "δανία": {"Δανία": _pos("name", "nominative", "singular"),
+                  "Δανίας": _pos("name", "genitive", "singular")},
+    }
+    freq = {"ρωσία": 4147, "ρωσίας": 646, "δανία": 676, "δανίας": 214,
+            "πολύ": 100_000_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "")
+    grc = set(GRC) | {nfc("Ῥωσίᾳ"), nfc("ῥωσίᾳ")}
+    lst = mg.select_list(_counts([]), {0, 1, 2}, grc, generate_verbs=True)
+    # A dative in -ᾳ covers no name; a name declined in two frequent forms
+    # is generated though its count stays under M.
+    assert {nfc("Ῥωσία"), nfc("Ῥωσίας"), nfc("Δανία"),
+            nfc("Δανίας")} <= lst.generated
