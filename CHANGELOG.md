@@ -146,6 +146,36 @@ All notable changes to Dilemma are documented here. The format follows
   per 1,000 words on the sentences with little overlap with training.
 
 ### Fixed
+- `data/mg_pairs.json` has the paradigm of `γιος` again, and the words
+  whose Greek Wiktionary page only gives their polytonic spelling are no
+  longer filed under it (#28). Such a page (`γιός`, "πολυτονική γραφή του
+  γιος"; `μιλῶ`, `ἀγχωτικός`, `μουστακᾶτος`) made itself a lemma under its
+  word's monotonic and accentless keys, so `γιος` became a form of `γιός`,
+  a cycle that the chain-breaking deleted with the whole paradigm, and
+  `μιλώ`'s and `αγχωτικός`'s forms went under `μιλῶ` and `ἀγχωτικός`. In
+  the Modern Greek dumps a page whose every sense names its own monotonic
+  spelling, by an `alt_of` or `form_of` reference or by that gloss, now
+  maps to that word and makes no lemma of its own. Two pages that name each
+  other (`αγχωτικός` and `αγχώδης`, each "συνώνυμο του" the other, which
+  kaikki reads as `alt_of`; `δεσποινίς` and `δεσποινίδα`) are no longer
+  followed into a cycle that deleted both paradigms, and the weak pronouns
+  on `μόνος`'s headword line (`μόνος μου`, `μας`, `σας`) are no forms of it,
+  so `μας` and `σας` are forms of `εγώ` and `εσύ` again. 911 pairs are
+  added and 288 removed, every form of the removed ones staying under
+  another lemma, and 778 keys of `data/mg_lookup.json` change, 322 of them
+  new. With `δεσποινίς`'s paradigm kept, the English Wiktionary's
+  abbreviation pages `δις` and `δ` file those keys under it in
+  `data/mg_lookup.json`; `lookup.db`'s Ancient-first merge keeps `δις` ->
+  `δίς`. The Ancient and Medieval Greek outputs are byte for byte the same.
+  `lookup.db` takes the fix up when it is next rebuilt, and
+  `grc_polytonic.dic` exported from the rebuilt one gains 7 entries:
+  `κτιστός`, `κτιστοί`, `κτιστούς`, `κτιστέ`, `μηνιαίους`, and the
+  acute-only Modern spellings `κτιστής` and `κτιστού`. The polytonic
+  Modern Greek list gains 27 generated entries and loses one: `γιῶν`,
+  `υἱό` and its grave twin, `γυρνᾶμε`, `γυρνοῦσα`, `γύρναγα`, `μηνιαῖο`,
+  `μηνιαίως`, `μονόκερο`, `λάντζα`, `δεσποσύνη`, `στενάχωρη` and the rest of
+  their paradigms, while the subjunctive `στεναχωρῇ` gives way to the
+  adjective `στενάχωρη` of the same letters.
 - `data/mg_pairs.json` has the conjugation of `ρωτάω` and the other verbs
   whose forms went under a capitalized page. In the Modern Greek dumps a
   capitalized page (the female name `Ερωτώ`, the abbreviation `ΔΕΣ`, a

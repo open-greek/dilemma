@@ -6,7 +6,8 @@ import json
 
 import pytest
 
-from build_data import _parse_verb_tense, extract_pairs, resolve_cross_source
+from build_data import (_parse_verb_tense, extract_pairs, resolve_cross_source,
+                        spelling_target)
 
 
 @pytest.mark.parametrize(("header", "expected"), [
@@ -121,3 +122,150 @@ def test_a_pronoun_grid_of_several_persons_is_not_read(tmp_path):
     pairs, lookup, _, pos_map, _ = extract_pairs(dump, "el-en")
     assert not [p for p in pairs if p["lemma"] == "τα" and p["form"] != "τα"]
     assert pos_map["αυτού"]["PRON"] == "αυτός"
+
+
+def test_a_polytonic_spelling_page_does_not_become_its_words_lemma(tmp_path):
+    # The Greek Wiktionary's γιός only says it is the polytonic spelling of
+    # γιος, and comes first in the dump. Its accentless key is γιος, and
+    # γιος's own page, whose gloss names a male ("αρσενικού φύλου"), is
+    # read as a form-of page that cannot take the key back: γιος became a
+    # form of γιός, and its paradigm was dropped.
+    dump = _write(tmp_path, [
+        {"word": "γιός", "pos": "noun",
+         "forms": [{"form": "γιός", "tags": ["masculine"]}],
+         "senses": [{"glosses": ["πολυτονική γραφή του γιος"],
+                     "alt_of": [{"word": "γιος"}]}]},
+        {"word": "μιλῶ", "pos": "verb",
+         "senses": [{"glosses": ["πολυτονική γραφή του μιλώ"]}]},
+        {"word": "μουστακᾶτος", "pos": "noun",
+         "senses": [{"glosses": ["πολυτονική γραφή του μουστακάτος"],
+                     "alt_of": [{"word": "μουστακάτος"}]}]},
+        {"word": "οἴκων", "pos": "noun",
+         "senses": [{"glosses": ["πολυτονική γραφή του οίκων"],
+                     "alt_of": [{"word": "οίκων"}]}]},
+        {"word": "γιος", "pos": "noun",
+         "forms": [{"form": "γιου", "tags": ["genitive", "singular"]},
+                   {"form": "γιων", "tags": ["genitive", "plural"]}],
+         "senses": [{"glosses": ["πρώτου βαθμού συγγένειας απόγονος "
+                                 "αρσενικού φύλου"]}]},
+        {"word": "μιλώ", "pos": "verb",
+         "forms": [{"form": "μιλάς", "tags": ["present", "second-person",
+                                             "singular"]}],
+         "senses": [{"glosses": ["μιλάω"]}]},
+        {"word": "οίκων", "pos": "noun",
+         "senses": [{"glosses": ["γενική πληθυντικού του οίκος"],
+                     "form_of": [{"word": "οίκος"}]}]},
+        {"word": "οίκος", "pos": "noun",
+         "senses": [{"glosses": ["σπίτι"]}]},
+        # A polytonic page of a word of other letters is that word's form.
+        {"word": "ἐτρώθη", "pos": "verb",
+         "senses": [{"glosses": ["πολυτονική γραφή του ετρώθη· γ΄ πρόσωπο "
+                                 "ενικού οριστικής παθητικού αορίστου του "
+                                 "τιτρώσκω"],
+                     "form_of": [{"word": "τιτρώσκω"}]}]},
+    ])
+    pairs, lookup, *_ = extract_pairs(dump, "el-el")
+    assert lookup["γιος"][0] == "γιος" and lookup["γιός"][0] == "γιος"
+    assert lookup["γιου"][0] == "γιος"
+    assert lookup["μιλώ"][0] == "μιλώ" and lookup["μιλῶ"][0] == "μιλώ"
+    assert lookup["μουστακάτος"][0] == "μουστακάτος"
+    assert lookup["μουστακᾶτος"][0] == "μουστακάτος"
+    # The spelling page does not keep οίκων's own page from recording that
+    # it is a form of οίκος.
+    assert lookup["οίκων"][0] == "οίκος"
+    assert lookup["ἐτρώθη"][0] == "τιτρώσκω"
+    assert {"form": "γιός", "lemma": "γιος", "pos": "noun",
+            "tags": ["alt-of"]} in pairs
+    assert {"form": "μιλῶ", "lemma": "μιλώ", "pos": "verb",
+            "tags": ["alt-of"]} in pairs
+    # An Ancient Greek dump is read as before: there a page whose monotonic
+    # spelling is the word it names is a form of it (φωνῇ of φωνή).
+    _, lookup, *_ = extract_pairs(dump, "grc-el")
+    assert lookup["γιος"][0] == "γιός" and lookup["μιλῶ"][0] == "μιλῶ"
+
+
+def test_spelling_target():
+    # Every sense names the page's own word without the marks monotonic
+    # writing drops, by a reference or by the gloss; for a monosyllable
+    # without its accent too.
+    assert spelling_target(
+        "γιός", [{"glosses": ["πολυτονική γραφή του γιος"]}]) == "γιος"
+    assert spelling_target(
+        "μουστακᾶτος", [{"glosses": ["πολυτονική γραφή του μουστακάτος"],
+                         "alt_of": [{"word": "μουστακάτος"}]}]) == "μουστακάτος"
+    assert spelling_target(
+        "ἱστορία", [{"glosses": ["Katharevousa form of ιστορία (istoría)"],
+                     "alt_of": [{"word": "ιστορία"}]}]) == "ιστορία"
+    # A page with a sense of its own is a word of its own.
+    assert spelling_target(
+        "ἀγορά", [{"glosses": ["πολυτονική γραφή του αγορά"]},
+                  {"glosses": ["τόπος όπου πουλιούνται τρόφιμα"]}]) is None
+    # A page naming a word of other letters is no spelling of it (κυνηγῶ of
+    # κυνηγάω, ἐτρώθη of τιτρώσκω), nor is a page with no senses.
+    assert spelling_target(
+        "κυνηγῶ", [{"glosses": ["πολυτονική γραφή του κυνηγάω"]}]) is None
+    assert spelling_target(
+        "ἐτρώθη", [{"glosses": ["πολυτονική γραφή του ετρώθη· γ΄ πρόσωπο "
+                                "ενικού οριστικής παθητικού αορίστου του "
+                                "τιτρώσκω"],
+                    "form_of": [{"word": "τιτρώσκω"}]}]) is None
+    assert spelling_target("μιλῶ", []) is None
+    assert spelling_target("γιος", [{"glosses": ["απόγονος"]}]) is None
+
+
+def test_two_pages_that_name_each_other_both_stay_lemmas(tmp_path):
+    # αγχώδης and αγχωτικός each have a sense "συνώνυμο του" the other,
+    # which kaikki gives as alt_of, so both are form-of pages. Following
+    # both references made a cycle that chain-breaking deleted with both
+    # tables; the polytonic page ἀγχωτικός hid it by taking the key
+    # αγχωτικός as a lemma of its own.
+    dump = _write(tmp_path, [
+        {"word": "αγχώδης", "pos": "adj",
+         "forms": [{"form": "αγχώδεις", "tags": ["nominative", "plural"]}],
+         "senses": [{"glosses": ["που καταλαμβάνεται εύκολα από άγχος"]},
+                    {"glosses": ["συνώνυμο του αγχωτικός"],
+                     "alt_of": [{"word": "αγχωτικός"}]}]},
+        {"word": "αγχωτικός", "pos": "adj",
+         "forms": [{"form": "αγχωτική", "tags": ["feminine", "nominative",
+                                                 "singular"]}],
+         "senses": [{"glosses": ["που προκαλεί άγχος"]},
+                    {"glosses": ["συνώνυμο του αγχώδης"],
+                     "alt_of": [{"word": "αγχώδης"}]}]},
+        {"word": "ἀγχωτικός", "pos": "adj",
+         "forms": [{"form": "ἀγχωτική", "tags": ["feminine", "nominative",
+                                                 "singular"]}],
+         "senses": [{"glosses": ["πολυτονική γραφή του αγχωτικός"]}]},
+        # A one-way reference is still followed.
+        {"word": "χτιστός", "pos": "adj",
+         "senses": [{"glosses": ["άλλη μορφή του κτιστός"],
+                     "form_of": [{"word": "κτιστός"}]}]},
+    ])
+    _, lookup, *_ = extract_pairs(dump, "el-el")
+    assert lookup["αγχώδης"][0] == "αγχώδης"
+    assert lookup["αγχωτικός"][0] == "αγχωτικός"
+    assert lookup["αγχώδεις"][0] == "αγχώδης"
+    assert lookup["αγχωτική"][0] == "αγχωτικός"
+    assert lookup["ἀγχωτικός"][0] == "αγχωτικός"
+    assert lookup["χτιστός"][0] == "κτιστός"
+    # The Ancient and Medieval Greek dumps follow both references as before.
+    for lang in ("grc-el", "mgr-el"):
+        _, lookup, *_ = extract_pairs(dump, lang)
+        assert lookup["αγχώδης"][0] == "αγχωτικός"
+
+
+def test_weak_pronouns_on_a_headword_line_are_no_forms(tmp_path):
+    # The Greek Wiktionary's μόνος shows the weak pronouns it takes (μόνος
+    # μου, σου, μας, σας) as untagged forms, which came first in the dump
+    # and made μας and σας forms of μόνος.
+    dump = _write(tmp_path, [
+        {"word": "μόνος", "pos": "pron",
+         "forms": [{"form": "μόνος"}, {"form": "μας"}, {"form": "σας"}],
+         "senses": [{"glosses": ["χωρίς συνοδεία ή βοήθεια"]}]},
+        {"word": "μας", "pos": "pron",
+         "senses": [{"glosses": ["γενική πληθυντικού του εγώ"],
+                     "form_of": [{"word": "εγώ"}]}]},
+    ])
+    pairs, lookup, *_ = extract_pairs(dump, "el-el")
+    assert lookup["μας"][0] == "εγώ"
+    assert not [p for p in pairs if p["lemma"] == "μόνος"
+                and p["form"] in ("μας", "σας")]

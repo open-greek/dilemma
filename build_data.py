@@ -300,6 +300,41 @@ def _add_lookup(lookup: dict, form: str, lemma: str, confidence: int = 1,
             lookup[key] = (lemma, conf)
 
 
+# The Greek Wiktionary's page for a word's polytonic spelling says so in its
+# gloss, and kaikki often gives it no alt_of reference (μιλῶ, "πολυτονική
+# γραφή του μιλώ").
+_POLYTONIC_SPELLING_GLOSS = re.compile(
+    r"^πολυτονική γραφή (?:του|της) (\S+?)[.,]?$")
+
+
+def spelling_target(lemma: str, senses: list) -> str | None:
+    """The word a page only gives another spelling of, or None.
+
+    That word is the page's own word without the marks monotonic writing
+    drops: μουστακάτος for μουστακᾶτος, αναφτερουγιάζω for ἀναφτερουγιάζω,
+    and for a monosyllable without its accent too, γιος for γιός. Every
+    sense of the page must refer to it, by an alt_of or form_of reference
+    or by a gloss that calls the page its polytonic spelling. A page that
+    refers to a word of other letters is a form of that word (ἐτρώθη of
+    τιτρώσκω), and a page with a sense of its own is a word of its own."""
+    mono = to_monotonic(lemma)
+    spellings = {mono, strip_accents(mono)} - {lemma}
+    target = None
+    for sense in senses:
+        words = [strip_length_marks(ref.get("word", ""))
+                 for ref in (sense.get("alt_of") or [])
+                 + (sense.get("form_of") or [])]
+        gloss = (sense.get("glosses") or [""])[0]
+        named = _POLYTONIC_SPELLING_GLOSS.match(gloss)
+        if named:
+            words.append(named.group(1))
+        found = [w for w in words if w in spellings]
+        if not found:
+            return None
+        target = target or found[0]
+    return target
+
+
 def _add_pos_map(pos_map: dict, form: str, lemma: str, wikt_pos: str):
     """Record a form->lemma mapping under its UPOS tag for POS disambiguation.
 
@@ -353,9 +388,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
     pairs = []
     page_headwords = set()
     lookup = {}
+    modern_greek = lang.split("-", 1)[0] == "el"
     # Modern Greek pages in sentence case (names, abbreviations, headings)
     # must not take the lowercase keys of common words (_add_lookup).
-    capitals_last = lang.split("-", 1)[0] == "el"
+    capitals_last = modern_greek
 
     def _add_lookup_here(*args, **kwargs):
         return _add_lookup(*args, capitals_last=capitals_last, **kwargs)
@@ -410,6 +446,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
         "αυτοι": "third-person", "αυτες": "third-person", "αυτα": "third-person",
     }
     _PERSON_TAGS = {"first-person", "second-person", "third-person"}
+    # The Modern Greek weak personal pronouns. The Greek Wiktionary's μόνος
+    # shows those it takes on its headword line (μόνος μου, σου, μας, σας),
+    # which kaikki gives as untagged forms.
+    _WEAK_PRONOUNS = {"μου", "σου", "του", "της", "μας", "σας", "τους"}
 
     # First pass: collect closed-class headwords and article forms.
     # Article forms leak into Katharevousa noun/adj declension templates
@@ -576,13 +616,27 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     if any(p in gloss for p in _form_of_patterns):
                         is_form_of_page = True
             hw_confidence = 1 if is_form_of_page else 3
+            # A page that only gives another spelling of a word (γιός, the
+            # Greek Wiktionary's "πολυτονική γραφή του γιος") is no lemma:
+            # its monotonic and accentless keys are that word's own, and a
+            # self-map would take them from it. γιος lost its whole
+            # paradigm so, since its own page, whose gloss names a male
+            # ("αρσενικού φύλου"), is read as a form-of page and could not
+            # take the key back. Its keys go to the word with its alt_of
+            # reference below. In the Ancient Greek dumps a page whose
+            # monotonic spelling is the word it names is a form of it, not
+            # a spelling (the dative φωνῇ of φωνή), and is read as before.
+            spelling_of = (spelling_target(lemma, entry.get("senses") or [])
+                           if modern_greek else None)
             # Closed-class capitals like Αυτής (formal pronoun) must not
             # hijack the lowercase αυτής key from regular αυτής -> αυτός.
             _cc_cap = (pos in ("pron", "det", "adj")
                        and lemma and lemma != lemma.lower())
-            _add_lookup_here(lookup, lemma, lemma, confidence=hw_confidence,
-                        proper_noun=(pos == "name"),
-                        closed_class_capital=_cc_cap)
+            if spelling_of is None:
+                _add_lookup_here(lookup, lemma, lemma,
+                                 confidence=hw_confidence,
+                                 proper_noun=(pos == "name"),
+                                 closed_class_capital=_cc_cap)
 
             has_data = False
 
@@ -617,12 +671,16 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # This entry (lemma) is a form of ref_word
                 _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
                 # Record for pass-2 self-map resolution (skip proper nouns
-                # since variant names like Βησσαρίων should self-map)
+                # since variant names like Βησσαρίων should self-map). A
+                # spelling page records no target for its word's own key:
+                # γιός's accentless key is γιος, and μιά's is μια, whose own
+                # page must record that it is a form of ένας.
                 if pos != "name" and lemma != ref_word:
                     for key in (lemma, lemma.lower(),
                                 to_monotonic(lemma), to_monotonic(lemma).lower(),
                                 strip_accents(lemma.lower())):
-                        if key and key not in form_of_targets:
+                        if (key and key not in form_of_targets
+                                and not key == ref_word == spelling_of):
                             form_of_targets[key] = ref_word
                 _add_pos_map(pos_map, lemma, ref_word, pos)
                 pairs.append({
@@ -644,6 +702,12 @@ def extract_pairs(jsonl_path: Path, lang: str,
             for sense in entry.get("senses", []):
                 sense_alt_of.extend(sense.get("alt_of", []))
             alt_of_refs = sense_alt_of + list(top_alt_of_for_detection)
+            # A polytonic spelling page known only by its gloss (μιλῶ) is
+            # an alternative form of the word it names.
+            if spelling_of and spelling_of not in {
+                    strip_length_marks(ref.get("word", ""))
+                    for ref in form_of_refs + alt_of_refs}:
+                alt_of_refs.append({"word": spelling_of})
 
             for ref in alt_of_refs:
                 ref_word = strip_length_marks(ref.get("word", ""))
@@ -656,7 +720,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     for key in (lemma, lemma.lower(),
                                 to_monotonic(lemma), to_monotonic(lemma).lower(),
                                 strip_accents(lemma.lower())):
-                        if key and key not in form_of_targets:
+                        if (key and key not in form_of_targets
+                                and not key == ref_word == spelling_of):
                             form_of_targets[key] = ref_word
                 _add_pos_map(pos_map, lemma, ref_word, pos)
                 pairs.append({
@@ -744,6 +809,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         fp = _PERSON_TAGS.intersection(tags)
                         if fp and hw_person not in fp:
                             continue
+                    # A weak pronoun on another pronoun's headword line is no
+                    # form of it. As the first claim on its key it kept μας
+                    # and σας from their own pages, forms of εγώ and εσύ, and
+                    # made them forms of μόνος.
+                    elif (modern_greek and not tags and form_text != lemma
+                          and form_text in _WEAK_PRONOUNS):
+                        continue
 
                 # Update dialect context from table-tags. If a page-level
                 # dialect is set (from the entry's own sense tags), it
@@ -871,6 +943,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
     # Non-self mappings (correct table entries like λέγεται -> λέω)
     # are never touched. Proper nouns are excluded via form_of_targets.
     selfmap_resolved = 0
+    moves = {}
     for key in list(lookup.keys()):
         lemma, conf = lookup[key]
         if key != lemma:
@@ -896,8 +969,21 @@ def extract_pairs(jsonl_path: Path, lang: str,
         # the form appears as a pronoun headword in its own right.
         target = form_of_targets[key]
         if target != key:
-            lookup[key] = (target, conf)
-            selfmap_resolved += 1
+            moves[key] = target
+    # In the Modern Greek dumps a form-of reference that closes a loop is
+    # not followed: two pages that each name the other (αγχωτικός and
+    # αγχώδης, each "συνώνυμο του" the other, which kaikki reads as alt_of;
+    # δεσποινίς and δεσποινίδα), or a target whose key already maps back
+    # here. Following it makes a cycle that chain-breaking deletes along
+    # with both paradigms, as in resolve_cross_source, so both words stay
+    # lemmas. αγχωτικός kept its paradigm only while the polytonic page
+    # ἀγχωτικός took its key as a lemma of its own.
+    for key, target in moves.items():
+        if modern_greek and (moves.get(target) == key
+                             or lookup.get(target, (None,))[0] == key):
+            continue
+        lookup[key] = (target, lookup[key][1])
+        selfmap_resolved += 1
 
     print(f"  {lang}: scanned {scanned:,} entries, "
           f"{entries_with_data:,} with data, "

@@ -321,6 +321,30 @@ template's name: in the 2026-09 dumps EN's `τα` page carries it under a
 generic template and EL's `εγώ` and `εσείς` under a renamed one, which
 made `εγώ`, `εσύ`, `αυτός` and `μου` forms of `τα`.
 
+A Modern Greek page that only gives another spelling of a word (the Greek
+Wiktionary's `γιός`, "πολυτονική γραφή του γιος", or `μιλῶ`, whose link to
+`μιλώ` kaikki does not carry; the English Wiktionary's "polytonic spelling
+of" pages) is read as that word's alternative form, not as a lemma: as a
+lemma it took the word's monotonic and accentless keys, made `γιος` a form
+of `γιός` in a cycle that deleted its paradigm, and filed the forms of
+`μιλώ` and `αγχωτικός` under `μιλῶ` and `ἀγχωτικός`. Such a page is one
+every sense of which names the page's own word without the marks monotonic
+writing drops, and for a monosyllable without its accent, by an `alt_of`
+or `form_of` reference or by that gloss (`γιος` for `γιός`, `μουστακάτος`
+for `μουστακᾶτος`): 76 pages of the Greek dump, 50 of them known only by
+the gloss, and 48 of the English one (`build_data.spelling_target`). A page
+that names a word of other letters (`ἐτρώθη`, a form of `τιτρώσκω`) or has
+a sense of its own is read as before, and so are the Ancient and Medieval
+Greek dumps, where a page whose monotonic spelling is another word's is an
+inflected form of it (the dative `φωνῇ` of `φωνή`). In the Modern Greek
+dumps two pages that name each other as forms (`αγχωτικός` and `αγχώδης`,
+each "συνώνυμο του" the other, which kaikki reads as `alt_of`), or a page
+naming a word whose key already maps back to it, both stay lemmas, where
+following the reference made a cycle that the chain-breaking deleted with
+both paradigms; and the weak pronouns `μόνος` shows on its headword line
+(`μόνος μου`, `μας`, `σας`) are not read as its forms, which had made `σας`
+a form of `μόνος`.
+
 For individual form-to-lemma corrections where the lookup table returns
 the wrong lemma due to ambiguity (e.g., proper nouns beating common
 verbs), `build_lookup_db.py` has a `_LOOKUP_OVERRIDES` dict that
@@ -2451,7 +2475,7 @@ A Hunspell reader that does not know the field accepts the marked
 spellings, as grc does.
 
 The list has 17,175 attested words (830 in `C` and 2,504 in `M`; 21 and
-213 by the slice's counts alone), 47,780 generated spellings (below), 189
+213 by the slice's counts alone), 47,806 generated spellings (below), 189
 `mg:avoid` lines and 6,301 `mg:shared` lines. The attested words include 976 capitalized, 155
 elided and 197 aphaeresized spellings (`᾽ναι`,
 `᾽ς`), the six weak
@@ -2658,12 +2682,12 @@ field accepts it like any entry. The `.version` counts the `attested` and
 paradigms and the frequencies (`verb_paradigms_sha256`,
 `form_frequencies_sha256`). Without those files the exporter says so and
 generates nothing, and `--no-generated-verbs` leaves the generated forms
-out. In the current list, 26,757 candidate spellings are covered by grc or
+out. In the current list, 26,793 candidate spellings are covered by grc or
 the attested list, 1,818 go in beside a spelling of the same letters and
-501 give way to one; the 47,780 generated entries are 19,421 verb forms and
-2,286 subjunctive twins, 11,996 noun forms, 7,593 adjective forms, 615
-forms of names, 158 of the other parts of speech and 5,711 contextual
-twins, 250 of them in `C` and 4,790 in `M`.
+502 give way to one; the 47,806 generated entries are 19,435 verb forms and
+2,286 subjunctive twins, 12,003 noun forms, 7,597 adjective forms, 615
+forms of names, 158 of the other parts of speech and 5,712 contextual
+twins, 250 of them in `C` and 4,791 in `M`.
 
 The list leaves out what grc accepts, so the commonest Modern Greek words
 that keep their Ancient spelling (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`) had no
