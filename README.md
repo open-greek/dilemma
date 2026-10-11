@@ -427,8 +427,12 @@ Independently defined Modern adjectives retain their own source tables through
 the same flat homographs. Adjective `κρατών` therefore owns `κρατούν`,
 `κρατούσα`, and `κρατούσες`, while noun `κρατών` remains the genitive plural
 of `κράτος`. `data/el_adjective_heads.json` records exact adjective definitions,
-declared head types, and source-edition hashes for non-flat owners. Grammatical
-form descriptions, spelling references, and empty headers cannot authorize an
+declared head types, source forms, and source-edition hashes for non-flat owners.
+Certification also requires an explicit adjective head template, forms in at
+least two genders, or an explicitly indeclinable header. A raw adjective POS
+label alone cannot certify a duplicated noun or adverb entry. Definitions with
+insufficient morphology retain their previous processing. Grammatical form
+descriptions, spelling references, and empty headers cannot authorize an
 exception. The extractor publishes the supported ADJ target in
 `mg_pos_lookup.json` whenever it differs from the scalar fallback, including
 forms with only one typed reading. The scalar lookup remains unchanged.

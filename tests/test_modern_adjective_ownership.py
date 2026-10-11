@@ -67,7 +67,8 @@ def test_defined_adjective_cells_keep_their_owner_beside_noun_and_verb(tmp_path,
 
 @pytest.mark.parametrize('kind', ['form_ref', 'alt_ref', 'entry_form', 'sense_form',
                                  'declared_form', 'declared_forms', 'no_gloss',
-                                 'empty', 'english_case', 'greek_case', 'gender_case'])
+                                 'empty', 'blank', 'whitespace', 'adjf',
+                                 'english_case', 'greek_case', 'gender_case'])
 def test_grammatical_or_empty_adjective_pages_do_not_authorize_ownership(tmp_path, kind):
     entry = adjective_entry()
     if kind == 'form_ref': entry['senses'][0]['form_of'] = [{'word': 'κρατώ'}]
@@ -79,6 +80,10 @@ def test_grammatical_or_empty_adjective_pages_do_not_authorize_ownership(tmp_pat
             'adjective forms' if kind == 'declared_forms' else 'adjective form'}}]
     elif kind == 'no_gloss': entry['senses'][0]['tags'] = ['no-gloss']
     elif kind == 'empty': entry['senses'][0]['glosses'] = []
+    elif kind == 'blank': entry['senses'][0]['glosses'] = ['']
+    elif kind == 'whitespace': entry['senses'][0]['glosses'] = [' \t ']
+    elif kind == 'adjf':
+        entry['head_templates'] = [{'name': 'head', 'args': {'1': 'el', '2': 'adjf'}}]
     elif kind == 'english_case': entry['senses'][0]['glosses'] = ['masculine nominative singular of κρατώ']
     elif kind == 'greek_case': entry['senses'][0]['glosses'] = ['γενική πληθυντικού του κρατώ']
     elif kind == 'gender_case': entry['senses'][0]['glosses'] = ['το θηλυκό γενική ενικού του κρατώ']
@@ -133,7 +138,8 @@ def test_adjective_ownership_is_modern_and_part_of_speech_specific(tmp_path):
         assert not any(p.get('adjective_owner') for p in pairs)
 
 
-@pytest.mark.parametrize('mutation', ['pos', 'head', 'hash', 'form', 'template', 'grammar', 'empty'])
+@pytest.mark.parametrize('mutation', ['pos', 'head', 'hash', 'form', 'template', 'grammar',
+                                      'empty', 'morphology', 'form_tags', 'no_morphology'])
 def test_adjective_proof_rejects_wrong_or_malformed_evidence(mutation):
     entry = adjective_entry()
     record = {'lemma': 'κρατών', **B.adjective_head_evidence(entry, 'el')}
@@ -146,6 +152,9 @@ def test_adjective_proof_rejects_wrong_or_malformed_evidence(mutation):
     elif mutation == 'template': row['head_templates'] = [{'name': 'head', 'args': []}]
     elif mutation == 'grammar': row['senses'][0]['glosses'] = ['nominative singular of κρατώ']
     elif mutation == 'empty': row['senses'][0]['glosses'] = []
+    elif mutation == 'morphology': row['forms'] = {}
+    elif mutation == 'form_tags': row['forms'][0]['tags'] = ['masculine', 1]
+    elif mutation == 'no_morphology': row['forms'] = []
     with pytest.raises(ValueError, match='adj-head evidence'):
         B.validate_adjective_head_inventory(proof)
 
@@ -222,3 +231,51 @@ def test_unstructured_adjective_form_and_spelling_descriptions_are_not_heads(glo
     entry = adjective_entry()
     entry['senses'][0]['glosses'] = [gloss]
     assert not B.is_independent_adjective_entry(entry, 'el')
+
+
+@pytest.mark.parametrize('gloss,forms', [
+    ('με αξονομετρικό τρόπο', [{'form': 'αξονομετρικά', 'source': 'header'}]),
+    ('η αμοιβή ενός αχθοφόρου', [
+        {'form': "el-κλίση-'βουνό'", 'tags': ['inflection-template'], 'source': 'declension'},
+        {'form': 'αχθοφορικά', 'tags': ['neuter', 'plural-only'], 'source': 'header'},
+        {'form': 'αχθοφορικών', 'tags': ['genitive', 'plural'], 'source': 'declension'}]),
+    ('σκιερό μέρος', [
+        {'form': "el-κλίση-'πεύκο'", 'tags': ['inflection-template'], 'source': 'declension'},
+        {'form': 'απόσκιο', 'tags': ['neuter'], 'source': 'header'},
+        {'form': 'απόσκια', 'tags': ['nominative', 'plural'], 'source': 'declension'}]),
+    ('ακέραιος, ολόκληρος', [{'form': 'ακέριος', 'source': 'header'},
+                           {'form': '-ια', 'source': 'header'},
+                           {'form': 'ιο', 'source': 'header'}]),
+])
+def test_mislabeled_or_underspecified_morphology_does_not_certify_an_adjective(gloss, forms):
+    entry = {**adjective_entry(), 'forms': forms, 'senses': [{'glosses': [gloss]}]}
+    assert not B.is_independent_adjective_entry(entry, 'el')
+
+
+@pytest.mark.parametrize('structure', ['indeclinable', 'template', 'head_template'])
+def test_explicit_adjective_structure_does_not_require_two_gendered_table_rows(structure):
+    entry = {'word': 'καφέ', 'pos': 'adj', 'senses': [{'glosses': ['brown']}]}
+    if structure == 'indeclinable':
+        entry['forms'] = [{'form': 'καφέ', 'tags': ['invariable'], 'source': 'header'}]
+    elif structure == 'template':
+        entry['head_templates'] = [{'name': 'el-adj', 'args': {'1': 'ind'}}]
+    else:
+        entry['head_templates'] = [{'name': 'head', 'args': {'1': 'el', '2': 'adjective'}}]
+    assert B.is_independent_adjective_entry(entry, 'en' if structure != 'indeclinable' else 'el')
+    proof = B.adjective_head_inventory(
+        [{'lemma': entry['word'], **B.adjective_head_evidence(entry, 'el')}],
+        {'καφέ': ('καφές', 1)}, {'el': 'a' * 64})
+    assert B.validate_adjective_head_inventory(proof) == {'καφέ'}
+
+
+def test_uncertified_adjective_keeps_its_previous_processing(tmp_path):
+    entry = {'word': 'υψίφωνος', 'pos': 'adj', 'forms': [],
+             'senses': [{'glosses': ['που η φωνή του κινείται στις ψηλές περιοχές τονικού ύψους']}]}
+    heads, records = set(), []
+    path = write_entries(tmp_path, [entry])
+    result = B.extract_pairs(path, 'el-el', adjective_heads=heads, adjective_head_records=records)
+    assert result == B.extract_pairs(path, 'el-el')
+    assert not heads and not records
+    lookup = {'υψίφωνος': ('υψίφωνος', 3)}
+    assert B.clean_training_pairs(result[0], lookup, True, adjective_heads=heads) == []
+    assert result[1]['υψίφωνος'][0] == 'υψίφωνος'

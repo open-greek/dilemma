@@ -512,6 +512,25 @@ def _is_adjective_derived_form_gloss(gloss: str) -> bool:
         r"(?:τύπος|μορφή) (?:του|της)\b)", gloss.strip().lower()))
 
 
+def _has_adjective_morphology(entry: dict) -> bool:
+    """Require adjective morphology beyond a potentially duplicated POS label."""
+    if any(template.get("name") == "el-adj"
+           or (template.get("name") == "head"
+               and isinstance(template.get("args", {}), dict)
+               and template.get("args", {}).get("1") == "el"
+               and template.get("args", {}).get("2") in {"adjective", "adjectives"})
+           for template in entry.get("head_templates") or []
+           if isinstance(template, dict)):
+        return True
+    forms = entry.get("forms") or []
+    genders = {tag for form in forms for tag in form.get("tags") or []
+               if tag in {"masculine", "feminine", "neuter"}}
+    return len(genders) >= 2 or any(
+        form.get("source") == "header"
+        and {"invariable", "indeclinable"}.intersection(form.get("tags") or [])
+        for form in forms)
+
+
 def is_independent_adjective_entry(entry: dict, source: str) -> bool:
     """Require an adjective definition, rather than a grammatical form label."""
     reference_tags = _NOUN_REFERENCE_TAGS | {"alt-of"}
@@ -523,9 +542,10 @@ def is_independent_adjective_entry(entry: dict, source: str) -> bool:
                    and isinstance(template.get("args", {}), dict)
                    and template.get("args", {}).get("1") == "el"
                    and template.get("args", {}).get("2") in {
-                       "adjective form", "adjective forms", "noun form", "noun forms"}
+                       "adjective form", "adjective forms", "adjf", "noun form", "noun forms"}
                    for template in entry.get("head_templates") or []
-                   if isinstance(template, dict))):
+                   if isinstance(template, dict))
+            or not _has_adjective_morphology(entry)):
         return False
     senses = entry.get("senses") or []
     if (not senses or any(s.get("form_of") or s.get("alt_of")
@@ -537,7 +557,7 @@ def is_independent_adjective_entry(entry: dict, source: str) -> bool:
                and not {"comparative", "superlative"}.intersection(sense.get("tags") or [])
                and not any(_is_adjective_derived_form_gloss(gloss)
                            for gloss in sense.get("glosses") or [])
-               and any(not _is_closed_class_inflection_gloss(gloss)
+               and any(gloss.strip() and not _is_closed_class_inflection_gloss(gloss)
                        and strip_accents(gloss.strip().lower()) != strip_accents(word.lower())
                        and not re.fullmatch(
                            r"το (?:αρσενικό|θηλυκό|ουδέτερο) "
@@ -555,6 +575,9 @@ def adjective_head_evidence(entry: dict, source: str) -> dict:
         "tags": sorted(set(entry.get("tags") or [])),
         "form_of": entry.get("form_of") or [], "alt_of": entry.get("alt_of") or [],
         "head_templates": entry.get("head_templates") or [],
+        "forms": [{"form": form.get("form", ""), "tags": form.get("tags") or [],
+                   "source": form.get("source", "")}
+                  for form in entry.get("forms") or []],
         "senses": [{key: sense.get(key) or []
                     for key in ("glosses", "tags", "form_of", "alt_of")}
                    for sense in entry.get("senses") or []],
@@ -1735,7 +1758,8 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
             if (not isinstance(entry, dict)
                     or set(entry) != ({"source", "headword", "pos", "tags", "senses",
                                       "form_of", "alt_of"}
-                                     | ({"head_templates"} if pos in {"det", "pron", "adj"} else set()))):
+                                     | ({"head_templates"} if pos in {"det", "pron", "adj"} else set())
+                                     | ({"forms"} if pos == "adj" else set()))):
                 fail("incomplete source entry for " + lemma)
             source, word = entry["source"], entry["headword"]
             if (source not in hashes or entry["pos"] != pos
@@ -1761,6 +1785,16 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
                                    for t in templates)):
                     fail("malformed head templates for " + lemma)
                 declared_form = pos in {"det", "pron"} and _declared_closed_class_form(entry)
+            if pos == "adj":
+                forms = entry["forms"]
+                if (not isinstance(forms, list) or not all(
+                        isinstance(form, dict) and set(form) == {"form", "tags", "source"}
+                        and isinstance(form["form"], str)
+                        and isinstance(form["source"], str)
+                        and isinstance(form["tags"], list)
+                        and all(isinstance(tag, str) for tag in form["tags"])
+                        for form in forms)):
+                    fail("malformed adjective morphology for " + lemma)
             substantive = False
             for sense in senses:
                 if (not isinstance(sense, dict)
