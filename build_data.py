@@ -1102,7 +1102,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     continue
                 if " " in ref_word:  # skip multi-word
                     continue
-                if exact_source_references is not None and pos != "name" and lemma != ref_word:
+                if exact_source_references is not None and lemma != ref_word:
                     exact_source_references.setdefault(lemma, {}).setdefault(pos, set()).add(ref_word)
                 # This entry (lemma) is a form of ref_word
                 _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
@@ -1204,7 +1204,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     continue
                 if " " in ref_word:
                     continue
-                if exact_source_references is not None and pos != "name" and lemma != ref_word:
+                if exact_source_references is not None and lemma != ref_word:
                     exact_source_references.setdefault(lemma, {}).setdefault(pos, set()).add(ref_word)
                 _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
                 own_etymologies = lexical_etymologies.get((lemma, pos), set())
@@ -2736,8 +2736,9 @@ def resolve_exact_source_references(all_lookup: dict, lexical_heads: dict,
     Only exact source page references establish the chain. Every link must
     have one target in the same part of speech and end at a positively
     defined head. Independent words, ambiguous references, and cycles keep
-    their existing scalar reading. Normalized aliases follow only when they
-    still have the displaced owner and all source proposals agree.
+    their existing scalar reading. Name references participate in ambiguity
+    detection but never trigger a correction. Normalized aliases follow only
+    when they still have the displaced owner and all source proposals agree.
     """
     if lexical_heads is None or references is None:
         return 0
@@ -2766,7 +2767,8 @@ def resolve_exact_source_references(all_lookup: dict, lexical_heads: dict,
         if current is None:
             continue
         root, intermediates = (endpoint(form, next(iter(typed)))
-                if form not in heads and len(typed) == 1 else (None, set()))
+                if form not in heads and len(typed) == 1 and "name" not in typed
+                else (None, set()))
         for key in {form, form.lower(), to_monotonic(form),
                     to_monotonic(form).lower(), strip_accents(form.lower())}:
             if key in all_lookup and key not in head_aliases:

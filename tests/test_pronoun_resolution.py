@@ -2,7 +2,7 @@
 
 import pytest
 
-from dilemma.core import Dilemma
+from dilemma.core import Dilemma, _ARTICLE_FORMS, to_monotonic
 
 
 def resolver(*, enabled=True, convention=None):
@@ -30,6 +30,18 @@ def test_canonical_pronouns_preserve_accent_distinctions(form, expected):
 @pytest.mark.parametrize("form", ["τι", "τί", "αὐτοῦ", "μοι"])
 def test_default_leaves_readings_to_the_lookup(form):
     assert resolver(enabled=False)._resolve_closed_class(form) is None
+
+
+@pytest.mark.parametrize("form", sorted({to_monotonic(f) for f in _ARTICLE_FORMS}))
+def test_opt_in_accepts_normalized_forms_of_every_article(form):
+    assert resolver()._resolve_closed_class(form) == "ὁ"
+    assert resolver()._resolve_closed_class(form.upper()) == "ὁ"
+    assert resolver(enabled=False)._resolve_closed_class(form) is None
+
+
+@pytest.mark.parametrize("form", ["ἤ", "ή", "ὦ", "ώ", "τῇδε", "τῆλε"])
+def test_article_normalization_does_not_remove_distinctive_accents(form):
+    assert resolver()._resolve_closed_class(form) is None
 
 
 @pytest.mark.parametrize("form, expected", [

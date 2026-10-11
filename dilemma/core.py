@@ -449,7 +449,8 @@ def grave_to_acute(s: str) -> str:
     return unicodedata.normalize("NFC", "".join(out))
 
 
-# Preserve accent placement when accepting monotonic pronoun spellings.
+# Preserve accent placement when accepting monotonic closed-class spellings.
+_MONOTONIC_ARTICLE_FORMS = {to_monotonic(form) for form in _ARTICLE_FORMS}
 _MONOTONIC_PRONOUN_LEMMAS = {
     to_monotonic(form): lemma for form, lemma in _PRONOUN_LEMMAS.items()
 }
@@ -1959,8 +1960,8 @@ class Dilemma:
         lower = word.lower()
         if (word in _ARTICLE_FORMS
                 or lower in _ARTICLE_FORMS
-                or to_monotonic(word) in _ARTICLE_FORMS
-                or to_monotonic(lower) in _ARTICLE_FORMS):
+                or to_monotonic(word) in _MONOTONIC_ARTICLE_FORMS
+                or to_monotonic(lower) in _MONOTONIC_ARTICLE_FORMS):
             # Don't use strip_accents here - it's too aggressive for short
             # words (e.g. ἤ "or" becomes η which matches the article)
             return _ARTICLE_LEMMA

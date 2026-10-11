@@ -9,6 +9,10 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Preserve name-reference ambiguity when following typed form chains,
+  preventing Athena's oblique forms from acquiring the adjective's lemma.
+- Recognize monotonic projections of polytonic articles in the opt-in
+  article-resolution mode, including `τών` from `τῶν`.
 - Follow unambiguous, explicitly typed form references through intermediate
   noun homographs, so `παρόντος` reaches `πάρειμι` while the separate noun
   `παρών` and its own declension remain intact.

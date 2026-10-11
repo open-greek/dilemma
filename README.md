@@ -265,6 +265,8 @@ treebank conventions (AGDT, DiGreC). This mode uses accent placement to
 distinguish indefinite `τις` from interrogative `τίς`; a final grave is
 normalized to acute. Default lookup can retain independent adverb and
 particle readings of forms such as `αὐτοῦ` and `τί`.
+The opt-in mode also recognizes monotonic projections of polytonic articles,
+such as `τών` from `τῶν`, without removing accents from unrelated words.
 The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
@@ -353,7 +355,9 @@ reference chain when an intermediate word belongs to an unrelated lexical
 head. Thus `παρόντος` reaches the verb `πάρειμι` through its participle `παρών`,
 while the separate noun `παρών` and its genitive `παρῶνος` retain their own
 reading. Independent source words and their normalized keys are protected;
-conflicting references and cycles retain the previous lookup.
+conflicting references and cycles retain the previous lookup. Name references
+count as conflicting evidence without redirecting names, so the name forms
+`Ἀθηναίην`, `Ἀθηναίης`, and `Ἀθηναίῃ` retain their Athena reading.
 This priority applies to the explicit target recorded in a source reading,
 including structured spelling and inflection references;
 scalar part-of-speech mappings keep their existing choice between homographs.

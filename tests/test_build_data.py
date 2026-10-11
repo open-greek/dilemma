@@ -1017,29 +1017,71 @@ def test_form_reference_passes_through_an_unrelated_noun_head(tmp_path, monkeypa
     assert any(r["form"] == "παρόντος" and r["lemma"] == "πάρειμι" for r in pairs)
 
 
-@pytest.mark.parametrize("case", ["independent", "mixed_pos", "two_targets", "cycle",
-                                 "missing_head", "alias_conflict", "alias_independent"])
+@pytest.mark.parametrize("case", ["independent", "mixed_pos", "name_homograph", "name_only",
+                                 "two_targets", "cycle", "missing_head", "alias_conflict",
+                                 "alias_name", "alias_independent"])
 def test_exact_source_resolution_keeps_unproven_or_independent_readings(case):
     heads = {"noun": {"παρών"}, "verb": {"πάρειμι", "ἄπειμι"}}
     refs = {"παρόντος": {"verb": {"παρών"}}, "παρών": {"verb": {"πάρειμι"}}}
     lookup = {"παρόντος": ("παρών", 5), "παροντος": ("παρών", 5)}
     if case == "independent": heads["adj"] = {"παρόντος"}
     elif case == "mixed_pos": refs["παρόντος"]["noun"] = {"παρών"}
+    elif case == "name_homograph": refs["παρόντος"]["name"] = {"παρών"}
+    elif case == "name_only":
+        heads["name"] = heads.pop("verb")
+        refs = {form: {"name": targets["verb"]} for form, targets in refs.items()}
     elif case == "two_targets": refs["παρών"]["verb"].add("ἄπειμι")
     elif case == "cycle": refs["παρών"]["verb"] = {"παρόντος"}
     elif case == "missing_head": refs["παρών"]["verb"] = {"ἀμάρτυρος"}
-    elif case == "alias_conflict":
+    elif case in {"alias_conflict", "alias_name"}:
         # Different accented spellings can normalize to the same lookup key.
-        refs["παροντός"] = {"verb": {"ἄπειμι"}}
+        refs["παροντός"] = {"name" if case == "alias_name" else "verb": {"ἄπειμι"}}
         lookup["παροντός"] = ("παρών", 5)
     elif case == "alias_independent": heads["noun"].add("παροντος")
     before = dict(lookup)
     resolve_exact_source_references(lookup, heads, refs)
-    if case in {"alias_conflict", "alias_independent"}:
+    if case in {"alias_conflict", "alias_name", "alias_independent"}:
         assert lookup["παρόντος"][0] == "πάρειμι"
         assert lookup["παροντος"] == before["παροντος"]
     else:
         assert lookup == before
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_name_references_prevent_an_adjective_cascade(tmp_path, monkeypatch, reverse):
+    import build_data
+    entries = [
+        {"word": "Ἀθηναία", "pos": "name", "senses": [{"glosses": ["Athena"]}]},
+        {"word": "Ἀθηναία", "pos": "adj", "senses": [{
+            "form_of": [{"word": "Ἀθηναῖος"}]}]},
+        {"word": "Ἀθηναίη", "pos": "name", "senses": [{
+            "alt_of": [{"word": "Ἀθηναία"}]}], "forms": [
+                {"form": "Ἀθηναίην", "tags": ["accusative", "singular"]},
+                {"form": "Ἀθηναίης", "tags": ["genitive", "singular"]},
+                {"form": "Ἀθηναίῃ", "tags": ["dative", "singular"]}]},
+        {"word": "Ἀθηναίη", "pos": "adj", "senses": [{
+            "alt_of": [{"word": "Ἀθηναία"}]}]},
+        {"word": "Ἀθηναῖος", "pos": "adj", "senses": [{"glosses": ["Athenian"]}]},
+        *({"word": form, "pos": "name", "senses": [{
+            "form_of": [{"word": "Ἀθηναίη"}]}]}
+          for form in ("Ἀθηναίην", "Ἀθηναίης", "Ἀθηναίῃ")),
+    ]
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "en.jsonl").write_text("".join(json.dumps(e, ensure_ascii=False) + "\n"
+        for e in (entries[::-1] if reverse else entries)))
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": "en.jsonl"}})
+    monkeypatch.setattr(build_data.sys, "argv", ["build_data.py", "--lang", "grc",
+                                               "--kaikki", str(source)])
+    build_data.main()
+    lookup = json.loads((output / "ag_lookup.json").read_text())
+    for form in ("Ἀθηναίην", "Ἀθηναίης", "Ἀθηναίῃ"):
+        # The preexisting scalar fallback can retain a name's own form page.
+        # Neither entry order may turn that name into the adjective Athenian.
+        assert lookup[form] in {form, "Ἀθηναία"}
+        assert lookup[build_data.to_monotonic(form)] in {form, "Ἀθηναία"}
 
 
 @pytest.mark.parametrize("reverse", [False, True])
