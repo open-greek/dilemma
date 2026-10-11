@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 from dilemma.form_sanitize import nonlexical_generated_lemma, sanitize_form
 from build_data import (
     _is_verb_inflection_gloss, _is_ancient_reference_gloss,
+    _is_closed_class_inflection_gloss, _declared_ancient_nominal_form,
     is_independent_finite_entry,
 )
 
@@ -72,7 +73,7 @@ def normalize_headword(text: str) -> str | None:
 
 def is_reference_gloss(gloss: str, pos: str | None = None) -> bool:
     """Reject grammatical/reference glosses without rejecting lexical 'of'."""
-    return (_is_verb_inflection_gloss(gloss)
+    return (_is_closed_class_inflection_gloss(gloss)
             or _is_ancient_reference_gloss(gloss, pos) or bool(re.match(
         r"^(?:(?:(?:nominative|accusative|genitive|dative|vocative|singular|plural|dual|"
         r"masculine|feminine|neuter|comparative|superlative|positive)\s+)+of\b|"
@@ -95,6 +96,9 @@ def has_definition(entry: dict, source: str = "en") -> bool:
                 or tags & {"form-of", "alt-of", "inflection-of", "alternative", "misspelling", "no-gloss"}):
             continue
         if any(gloss.strip() and not is_reference_gloss(gloss, entry.get("pos"))
+               and not (source == "en" and entry.get("pos") in {"noun", "adj"}
+                        and gloss.strip() == "Template:infl of"
+                        and _declared_ancient_nominal_form(entry))
                for gloss in sense.get("glosses", [])
                if isinstance(gloss, str)):
             return True

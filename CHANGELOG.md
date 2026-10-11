@@ -9,6 +9,10 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Recognize nominal case descriptions with multiple cases and grammatical
+  qualifiers as inflections. Explicit spelling references and broken inflection
+  templates no longer establish lexical heads; genuine meanings on form pages
+  remain eligible. Apply the same checks to the lexical-head inventory.
 - Preserve name-reference ambiguity when following typed form chains,
   preventing Athena's oblique forms from acquiring the adjective's lemma.
 - Recognize monotonic projections of polytonic articles in the opt-in

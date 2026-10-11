@@ -1707,7 +1707,9 @@ def _is_verb_inflection_gloss(gloss: str) -> bool:
 def _is_closed_class_inflection_gloss(gloss: str) -> bool:
     """Recognize nominal form descriptions, preserving ordinary lexical 'of'."""
     return _is_verb_inflection_gloss(gloss) or bool(re.match(
-        r"^(?:(?:(?:masculine|feminine|neuter|common|nominative|genitive|dative|accusative|vocative|singular|plural|dual) )+of\b|"
+        r"^(?:(?:(?:masculine|feminine|neuter|common|nominative|genitive|dative|"
+        r"accusative|vocative|singular|plural|dual|heteroclitic|uncontracted|"
+        r"contracted|all genders|preconsonantal|prevocalic|clause-final)[ /]+)+of\b|"
         r"(?:(?:alternative|alternate) (?:form|spelling)|misspelling) of\b|"
         r"(?:γενική|αιτιατική|ονομαστική|κλητική|δοτική|αρσενικό|θηλυκό|ουδέτερο)\b|"
         r"(?:πολυτονική|εναλλακτική|παλαιότερη|παλιά) γραφή\b)", gloss.strip().lower()))
@@ -1720,6 +1722,21 @@ def _declared_closed_class_form(entry: dict) -> bool:
                and template.get("args", {}).get("2") in ("pronoun form", "determiner form")
                for template in entry.get("head_templates") or []
                if isinstance(template, dict))
+
+
+def _declared_ancient_nominal_form(entry: dict) -> bool:
+    """Identify explicit Ancient noun/adjective form templates."""
+    for template in entry.get("head_templates") or []:
+        if not isinstance(template, dict):
+            continue
+        if template.get("name") in {"grc-noun form", "grc-adj form"}:
+            return True
+        args = template.get("args") or {}
+        if (template.get("name") == "head" and isinstance(args, dict)
+                and args.get("1") == "grc"
+                and args.get("2") in {"noun form", "adjective form", "adj form"}):
+            return True
+    return False
 
 
 def _closed_class_person_case_gloss(gloss: str) -> bool:
@@ -1984,14 +2001,14 @@ _ANCIENT_DEGREE_REFERENCE_GLOSS = re.compile(
     + _ANCIENT_GREEK_WORD + r"(?=\s|[:,.;]|$)"
 )
 _ANCIENT_EN_REFERENCE_MODIFIER = (
-    r"(?:Attic|Ionic|Doric|Aeolic|Homeric|Epic|Delphic|Pamphylian|"
+    r"(?:Attic|Ionic|Doric|Aeolic|Homeric|Epic|Delphic|Pamphylian|Cypriot|"
     r"post-Epic|poetic|Tragic|contracted|uncontracted|alternative|alternate|"
-    r"obsolete|archaic|rare|variant|nonstandard)"
+    r"obsolete|archaic|rare|variant|nonstandard|codical|nomen sacrum)"
 )
 _ANCIENT_EN_REFERENCE_GLOSS = re.compile(
-    rf"^(?:{_ANCIENT_EN_REFERENCE_MODIFIER}"
+    rf"^(?:(?:{_ANCIENT_EN_REFERENCE_MODIFIER}"
     rf"(?:(?:\s*,?\s+(?:and|&)\s+|\s*[,/]\s*){_ANCIENT_EN_REFERENCE_MODIFIER})*\s+)?"
-    r"(?:form|spelling|variant) of\s+[\u0370-\u03ff\u1f00-\u1fff]",
+    r"(?:form|spelling|variant) of|a textual error for)\s+[\u0370-\u03ff\u1f00-\u1fff]",
     re.IGNORECASE,
 )
 _ANCIENT_UNQUALIFIED_FORM_GLOSS = re.compile(
@@ -2152,6 +2169,9 @@ def is_independent_lexical_entry(entry: dict, source: str) -> bool:
                         and _is_verb_inflection_gloss(s["glosses"][0]))
                and any(g.strip() and not _is_closed_class_inflection_gloss(g)
                        and not _is_ancient_reference_gloss(g, entry.get("pos"))
+                       and not (source == "en" and entry.get("pos") in {"noun", "adj"}
+                                and g.strip() == "Template:infl of"
+                                and _declared_ancient_nominal_form(entry))
                        for g in s.get("glosses") or []) for s in senses)
 
 def validate_verb_head_inventory(inventory: dict) -> set:
