@@ -644,6 +644,74 @@ def test_owned_noun_uses_paradigm_support_before_own_page_penalty(tmp_path):
     assert P._home_lemma("σκιά", ["σκιά", "σκιάς"], par, totals) == "σκιάς"
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_noun_plural_homograph_does_not_invalidate_independent_head(tmp_path, reverse):
+    rows = [("σκατό", "σκατό", "noun", ["nominative", "singular"]),
+            ("σκατάς", "σκατάς", "noun", ["nominative", "singular"]),
+            ("σκατού", "σκατό", "noun", ["genitive", "singular"]),
+            ("σκατά", "σκατό", "noun", ["nominative", "plural"]),
+            ("σκατά", "σκατό", "noun", ["accusative", "plural"]),
+            ("σκατά", "σκατό", "adv", ["adverb"]),
+            ("σκατά", "σκατό", "adj", ["invariable"]),
+            ("σκατά", "σκατάς", "noun", ["genitive", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows[::-1] if reverse else rows))
+    out = P.generate(par, {"σκατά": 50_000, "σκατό": 2_000, "σκατάς": 5},
+                     P.Evidence({}, GRC, par))
+    common = [g for g in out if g.spelling == nfc("σκατά")]
+    alternate = [g for g in out if g.spelling == nfc("σκατᾶ")]
+    assert common and all(g.lemma == "σκατό" and g.tokens == 50_000 for g in common)
+    assert alternate and all(g.lemma == "σκατάς" and g.kind == "noun-alternative"
+                             and g.tokens == g.weight == 0 for g in alternate)
+    assert nfc("σκατᾶ") not in mg._realization_cells(out)
+
+
+def test_same_noun_plural_cell_keeps_diminutive_owner(tmp_path):
+    rows = [("σκατό", "σκατό", "noun", ["nominative", "singular"]),
+            ("σκατά", "σκατό", "adv", ["adverb"]),
+            ("σκατουλάκι", "σκατουλάκι", "noun", ["nominative", "singular"]),
+            ("σκατουλάκια", "σκατό", "noun", ["nominative", "plural"]),
+            ("σκατουλάκια", "σκατουλάκι", "noun", ["nominative", "plural"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    assert P._home_lemma("σκατουλάκια", ["σκατό", "σκατουλάκι"], par,
+                         {"σκατό": 50_000, "σκατουλάκι": 50}) == "σκατουλάκι"
+    assert P._home_lemma("σκατουλάκι", ["σκατό", "σκατουλάκι"],
+                         {**par, "σκατό": {**par["σκατό"], "σκατουλάκι":
+                             _pos("noun", "nominative", "singular")}},
+                         {"σκατό": 50_000, "σκατουλάκι": 50}) == "σκατουλάκι"
+
+
+@pytest.mark.parametrize("head, borrowed, incorrect", [
+    ("σκατούλα", "σκατό", "σκατοῦλα"),
+    ("σκούπα", "σκουπόχορτο", "σκοῦπα"),
+])
+def test_same_cell_table_collision_does_not_create_alternate_accent(tmp_path, head, borrowed, incorrect):
+    rows = [(borrowed, borrowed, "noun", ["nominative", "singular"])]
+    rows += [(head, owner, "noun", [case, "singular"])
+             for owner in (head, borrowed)
+             for case in ("nominative", "accusative", "vocative")]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    out = P.generate(par, {head: 2_000, borrowed: 50_000}, P.Evidence({}, GRC, par))
+    own = [g for g in out if g.mono == head]
+    assert own and {g.lemma for g in own} == {head}
+    assert {g.spelling for g in own} == {nfc(head)}
+    assert not any(g.spelling == nfc(incorrect) or g.kind == "noun-alternative" for g in own)
+
+
+@pytest.mark.parametrize("collision", ["verb", "name"])
+def test_noun_owner_rule_does_not_absorb_finite_or_name_head(tmp_path, collision):
+    rows = [("σκιά", "σκιά", "noun", ["nominative", "singular"]),
+            ("σκιάς", "σκιάς", "noun", ["nominative", "singular"]),
+            ("σκιά", "σκιάς", "noun", ["genitive", "singular"]),
+            ("Σκιάς" if collision == "name" else "σκιάς", "σκιάς", collision,
+             ["nominative", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    if collision == "name":
+        # The loader drops an overlapping capitalization; an explicitly
+        # mixed head in a custom paradigm still cannot pass ownership proof.
+        par["σκιάς"]["σκιάς"] |= _pos("name", "nominative", "singular")
+    assert not P._owned_noun("σκιάς", par)
+
+
 def _noun_homonyms(tmp_path, head, other, *, reverse=False):
     rows = [(head, head, "noun", [case, "singular"])
             for case in ("nominative", "accusative", "vocative")]
@@ -696,7 +764,7 @@ def test_noun_alternate_requires_owned_head_and_explicit_cell(tmp_path, damage):
     if damage == "no_head_cell":
         del par["χημείο"]["χημείο"]
     elif damage == "mixed_pos":
-        par["χημείο"]["άλλο"] = _pos("adj", "nominative", "singular")
+        par["χημείο"]["άλλο"] = _pos("verb", "present", "third-person", "singular")
     else:
         # A tag-only source row must not acquire a case from the homonym.
         par = P.load_paradigms(_write_pairs(tmp_path, [

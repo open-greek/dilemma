@@ -1235,13 +1235,33 @@ def form_tokens(form: str, frequencies: dict[str, int]) -> int:
 
 def _owned_noun(lemma: str,
                 paradigms: dict[str, dict[str, frozenset]]) -> bool:
-    """An exclusively nominal paradigm with an explicit self nominative."""
+    """A noun head with an explicit self nominative and no finite/name owner.
+
+    An inflected homograph's adjective or adverb reading does not change
+    the ownership of the independently defined noun.
+    """
     forms = paradigms[lemma]
     return (lemma in forms
-            and all(parts_of_speech(tags) == {"noun"}
+            and parts_of_speech(forms[lemma]) == {"noun"}
+            and all(parts_of_speech(tags) <= {"noun", "adj", "adv"}
                     for tags in forms.values())
             and any({"nominative", "singular"} <= tags
+                    and parts_of_speech(tags) == {"noun"}
                     for tags in form_tag_rows(paradigms, lemma, lemma)))
+
+
+def _noun_cells(form: str, lemma: str, paradigms) -> frozenset:
+    """Only the case and number positively supplied by a noun's source rows."""
+    return frozenset((case_, number)
+                     for tags in form_tag_rows(paradigms, lemma, form)
+                     if parts_of_speech(tags) == {"noun"}
+                     for case_ in CASES if case_ in tags
+                     for number in NUMBERS if number in tags)
+
+
+def _different_noun_cells(form: str, lemmas: list[str], paradigms) -> bool:
+    cells = [_noun_cells(form, lemma, paradigms) for lemma in lemmas]
+    return all(cells) and len(set(cells)) > 1
 
 
 def _home_lemma(form: str, lemmas: list[str],
@@ -1254,9 +1274,10 @@ def _home_lemma(form: str, lemmas: list[str],
     shares the longest beginning with
     (πουλάμε is πουλάω's, not πωλώ's), then the one monotonic text uses
     most, then the first in alphabetical order. Independently inflected
-    nouns instead use their whole paradigm's support before the own-page
-    penalty: the common feminine σκιά is not the rare masculine σκιάς's
-    genitive merely because its spelling is also a headword."""
+    nouns instead use their whole paradigm's support when their explicit
+    source cells differ: the common feminine σκιά is not the rare masculine
+    σκιάς's genitive merely because its spelling is also a headword. Shared
+    cells retain the closest lexical stem, including a diminutive's."""
     letters_ = bare(form)
 
     def verb(lemma: str) -> bool:
@@ -1269,13 +1290,18 @@ def _home_lemma(form: str, lemmas: list[str],
             n += 1
         return n
     own_page = form.lower()
-    # A self nominative singular with exclusively noun analyses distinguishes
-    # an owned noun paradigm from a page filed as a form of another word.
-    # Keep the existing ordering for verbs, mixed parts of speech, and nouns
-    # whose own headword has no explicit case evidence.
+    # A self nominative singular with exclusively noun head analyses
+    # distinguishes an owned noun from a page filed as another word's form.
+    # Keep the existing ordering for finite/name collisions, mixed heads,
+    # and nouns whose own headword has no explicit case evidence.
     if all(_owned_noun(lemma, paradigms) for lemma in lemmas):
-        return min(lemmas, key=lambda l: (-totals.get(l, 0),
-                                          l == own_page, -common(l), l))
+        if _different_noun_cells(form, lemmas, paradigms):
+            return min(lemmas, key=lambda l: (-totals.get(l, 0),
+                                              l == own_page, -common(l), l))
+        # A table also containing a diminutive's plural is not its lexical
+        # owner: same-cell forms retain the closer independently defined stem.
+        return min(lemmas, key=lambda l: (-common(l), l == own_page,
+                                          -totals.get(l, 0), l))
     return min(lemmas, key=lambda l: (not verb(l), l == own_page,
                                       -common(l), -totals.get(l, 0), l))
 
@@ -1300,8 +1326,8 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
     of πουλάω and πωλώ) gets one spelling: it reads the attested spellings
     of all of their forms, and takes its tags and class from the lemma it
     shares the most letters with (``_home_lemma``). Nominal case cells
-    keep their separate accent realizations. When an owned noun's headword
-    wins over another owned noun's inflection, that other explicit cell may
+    keep their separate accent realizations. When two owned nouns supply
+    different cells of the same form, the other explicit cell may
     retain a different spelling at R. Its zero token count does not borrow
     the common homonym's frequency or contribute dominant spelling evidence.
     The
@@ -1353,11 +1379,12 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
                     out.append(Generated(variant, form, lemma, n,
                                          "subjunctive", vclass, cell(tags),
                                          written))
-        # The dominant headword's frequency cannot erase another noun's
-        # explicitly sourced cell (χημεία versus χημεῖα, of χημείο). This
-        # does not broaden the verb, mixed-POS, or non-headword routes.
-        if (len(lemmas) > 1 and lemma == form.lower()
-                and all(_owned_noun(l, paradigms) for l in lemmas)):
+        # A dominant noun's frequency cannot erase another noun's explicitly
+        # sourced cell (χημεία versus χημεῖα; σκατά versus σκατᾶ). Only
+        # independently owned noun paradigms enter this alternate route.
+        if (len(lemmas) > 1
+                and all(_owned_noun(l, paradigms) for l in lemmas)
+                and _different_noun_cells(form, lemmas, paradigms)):
             for other in lemmas:
                 if other == lemma:
                     continue
