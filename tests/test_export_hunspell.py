@@ -76,6 +76,7 @@ from export_hunspell import (
     is_productive_second_accent,
     is_proparoxytone_or_properispomenon,
     load_lm_head_required_forms,
+    load_unsupported_bare_elisions,
     mark_skeleton,
     sanitize_export_pairs,
     select_forms,
@@ -1057,6 +1058,57 @@ def test_data_driven_bare_elision_filter_keeps_independent_headword():
     assert not is_bare_elision_fallback(
         "ἄν", "ἄν", elided_pairs, {exact_form_key("ἄν")}
     )
+
+
+def test_bare_elision_guard_checks_compatibility_after_injection():
+    conn = _lookup_db([
+        ("Γλαῦκ᾽", "Γλαῦκος", "grc"),
+        ("Τληπόλεμ᾽", "Τληπόλεμος", "grc"),
+        ("Τληπόλεμ", "Τληπόλεμος", "grc"),
+        # These complete homographs have independent lexical owners.
+        ("Βηθλέεμ᾽", "Βηθλέεμα", "grc"),
+        ("Βηθλέεμ", "Βηθλέεμ", "grc"),
+        ("Χάροπ᾽", "Χάροψ", "grc"),
+        ("Χάροπ", "Χάροπ", "el"),
+        ("Ναΐδ᾽", "Ναίς", "grc"),
+        ("Ναῒδ", "Ναΐδ", "grc"),
+        ("κάτ᾽", "κατά", "grc"),
+        ("κάτ", "κατά", "grc"),
+        ("ἄν᾽", "ἀνά", "grc"),
+        ("ἄν", "ἄν", "grc"),
+        ("Ἰακώβ᾽", "Ἰακώβ", "grc"),
+    ])
+    keys = load_unsupported_bare_elisions(
+        conn, {exact_form_key("Ἰακώβ")})
+    assert keys == {"Γλαῦκ", "Τληπόλεμ"}
+    # Compatibility injects self-maps even when lookup has no bare row.
+    bare = [(form, form) for form in
+            ("Γλαῦκ", "Τληπόλεμ", "Βηθλέεμ", "Χάροπ", "Ναΐδ", "κάτ", "ἄν", "Ἰακώβ")]
+    marked = [("Γλαῦκ᾽", "Γλαῦκος"), ("Τληπόλεμ᾽", "Τληπόλεμος")]
+    kept, report = finalize_grc_pairs(
+        bare + marked, evidence=_evidence(exact={"Γλαῦκ": 1}),
+        compatibility_forms={form for form, _ in bare + marked},
+        textbook_forms=set(), export_overrides={}, protected_forms=set(),
+        bare_elision_keys=keys,
+    )
+    assert {form for form, _ in kept} == {
+        "Βηθλέεμ", "Χάροπ", "Ναΐδ", "κάτ", "ἄν", "Ἰακώβ", "Γλαῦκ᾽", "Τληπόλεμ᾽"}
+    assert report["bare_elision_rejected"] == [
+        ("Γλαῦκ", "Γλαῦκ"), ("Τληπόλεμ", "Τληπόλεμ")]
+    _aff, lines = build_sfx_rules(kept, {})
+    emitted = {line.split("\t", 1)[0].split("/", 1)[0] for line in lines}
+    assert not (emitted & {"Γλαῦκ", "Τληπόλεμ"})
+
+
+def test_bare_elision_guard_preserves_case_and_contextual_accents():
+    conn = _lookup_db([
+        ("Θύνοντ᾽", "θύω", "grc"),
+        ("Λαμβάνοιτ’", "λαμβάνω", "grc"),
+        ("Τοὺτ᾽", "οὗτος", "grc"),
+    ])
+    keys = load_unsupported_bare_elisions(conn, set())
+    assert keys == {"Θύνοντ", "Λαμβάνοιτ", "Τούτ"}
+    assert "θύνοντ" not in keys
 
 
 def test_affix_compression_uses_only_real_forms_as_flagged_bases():

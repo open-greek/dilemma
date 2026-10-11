@@ -1905,6 +1905,13 @@ hashes. The merged source pairs, reviewed exact-form specification, and
 The Diorisis pair extractor preserves terminal Beta Code elision as Greek
 koronis, with medial σ before the mark. An elided source token therefore cannot
 silently become a complete word; unelided homographs remain separate readings.
+After compatibility forms are restored, the exporter checks bare fragments
+again, including capitalized spellings. A terminal-consonant fragment with a
+matching case-preserving elided lookup reading is excluded unless a separate
+unelided owner or an independently edited headword establishes a complete word.
+Closed apocope and consonant-final word lists remain available. The export audit
+records these rejections; raw corpus counts do not override the check because
+transcriptions can lose apostrophes.
 
 The optional `data/ag_source_alias_audit.json` and
 `data/ag_source_alias_manifest.json` preserve source readings and reversible

@@ -1655,6 +1655,7 @@ def finalize_grc_pairs(
     protected_forms: set[str],
     reviewed_rejects: frozenset[str] = frozenset(),
     case_ownership: dict[str, int] | None = None,
+    bare_elision_keys: set[str] | None = None,
 ) -> tuple[list[tuple[str, str]], dict]:
     """Apply the grc structural and evidence filters in release order.
 
@@ -1666,7 +1667,9 @@ def finalize_grc_pairs(
     reviewed baseline grave inherits that review: the grave and the acute are
     one word, and the downstream oxytone check requires both. Twins are
     checked again for structure. Recorded rejections and case artifacts
-    override compatibility at the end.
+    override compatibility at the end. Source-backed bare elision fragments
+    are checked after compatibility injection so a historical self-map cannot
+    restore a stem whose apostrophe was lost.
     """
     structural_protected = (
         textbook_forms | set(export_overrides) | set(AG_FUNCTION_WORDS)
@@ -1709,6 +1712,13 @@ def finalize_grc_pairs(
         reviewed_rejects | (GRC_REJECT_FORMS - GRC_ACUTE_ONLY_REJECT_FORMS),
         exact_rejects=GRC_REJECT_FORMS)
     report["reviewed"] = len(reviewed)
+    bare_keys = bare_elision_keys or set()
+    bare_rejected = [pair for pair in form_lemma
+                     if cased_form_key(pair[0]) in bare_keys]
+    form_lemma = [pair for pair in form_lemma
+                  if cased_form_key(pair[0]) not in bare_keys]
+    report["bare_elision"] = len(bare_rejected)
+    report["bare_elision_rejected"] = sorted(set(bare_rejected))
     form_lemma, case_rejected = filter_case_artifacts(
         form_lemma, evidence, case_ownership or {})
     report["case_artifacts"] = len(case_rejected)
@@ -2266,6 +2276,59 @@ def is_bare_elision_fallback(
             or (key, exact_form_key(lemma)) not in elided_pair_keys):
         return False
     return True
+
+
+def load_unsupported_bare_elisions(
+    conn: sqlite3.Connection,
+    independent_headwords: set[str] | None = None,
+) -> set[str]:
+    """Find apostrophe-less fragments that compatibility must not restore.
+
+    Retain case when matching the marked spelling: a name cannot supply a
+    lowercase word's evidence. Only an impossible terminal consonant is in
+    scope. An independently owned complete homograph or an edited headword
+    remains valid, as do the closed apocope and consonant-final word lists.
+    Raw corpus counts alone cannot prove completeness: a transcription may
+    have lost exactly the apostrophe this guard is checking.
+    """
+    heads = (load_independent_ag_headwords() if independent_headwords is None
+             else independent_headwords)
+    complete = {exact_form_key(form) for form in
+                (*HOMERIC_SHORT_PREPOSITIONS, *CONSONANT_FINAL_WORDS)}
+    marked_owners: dict[str, set[str]] = defaultdict(set)
+    spellings: dict[str, set[str]] = defaultdict(set)
+    for form, lemma in conn.execute(
+        "SELECT k.form,l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
+        "WHERE (k.src='grc' OR k.lang='all') "
+        "AND substr(k.form,-1) IN (?,?,?)", ("᾽", "’", "'")
+    ):
+        marked = canonicalize_final_elision(sanitize_form(form))
+        if not marked.endswith("᾽"):
+            continue
+        base = marked[:-1]
+        key = cased_form_key(base)
+        lemma_key = exact_form_key(lemma)
+        if (exact_form_key(base) in complete
+                or not is_bare_elision_fallback(
+                    base, lemma, {(exact_form_key(base), lemma_key)}, heads)):
+            continue
+        marked_owners[key].add(lemma_key)
+        spellings[key].update((base, key, unicodedata.normalize(
+            "NFC", unicodedata.normalize("NFD", key).replace("\u0301", "\u0300"))))
+
+    # Indexed exact lookups avoid a second Python scan of the full dictionary.
+    candidates = sorted({form for forms in spellings.values() for form in forms})
+    bare_owners: dict[str, set[str]] = defaultdict(set)
+    for offset in range(0, len(candidates), 500):
+        batch = candidates[offset:offset + 500]
+        for form, lemma in conn.execute(
+            "SELECT k.form,l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
+            "WHERE (k.src='grc' OR k.lang='all') AND k.form IN ("
+            + ",".join("?" for _ in batch) + ")", batch
+        ):
+            bare_owners[cased_form_key(form)].add(exact_form_key(lemma))
+    return {key for key, owners in marked_owners.items()
+            if not (bare_owners[key] - owners)}
 
 
 def get_git_commit() -> str:
@@ -2927,6 +2990,8 @@ def run_export(sanity: int | None, variants: list[str],
     conn = sqlite3.connect(str(LOOKUP_DB))
     conn.execute("PRAGMA mmap_size=268435456")
     case_ownership = load_case_ownership(conn) if "grc" in variants else {}
+    bare_elision_keys = (load_unsupported_bare_elisions(conn)
+                         if "grc" in variants else set())
 
     for variant in variants:
         print(f"=== Variant: {variant} ===")
@@ -3077,6 +3142,7 @@ def run_export(sanity: int | None, variants: list[str],
                 protected_forms=grc_protected_forms | reviewed_paradigm_forms,
                 reviewed_rejects=load_grc_spelling_review(),
                 case_ownership=case_ownership,
+                bare_elision_keys=bare_elision_keys,
             )
             if report["invalid"]:
                 detail = ", ".join(
@@ -3092,6 +3158,7 @@ def run_export(sanity: int | None, variants: list[str],
                 ("dominated", "weak new respellings of a more common "
                               "spelling"),
                 ("reviewed", "spellings a recorded review rejected"),
+                ("bare_elision", "bare elision fragments"),
                 ("case_artifacts", "capitalization artifacts"),
             ):
                 if report[key]:
@@ -3113,6 +3180,7 @@ def run_export(sanity: int | None, variants: list[str],
                 "postclassical_admissions": postclassical_audit,
                 "reviewed_paradigms": reviewed_paradigm_audit,
                 "case_rejected": report["case_rejected"],
+                "bare_elision_rejected": report["bare_elision_rejected"],
             }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
         if variant == "el":
