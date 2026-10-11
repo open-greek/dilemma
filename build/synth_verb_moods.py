@@ -1596,6 +1596,20 @@ def _recessive_full_form(prefix: str, ending: str) -> str:
     end = _strip_tonal_accents(ending)
     full_nfd = unicodedata.normalize("NFD", pre + end)
     chars = list(full_nfd)
+
+    def is_diphthong(first: int, second: int) -> bool:
+        if (chars[first] + chars[second]).lower() not in (
+                "αι", "ει", "οι", "υι", "αυ", "ευ", "ηυ", "ου"):
+            return False
+        # A diaeresis explicitly separates the second vowel: ἀΐξαι
+        # has three syllables, not two. Preserve the mark in the result.
+        after = second + 1
+        while after < len(chars) and unicodedata.combining(chars[after]):
+            if chars[after] == "̈":
+                return False
+            after += 1
+        return True
+
     # Identify vowel-syllable positions (one per maximal vowel run).
     # We collect (position-of-base, is_long-flag) so we can pick the
     # antepenult / penult.
@@ -1618,10 +1632,7 @@ def _recessive_full_form(prefix: str, ending: str) -> str:
             while i < len(chars) and chars[i] in _GREEK_VOWELS:
                 # only treat as same syllable for known diphthongs
                 # (αι ει οι υι αυ ευ ηυ ου).
-                pair = chars[start] + chars[i]
-                pair_plain = pair.lower()
-                if pair_plain in ("αι", "ει", "οι", "υι", "αυ", "ευ",
-                                   "ηυ", "ου"):
+                if is_diphthong(start, i):
                     i += 1
                     while i < len(chars) and unicodedata.combining(chars[i]):
                         i += 1
@@ -1654,9 +1665,7 @@ def _recessive_full_form(prefix: str, ending: str) -> str:
     while nxt < len(chars) and unicodedata.combining(chars[nxt]):
         nxt += 1
     if nxt < len(chars) and chars[nxt] in _GREEK_VOWELS:
-        pair_plain = (target_vowel + chars[nxt]).lower()
-        if pair_plain in ("αι", "ει", "οι", "υι", "αυ", "ευ",
-                           "ηυ", "ου"):
+        if is_diphthong(base_idx, nxt):
             target_is_diph = True
     target_long = (
         target_vowel.lower() in ("η", "ω") or target_is_diph
@@ -1689,9 +1698,7 @@ def _recessive_full_form(prefix: str, ending: str) -> str:
     while k < len(chars) and unicodedata.combining(chars[k]):
         k += 1
     if k < len(chars) and chars[k] in _GREEK_VOWELS:
-        pair_plain = (chars[base_idx] + chars[k]).lower()
-        if pair_plain in ("αι", "ει", "οι", "υι", "αυ", "ευ",
-                           "ηυ", "ου"):
+        if is_diphthong(base_idx, k):
             k += 1
             while k < len(chars) and unicodedata.combining(chars[k]):
                 k += 1

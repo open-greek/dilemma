@@ -2204,7 +2204,8 @@ use recessive accent, with final `-αι` counted as short: `κέλευσαι` an
 Long penults written with η or ω, a diphthong, or explicit source quantity
 take a circumflex in two-syllable forms (`κρῶξαι`). The existing source-cell
 correction still supplies vowel quantity that an unmarked α, ι, or υ
-cannot establish.
+cannot establish. A diaeresis keeps adjacent vowels in separate syllables
+when placing the recessive accent (`ἄϊξαι`).
 Passive aorist endings from a source table with an empty stem cannot
 supply a complete verb cell. For example, τύπτω's incomplete Ionic
 passive table lists `ῆν` and `εῖτε`; those readings are withheld while

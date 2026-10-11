@@ -411,6 +411,7 @@ class TestAoristMiddleFromFut:
         ("κρώζω", "κρώξω", "κρῶξαι"),
         ("νήφω", "νήψω", "νῆψαι"),
         ("πρήθω", "πρήσω", "πρῆσαι"),
+        ("ἀΐσσω", "ἀΐξω", "ἄϊξαι"),
     ])
     def test_second_singular_imperative_is_recessive(self, synth, lemma,
                                                     future, expected):
