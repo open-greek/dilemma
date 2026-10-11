@@ -219,6 +219,46 @@ def test_pronoun_form_proof_does_not_override_structured_parent_or_adverb(tmp_pa
 
 
 @pytest.mark.parametrize("reverse", [False, True])
+def test_structured_pronoun_parent_precedes_an_unproven_weak_table_alias(tmp_path, reverse):
+    from build_data import apply_closed_class_form_references
+    entries = [
+        {"word": "σε", "pos": "pron", "head_templates": [
+            {"name": "head", "args": {"1": "el", "2": "pronoun form"}}],
+         "senses": [{"glosses": ["you (2nd person singular, accusative)"]}]},
+        {"word": "εσένα", "pos": "pron", "tags": ["form-of"], "senses": [
+            {"glosses": ["γενική ενικού του εσύ"], "tags": ["genitive", "singular"],
+             "form_of": [{"word": "εσύ"}]},
+            {"glosses": ["αιτιατική ενικού του εσύ"], "tags": ["accusative", "singular"],
+             "form_of": [{"word": "εσύ"}]}]},
+        {"word": "εσύ", "pos": "pron", "senses": [{"glosses": ["you, thou"]}]},
+    ]
+    heads, refs = {}, {}
+    pairs, _, _, typed, *_ = extract_pairs(
+        _write(tmp_path, entries[::-1] if reverse else entries), "el-en",
+        closed_class_heads=heads, closed_class_form_refs=refs)
+    assert heads == {"pron": {"εσύ"}}
+    assert refs == {("εσένα", "pron"): {"εσύ"}}
+    typed["εσένα"] = {"PRON": "σε"}  # Competing form-table claim.
+    typed["εσενα"] = {"PRON": "σε"}
+    assert apply_closed_class_form_references(typed, refs, heads) == {
+        ("εσένα", "pron"): "εσύ"}
+    assert typed["εσένα"]["PRON"] == typed["εσενα"]["PRON"] == "εσύ"
+    flat = {"εσένα": ("εσύ", 3), "εσύ": ("εσύ", 3), "σε": ("σε", 3)}
+    clean = clean_training_pairs(pairs, flat, preserve_cells=True, pos_map=typed,
+                                closed_class_heads=heads)
+    assert {p["lemma"] for p in clean if p["form"] == "εσένα"} == {"εσύ"}
+
+
+@pytest.mark.parametrize("pos", ["noun", "verb", "adv"])
+def test_structured_closed_class_metadata_does_not_collect_other_parts_of_speech(tmp_path, pos):
+    refs = {}
+    extract_pairs(_write(tmp_path, [{"word": "τύπος", "pos": pos,
+        "senses": [{"form_of": [{"word": "ρίζα"}]}]}]), "el-en",
+        closed_class_form_refs=refs)
+    assert refs == {}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
 def test_named_weak_pronoun_keeps_its_typed_lexical_parent_without_head_proof(tmp_path, reverse):
     from build_data import apply_closed_class_form_references
     entries = [
@@ -232,9 +272,12 @@ def test_named_weak_pronoun_keeps_its_typed_lexical_parent_without_head_proof(tm
     pairs, _, _, pos_map, *_ = extract_pairs(_write(tmp_path, entries[::-1] if reverse else entries),
         "el-el", closed_class_heads=heads, closed_class_form_refs=refs)
     assert heads == {"pron": {"αυτός"}}
-    assert refs == {("τον", "pron"): {"αυτόν"}}
+    assert refs == {("τον", "pron"): {"αυτόν"},
+                    ("τονε", "pron"): {"τον"}, ("αυτόν", "pron"): {"αυτός"}}
     pos_map.setdefault("τον", {})["DET"] = "ο"
-    assert apply_closed_class_form_references(pos_map, refs, heads) == {("τον", "pron"): "αυτός"}
+    assert apply_closed_class_form_references(pos_map, refs, heads) == {
+        ("τον", "pron"): "αυτός", ("αυτόν", "pron"): "αυτός",
+        ("τονε", "pron"): "αυτός"}
     assert pos_map["τον"] == {"PRON": "αυτός", "DET": "ο"}
     flat = {"τονε": ("τόνος", 3), "τον": ("τον", 3), "αυτόν": ("αυτός", 3),
             "αυτός": ("αυτός", 3), "τόνος": ("τόνος", 3), "ο": ("ο", 3)}
@@ -242,6 +285,70 @@ def test_named_weak_pronoun_keeps_its_typed_lexical_parent_without_head_proof(tm
                                    closed_class_heads=heads)
     assert {p["lemma"] for p in cleaned} == {"αυτός"}
     assert flat["τονε"][0] == "τόνος"  # Unqualified homograph lookup is untouched.
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_closed_references_follow_own_chain_before_competing_tables(reverse):
+    from build_data import apply_closed_class_form_references
+    rows = [(('εσένανε', 'pron'), {'εσένα'}),
+            (('εσένα', 'pron'), {'εσύ'}),
+            (('κείνες', 'pron'), {'εκείνες'}),
+            (('εκείνες', 'pron'), {'εκείνος'})]
+    refs = dict(rows[::-1] if reverse else rows)
+    table = {'εσένανε': {'PRON': 'εσένα'}, 'εσένα': {'PRON': 'σε'},
+             'κείνες': {'PRON': 'κείνος'}, 'εκείνες': {'PRON': 'κείνος'}}
+    heads = {'pron': {'εσύ', 'κείνος', 'εκείνος'}}
+    selected = apply_closed_class_form_references(table, refs, heads)
+    assert selected['εσένανε', 'pron'] == selected['εσένα', 'pron'] == 'εσύ'
+    assert selected['κείνες', 'pron'] == selected['εκείνες', 'pron'] == 'εκείνος'
+    assert table['εσένανε']['PRON'] == 'εσύ'
+    assert table['κείνες']['PRON'] == 'εκείνος'
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_closed_reference_normalized_conflicts_keep_the_original_mapping(reverse):
+    from build_data import apply_closed_class_form_references
+    rows = [(('όποια', 'pron'), {'όποιος'}), (('οποία', 'pron'), {'οποίος'})]
+    refs = dict(rows[::-1] if reverse else rows)
+    table = {'οποια': {'PRON': 'οποίος'}, 'όποια': {'PRON': 'οποίος'},
+             'οποία': {'PRON': 'όποιος'}}
+    selected = apply_closed_class_form_references(
+        table, refs, {'pron': {'όποιος', 'οποίος'}})
+    assert selected == {('όποια', 'pron'): 'όποιος', ('οποία', 'pron'): 'οποίος'}
+    assert table['όποια']['PRON'] == 'όποιος'
+    assert table['οποία']['PRON'] == 'οποίος'
+    assert table['οποια']['PRON'] == 'οποίος'
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_ambiguous_exact_reference_blocks_a_normalized_single_root_overwrite(reverse):
+    from build_data import apply_closed_class_form_references
+    rows = [(('όποια', 'pron'), {'όποιος', 'οποίος'}),
+            (('οποία', 'pron'), {'οποίος'})]
+    table = {'οποια': {'PRON': 'όποιος'}, 'όποια': {'PRON': 'όποιος'}}
+    selected = apply_closed_class_form_references(
+        table, dict(rows[::-1] if reverse else rows), {'pron': {'όποιος', 'οποίος'}})
+    assert selected == {('οποία', 'pron'): 'οποίος'}
+    assert table['οποια']['PRON'] == table['όποια']['PRON'] == 'όποιος'
+    assert table['οποία']['PRON'] == 'οποίος'
+
+
+@pytest.mark.parametrize("damage", ['missing', 'cycle', 'divergent', 'wrong_pos'])
+def test_closed_own_reference_cannot_be_overruled_by_a_supported_table(damage):
+    from build_data import apply_closed_class_form_references
+    refs = {('τύπος', 'pron'): {'μορφή'}}
+    table = {'τύπος': {'PRON': 'ρίζα'}, 'μορφή': {'PRON': 'ρίζα'}}
+    heads = {'pron': {'ρίζα'}}
+    if damage == 'missing': refs['μορφή', 'pron'] = {'ανύπαρκτο'}
+    elif damage == 'cycle': refs['μορφή', 'pron'] = {'τύπος'}
+    elif damage == 'divergent':
+        refs['μορφή', 'pron'] = {'ρίζα', 'άλλος'}
+        heads['pron'].add('άλλος')
+    else:
+        refs['μορφή', 'pron'] = {'άλλος'}
+        heads['det'] = {'άλλος'}
+    assert ('τύπος', 'pron') not in apply_closed_class_form_references(table, refs, heads)
+    assert table['τύπος']['PRON'] == 'ρίζα'
 
 
 def test_main_publishes_named_weak_pronoun_reference_without_form_head_proof(tmp_path, monkeypatch):

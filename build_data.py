@@ -882,6 +882,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
             for sense in entry.get("senses", []):
                 sense_form_of.extend(sense.get("form_of", []))
                 if closed_class_form_refs is not None:
+                    if modern_greek and pos in {"det", "pron"}:
+                        # Own sense references precede a weak form's table
+                        # alias (εσένα belongs to εσύ, not to σε).
+                        for ref in sense.get("form_of") or []:
+                            target = strip_length_marks(ref.get("word", ""))
+                            if target and _is_greek(target):
+                                closed_class_form_refs.setdefault((lemma, pos), set()).add(target)
                     named = _named_weak_pronoun_reference(entry, sense, wikt_source)
                     if named:
                         closed_class_form_refs.setdefault((lemma, pos), set()).add(named)
@@ -1526,27 +1533,37 @@ def _named_weak_pronoun_reference(entry: dict, sense: dict, source: str) -> str 
 
 
 def apply_closed_class_form_references(pos_map: dict, references: dict, heads: dict) -> dict:
-    """Use named form references only when their typed chain has lexical proof."""
+    """Follow exact typed references to lexical heads without choosing conflicts."""
+    def roots(form, pos, seen):
+        if form in heads.get(pos, set()):
+            return {form}
+        if form in seen:
+            return set()
+        seen = seen | {form}
+        targets = references.get((form, pos))
+        if targets:
+            # Own sense references take precedence over another page's table.
+            return set().union(*(roots(target, pos, seen) for target in targets))
+        target = pos_map.get(form, {}).get(WIKT_TO_UPOS[pos])
+        return roots(target, pos, seen) if target else set()
+
     selected = {}
-    for (form, pos), targets in references.items():
-        roots = set()
-        for target in targets:
-            seen = {form}
-            while target not in seen:
-                if target in heads.get(pos, set()):
-                    roots.add(target)
-                    break
-                seen.add(target)
-                target = pos_map.get(target, {}).get(WIKT_TO_UPOS[pos])
-                if not target:
-                    break
-        if len(roots) == 1:
-            selected[form, pos] = next(iter(roots))
-    # Resolve every chain against the same snapshot before changing table edges.
-    for (form, pos), root in selected.items():
+    supported_roots = {}
+    for form, pos in references:
+        supported = roots(form, pos, set())
+        supported_roots[form, pos] = supported
+        if len(supported) == 1:
+            selected[form, pos] = next(iter(supported))
+    # Resolve against one snapshot, then collect every exact form's projection.
+    # Different accented forms may share a key but retain distinct lexical roots.
+    projected = {}
+    for (form, pos), supported in supported_roots.items():
         for key in (form, form.lower(), to_monotonic(form), to_monotonic(form).lower(),
                     strip_accents(form.lower())):
-            pos_map.setdefault(key, {})[WIKT_TO_UPOS[pos]] = root
+            projected.setdefault((key, WIKT_TO_UPOS[pos]), set()).update(supported)
+    for (key, upos), supported in projected.items():
+        if len(supported) == 1:
+            pos_map.setdefault(key, {})[upos] = next(iter(supported))
     return selected
 
 
