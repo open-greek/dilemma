@@ -150,9 +150,9 @@ def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
     metadata, confirmed = profile.metadata, profile.treebank_confirmed
 
     assert metadata["content_hash"] == (
-        "d9bfe0176b2b17b948961ea7ad9e47ae0527bb27f79e57210df7b55a15d8e086"
+        "17ae6850b590ee5ac58aef27404e7d505e3c10468cc59434fcf810a8b2dfc134"
     )
-    assert len(forms) == 1_773_559
+    assert len(forms) == 1_772_603
     # The larger of the work-deduplicated total and any single source's own
     # count: a spelling found only in a lower-priority copy of a work still
     # counts as attested.
