@@ -9,7 +9,7 @@ from pathlib import Path, PureWindowsPath
 
 SOURCE_FILES = (
     'overlay_lsj.py', 'build/expand_lsj.py', 'build/lsj_principal_parts.py',
-    'build/expand_sophocles.py', 'build/build_diorisis_pairs.py',
+    'build/expand_sophocles.py', 'build/build_diorisis_pairs.py', 'build/diorisis_source.py',
     'build/corpus_freq_key.py', 'dilemma/form_sanitize.py', 'export_hunspell.py',
     'data/hunspell_grc_postclassical_review.json', 'data/ag_expansion_reference.json',
 )

@@ -13,8 +13,8 @@ The Diorisis Ancient Greek Corpus ships as TEI-flavored XML with one
 carries a ``form`` attribute in **beta code** (TLG-style ASCII
 transliteration, e.g. ``a)/ndra`` for ἄνδρα). Sentence boundaries are
 explicit and trustworthy, so we use them directly rather than punctuation
-heuristics. Diorisis does not record internal punctuation as separate
-tokens, so ``</s>`` is always appended once at the end of each sentence.
+heuristics. The source punctuation nodes provide quotation context but are
+not emitted as model tokens; ``</s>`` is appended once per sentence.
 
 Beta code conversion
 --------------------
@@ -51,6 +51,8 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Iterator
+
+from build.diorisis_source import DiorisisSourceContext
 
 # Reserved tokens. Keep in sync with train_lm.py. Import-from is avoided
 # so this module stays independent and merge-friendly against parallel
@@ -201,12 +203,13 @@ def iter_diorisis_sentences(
             continue
 
         doc_id = xml_file.stem
+        source_context = DiorisisSourceContext(tree.getroot())
         for sent in tree.findall(".//sentence"):
             sid = sent.get("id") or "?"
             global_sid = f"diorisis:{doc_id}:{sid}"
             tokens: list[str] = [BOS_TOK]
             for w in sent.findall("word"):
-                beta = w.get("form") or ""
+                beta = source_context.beta(w)
                 if not beta:
                     continue
                 form = beta_to_nfc(beta)

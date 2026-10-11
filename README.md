@@ -3189,6 +3189,18 @@ another Ancient Greek corpus, write a loader that yields
 entry to ``build_corpus_sources`` in ``train_lm.py``; the counting,
 vocab, split, and eval stages do not need any changes.
 
+The Diorisis pairs, frequency, language-model, and form-attestation readers
+share `build/diorisis_source.py` for quotation context. A terminal Beta Code
+apostrophe is removed as a duplicated closing quote only when the following
+punctuation repeats it and the same document independently contains the
+resulting form under every annotated lemma, part of speech, and morphology
+reading. Genuine elision, including `)` notation, remains intact; unresolved
+quote/elision readings are preserved. The pairs builder writes the original
+and normalized forms, witness locations, source hashes, and generator
+revision to `data/changes/diorisis_token_normalizations.json` by default;
+`--token-audit PATH` chooses another audit destination. Each recorded change
+can be reversed with `restore_source_beta`.
+
 The GLAUx loader reads through the license filter in
 `build/nc_filter.py`, the same one the pair, frequency, attestation
 and tagger builders use: the 7 NonCommercial and 25 PROIEL-derived

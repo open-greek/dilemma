@@ -23,18 +23,22 @@ import argparse
 import json
 import time
 import unicodedata
+import sys
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
 
 from beta_code import beta_code_to_greek
-from corpus_freq_key import (
+
+SCRIPT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SCRIPT_DIR))
+from build.corpus_freq_key import (
     ELISION_MARKS,
     beta_trailing_paren_is_elision,
     corpus_freq_key,
 )
+from build.diorisis_source import DiorisisSourceContext
 
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"
 OUTPUT_PATH = DATA_DIR / "diorisis_freq.json"
@@ -141,8 +145,9 @@ def main():
         genre_idx = genre_to_idx.get(genre, genre_to_idx["other"])
         files_by_genre[genre] += 1
 
+        source_context = DiorisisSourceContext(root)
         for word in root.findall(".//word"):
-            bc_form = word.get("form", "")
+            bc_form = source_context.beta(word)
             if not bc_form:
                 continue
 

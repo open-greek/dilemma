@@ -23,7 +23,9 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
+import subprocess
 import sys
 import unicodedata
 import time
@@ -37,6 +39,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import canonicalize_final_elision  # noqa: E402
 from build.corpus_freq_key import beta_trailing_paren_is_elision  # noqa: E402
+from build.diorisis_source import DiorisisSourceContext  # noqa: E402
 
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"
@@ -215,7 +218,7 @@ def parse_morph(morph_str, pos):
     return tags
 
 
-def extract_diorisis(diorisis_dir, stats_only=False):
+def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
     """Extract form->lemma pairs from Diorisis XML files."""
     xml_files = sorted(Path(diorisis_dir).glob("*.xml"))
     if not xml_files:
@@ -245,10 +248,15 @@ def extract_diorisis(diorisis_dir, stats_only=False):
         except ET.ParseError:
             continue
 
+        source_context = DiorisisSourceContext(tree.getroot())
+        if token_audit is not None and source_context.audit:
+            token_audit.append({"source": xml_file.name,
+                                "source_sha256": hashlib.sha256(xml_file.read_bytes()).hexdigest(),
+                                "records": source_context.audit})
         for word in tree.findall(".//word"):
             total_tokens += 1
 
-            bc_form = word.get("form", "")
+            bc_form = source_context.beta(word)
             lemma_el = word.find("lemma")
 
             if lemma_el is None:
@@ -343,9 +351,12 @@ def main():
     parser.add_argument("--output", type=str,
                         default=str(OUTPUT_PATH),
                         help="Output path")
+    parser.add_argument("--token-audit", type=Path,
+                        help="Reversible source-token audit (default: changes beside the output)")
     args = parser.parse_args()
 
-    pairs = extract_diorisis(args.diorisis, stats_only=args.stats)
+    token_audit = []
+    pairs = extract_diorisis(args.diorisis, stats_only=args.stats, token_audit=token_audit)
 
     if not args.stats and pairs:
         out = Path(args.output)
@@ -354,6 +365,17 @@ def main():
             json.dump(pairs, f, ensure_ascii=False)
         size_mb = out.stat().st_size / (1024 * 1024)
         print(f"\nSaved {len(pairs):,} pairs to {out} ({size_mb:.1f} MB)")
+        audit_path = args.token_audit or out.parent / "changes" / "diorisis_token_normalizations.json"
+        audit_path.parent.mkdir(parents=True, exist_ok=True)
+        source_files = ["build/build_diorisis_pairs.py", "build/diorisis_source.py"]
+        payload = {"schema_version": 1,
+                   "source_commit": subprocess.check_output(
+                       ["git", "rev-parse", "HEAD"], cwd=SCRIPT_DIR, text=True).strip(),
+                   "source_sha256": {name: hashlib.sha256((SCRIPT_DIR / name).read_bytes()).hexdigest()
+                                     for name in source_files},
+                   "sources": token_audit}
+        audit_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+        print(f"Saved source-token audit to {audit_path}")
 
 
 if __name__ == "__main__":
