@@ -22,7 +22,7 @@ import expand_lsj
     ("ζῳοποιέω", "pres-con-e", "ζῳοποι"),
     ("κρῑ́νω", "pres", "κρῑν"),
     ("δῐώκω", "pres", "δῐωκ"),
-    ("ἥδομαι", "pres", "ἡδο"),
+    ("ἥδομαι", "pres", "ἡδ"),
 ])
 def test_classification_keeps_lexical_marks_in_nfc_and_nfd(headword, kind, stem):
     expected = (kind, unicodedata.normalize("NFC", stem))

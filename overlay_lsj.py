@@ -51,6 +51,22 @@ def has_orthographic_mark(form: str) -> bool:
     )
 
 
+def superseded_verb_generation(lemma: str) -> bool:
+    """Whether this historical generated family used a corrected dispatcher.
+
+    Historical middle lemmas used an extra thematic vowel and unrestricted
+    active output; -φημι used an unsupported regular or compound route;
+    -ννυμι lost the first nu. Rebuild those families with the current generator
+    instead of recovering their old generated rows. Independent base entries
+    and any spelling already in the current target remain untouched.
+    """
+    plain = "".join(
+        char for char in unicodedata.normalize("NFD", lemma)
+        if not unicodedata.combining(char)
+    )
+    return plain.endswith(("μαι", "φημι", "ννυμι"))
+
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -128,6 +144,7 @@ def overlay_expansion(
         "excluded_entries": 0,
         "already_present": 0,
         "conflicts_preserved": 0,
+        "superseded_verb_entries": 0,
         "added": 0,
     }
     for form, lemma in reference.items():
@@ -147,6 +164,9 @@ def overlay_expansion(
             stats["already_present"] += 1
             if target[form] != lemma:
                 stats["conflicts_preserved"] += 1
+            continue
+        if superseded_verb_generation(lemma):
+            stats["superseded_verb_entries"] += 1
             continue
         target[form] = lemma
         stats["added"] += 1
@@ -294,6 +314,7 @@ def main() -> None:
     print(f"Pinned exclusions: {stats['excluded_entries']:,}")
     print(f"Already present: {stats['already_present']:,}")
     print(f"Current mapping conflicts preserved: {stats['conflicts_preserved']:,}")
+    print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
     print(f"Final size: {stats['target_entries_after']:,}")
 

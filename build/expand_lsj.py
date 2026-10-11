@@ -781,7 +781,7 @@ def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
 
 
 # Present-system cache for identical lexical requests, with all marks intact.
-_VERB_CACHE: dict[tuple[str, str, str], frozenset[str]] = {}
+_VERB_CACHE: dict[tuple[str, str, str, str], frozenset[str]] = {}
 
 
 # Cache: principal-parts grc-conj-args tuple -> set of forms.
@@ -1059,9 +1059,9 @@ _IRREGULAR_BASE_FORMS = {
         "χρή", "χρῇ", "χρῆν", "χρῆναι", "χρεών", "χρῆται",
         "χρῷη", "χρείη",
     },
-    # φημί 'say' — the existing dispatcher routes φημί to pres-emi, but
-    # Wiktionary uses pres-ami for it (stem 'φ'). We keep the explicit
-    # paradigm here as a robust fallback.
+    # φημί 'say' requires this explicit paradigm. The regular -ημι
+    # template produces φῆμι, and compound accent/augment rules are not
+    # supported by the preverb joiner.
     "φημί": {
         # Indicative
         "φημί", "φῄς", "φησί", "φησίν", "φαμέν", "φατέ", "φᾱσί",
@@ -1172,6 +1172,8 @@ def _expand_irregular_compound(headword):
     """
     preverb, base = _split_preverb(headword)
     base_plain = _strip_diacritics_lower(base)
+    if base_plain == "φημι" and preverb:
+        return set()
     base_aliases = {
         "ειμι": ["εἰμί", "εἶμι"],   # ambiguous: emit forms for both
         "οιδα": ["οἶδα"],
@@ -1235,20 +1237,42 @@ def _classify_verb(headword):
     """Classify a verb into conjugation type and stem. Returns (conj_type, stem) or (None, None).
 
     The returned ``conj_type`` is the parameter-1 string that
-    ``Module:grc-conj`` understands. We support all rule-based
+    ``Module:grc-conj`` understands. We support identifiable rule-based
     dispatches the Lua module exposes (pres-con-{a,e,o},
     pres-{ami,emi,omi,numi,lumi}, plain pres). For genuinely
     irregular athematic verbs whose Wiktionary entries use
     ``pres-irreg`` (εἰμί, εἶμι, οἶδα, χρή, and their compounds),
     we return the sentinel ``conj_type='irreg'`` so the caller can
-    dispatch to ``_expand_irregular_compound`` instead of Lua.
+    dispatch to ``_expand_irregular_compound`` instead of Lua. Exact
+    φημί also uses its explicit paradigm; its compounds are unsupported.
     """
     # Slice endings only after canonical composition: in NFD an accented
     # final vowel occupies more than one code point.
     headword = unicodedata.normalize("NFC", headword)
     hw_plain = strip_diacritics(headword)
 
-    if hw_plain.endswith("εω"):
+    if headword == "φημί":
+        return "irreg", ""
+    elif hw_plain.endswith("φημι"):
+        # Surface -φημι is not enough to identify a φημί compound, and
+        # the preverb joiner does not preserve its accent or augment.
+        return None, None
+    elif hw_plain.endswith("εομαι"):
+        return "pres-con-e", _unaccented_verb_stem(headword[:-5])
+    elif hw_plain.endswith("αομαι"):
+        return "pres-con-a", _unaccented_verb_stem(headword[:-5])
+    elif hw_plain.endswith("οομαι"):
+        return "pres-con-o", _unaccented_verb_stem(headword[:-5])
+    elif hw_plain.endswith("ουμαι"):
+        # The contracted ending does not distinguish ε- and ο-contracts.
+        return None, None
+    elif hw_plain.endswith("ομαι"):
+        return "pres", _unaccented_verb_stem(headword[:-4])
+    elif hw_plain.endswith("μαι"):
+        # Athematic, perfect, and contracted middles need more evidence
+        # than this ending supplies. Keep their independent base entries.
+        return None, None
+    elif hw_plain.endswith("εω"):
         return "pres-con-e", _unaccented_verb_stem(headword[:-2])
     elif hw_plain.endswith("αω"):
         return "pres-con-a", _unaccented_verb_stem(headword[:-2])
@@ -1261,7 +1285,8 @@ def _classify_verb(headword):
     elif hw_plain.endswith("ολλυμι"):
         return "pres-lumi", _unaccented_verb_stem(headword[:-4])
     elif hw_plain.endswith("ννυμι"):
-        return "pres-numi", _unaccented_verb_stem(headword[:-5])
+        # Lua appends νυμι, so the first ν belongs to the lexical stem.
+        return "pres-numi", _unaccented_verb_stem(headword[:-4])
     elif hw_plain.endswith("νυμι"):
         return "pres-numi", _unaccented_verb_stem(headword[:-4])
     # Irregular -ειμι compounds (εἰμί 'to be' / εἶμι 'to go' families).
@@ -1269,23 +1294,13 @@ def _classify_verb(headword):
     # irregular dispatcher rather than failing into a Lua error.
     elif hw_plain.endswith("ειμι"):
         return "irreg", ""
-    # -ημι: most are pres-emi (τίθημι, ἵημι, ἵστημι), but φημί is pres-ami
-    # with stem 'φ'. The single-consonant-stem case is the tell.
+    # φημί has already been handled by its explicit paradigm above.
     elif hw_plain.endswith("ημι"):
-        if len(hw_plain) == 3:
-            # φ + ημι would be 4 chars; this is only ημι itself
-            return "pres-emi", _unaccented_verb_stem(headword[:-3])
         return "pres-emi", _unaccented_verb_stem(headword[:-3])
     elif hw_plain.endswith("ωμι"):
         return "pres-omi", _unaccented_verb_stem(headword[:-3])
     elif hw_plain.endswith("αμι"):
         return "pres-ami", _unaccented_verb_stem(headword[:-3])
-    elif hw_plain == "φημι" or hw_plain.endswith("φημι"):
-        # φημί and compounds (συμφημι, σύμφημι, πρόφημι) use pres-ami
-        # with consonant stem 'φ'. Only routes here if we didn't match
-        # the longer -ημι suffix above (we did, so this branch is mostly
-        # safety; the explicit irregular base for φημί covers it too).
-        return "irreg", ""
     elif hw_plain.endswith("μι"):
         # No remaining rule-based dispatch handles a generic '-μι'
         # ending. Most surviving cases are mis-OCR'd or unusual; route
@@ -1294,8 +1309,6 @@ def _classify_verb(headword):
         return "irreg", ""
     elif hw_plain.endswith("ω"):
         return "pres", _unaccented_verb_stem(headword[:-1])
-    elif hw_plain.endswith("μαι"):
-        return "pres", _unaccented_verb_stem(headword[:-3])
     return None, None
 
 
@@ -1317,8 +1330,14 @@ def expand_verb(wtp, headword, head_text: str = ""):
     if _is_corrupt_headword(headword):
         return set(), "corrupt-headword"
 
+    headword = unicodedata.normalize("NFC", headword)
     conj_type, stem = _classify_verb(headword)
     if conj_type is None:
+        plain = strip_diacritics(headword)
+        if plain.endswith("φημι"):
+            return set(), "unsupported-phemi-family"
+        if plain.endswith("μαι"):
+            return set(), "unsupported-middle-ending"
         return set(), f"unknown-ending:{headword[-3:]}"
 
     # Irregular verbs (εἰμί / εἶμι / οἶδα / χρή / φημί and compounds): use
@@ -1334,37 +1353,22 @@ def expand_verb(wtp, headword, head_text: str = ""):
     # Present-system expansion (with cache).
     forms: set[str] = set()
     err = ""
-    cache_key = (headword, conj_type, stem)
+    # A middle headword supports only its middle/passive present system;
+    # the default template would also invent an active paradigm.
+    voice = "mp" if headword.endswith("μαι") else ""
+    cache_key = (headword, conj_type, stem, voice)
     if cache_key in _VERB_CACHE:
         forms = set(_VERB_CACHE[cache_key])
     if not forms:
         # Cache miss or empty cached result - call Lua.
-        template = "{{grc-conj|" + conj_type + "|" + stem + "}}"
+        template = ("{{grc-conj|" + conj_type + "|" + stem
+                    + ("|form=" + voice if voice else "") + "}}")
         try:
             wtp.start_page(headword)
             html = wtp.expand(template)
             forms = parse_html_forms(html, headword)
         except Exception as e:
             err = str(e)
-            # For -μι verbs that fail Lua dispatch, fall back to
-            # pres-emi (a real conjugation type), then plain 'pres'
-            # for thematic.
-            if conj_type.startswith("pres-") and conj_type != "pres":
-                for fallback in ["pres-emi", "pres"]:
-                    if fallback == conj_type:
-                        continue
-                    try:
-                        template = ("{{grc-conj|" + fallback + "|"
-                                    + stem + "}}")
-                        wtp.start_page(headword)
-                        html = wtp.expand(template)
-                        fallback_forms = parse_html_forms(html, headword)
-                        if fallback_forms:
-                            forms = fallback_forms
-                            err = ""
-                            break
-                    except Exception:
-                        continue
         if forms:
             _VERB_CACHE[cache_key] = frozenset(forms)
 
@@ -1663,6 +1667,8 @@ def expand_verbs():
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0,
              "with_pp": 0}
+    failure_reasons = Counter()
+    failure_examples = {}
     t0 = time.time()
 
     for i, hw in enumerate(candidates):
@@ -1671,6 +1677,11 @@ def expand_verbs():
 
         if err or not forms:
             stats["failed"] += 1
+            reason = err.splitlines()[0][:160] if err else "empty-paradigm"
+            failure_reasons[reason] += 1
+            examples = failure_examples.setdefault(reason, [])
+            if len(examples) < 3:
+                examples.append(hw)
             continue
 
         stats["expanded"] += 1
@@ -1714,6 +1725,8 @@ def expand_verbs():
     print(f"  Expanded: {stats['expanded']:,} / {len(candidates):,} verbs")
     print(f"  With LSJ principal parts: {stats['with_pp']:,}")
     print(f"  Failed: {stats['failed']:,}")
+    for reason, count in failure_reasons.most_common():
+        print(f"    {reason}: {count:,} ({', '.join(failure_examples[reason])})")
     print(f"  New forms added: {stats['new_forms']:,}")
     print(f"  Collisions (kept existing): {stats['collisions']:,}")
     print(f"  Lookup size: {original_size:,} -> {len(lookup):,}")

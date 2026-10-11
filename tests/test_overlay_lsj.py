@@ -78,6 +78,32 @@ def test_target_editorial_cleanup_resolves_only_movable_nu():
     }
 
 
+def test_overlay_does_not_restore_superseded_verb_generation():
+    reference_base = {"ἀβακίζομαι": "ἀβακίζομαι"}
+    reference = {
+        **reference_base,
+        "ἀβακιζόομαι": "ἀβακίζομαι",
+        "ἀβακιζόμεθα": "ἀβακίζομαι",
+        "σύμεφην": "σύμφημι",
+        "φῆμι": "φημί",
+        "ἀμφιένυμι": "ἀμφιέννυμι",
+        "ἀμφιέννυμι": "ἀμφιέννυμι",
+        "λύεις": "λύω",
+    }
+    target = {
+        # Current independent evidence and corrected generation always win.
+        "ἀβακίζομαι": "ἀβακίζομαι",
+        "ἀβακιζόμεθα": "ἀβακίζομαι",
+        "ἀμφιέννυμι": "ἀμφιέννυμι",
+        "σύμεφην": "independent-current-analysis",
+    }
+    before = dict(target)
+    stats = overlay_expansion(reference, reference_base, target)
+    assert target == {**before, "λύεις": "λύω"}
+    assert stats["superseded_verb_entries"] == 3
+    assert stats["already_present"] == 3
+
+
 def test_pin_verification_rejects_changed_bytes(tmp_path):
     artifact = tmp_path / "artifact.json"
     artifact.write_bytes(b"known bytes")
