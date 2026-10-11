@@ -2320,15 +2320,9 @@ AG	ag_lookup.json	untrusted_grave	ῥουφεινιανὸς	Ῥουφεινια
 AG	ag_lookup.json	untrusted_grave	Ῥουφεινιανὸς	Ῥουφεινιανὸς
 AG	ag_lookup.json	untrusted_grave	’γ’ὼ	’γ’ὼ
 AG	ag_lookup.json	untrusted_grave	’πλὴν	’πλὴν
-AG	diorisis_pairs.json	corpus_word_tail_of_Τιθέμενοι	θέμενοι᾽	τίθημι
-EL	diorisis_pairs.json	corpus_word_tail_of_Τιθέμενοι	θέμενοι᾽	τίθημι
-combined	diorisis_pairs.json	corpus_word_tail_of_Τιθέμενοι	θέμενοι᾽	τίθημι
 AG	diorisis_pairs.json	corpus_word_tail_of_αναμεταξύ	μεταξύ᾽	μεταξύ
 EL	diorisis_pairs.json	corpus_word_tail_of_αναμεταξύ	μεταξύ᾽	μεταξύ
 combined	diorisis_pairs.json	corpus_word_tail_of_αναμεταξύ	μεταξύ᾽	μεταξύ
-AG	diorisis_pairs.json	corpus_word_tail_of_βεβλάψῃ	βλάψῃ᾽	βλάπτω
-EL	diorisis_pairs.json	corpus_word_tail_of_βεβλάψῃ	βλάψῃ᾽	βλάπτω
-combined	diorisis_pairs.json	corpus_word_tail_of_βεβλάψῃ	βλάψῃ᾽	βλάπτω
 AG	diorisis_pairs.json	corpus_word_tail_of_γεγενήσεσθαι	γενήσεσθαι᾽	γίγνομαι
 EL	diorisis_pairs.json	corpus_word_tail_of_γεγενήσεσθαι	γενήσεσθαι᾽	γίγνομαι
 combined	diorisis_pairs.json	corpus_word_tail_of_γεγενήσεσθαι	γενήσεσθαι᾽	γίγνομαι
@@ -2353,9 +2347,6 @@ combined	diorisis_pairs.json	corpus_word_tail_of_εγεγράφειν	γράφε
 AG	diorisis_pairs.json	corpus_word_tail_of_ελελήθει	λήθει᾽	λανθάνω
 EL	diorisis_pairs.json	corpus_word_tail_of_ελελήθει	λήθει᾽	λανθάνω
 combined	diorisis_pairs.json	corpus_word_tail_of_ελελήθει	λήθει᾽	λανθάνω
-AG	diorisis_pairs.json	corpus_word_tail_of_επιμελήσει	μελήσει᾽	ἐπιμελέομαι
-EL	diorisis_pairs.json	corpus_word_tail_of_επιμελήσει	μελήσει᾽	ἐπιμελέομαι
-combined	diorisis_pairs.json	corpus_word_tail_of_επιμελήσει	μελήσει᾽	ἐπιμελέομαι
 AG	diorisis_pairs.json	corpus_word_tail_of_επιμελοίμην	μελοίμην᾽	ἐπιμελέομαι
 EL	diorisis_pairs.json	corpus_word_tail_of_επιμελοίμην	μελοίμην᾽	ἐπιμελέομαι
 combined	diorisis_pairs.json	corpus_word_tail_of_επιμελοίμην	μελοίμην᾽	ἐπιμελέομαι
