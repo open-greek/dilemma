@@ -12,6 +12,7 @@ from overlay_lsj import (
     resolve_target_editorial_entries,
     verify_file,
     verify_sentinels,
+    load_noun_generation_audit,
 )
 
 
@@ -132,6 +133,36 @@ def test_manifest_pins_reference_base_and_traced_forms():
     assert manifest["artifact_floor"]["grc_source_rows"] == 10_000_000
     assert manifest["sentinels"]["ῥαψάμενοι"] == "ῥάπτω"
     verify_sentinels(manifest["sentinels"], manifest["sentinels"])
+
+
+def test_superseded_noun_family_keeps_independent_and_current_spellings():
+    reference = {"ωνός": "ἀγκών", "ἀγκῶνος": "ἀγκών", "παλαιός": "παλαιός"}
+    base = {"ἀγκῶνος": "ἀγκών"}
+    target = {"ωνός": "independent-current"}
+    stats = overlay_expansion(reference, base, target,
+                              superseded_noun_lemmas={"ἀγκών"})
+    assert target == {"ωνός": "independent-current", "παλαιός": "παλαιός"}
+    assert stats["superseded_noun_entries"] == 0
+    target = {}
+    stats = overlay_expansion(reference, base, target,
+                              superseded_noun_lemmas={"ἀγκών"})
+    assert "ωνός" not in target and "ἀγκῶνος" not in target
+    assert stats["superseded_noun_entries"] == 1
+
+
+def test_noun_audit_rejects_different_inputs_even_with_identical_source(tmp_path, monkeypatch):
+    import expand_lsj
+    monkeypatch.setattr(expand_lsj, "noun_generation_input_hashes", lambda: {"fixture": "current"})
+    path = tmp_path / "audit.json"
+    audit = {"schema_version": 1, "generator_sha256": hashlib.sha256(
+        (ROOT / "build/expand_lsj.py").read_bytes()).hexdigest(),
+        "input_sha256": {"fixture": "old"}, "superseded_lemmas": ["ἀγκών"]}
+    path.write_text(json.dumps(audit))
+    with pytest.raises(SystemExit, match="noun inputs changed"):
+        load_noun_generation_audit(path)
+    audit["input_sha256"] = {"fixture": "current"}
+    path.write_text(json.dumps(audit))
+    assert load_noun_generation_audit(path) == frozenset({"ἀγκών"})
 
 
 @pytest.mark.skipif(not LOOKUP_DB.exists(), reason="lookup.db not downloaded")

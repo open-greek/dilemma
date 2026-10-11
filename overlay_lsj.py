@@ -23,6 +23,7 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 import tempfile
 import unicodedata
 from pathlib import Path
@@ -33,6 +34,8 @@ from dilemma.form_sanitize import has_editorial_sigla, resolve_editorial_form
 ROOT = Path(__file__).resolve().parent
 DEFAULT_MANIFEST = ROOT / "data" / "ag_expansion_reference.json"
 DEFAULT_TARGET = ROOT / "data" / "ag_lookup.json"
+DEFAULT_NOUN_AUDIT = ROOT / "data" / "ag_noun_generation_audit.json"
+DEFAULT_SOPHOCLES_NOUN_AUDIT = ROOT / "data" / "ag_sophocles_noun_generation_audit.json"
 _CHUNK = 1 << 20
 _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
 
@@ -132,6 +135,7 @@ def overlay_expansion(
     reference_base: dict[str, str],
     target: dict[str, str],
     excluded_forms: set[str] | frozenset[str] = frozenset(),
+    superseded_noun_lemmas: set[str] | frozenset[str] = frozenset(),
 ) -> dict[str, int]:
     """Add only historical expansion keys, preserving current mappings."""
     stats = {
@@ -145,6 +149,7 @@ def overlay_expansion(
         "already_present": 0,
         "conflicts_preserved": 0,
         "superseded_verb_entries": 0,
+        "superseded_noun_entries": 0,
         "added": 0,
     }
     for form, lemma in reference.items():
@@ -168,10 +173,40 @@ def overlay_expansion(
         if superseded_verb_generation(lemma):
             stats["superseded_verb_entries"] += 1
             continue
+        if lemma in superseded_noun_lemmas:
+            stats["superseded_noun_entries"] += 1
+            continue
         target[form] = lemma
         stats["added"] += 1
     stats["target_entries_after"] = len(target)
     return stats
+
+
+def load_noun_generation_audit(path: Path, generator="expand_lsj.py") -> frozenset[str]:
+    """Require the current generator's completed audit before recovering nouns."""
+    if not path.exists():
+        raise SystemExit(f"noun generation audit missing; run build/{generator} --expand first")
+    audit = json.loads(path.read_text(encoding="utf-8"))
+    source = ROOT / "build" / generator
+    if (audit.get("schema_version") != 1
+            or audit.get("generator_sha256") != file_sha256(source)):
+        raise SystemExit(f"noun generation audit is stale; rerun build/{generator} --expand")
+    if (generator != "expand_lsj.py" and audit.get("shared_generator_sha256") !=
+            file_sha256(ROOT / "build" / "expand_lsj.py")):
+        raise SystemExit(f"shared noun generator changed; rerun build/{generator} --expand")
+    sys.path.insert(0, str(ROOT / "build"))
+    if generator == "expand_lsj.py":
+        from expand_lsj import noun_generation_input_hashes
+        current_inputs = noun_generation_input_hashes()
+    else:
+        from expand_sophocles import sophocles_noun_input_hashes
+        current_inputs = sophocles_noun_input_hashes()
+    if audit.get("input_sha256") != current_inputs:
+        raise SystemExit(f"noun inputs changed; rerun build/{generator} --expand")
+    lemmas = audit.get("superseded_lemmas")
+    if not isinstance(lemmas, list) or not all(isinstance(x, str) for x in lemmas):
+        raise SystemExit("invalid noun generation audit")
+    return frozenset(lemmas)
 
 
 def resolve_target_editorial_entries(target: dict[str, str]) -> dict[str, int]:
@@ -258,8 +293,14 @@ def main() -> None:
         help="Local copy of the pinned reference (otherwise downloaded)",
     )
     parser.add_argument("--target", type=Path, default=DEFAULT_TARGET)
+    parser.add_argument("--noun-audit", type=Path, default=DEFAULT_NOUN_AUDIT)
+    parser.add_argument("--sophocles-noun-audit", type=Path,
+                        default=DEFAULT_SOPHOCLES_NOUN_AUDIT)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    superseded_nouns = load_noun_generation_audit(args.noun_audit)
+    superseded_nouns |= load_noun_generation_audit(args.sophocles_noun_audit,
+                                                  "expand_sophocles.py")
 
     manifest = load_manifest(args.manifest)
     reference_path = resolve_reference(manifest, args.reference)
@@ -298,7 +339,8 @@ def main() -> None:
     )
 
     stats = overlay_expansion(
-        reference, reference_base, target, excluded_forms=excluded_forms
+        reference, reference_base, target, excluded_forms=excluded_forms,
+        superseded_noun_lemmas=superseded_nouns,
     )
     for key, expected in manifest["expected_counts"].items():
         if stats[key] != expected:
@@ -315,6 +357,7 @@ def main() -> None:
     print(f"Already present: {stats['already_present']:,}")
     print(f"Current mapping conflicts preserved: {stats['conflicts_preserved']:,}")
     print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
+    print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
     print(f"Final size: {stats['target_entries_after']:,}")
 

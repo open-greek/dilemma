@@ -21,10 +21,13 @@ entries = {
 m.get_wtp = lambda: None
 m.expand_noun = lambda *a, **kw: ({"λόγος", "λόγου", "λόγῳ", "λόγων", "κοινόν"}, "")
 m.expand_verb = lambda *a, **kw: ({"λύω", "λύεις", "λύει", "λῦε", "κοινόν"}, "")
+m.load_wiktionary_genitives = lambda: {}
+m.noun_generation_input_hashes = lambda *a, **kw: {}
+if name == "expand_sophocles":
+    m.sophocles_noun_input_hashes = lambda: {}
 if name == "expand_lsj":
     m.parse_lsj_entries = lambda: entries
     m.load_wiktionary_forms = lambda: {}
-    m.load_wiktionary_genitives = lambda: {}
     m.load_lsj_head_texts = lambda: {}
 else:
     m.analyze = lambda: (entries, ["λόγος"], [])

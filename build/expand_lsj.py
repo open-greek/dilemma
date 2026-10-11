@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -48,6 +49,10 @@ KAIKKI_DIR = Path(os.environ.get(
 _KAIKKI_AG_NESTED = KAIKKI_DIR / "en-el" / "kaikki.org-dictionary-AncientGreek.jsonl"
 _KAIKKI_AG_FLAT = KAIKKI_DIR / "kaikki.org-en-dictionary-AncientGreek.jsonl"
 KAIKKI_AG = _KAIKKI_AG_NESTED if _KAIKKI_AG_NESTED.exists() else _KAIKKI_AG_FLAT
+_KAIKKI_AG_EL_NESTED = KAIKKI_DIR / "el" / "kaikki.org-dictionary-AncientGreek.jsonl"
+_KAIKKI_AG_EL_FLAT = KAIKKI_DIR / "kaikki.org-el-dictionary-AncientGreek.jsonl"
+KAIKKI_AG_EL = (_KAIKKI_AG_EL_NESTED if _KAIKKI_AG_EL_NESTED.exists()
+                else _KAIKKI_AG_EL_FLAT)
 WTP_DB = DATA_DIR / "wtp.db"
 
 # --- Lua runtime compatibility for running Wiktionary's grc modules via wtp ---
@@ -273,61 +278,86 @@ def strip_diacritics(s: str) -> str:
     return ''.join(c for c in nfd if not unicodedata.combining(c))
 
 
+# Explicit LSJ abbreviation contracts: (nominative ending, supplied genitive
+# suffix, number of nominative letters replaced). Never guess the replacement
+# length from an accidental overlap. More specific endings precede shorter ones.
+_GENITIVE_SUFFIX_RULES = (
+    ("ευς", "εως", 3), ("ευς", "ηος", 3),
+    ("πους", "ποδος", 4), ("πους", "οδος", 3),
+    ("οδους", "οδοντος", 5), ("δους", "οντος", 3),
+    ("θριξ", "τριχος", 4), ("παις", "παιδος", 4),
+    ("χειρ", "χειρος", 4), ("κυων", "κυνος", 4),
+    ("φρων", "φρονος", 4), ("ανηρ", "ανδρος", 4),
+    ("ιγξ", "ιγγος", 3), ("υγξ", "υγγος", 3),
+    ("μα", "ατος", 1),
+    ("ος", "ου", 2), ("ον", "ου", 2),
+    ("ης", "ου", 2), ("ας", "ου", 2),
+    ("η", "ης", 1), ("α", "ας", 1), ("α", "ης", 1),
+    ("ις", "εως", 2), ("υς", "εως", 2),
+    ("ης", "ους", 2), ("ης", "ητος", 2),
+    ("ως", "ωος", 2), ("ως", "ωτος", 2),
+    ("ων", "ωνος", 2), ("ων", "ονος", 2), ("ων", "οντος", 2),
+    ("ηρ", "ηρος", 2), ("ηρ", "ερος", 2),
+    ("ωρ", "ορος", 2), ("ωρ", "ωρος", 2),
+    ("ην", "ενος", 2), ("ην", "ηνος", 2),
+    ("ις", "ιδος", 2), ("ις", "ιος", 2), ("ις", "ινος", 2),
+    ("ις", "ιθος", 2), ("ις", "ιτος", 2),
+    ("υς", "υος", 2), ("υς", "υδος", 2), ("υς", "υθος", 2),
+    ("ας", "αδος", 2), ("ας", "αντος", 2), ("ας", "ατος", 2),
+    ("αξ", "ακος", 2), ("αξ", "αγος", 2), ("αξ", "ακτος", 2),
+    ("ιξ", "ικος", 2), ("ιξ", "ιγος", 2), ("ιξ", "ιχος", 2),
+    ("υξ", "υγος", 2), ("υξ", "υκος", 2), ("υξ", "υχος", 2),
+    ("ηξ", "ηγος", 2), ("ηξ", "ηκος", 2),
+    ("ωξ", "ωγος", 2), ("ωξ", "ωκος", 2),
+    ("ωψ", "ωπος", 2), ("οψ", "οπος", 2),
+    ("ιψ", "ιβος", 2), ("αψ", "απος", 2),
+    ("λι", "ιτος", 1), ("αν", "ανος", 2),
+    ("αρ", "αρος", 2), ("αρ", "ατος", 2),
+    ("ος", "εος", 2), ("ος", "ους", 2), ("ες", "εος", 2),
+    ("ω", "ους", 1),
+)
+
+
+def _letter_clusters(word):
+    clusters = []
+    for char in unicodedata.normalize("NFD", word):
+        if unicodedata.combining(char) and clusters:
+            clusters[-1] += char
+        else:
+            clusters.append(char)
+    return clusters
+
+
+def _drop_letters(word, count):
+    """Drop whole final Greek letters, retaining marks on the lexical prefix."""
+    return unicodedata.normalize("NFC", "".join(_letter_clusters(word)[:-count]))
+
+
 def build_genitive_from_itype(headword, itype):
-    """Build genitive form from headword + LSJ itype (genitive suffix).
-
-    The itype replaces a portion of the headword's ending. The number of
-    characters to strip depends on the nominative ending pattern.
-    """
-    if not itype:
-        return ""
-
-    hw_plain = strip_diacritics(headword)
-    it_plain = strip_diacritics(itype)
-
-    # (nominative ending, itype ending) → chars to strip from headword
-    # Ordered so more specific patterns match first
-    STRIP_RULES = [
-        # -ευς / -εως: strip 3 (the ε is shared between stem and itype)
-        ("ευς", "εως", 3),
-        # 1st/2nd declension
-        ("ος", "ου", 2),
-        ("ον", "ου", 2),
-        ("ης", "ου", 2),
-        ("ας", "ου", 2),
-        ("η", "ης", 1),
-        # 3rd declension -ις/-εως (biggest: 4451 entries, πόλις-type)
-        ("ις", "εως", 2),
-        # 3rd declension -υς/-εως (πῆχυς-type, NOT -ευς which is above)
-        ("υς", "εως", 2),
-        # 3rd declension -ης/-ους (Attic, e.g. Σωκράτης)
-        ("ης", "ους", 2),
-        # 3rd declension -ης/-ητος
-        ("ης", "ητος", 2),
-        # 3rd declension -ως/-ω (Attic, e.g. ἥρως)
-        ("ως", "ωος", 2),
-    ]
-
-    for nom_end, gen_itype, strip_n in STRIP_RULES:
-        if hw_plain.endswith(nom_end) and it_plain == strip_diacritics(gen_itype):
-            return headword[:-strip_n] + itype
-
-    # Default: strip 1 char (the final case marker) and append itype.
-    # Works for most 3rd declension patterns where itype starts from
-    # the oblique stem consonant:
-    #   -μα + ατος → -ματος (strip α, append ατος)
-    #   -ίς + ίδος → -ίδος (strip ς, append... wait, ίδος)
-    #   -ήρ + ῆρος → -ῆρος (strip ρ... hmm)
-    #
-    # Actually for consonant stems, strip 1 often leaves extra chars.
-    # Try strip 2 if itype starts with a char that matches the second-to-last
-    # char of the headword (accent-free).
-    if len(hw_plain) >= 2 and len(it_plain) >= 1:
-        if hw_plain[-2] == it_plain[0]:
-            # The itype "restarts" from a character that's already in the headword
-            # e.g. ἐλπίς + ίδος: ί matches → strip 2, append ίδος
-            return headword[:-2] + itype
-    return headword[:-1] + itype
+    """Complete only explicit, supported LSJ genitive abbreviations."""
+    hw_plain, it_plain = strip_diacritics(headword), strip_diacritics(itype)
+    for nom_end, gen_suffix, count in _GENITIVE_SUFFIX_RULES:
+        if hw_plain.endswith(nom_end) and it_plain == gen_suffix:
+            prefix = _drop_letters(headword, count)
+            if prefix and any(c in "\u0313\u0314" for c in unicodedata.normalize("NFD", itype)):
+                # A breathing on an abbreviated suffix would become medial.
+                # Preserve the source field for review; do not correct it here.
+                return ""
+            # Repeated letters retain their lexical diaeresis, breathing,
+            # subscript, and length. Tone placement belongs to the module.
+            ending = _letter_clusters(itype)
+            for index, (old, new) in enumerate(zip(_letter_clusters(headword)[-count:], ending)):
+                if old[0] != new[0]:
+                    break
+                ending[index] += "".join(c for c in old[1:]
+                    if c not in "\u0300\u0301\u0342" and c not in new)
+            itype = unicodedata.normalize("NFC", "".join(ending))
+            # A supplied accent takes precedence over the nominative accent.
+            # Lua then adjusts it for the generated case and syllable length.
+            if any(c in "\u0300\u0301\u0342" for c in unicodedata.normalize("NFD", itype)):
+                prefix = _unaccented_verb_stem(prefix)
+            return unicodedata.normalize("NFC", prefix + itype)
+    return ""
 
 
 def parse_lsj_entries():
@@ -503,35 +533,48 @@ def load_wiktionary_forms():
 
 
 def load_wiktionary_genitives():
-    """Load genitive forms from Wiktionary for cross-referencing with LSJ.
+    """Merge every exact genitive variant from both Wiktionary editions.
 
-    Returns {headword: genitive_form} for nouns/adjectives that have
-    genitive singular forms tagged in Wiktionary.
+    Read the original extracts: training pairs also contain synthetic monotonic
+    spellings. An omitted number is singular in these noun table exports;
+    explicitly plural and dual cells are excluded. No variant wins by order.
     """
     genitives = {}
-    if not KAIKKI_AG.exists():
-        return genitives
-    with open(KAIKKI_AG, encoding="utf-8") as f:
-        for line in f:
-            try:
+    for path in (KAIKKI_AG, KAIKKI_AG_EL):
+        if not path.exists():
+            raise FileNotFoundError(f"both Wiktionary genitive sources are required: {path}")
+        with path.open(encoding="utf-8") as f:
+            for line in f:
                 e = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            word = e.get("word", "")
-            pos = e.get("pos", "")
-            if pos not in ("noun", "adj"):
-                continue
-            forms = e.get("forms", [])
-            for fe in forms:
-                tags = fe.get("tags", [])
-                form = strip_length_marks(fe.get("form", ""))
-                if "genitive" in tags and "singular" in tags and form:
-                    # Strip article prefix if present (e.g. "τῆς κυνός" -> "κυνός")
-                    if " " in form:
-                        form = form.split()[-1]
-                    genitives[strip_length_marks(word)] = form
-                    break
-    return genitives
+                if e.get("pos") not in ("noun", "adj", "name"):
+                    continue
+                word = strip_length_marks(e.get("word", ""))
+                for fe in e.get("forms", []):
+                    tags = set(fe.get("tags", []))
+                    form = strip_length_marks(fe.get("form", ""))
+                    if ("genitive" not in tags or tags & {"plural", "dual"}
+                            or not form or _genitive_is_junk(form)):
+                        continue
+                    genitives.setdefault(word, set()).add(form)
+    return {word: tuple(sorted(forms)) for word, forms in genitives.items()}
+
+
+def noun_generation_input_hashes(include_lsj=True):
+    """Pin the exact extraction and Lua inputs needed by a noun audit."""
+    paths = {"wiktionary_en": KAIKKI_AG, "wiktionary_el": KAIKKI_AG_EL,
+             "wtp": WTP_DB, "wtp_pickle": WTP_DB.with_suffix(".db.pickle")}
+    if include_lsj:
+        paths.update(lsj9_forms=LSJ9_FORMS, lsj9_headwords=LSJ9_HEADWORDS)
+    hashes = {}
+    for key, path in paths.items():
+        with path.open("rb") as stream:
+            hashes[key] = hashlib.file_digest(stream, "sha256").hexdigest()
+    return hashes
+
+
+def _genitive_variants(headword, genitives):
+    value = (genitives or {}).get(strip_length_marks(headword), ())
+    return (value,) if isinstance(value, str) else tuple(value)
 
 
 def infer_genitive(headword, gender, wikt_genitives=None):
@@ -543,10 +586,10 @@ def infer_genitive(headword, gender, wikt_genitives=None):
     3. 3rd declension heuristics (lower confidence)
     """
     # Check Wiktionary cross-reference first
-    if wikt_genitives:
-        hw_clean = strip_length_marks(headword)
-        if hw_clean in wikt_genitives:
-            return wikt_genitives[hw_clean]
+    headword = unicodedata.normalize("NFC", headword)
+    variants = _genitive_variants(headword, wikt_genitives)
+    if variants:
+        return variants[0] if len(variants) == 1 else ""
 
     hw_plain = strip_diacritics(headword)
 
@@ -735,14 +778,64 @@ def _genitive_is_junk(gen):
     return not _GREEK_GENITIVE.match(g)
 
 
+def resolve_noun_genitive(headword, gender, supplied="", wikt_genitives=None):
+    """Resolve a full genitive without silently choosing a dialect/homograph.
+
+    LSJ supplies both complete forms and abbreviated endings. The Lua module
+    requires a complete form; its generic consonant declension otherwise
+    mistakes an abbreviation for the entire stem.
+    """
+    headword = unicodedata.normalize("NFC", headword)
+    supplied = unicodedata.normalize("NFC", supplied.strip())
+    if any(c.isspace() or c in ",;" for c in headword):
+        return "", "nonlexical-noun-headword"
+    variants = _genitive_variants(headword, wikt_genitives)
+    if not supplied or _genitive_is_junk(supplied):
+        if len(variants) > 1:
+            return "", "ambiguous-wiktionary-genitive"
+        inferred = infer_genitive(headword, gender, wikt_genitives)
+        return (inferred, "") if inferred else ("", "missing-genitive")
+
+    # Independent exact agreement also proves irregular complete forms whose
+    # oblique stem has no simple correspondence (for example Ζεύς / Διός).
+    if supplied in variants:
+        return supplied, ""
+    hw_plain, gen_plain = strip_diacritics(headword), strip_diacritics(supplied)
+    reconstructed = build_genitive_from_itype(headword, supplied)
+    full_regular = any(
+        hw_plain.endswith(nom_end) and gen_plain.endswith(gen_suffix)
+        and hw_plain[:-count] + gen_suffix == gen_plain
+        for nom_end, gen_suffix, count in _GENITIVE_SUFFIX_RULES
+    )
+    full_ending = (
+        hw_plain.endswith(("ς", "ν", "ρ", "ξ", "ψ")) and gen_plain.endswith("ος")
+        and not (hw_plain.endswith("ος") and not gen_plain.endswith("εος"))
+    ) or (hw_plain.endswith("ω") and gender == "f" and gen_plain.endswith("ους"))
+    if (not reconstructed and (full_regular or full_ending) and len(gen_plain) > 2
+            and len(gen_plain) >= len(hw_plain) - 1
+            and hw_plain[:2] == gen_plain[:2]
+            and hw_plain.replace("-", "") != gen_plain.replace("-", "")):
+        return supplied, ""
+
+    if not reconstructed:
+        return "", "unsupported-genitive-abbreviation"
+    if variants:
+        compatible = tuple(form for form in variants
+                           if strip_diacritics(form).endswith(gen_plain)
+                           and (not any(c in "\u0300\u0301\u0342" for c in unicodedata.normalize("NFD", supplied))
+                                or strip_length_marks(form).endswith(strip_length_marks(supplied))))
+        if len(compatible) != 1:
+            return "", "conflicting-wiktionary-genitive"
+        return compatible[0], ""
+    return reconstructed, ""
+
+
 def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
     """Expand a noun using grc-decl, caching identical lexical requests."""
-    # A junk LSJ genitive (article, dialect note, "**" markup, fragment) can't
-    # match a declension, so discard it and infer from the nominative instead.
-    if genitive and _genitive_is_junk(genitive):
-        genitive = ""
-    if not genitive:
-        genitive = infer_genitive(headword, gender, wikt_genitives)
+    headword = unicodedata.normalize("NFC", headword)
+    genitive, error = resolve_noun_genitive(headword, gender, genitive, wikt_genitives)
+    if error:
+        return set(), error
 
     # Include the resolved genitive: explicit and inferred identical requests
     # share a result, while differently marked lexical inputs remain distinct.
@@ -772,12 +865,23 @@ def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
     except Exception as e:
         return set(), str(e)
 
-    forms = parse_html_forms(html, headword)
+    # The table's notes describe historical clusters such as *-δς. They are
+    # not paradigm cells and must never become dictionary forms.
+    lines = []
+    in_notes = False
+    for line in html.splitlines(keepends=True):
+        if line.startswith(('! class="notes-header"', '| class="notes"')):
+            in_notes = True
+        if in_notes and line.startswith(("|-", "|}")):
+            in_notes = False
+        if not in_notes:
+            lines.append(line)
+    forms = parse_html_forms("".join(lines), headword)
 
     if forms:
         _NOUN_CACHE[cache_key] = frozenset(forms)
 
-    return forms, ""
+    return forms, "" if forms else "empty-noun-paradigm"
 
 
 # Present-system cache for identical lexical requests, with all marks intact.
@@ -1570,6 +1674,7 @@ def expand_all():
     """Expand LSJ-only nouns and merge into ag_lookup.json."""
     import time
 
+    input_hashes = noun_generation_input_hashes()
     print("Loading data...")
     lsj_entries = parse_lsj_entries()
     wikt = load_wiktionary_forms()
@@ -1586,6 +1691,9 @@ def expand_all():
 
     # Find LSJ-only nouns with gender
     candidates = []
+    genitive_audit = {}
+    withheld = Counter()
+    superseded = set()
     for hw, entry in lsj_entries.items():
         if has_editorial_sigla(hw):
             continue
@@ -1593,8 +1701,17 @@ def expand_all():
             continue  # already covered by Wiktionary
         if not entry["gender"]:
             continue  # no gender = can't decline
-        if not entry["genitive"] and not infer_genitive(hw, entry["gender"], wikt_genitives):
-            continue  # no genitive info at all
+        supplied = entry["genitive"]
+        resolved, error = resolve_noun_genitive(hw, entry["gender"], supplied,
+                                               wikt_genitives)
+        if supplied and not _genitive_is_junk(supplied) and (error or resolved != supplied):
+            superseded.add(sanitize_form(hw))
+        if error or resolved != supplied:
+            genitive_audit[hw] = {"supplied": supplied, "resolved": resolved,
+                                  "reason": error or "completed-genitive"}
+        if error:
+            withheld[error] += 1
+            continue
         candidates.append(hw)
 
     print(f"LSJ-only nouns to expand: {len(candidates):,}")
@@ -1602,6 +1719,7 @@ def expand_all():
     wtp = get_wtp()
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0}
+    failures = Counter()
     t0 = time.time()
 
     for i, hw in enumerate(candidates):
@@ -1611,6 +1729,7 @@ def expand_all():
 
         if err or not forms:
             stats["failed"] += 1
+            failures[err or "empty-noun-paradigm"] += 1
             continue
 
         stats["expanded"] += 1
@@ -1651,6 +1770,8 @@ def expand_all():
     print(f"\nDone in {elapsed:.0f}s")
     print(f"  Expanded: {stats['expanded']:,} / {len(candidates):,} nouns")
     print(f"  Failed: {stats['failed']:,}")
+    print(f"  Withheld before Lua: {dict(sorted(withheld.items()))}")
+    print(f"  Lua failures: {dict(sorted(failures.items()))}")
     print(f"  New forms added: {stats['new_forms']:,}")
     print(f"  Collisions (kept existing): {stats['collisions']:,}")
     print(f"  Lookup size: {original_size:,} -> {len(lookup):,}")
@@ -1662,6 +1783,16 @@ def expand_all():
         json.dump(lookup, f, ensure_ascii=False)
     size_mb = out_path.stat().st_size / (1024 * 1024)
     print(f"  {size_mb:.1f} MB written")
+    audit_path = out_path.with_name("ag_noun_generation_audit.json")
+    audit_path.write_text(json.dumps({
+        "schema_version": 1,
+        "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "input_sha256": input_hashes,
+        "superseded_lemmas": sorted(superseded),
+        "withheld": dict(sorted(withheld.items())),
+        "failures": dict(sorted(failures.items())),
+        "resolutions": dict(sorted(genitive_audit.items())),
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def expand_verbs():
