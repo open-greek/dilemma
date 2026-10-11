@@ -3,7 +3,8 @@ import json
 import pytest
 
 from build.build_grc_lexical_heads import (
-    EDITED_INPUTS, KAIKKI_INPUTS, build_heads, has_definition, normalize_headword,
+    EDITED_INPUTS, KAIKKI_INPUTS, VERNACULAR_INPUTS, build_heads, has_definition,
+    normalize_headword,
 )
 
 
@@ -50,9 +51,10 @@ def test_builder_merges_independent_sources_and_pins_portable_inputs(tmp_path):
     data.mkdir(); kaikki.mkdir()
     for name in EDITED_INPUTS:
         (data / name).write_text(json.dumps(["λόγος"] if name == "dge_headwords.json" else []))
-    for source, relative, language in KAIKKI_INPUTS:
+    for source, relative, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
         path = kaikki / relative; path.parent.mkdir(parents=True, exist_ok=True)
-        word = "ἄνθρωπος" if source == "wiktionary_en_grc" else "σπίτι"
+        word = ("παλάτι" if language == "el" else
+                "ἄνθρωπος" if source == "wiktionary_en_grc" else "σπίτι")
         entries = [{"word": word, "lang_code": language, "pos": "noun",
                     "senses": [{"glosses": ["a person or house"]}]},
                    {"word": "βουλήντοιας", "lang_code": language, "pos": "noun",
@@ -67,6 +69,10 @@ def test_builder_merges_independent_sources_and_pins_portable_inputs(tmp_path):
     assert first == second
     assert set(first["heads"]) == {"λόγος", "ἄνθρωπος", "σπίτι", "γία", "τιθήνημα"}
     assert first["heads"]["σπίτι"] == ["wiktionary_el_grc", "wiktionary_el_medieval"]
+    assert first["schema_version"] == 2
+    assert first["vernacular_heads"] == {
+        "παλάτι": ["wiktionary_el_el", "wiktionary_en_el"]}
+    assert "παλάτι" not in first["heads"]
     assert all(len(row["sha256"]) == 64 for row in first["inputs"].values())
     assert str(tmp_path) not in json.dumps(first)
 
@@ -74,3 +80,15 @@ def test_builder_merges_independent_sources_and_pins_portable_inputs(tmp_path):
 def test_builder_fails_closed_without_an_input(tmp_path):
     with pytest.raises(FileNotFoundError):
         build_heads(tmp_path, tmp_path, tmp_path / "lsj.json")
+
+
+def test_loader_requires_separate_vernacular_evidence(tmp_path):
+    from export_hunspell import load_grc_lexical_heads, lexical_head_key
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({"schema_version": 1, "heads": {"λόγος": ["test"]}}))
+    with pytest.raises(ValueError):
+        load_grc_lexical_heads(path)
+    path.write_text(json.dumps({"schema_version": 2, "heads": {"λόγος": ["test"]},
+                               "vernacular_heads": {"παλάτι": ["test"]}}))
+    assert load_grc_lexical_heads(path) == frozenset({lexical_head_key("λόγος")})
+    assert load_grc_lexical_heads(path, vernacular=True) == frozenset({lexical_head_key("παλάτι")})

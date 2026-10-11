@@ -1500,13 +1500,16 @@ def lexical_head_key(text: str) -> str:
     ))
 
 
-def load_grc_lexical_heads(path: Path = GRC_LEXICAL_HEADS) -> frozenset[str]:
+def load_grc_lexical_heads(path: Path = GRC_LEXICAL_HEADS, *,
+                           vernacular: bool = False) -> frozenset[str]:
     """Load the pinned positive definitions; missing evidence fails closed."""
     with path.open(encoding="utf-8") as stream:
         payload = json.load(stream)
-    if payload.get("schema_version") != 1 or not payload.get("heads"):
+    if (payload.get("schema_version") != 2 or not payload.get("heads")
+            or not payload.get("vernacular_heads")):
         raise ValueError(f"invalid lexical-head evidence: {path}")
-    return frozenset(lexical_head_key(head) for head, sources in payload["heads"].items()
+    field = "vernacular_heads" if vernacular else "heads"
+    return frozenset(lexical_head_key(head) for head, sources in payload[field].items()
                      if sources and corpus_lexical_evidence_is_clean(head))
 
 
@@ -1548,6 +1551,7 @@ def add_postclassical_corpus_forms(
     pairs: list[tuple[str, str]], conn: sqlite3.Connection,
     dev_spellings: Counter, *, profile_path: Path = FORM_PROFILE_DB,
     lexical_heads: frozenset[str] | None = None,
+    vernacular_heads: frozenset[str] | None = None,
 ) -> tuple[list[tuple[str, str]], list[dict]]:
     """Admit exact, independently evidenced spellings outside the AG lookup.
 
@@ -1557,6 +1561,9 @@ def add_postclassical_corpus_forms(
     """
     if lexical_heads is None:
         lexical_heads = load_grc_lexical_heads()
+    if vernacular_heads is None:
+        vernacular_heads = load_grc_lexical_heads(vernacular=True)
+    supported_vernacular_heads = lexical_heads | vernacular_heads
     existing = {cased_form_key(f) for f, _ in pairs}
     heldout_by_form: Counter = Counter()
     for spelling, count in dev_spellings.items():
@@ -1581,7 +1588,8 @@ def add_postclassical_corpus_forms(
             lemma = exact_inflection_lemma(conn, form, raw, lexical_heads=lexical_heads)
             # The curated vernacular corpus is not OCR. Its dictionary-listed
             # lowercase words remain usable at one token (e.g. σπίτι,
-            # στέκομαι); a capital self-map is not proof of a proper name.
+            # στέκομαι), including independently defined Modern heads. That
+            # evidence is scoped here; a capital self-map is not proof of a name.
             if (lemma is None and not form[:1].isupper()
                     and sources.get("byzantine_vernacular", 0) > heldout):
                 row = conn.execute(
@@ -1590,7 +1598,7 @@ def add_postclassical_corpus_forms(
                 ).fetchone()
                 if (row and not row[0][:1].isupper()
                         and corpus_lexical_evidence_is_clean(row[0])
-                        and lexical_head_key(row[0]) in lexical_heads):
+                        and lexical_head_key(row[0]) in supported_vernacular_heads):
                     lemma = row[0]
             if lemma is None and postclassical_spelling_reason(form) is not None:
                 continue

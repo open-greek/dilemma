@@ -1537,7 +1537,8 @@ def test_postclassical_loader_uses_lexical_and_independent_corpus_evidence(tmp_p
                          *[(f, f, "grc") for f in ("Ἰωάννς", "Ἰσσάκ", "Νατθαῖος")]])
     out, audit = add_postclassical_corpus_forms([], lookup, Counter({"καθόλου":1}),
                                                 profile_path=profile, lexical_heads=frozenset(map(lexical_head_key,
-                                                    ["σπίτι", "Σωκράτης", "σπάνιος", "καθόλου"])))
+                                                    ["Σωκράτης", "σπάνιος", "καθόλου"])),
+                                                vernacular_heads=frozenset({lexical_head_key("σπίτι")}))
     assert {form for form, _ in out} == {"πανάγιον", "σπανίως", "σπίτι", "Σωκράτους"}
     assert {row["reason"] for row in audit} == {"repeated_multiple_sources", "attested_lexical_form"}
 
@@ -1686,7 +1687,8 @@ def test_corpus_admission_rejects_notation_even_with_repeated_evidence(tmp_path)
                          (i, 100, json.dumps({"glaux": 100, "pta": 100}), 50, "noun"))
     lookup = _lookup_db([(form, lemma, "grc") for form, lemma in rows])
     out, audit = add_postclassical_corpus_forms([], lookup, Counter(), profile_path=profile,
-        lexical_heads=frozenset(lexical_head_key(l) for _f, l in rows))
+        lexical_heads=frozenset(lexical_head_key(l) for _f, l in rows),
+        vernacular_heads=frozenset())
     assert {form for form, _lemma in out} == {form for form, _lemma in good}
     assert len(audit) == len(good)
 
@@ -1706,6 +1708,34 @@ def test_sparse_inflection_requires_an_independently_defined_head():
     assert lexical_head_key("λογος") in heads
     assert lexical_head_key("ἀνανήψις") == lexical_head_key("ἀνάνηψις")
     assert lexical_head_key("ἀνάνηψις") != lexical_head_key("ἁνάνηψις")
+
+
+def test_modern_head_evidence_is_scoped_to_edited_vernacular(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import add_postclassical_corpus_forms, lexical_head_key
+    rows = [("παλάτια", "παλάτι", {"byzantine_vernacular": 1}),
+            ("παλατιών", "παλάτι", {"pg": 1}),
+            ("Παλάτια", "παλάτι", {"byzantine_vernacular": 1}),
+            ("παλάττια", "ἀδήλωτο", {"byzantine_vernacular": 1}),
+            ("συγγράμμματα", "σύγγραμμα", {"byzantine_vernacular": 1}),
+            ("σπίτι", "σπίτι", {"byzantine_vernacular": 1})]
+    profile = tmp_path / "profile.db"
+    with sqlite3.connect(profile) as conn:
+        conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
+                           "CREATE TABLE form_profile(form_id INTEGER,total_count INTEGER,"
+                           "source_counts_json TEXT,n_works INTEGER,dominant_pos TEXT);")
+        for i, (form, _lemma, sources) in enumerate(rows):
+            conn.execute("INSERT INTO forms VALUES(?,?)", (i, form))
+            conn.execute("INSERT INTO form_profile VALUES(?,?,?,?,?)",
+                         (i, 1, json.dumps(sources), 1, "noun"))
+    lookup = _lookup_db([(form, lemma, "grc") for form, lemma, _sources in rows])
+    heads = frozenset(map(lexical_head_key, ["παλάτι", "σύγγραμμα", "σπίτι"]))
+    out, audit = add_postclassical_corpus_forms(
+        [], lookup, Counter({"σπίτι": 1}), profile_path=profile,
+        lexical_heads=frozenset(), vernacular_heads=heads)
+    assert out == [("παλάτια", "παλάτι")]
+    assert audit[0]["reason"] == "attested_lexical_form"
 
 
 def test_reviewed_source_forms_preserve_valid_surfaces_with_corrupt_annotations():

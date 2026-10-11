@@ -5,6 +5,8 @@ Run with ``--kaikki DIR --lsj9-headwords FILE`` after refreshing the source
 extracts. Pure inflection/alternative-form entries and generated headword
 unions are not independent definitions. The output records only headwords,
 portable source identifiers, and hashes, never dictionary definitions.
+Modern Greek definitions are stored separately for the existing edited
+vernacular fallback; they do not authorize sparse Ancient corpus inflections.
 """
 from __future__ import annotations
 
@@ -27,6 +29,10 @@ KAIKKI_INPUTS = (
     ("wiktionary_en_grc", "en-el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
     ("wiktionary_el_grc", "el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
     ("wiktionary_el_medieval", "el/kaikki.org-dictionary-MedievalGreek.jsonl", "gkm"),
+)
+VERNACULAR_INPUTS = (
+    ("wiktionary_en_el", "en-el/kaikki.org-dictionary-Greek-words.jsonl", "el"),
+    ("wiktionary_el_el", "el/kaikki.org-dictionary-Greek.jsonl", "el"),
 )
 EDITED_INPUTS = (
     "dge_headwords.json", "cunliffe_headwords.json", "lgpn_names.json",
@@ -90,6 +96,7 @@ def has_definition(entry: dict, source: str = "en") -> bool:
 
 def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
     heads: dict[str, set[str]] = defaultdict(set)
+    vernacular_heads: dict[str, set[str]] = defaultdict(set)
     inputs, counts = {}, Counter()
 
     def pin(source: str, path: Path) -> None:
@@ -97,21 +104,22 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
             raise FileNotFoundError(f"required lexical source missing: {source}")
         inputs[source] = {"sha256": sha256(path), "size": path.stat().st_size}
 
-    def add(text: str, source: str) -> None:
+    def add(text: str, source: str, target: dict[str, set[str]] = heads) -> None:
         word = normalize_headword(text)
         if word:
-            heads[word].add(source)
+            target[word].add(source)
             counts[source] += 1
 
-    for source, relative, language in KAIKKI_INPUTS:
+    for source, relative, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
         path = kaikki / relative
         pin(source, path)
         with path.open(encoding="utf-8") as stream:
             for line in stream:
                 entry = json.loads(line)
                 if (entry.get("lang_code") == language
-                        and has_definition(entry, "en" if source == "wiktionary_en_grc" else "el")):
-                    add(entry["word"], source)
+                        and has_definition(entry, "en" if source.startswith("wiktionary_en_") else "el")):
+                    add(entry["word"], source,
+                        vernacular_heads if language == "el" else heads)
 
     for name in EDITED_INPUTS:
         source = name.removesuffix(".json")
@@ -140,12 +148,14 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
             if orth is not None and orth.text:
                 add(orth.text, source)
 
-    return {"schema_version": 1, "builder_sha256": sha256(Path(__file__)),
+    return {"schema_version": 2, "builder_sha256": sha256(Path(__file__)),
             "source_sha256": {name: sha256(ROOT / name) for name in
                               ("build_data.py", "dilemma/form_sanitize.py")},
             "inputs": dict(sorted(inputs.items())),
             "source_head_counts": dict(sorted(counts.items())),
-            "heads": {word: sorted(heads[word]) for word in sorted(heads)}}
+            "heads": {word: sorted(heads[word]) for word in sorted(heads)},
+            "vernacular_heads": {word: sorted(vernacular_heads[word])
+                                 for word in sorted(vernacular_heads)}}
 
 
 def main() -> None:
@@ -160,7 +170,9 @@ def main() -> None:
     result = build_heads(args.kaikki, args.data, args.lsj9_headwords)
     args.output.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True,
                                       separators=(",", ":")) + "\n", encoding="utf-8")
-    print(f"Lexical heads: {len(result['heads']):,}; inputs: {len(result['inputs'])}")
+    print(f"Lexical heads: {len(result['heads']):,}; "
+          f"vernacular heads: {len(result['vernacular_heads']):,}; "
+          f"inputs: {len(result['inputs'])}")
     print(f"Output SHA-256: {sha256(args.output)}")
 
 
