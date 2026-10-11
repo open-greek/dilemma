@@ -32,6 +32,7 @@ data/el_noun_heads.json
 data/el_verb_heads.json
 data/grc_lexical_heads.json
 data/lsj9_pos_lookup.json
+data/el_closed_class_heads.json
 # PROIEL is CC BY-NC-SA; never ingested, kept out of the openly-licensed repo
 data/proiel_pairs.json
 data/spell_index.db

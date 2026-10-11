@@ -21,7 +21,7 @@ DATA_DIR = ROOT / "data"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from build_data import (training_pair_headword_errors, validate_noun_head_inventory,
-                        validate_verb_head_inventory)
+                        validate_verb_head_inventory, validate_closed_class_head_inventory)
 
 
 def check_lookup_no_chains(lookup: dict) -> tuple[int, int, list[str]]:
@@ -48,6 +48,17 @@ def check_lookup_lemmas_are_headwords(lookup: dict) -> tuple[int, int, list[str]
     return len(missing), len(lemmas), examples
 
 
+def built_closed_class_heads(pairs: list, lookup: dict, data_dir: Path) -> dict:
+    """Require published positive evidence for typed non-flat closed heads."""
+    if not any(p.get("pos") in {"det", "pron"}
+               and p["lemma"] in lookup and lookup[p["lemma"]] != p["lemma"]
+               for p in pairs):
+        return {}
+    return validate_closed_class_head_inventory(
+        json.loads((data_dir / "el_closed_class_heads.json").read_text(encoding="utf-8")),
+        json.loads((data_dir / "mg_pos_lookup.json").read_text(encoding="utf-8")))
+
+
 
 def test_modern_training_pair_heads_have_real_source_evidence():
     """Run the actual pair/flat-lookup invariant in the normal pytest suite."""
@@ -65,7 +76,9 @@ def test_modern_training_pair_heads_have_real_source_evidence():
     verb_heads = validate_verb_head_inventory(json.loads(verb_path.read_text(encoding="utf-8")))
     pairs = json.loads(pairs_path.read_text(encoding="utf-8"))
     lookup = json.loads(lookup_path.read_text(encoding="utf-8"))
-    bad, examples = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads)
+    closed_heads = built_closed_class_heads(pairs, lookup, DATA_DIR)
+    bad, examples = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads,
+                                                 closed_heads)
     assert bad == 0, f"{bad} unsupported training pair heads: {examples}"
 
 def get_known_pairs() -> list[dict]:
@@ -214,7 +227,7 @@ def run_lookup_tests():
             continue
         pairs = json.load(open(pairs_path, encoding="utf-8"))
         lookup = json.load(open(lookup_path, encoding="utf-8"))
-        noun_heads, verb_heads = set(), set()
+        noun_heads, verb_heads, closed_heads = set(), set(), {}
         if prefix == "mg":
             evidence_path = DATA_DIR / "el_noun_heads.json"
             try:
@@ -229,7 +242,13 @@ def run_lookup_tests():
             except (OSError, ValueError) as error:
                 results.append(("FAIL", "MG verb-head evidence"))
                 print(f"  [FAIL] MG verb-head evidence: {error}")
-        bad, bad_ex = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads)
+            try:
+                closed_heads = built_closed_class_heads(pairs, lookup, DATA_DIR)
+            except (OSError, ValueError) as error:
+                results.append(("FAIL", "MG closed-class head evidence"))
+                print(f"  [FAIL] MG closed-class head evidence: {error}")
+        bad, bad_ex = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads,
+                                                   closed_heads)
         status = "PASS" if bad == 0 else "FAIL"
         results.append((status, f"{name} training pair lemmas clean"))
         print(f"\n  [{status}] {name} training pair lemmas clean: {bad}/{len(pairs)} dirty")

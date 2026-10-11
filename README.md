@@ -393,6 +393,17 @@ no-gloss relation alone also cannot make a terminal finite verb: its explicit
 source references must reach a positively defined finite parent. Missing support
 fails the build. These companions validate morphology ownership; they do
 not change the runtime lookup or its POS table.
+Modern reference rows retain their own sense's grammatical and usage tags,
+rather than reducing every reference to `form-of` or `alt-of`. Distinct source
+cells remain separate. Independently defined determiner and pronoun heads also
+retain their own POS-specific morphology when the flat homograph is a verb:
+`πάση` keeps its dative tags and determiner owner `πας`, while the verb `πας`
+still resolves to `πηγαίνω`. The extraction-generated
+`data/el_closed_class_heads.json` records exact same-POS source definitions and
+input hashes for non-flat heads. Built-data integrity checks require this
+positive evidence and an exact matching DET or PRON self-target in
+`mg_pos_lookup.json`; form-only, spelling-reference, and no-gloss entries cannot
+authorize an exception. The scalar lookup remains unchanged.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms

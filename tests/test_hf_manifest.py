@@ -81,3 +81,10 @@ def test_hashes_match_the_hub_encoding(tmp_path):
     assert got["size"] == 7
     assert got["sha256"] == hashlib.sha256(b"dilemma").hexdigest()
     assert got["git_sha1"] == hashlib.sha1(b"blob 7\0dilemma").hexdigest()
+
+
+def test_closed_class_companion_is_published_and_generated():
+    assert "data/el_closed_class_heads.json" in hf_data.TRACKED
+    assert "data/el_closed_class_heads.json" in (ROOT / ".gitignore").read_text()
+    source = (ROOT / "build_data.py").read_text()
+    assert 'DATA_DIR / "el_closed_class_heads.json"' in source

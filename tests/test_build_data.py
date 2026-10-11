@@ -14,7 +14,199 @@ from build_data import (Abbreviations, _parse_verb_tense, apply_participle_refer
                         preserve_finite_verb_heads, resolve_pair_lemma,
                         spelling_target, standalone_participle_inventory,
                         vowel_groups, noun_head_inventory,
-                        validate_noun_head_inventory, training_pair_headword_errors)
+                        validate_noun_head_inventory, training_pair_headword_errors,
+                        validate_closed_class_head_inventory, closed_class_head_inventory,
+                        closed_class_head_evidence, is_independent_closed_class_entry)
+
+
+def test_modern_form_reference_preserves_its_own_dative_tags(tmp_path):
+    dump = _write(tmp_path, [{
+        "word": "πάση", "pos": "det",
+        "forms": [{"form": "pási", "tags": ["romanization"]}],
+        "senses": [{"glosses": ["feminine dative singular of πας (pas)"],
+                    "tags": ["archaic", "dative", "feminine", "form-of", "rare", "singular"],
+                    "form_of": [{"word": "πας"}]}],
+    }])
+    pairs, lookup, *_ = extract_pairs(dump, "el-en")
+    pair, = [p for p in pairs if p["form"] == "πάση"]
+    assert pair == {"form": "πάση", "lemma": "πας", "pos": "det",
+                    "tags": ["archaic", "dative", "feminine", "form-of", "rare", "singular"]}
+    # Tags do not change the existing flat closed-class/homograph behavior.
+    assert lookup["πάση"][0] == "πας"
+    flat = {"πας": ("πηγαίνω", 1), "πηγαίνω": ("πηγαίνω", 3)}
+    cleaned, = clean_training_pairs([pair], flat, preserve_cells=True)
+    assert cleaned["lemma"] == "πηγαίνω" and "dative" in cleaned["tags"]
+
+
+@pytest.mark.parametrize("relation", ["form_of", "alt_of"])
+def test_modern_reference_cells_stay_per_sense_and_target(tmp_path, relation):
+    senses = [
+        {relation: [{"word": "α"}], "tags": ["genitive", "singular"]},
+        {relation: [{"word": "α"}], "tags": ["accusative", "plural"]},
+        {relation: [{"word": "β"}], "tags": ["vocative", "singular"]},
+    ]
+    expected = {
+        ("α", frozenset({relation.replace("_", "-"), "archaic", "genitive", "singular"})),
+        ("α", frozenset({relation.replace("_", "-"), "archaic", "accusative", "plural"})),
+        ("β", frozenset({relation.replace("_", "-"), "archaic", "vocative", "singular"})),
+    }
+    for ordered in (senses, list(reversed(senses))):
+        dump = _write(tmp_path, [{"word": "τύπος", "pos": "noun", "tags": ["archaic"],
+                                 "senses": ordered}])
+        pairs, *_ = extract_pairs(dump, "el-en")
+        assert {(p["lemma"], frozenset(p["tags"])) for p in pairs
+                if relation.replace("_", "-") in p["tags"]} == expected
+
+
+def test_reference_metadata_keeps_ancient_pairs_and_untagged_modern_rows_stable(tmp_path):
+    dump = _write(tmp_path, [{"word": "τύπος", "pos": "noun", "tags": ["archaic"],
+                             "senses": [{"form_of": [{"word": "λέξη"}],
+                                         "tags": ["dative", "singular"]}]}])
+    pairs, *_ = extract_pairs(dump, "grc-en")
+    assert next(p for p in pairs if p["lemma"] == "λέξη")["tags"] == ["form-of"]
+    dump = _write(tmp_path, [{"word": "τύπος", "pos": "noun",
+                             "senses": [{"form_of": [{"word": "λέξη"}]}]}])
+    pairs, *_ = extract_pairs(dump, "el-en")
+    assert next(p for p in pairs if p["lemma"] == "λέξη")["tags"] == ["form-of"]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_independent_determiner_and_pronoun_heads_keep_typed_ownership(tmp_path, reverse):
+    entries = [
+        {"word": "πας", "pos": "det", "senses": [{"glosses": ["every, any"]}],
+         "forms": [{"form": "πας", "tags": ["nominative", "singular"]}]},
+        {"word": "πας", "pos": "pron", "senses": [{"glosses": ["κάθε, όλος"]}]},
+        {"word": "πας", "pos": "verb",
+         "senses": [{"form_of": [{"word": "πηγαίνω"}],
+                     "tags": ["present", "second-person", "singular"]}]},
+        {"word": "πάση", "pos": "det",
+         "senses": [{"form_of": [{"word": "πας"}], "tags": ["dative", "singular"]}]},
+    ]
+    heads = {}
+    pairs, _, _, pos_map, *_ = extract_pairs(_write(tmp_path, entries[::-1] if reverse else entries),
+                                            "el-en", closed_class_heads=heads)
+    assert heads == {"det": {"πας"}, "pron": {"πας"}}
+    flat = {"πας": ("πηγαίνω", 1), "πάση": ("πηγαίνω", 1), "πηγαίνω": ("πηγαίνω", 3)}
+    cleaned = clean_training_pairs(pairs, flat, preserve_cells=True, pos_map=pos_map,
+                                   lemma_pos={"πας": {"det", "pron", "verb"}, "πηγαίνω": {"verb"}},
+                                   closed_class_heads=heads)
+    assert {p["lemma"] for p in cleaned if p["pos"] in {"det", "pron"}} == {"πας"}
+    assert {p["lemma"] for p in cleaned if p["pos"] == "verb"} == {"πηγαίνω"}
+    assert "dative" in next(p for p in cleaned if p["form"] == "πάση")["tags"]
+
+
+def test_closed_class_ownership_requires_positive_same_pos_head(tmp_path):
+    heads = {}
+    entries = [{"word": "τύπος", "pos": "det",
+                "senses": [{"glosses": ["nominative of άλλος"],
+                            "form_of": [{"word": "άλλος"}]}]},
+               {"word": "γνήσιος", "pos": "pron", "senses": [{"tags": ["no-gloss"]}]}]
+    extract_pairs(_write(tmp_path, entries), "el-en", closed_class_heads=heads)
+    assert heads == {}
+    flat = {"τύπος": ("ρήμα", 1), "άλλος": ("άλλος", 3)}
+    pos = {"τύπος": {"DET": "άλλος"}}
+    assert resolve_pair_lemma("τύπος", "det", flat, pos,
+                              closed_class_heads={"pron": {"άλλος"}}) == "ρήμα"
+    assert resolve_pair_lemma("τύπος", "det", flat, pos,
+                              closed_class_heads={"det": {"άλλος"}}) == "άλλος"
+
+
+def test_closed_class_integrity_requires_exact_modern_head_and_typed_self_target():
+    pairs = [{"form": "πάση", "lemma": "πας", "pos": "det", "tags": ["dative"]}]
+    flat = {"πας": "πηγαίνω"}
+    proof = closed_class_head_inventory([{"lemma": "πας", **closed_class_head_evidence(
+        {"word": "πας", "pos": "det", "senses": [{"glosses": ["every, any"]}]}, "en")}],
+        {"πας": ("πηγαίνω", 1)}, {"en": "a" * 64})
+    good = validate_closed_class_head_inventory(proof, {"πας": {"DET": "πας"}})
+    assert training_pair_headword_errors(pairs, flat, closed_class_heads=good)[0] == 0
+    for table, inventory in [
+        ({}, proof), ({"πας": {"VERB": "πας"}}, proof),
+        ({"πας": {"DET": "πηγαίνω"}}, proof),
+        ({"Πας": {"DET": "Πας"}}, proof),
+    ]:
+        with pytest.raises(ValueError):
+            validate_closed_class_head_inventory(inventory, table)
+    assert training_pair_headword_errors([dict(pairs[0], pos="verb")], flat,
+                                         closed_class_heads=good)[0] == 1
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("gloss", ["feminine genitive singular of αυτός", "genitive singular of αυτός",
+                                    "γενική ενικού του αυτός", "alternative spelling of αυτός"])
+def test_closed_class_positive_sense_gate_rejects_unstructured_forms(tmp_path, reverse, gloss):
+    senses = [{"tags": ["no-gloss"]}, {"glosses": [gloss]}]
+    entry = {"word": "αυτής", "pos": "pron", "senses": senses[::-1] if reverse else senses}
+    assert not is_independent_closed_class_entry(entry, "en")
+    heads = {}
+    extract_pairs(_write(tmp_path, [entry]), "el-en", closed_class_heads=heads)
+    assert heads == {}
+
+
+@pytest.mark.parametrize("change", ["nominal", "wrong_pos", "form_gloss", "form_ref", "alt_tag", "no_gloss", "hash"])
+def test_closed_class_inventory_rejects_forged_or_wrong_pos_proof(change):
+    proof = closed_class_head_inventory([{"lemma": "πας", **closed_class_head_evidence(
+        {"word": "πας", "pos": "det", "senses": [{"glosses": ["every, any"]}]}, "en")}],
+        {"πας": ("πηγαίνω", 1)}, {"en": "a" * 64})
+    entry = proof["heads"][0]["evidence"][0]
+    if change == "nominal": entry["pos"] = "noun"
+    elif change == "wrong_pos": proof["heads"][0]["pos"] = "pron"
+    elif change == "form_gloss": entry["senses"][0]["glosses"] = ["genitive singular of άλλος"]
+    elif change == "form_ref": entry["senses"][0]["form_of"] = [{"word": "άλλος"}]
+    elif change == "alt_tag": entry["senses"][0]["tags"] = ["alt-of"]
+    elif change == "no_gloss": entry["senses"][0]["tags"] = ["no-gloss"]
+    elif change == "hash": proof["source_sha256"]["en"] = "wrong"
+    with pytest.raises(ValueError):
+        validate_closed_class_head_inventory(proof, {"πας": {"DET": "πας", "PRON": "πας"}})
+
+
+def test_main_publishes_closed_class_ownership_without_changing_flat_verb(tmp_path, monkeypatch):
+    import build_data
+    source = tmp_path / "source"
+    source.mkdir()
+    entries = [
+        {"word": "πας", "pos": "det", "senses": [{"glosses": ["every, any"]}]},
+        {"word": "πας", "pos": "pron", "senses": [{"glosses": ["κάθε, όλος"]}]},
+        {"word": "πας", "pos": "verb", "senses": [{"form_of": [{"word": "πηγαίνω"}]}]},
+        {"word": "πηγαίνω", "pos": "verb", "senses": [{"glosses": ["go"]}]},
+        {"word": "πάση", "pos": "det", "senses": [{"form_of": [{"word": "πας"}],
+             "tags": ["dative", "feminine", "singular"]}]},
+    ]
+    (source / "en.jsonl").write_text("".join(json.dumps(e, ensure_ascii=False) + "\n"
+                                              for e in entries), encoding="utf-8")
+    (source / "el.jsonl").write_text("", encoding="utf-8")
+    output = tmp_path / "data"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"en": "en.jsonl", "el": "el.jsonl"}})
+    monkeypatch.setattr(build_data.sys, "argv", ["build_data.py", "--lang", "el", "--kaikki", str(source)])
+    build_data.main()
+    flat = json.loads((output / "mg_lookup.json").read_text())
+    typed = json.loads((output / "mg_pos_lookup.json").read_text())
+    assert flat["πας"] == "πηγαίνω"
+    assert typed["πας"]["DET"] == typed["πας"]["PRON"] == "πας"
+    assert typed["πας"]["VERB"] == "πηγαίνω"
+    assert typed["πάση"]["DET"] == "πας"
+    proof = json.loads((output / "el_closed_class_heads.json").read_text())
+    assert validate_closed_class_head_inventory(proof, typed) == {"det": {"πας"}, "pron": {"πας"}}
+    pair = next(p for p in json.loads((output / "mg_pairs.json").read_text())
+                if p["form"] == "πάση" and p["pos"] == "det")
+    assert pair["lemma"] == "πας" and "dative" in pair["tags"]
+
+
+def test_built_closed_head_evidence_is_required_only_for_nonflat_typed_roots(tmp_path, monkeypatch):
+    from pathlib import Path
+    monkeypatch.syspath_prepend(str(Path(__file__).parent))
+    from test_dilemma import built_closed_class_heads
+    pairs = [{"form": "πάση", "lemma": "πας", "pos": "det"}]
+    assert built_closed_class_heads(pairs, {"πας": "πας"}, tmp_path) == {}
+    with pytest.raises(OSError):
+        built_closed_class_heads(pairs, {"πας": "πηγαίνω"}, tmp_path)
+    (tmp_path / "mg_pos_lookup.json").write_text(json.dumps({"πας": {"DET": "πας"}}))
+    proof = closed_class_head_inventory([{"lemma": "πας", **closed_class_head_evidence(
+        {"word": "πας", "pos": "det", "senses": [{"glosses": ["every, any"]}]}, "en")}],
+        {"πας": ("πηγαίνω", 1)}, {"en": "a" * 64})
+    (tmp_path / "el_closed_class_heads.json").write_text(json.dumps(proof))
+    assert built_closed_class_heads(pairs, {"πας": "πηγαίνω"}, tmp_path) == {
+        "det": {"πας"}, "pron": set()}
 
 
 def test_source_merge_prefers_a_lowercase_verb_to_another_sources_name(tmp_path):
@@ -513,13 +705,22 @@ def test_explicit_verb_targets_preserve_all_source_readings(tmp_path):
     assert references["τύπος"] == {"γράφω", "λέω"}
 
 
-def test_named_verb_in_one_sense_does_not_replace_another_senses_target(tmp_path):
-    dump = _write(tmp_path, [{"word": "τύπος", "pos": "verb", "senses": [
+@pytest.mark.parametrize("reverse", [False, True])
+def test_named_verb_in_one_sense_does_not_replace_another_senses_target(tmp_path, reverse):
+    senses = [
         {"form_of": [{"word": "γράμμα"}], "glosses": ["τύπος του ρήματος γράφω"]},
-        {"form_of": [{"word": "λέω"}]}]}])
+        {"form_of": [{"word": "λέω"}]}]
+    dump = _write(tmp_path, [{"word": "τύπος", "pos": "verb",
+                             "senses": senses[::-1] if reverse else senses}])
     references = {}
-    extract_pairs(dump, "el-el", verb_refs=references)
+    pairs, *_ = extract_pairs(dump, "el-el", verb_refs=references)
     assert references["τύπος"] == {"γράφω", "λέω"}
+    assert next(p for p in pairs if p["lemma"] == "γράμμα")["via"] == "γράφω"
+    assert "via" not in next(p for p in pairs if p["lemma"] == "λέω")
+    flat = {w: (w, 3) for w in ("γράμμα", "γράφω", "λέω")}
+    clean = clean_training_pairs(pairs, flat, preserve_cells=True,
+                                 pos_map={w: {"VERB": w} for w in ("γράφω", "λέω")})
+    assert {p["lemma"] for p in clean} == {"γράφω", "λέω"}
 
 
 def test_participle_references_keep_entry_and_sense_provenance(tmp_path):

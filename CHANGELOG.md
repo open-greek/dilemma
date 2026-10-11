@@ -7,6 +7,11 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Modern reference rows preserve per-sense grammatical tags and distinct cells.
+  Independent determiner and pronoun morphology retains its source POS owner
+  even when a flat homograph belongs to a verb. `el_closed_class_heads.json`
+  supplies exact same-POS source evidence for the integrity check; scalar
+  lookup and VERB resolution are unchanged.
 - `el_noun_heads.json` records independent noun senses and source hashes for
   morphology owners that differ from the flat lookup. `el_verb_heads.json`,
   built by `build/build_el_verb_heads.py`, records the corresponding finite

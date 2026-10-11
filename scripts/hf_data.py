@@ -63,6 +63,8 @@ TRACKED = [
     "data/lsj9_pos_lookup.json",
     # Independent lexical heads for sparse Ancient corpus admission.
     "data/grc_lexical_heads.json",
+    # Exact POS-specific source evidence for non-flat Modern morphology.
+    "data/el_closed_class_heads.json",
 ]
 
 _CHUNK = 1 << 20
