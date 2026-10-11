@@ -193,6 +193,8 @@ All notable changes to Dilemma are documented here. The format follows
   source-mislabeled verb rows whose targets are only nominal are omitted.
   Capitalized common-noun and ethnonym paradigms are preserved, and a
   missing reference can use another source's attested verb.
+  Inflection pages that explicitly name their verb preserve its forms
+  despite a mislabeled head page (`δηώ`).
   The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its

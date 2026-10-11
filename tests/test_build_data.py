@@ -9,7 +9,7 @@ import pytest
 from build_data import (Abbreviations, _parse_verb_tense,
                         clean_training_pairs, deduplicate_pairs,
                         drop_abbreviation_targets, extract_pairs,
-                        merge_source_lookups, resolve_cross_source,
+                        merge_pos_maps, merge_source_lookups, resolve_cross_source,
                         resolve_pair_lemma, spelling_target, vowel_groups)
 
 
@@ -146,6 +146,41 @@ def test_missing_verb_reference_can_use_another_sources_verb_evidence():
     lookup["κυμαινόμενος"] = ("κύμα", 1)
     lookup["κύμα"] = ("κύμα", 3)
     assert clean_training_pairs([pair], lookup, True, {}, {"κύμα": {"noun"}}) == []
+
+
+def test_explicit_verb_reference_can_repair_a_mislabeled_head_page(tmp_path):
+    dump = _write(tmp_path, [
+        {"word": "δηώ", "pos": "romanization", "senses": [{"tags": ["no-gloss"]}]},
+        {"word": "δήωσα", "pos": "verb", "forms": [{"form": "δήωσα"}],
+         "senses": [{"glosses": ["α' ενικό οριστικής αορίστου του ρήματος δηώ"],
+                     "form_of": [{"word": "δηώ"}]}]},
+        {"word": "απύθμενος", "pos": "adj", "senses": [{"glosses": ["bottomless"]}]},
+        {"word": "απύθμενου", "pos": "verb", "forms": [{"form": "απύθμενου"}],
+         "senses": [{"glosses": ["γενική ενικού του απύθμενος"],
+                     "form_of": [{"word": "απύθμενος"}]}]},
+        {"word": "χοροστατών", "pos": "adj", "senses": [{"glosses": ["presiding"]}]},
+        {"word": "χοροστατώ", "pos": "verb", "senses": [{"glosses": ["preside"]}]},
+        {"word": "χοροστατούντος", "pos": "verb", "forms": [{"form": "χοροστατούντος"}],
+         "senses": [{"glosses": ["γενική ενικού του χοροστατών (μετοχή του ρήματος χοροστατώ)"],
+                     "form_of": [{"word": "χοροστατών"}]}]},
+    ])
+    lemma_pos = {}
+    pairs, lookup, _, pos_map, *_ = extract_pairs(dump, "el-el", lemma_pos=lemma_pos)
+    clean = clean_training_pairs(pairs, lookup, True, pos_map, lemma_pos)
+    assert any(p["form"] == "δήωσα" and p["lemma"] == "δηώ" and p["pos"] == "verb" for p in clean)
+    assert not any(p["form"] == "απύθμενου" and p["pos"] == "verb" for p in clean)
+    assert lemma_pos["χοροστατών"] == {"adj"}
+    assert any(p["form"] == "χοροστατούντος" and p["lemma"] == "χοροστατώ" for p in clean)
+
+
+def test_other_sources_verb_reference_can_replace_a_participle_self_map():
+    first = {"ισχύων": {"VERB": "ισχύων", "ADJ": "ισχύων"}}
+    second = {"ισχύων": {"VERB": "ισχύω", "ADJ": "ισχύς"}}
+    merge_pos_maps(first, second, prefer_verb_refs=True)
+    assert first["ισχύων"] == {"VERB": "ισχύω", "ADJ": "ισχύων"}
+    legacy = {"ισχύων": {"VERB": "ισχύων"}}
+    merge_pos_maps(legacy, second)
+    assert legacy["ισχύων"]["VERB"] == "ισχύων"
 
 
 def test_main_keeps_noun_case_cells_after_lemma_resolution(tmp_path, monkeypatch):

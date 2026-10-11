@@ -390,6 +390,22 @@ def _add_pos_map(pos_map: dict, form: str, lemma: str, wikt_pos: str):
             pos_map[key][upos] = lemma
 
 
+def merge_pos_maps(target: dict, source: dict, prefer_verb_refs=False):
+    """Retain a second source's verb reference over a self-map.
+
+    One dictionary can describe a participle as its own verb headword
+    (ισχύων), while the other names its verb (ισχύω). Follow that explicit
+    reference before the unqualified lookup chooses the noun ισχύς.
+    """
+    for form, entries in source.items():
+        current = target.setdefault(form, {})
+        for pos, lemma in entries.items():
+            if (pos not in current or
+                    (prefer_verb_refs and pos == "VERB"
+                     and current[pos] == form and lemma != form)):
+                current[pos] = lemma
+
+
 class Abbreviations(NamedTuple):
     """What a Modern Greek dump says of its abbreviations. An abbreviation is
     no form of the word it abbreviates, and its reference must not move a
@@ -746,8 +762,26 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # refs are consistently better-curated, so we use them as
             # the primary source for pass-2 form_of_targets.
             sense_form_of = []
+            named_verb_roots = set()
             for sense in entry.get("senses", []):
                 sense_form_of.extend(sense.get("form_of", []))
+                # A malformed head page may have the wrong POS even when
+                # its inflection pages explicitly identify it as a verb:
+                # δηώ is labeled romanization, but δήωσα says "ρήματος δηώ".
+                # That positive evidence preserves the verb; a nominal
+                # case reference alone does not license a verb lemma.
+                if modern_greek and pos == "verb":
+                    named_verbs = {
+                        to_monotonic(word)
+                        for gloss in sense.get("glosses", [])
+                        for word in re.findall(r"ρήματος\s+(\w+)", gloss.lower())
+                        if _is_greek(word)
+                    }
+                    named_verb_roots.update(named_verbs)
+                    if lemma_pos is not None:
+                        for target in named_verbs:
+                            lemma_pos.setdefault(target, set()).add("verb")
+            verb_target = next(iter(named_verb_roots)) if len(named_verb_roots) == 1 else None
             form_of_refs = sense_form_of + list(top_form_of_for_detection)
 
             for ref in form_of_refs:
@@ -770,13 +804,16 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         if (key and key not in form_of_targets
                                 and not key == ref_word == spelling_of):
                             form_of_targets[key] = ref_word
-                _add_pos_map(pos_map, lemma, ref_word, pos)
-                pairs.append({
+                _add_pos_map(pos_map, lemma, verb_target or ref_word, pos)
+                ref_pair = {
                     "form": lemma,
                     "lemma": ref_word,
                     "pos": pos,
                     "tags": ["form-of"],
-                })
+                }
+                if verb_target:
+                    ref_pair["via"] = verb_target
+                pairs.append(ref_pair)
                 form_of_count += 1
                 ref_targets.append(ref_word)
                 has_data = True
@@ -1026,10 +1063,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # A form page's head line belongs to the referenced word,
                 # even when a noun homograph wins the page's lookup key.
                 # Inflected participle tables belong to that verb too.
-                if (modern_greek and ref_targets
+                if (modern_greek and (ref_targets or verb_target)
                         and ((form == lemma and set(tags) <= _GENDER_TAGS)
                              or pos == "verb")):
-                    pair["via"] = ref_targets[0]
+                    pair["via"] = verb_target or ref_targets[0]
                 pairs.append(pair)
 
                 # Also add monotonic version as a training pair
@@ -1341,12 +1378,7 @@ def main():
             all_pairs.extend(pairs)
             source_lookups.append(("en", lookup, headwords))
             # Merge POS map (first source wins per form+upos)
-            for form, upos_lemmas in pos_map.items():
-                if form not in all_pos_map:
-                    all_pos_map[form] = {}
-                for upos, lemma in upos_lemmas.items():
-                    if upos not in all_pos_map[form]:
-                        all_pos_map[form][upos] = lemma
+            merge_pos_maps(all_pos_map, pos_map, prefer_verb_refs=(lang == "el"))
             # Collect all proper noun forms from EN for corroboration
             if en_path.exists():
                 with open(en_path, encoding="utf-8") as f:
@@ -1378,12 +1410,7 @@ def main():
             all_pairs.extend(pairs)
             source_lookups.append((wikt_lang, lookup, headwords))
             # Merge POS map
-            for form, upos_lemmas in pos_map.items():
-                if form not in all_pos_map:
-                    all_pos_map[form] = {}
-                for upos, lemma in upos_lemmas.items():
-                    if upos not in all_pos_map[form]:
-                        all_pos_map[form][upos] = lemma
+            merge_pos_maps(all_pos_map, pos_map, prefer_verb_refs=(lang == "el"))
 
         # Collect headword sets by source for confidence scoring
         en_headwords = set()

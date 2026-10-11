@@ -324,6 +324,8 @@ The same POS-specific references are followed through spelling pages, so
 its target is attested only as another part of speech; this removes
 misclassified noun and adjective forms without losing their genuine
 nominal rows. Capitalized common-noun and ethnonym paradigms remain.
+An inflection page that explicitly names its verb supplies positive verb
+evidence even when that verb's head page has an incorrect POS (`δηώ`).
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms
