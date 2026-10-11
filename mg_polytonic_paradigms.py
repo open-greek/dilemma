@@ -1264,6 +1264,26 @@ def _different_noun_cells(form: str, lemmas: list[str], paradigms) -> bool:
     return all(cells) and len(set(cells)) > 1
 
 
+def _noun_cell_representatives(form: str, lemmas: list[str], paradigms,
+                               totals: dict[str, int]) -> list[str]:
+    """Keep the closest stem within each identical explicit noun cell set."""
+    letters = bare(form)
+    groups: dict[frozenset, list[str]] = defaultdict(list)
+    for lemma in lemmas:
+        groups[_noun_cells(form, lemma, paradigms)].append(lemma)
+
+    def overlap(lemma):
+        other = bare(lemma)
+        n = 0
+        while n < min(len(letters), len(other)) and letters[n] == other[n]:
+            n += 1
+        return n
+
+    return sorted(min(group, key=lambda l: (-overlap(l), l == form.lower(),
+                                            -totals.get(l, 0), l))
+                  for group in groups.values())
+
+
 def _home_lemma(form: str, lemmas: list[str],
                 paradigms: dict[str, dict[str, frozenset]],
                 totals: dict[str, int]) -> str:
@@ -1296,7 +1316,8 @@ def _home_lemma(form: str, lemmas: list[str],
     # and nouns whose own headword has no explicit case evidence.
     if all(_owned_noun(lemma, paradigms) for lemma in lemmas):
         if _different_noun_cells(form, lemmas, paradigms):
-            return min(lemmas, key=lambda l: (-totals.get(l, 0),
+            representatives = _noun_cell_representatives(form, lemmas, paradigms, totals)
+            return min(representatives, key=lambda l: (-totals.get(l, 0),
                                               l == own_page, -common(l), l))
         # A table also containing a diminutive's plural is not its lexical
         # owner: same-cell forms retain the closer independently defined stem.
@@ -1385,7 +1406,7 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
         if (len(lemmas) > 1
                 and all(_owned_noun(l, paradigms) for l in lemmas)
                 and _different_noun_cells(form, lemmas, paradigms)):
-            for other in lemmas:
+            for other in _noun_cell_representatives(form, lemmas, paradigms, totals):
                 if other == lemma:
                     continue
                 for tags in form_tag_rows(paradigms, other, form):

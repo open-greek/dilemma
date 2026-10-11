@@ -27,6 +27,32 @@ GRC = ["ἀνάγκη", "ἀναβαίνω", "ἀναλύω", "ἀνήρ", "ἀ�
 EVIDENCE = P.Evidence({}, GRC)
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_three_noun_heads_keep_the_closest_stem_inside_identical_cells(reverse):
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    par = {
+        "μηχανάκι": {"μηχανάκι": noun("nominative", "singular"),
+                     "μηχανάκια": noun("nominative", "plural")},
+        "μοτοσικλέτα": {"μοτοσικλέτα": noun("nominative", "singular"),
+                       "μηχανάκια": noun("nominative", "plural")},
+        "μηχανάκιας": {"μηχανάκιας": noun("nominative", "singular"),
+                      "μηχανάκια": noun("genitive", "singular")},
+    }
+    totals = {"μηχανάκι": 200, "μοτοσικλέτα": 50000, "μηχανάκιας": 100}
+    lemmas = list(par)
+    if reverse:
+        lemmas.reverse()
+        par = dict(reversed(list(par.items())))
+    assert P._home_lemma("μηχανάκια", lemmas, par, totals) == "μηχανάκι"
+    representatives = P._noun_cell_representatives("μηχανάκια", lemmas, par, totals)
+    assert set(representatives) == {"μηχανάκι", "μηχανάκιας"}
+    candidates = P.generate(par, {"μηχανάκια": 100, "μηχανάκι": 200,
+                                 "μοτοσικλέτα": 50000}, P.Evidence({}, set(), par))
+    assert not any(g.mono == "μηχανάκια" and g.lemma == "μοτοσικλέτα"
+                   for g in candidates)
+    assert {g.lemma for g in candidates if g.mono == "μηχανάκια"} == {"μηχανάκι"}
+
+
 @pytest.fixture(autouse=True)
 def nominal_forms_from_test_paradigms(monkeypatch):
     # Unit fixtures are self-contained; do not read the on-disk corpus.
