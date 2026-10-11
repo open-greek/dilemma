@@ -355,6 +355,24 @@ def restore_attested_compound_aliases(
         cell["unsupported_annotation_morphology"] = bool(incompatible)
         cell["unsupported_compound_owner_shape"] = bool(misplaced_preverb)
         cell["potential_compound_shape_owners"] = sorted(shape_owners)
+        cell["direct_source_support"] = first_source in direct_sources
+
+    # A sentence-initial verb can have independent lowercase morphology,
+    # but a lower lexical head alone cannot disprove a capitalized name.
+    # Do not extend a lone capitalized automatic annotation to new aliases
+    # or use it to erase an existing capitalized target reading.
+    for key, cell in cells.items():
+        lowercase = cells.get(key.lower()) if key[:1].isupper() else None
+        corroborated = (lowercase is not None and cell["alias_owner"] is not None
+                        and lowercase["alias_owner"] == cell["alias_owner"])
+        possible_name = any(target[form][:1].isupper()
+            and target[form] != cell["owner"]
+            for form in {key, *cell["forms"]} if form in target)
+        uncorroborated = (key[:1].isupper() and not cell["direct_source_support"]
+                         and (not corroborated or possible_name))
+        cell["unsupported_capitalized_annotation"] = bool(uncorroborated)
+        if uncorroborated:
+            cell["alias_owner"] = None
 
     proposals = defaultdict(dict)
     for key, cell in cells.items():
@@ -375,6 +393,8 @@ def restore_attested_compound_aliases(
                              "automatic_owner_conflict": cell["automatic_owner_conflict"],
                              "unsupported_annotation_morphology": cell["unsupported_annotation_morphology"],
                              "unsupported_compound_owner_shape": cell["unsupported_compound_owner_shape"],
+                             "unsupported_capitalized_annotation": cell["unsupported_capitalized_annotation"],
+                             "direct_source_support": cell["direct_source_support"],
                              "potential_compound_shape_owners": cell["potential_compound_shape_owners"],
                              "readings": cell["readings"]}
                             for key, cell in sorted(evidence.items())]}
@@ -383,9 +403,10 @@ def restore_attested_compound_aliases(
         if alias in target:
             detail["current_owner"] = target[alias]
             current = canonical_owner(target[alias])
+            direct = any(cell["direct_source_support"] for cell in evidence.values())
             if (not has_tie and len(owners) == 1 and target[alias] not in owners
                     and (current in owners
-                         or (current is None and alias in actual_forms))):
+                         or (current is None and alias in actual_forms and direct))):
                 owner = next(iter(owners))
                 target[alias] = owner
                 detail["owner"] = owner
@@ -410,6 +431,8 @@ def restore_attested_compound_aliases(
                 cell["unsupported_annotation_morphology"] for cell in cells.values()),
             "unsupported_compound_owner_shape_count": sum(
                 cell["unsupported_compound_owner_shape"] for cell in cells.values()),
+            "unsupported_capitalized_annotation_count": sum(
+                cell["unsupported_capitalized_annotation"] for cell in cells.values()),
             "recovered_count": len(recovered), "ambiguous_count": len(ambiguous),
             "canonicalized_count": len(canonicalized),
             "existing_preserved_count": len(preserved),

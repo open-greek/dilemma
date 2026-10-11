@@ -1892,7 +1892,10 @@ and unsupported aorist, perfect, or pluperfect annotations under εἰμί/εἶ
 compound owners do not license new aliases without direct ownership evidence.
 An automatic shorter compound owner is also withheld when only a longer,
 independently defined compound accounts for the actual source cell's preverb;
-that comparison never infers a replacement owner. Final
+that comparison never infers a replacement owner. Replacing an unsupported
+existing target owner requires direct evidence. A solely capitalized
+automatic cell also needs matching lowercase or direct evidence before gaining
+aliases, and cannot erase a possible existing name. Final
 elision is normalized to Greek koronis while the original source spelling is
 retained in the audit. `--source-alias-audit FILE` records all readings,
 restorations, canonicalization, ambiguity skips, and portable input/source

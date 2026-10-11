@@ -866,6 +866,16 @@
       "citation": "Aelius Aristides, Oration 52 (Aristid.2.429 J. in LSJ); LSJ, προσυπέχω; Demosthenes, Prooemia"
     },
     {
+      "lemma": "ἄπειμι",
+      "method": "source_forms",
+      "forms": [
+        "ἀπῆσθ᾽"
+      ],
+      "evidence": "Sophocles, Philoctetes 379, attests the elided ἀπῆσθ᾽ in singular address. LSJ cites the complete second-person singular ἀπῆσθα at this locus under ἄπειμι. Preserve this exact source cell and its elision, without relying on the conflicting automatic plural annotations or generating a compound paradigm.",
+      "source_url": "https://www.cambridgeinternational.org/Images/501641-2020-specimen-paper-1.pdf",
+      "citation": "Sophocles, Philoctetes 379; LSJ, ἄπειμι"
+    },
+    {
       "lemma": "εἰκονίζω",
       "method": "source_forms",
       "forms": [
