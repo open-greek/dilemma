@@ -56,6 +56,8 @@ TRACKED = [
     "data/el_noun_heads.json",
     # Independent finite verb heads selected by the source reference graph.
     "data/el_verb_heads.json",
+    # Expanded lexical POS coverage exceeds GitHub's regular-file size limit.
+    "data/lsj9_pos_lookup.json",
 ]
 
 _CHUNK = 1 << 20
