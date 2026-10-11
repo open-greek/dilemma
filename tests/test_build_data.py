@@ -457,6 +457,15 @@ def test_nominal_top_reference_cannot_create_a_second_verb_endpoint():
     assert pos_map["χρισμένος"]["VERB"] == "χρίω"
 
 
+@pytest.mark.parametrize("heads", [["γράφω", "λέω"], ["λέω", "γράφω"]])
+def test_finite_head_preservation_uses_one_snapshot(heads):
+    pos_map = {"γράφω": {"VERB": "λέω"}, "λέω": {"VERB": "τύπος"}}
+    roots = {}
+    preserve_finite_verb_heads(pos_map, {}, heads, roots, {"τύπος"})
+    assert roots == {"γράφω": "γράφω", "λέω": "λέω"}
+    assert pos_map == {word: {"VERB": word} for word in heads}
+
+
 def test_main_keeps_graph_verb_separate_from_finite_form_homograph(tmp_path, monkeypatch):
     import build_data
     entries = [{"word": "φέρω", "pos": "verb", "senses": [{"glosses": ["carry"]}]},

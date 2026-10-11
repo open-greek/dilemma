@@ -1383,19 +1383,22 @@ def preserve_finite_verb_heads(pos_map: dict, lookup: dict, finite_heads: set,
     ambiguous participle must not also omit either finite verb and its own
     paradigm merely because an inflection table supplied the reverse alias.
     """
+    protected = set()
     for head in finite_heads:
         word, seen = head, set()
         while word not in seen:
             if (word in unresolved_verbs
                     or lookup.get(word, (word,))[0] in unresolved_verbs):
-                participle_roots[head] = head
-                pos_map.setdefault(head, {})["VERB"] = head
+                protected.add(head)
                 break
             seen.add(word)
             target = pos_map.get(word, {}).get("VERB")
             if not target or target == word:
                 break
             word = target
+    for head in protected:
+        participle_roots[head] = head
+        pos_map.setdefault(head, {})["VERB"] = head
 
 
 def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
