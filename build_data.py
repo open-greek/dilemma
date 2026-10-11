@@ -433,7 +433,8 @@ def drop_abbreviation_targets(targets: dict, abbreviations: Abbreviations,
 
 
 def extract_pairs(jsonl_path: Path, lang: str,
-                  skip_name_plurals: set = None, lemma_pos: dict = None
+                  skip_name_plurals: set = None, lemma_pos: dict = None,
+                  participle_refs: dict = None, verb_heads: set = None
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -614,6 +615,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
 
             if lemma_pos is not None:
                 lemma_pos.setdefault(lemma, set()).add(pos)
+            if verb_heads is not None and pos == "verb":
+                verb_heads.add(lemma)
 
             page_headwords.add(lemma)
             page_headwords.add(lemma.lower())
@@ -763,6 +766,15 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # the primary source for pass-2 form_of_targets.
             sense_form_of = []
             named_verb_roots = set()
+            if (modern_greek and pos == "verb" and participle_refs is not None
+                    and "participle" in entry.get("tags", [])):
+                # These references are checked only after both dictionaries'
+                # headword POS evidence is collected. Ordinary noun/adj
+                # etymology pointers remain excluded.
+                for ref in entry.get("form_of", []):
+                    target = strip_length_marks(ref.get("word", ""))
+                    if target and _is_greek(target):
+                        participle_refs.setdefault(lemma, set()).add(target)
             for sense in entry.get("senses", []):
                 sense_form_of.extend(sense.get("form_of", []))
                 # A malformed head page may have the wrong POS even when
@@ -770,16 +782,23 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # δηώ is labeled romanization, but δήωσα says "ρήματος δηώ".
                 # That positive evidence preserves the verb; a nominal
                 # case reference alone does not license a verb lemma.
-                if modern_greek and pos == "verb":
+                if modern_greek and pos == "verb" and sense.get("form_of"):
+                    explicit_refs = {
+                        to_monotonic(strip_length_marks(ref.get("word", "")))
+                        for ref in sense["form_of"]
+                    }
                     named_verbs = {
                         to_monotonic(word)
                         for gloss in sense.get("glosses", [])
-                        for word in re.findall(r"ρήματος\s+(\w+)", gloss.lower())
+                        for word in re.findall(r"του\s+ρήματος\s+(\w+)", gloss.lower())
                         if _is_greek(word)
                     }
                     named_verb_roots.update(named_verbs)
                     if lemma_pos is not None:
-                        for target in named_verbs:
+                        # Only an explicit reference licenses correcting a
+                        # head's POS. A parenthetical verb in a case-form
+                        # gloss can still resolve through its existing POS.
+                        for target in named_verbs & explicit_refs:
                             lemma_pos.setdefault(target, set()).add("verb")
             verb_target = next(iter(named_verb_roots)) if len(named_verb_roots) == 1 else None
             form_of_refs = sense_form_of + list(top_form_of_for_detection)
@@ -1063,7 +1082,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # A form page's head line belongs to the referenced word,
                 # even when a noun homograph wins the page's lookup key.
                 # Inflected participle tables belong to that verb too.
-                if (modern_greek and (ref_targets or verb_target)
+                if (modern_greek and pos != "name" and (ref_targets or verb_target)
                         and ((form == lemma and set(tags) <= _GENDER_TAGS)
                              or pos == "verb")):
                     pair["via"] = verb_target or ref_targets[0]
@@ -1194,7 +1213,10 @@ def merge_source_lookups(all_lookup: dict, lookups: list,
                     continue
                 if (lemma == lemma.lower() and lemma in weak_names and key != lemma
                         and (lemma_pos is None
-                             or bool(lemma_pos.get(key, set()) & {"verb", "adj"}))):
+                             or "verb" in lemma_pos.get(key, set())
+                             or ("adj" in lemma_pos.get(key, set())
+                                 and any(key in other and other[key][0] != lemma
+                                         for other in lookups)))):
                     continue
                 all_lookup.setdefault(key, (lemma, 1))
 
@@ -1218,6 +1240,17 @@ def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
     return result
 
 
+def apply_participle_references(pos_map: dict, references: dict,
+                               verb_heads: set) -> None:
+    """Use a participle's direct verb pointer after all source heads are known."""
+    for lemma, targets in references.items():
+        supported = targets & verb_heads
+        if len(supported) == 1:
+            target = next(iter(supported))
+            if target != lemma:
+                pos_map.setdefault(lemma, {})["VERB"] = target
+
+
 def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                        pos_map: dict = None, lemma_pos: dict = None):
     """Follow a verb's own references before a homograph's flat lookup.
@@ -1226,6 +1259,7 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
     unqualified key belongs to an adjective or noun. The verb references
     still name its actual verb. A known non-verb cannot be a verb lemma.
     """
+    original = lemma
     if pos == "verb" and pos_map is not None:
         seen = set()
         while lemma not in seen:
@@ -1235,17 +1269,18 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                 break
             lemma = target
     resolved = lookup.get(lemma, (lemma,))[0]
+    if (pos == "verb" and lookup.get(resolved, (None,))[0] != resolved
+            and lookup.get(original, (None,))[0] == original
+            and lemma_pos and "verb" in lemma_pos.get(original, set())):
+        # A broken reference must not remove a separately attested verb
+        # head and its own paradigm (e.g. ημαρτημένος). This does not
+        # rescue a reference that actually resolves to a nominal head.
+        resolved = original
     if pos == "verb" and (pos_map is not None or lemma_pos is not None):
         if lemma == lemma.lower() and resolved != resolved.lower():
             return None
         if lemma_pos and resolved in lemma_pos and "verb" not in lemma_pos[resolved]:
             return None
-    elif (pos != "name" and lemma == lemma.lower() and resolved != resolved.lower()
-          and (lemma_pos is None or pos not in lemma_pos.get(lemma, set()))):
-        # An absent adjective root is no evidence for its same-letter name.
-        # Existing common-noun and ethnonym paradigms can legitimately use
-        # a capitalized lemma, so keep those when the source attests the POS.
-        return None
     return resolved
 
 
@@ -1350,6 +1385,7 @@ def main():
         all_lookup = {}  # {form: (lemma, confidence)}
         all_pos_map = {}  # {form: {upos: lemma}} for POS disambiguation
         all_lemma_pos = {}
+        participle_refs, verb_heads = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
 
         # Per-source form_of_targets, kept separately so we can prefer
@@ -1372,7 +1408,8 @@ def main():
             en_path = resolve_dump(DUMPS[lang]["en"], dump_dir)
             print(f"\nScanning en Wiktionary: {DUMPS[lang]['en']}")
             pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
-                en_path, f"{lang}-en", lemma_pos=all_lemma_pos)
+                en_path, f"{lang}-en", lemma_pos=all_lemma_pos,
+                participle_refs=participle_refs, verb_heads=verb_heads)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -1400,7 +1437,8 @@ def main():
             pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
                 path, f"{lang}-{wikt_lang}",
                 skip_name_plurals=en_name_forms if en_name_forms else None,
-                lemma_pos=all_lemma_pos)
+                lemma_pos=all_lemma_pos,
+                participle_refs=participle_refs, verb_heads=verb_heads)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -1411,6 +1449,9 @@ def main():
             source_lookups.append((wikt_lang, lookup, headwords))
             # Merge POS map
             merge_pos_maps(all_pos_map, pos_map, prefer_verb_refs=(lang == "el"))
+
+        if lang == "el":
+            apply_participle_references(all_pos_map, participle_refs, verb_heads)
 
         # Collect headword sets by source for confidence scoring
         en_headwords = set()

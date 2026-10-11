@@ -323,9 +323,15 @@ The same POS-specific references are followed through spelling pages, so
 `ἀντιπαθών` also reaches the verb. A row tagged as a verb is omitted when
 its target is attested only as another part of speech; this removes
 misclassified noun and adjective forms without losing their genuine
-nominal rows. Capitalized common-noun and ethnonym paradigms remain.
-An inflection page that explicitly names its verb supplies positive verb
-evidence even when that verb's head page has an incorrect POS (`δηώ`).
+nominal rows. Existing noun, adjective and ethnonym paradigms remain.
+Only a sense with an explicit `form_of` reference can supply verb evidence
+from its gloss; descriptive mentions of a verb do not redirect passive
+heads or create new verb lemmas. When the gloss names that same reference,
+it can correct an incorrect head-page POS (`δηώ`). A broken reference does
+not remove a separately attested verb head or proper-name head form.
+A participle's top-level reference can resolve its verb only when that
+target has its own verb entry in either dictionary. This check runs after
+both sources have been read, so entry order does not affect it.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms

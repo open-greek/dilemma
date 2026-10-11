@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from build_data import (Abbreviations, _parse_verb_tense,
+from build_data import (Abbreviations, _parse_verb_tense, apply_participle_references,
                         clean_training_pairs, deduplicate_pairs,
                         drop_abbreviation_targets, extract_pairs,
                         merge_pos_maps, merge_source_lookups, resolve_cross_source,
@@ -89,7 +89,9 @@ def test_a_missing_adjective_lemma_does_not_resolve_to_a_name():
     merge_source_lookups(merged, [el, en], capitals_last=True)
     assert merged["κυριακή"][0] == "Κυριακή"
     pair = {"form": "κυριακή", "lemma": "κυριακός", "pos": "adj", "tags": ["form-of"]}
-    assert clean_training_pairs([pair], merged, preserve_cells=True) == []
+    # Pair-level nominal analyses retain the source's existing fallback;
+    # only flat-key ownership is protected here.
+    assert clean_training_pairs([pair], merged, preserve_cells=True)[0]["lemma"] == "Κυριακός"
     # A real lowercase adjective page is enough to resolve the reference.
     en["κυριακός"] = ("κυριακός", 3)
     merged = {}
@@ -105,6 +107,18 @@ def test_name_fallback_does_not_drop_attested_noun_inflections():
     merge_source_lookups(merged, [el, en], True,
                          {"βροντόσαυρου": {"noun"}, "Βροντόσαυρος": {"name"}})
     assert merged["βροντόσαυρου"][0] == "βροντόσαυρος"
+    pairs = [{"form": "βροντόσαυρου", "lemma": "βροντόσαυρος", "pos": "noun", "tags": []}]
+    assert clean_training_pairs(pairs, merged, True, {}, {})[0]["lemma"] == "Βροντόσαυρος"
+
+
+def test_missing_adjective_head_does_not_drop_source_inflections():
+    source = {"στρογγύλη": ("στρογγύλος", 1)}
+    names = {"στρογγύλος": ("Στρογγύλος", 0), "Στρογγύλος": ("Στρογγύλος", 3)}
+    merged = {}
+    merge_source_lookups(merged, [names, source], True, {"στρογγύλη": {"adj"}})
+    assert merged["στρογγύλη"][0] == "στρογγύλος"
+    pairs = [{"form": "στρογγύλη", "lemma": "στρογγύλος", "pos": "adj", "tags": []}]
+    assert clean_training_pairs(pairs, merged, True, {}, {})[0]["lemma"] == "Στρογγύλος"
 
 
 def test_verb_reference_chains_do_not_end_at_a_nominal_homograph():
@@ -183,6 +197,70 @@ def test_other_sources_verb_reference_can_replace_a_participle_self_map():
     assert legacy["ισχύων"]["VERB"] == "ισχύων"
 
 
+def test_explanatory_verb_glosses_do_not_create_references(tmp_path):
+    dump = _write(tmp_path, [
+        {"word": word, "pos": "verb", "forms": [{"form": word}],
+         "senses": [{"glosses": [gloss]}]}
+        for word, gloss in [
+            ("παραέχω", "σε ρόλο βοηθητικού ρήματος αντί του έχω για να δηλωθεί υπερβολή"),
+            ("χαιρετώ", "χρήση του ρήματος για αποχαιρετισμό"),
+            ("αντικαθιστώ", "γράφω τους τύπους ενός ρήματος σε άλλους χρόνους ή εγκλίσεις"),
+            ("μοσχοπουλιέμαι", "παθητική φωνή του ρήματος μοσχοπουλάω / μοσχοπουλώ"),
+            ("ψιμυθιώνομαι", "παθητική φωνή του ρήματος ψιμυθιώνω: μακιγιάρομαι"),
+            ("συμφραζόμενος", "μετοχή ενεστώτα του ρήματος συμφράζομαι"),
+            ("ἡττῶμαι", "ρήμα της καθαρεύουσας, συνηρημένος τύπος του αρχαίου ρήματος ἡττάομαι"),
+        ]
+    ])
+    lemma_pos = {}
+    pairs, lookup, _, pos_map, *_ = extract_pairs(dump, "el-el", lemma_pos=lemma_pos)
+    assert not ({"αντί", "για", "σε", "μοσχοπουλάω", "ψιμυθιώνω", "συμφράζομαι", "ηττάομαι"} & lemma_pos.keys())
+    clean = clean_training_pairs(pairs, lookup, True, pos_map, lemma_pos)
+    assert {p["form"] for p in clean} >= {"παραέχω", "χαιρετώ", "αντικαθιστώ", "μοσχοπουλιέμαι", "ψιμυθιώνομαι", "συμφραζόμενος", "ἡττῶμαι"}
+
+
+def test_broken_verb_reference_preserves_an_attested_head():
+    lookup = {"ημαρτημένος": ("ημαρτημένος", 3), "αμαρτάνω": ("αμαραταίνω", 1)}
+    pos_map = {"ημαρτημένος": {"VERB": "αμαρτάνω"}}
+    assert resolve_pair_lemma("ημαρτημένος", "verb", lookup, pos_map,
+                              {"ημαρτημένος": {"verb"}, "αμαρτάνω": {"verb"}}) == "ημαρτημένος"
+
+
+def test_missing_proper_name_reference_preserves_head_forms(tmp_path):
+    dump = _write(tmp_path, [{"word": "Άδωνις", "pos": "name", "forms": [{"form": "Άδωνις"}],
+                              "senses": [{"alt_of": [{"word": "Ἄδωνις"}]}]}])
+    pairs, lookup, _, pos_map, *_ = extract_pairs(dump, "el-el")
+    assert any(p["form"] == "Άδωνις" for p in clean_training_pairs(pairs, lookup, True, pos_map))
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_participle_top_reference_requires_an_independent_verb_head(tmp_path, reverse):
+    entries = [
+        {"word": "αναχρονισμένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "αναχρονίζω"}],
+         "forms": [{"form": "αναχρονισμένα", "tags": ["plural"]}],
+         "senses": [{"form_of": [{"word": "αναχρονιστικός"}]}]},
+        {"word": "αναχρονιστικός", "pos": "adj"},
+        {"word": "αναχρονίζω", "pos": "verb"},
+        {"word": "αστροσπαρμένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "αστρόσπαρτος"}],
+         "senses": [{"form_of": [{"word": "αστρόσπαρτος"}]}]},
+        {"word": "αστρόσπαρτος", "pos": "adj"},
+        {"word": "ποτήρι", "pos": "noun", "form_of": [{"word": "ποτήριον"}],
+         "forms": [{"form": "ποτήρια"}]},
+        {"word": "ποτήριον", "pos": "noun"},
+    ]
+    dump = _write(tmp_path, list(reversed(entries)) if reverse else entries)
+    refs, heads, lemma_pos = {}, set(), {}
+    pairs, lookup, _, pos_map, *_ = extract_pairs(
+        dump, "el-el", lemma_pos=lemma_pos, participle_refs=refs, verb_heads=heads)
+    apply_participle_references(pos_map, refs, heads)
+    clean = clean_training_pairs(pairs, lookup, True, pos_map, lemma_pos)
+    assert any(p["form"] == "αναχρονισμένα" and p["lemma"] == "αναχρονίζω" for p in clean)
+    assert pos_map["αστροσπαρμένος"]["VERB"] == "αστρόσπαρτος"
+    assert not any(p["lemma"] == "αστρόσπαρτος" and p["pos"] == "verb" for p in clean)
+    assert any(p["form"] == "ποτήρια" and p["lemma"] == "ποτήρι" for p in clean)
+
+
 def test_main_keeps_noun_case_cells_after_lemma_resolution(tmp_path, monkeypatch):
     import build_data
     entries = [
@@ -216,7 +294,7 @@ def test_main_keeps_noun_case_cells_after_lemma_resolution(tmp_path, monkeypatch
     assert {p["lemma"] for p in pairs if p["form"] == "ερωτήσεις" and p["pos"] == "verb"} == {"ερωτώ"}
     lookup = json.loads((out / "mg_lookup.json").read_text())
     assert lookup["κυριακή"] == "Κυριακή"
-    assert not [p for p in pairs if p["form"] == "κυριακή" and p["pos"] == "adj"]
+    assert [p for p in pairs if p["form"] == "κυριακή" and p["pos"] == "adj"]
     pos_map = json.loads((out / "mg_pos_lookup.json").read_text())
     assert not pos_map.get("κυριακή", {}).get("ADJ")
 

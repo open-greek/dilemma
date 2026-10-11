@@ -191,10 +191,14 @@ All notable changes to Dilemma are documented here. The format follows
   of `αντιπαθών` under `αντιπαθώ`, instead of a noun or adjective homograph.
   POS-specific resolution also follows intermediate spelling pages;
   source-mislabeled verb rows whose targets are only nominal are omitted.
-  Capitalized common-noun and ethnonym paradigms are preserved, and a
+  Existing noun, adjective and ethnonym paradigms are preserved, and a
   missing reference can use another source's attested verb.
-  Inflection pages that explicitly name their verb preserve its forms
-  despite a mislabeled head page (`δηώ`).
+  Inflection senses whose gloss names their explicit reference preserve
+  that verb's forms despite a mislabeled head page (`δηώ`). Descriptive
+  glosses do not redirect passive heads or create new verb lemmas, and
+  broken references leave independently attested head forms in place.
+  A participle's top-level reference is used only when the target has a
+  separate verb entry, after both dictionaries have supplied their POS.
   The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its
