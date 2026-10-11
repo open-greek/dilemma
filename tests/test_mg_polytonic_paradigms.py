@@ -1042,7 +1042,7 @@ def test_the_plain_spelling_beside_a_listed_dative(tmp_path, monkeypatch):
     monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
     monkeypatch.setattr(mg, "_VERB_INPUTS", {})
     monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset(
-        {"Μόσχα", "πινακοθήκη", "Ζυρίχη", "βυζαντινή", "λάβη", "σιγηλή"}))
+        {"Μόσχα", "πινακοθήκη", "Ζυρίχη", "βυζαντινή", "λαβή", "σιγηλή"}))
     monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
     grc = set(GRC) | {nfc(w) for w in ("Μόσχα", "πινακοθήκη", "λάβη",
                                        "σιγηλή")}
@@ -1079,12 +1079,35 @@ def test_the_plain_spelling_beside_a_listed_dative(tmp_path, monkeypatch):
     ("βυζαντινῇ", "βυζαντινή"),
     ("καρδιᾷ", "καρδιά"),
     ("γῇ", "γῆ"),           # grc writes the plain letters with it
+    ("ἁπλῇ", "ἁπλή"),      # Ancient contracted ἁπλῆ is another spelling
+    ("τριπλῇ", "τριπλή"),
     ("λόγῳ", None),         # the second declension's dative
     ("πινακοθήκη", None),
 ])
 def test_plain_twin(dative, plain):
-    assert mg.plain_twin(nfc(dative), {nfc("γῆ")}) == (
+    assert mg.plain_twin(nfc(dative), {nfc("γῆ"), nfc("ἁπλῆ"), nfc("τριπλῆ")}) == (
         nfc(plain) if plain else None)
+
+
+def test_a_real_nominal_dative_twin_is_not_a_verbs_subjunctive(monkeypatch):
+    paradigms = {
+        "κλίνω": {"κλίσει": _pos("verb", "dependent", "third-person", "singular")},
+        "λύνω": {"λύσει": _pos("verb", "dependent", "third-person", "singular")},
+        "κατακλίνω": {"κατακλίσει": _pos("verb", "dependent", "third-person", "singular")},
+    }
+    freq = {"κλίση": 27, "λύση": 14532, "κατάκλιση": 27,
+            "πολύ": 100_000_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset(
+        {"κλίση", "λύση", "κατάκλιση"}))
+    shared, generated = mg.dative_twins(
+        {nfc(s): 6 for s in ("κλίσῃ", "λύσῃ", "κατάκλισῃ", "κατακλίσῃ")}, {},
+        {nfc("λύση")}, set(), frozenset(), Counter())
+    assert shared == {nfc("λύση"): 14532}
+    assert generated[nfc("κλίση")] == 27
+    assert generated[nfc("κατάκλιση")] == 27
+    assert nfc("κατακλίση") not in generated
 
 
 def test_nominal_rows_preserve_genitive_accusative_and_vocative(tmp_path):
@@ -1110,8 +1133,9 @@ def test_nominal_syncretic_row_preserves_each_accent(tmp_path):
 
 @pytest.mark.parametrize("noun_grc, noun_new", [
     ("καθηγητῆ", "καθηγητή"), ("καθηγητή", "καθηγητῆ")])
+@pytest.mark.parametrize("modern_in_grc", [False, True])
 def test_nominal_coverage_and_shared_counts_follow_polytonic_cells(
-        tmp_path, monkeypatch, noun_grc, noun_new):
+        tmp_path, monkeypatch, noun_grc, noun_new, modern_in_grc):
     rows = [("καθηγητή", "καθηγητής", "noun", [case, "singular"])
             for case in ("genitive", "accusative", "vocative")]
     rows += [("απλή", "απλός", "adj", ["nominative", "singular", "feminine"]),
@@ -1126,10 +1150,17 @@ def test_nominal_coverage_and_shared_counts_follow_polytonic_cells(
     monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset())
     monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
     grc = set(GRC) | {nfc(s) for s in (noun_grc, "ἁπλῆ", "ἁπλοῖ", "διεθνῆ")}
+    if modern_in_grc:
+        grc |= {nfc("ἁπλή"), nfc("ἁπλοί")}
     counts = _counts([("ἁπλῆ", "lower", {0: 3, 1: 3}),
                       ("ἁπλοῖ", "lower", {0: 3, 1: 3})])
     lst = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
-    assert {nfc(noun_new), nfc("ἁπλή"), nfc("ἁπλοί")} <= lst.generated
+    assert nfc(noun_new) in lst.generated
+    if modern_in_grc:
+        assert lst.shared[nfc("ἁπλή")] == "C"
+        assert lst.shared[nfc("ἁπλοί")] == "M"
+    else:
+        assert {nfc("ἁπλή"), nfc("ἁπλοί")} <= lst.generated
     assert nfc("διεθνή") not in lst.generated
     assert lst.shared[nfc(noun_grc)] == "C"
     assert lst.shared[nfc("διεθνῆ")] == "C"

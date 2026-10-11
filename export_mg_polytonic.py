@@ -2276,8 +2276,11 @@ def plain_twin(spelling: str, grc_words: set[str] | frozenset[str] = frozenset()
     """A dative in -ᾳ or -ῃ without its iota subscript, the nominative and
     accusative of the same letters (πινακοθήκῃ, πινακοθήκη; Μόσχᾳ, Μόσχα).
     A final circumflex is the dative's own over an oxytone (βυζαντινῇ,
-    βυζαντινή), unless grc writes the plain letters with it (γῇ, γῆ). None
-    for any other spelling."""
+    βυζαντινή). A monosyllable keeps an attested circumflex (γῇ, γῆ), but
+    an Ancient polysyllabic contraction does not decide a Modern accent
+    (ἁπλῇ, ἁπλή, even where grc has ἁπλῆ). None for any other spelling."""
+    import mg_polytonic_paradigms as paradigms
+
     nfd = unicodedata.normalize("NFD", spelling)
     letters_ = [c for c in nfd if not unicodedata.combining(c)]
     if not nfd.endswith("ͅ") or letters_[-1].lower() not in "αη":
@@ -2285,7 +2288,8 @@ def plain_twin(spelling: str, grc_words: set[str] | frozenset[str] = frozenset()
     plain = nfd[:-1]
     if plain.endswith("͂"):
         perispomenon = unicodedata.normalize("NFC", plain)
-        if perispomenon in grc_words:
+        if perispomenon in grc_words and len(paradigms.nuclei(
+                paradigms.letters(perispomenon), glides=True)) == 1:
             return perispomenon
         plain = plain[:-1] + "́"
     return unicodedata.normalize("NFC", plain)
@@ -2306,9 +2310,10 @@ def dative_twins(entries: dict[str, int], generated: dict[str, int],
     Μόσχᾳ beside grc's Μόσχα, 3,149 monotonic tokens), or has only the
     dative (Ζυρίχῃ, Τεργέστῃ, βυζαντινῇ), and a keyboard that prefers the
     list's spellings in Modern Greek text writes ἡ ἐθνικὴ πινακοθήκῃ, στὴ
-    Μόσχᾳ and ἀπὸ Ζυρίχῃ. Not a verb's subjunctive, which monotonic text
-    writes -ει (λάβῃ, λάβει; the -η letters are another word's, λάβη), nor
-    a contracted verb's third person (ζητᾷ, ζητά), nor a spelling marked
+    Μόσχᾳ and ἀπὸ Ζυρίχῃ. A verb's subjunctive or contraction alone is no
+    evidence for a plain form: its exact monotonic spelling must also be
+    a nominal form. A real noun can share the letters of a subjunctive
+    (κλίση beside κλίσῃ, κλίσει). Not a spelling marked
     mg:avoid or rejected by a review, nor where the slice writes the
     plain letters with other marks."""
     import mg_polytonic_paradigms as paradigms
@@ -2343,11 +2348,10 @@ def dative_twins(entries: dict[str, int], generated: dict[str, int],
         subjunctive = unicodedata.normalize(
             "NFC", stem[:-1] + "ει" + nfd[len(stem):]) \
             if stem.endswith("η") else None
-        if key in verb_forms or subjunctive in verb_forms:
-            report["dative_twin_verb"] += 1
-            continue
         if mono not in nominal:
-            report["dative_twin_not_nominal"] += 1
+            reason = "verb" if key in verb_forms or subjunctive in verb_forms \
+                else "not_nominal"
+            report[f"dative_twin_{reason}"] += 1
             continue
         if (plain in avoided or contextual_acute(plain) in reviewed
                 or spelled.get(key, set())
@@ -2441,15 +2445,19 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
             spelled[paradigms.monotonic_key(lower)].add(
                 contextual_acute(lower))
     for spelling, n in generated.items():
-        other = spelled.get(paradigms.monotonic_key(spelling), set()) - {
+        key = paradigms.monotonic_key(spelling)
+        other = spelled.get(key, set()) - {
             contextual_acute(spelling)}
         own_cells = realizations.get(contextual_acute(spelling), frozenset())
         # Distinct cells may need distinct accents despite having the same
         # monotonic spelling. A source spelling of the same cell still wins.
         if spelling in avoided or any(
-                not own_cells or not realizations.get(s) or any(
+                not own_cells or (
+                    not realizations.get(s) and not nominal_spellings.get(key)
+                ) or any(
                     _same_cell(lemma, cell, realizations[s])
-                    for lemma, cell in own_cells) for s in other):
+                    for lemma, cell in own_cells if s in realizations)
+                for s in other):
             continue
         out[spelling] = max(out.get(spelling, "R"),
                             monotonic_bucket(n, total), key="RMC".index)
