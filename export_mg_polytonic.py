@@ -894,6 +894,14 @@ def oxytone_twins(form: str) -> list[str]:
 # Selection
 # --------------------------------------------------------------------------
 
+class AncientDictionaryWords(set):
+    """Dictionary spellings plus exact forms with no case-specific count."""
+
+    def __init__(self, words=(), *, uncounted_lowercase=()):
+        super().__init__(words)
+        self.uncounted_lowercase = frozenset(uncounted_lowercase)
+
+
 def read_grc_words(path: Path = GRC_DIC) -> set[str]:
     """Every spelling the grc dictionary accepts as written."""
     from export_lm import read_hunspell_words
@@ -902,7 +910,30 @@ def read_grc_words(path: Path = GRC_DIC) -> set[str]:
         raise SystemExit(
             f"{path} not found: run `python export_hunspell.py` first; the "
             "Modern Greek list holds only spellings it lacks.")
-    return read_hunspell_words(path)
+    words = read_hunspell_words(path)
+    suffixes: dict[str, list[str]] = defaultdict(list)
+    aff_path = path.with_suffix(".aff")
+    if aff_path.exists():
+        for line in aff_path.read_text(encoding="utf-8").splitlines():
+            fields = line.split()
+            if len(fields) >= 5 and fields[0] == "SFX" and fields[2] == "0":
+                suffixes[fields[1]].append("" if fields[3] == "0" else fields[3])
+    uncounted: set[str] = set()
+    counted: set[str] = set()
+    with path.open(encoding="utf-8") as stream:
+        next(stream, None)
+        for line in stream:
+            fields = line.split()
+            if not fields:
+                continue
+            stem, _, flags = fields[0].partition("/")
+            stem = unicodedata.normalize("NFC", stem)
+            spellings = {stem}
+            for flag in filter(None, flags.split(",")):
+                spellings.update(stem + suffix for suffix in suffixes.get(flag, ()))
+            target = uncounted if "fr:X" in fields[1:] else counted
+            target.update(s for s in spellings if s[:1].islower())
+    return AncientDictionaryWords(words, uncounted_lowercase=uncounted - counted)
 
 
 def _lowercase(form: str) -> str:
@@ -1881,6 +1912,17 @@ def _independently_inflected_name(g, lexical_heads) -> bool:
             and (g.lemma in lexical_heads or head in lexical_heads))
 
 
+def _positive_inflected_capital(g, lexical_heads) -> bool:
+    """An explicit cell of a positively defined capitalized noun or name."""
+    parts = g.cell.split()
+    head = g.lemma[:1].upper() + g.lemma[1:]
+    return (g.vclass in {"noun", "name"} and len(parts) == 3
+            and parts[0] == g.vclass
+            and parts[1] in {"nominative", "genitive", "accusative", "vocative"}
+            and parts[2] in {"singular", "plural"}
+            and head in lexical_heads)
+
+
 def generated_verb_forms(
     counts: CorpusCounts,
     sources: set[int],
@@ -1944,6 +1986,15 @@ def generated_verb_forms(
     wanted = {paradigms.bare(g.spelling) for g in candidates}
     cells = _paradigm_cells()
     covered: set[str] = set()
+    uncounted = getattr(grc_words, "uncounted_lowercase", frozenset())
+    uncounted_capital_keys = {
+        _without_diaeresis(paradigms.monotonic_key(word)) for word in uncounted}
+    # A counted Ancient spelling or an attested Modern spelling retains
+    # the ordinary lowercase coverage. Only unsupported-case Ancient rows
+    # can be excluded from coverage of an independently declined capital.
+    uncounted_capital_keys.difference_update(
+        _without_diaeresis(paradigms.monotonic_key(word))
+        for word in [*(grc_words - uncounted), *listed] if word[:1].islower())
     covered_capitals: set[str] = set()
     # The monotonic forms of capitalized datives (Ῥωσίᾳ), which cover no
     # name of their letters, and of which a name may be the only other
@@ -2067,6 +2118,7 @@ def generated_verb_forms(
         report[f"generated_{g.kind}"] += 1
         kept[g.spelling] = g.tokens
         covered.add(_without_diaeresis(key))
+        uncounted_capital_keys.discard(_without_diaeresis(key))
         rivals[letters][contextual_acute(g.spelling)] = Rival(
             frozenset(realized.get(contextual_acute(g.spelling), ())), g.weight,
             "generated")
@@ -2078,13 +2130,22 @@ def generated_verb_forms(
     # The names declined in at least two frequent forms (Δανία, Δανίας).
     declined = Counter(g.lemma for g in {
         paradigms.monotonic_key(g.spelling): g for g in capitalized}.values())
+    positive_declined = Counter(lemma for lemma, form in {
+        (g.lemma, paradigms.monotonic_key(g.spelling)) for g in capitalized
+        if _positive_inflected_capital(g, lexical_heads)})
     for g in capitalized:
         key = paradigms.monotonic_key(g.spelling)
+        uncounted_ancient_cover = (
+            _without_diaeresis(key) in uncounted_capital_keys
+            and key not in covered_capitals
+            and positive_declined[g.lemma] >= 2
+            and _positive_inflected_capital(g, lexical_heads))
         distinct_name = (_without_diaeresis(key) in covered
                          and _independently_inflected_name(g, lexical_heads)
                          and not any(_same_spelling(_lowercase(g.spelling), word)
                                      for word in rivals.get(paradigms.bare(g.spelling), {})))
-        if (g.spelling in kept or (_without_diaeresis(key) in covered and not distinct_name)
+        if (g.spelling in kept or (_without_diaeresis(key) in covered
+                                  and not distinct_name and not uncounted_ancient_cover)
                 or _without_diaeresis(key) in covered_subjunctive
                 or key in covered_capitals):
             report["generated_capital_covered"] += 1

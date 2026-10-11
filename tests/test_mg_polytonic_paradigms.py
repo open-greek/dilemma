@@ -53,6 +53,61 @@ def test_three_noun_heads_keep_the_closest_stem_inside_identical_cells(reverse):
     assert {g.lemma for g in candidates if g.mono == "μηχανάκια"} == {"μηχανάκι"}
 
 
+@pytest.mark.parametrize("bucket,capital,proof,expected", [
+    ("X", False, True, True), ("R", False, True, False),
+    ("M", False, True, False), ("C", False, True, False),
+    ("X", True, True, False), ("X", False, False, False),
+])
+def test_uncounted_lowercase_does_not_cover_a_source_defined_declined_capital(
+        tmp_path, monkeypatch, bucket, capital, proof, expected):
+    path = tmp_path / "grc.dic"
+    path.write_text("2\nσέρβοι\tfr:" + bucket + "\n"
+                    + ("Σέρβοι\tfr:X\n" if capital else "σέρβων\tfr:" + bucket + "\n"))
+    words = mg.read_grc_words(path)
+    candidates = [P.Generated("Σέρβοι", "Σέρβοι", "σέρβος", 255,
+                             "indicative", "noun", "noun nominative plural", 255),
+                  P.Generated("Σέρβων", "Σέρβων", "σέρβος", 56,
+                             "indicative", "noun", "noun genitive plural", 56)]
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {"σέρβοι": 255, "σέρβων": 56}))
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: candidates)
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(mg, "attested_lowercase", lambda *args: {})
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"Σέρβος"} if proof else set())
+    generated = mg.generated_verb_forms(None, set(), words, set(), frozenset(), Counter())
+    assert ("Σέρβοι" in generated) is expected
+    if expected:
+        assert generated["Σέρβοι"] == 255
+        assert generated["Σέρβων"] == 56
+
+
+def test_uncounted_capital_requires_two_positively_identified_forms(monkeypatch):
+    words = mg.AncientDictionaryWords({"σέρβοι", "σέρβων"},
+                                     uncounted_lowercase={"σέρβοι", "σέρβων"})
+    candidates = [P.Generated("Σέρβοι", "Σέρβοι", "σέρβος", 255,
+                             "indicative", "noun", "noun nominative plural", 255),
+                  P.Generated("Σέρβων", "Σέρβων", "σέρβος", 56,
+                             "indicative", "noun", "noun", 56)]
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {"σέρβοι": 255, "σέρβων": 56}))
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: candidates)
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(mg, "attested_lowercase", lambda *args: {})
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"Σέρβος"})
+    generated = mg.generated_verb_forms(None, set(), words, set(), frozenset(), Counter())
+    assert "Σέρβοι" not in generated
+    assert "Σέρβων" not in generated
+
+
+def test_uncounted_metadata_expands_suffixes_and_keeps_counted_duplicates(tmp_path):
+    path = tmp_path / "grc.dic"
+    path.write_text("3\nσέρβ/1000\tfr:X\nσέρβοι\tfr:R\nἄλλος\tfr:R\n")
+    path.with_suffix(".aff").write_text("SET UTF-8\nFLAG num\nSFX 1000 Y 2\n"
+                                      "SFX 1000 0 οι .\nSFX 1000 0 ων .\n")
+    words = mg.read_grc_words(path)
+    assert {"σέρβ", "σέρβοι", "σέρβων", "ἄλλος"} <= words
+    assert "σέρβων" in words.uncounted_lowercase
+    assert "σέρβοι" not in words.uncounted_lowercase
+
+
 @pytest.fixture(autouse=True)
 def nominal_forms_from_test_paradigms(monkeypatch):
     # Unit fixtures are self-contained; do not read the on-disk corpus.
