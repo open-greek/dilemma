@@ -1587,12 +1587,20 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
     graph_heads = set((participle_roots or {}).values())
     result = []
     for pair in deduplicate_pairs(pairs, preserve_cells):
+        own_root = (preserve_cells and pair.get("pos") == "verb"
+                    and pair.get("via") in unresolved_verbs
+                    and pair["lemma"] in (participle_roots or {}))
         if (preserve_cells and pair.get("pos") == "verb"
+                and not own_root
                 and (pair.get("via") or pair["lemma"]) in unresolved_verbs):
             continue
-        candidates = ([pair["via"]] if pair.get("via")
+        # A resolved source head owns its table even when another spelling
+        # pointer is unresolved. Without that positive graph evidence the
+        # unresolved alias remains a reason to omit the verb reading.
+        candidates = ([pair["via"]] if pair.get("via") and not own_root
                       else [pair["lemma"]])
-        if pair.get("via") and preserve_cells and pair.get("pos") == "verb":
+        if (pair.get("via") and not own_root and preserve_cells
+                and pair.get("pos") == "verb"):
             # Some references name a missing verb spelling (κυμαίνω),
             # while another source supplies the actual verb (κυμαίνομαι).
             # The POS check below makes this fallback safe from homographs.

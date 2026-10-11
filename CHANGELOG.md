@@ -212,7 +212,9 @@ All notable changes to Dilemma are documented here. The format follows
   top-level pointer, rather than supplying unsupported verb roots.
   A resolved participle retains that verb through POS-specific cleanup;
   unresolved readings are omitted without removing independent nominal
-  readings.
+  readings. A table whose own participle head has a supported verb keeps
+  that endpoint even when a spelling alias names an unresolved participle,
+  preserving `καθούμενα` under `κάθομαι`.
   Nominal labels cannot supply verb endpoints through unrelated tables,
   and an unresolved participle cannot remove its independently defined
   finite verb through a reverse table or lookup alias.

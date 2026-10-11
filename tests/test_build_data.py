@@ -1239,3 +1239,42 @@ def test_participle_inventory_preserves_headwords_and_source_variants(tmp_path):
     head = next(r for r in first["cells"] if r["kind"] == "headword"
                 and r["lemma"] == "περιπλανώμενος")
     assert head["tags"] == ["participle", "present"]
+
+
+def test_resolved_participle_owner_precedes_its_unresolved_alias(tmp_path):
+    # καθούμενος has a supported κάθομαι path, while its spelling alias
+    # καθήμενος is a standalone participle with no finite parent.
+    dump = _write(tmp_path, [
+        {"word": "κάθομαι", "pos": "verb",
+         "senses": [{"glosses": ["sit"]}]},
+        {"word": "καθήμενος", "pos": "verb", "tags": ["participle"],
+         "senses": [{"glosses": ["sitting"]}]},
+        {"word": "καθούμενος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "κάθομαι"}],
+         "senses": [{"alt_of": [{"word": "καθήμενος"}]}],
+         "forms": [{"form": "καθούμενα", "tags": ["neuter", "nominative", "plural"]}]},
+    ])
+    refs, heads, participles, pos_evidence = {}, set(), set(), {}
+    verb_refs, own_refs = {}, {}
+    pairs, lookup, _, pos_map, *_ = extract_pairs(
+        dump, "el-el", lemma_pos=pos_evidence, participle_refs=refs,
+        verb_heads=heads, participle_heads=participles,
+        verb_refs=verb_refs, participle_verb_refs=own_refs)
+    refs["καθήμενος"] = set()
+    unresolved = apply_participle_references(
+        pos_map, refs, heads, participles, pos_evidence, verb_refs, own_refs)
+    roots = {w: pos_map[w]["VERB"] for w in refs if w not in unresolved}
+    assert roots["καθούμενος"] == "κάθομαι" and "καθήμενος" in unresolved
+    row = next(p for p in pairs if p["form"] == "καθούμενα")
+    assert row["via"] == "καθήμενος"
+    cleaned = clean_training_pairs(
+        [row], lookup, preserve_cells=True, pos_map=pos_map,
+        lemma_pos=pos_evidence, participle_roots=roots,
+        unresolved_verbs=unresolved)
+    assert cleaned == [{"form": "καθούμενα", "lemma": "κάθομαι",
+                        "pos": "verb", "tags": ["neuter", "nominative", "plural"]}]
+    # Without positive own-head evidence the unresolved alias still blocks.
+    assert clean_training_pairs(
+        [row], lookup, preserve_cells=True, pos_map=pos_map,
+        lemma_pos=pos_evidence, participle_roots={},
+        unresolved_verbs=unresolved) == []
