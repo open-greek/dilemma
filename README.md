@@ -1785,7 +1785,7 @@ Downloads all 5 kaikki dumps and extracts every form-lemma pair from
 inflection tables. Non-Greek characters are filtered out.
 
 ```bash
-pip install -e ".[lm]"                       # build-data deps (lxml, betacode, pygtrie)
+pip install -e ".[lm]"                       # build-data deps (lxml, betacode, beta-code, pygtrie)
 python build_data.py --download             # downloads + extracts (~1.5GB total)
 ```
 
