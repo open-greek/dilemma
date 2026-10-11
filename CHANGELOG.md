@@ -189,6 +189,10 @@ All notable changes to Dilemma are documented here. The format follows
   the other source. Form pages resolve verb rows through their explicit
   reference, preserving `ερωτήσεις` under `ερωτώ` and the participle forms
   of `αντιπαθών` under `αντιπαθώ`, instead of a noun or adjective homograph.
+  POS-specific resolution also follows intermediate spelling pages;
+  source-mislabeled verb rows whose targets are only nominal are omitted.
+  Capitalized common-noun and ethnonym paradigms are preserved, and a
+  missing reference can use another source's attested verb.
   The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its

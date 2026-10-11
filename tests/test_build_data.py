@@ -10,7 +10,7 @@ from build_data import (Abbreviations, _parse_verb_tense,
                         clean_training_pairs, deduplicate_pairs,
                         drop_abbreviation_targets, extract_pairs,
                         merge_source_lookups, resolve_cross_source,
-                        spelling_target, vowel_groups)
+                        resolve_pair_lemma, spelling_target, vowel_groups)
 
 
 def test_source_merge_prefers_a_lowercase_verb_to_another_sources_name(tmp_path):
@@ -95,6 +95,47 @@ def test_a_missing_adjective_lemma_does_not_resolve_to_a_name():
     merged = {}
     merge_source_lookups(merged, [el, en], capitals_last=True)
     assert merged["κυριακή"][0] == "κυριακός"
+
+
+def test_verb_reference_chains_do_not_end_at_a_nominal_homograph():
+    lookup = {"ἀντιπαθών": ("αντιπαθητικός", 1),
+              "αντιπαθών": ("αντιπαθητικός", 1),
+              "αντιπαθητικός": ("αντιπαθητικός", 3),
+              "αντιπαθώ": ("αντιπαθώ", 3),
+              "απύθμενου": ("απύθμενος", 1),
+              "απύθμενος": ("απύθμενος", 3)}
+    pos_map = {"ἀντιπαθών": {"VERB": "αντιπαθών"},
+               "αντιπαθών": {"VERB": "αντιπαθώ"},
+               "απύθμενου": {"VERB": "απύθμενος"}}
+    lemma_pos = {"αντιπαθητικός": {"adj"}, "αντιπαθώ": {"verb"},
+                 "απύθμενος": {"adj"}}
+    assert resolve_pair_lemma("ἀντιπαθών", "verb", lookup, pos_map, lemma_pos) == "αντιπαθώ"
+    assert resolve_pair_lemma("απύθμενου", "verb", lookup, pos_map, lemma_pos) is None
+
+
+def test_capitalized_noun_paradigms_survive_and_legacy_behavior_stays():
+    lookup = {"αμερικανός": ("Αμερικανός", 1), "Αμερικανός": ("Αμερικανός", 3),
+              "θεός": ("Θεός", 1), "Θεός": ("Θεός", 3)}
+    pairs = [{"form": "αμερικάνου", "lemma": "αμερικανός", "pos": "noun", "tags": ["genitive"]},
+             {"form": "θεού", "lemma": "θεός", "pos": "noun", "tags": ["genitive"]}]
+    clean = clean_training_pairs(pairs, lookup, preserve_cells=True,
+                                lemma_pos={"αμερικανός": {"noun"}, "θεός": {"noun"}})
+    assert len(clean) == 2
+    assert {p["lemma"] for p in clean} == {"Αμερικανός", "Θεός"}
+    legacy = [{"form": "λέν", "lemma": "λεν", "pos": "verb", "tags": []}]
+    old_lookup = {"λεν": ("Λεν", 1), "Λεν": ("Λεν", 3)}
+    assert clean_training_pairs(legacy, old_lookup)[0]["lemma"] == "Λεν"
+
+
+def test_missing_verb_reference_can_use_another_sources_verb_evidence():
+    pair = {"form": "κυμαινόμενα", "lemma": "κυμαινόμενος", "pos": "verb",
+            "tags": ["neuter", "plural"], "via": "κυμαίνω"}
+    lookup = {"κυμαινόμενος": ("κυμαίνομαι", 1), "κυμαίνομαι": ("κυμαίνομαι", 3)}
+    clean = clean_training_pairs([pair], lookup, True, {}, {"κυμαίνομαι": {"verb"}})
+    assert clean == [{k: v for k, v in pair.items() if k not in ("via", "lemma")} | {"lemma": "κυμαίνομαι"}]
+    lookup["κυμαινόμενος"] = ("κύμα", 1)
+    lookup["κύμα"] = ("κύμα", 3)
+    assert clean_training_pairs([pair], lookup, True, {}, {"κύμα": {"noun"}}) == []
 
 
 def test_main_keeps_noun_case_cells_after_lemma_resolution(tmp_path, monkeypatch):

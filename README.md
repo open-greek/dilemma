@@ -319,6 +319,11 @@ A form page's head line and its verb inflection table resolve through the
 word that page names. They do not inherit a noun homograph's lemma:
 `ερωτήσεις` remains a form of `ερωτώ` on verb rows, and the participle
 forms of `αντιπαθών` belong to `αντιπαθώ`.
+The same POS-specific references are followed through spelling pages, so
+`ἀντιπαθών` also reaches the verb. A row tagged as a verb is omitted when
+its target is attested only as another part of speech; this removes
+misclassified noun and adjective forms without losing their genuine
+nominal rows. Capitalized common-noun and ethnonym paradigms remain.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms

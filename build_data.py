@@ -417,7 +417,7 @@ def drop_abbreviation_targets(targets: dict, abbreviations: Abbreviations,
 
 
 def extract_pairs(jsonl_path: Path, lang: str,
-                  skip_name_plurals: set = None
+                  skip_name_plurals: set = None, lemma_pos: dict = None
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -595,6 +595,9 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # Skip multi-word entries (phrases) from lookup
             if " " in lemma:
                 continue
+
+            if lemma_pos is not None:
+                lemma_pos.setdefault(lemma, set()).add(pos)
 
             page_headwords.add(lemma)
             page_headwords.add(lemma.lower())
@@ -1176,24 +1179,56 @@ def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
     return result
 
 
-def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False) -> list:
+def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
+                       pos_map: dict = None, lemma_pos: dict = None):
+    """Follow a verb's own references before a homograph's flat lookup.
+
+    A polytonic participle can first name its monotonic spelling, whose
+    unqualified key belongs to an adjective or noun. The verb references
+    still name its actual verb. A known non-verb cannot be a verb lemma.
+    """
+    if pos == "verb" and pos_map is not None:
+        seen = set()
+        while lemma not in seen:
+            seen.add(lemma)
+            target = pos_map.get(lemma, {}).get("VERB")
+            if not target or target == lemma:
+                break
+            lemma = target
+    resolved = lookup.get(lemma, (lemma,))[0]
+    if pos == "verb" and (pos_map is not None or lemma_pos is not None):
+        if lemma == lemma.lower() and resolved != resolved.lower():
+            return None
+        if lemma_pos and resolved in lemma_pos and "verb" not in lemma_pos[resolved]:
+            return None
+    elif (pos != "name" and lemma == lemma.lower() and resolved != resolved.lower()
+          and (lemma_pos is None or pos not in lemma_pos.get(lemma, set()))):
+        # An absent adjective root is no evidence for its same-letter name.
+        # Existing common-noun and ethnonym paradigms can legitimately use
+        # a capitalized lemma, so keep those when the source attests the POS.
+        return None
+    return resolved
+
+
+def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
+                         pos_map: dict = None, lemma_pos: dict = None) -> list:
     """Resolve page references before lookup homographs; omit internal metadata."""
     headwords = {key for key, (lemma, _) in lookup.items() if key == lemma}
     result = []
     for pair in deduplicate_pairs(pairs, preserve_cells):
         candidates = ([pair["via"]] if pair.get("via")
                       else [pair["lemma"]])
+        if pair.get("via") and preserve_cells and pair.get("pos") == "verb":
+            # Some references name a missing verb spelling (κυμαίνω),
+            # while another source supplies the actual verb (κυμαίνομαι).
+            # The POS check below makes this fallback safe from homographs.
+            candidates.append(pair["lemma"])
         for lemma in candidates:
-            if lemma in headwords:
-                resolved = lemma
-            elif lemma in lookup and lookup[lemma][0] in headwords:
-                resolved = lookup[lemma][0]
-            else:
-                continue
-            # An absent common-word lemma must not become a proper name
-            # merely because their lowercase keys coincide.
-            if (preserve_cells and pair.get("pos") != "name"
-                    and lemma == lemma.lower() and resolved != resolved.lower()):
+            resolved = resolve_pair_lemma(
+                lemma, pair.get("pos", "") if preserve_cells else "name", lookup,
+                pos_map if preserve_cells else None,
+                lemma_pos if preserve_cells else None)
+            if resolved not in headwords:
                 continue
             result.append({"form": pair["form"], "lemma": resolved,
                            "pos": pair.get("pos", ""), "tags": pair.get("tags", [])})
@@ -1275,6 +1310,7 @@ def main():
         all_pairs = []
         all_lookup = {}  # {form: (lemma, confidence)}
         all_pos_map = {}  # {form: {upos: lemma}} for POS disambiguation
+        all_lemma_pos = {}
         source_lookups = []  # (wikt_lang, lookup, headwords)
 
         # Per-source form_of_targets, kept separately so we can prefer
@@ -1297,7 +1333,7 @@ def main():
             en_path = resolve_dump(DUMPS[lang]["en"], dump_dir)
             print(f"\nScanning en Wiktionary: {DUMPS[lang]['en']}")
             pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
-                en_path, f"{lang}-en")
+                en_path, f"{lang}-en", lemma_pos=all_lemma_pos)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -1329,7 +1365,8 @@ def main():
             print(f"\nScanning {wikt_lang} Wiktionary: {path.name}")
             pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
                 path, f"{lang}-{wikt_lang}",
-                skip_name_plurals=en_name_forms if en_name_forms else None)
+                skip_name_plurals=en_name_forms if en_name_forms else None,
+                lemma_pos=all_lemma_pos)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -1461,7 +1498,9 @@ def main():
         # Fix training pairs: rewrite lemmas to match the cleaned lookup,
         # drop pairs whose lemma can't be resolved to a headword.
         unique_pairs = clean_training_pairs(unique_pairs, all_lookup,
-                                             preserve_cells=(lang == "el"))
+                                             preserve_cells=(lang == "el"),
+                                             pos_map=all_pos_map,
+                                             lemma_pos=all_lemma_pos)
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"
@@ -1532,11 +1571,13 @@ def main():
             resolved = {}
             for upos, lemma in upos_lemmas.items():
                 if lemma in all_lookup:
-                    target = all_lookup[lemma][0]
-                    if (lang == "el" and upos != "PROPN"
-                            and lemma == lemma.lower() and target != target.lower()):
-                        continue
-                    resolved[upos] = target
+                    target = resolve_pair_lemma(
+                        lemma, next((p for p, u in WIKT_TO_UPOS.items() if u == upos), "")
+                        if lang == "el" else "name", all_lookup,
+                        all_pos_map if lang == "el" else None,
+                        all_lemma_pos if lang == "el" else None)
+                    if target is not None:
+                        resolved[upos] = target
                 else:
                     resolved[upos] = lemma
             # Only keep if there are multiple distinct lemmas
