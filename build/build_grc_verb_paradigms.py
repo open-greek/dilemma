@@ -949,6 +949,23 @@ EIMI_AUXILIARY_FORMS = {
     "εἶεν", "εἴησαν", "εἶναι", "ἔστω", "ἔστων", "ὄντων",
 }
 
+# The source pipeline also emits these monotonic copies of the plural
+# perfect optative auxiliaries. Do not normalize every auxiliary spelling:
+# rough-breathing εἷμεν / εἷτε are genuine aorists of ἵημι, and ἑστῶ
+# belongs to ἵστημι. The explicit perfect-optative context distinguishes
+# the reviewed copies from those independent verb forms.
+_PERFECT_OPTATIVE_AUXILIARY_COPIES = {"είμεν", "είτε", "είεν"}
+
+
+def is_periphrastic_auxiliary(form, lemma, tags):
+    """Whether a source row contains εἰμί rather than its own verb."""
+    if lemma in ("εἰμί", "εἶμι"):
+        return False
+    return (form in EIMI_AUXILIARY_FORMS
+            or (form in _PERFECT_OPTATIVE_AUXILIARY_COPIES
+                and {"perfect", "optative"} <= set(tags)))
+
+
 _LENGTH_MARKS = ("̄", "̆")  # combining macron, breve
 _ACUTE_OR_CIRCUMFLEX = ("́", "͂")
 
@@ -973,11 +990,10 @@ def strip_vowel_length(s: str) -> str:
     return unicodedata.normalize("NFC", nfd)
 
 
-# Everything in a Wiktionary tag set that names a cell. Tense is left out
-# on purpose: the tables often omit it (λύσαι is tagged only "active,
-# optative, singular, third-person"), and what matters here is whether two
-# spellings sit in the same cell, not which tense that cell is.
-_CELL_TAGS = (VOICE_TAGS | MOOD_TAGS | PERSON_TAGS | NUMBER_TAGS
+# Everything in a Wiktionary tag set that names a cell. Missing tags impose
+# no constraint in the subset check; explicit tense must still match, so an
+# aorist participle cannot decide the accent of a future participle.
+_CELL_TAGS = (VOICE_TAGS | TENSE_TAGS | MOOD_TAGS | PERSON_TAGS | NUMBER_TAGS
               | CASE_TAGS | GENDER_TAGS)
 
 
@@ -989,11 +1005,12 @@ _SHORT_TO_TAG = {v: k for short in
 def key_cell_tags(key: str) -> frozenset:
     """The cell tags a paradigm key names, in Wiktionary's vocabulary.
 
-    ``active_aorist_optative_3sg`` -> {active, optative, third-person,
-    singular}. Tense is left out to match ``wiktionary_cells``.
+    ``active_aorist_optative_3sg`` -> {active, aorist, optative,
+    third-person, singular}. A source may omit tense, but its explicit
+    tense must match this one.
     """
     parts = key.split("_")
-    tags = {parts[0]}
+    tags = {parts[0], parts[1]}
     if "_participle_" in key:
         tags.add("participle")
         tags.update(_SHORT_TO_TAG.get(p, p) for p in parts[-3:])
@@ -1511,7 +1528,7 @@ def build_paradigms(only_lemmas=None):
                 continue
             # Periphrastic cells ("τετιμηκότες εἶτε") leave the auxiliary
             # tagged as a cell of the verb it conjugates.
-            if form in EIMI_AUXILIARY_FORMS and lemma not in ("εἰμί", "εἶμι"):
+            if is_periphrastic_auxiliary(form, lemma, tags):
                 dropped_auxiliary += 1
                 continue
             keys = p.get("_paradigm_keys", verb_keys_from_tags(tags))

@@ -12,6 +12,10 @@ All notable changes to Dilemma are documented here. The format follows
 - Require matching grammatical evidence when a conjugation table corrects
   a verb cell's accent, so an infinitive cannot change an optative or
   imperative's distinct accent.
+  Explicit tense also keeps an aorist participle from deciding a future
+  participle's accent; sources that omit tense can still match.
+- Exclude monotonic copies of perfect-optative auxiliaries from other
+  verbs' conjugations while retaining independent aorist homographs.
 - Count Ancient verb table variants within each dialect when detecting lost
   person and number labels. Valid Attic, Epic, Doric, and Koine readings no
   longer combine into a false damaged cell, and filtering one dialect keeps

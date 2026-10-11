@@ -1099,6 +1099,46 @@ class TestAuxiliaryForms:
         assert "εἴην" in b.EIMI_AUXILIARY_FORMS
         assert "ὦ" in b.EIMI_AUXILIARY_FORMS
 
+    @pytest.mark.parametrize("form", ["είμεν", "είτε", "είεν"])
+    def test_monotonic_perfect_optative_auxiliary_is_excluded(self, b, form):
+        assert b.is_periphrastic_auxiliary(
+            form, "τύπτω", ["middle", "perfect", "optative", "plural"])
+
+    @pytest.mark.parametrize("form,lemma,tags", [
+        ("εἷμεν", "ἵημι", ["active", "aorist", "optative"]),
+        ("εἷτε", "ἵημι", ["active", "aorist", "optative"]),
+        ("είμεν", "ἵημι", ["active", "aorist", "optative"]),
+        ("είτε", "ἵημι", ["active", "aorist", "optative"]),
+        ("ἑστῶ", "ἵστημι", ["active", "perfect", "imperative"]),
+        ("είτε", "τύπτω", ["middle", "perfect"]),
+        ("είτε", "τύπτω", ["middle", "optative"]),
+        ("είτε", "εἰμί", ["active", "perfect", "optative"]),
+        ("είτε", "εἶμι", ["active", "perfect", "optative"]),
+    ])
+    def test_independent_homographs_and_partial_context_survive(self, b, form,
+                                                               lemma, tags):
+        assert not b.is_periphrastic_auxiliary(form, lemma, tags)
+
+    @pytest.mark.parametrize("source", ["AG_PAIRS", "GLAUX_PAIRS"])
+    def test_auxiliary_copies_never_enter_a_paradigm(self, b, monkeypatch,
+                                                    tmp_path, source):
+        rows = [{"form": "τύπτω", "lemma": "τύπτω", "pos": "verb",
+                 "tags": ["active", "present", "indicative", "first-person",
+                          "singular"]}]
+        rows += [{"form": form, "lemma": "τύπτω", "pos": "verb",
+                  "tags": ["middle", "perfect", "optative", person, "plural"]}
+                 for form, person in (("είμεν", "first-person"),
+                                      ("είτε", "second-person"),
+                                      ("είεν", "third-person"))]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        source_path = getattr(b, source)
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == source_path else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        forms = b.build_paradigms()["τύπτω"]["forms"]
+        assert not any(key.startswith("middle_perfect_optative_") for key in forms)
+
 
 class TestPolytonicPoolNoLongerDropsAtticForms:
     def test_circumflex_does_not_eliminate_an_acute_rival(self, b):
@@ -1179,14 +1219,14 @@ class TestStripTonalAccents:
 class TestKeyCellTags:
     def test_finite_participle_and_infinitive_keys(self, b):
         assert b.key_cell_tags("active_aorist_optative_3sg") == frozenset(
-            {"active", "optative", "third-person", "singular"})
+            {"active", "aorist", "optative", "third-person", "singular"})
         assert b.key_cell_tags("middle_aorist_imperative_2sg") == frozenset(
-            {"middle", "imperative", "second-person", "singular"})
+            {"middle", "aorist", "imperative", "second-person", "singular"})
         assert b.key_cell_tags("active_present_participle_nom_n_sg") == (
-            frozenset({"active", "participle", "nominative", "neuter",
+            frozenset({"active", "present", "participle", "nominative", "neuter",
                        "singular"}))
         assert b.key_cell_tags("active_aorist_infinitive") == frozenset(
-            {"active", "infinitive"})
+            {"active", "aorist", "infinitive"})
 
 
 class TestWiktionaryCells:
@@ -1241,6 +1281,8 @@ class TestCellSpellingBoundary:
          ["active", "aorist", "infinitive"]),
         ("ὄζω", "middle_aorist_imperative_2sg", "ὀζῆσαι", "ὀζήσαι",
          ["active", "aorist", "optative", "third-person", "singular"]),
+        ("ἐκτέμνω", "active_future_participle_nom_m_sg", "ἐκτεμῶν", "ἐκτεμών",
+         ["active", "aorist", "participle", "masculine"]),
     ])
     def test_another_cell_cannot_reaccent_a_selected_form(self, b, lemma, key,
                                                        selected, other, tags):

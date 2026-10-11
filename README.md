@@ -2186,10 +2186,16 @@ in, so an accent that is the only thing telling two cells apart
 survives — `λύσαι` is λύω's aorist optative third-person singular and
 `λῦσαι` its aorist middle imperative — while a spelling both cells
 share is still corrected, as `βαίνον` is to `βαῖνον`. When grammatical
-tags exist, the replacement must fit the current cell. An infinitive
+tags exist, the replacement must fit the current cell, including an
+explicit tense. A missing tense imposes no extra restriction. An infinitive
 cannot reaccent a generated optative merely because the optative's
 own source row was filtered out. Untagged spellings retain the existing
 fallback because they make no conflicting grammatical claim.
+
+Periphrastic forms contribute the main verb, not the separate auxiliary
+εἰμί. The filter also recognizes the source's monotonic `είμεν`, `είτε`,
+and `είεν` copies when they explicitly carry perfect-optative tags.
+The distinct aorist forms of ἵημι and imperative forms of ἵστημι remain.
 
 ### Export to ONNX
 
