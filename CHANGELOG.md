@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Require an accented source form when parsing LSJ principal parts, skipping
+  unaccented OCR tokens without inventing their missing accent.
 - Retain observed cells for corpus-only Ancient verb lemmas without expanding
   unsupported annotations into inferred citations and conjugations. Synthesis
   requires a surviving Wiktionary owner or an independently attested headword.

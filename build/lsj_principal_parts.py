@@ -54,6 +54,11 @@ def strip_diacritics(s: str) -> str:
     return "".join(c for c in nfd if not unicodedata.combining(c))
 
 
+def _has_tonal_accent(form: str) -> bool:
+    return any(mark in unicodedata.normalize("NFD", form)
+               for mark in ("\u0300", "\u0301", "\u0342"))
+
+
 # Greek-letter ranges used for token boundary detection. Includes
 # combining marks so accented forms read as single tokens.
 def _is_greek_letter(c: str) -> bool:
@@ -179,6 +184,13 @@ def _grab_form(text: str, start: int) -> tuple[str, int]:
             i = j
             while i < n and text[i] in ".,":
                 i += 1
+            continue
+        # A breathing or quantity mark does not establish the accent of a
+        # finite principal part. OCR sometimes inserts an unaccented token
+        # immediately before the intact form, as in "ὑλα ἴηλα". Consider
+        # the next token only within this same uninterrupted clause.
+        if not _has_tonal_accent(word):
+            i = j
             continue
         return unicodedata.normalize("NFC", word), j
 
@@ -459,6 +471,8 @@ def _find_chained_aor_passive(sect_text: str, label_match: re.Match
             continue
         plain = strip_diacritics(word).lower()
         if not plain.endswith("θην"):
+            continue
+        if not _has_tonal_accent(word):
             continue
         return unicodedata.normalize("NFC", word)
     return None

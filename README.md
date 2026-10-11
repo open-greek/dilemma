@@ -928,9 +928,12 @@ describe their conjugation remain eligible.
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)
 walks the head paragraph and pulls out whatever principal parts LSJ
-has labelled (`fut.`, `aor.` 1 / 2, `pf.`, `pf. m./p.`, `aor. p.`,
+has labeled (`fut.`, `aor.` 1 / 2, `pf.`, `pf. m./p.`, `aor. p.`,
 `impf.`, `plpf.`), feeding each into `Module:grc-conj` as a
-positional argument. About 712 LSJ-only verbs receive at least one
+positional argument. A principal part must carry a tonal accent. The parser
+skips an unaccented token when an intact accented form immediately follows
+in the same clause; it never supplies a missing accent to the source text.
+About 712 LSJ-only verbs receive at least one
 parsed principal part this way, lifting them from present-tense-only
 expansion to full paradigm coverage and adding ~+55 unique forms per
 eligible verb on average. The classifier itself

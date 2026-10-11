@@ -116,6 +116,29 @@ def _nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
 
+def test_unaccented_token_does_not_hide_a_complete_principal_part():
+    fragment = "fut. ἰᾰλῶ (ἐπ-) Ar.Nu.1299: aor. ὑλα ἴηλα Il.15.19"
+    parts = parse_principal_parts(fragment, "ἰάλλω")
+    assert parts["aor"] == "ἴηλα"
+    assert parts["fut"] == "ἰᾰλῶ"
+
+
+@pytest.mark.parametrize("fragment,key", [
+    ("fut. λυσω", "fut"),
+    ("aor. ὑλα", "aor"),
+    ("pf. λελυκα", "pf"),
+    ("aor. p. ἐλυθην", "aor_p"),
+    ("aor. ὑλα, ἴηλα Il.15.19", "aor"),
+])
+def test_unaccented_principal_part_is_withheld(fragment, key):
+    assert key not in parse_principal_parts(fragment, "λύω")
+
+
+def test_chained_passive_also_requires_its_own_accent():
+    fragment = ":—Med. and Pass., aor. ἐλυσάμην; ἐλυθην, ἐλύθην"
+    assert parse_principal_parts(fragment, "λύω")["aor_p"] == "ἐλύθην"
+
+
 def test_lyo_parser_handles_truncated_head():
     """λύω's LSJ head is OCR-truncated; the parser should still pick
     up at least the future even when it's the only well-formed
