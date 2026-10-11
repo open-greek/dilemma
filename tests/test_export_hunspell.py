@@ -1866,7 +1866,8 @@ def test_reviewed_historical_ocr_errors_do_not_survive_compatibility(bad, correc
 def test_reviewed_irregular_compound_errors_do_not_reject_independent_homographs():
     from export_hunspell import load_grc_spelling_review
     bad = {"δεἰσί", "ἄνεσει", "εἴσιών", "ἄνιόντι", "ἄνιών", "ἀντάνιόν",
-           "συμπάροντες", "συμπάροντι", "συμπάροντων", "συμπάρων", "συμπάρησαν"}
+           "συμπάροντες", "συμπάροντι", "συμπάροντων", "συμπάρων", "συμπάρησαν",
+           "ἄνεστί", "ἄνεστίν"}
     good = {"ἄνιόν", "ἐπείσιόν", "ὕπεστί", "ὕπεστίν", "εἴσω", "ὑποκάτω",
             "παρέξω", "ἄνων", "ἄνοντος", "προσάνων", "ἄνιοι",
             "ἀνέσει", "εἰσιών", "ἀνιόντι", "ἀνιών", "συμπαρόντες",

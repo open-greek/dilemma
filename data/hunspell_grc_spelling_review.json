@@ -2975,6 +2975,26 @@
     "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
    ],
    "source_url": "https://catholiclibrary.org/library/view?chunk.id=00000005&docId=/Fathers-Synchronized-EN/Epistle_to_Diognetus__Epistula_ecclesiarum_apud_Lugdunum_et_Viennam.en.html"
+  },
+  {
+   "form": "ἄνεστί",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The independent lexical article defines go up and go back from the εἶμι family, quoting ἀνιόντι, ἀνιόντα, ἀνιών and ἄνεισι. The historical generator also prepended the same head to the unrelated εἰμί be paradigm, producing this unsupported mixed form.",
+    "Both fresh Greek Wiktionary extracts, merged lexical definitions and exact corpus evidence supply no independent owner or attestation for this spelling. The separately attested ὕπειμι forms ὕπεστί and ὕπεστίν remain allowed."
+   ]
+  },
+  {
+   "form": "ἄνεστίν",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The independent lexical article defines go up and go back from the εἶμι family, quoting ἀνιόντι, ἀνιόντα, ἀνιών and ἄνεισι. The historical generator also prepended the same head to the unrelated εἰμί be paradigm, producing this unsupported mixed form with movable nu.",
+    "Both fresh Greek Wiktionary extracts, merged lexical definitions and exact corpus evidence supply no independent owner or attestation for this spelling. The separately attested ὕπειμι forms ὕπεστί and ὕπεστίν remain allowed."
+   ]
   }
  ]
 }
