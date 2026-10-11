@@ -1245,10 +1245,14 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     freq = tmp_path / "mg_freq.txt"
     freq.write_bytes(b"freq")
     monkeypatch.setattr(paradigms, "VERB_PARADIGMS", tmp_path / "none.json")
+    participles = tmp_path / "el_participles.json"
+    participles.write_bytes(b"participles")
+    monkeypatch.setattr(paradigms, "PARTICIPLE_PARADIGMS", participles)
     monkeypatch.setattr(paradigms, "MG_FORM_FREQ", freq)
     assert mg.input_digests() == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None, "verb_paradigms": None,
+        "participle_paradigms": hashlib.sha256(b"participles").hexdigest(),
         "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
     assert mg.input_digests(generate_verbs=False) == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
@@ -1258,6 +1262,7 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None,
         "verb_paradigms": None,
+        "participle_paradigms": hashlib.sha256(b"participles").hexdigest(),
         "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
 
 
@@ -1553,6 +1558,7 @@ def test_the_built_list_holds_its_invariants():
     for name, path in (("lookup_db", mg.LOOKUP_DB),
                        ("form_profile", mg.FORM_PROFILE),
                        ("verb_paradigms", paradigms.VERB_PARADIGMS),
+                       ("participle_paradigms", paradigms.PARTICIPLE_PARADIGMS),
                        ("form_frequencies", paradigms.MG_FORM_FREQ)):
         digest = mg.sha256_file(path) if path.exists() else "not read"
         assert f"{name}_sha256: {digest}\n" in version, name

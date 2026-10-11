@@ -8,7 +8,8 @@ are the words of everyday life: the list has ἔρθει and ἔρθουν but n
 ἔρθεις, no μιλήσεις or πιεῖς, and no τηλέφωνο or κινητό. This module writes
 those forms, of verbs, nouns, adjectives and the other inflected parts of
 speech, from the monotonic paradigms Dilemma already has
-(``data/mg_pairs.json``, Wiktionary's tagged Modern Greek inflection tables),
+(``data/mg_pairs.json``, Wiktionary's tagged Modern Greek inflection tables,
+and ``data/el_participles.json``, standalone participial headwords and cells),
 for the forms frequent in monotonic text (``data/mg_freq.txt``). The rules
 below are given for verbs; a noun's, adjective's or name's differ in the
 length of its last syllable and the circumflex on it
@@ -59,6 +60,9 @@ ROOT = Path(__file__).parent
 DATA = ROOT / "data"
 # Wiktionary's Modern Greek inflection tables, monotonic, with tags.
 VERB_PARADIGMS = DATA / "mg_pairs.json"
+# Source-attested participles whose finite parent could not be resolved.
+# They retain their own nominal cells without entering finite-verb data.
+PARTICIPLE_PARADIGMS = DATA / "el_participles.json"
 # Monotonic Modern Greek word frequencies (FrequencyWords, OpenSubtitles).
 MG_FORM_FREQ = DATA / "mg_freq.txt"
 
@@ -906,8 +910,58 @@ def load_verb_paradigms(path: Path = VERB_PARADIGMS
     return load_paradigms(path, frozenset({"verb"}))
 
 
+def load_participle_cells(path: Path = PARTICIPLE_PARADIGMS) -> list[dict]:
+    """Read source-owned standalone participles as a separate part of speech.
+
+    The artifact keeps Wiktionary's original ``verb`` label and explicit
+    participle annotation. Internally ``pos:participle`` distinguishes these
+    nominal cells from a finite verb and from an adjective analysis that the
+    source did not provide. A headword has no inferred descendants.
+    """
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    if (not isinstance(data, dict) or data.get("schema_version") != 1
+            or data.get("language") != "el"
+            or not isinstance(data.get("cells"), list)):
+        raise ValueError(f"Invalid standalone participle inventory: {path}")
+    forbidden = PERSON_TAGS | {
+        "indicative", "subjunctive", "imperative", "optative", "infinitive",
+        "finite", "dependent"}
+    cases = {"nominative", "genitive", "accusative", "vocative", "dative"}
+    numbers = {"singular", "plural", "dual"}
+    out = []
+    for index, row in enumerate(data["cells"]):
+        valid = isinstance(row, dict)
+        if valid:
+            tags = row.get("tags")
+            sources = row.get("sources")
+            valid = (all(isinstance(row.get(k), str) and row[k]
+                         for k in ("form", "lemma", "source_form", "source_lemma"))
+                     and row.get("pos") == "verb"
+                     and isinstance(row.get("kind"), str)
+                     and row["kind"] in {"headword", "inflection"}
+                     and isinstance(tags, list)
+                     and all(isinstance(t, str) for t in tags)
+                     and isinstance(sources, list) and bool(sources)
+                     and all(isinstance(s, str) and s in {"en", "el"}
+                             for s in sources))
+        if valid:
+            tags = frozenset(tags)
+            valid = ("participle" in tags and not tags & forbidden
+                     and not any(t.startswith(POS_PREFIX) for t in tags)
+                     and (row["form"] == row["lemma"]
+                          if row["kind"] == "headword"
+                          else bool(tags & cases) and bool(tags & numbers)))
+        if not valid:
+            raise ValueError(f"Invalid standalone participle cell {index}: {path}")
+        out.append({"form": row["form"], "lemma": row["lemma"],
+                    "pos": "participle", "tags": sorted(tags)})
+    return out
+
+
 def load_paradigms(path: Path = VERB_PARADIGMS,
                    pos_filter: frozenset[str] | None = None,
+                   *, legacy_without_participles: bool = False,
                    ) -> dict[str, dict[str, frozenset]]:
     """lemma -> {monotonic form: union of its tags} for Wiktionary's Modern
     Greek inflection tables, of the parts of speech in ``pos_filter`` (all
@@ -930,9 +984,25 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
     one with no case cell. The forms of an s-stem adjective carry
     ``S_STEM``. The result also retains separate nominal rows for
     ``form_tag_rows``; their case tags must not collapse when generating
-    spellings (καθηγητῆ, genitive; καθηγητή, accusative or vocative)."""
+    spellings (καθηγητῆ, genitive; καθηγητή, accusative or vocative).
+
+    The default dataset requires its ``el_participles.json`` companion.
+    Custom datasets include a companion when present; the explicit
+    ``legacy_without_participles`` option omits that coverage for historical
+    comparisons. The verb-only loader excludes the standalone cells.
+    """
+    path = Path(path)
     with open(path, encoding="utf-8") as fh:
         pairs = json.load(fh)
+    if not legacy_without_participles and (
+            pos_filter is None or "participle" in pos_filter):
+        companion = path.with_name(PARTICIPLE_PARADIGMS.name)
+        if companion.exists():
+            pairs.extend(load_participle_cells(companion))
+        elif path.resolve() == VERB_PARADIGMS.resolve():
+            raise FileNotFoundError(
+                f"{companion} is required for standalone participle coverage; "
+                "run build_data.py before exporting the Modern Greek list")
     out: dict[str, dict[str, frozenset]] = defaultdict(dict)
     rare: dict[str, dict[str, frozenset]] = defaultdict(dict)
     rows: dict[tuple[str, str], set[frozenset]] = defaultdict(set)

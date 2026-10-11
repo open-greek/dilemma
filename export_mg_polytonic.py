@@ -1782,14 +1782,15 @@ _VERB_INPUTS: dict[str, object] = {}
 def _verb_inputs():
     """Wiktionary's verb paradigms and the monotonic frequencies, read once
     per process (the evaluation builds several lists), or None when either
-    file is missing."""
+    base file is missing. The standalone participle companion is required
+    whenever the paradigms are read."""
     import mg_polytonic_paradigms as paradigms
 
     if "paradigms" not in _VERB_INPUTS:
         if not (paradigms.VERB_PARADIGMS.exists()
                 and paradigms.MG_FORM_FREQ.exists()):
             return None
-        _VERB_INPUTS["paradigms"] = paradigms.load_paradigms()
+        _VERB_INPUTS["paradigms"] = paradigms.load_paradigms(paradigms.VERB_PARADIGMS)
         _VERB_INPUTS["frequencies"] = paradigms.load_form_frequencies()
     return _VERB_INPUTS["paradigms"], _VERB_INPUTS["frequencies"]
 
@@ -2967,13 +2968,16 @@ def input_digests(generate_verbs: bool = True) -> dict[str, str | None]:
     """The sha256 of the files besides grc that decide the list, None for
     one not on disk: lookup.db (the rare-respelling test), form_profile.db
     (the Ancient counts), the verb paradigms when verb forms are generated,
-    and the monotonic form frequencies when they are generated or the
+    their standalone participle companion, and the monotonic form frequencies
+    when they are generated or the
     buckets read them (``MONOTONIC_BUCKETS``)."""
     import mg_polytonic_paradigms as paradigms
 
     files = [("lookup_db", LOOKUP_DB), ("form_profile", FORM_PROFILE)]
     if generate_verbs or MONOTONIC_BUCKETS:
         files.append(("verb_paradigms", paradigms.VERB_PARADIGMS))
+        files.append(("participle_paradigms", paradigms.VERB_PARADIGMS.with_name(
+            paradigms.PARTICIPLE_PARADIGMS.name)))
     if generate_verbs or MONOTONIC_BUCKETS:
         files.append(("form_frequencies", paradigms.MG_FORM_FREQ))
     return {name: sha256_file(path) if path.exists() else None
