@@ -563,25 +563,18 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
     first, then positional stems). Tenses for which we cannot derive a
     usable stem are simply omitted.
 
-    The grc-conj template wants stems with macrons / breves preserved
-    but accents stripped, since accent placement is computed by the
-    template. We strip combining tonal marks (acute, grave, circumflex,
-    smooth/rough breathing) but keep length marks (macron U+0304,
-    breve U+0306).
+    The grc-conj template computes tone accents but requires lexical
+    breathings, diaeresis, iota subscript, and length marks. Remove only
+    acute, grave, and perispomeni, retaining all other marks in NFC.
     """
     args: dict[str, list[str]] = {}
 
     def stripped(form: str) -> str:
-        """Strip tonal accents but keep macron/breve."""
-        nfd = unicodedata.normalize("NFD", form)
-        keep = []
-        for c in nfd:
-            if unicodedata.combining(c) and ord(c) not in (0x0304, 0x0306):
-                continue
-            keep.append(c)
-        # Replace the breathing-marked initial vowel with a plain one
-        # but the breathing has already been stripped above.
-        return unicodedata.normalize("NFC", "".join(keep)).lower()
+        """Remove tone accents without discarding lexical marks."""
+        return unicodedata.normalize("NFC", "".join(
+            char for char in unicodedata.normalize("NFD", form)
+            if char not in {"\u0300", "\u0301", "\u0342"}
+        )).lower()
 
     # Future: stem1 = active future stem (strip ω from λύσω -> λυσ),
     # stem2 = passive future stem (strip ησομαι from λυθήσομαι -> λυθ).
@@ -705,7 +698,7 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
         # minus the κ (vowel-ending stem). λέλυκα -> λελυκ; λέλυμαι
         # -> stem λελυ. Use the active stem as the basis.
         if mp_form:
-            m_strip = strip_diacritics(mp_form).lower()
+            m_strip = stripped(mp_form)
             # Drop trailing 1sg "μαι" / 3sg "ται" / 3pl "νται"
             for end in ("νται", "ται", "μαι"):
                 if m_strip.endswith(end):
@@ -783,21 +776,25 @@ def _strip_augment(stem: str) -> str:
       - Leading ``ω`` -> ``ο`` (temporal augment of ο-)
       - Leading ``η`` followed by ``υ`` -> ``α`` + ``υ``
 
-    This is intentionally simple and matches LSJ's typical behaviour.
+    This preserves the existing simple augment policy while retaining
+    marks on every surviving letter.
     Compounds with preposition prefixes (e.g. προσέλιπον) are NOT
     handled; those need a separate prefix table.
     """
-    if not stem:
+    nfd = unicodedata.normalize("NFD", stem)
+    if not nfd:
         return stem
-    if stem[0] == "ε" and len(stem) > 1 and stem[1] not in _GREEK_VOWELS:
-        return stem[1:]
-    if stem[0] == "η":
-        if len(stem) > 1 and stem[1] == "υ":
-            return "αυ" + stem[2:]
-        return "α" + stem[1:]
-    if stem[0] == "ω":
-        return "ο" + stem[1:]
-    return stem
+    boundary = 1
+    while boundary < len(nfd) and unicodedata.combining(nfd[boundary]):
+        boundary += 1
+    following = nfd[boundary:]
+    if nfd[0] == "ε" and following and following[0] not in _GREEK_VOWELS:
+        # The augment and its marks disappear together.
+        return unicodedata.normalize("NFC", following)
+    if nfd[0] in {"η", "ω"}:
+        first = "α" if nfd[0] == "η" else "ο"
+        return unicodedata.normalize("NFC", first + nfd[1:])
+    return unicodedata.normalize("NFC", stem)
 
 
 __all__ = [

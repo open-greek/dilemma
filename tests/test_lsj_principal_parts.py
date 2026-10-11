@@ -286,7 +286,7 @@ def test_derive_grc_conj_args_strips_accents_keeps_length():
     args = derive_grc_conj_args(parts, "λύω")
     # aor-1: ["aor-1", augmented, non-augmented]
     assert args["aor-1"][0] == "aor-1"
-    assert args["aor-1"][1] == "ελυσ"
+    assert args["aor-1"][1] == "ἐλυσ"
     assert args["aor-1"][2] == "λυσ"
     # perf: ["perf", active stem, mp stem (empty when missing)]
     assert args["perf"][0] == "perf"
@@ -298,7 +298,7 @@ def test_derive_aor2_uses_thematic_ending():
     parts = {"aor2": "ἔλιπον"}
     args = derive_grc_conj_args(parts, "λείπω")
     assert args["aor-2"][0] == "aor-2"
-    assert args["aor-2"][1] == "ελιπ"
+    assert args["aor-2"][1] == "ἐλιπ"
     assert args["aor-2"][2] == "λιπ"
 
 
