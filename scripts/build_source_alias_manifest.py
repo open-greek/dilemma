@@ -17,7 +17,10 @@ SOURCE_FILES = (
 
 def pin(path: Path) -> dict:
     with path.open('rb') as handle:
-        digest = hashlib.file_digest(handle, 'sha256').hexdigest()
+        hasher = hashlib.sha256()
+        while chunk := handle.read(1024 * 1024):
+            hasher.update(chunk)
+        digest = hasher.hexdigest()
     return {'sha256': digest, 'size': path.stat().st_size}
 
 

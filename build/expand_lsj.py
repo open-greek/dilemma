@@ -568,7 +568,10 @@ def noun_generation_input_hashes(include_lsj=True):
     hashes = {}
     for key, path in paths.items():
         with path.open("rb") as stream:
-            hashes[key] = hashlib.file_digest(stream, "sha256").hexdigest()
+            digest = hashlib.sha256()
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+            hashes[key] = digest.hexdigest()
     return hashes
 
 

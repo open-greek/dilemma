@@ -441,7 +441,10 @@ def sophocles_noun_input_hashes():
     hashes = noun_generation_input_hashes(include_lsj=False)
     for path in sorted(SOPH_DIR.glob("*.xml")):
         with path.open("rb") as stream:
-            hashes["sophocles/" + path.name] = hashlib.file_digest(stream, "sha256").hexdigest()
+            digest = hashlib.sha256()
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+            hashes["sophocles/" + path.name] = digest.hexdigest()
     return hashes
 
 
