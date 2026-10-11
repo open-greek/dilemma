@@ -37,10 +37,10 @@ Frequency scoring
 Each .dic line carries a morphological field ``fr:<bucket>`` where
 bucket is one of C, M, R, X (Common, Medium, Rare, eXtremely rare /
 unseen in corpus). Buckets are computed from corpus counts found in
-data/corpus_freq.json (GLAUx + Diorisis, 27M AG tokens) for AG forms
-and data/mg_form_freq.json (Wiktionary + HNC-derived) for MG. Lookup
-is done on the stripped-accent form so polytonic forms can inherit the
-monotonic corpus count. Bucket edges:
+the exact, case-preserving form profile and training-LM vocabulary for
+AG forms, and data/mg_form_freq.json for MG. AG ratings preserve all marks
+except the contextual grave/acute distinction and never inherit a bare-letter
+homograph's count. The larger overlapping corpus count is used, not their sum. Bucket edges:
 
     C: count >= 1000
     M: count >= 100
@@ -58,9 +58,8 @@ Limitations
   against NFC-normalized strings this is fine.
 - Some Wiktionary-generated forms may be spurious for real usage.
   They are kept but tagged X so the consumer can filter.
-- Capitalization is represented via the KEEPCASE flag. Proper names
-  are tagged with a capital-only flag so 'σεραφειμ' is not falsely
-  accepted for 'Σεραφείμ'. We err on the side of acceptance.
+- Capitalization is lexical: sentence capitals of common words are omitted,
+  as are unattested lowercase fallback forms belonging only to names.
 
 Usage
 -----
@@ -88,6 +87,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from dilemma.form_sanitize import (
+    resolve_editorial_form,
     canonicalize_final_elision,
     has_editorial_sigla,
     sanitize_form,
@@ -129,6 +129,7 @@ AG_FUNCTION_WORDS = {
     # closed grammatical list, not a general exception for stripped forms.
     "τε": "τε", "γε": "γε", "τις": "τις", "τι": "τις",
     "τινος": "τις", "τινι": "τις", "τινα": "τις", "τινε": "τις",
+    "του": "τις", "τῳ": "τις",
     "τινοιν": "τις", "τινες": "τις", "τινων": "τις", "τισι": "τις",
     "τισιν": "τις", "τινας": "τις",
     "φημι": "φημί", "φησι": "φημί", "φησιν": "φημί",
@@ -284,7 +285,7 @@ MEDIAL_BREATHING_PREFIXES = tuple(
 # the grave (θὰ πάω, γιὰ τὸν πατέρα). They are the two words among the
 # language model's commonest that the dictionary rejected. νὰ comes in
 # through the lookup.
-MG_POLYTONIC_PARTICLES = {"θὰ": "θα", "γιὰ": "γιά"}
+MG_POLYTONIC_PARTICLES = {"θὰ": "θα", "γιὰ": "γιά", "ἐνῷ": "ἐνῷ"}
 
 # Every closed-list grc form, added after the lookup and frequency gates.
 GRC_CLOSED_LIST_FORMS = (
@@ -293,12 +294,10 @@ GRC_CLOSED_LIST_FORMS = (
     | GRC_IOTA_SUBSCRIPT_CRASIS
 )
 
-# These lookup forms are not acceptable polytonic spellings. In particular,
-# tau + omega + iota-subscript is not an unaccented variant of τῷ.
+# These lookup forms are not acceptable polytonic spellings. The genuine
+# enclitics του and τῳ belong to τις and must remain available independently
+# of the article spellings τοῦ and τῷ.
 GRC_REJECT_FORMS = frozenset({
-    # Unaccented article spellings must remain misspellings so Tonos can
-    # correct them to the polytonic forms.
-    "του", "τῳ",
     # Corpus/editorial errors which collide with very common words and rank
     # ahead of the correct spelling in downstream suggestions.  These are not
     # merely unattested generated cells: each was traced to a bad lookup row
@@ -309,6 +308,10 @@ GRC_REJECT_FORMS = frozenset({
     # (MG_POLYTONIC_PARTICLES) is the monotonic misspelling in every
     # convention: monotonic writes θα and για, polytonic the grave.
     "θά", "γιά",
+    # Source word-boundary errors, even where the old shipped list contained
+    # them: GLAUx Galen splits γί νεται and ἐνέρ γειαν; Galen/Heron split
+    # μεγί στων. The unrelated Hesychian headword γία does not validate γί.
+    "γί", "ἐνέρ", "μεγί",
 })
 
 # lookup.db deliberately keeps these bare stems as tolerant lemmatizer
@@ -1269,6 +1272,239 @@ def filter_reviewed_rejects(
     return kept, rejected
 
 
+def cased_form_key(form: str) -> str:
+    """The exact spelling key with case retained for proper-name evidence."""
+    return unicodedata.normalize(
+        "NFC", unicodedata.normalize("NFD", canonicalize_final_elision(
+            sanitize_form(form))).replace("\u0300", "\u0301")
+    )
+
+
+def load_case_ownership(conn: sqlite3.Connection) -> dict[str, int]:
+    """Record real lookup ownership before compatibility self-maps are added.
+
+    A bit marks a capitalized lemma (1) or a lowercase lemma (2). The form
+    key folds case, so a lowercase fallback cannot turn a proper name into a
+    common word. Conversely an attested lowercase homonym remains usable.
+    """
+    owners: dict[str, int] = {}
+    for form, lemma in conn.execute(
+        "SELECT k.form, l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
+        "WHERE k.src='grc' OR k.lang='all'"
+    ):
+        if not has_any_diacritic(form):
+            continue
+        key = exact_form_key(form)
+        owners[key] = owners.get(key, 0) | (1 if lemma[:1].isupper() else 2)
+    return owners
+
+
+def filter_case_artifacts(
+    pairs: list[tuple[str, str]], evidence: FormProfileEvidence,
+    ownership: dict[str, int],
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """Drop sentence capitals and unattested lowercase proper-name keys.
+
+    Corpus counts are case-sensitive here: lowercase ψυχῇ is a real word
+    even if a lookup row happens to assign it to the name Ψυχή. This gate
+    also applies to the compatibility fixture, whose self-maps are not
+    lexical evidence.
+    """
+    kept, rejected = [], []
+    spellings = {cased_form_key(form) for form, _ in pairs}
+    for pair in pairs:
+        form, _lemma = pair
+        owner = ownership.get(exact_form_key(form), 0)
+        capital = form[:1].isupper()
+        bad_capital = capital and (owner == 2 or (not owner & 1
+                      and cased_form_key(form.lower()) in spellings))
+        bad_lower = (not capital and owner == 1 and evidence.cased is not None
+                     and evidence.cased.get(cased_form_key(form), 0) == 0)
+        (rejected if bad_capital or bad_lower else kept).append(pair)
+    return kept, rejected
+
+
+
+def derive_reviewed_paradigm(spec: dict, source_forms: list[str]) -> set[str]:
+    """Derive one reviewed grammatical class from its documented source."""
+    method = spec["method"]
+    if method in {"lookup_paradigm", "verb_paradigm"}:
+        forms = set()
+        for form in source_forms:
+            if not has_any_diacritic(form) or form[:1].isupper():
+                continue
+            if spec.get("remove_initial_breathing"):
+                chars = list(unicodedata.normalize("NFD", form))
+                for i in range(1, len(chars)):
+                    if not unicodedata.combining(chars[i]):
+                        break
+                    if ord(chars[i]) in BREATHING_MARKS:
+                        chars[i] = ""
+                form = unicodedata.normalize("NFC", "".join(chars))
+            forms.add(spec.get("prefix", "") + form)
+        return forms
+    stem = spec["stem"]
+    if method == "passive_aorist_indicative":
+        return {stem + ending for ending in ("ην", "ης", "η", "ημεν", "ητε", "ησαν")}
+    if method == "passive_aorist_subjunctive":
+        return {stem + ending for ending in ("ῶ", "ῇς", "ῇ", "ῶμεν", "ῆτε", "ῶσι", "ῶσιν", "ῆτον")}
+    if method == "active_aorist_participle":
+        unaccented = unicodedata.normalize("NFC", "".join(
+            c for c in unicodedata.normalize("NFD", stem) if ord(c) not in TONAL_MARKS))
+        forms = {stem + ending for ending in
+                 ("ας", "αν", "αντος", "αντι", "αντα", "αντες", "αντας", "αντε", "ασι", "ασιν", "ασα", "ασαν", "ασαι")}
+        forms.update(unaccented + ending for ending in
+                     ("άντων", "άντοιν", "άσης", "άσῃ", "άσας", "άσαις", "ασῶν"))
+        return forms
+    if method == "eta_noun":
+        forms = {stem + ending for ending in ("η", "ης", "ῃ", "ην", "α", "αιν", "αις", "ας")}
+        forms.add(stem.replace("ή", "ῆ") + "αι")
+        forms.add(unicodedata.normalize("NFC", "".join(c for c in unicodedata.normalize("NFD", stem) if ord(c) not in TONAL_MARKS)) + "ῶν")
+        return forms
+    raise ValueError(f"unknown reviewed paradigm method: {method}")
+
+
+def add_reviewed_postclassical_paradigms(
+    pairs: list[tuple[str, str]], conn: sqlite3.Connection, *,
+    review_path: Path = DATA / "hunspell_grc_postclassical_review.json",
+) -> tuple[list[tuple[str, str]], set[str], list[dict]]:
+    """Keep defensible liturgical paradigms even where the corpora are sparse."""
+    specs = json.loads(review_path.read_text(encoding="utf-8"))
+    if specs["schema_version"] != 1:
+        raise ValueError("unsupported postclassical review schema")
+    out, protected, audit = list(pairs), set(), []
+    existing = set(pairs)
+    for spec in specs["paradigms"]:
+        source_forms = []
+        if spec["method"] == "lookup_paradigm":
+            # Resolve the lemma first: this avoids a full lookup scan per spec.
+            ids = [row[0] for row in conn.execute(
+                "SELECT id FROM lemmas WHERE text=?", (spec["source_lemma"],))]
+            for lemma_id in ids:
+                source_forms.extend(row[0] for row in conn.execute(
+                    "SELECT form FROM lookup WHERE lemma_id=? AND src='grc'", (lemma_id,)))
+        for raw in sorted(derive_reviewed_paradigm(spec, source_forms)):
+            for form in resolve_editorial_form(raw):
+                if grc_orthography_reason(form) is not None:
+                    continue
+                pair = (form, spec["lemma"])
+                if pair not in existing:
+                    out.append(pair)
+                    existing.add(pair)
+                protected.add(form)
+                audit.append({"form": form, "lemma": spec["lemma"],
+                              "method": spec["method"], "source_url": spec["source_url"]})
+    return out, protected, audit
+
+def postclassical_admission_reason(
+    count: int, sources: dict[str, int], works: int, *,
+    heldout_count: int = 0, lexical: bool = False,
+) -> str | None:
+    """Require independent evidence for a spelling absent from the lookup.
+
+    Subtract the complete held-out spelling count from every overlapping
+    source, conservatively. A dictionary-generated cell needs one remaining
+    token; an unknown word needs repeated evidence. Edited vernacular texts
+    can supply a dictionary-listed word without a classical treebank token.
+    """
+    count = max(0, count - heldout_count)
+    source_counts = {k: max(0, v-heldout_count) for k, v in sources.items()}
+    if lexical and count and (any(source_counts.values())):
+        return "attested_lexical_form"
+    # OGA and First1K often carry the same transcription; count that pair
+    # as one witness, while retaining their separate counts in the audit.
+    witnesses = {("edited" if k in {"oga", "first1k"} else k)
+                 for k, v in source_counts.items() if v >= 1}
+    if count >= 5 and len(witnesses) >= 2:
+        return "repeated_multiple_sources"
+    # No held-out token may be the sole witness for one of the three works.
+    # Without per-token work IDs, subtract one possible work per held-out token.
+    remaining_works_lower_bound = max(0, works - heldout_count)
+    if count >= 20 and remaining_works_lower_bound >= 3:
+        return "repeated_multiple_works"
+    return None
+
+
+def add_postclassical_corpus_forms(
+    pairs: list[tuple[str, str]], conn: sqlite3.Connection,
+    dev_spellings: Counter, *, profile_path: Path = FORM_PROFILE_DB,
+    paradigm_path: Path = DATA / "ag_pairs.json",
+) -> tuple[list[tuple[str, str]], list[dict]]:
+    """Admit exact, independently evidenced spellings outside the AG lookup.
+
+    Source paradigm membership validates a sparse form; a corpus-only form
+    must pass the stronger repeated-source/work rule. All additions still
+    pass the final orthographic, competing-spelling, and name-case gates.
+    """
+    existing = {cased_form_key(f) for f, _ in pairs}
+    lexical: dict[str, str] = {}
+    if paradigm_path.exists():
+        with open(paradigm_path, encoding="utf-8") as fh:
+            paradigms = json.load(fh)
+        for row in paradigms:
+            for form in resolve_editorial_form(row["form"]):
+                if has_any_diacritic(form):
+                    lexical.setdefault(cased_form_key(form), row["lemma"])
+    heldout_by_form: Counter = Counter()
+    for spelling, count in dev_spellings.items():
+        heldout_by_form[cased_form_key(spelling)] += count
+    out, audit = list(pairs), []
+    profile_conn = sqlite3.connect(str(profile_path))
+    try:
+        for form, total, sources_json, works in profile_conn.execute(
+            "SELECT f.form,p.total_count,p.source_counts_json,p.n_works "
+            "FROM forms f JOIN form_profile p USING(form_id)"
+        ):
+            form = cased_form_key(form)
+            if form in existing or not has_any_diacritic(form):
+                continue
+            if grc_orthography_reason(form) is not None:
+                continue
+            sources = json.loads(sources_json)
+            count = max(total, max(sources.values(), default=0))
+            heldout = heldout_by_form[form]
+            lemma = lexical.get(form)
+            # The curated vernacular corpus is not OCR. Its dictionary-listed
+            # words remain usable even at one token (e.g. σπίτι, στέκομαι).
+            if lemma is None and sources.get("byzantine_vernacular", 0) > heldout:
+                row = conn.execute(
+                    "SELECT l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
+                    "WHERE k.form=? AND k.lang='all' LIMIT 1", (form,)
+                ).fetchone()
+                if row:
+                    lemma = row[0]
+            reason = postclassical_admission_reason(
+                count, sources, works, heldout_count=heldout,
+                lexical=lemma is not None)
+            if reason is None:
+                continue
+            # Do not infer a capital form from a lowercase spelling. Case is
+            # retained from the source and checked against lexical ownership.
+            out.append((form, lemma or form))
+            existing.add(form)
+            audit.append({"form": form, "lemma": lemma or form,
+                          "reason": reason, "count": count,
+                          "heldout_subtracted": heldout,
+                          "source_counts": sources, "works": works})
+    finally:
+        profile_conn.close()
+    return out, audit
+
+def load_exact_rating_counts(evidence: FormProfileEvidence) -> dict[str, int]:
+    """Use each spelling's own profile or training-LM count, never a homograph.
+
+    The two corpora overlap, so take the larger count rather than summing.
+    Grave and acute contextual forms intentionally share one spelling key.
+    """
+    counts = dict(evidence.cased if evidence.cased is not None else evidence.exact)
+    path = DATA / "hunspell_grc_form_freq.json.gz"
+    if path.exists():
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            for form, count in json.load(fh).get("forms", {}).items():
+                key = cased_form_key(form)
+                counts[key] = max(counts.get(key, 0), int(count))
+    return counts
+
 def finalize_grc_pairs(
     form_lemma: list[tuple[str, str]],
     *,
@@ -1278,6 +1514,7 @@ def finalize_grc_pairs(
     export_overrides: dict[str, str],
     protected_forms: set[str],
     reviewed_rejects: frozenset[str] = frozenset(),
+    case_ownership: dict[str, int] | None = None,
 ) -> tuple[list[tuple[str, str]], dict]:
     """Apply the grc structural and evidence filters in release order.
 
@@ -1326,8 +1563,13 @@ def finalize_grc_pairs(
     )
     report["twin_dropped"] = before_twins + acute_twins - len(form_lemma)
     # A recorded review outranks every protection above.
-    form_lemma, reviewed = filter_reviewed_rejects(form_lemma, reviewed_rejects)
+    form_lemma, reviewed = filter_reviewed_rejects(
+        form_lemma, reviewed_rejects | frozenset({"γί", "ἐνέρ", "μεγί"}))
     report["reviewed"] = len(reviewed)
+    form_lemma, case_rejected = filter_case_artifacts(
+        form_lemma, evidence, case_ownership or {})
+    report["case_artifacts"] = len(case_rejected)
+    report["case_rejected"] = sorted(set(case_rejected))
     return form_lemma, report
 
 
@@ -1518,6 +1760,7 @@ class FormProfileEvidence(NamedTuple):
     treebank: dict[str, int]
     metadata: dict[str, str]
     treebank_confirmed: frozenset = frozenset()
+    cased: dict[str, int] | None = None
 
 
 def load_form_profile_freq() -> FormProfileEvidence:
@@ -1540,6 +1783,7 @@ def load_form_profile_freq() -> FormProfileEvidence:
             "FROM forms f JOIN form_profile p USING(form_id)"
         )
         frequencies: dict[str, int] = defaultdict(int)
+        cased: dict[str, int] = defaultdict(int)
         by_treebank: dict[str, dict[str, int]] = defaultdict(
             lambda: defaultdict(int)
         )
@@ -1551,9 +1795,11 @@ def load_form_profile_freq() -> FormProfileEvidence:
             # in a lower-priority source's copy of a work that a higher-
             # priority source claims has total 0 (199,082 rows). Its own
             # source count still attests it.
-            frequencies[key] += max(
+            spelling_count = max(
                 int(count), max((int(n) for n in sources.values()), default=0)
             )
+            frequencies[key] += spelling_count
+            cased[cased_form_key(form)] += spelling_count
             for source in TREEBANK_PROFILE_SOURCES:
                 if sources.get(source):
                     by_treebank[key][source] += int(sources[source])
@@ -1576,7 +1822,7 @@ def load_form_profile_freq() -> FormProfileEvidence:
         skeleton = mark_skeleton(form)
         dominant[skeleton] = max(dominant.get(skeleton, 0), count)
     return FormProfileEvidence(frequencies, dominant, treebank, metadata,
-                               frozenset(treebank_confirmed))
+                               frozenset(treebank_confirmed), dict(cased))
 
 
 def count_dev_spellings(paths: tuple[Path, ...] = LM_DEV_SENTENCES) -> Counter:
@@ -2190,6 +2436,7 @@ def build_sfx_rules(
     max_singletons_to_inline: int = 1,
     canonical_forms: set[str] | None = None,
     canonical_lemmas: set[str] | None = None,
+    exact_frequency: bool = False,
 ) -> tuple[list[str], list[str]]:
     """Given (form, lemma) pairs, produce (aff_lines, dic_lines).
 
@@ -2215,7 +2462,9 @@ def build_sfx_rules(
         canonical_forms = set()
     if canonical_lemmas is None:
         canonical_lemmas = set()
-    lemma_totals = compute_lemma_totals(form_lemma, freq_map)
+    lemma_totals = {} if exact_frequency else compute_lemma_totals(form_lemma, freq_map)
+    count_for = ((lambda form, counts: counts.get(cased_form_key(form), 0))
+                 if exact_frequency else freq_lookup)
     # Group by lemma
     by_lemma: dict[str, set[str]] = defaultdict(set)
     for form, lemma in form_lemma:
@@ -2229,7 +2478,18 @@ def build_sfx_rules(
     sig_to_lemmas: dict[tuple, list[tuple[str, str, list[str]]]] = defaultdict(list)
     # values: (lemma, real base form, [suffixes preserving duplicates])
 
+    groups: list[tuple[str, set[str]]] = []
     for lemma, forms in by_lemma.items():
+        if exact_frequency:
+            by_bucket: dict[str, set[str]] = defaultdict(set)
+            for form in forms:
+                bucket = ("C" if form in canonical_forms
+                          else freq_bucket(count_for(form, freq_map)))
+                by_bucket[bucket].add(form)
+            groups.extend((lemma, subset) for subset in by_bucket.values())
+        else:
+            groups.append((lemma, forms))
+    for lemma, forms in groups:
         flist = sorted(forms)
         if len(flist) == 1:
             singletons.append((flist[0], lemma))
@@ -2291,6 +2551,8 @@ def build_sfx_rules(
         return f"{word}\t{morph}"
 
     def pick_bucket(form: str, lemma: str, form_count: int) -> str:
+        if exact_frequency:
+            return "C" if form in canonical_forms else freq_bucket(form_count)
         return bucket_for(
             form=form,
             lemma=lemma,
@@ -2316,7 +2578,7 @@ def build_sfx_rules(
             best_bucket = "X"
             for suf in set(suffixes):
                 full = stem + suf
-                c = freq_lookup(full, freq_map)
+                c = count_for(full, freq_map)
                 b = pick_bucket(full, lemma, c)
                 if bucket_rank[b] > bucket_rank[best_bucket]:
                     best_bucket = b
@@ -2333,7 +2595,7 @@ def build_sfx_rules(
             if form in emitted_plain:
                 continue
             emitted_plain.add(form)
-            c = freq_lookup(form, freq_map)
+            c = count_for(form, freq_map)
             dic_lines.append(fmt_entry(form, None, pick_bucket(form, lemma, c)))
 
     # Emit singletons as plain words
@@ -2341,7 +2603,7 @@ def build_sfx_rules(
         if form in emitted_plain:
             continue
         emitted_plain.add(form)
-        c = freq_lookup(form, freq_map)
+        c = count_for(form, freq_map)
         dic_lines.append(fmt_entry(form, None, pick_bucket(form, lemma, c)))
 
     return aff_blocks, dic_lines
@@ -2366,6 +2628,7 @@ def write_variant(
         form_lemma, freq_map,
         canonical_forms=canonical_forms,
         canonical_lemmas=canonical_lemmas,
+        exact_frequency=variant == "grc",
     )
 
     # .aff header
@@ -2453,6 +2716,7 @@ def run_export(sanity: int | None, variants: list[str],
         else FormProfileEvidence({}, {}, {}, {})
     )
     grc_form_freq = profile.exact
+    grc_rating_counts = load_exact_rating_counts(profile) if "grc" in variants else {}
     profile_meta = profile.metadata
     print(f"  MG freq: {len(mg_freq):,} entries")
     print(f"  AG freq: {len(ag_freq):,} entries")
@@ -2482,13 +2746,14 @@ def run_export(sanity: int | None, variants: list[str],
         print(f"ERROR: {GRC_TEXTBOOK_FORMS} is required for the textbook "
               "paradigm gate", file=sys.stderr)
         sys.exit(1)
-    # Closed lists and pinned forms: exempt from the corpus-evidence filters
-    # and pinned to the common frequency bucket.
+    # Closed lists and pinned forms are exempt from corpus-admission filters.
+    # Only explicit canonical spellings, not their lemmas, receive a C pin.
     export_overrides = GRC_CLOSED_LIST_FORMS
     lm_head_forms = load_lm_head_required_forms() if "grc" in variants else set()
     grc_protected_forms = grc_pinned_forms(
         canonical_forms, top_lsj9_lemmas, textbook_forms, lm_head_forms
     )
+    dev_spellings: Counter = Counter()
     treebank_counts: dict[str, int] = {}
     treebank_spellings: dict[str, set[str]] = {}
     if "grc" in variants and treebank_spelling_min_count > 0:
@@ -2515,6 +2780,7 @@ def run_export(sanity: int | None, variants: list[str],
 
     conn = sqlite3.connect(str(LOOKUP_DB))
     conn.execute("PRAGMA mmap_size=268435456")
+    case_ownership = load_case_ownership(conn) if "grc" in variants else {}
 
     for variant in variants:
         print(f"=== Variant: {variant} ===")
@@ -2597,6 +2863,16 @@ def run_export(sanity: int | None, variants: list[str],
             print(f"  Sanity pass: {len(seen_lemmas):,} lemmas, "
                   f"{len(form_lemma):,} forms")
 
+        postclassical_audit: list[dict] = []
+        reviewed_paradigm_audit: list[dict] = []
+        reviewed_paradigm_forms: set[str] = set()
+        if variant == "grc" and not sanity:
+            form_lemma, reviewed_paradigm_forms, reviewed_paradigm_audit = (
+                add_reviewed_postclassical_paradigms(form_lemma, conn))
+            form_lemma, postclassical_audit = add_postclassical_corpus_forms(
+                form_lemma, conn, dev_spellings)
+            print(f"  +{len(postclassical_audit):,} evidenced postclassical spellings")
+
         if variant == "grc":
             # Closed-class words and a handful of independently attested
             # runtime-resolved forms are exceptions to the lookup/frequency
@@ -2651,8 +2927,9 @@ def run_export(sanity: int | None, variants: list[str],
                 compatibility_forms=compatibility_forms,
                 textbook_forms=textbook_forms,
                 export_overrides=export_overrides,
-                protected_forms=grc_protected_forms,
+                protected_forms=grc_protected_forms | reviewed_paradigm_forms,
                 reviewed_rejects=load_grc_spelling_review(),
+                case_ownership=case_ownership,
             )
             if report["invalid"]:
                 detail = ", ".join(
@@ -2668,6 +2945,7 @@ def run_export(sanity: int | None, variants: list[str],
                 ("dominated", "weak new respellings of a more common "
                               "spelling"),
                 ("reviewed", "spellings a recorded review rejected"),
+                ("case_artifacts", "capitalization artifacts"),
             ):
                 if report[key]:
                     print(f"  Guard: dropped {report[key]:,} {message}")
@@ -2677,6 +2955,18 @@ def run_export(sanity: int | None, variants: list[str],
             if report["twin_dropped"]:
                 print(f"  Guard: dropped {report['twin_dropped']:,} derived "
                       "twins (structure or weak respelling)")
+
+        if variant == "grc":
+            retained = {f for f, _ in form_lemma}
+            for row in postclassical_audit:
+                row["retained"] = row["form"] in retained
+            (OUT / "grc_polytonic.audit.json").write_text(json.dumps({
+                "schema_version": 1, "source_commit": commit,
+                "form_profile_content_hash": profile_meta.get("content_hash"),
+                "postclassical_admissions": postclassical_audit,
+                "reviewed_paradigms": reviewed_paradigm_audit,
+                "case_rejected": report["case_rejected"],
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
         if variant == "el":
             stats = write_variant(
@@ -2693,7 +2983,7 @@ def run_export(sanity: int | None, variants: list[str],
             stats = write_variant(
                 variant=variant,
                 form_lemma=form_lemma,
-                freq_map=ag_freq,
+                freq_map=grc_rating_counts,
                 out_dir=OUT,
                 dic_name="grc_polytonic",
                 lang_tag="grc",

@@ -645,8 +645,8 @@ def test_unaccented_ag_exceptions_are_a_closed_function_word_list():
         AG_FUNCTION_WORDS
     )
     assert {"οὐκ", "οὐχ"} <= set(AG_FUNCTION_WORDS)
-    assert "του" not in AG_FUNCTION_WORDS
-    assert "τῳ" not in AG_FUNCTION_WORDS
+    assert AG_FUNCTION_WORDS["του"] == "τις"
+    assert AG_FUNCTION_WORDS["τῳ"] == "τις"
 
 
 def test_export_overrides_are_narrow_runtime_resolved_forms():
@@ -822,9 +822,9 @@ def test_grc_orthography_filter_reports_rejected_pairs():
     ])
 
     assert kept == [("αὐτός", "αὐτός"), ("ῥήτωρ", "ῥήτωρ"),
-                    ("λόγος", "λόγος")]
+                    ("λόγος", "λόγος"), ("τῳ", "τις")]
     assert rejected == [
-        ("αυτός", "αὐτός"), ("ρητωρ", "ῥήτωρ"), ("τῳ", "τις")
+        ("αυτός", "αὐτός"), ("ρητωρ", "ῥήτωρ")
     ]
 
 
@@ -1389,3 +1389,121 @@ def test_select_forms_takes_modern_greek_rows_the_treebanks_attest():
     # rule; ἑκατέρως keeps the lemma the closed list gives it.
     assert taken == {("λόγος", "λόγος"), ("σπανίως", "σπανίως"),
                      ("κτήσεις", "κτήσεις")}
+
+
+def test_real_enclitics_and_postclassical_conjunction_are_closed_forms():
+    assert {"του": "τις", "τῳ": "τις", "ἐνῷ": "ἐνῷ"}.items() <= GRC_CLOSED_LIST_FORMS.items()
+    assert grc_orthography_reason("τῳ") is None
+
+
+def test_exact_rating_does_not_borrow_from_letters_or_lemma_or_affix():
+    pairs = [("χρυσός", "χρυσός"), ("χρῦσος", "χρυσός"),
+             ("λόγος", "λόγος"), ("λόγοςα", "λόγος"),
+             ("τύπος", "τύπος"), ("τύποςα", "τύπος")]
+    aff, lines = build_sfx_rules(
+        pairs, {"χρυσος": 200_000, "χρυσός": 2_000, "λόγος": 2000},
+        canonical_lemmas={"χρυσός"}, exact_frequency=True)
+    assert not aff
+    assert "χρῦσος\tfr:X" in lines
+    assert "χρυσός\tfr:C" in lines
+    assert "λόγοςα\tfr:X" in lines
+
+
+def test_case_filter_uses_real_ownership_and_exact_case_evidence():
+    from export_hunspell import cased_form_key, filter_case_artifacts
+    evidence = _evidence({"Σωκράτης": 9000, "ψυχῇ": 2000})
+    evidence = evidence._replace(cased={cased_form_key("Σωκράτης"): 9000,
+                                        cased_form_key("ψυχῇ"): 2000})
+    pairs = [("Πόλῃ", "Πόλῃ"), ("πόλῃ", "πόλις"),
+             ("Σωκράτης", "Σωκράτης"), ("σωκράτης", "σωκράτης"),
+             ("ψυχῇ", "Ψυχή")]
+    kept, rejected = filter_case_artifacts(
+        pairs, evidence, {exact_form_key("Πόλῃ"): 2,
+                          exact_form_key("Σωκράτης"): 1,
+                          exact_form_key("ψυχῇ"): 1})
+    assert rejected == [pairs[0], pairs[3]]
+    assert kept == [pairs[1], pairs[2], pairs[4]]
+
+
+def test_source_split_word_junk_cannot_return_through_compatibility():
+    pairs = [("γί", "γία"), ("ἐνέρ", "ἐνέρ"), ("μεγί", "μέγας"), ("γία", "γία")]
+    kept, _ = finalize_grc_pairs(
+        pairs, evidence=_evidence({f: 5000 for f, _ in pairs}),
+        compatibility_forms={f for f, _ in pairs}, textbook_forms=set(),
+        export_overrides={}, protected_forms=set())
+    assert kept == [("γία", "γία")]
+
+
+def test_postclassical_evidence_removes_heldout_and_requires_repetition():
+    from export_hunspell import postclassical_admission_reason as reason
+    assert reason(8, {"pg": 8, "first1k": 5}, 3) == "repeated_multiple_sources"
+    assert reason(8, {"pg": 8}, 3) is None
+    assert reason(5, {"pg": 5, "first1k": 1, "oga": 1}, 4) == "repeated_multiple_sources"
+    assert reason(8, {"first1k": 8, "oga": 8}, 3) is None
+    assert reason(30, {"pg": 30}, 4) == "repeated_multiple_works"
+    assert reason(25, {"oga": 25}, 3, heldout_count=5) is None
+    assert reason(25, {"oga": 25}, 8, heldout_count=5) == "repeated_multiple_works"
+    assert reason(1, {"pg": 1}, 1, lexical=True) == "attested_lexical_form"
+    assert reason(1, {"pg": 1}, 1, lexical=True, heldout_count=1) is None
+    assert reason(8, {"pg": 8, "first1k": 5}, 3, heldout_count=5) is None
+
+
+def test_reviewed_paradigms_derive_cells_instead_of_listing_words():
+    from export_hunspell import derive_reviewed_paradigm as derive
+    forms = derive({"method": "lookup_paradigm", "prefix": "παν",
+                    "remove_initial_breathing": True}, ["ἀμώμητον", "ἀμωμήτῳ"])
+    assert forms == {"παναμώμητον", "παναμωμήτῳ"}
+    forms = derive({"method": "verb_paradigm", "prefix": "ἀνθ",
+                    "remove_initial_breathing": True}, ["ὁπλίσαντες"])
+    assert forms == {"ἀνθοπλίσαντες"}
+    assert "κατετέθης" in derive({"method": "passive_aorist_indicative", "stem": "κατετέθ"}, [])
+    assert "λαμπρυνθῶμεν" in derive({"method": "passive_aorist_subjunctive", "stem": "λαμπρυνθ"}, [])
+    forms = derive({"method": "eta_noun", "stem": "πινακοθήκ"}, [])
+    assert {"πινακοθήκῃ", "πινακοθηκῶν", "πινακοθῆκαι"} <= forms
+
+
+def test_exact_rating_compresses_only_equal_bucket_cells():
+    pairs = [("βα", "lemma1"), ("βαν", "lemma1"), ("βας", "lemma1"),
+             ("γα", "lemma2"), ("γαν", "lemma2"), ("γας", "lemma2")]
+    aff, lines = build_sfx_rules(pairs, {"βα": 2000, "βαν": 2000,
+                                       "γα": 2000, "γαν": 2000}, exact_frequency=True)
+    assert aff
+    assert any(line.startswith("βα/") and line.endswith("fr:C") for line in lines)
+    assert "βας\tfr:X" in lines
+    assert "γας\tfr:X" in lines
+
+
+def test_exact_rating_keeps_capital_and_lowercase_counts_separate():
+    _aff, lines = build_sfx_rules([("Κοίνος", "Κοίνος"), ("κοίνος", "κοίνος")],
+                                  {"κοίνος": 2000}, exact_frequency=True)
+    assert "Κοίνος\tfr:X" in lines
+    assert "κοίνος\tfr:C" in lines
+
+
+def test_postclassical_loader_uses_lexical_and_independent_corpus_evidence(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import add_postclassical_corpus_forms
+    profile = tmp_path / "profile.db"
+    conn = sqlite3.connect(profile)
+    conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
+                       "CREATE TABLE form_profile(form_id INTEGER,total_count INTEGER,"
+                       "source_counts_json TEXT,n_works INTEGER);")
+    rows = [("πανάγιον", 8, {"pg": 8, "first1k": 1}, 4),
+            ("σπανίως", 1, {"pg": 1}, 1),
+            ("καθόλου", 1, {"pg": 1}, 1),
+            ("σπίτι", 1, {"byzantine_vernacular": 1}, 1),
+            ("λόγους", 7, {"oga": 7, "first1k": 7}, 1)]
+    for i, (form, count, sources, works) in enumerate(rows):
+        conn.execute("INSERT INTO forms VALUES(?,?)", (i, form))
+        conn.execute("INSERT INTO form_profile VALUES(?,?,?,?)",
+                     (i, count, json.dumps(sources), works))
+    conn.commit(); conn.close()
+    lexical = tmp_path / "pairs.json"
+    lexical.write_text(json.dumps([{"form":"σπανίως","lemma":"σπάνιος"},
+                                   {"form":"καθόλου","lemma":"καθόλου"}]))
+    lookup = _lookup_db([("σπίτι", "σπίτι", "el")])
+    out, audit = add_postclassical_corpus_forms([], lookup, Counter({"καθόλου":1}),
+                                                profile_path=profile, paradigm_path=lexical)
+    assert {form for form, _ in out} == {"πανάγιον", "σπανίως", "σπίτι"}
+    assert {row["reason"] for row in audit} == {"repeated_multiple_sources", "attested_lexical_form"}
