@@ -7,6 +7,16 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Modern noun form pages retain their exact grammatical references but do
+  not authorize full tables whose own-head cells contradict those references.
+  Independent homographs, spelling variants, and separate lexical meanings
+  retain their tables.
+- Determiner and pronoun sense references resolve through explicit same-POS
+  chains to positively defined heads before table claims. Ambiguous normalized
+  projections retain the previous mapping instead of choosing entry order.
+- Uncounted lowercase Ancient coverage (`fr:X`) no longer suppresses a counted
+  capital noun or name with an independent Modern definition and two explicit
+  declined forms. Literal capital and counted lowercase coverage remain guards.
 - Modern reference rows preserve per-sense grammatical tags and distinct cells.
   Independent determiner and pronoun morphology retains its source POS owner
   even when a flat homograph belongs to a verb. `el_closed_class_heads.json`

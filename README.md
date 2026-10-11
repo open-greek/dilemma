@@ -401,6 +401,12 @@ homograph. The masculine noun `σκιάς` and the feminine genitive `σκιάς
 of `σκιά` therefore keep separate paradigms. Form-of and alternative-spelling
 entries still follow their explicit references; no ownership marker enters
 the output JSON, and flat lookup arbitration is unchanged.
+A Modern noun form page with an explicit case and number does not supply a
+full table when that table assigns incompatible cells to the page's own
+headword. Its exact form reference remains: noun `κρατών` stays the genitive
+plural of `κράτος`, while the independently defined adjective `κρατών` owns
+`κρατούν` and `κρατούσα`. Spelling-variant pages, tables that reproduce the
+stated cell, and entries with a separate lexical meaning retain their tables.
 `data/el_noun_heads.json` documents the independent noun heads for which that
 flat choice differs, with exact source headwords, noun senses, tags, and
 SHA-256 hashes of the source editions. The version-1 envelope has
@@ -432,6 +438,11 @@ input hashes for non-flat heads. Built-data integrity checks require this
 positive evidence and an exact matching DET or PRON self-target in
 `mg_pos_lookup.json`; form-only, spelling-reference, and no-gloss entries cannot
 authorize an exception. The scalar lookup remains unchanged.
+Own determiner and pronoun sense references follow same-POS chains to a
+positively defined head before competing table claims: `εσένα` and `εσένανε`
+resolve to `εσύ`, without treating weak form `σε` as a lexical head.
+Different accented references keep their own roots; a normalized key with
+multiple supported roots retains its previous mapping.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms
@@ -2874,7 +2885,7 @@ accent monotonic text writes most first. A generated spelling must
 pass the list's orthography rules and recorded reviews, and each oxytone
 gets its contextual twin; a loanword may end in a consonant (`μπάσκετ`,
 `μοτέλ`, `ἀλκοόλ`), unless it is a word of grc or the list that lost its
-last vowel. A capitalized form (a name, a month) is listed where no
+last vowel. Normally, a capitalized form (a name, a month) is listed where no
 spelling of its monotonic form is, capitalized or in lowercase (a spelling
 in `-ῃ` too: `γράψῃ` keeps out the surname `Γράψη`), a dative in `-ᾳ` or
 `-ῳ` aside (grc's `Ῥωσίᾳ` and `ῥωσίᾳ` leave `Ῥωσία`), where it would not
@@ -2889,7 +2900,11 @@ list) or leave it bare. A rarer name in one form (`Τζίμα`, 85), mostly a
 foreign one, is right as typed, and in the list it would only draw names
 typed near it to itself (`τζιμ`, typed without an accent, corrected to
 `Τζίμα`). A generated name is `R`, since its lowercased count is shared
-with the words of its letters. An Ancient spelling a review found to have
+with the words of its letters. An uncounted lowercase Ancient spelling
+(`fr:X`) alone does not cover a counted capital noun or name with an
+independently defined Modern head and two distinct, explicitly identified
+case-and-number forms. Literal capital coverage and counted lowercase
+coverage (`C`, `M`, or `R`) retain their guards. An Ancient spelling a review found to have
 the letters of the word Modern Greek means by them is left out of the
 list, is no evidence for a generated spelling and covers none, and is
 marked `mg:avoid` where grc has it (`MG_LETTERS_OF_ANOTHER_WORD`): `εὑρῶ`,
