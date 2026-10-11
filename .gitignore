@@ -2,6 +2,8 @@
 data/ag_lookup.json
 data/ag_lookup_scored.json
 data/ag_noun_generation_audit.json
+data/ag_source_alias_audit.json
+data/ag_source_alias_manifest.json
 data/ag_sophocles_noun_generation_audit.json
 data/ag_lsj_verb_pairs.json
 data/ag_pairs.json

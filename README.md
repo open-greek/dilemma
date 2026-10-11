@@ -1906,6 +1906,15 @@ The Diorisis pair extractor preserves terminal Beta Code elision as Greek
 koronis, with medial σ before the mark. An elided source token therefore cannot
 silently become a complete word; unelided homographs remain separate readings.
 
+The optional `data/ag_source_alias_audit.json` and
+`data/ag_source_alias_manifest.json` preserve source readings and reversible
+alias changes, and pin the matching lookup, predecessor, source revision,
+and input hashes. `scripts/build_source_alias_manifest.py` verifies those
+pins and reverses each change before writing the manifest. Use
+`--pre-alias-lookup` for the first manifest, or `--pre-alias-manifest` to
+verify it against the recorded predecessor hash. These files are provenance
+artifacts and are not required at runtime.
+
 Expansion sources sometimes encode restored letters with Leiden square
 brackets or spelling alternatives with parentheses. These delimiters are
 metadata, not Greek spelling. The build resolves only the structurally safe
