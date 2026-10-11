@@ -13,6 +13,8 @@ All notable changes to Dilemma are documented here. The format follows
   qualifiers as inflections. Explicit spelling references and broken inflection
   templates no longer establish lexical heads; genuine meanings on form pages
   remain eligible. Apply the same checks to the lexical-head inventory.
+- Treat explicitly qualified verb-form descriptions as grammatical
+  references while preserving separately defined lexical senses.
 - Preserve name-reference ambiguity when following typed form chains,
   preventing Athena's oblique forms from acquiring the adjective's lemma.
 - Recognize monotonic projections of polytonic articles in the opt-in

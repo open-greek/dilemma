@@ -333,7 +333,9 @@ Their inflection tables resolve to the supported parent without treating the
 variant description as an independent definition. A separate lexical meaning
 in the same entry still supports its headword.
 Nominal case descriptions also recognize slash-separated cases, gender and
-contraction labels. Explicit spelling references, sacred abbreviations, and
+contraction labels. Verb-form descriptions with explicit grammatical qualifiers
+likewise remain grammatical evidence, not independent lexical definitions.
+Explicit spelling references, sacred abbreviations, and
 unexpanded inflection templates do not supply independent definitions. A form
 header still permits a genuine lexical meaning, such as a lexicalized plural.
 Reference targets can follow a colon or an explicit word label.

@@ -1692,6 +1692,9 @@ def noun_head_inventory(records: list, lookup: dict, source_hashes: dict) -> dic
 
 def _is_verb_inflection_gloss(gloss: str) -> bool:
     """Recognize grammatical form descriptions without matching lexical 'of'."""
+    text = re.sub(
+        r"^(?:(?:uncontracted|contracted|unaugmented|late|paroxytone|"
+        r"prevocalic/clause-final)\s+)+", "", gloss.strip().lower())
     return bool(re.match(
         r"^(?:(?:first|second|third)[ -]person\b|"
         r"(?:singular|plural|dual) (?:present|past|aorist|perfect|future|indicative|subjunctive|imperative)\b|"
@@ -1701,7 +1704,7 @@ def _is_verb_inflection_gloss(gloss: str) -> bool:
         r"(?:participle|indicative|subjunctive|imperative|tense)\b|"
         r"(?:(?:άκλιτη|κλιτή) )?μετοχ[ήη]\b|"
         r"(?:πρώτο|δεύτερο|τρίτο) πρόσωπο\b|"
-        r"[αβγ][΄'ʹ]?[ .-]+(?:ενικό|πληθυντικό|πρόσωπο)\b)", gloss.strip().lower()))
+        r"[αβγ][΄'ʹ]?[ .-]+(?:ενικό|πληθυντικό|πρόσωπο)\b)", text))
 
 
 def _is_closed_class_inflection_gloss(gloss: str) -> bool:
