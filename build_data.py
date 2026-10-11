@@ -741,7 +741,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     and not top_form_of_for_detection and not top_alt_of_for_detection
                     and "form-of" not in (entry.get("tags") or [])
                     and not any("form-of" in (s.get("tags") or [])
-                                for s in entry.get("senses") or [])):
+                                for s in entry.get("senses") or [])
+                    and is_independent_finite_entry(entry, wikt_source)):
                 # A verb-tagged inflection/alternate page is not an
                 # independent lexical verb parent for another participle.
                 verb_heads.add(lemma)
@@ -1427,7 +1428,21 @@ def noun_head_inventory(records: list, lookup: dict, source_hashes: dict) -> dic
     }
 
 
-def validate_noun_head_inventory(inventory: dict) -> set:
+
+def _is_verb_inflection_gloss(gloss: str) -> bool:
+    """Recognize grammatical form descriptions without matching lexical 'of'."""
+    return bool(re.match(
+        r"^(?:(?:first|second|third)[ -]person\b|"
+        r"(?:singular|plural|dual) (?:present|past|aorist|perfect|future|indicative|subjunctive|imperative)\b|"
+        r"(?:inflection|conjugation|form|(?:alternative|alternate) (?:form|spelling)) of\b|"
+        r"(?:active|passive|middle)(?: nonfinite form)? of\b|"
+        r"(?:(?:present|past|aorist|perfect|future|passive|active|middle) )+"
+        r"(?:participle|indicative|subjunctive|imperative|tense)\b|"
+        r"(?:(?:άκλιτη|κλιτή) )?μετοχ[ήη]\b|"
+        r"(?:πρώτο|δεύτερο|τρίτο) πρόσωπο\b|"
+        r"[αβγ][΄'ʹ]?[ .-]+(?:ενικό|πληθυντικό|πρόσωπο)\b)", gloss.strip().lower()))
+
+def _validate_head_inventory(inventory: dict, pos: str) -> set:
     """Return positively supported heads, rejecting malformed or form evidence.
 
     The input hashes identify the source editions. Evidence retains their
@@ -1435,7 +1450,7 @@ def validate_noun_head_inventory(inventory: dict) -> set:
     an inflection, spelling reference, empty definition, or another head.
     """
     def fail(message):
-        raise ValueError("Invalid noun-head evidence: " + message)
+        raise ValueError(f"Invalid {pos}-head evidence: " + message)
 
     if (not isinstance(inventory, dict) or inventory.get("schema_version") != 1
             or inventory.get("language") != "el"):
@@ -1464,7 +1479,7 @@ def validate_noun_head_inventory(inventory: dict) -> set:
                                       "form_of", "alt_of"}):
                 fail("incomplete source entry for " + lemma)
             source, word = entry["source"], entry["headword"]
-            if (source not in hashes or entry["pos"] != "noun"
+            if (source not in hashes or entry["pos"] != pos
                     or not isinstance(word, str) or strip_length_marks(word) != lemma):
                 fail("wrong source head or part of speech for " + lemma)
             tags, senses = entry["tags"], entry["senses"]
@@ -1479,30 +1494,81 @@ def validate_noun_head_inventory(inventory: dict) -> set:
             substantive = False
             for sense in senses:
                 if (not isinstance(sense, dict)
-                        or set(sense) != {"glosses", "tags", "form_of", "alt_of"}
+                        or set(sense) != ({"glosses", "tags", "form_of", "alt_of", "related"}
+                                          if pos == "verb" else {"glosses", "tags", "form_of", "alt_of"})
                         or not all(isinstance(sense[k], list) for k in sense)
                         or not all(isinstance(g, str) and g.strip() for g in sense["glosses"])
                         or not all(isinstance(t, str) for t in sense["tags"])
                         or sense["form_of"] or sense["alt_of"]
                         or _NOUN_REFERENCE_TAGS.intersection(sense["tags"])):
                     fail("form or malformed sense for " + lemma)
-                substantive |= bool(sense["glosses"] and "no-gloss" not in sense["tags"])
+                substantive |= bool("no-gloss" not in sense["tags"] and any(
+                    pos != "verb" or not _is_verb_inflection_gloss(gloss)
+                    for gloss in sense["glosses"]))
             first_gloss = (senses[0]["glosses"] or [""])[0].lower()
-            if (not substantive or any(p in first_gloss for p in _FORM_OF_PATTERNS)
+            has_ordinary_sense = any(s["glosses"] and "participle" not in s["tags"]
+                                     for s in senses)
+            participle = (pos == "verb" and ("participle" in tags or any(
+                _is_participle_sense(s, has_ordinary_sense) for s in senses)))
+            reference_gloss = (pos == "noun" and any(
+                p in first_gloss for p in _FORM_OF_PATTERNS))
+            if (not substantive or reference_gloss or participle
                     or spelling_target(lemma, senses) is not None):
                 fail("no independent lexical sense for " + lemma)
         result.add(lemma)
     return result
 
 
+
+def validate_noun_head_inventory(inventory: dict) -> set:
+    """Return exact source-backed noun exceptions to the flat-head rule."""
+    return _validate_head_inventory(inventory, "noun")
+
+
+
+def verb_head_evidence(entry: dict, source: str) -> dict:
+    """Retain the exact source fields used to identify a finite verb head."""
+    return {
+        "source": source, "headword": entry.get("word", ""), "pos": entry.get("pos", ""),
+        "tags": sorted(set(entry.get("tags") or [])),
+        "form_of": entry.get("form_of") or [], "alt_of": entry.get("alt_of") or [],
+        "senses": [{key: sense.get(key) or []
+                    for key in ("glosses", "tags", "form_of", "alt_of", "related")}
+                   for sense in entry.get("senses") or []],
+    }
+
+
+def is_independent_finite_entry(entry: dict, source: str) -> bool:
+    """Require a positive lexical definition, not a header or form reference."""
+    if entry.get("pos") != "verb":
+        return False
+    word = entry.get("word", "")
+    if not word:
+        return False
+    probe = {"schema_version": 1, "language": "el", "source_sha256": {source: "0" * 64},
+             "heads": [{"lemma": strip_length_marks(word),
+                        "evidence": [verb_head_evidence(entry, source)]}]}
+    try:
+        _validate_head_inventory(probe, "verb")
+    except ValueError:
+        return False
+    return True
+
+def validate_verb_head_inventory(inventory: dict) -> set:
+    """Return independently defined finite heads, excluding participles."""
+    return _validate_head_inventory(inventory, "verb")
+
+
 def training_pair_headword_errors(pairs: list, lookup: dict,
-                                  noun_heads: set = frozenset()) -> tuple:
+                                  noun_heads: set = frozenset(),
+                                  verb_heads: set = frozenset()) -> tuple:
     """Keep flat-head validation except for independently evidenced nouns."""
     count, examples = 0, []
     for pair in pairs:
         lemma = pair["lemma"]
         if (lemma in lookup and lookup[lemma] != lemma
-                and not (pair.get("pos") == "noun" and lemma in noun_heads)):
+                and not (pair.get("pos") == "noun" and lemma in noun_heads)
+                and not (pair.get("pos") == "verb" and lemma in verb_heads)):
             count += 1
             if len(examples) < 5:
                 examples.append(f"{pair['form']} -> {lemma} -> {lookup[lemma]}")

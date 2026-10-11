@@ -244,7 +244,7 @@ def test_participle_top_reference_requires_an_independent_verb_head(tmp_path, re
          "forms": [{"form": "αναχρονισμένα", "tags": ["plural"]}],
          "senses": [{"form_of": [{"word": "αναχρονιστικός"}]}]},
         {"word": "αναχρονιστικός", "pos": "adj"},
-        {"word": "αναχρονίζω", "pos": "verb"},
+        {"word": "αναχρονίζω", "pos": "verb", "senses": [{"glosses": ["be anachronistic"]}]},
         {"word": "αστροσπαρμένος", "pos": "verb", "tags": ["participle"],
          "form_of": [{"word": "αστρόσπαρτος"}],
          "senses": [{"form_of": [{"word": "αστρόσπαρτος"}]}]},
@@ -292,8 +292,8 @@ def test_participle_sense_verb_wins_over_a_top_level_alternate(tmp_path, reverse
 @pytest.mark.parametrize("reverse", [False, True])
 def test_direct_verb_reference_wins_over_another_lexical_verb(tmp_path, reverse):
     entries = [
-        {"word": "σωροβολιάζομαι", "pos": "verb"},
-        {"word": "σωρεύω", "pos": "verb"},
+        {"word": "σωροβολιάζομαι", "pos": "verb", "senses": [{"glosses": ["be piled up"]}]},
+        {"word": "σωρεύω", "pos": "verb", "senses": [{"glosses": ["pile up"]}]},
         {"word": "σωροβολιασμένος", "pos": "verb", "tags": ["participle"],
          "form_of": [{"word": "σωρεύω"}],
          "senses": [{"form_of": [{"word": "σωροβολιάζομαι"}]}]},
@@ -1468,3 +1468,113 @@ def test_main_emits_noun_head_companion_with_exact_input_hashes(tmp_path, monkey
     assert training_pair_headword_errors(pairs, lookup, {"σκιάς"})[0] == 0
     assert (output / "el_participles.json").exists()
     assert all(set(p) == {"form", "lemma", "pos", "tags"} for p in pairs)
+
+
+def test_verb_head_evidence_requires_independent_finite_entries(tmp_path):
+    from build.build_el_verb_heads import build_inventory, required_verb_heads
+    from build_data import validate_verb_head_inventory
+
+    entries = [
+        {"word": "μεθάω", "pos": "verb", "senses": [{"glosses": ["become drunk"]}]},
+        {"word": "μεθάω", "pos": "noun", "senses": [{"glosses": ["a nominal reading"]}]},
+        {"word": "μεθυσμένος", "pos": "verb", "tags": ["participle"],
+         "senses": [{"glosses": ["drunk"]}]},
+        {"word": "παθών", "pos": "verb", "senses": [{"tags": ["participle"], "glosses": ["sufferer"]}]},
+        {"word": "τύπου", "pos": "verb", "senses": [{"glosses": ["form of τύπτω"], "form_of": [{"word": "τύπτω"}]}]},
+        {"word": "λόγος", "pos": "noun", "senses": [{"glosses": ["word"]}]},
+    ]
+    path = _write(tmp_path, entries)
+    inventory = build_inventory({"μεθάω"}, {"el": path})
+    assert validate_verb_head_inventory(inventory) == {"μεθάω"}
+    assert len(inventory["heads"][0]["evidence"]) == 1
+    for unsupported in ["μεθυσμένος", "παθών", "τύπου", "λόγος", "ανύπαρκτος"]:
+        with pytest.raises(ValueError, match="No independent finite verb evidence"):
+            build_inventory({unsupported}, {"el": path})
+    lookup = {"μεθάω": "μεθώ", "μεθώ": "μεθώ"}
+    pairs = [{"form": "μεθυσμένος", "lemma": "μεθάω", "pos": "verb"},
+             {"form": "μεθυσμένος", "lemma": "μεθάω", "pos": "noun"}]
+    assert required_verb_heads(pairs, lookup) == {"μεθάω"}
+    assert training_pair_headword_errors(pairs, lookup, verb_heads={"μεθάω"})[0] == 1
+    assert training_pair_headword_errors(pairs, lookup, noun_heads={"μεθάω"})[0] == 1
+    assert training_pair_headword_errors(pairs, lookup)[0] == 2
+
+
+@pytest.mark.parametrize("kind", ["entry_participle", "sense_participle", "noun", "reference", "missing"])
+def test_verb_head_validator_rejects_forged_nonfinite_evidence(tmp_path, kind):
+    from build_data import validate_verb_head_inventory
+    inventory = _noun_evidence(tmp_path)
+    evidence = inventory["heads"][0]["evidence"][0]
+    evidence["pos"] = "verb"
+    for sense in evidence["senses"]:
+        sense["related"] = []
+    if kind == "entry_participle": evidence["tags"] = ["participle"]
+    elif kind == "sense_participle": evidence["senses"][0]["tags"] = ["participle"]
+    elif kind == "noun": evidence["pos"] = "noun"
+    elif kind == "reference": evidence["senses"][0]["alt_of"] = [{"word": "άλλο"}]
+    elif kind == "missing": inventory["heads"][0]["evidence"] = []
+    with pytest.raises(ValueError, match="verb-head evidence"):
+        validate_verb_head_inventory(inventory)
+
+
+def test_verb_head_inventory_keeps_ordinary_head_with_related_participle_annotation(tmp_path):
+    from build.build_el_verb_heads import build_inventory
+    from build_data import validate_verb_head_inventory
+    entries = [{"word": "πίνω", "pos": "verb", "senses": [
+        {"glosses": ["drink"]},
+        {"tags": ["no-gloss", "participle", "verb"], "related": [{"word": "πιωμένος"}]},
+    ]}]
+    assert validate_verb_head_inventory(build_inventory({"πίνω"}, {"el": _write(tmp_path, entries)})) == {"πίνω"}
+
+
+@pytest.mark.parametrize("gloss", [
+    "third-person singular present indicative of τρέχω",
+    "first-person singular aorist active indicative of τρέχω",
+    "άκλιτη μετοχή ενεργητικού ενεστώτα του τρέχω",
+    "active nonfinite form of δίδω/δίνω",
+    "passive of περιπλέκω",
+    "aorist passive participle of γράφω",
+])
+@pytest.mark.parametrize("empty_first", [False, True])
+def test_verb_head_evidence_rejects_unstructured_inflection_senses(tmp_path, gloss, empty_first):
+    from build.build_el_verb_heads import build_inventory
+    senses = ([{"tags": ["no-gloss"]}] if empty_first else []) + [{"glosses": [gloss]}]
+    path = _write(tmp_path, [{"word": "τρέχει", "pos": "verb", "senses": senses}])
+    with pytest.raises(ValueError, match="No independent finite verb evidence"):
+        build_inventory({"τρέχει"}, {"el": path})
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_no_gloss_verb_headers_follow_their_explicit_finite_parent(tmp_path, reverse):
+    entries = [
+        {"word": "περιπλέκω", "pos": "verb", "senses": [{"glosses": ["entangle"]}]},
+        {"word": "τακτοποιώ", "pos": "verb", "senses": [{"glosses": ["put in order"]}]},
+        {"word": "επιτυγχάνω", "pos": "verb", "senses": [{"glosses": [
+            "alternative form of πετυχαίνω", "to succeed, accomplish, achieve"]}]},
+        {"word": "περιπλέκομαι", "pos": "verb", "senses": [{"tags": ["no-gloss"],
+             "related": [{"word": "περιπλέκω"}]}], "forms": [{"form": "περιπλέκομαι", "source": "header"}]},
+        {"word": "ταχτοποιώ", "pos": "verb", "senses": [{"tags": ["no-gloss"],
+             "related": [{"word": "τακτοποιώ"}]}], "forms": [{"form": "ταχτοποιώ", "source": "header"}]},
+        {"word": "περιπλέκομαι", "pos": "verb", "senses": [{"tags": ["form-of", "passive"],
+             "form_of": [{"word": "περιπλέκω"}], "glosses": ["passive of περιπλέκω"]}]},
+        {"word": "ταχτοποιώ", "pos": "verb", "senses": [{"tags": ["alternative"],
+             "alt_of": [{"word": "τακτοποιώ"}], "glosses": ["alternative form of τακτοποιώ"]}]},
+        {"word": "περιπεπλεγμένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "περιπλέκομαι"}], "senses": [{"glosses": ["entangled"]}]},
+        {"word": "ταχτοποιημένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "ταχτοποιώ"}], "senses": [{"glosses": ["put in order"]}]},
+    ]
+    refs, heads, participles, lemma_pos, verb_refs, own_refs = {}, set(), set(), {}, {}, {}
+    _, _, _, pos_map, *_ = extract_pairs(_write(tmp_path, entries[::-1] if reverse else entries), "el-el",
+        participle_refs=refs, verb_heads=heads, participle_heads=participles,
+        lemma_pos=lemma_pos, verb_refs=verb_refs, participle_verb_refs=own_refs)
+    assert "περιπλέκομαι" not in heads and "ταχτοποιώ" not in heads
+    assert "επιτυγχάνω" in heads
+    assert not apply_participle_references(pos_map, refs, heads, participles, lemma_pos, verb_refs, own_refs)
+    assert pos_map["περιπεπλεγμένος"]["VERB"] == "περιπλέκω"
+    assert pos_map["ταχτοποιημένος"]["VERB"] == "τακτοποιώ"
+
+
+def test_finite_definition_containing_of_is_not_an_inflection_reference():
+    from build_data import is_independent_finite_entry
+    assert is_independent_finite_entry({"word": "διοικώ", "pos": "verb", "senses": [
+        {"glosses": ["to be in charge of a group"]}]}, "en")

@@ -382,6 +382,17 @@ noun lemma only when this companion contains valid independent evidence for
 that exact head. Inflection, alternative-spelling, and misspelling entries
 cannot authorize an exception. Both the command-line data check and pytest
 validate the built pairs against the lookup and this companion.
+The corresponding finite-verb exceptions are recorded separately in
+`data/el_verb_heads.json`. Generate it after extraction with
+`python build/build_el_verb_heads.py --kaikki PATH_TO_DUMPS` (or pass
+`--data PATH_TO_OUTPUT`). The builder selects only non-self-mapped verb
+lemmas from the final pairs, reads the same source editions, and requires
+an independently defined finite verb for every selected head. Participle,
+form-only, and nominal entries cannot supply that evidence. A header or
+no-gloss relation alone also cannot make a terminal finite verb: its explicit
+source references must reach a positively defined finite parent. Missing support
+fails the build. These companions validate morphology ownership; they do
+not change the runtime lookup or its POS table.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms

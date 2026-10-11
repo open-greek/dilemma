@@ -8,8 +8,13 @@ All notable changes to Dilemma are documented here. The format follows
 
 ### Added
 - `el_noun_heads.json` records independent noun senses and source hashes for
-  morphology owners that differ from the flat lookup. Data integrity checks
-  require this positive evidence for every such noun exception.
+  morphology owners that differ from the flat lookup. `el_verb_heads.json`,
+  built by `build/build_el_verb_heads.py`, records the corresponding finite
+  verb evidence. Data integrity checks require positive source evidence for
+  every such noun or verb exception; runtime lookup behavior is unchanged.
+- Participle references no longer stop at a bare no-gloss verb header. They
+  follow explicit source references to a positively defined finite parent,
+  retaining unresolved analyses separately when no such parent is supported.
 - The polytonic Modern Greek list rates the frequent Modern Greek spellings
   grc has (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`), which it leaves out, with
   lines of their own, `θέση<TAB>fr:C mg:shared`: 6,301 of them, `C` or `M`
