@@ -52,12 +52,14 @@ from export_hunspell import (  # noqa: E402
     GRC_CLOSED_LIST_FORMS,
     FormProfileEvidence,
     contextual_acute,
+    cased_form_key,
     filter_dominated_spelling_variants,
     filter_case_artifacts,
     grc_orthography_reason,
     grc_pinned_forms,
     load_canonical_ag_sets,
     load_case_ownership,
+    load_unsupported_bare_elisions,
     load_form_profile_freq,
     load_grc_spelling_review,
     load_grc_textbook_forms,
@@ -458,14 +460,17 @@ def audit_whole_artifact(
     profile = load_form_profile_freq()
     with sqlite3.connect(f"file:{LOOKUP_DB}?mode=ro", uri=True) as conn:
         ownership = load_case_ownership(conn)
+        bare_elisions = load_unsupported_bare_elisions(conn)
     kept, _case_rejected = filter_case_artifacts(
         [(form, form) for form in required], profile, ownership)
-    required = {form for form, _lemma in kept}
+    required = {form for form, _lemma in kept
+                if cased_form_key(form) not in bare_elisions}
     reviewed = required | set(GRC_CLOSED_LIST_FORMS)
     invalid = sorted(
         form for form in forms
         if (form not in reviewed and grc_orthography_reason(form) is not None)
         or form in BARE_ELISION_STEMS
+        or cased_form_key(form) in bare_elisions
     )
     # The acute twin of a reviewed grave inherits its review (see
     # export_hunspell.finalize_grc_pairs).
@@ -765,15 +770,13 @@ def main() -> int:
     print(f"top {args.top_n}: {required - len(missing)}/{required} required "
           f"forms accepted; {len(exclusions) - len(accepted_exclusions)}/"
           f"{len(exclusions)} reviewed nonwords rejected ({total:,} LM tokens)")
-    compatibility_count = len(load_gzip_fixture(args.compatibility)["forms"])
     citation_count = len(
         load_top_lsj9_lemmas(2000) - set(CITATION_HEADWORD_EXCLUSIONS)
     )
     paradigm_count = len(textbook_paradigm_forms())
     print(
         "whole artifact: "
-        f"{compatibility_count - len(whole['compatibility_missing']):,}/"
-        f"{compatibility_count:,} reviewed shipped forms; "
+        f"{len(whole['compatibility_missing']):,} required shipped forms missing; "
         f"{citation_count - len(whole['citation_headwords_missing']):,}/"
         f"{citation_count:,} top citation headwords; "
         f"{paradigm_count - len(paradigm_missing):,}/{paradigm_count:,} "
@@ -801,7 +804,7 @@ def main() -> int:
         print("accepted reviewed nonwords: " + ", ".join(accepted_exclusions),
               file=sys.stderr)
     labels = {
-        "compatibility_missing": "forms the shipped dictionary has and this lacks",
+        "compatibility_missing": "required shipped forms missing after reviewed exclusions",
         "invalid_forms": "structurally invalid accepted forms",
         "grave_without_acute": "grave forms without acute twins",
         "citation_headwords_missing": "top citation headwords missing",
