@@ -54,6 +54,11 @@ def test_ci_fetches_modern_training_evidence_inputs():
     } <= set(hf_data.TRACKED)
 
 
+def test_ci_fetches_ancient_lexical_evidence():
+    """The Ancient export must not fall back to inferred lookup heads."""
+    assert "data/grc_lexical_heads.json" in hf_data.TRACKED
+
+
 def test_workflow_downloads_the_tracked_list_and_checks_it(manifest):
     """The workflow must take its file list from `hf_data.py files` and run the
     wait/verify steps - a hardcoded list would silently drift from the manifest,

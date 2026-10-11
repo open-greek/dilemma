@@ -61,6 +61,8 @@ TRACKED = [
     "data/el_verb_heads.json",
     # Expanded lexical POS coverage exceeds GitHub's regular-file size limit.
     "data/lsj9_pos_lookup.json",
+    # Independent lexical heads for sparse Ancient corpus admission.
+    "data/grc_lexical_heads.json",
 ]
 
 _CHUNK = 1 << 20

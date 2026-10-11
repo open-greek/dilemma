@@ -54,3 +54,24 @@ def test_modern_rebuild_stops_before_mutation_when_inputs_are_missing(tmp_path):
     assert "Missing data/med_lookup.json" in result.stderr
     assert not commands.exists()
     assert {name: (data / name).read_bytes() for name in contents} == contents
+
+
+def test_full_rebuild_generates_lexical_evidence_before_lookup(tmp_path):
+    script = tmp_path / "rebuild_and_test.sh"
+    shutil.copyfile(ROOT / script.name, script)
+    commands = tmp_path / "commands.txt"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    python = bin_dir / "python"
+    python.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALL_LOG"\n')
+    python.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(script)], capture_output=True, text=True,
+        env={**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+             "CALL_LOG": str(commands)},
+    )
+    assert result.returncode == 0, result.stderr
+    calls = commands.read_text().splitlines()
+    evidence = calls.index("build/build_grc_lexical_heads.py --kaikki kaikki")
+    assert calls.index("build_data.py --kaikki kaikki") < evidence
+    assert evidence < calls.index("build_lookup_db.py")

@@ -7,6 +7,7 @@ cd "$(dirname "$0")"
 echo "=== Step 1: build_data.py ==="
 python build_data.py --kaikki kaikki
 python build/build_el_verb_heads.py --kaikki kaikki
+python build/build_grc_lexical_heads.py --kaikki kaikki
 
 echo ""
 echo "=== Step 2: current LSJ/Sophocles expansion ==="
