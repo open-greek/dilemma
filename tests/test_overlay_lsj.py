@@ -677,3 +677,30 @@ def test_overlay_withholds_irregular_compounds_but_preserves_independent_rows():
     assert target == {**before, "ᾔει": "εἶμι"}
     assert stats["superseded_verb_entries"] == 3
     assert stats["already_present"] == 1
+
+
+def test_marked_citation_owner_does_not_change_accent_to_another_head():
+    target = {"ἑνῶ": "ἑνῶ", "ενώ": "ἑνῶ"}
+    audit = restore_attested_compound_aliases(
+        {"ἑνῶ": "ἔνειμι", "ενώ": "ἔνειμι"}, {}, target,
+        [("ag_pairs.json", [{"form": "ἑνῶ", "lemma": "ἑνῶ",
+                             "pos": "verb", "tags": []}]),
+         ("glaux_pairs.json", [{"form": "ἑνῶ", "lemma": "ἑνόω",
+                                "pos": "verb", "tags": ["present"]}])],
+        {"ἕνω", "ἑνόω", "ἔνειμι"})
+    assert target["ἑνῶ"] == target["ενώ"] == "ἑνῶ"
+    assert "ἕνω" not in target.values()
+    assert not audit["canonicalized"]
+    rejected = [row for row in audit["rejected_source_rows"]
+                if row["lemma"] == "ἑνῶ"]
+    assert rejected and all(row["reason"] == "unsupported_owner"
+                            for row in rejected)
+
+
+def test_missing_tone_in_citation_owner_can_use_unique_positive_head():
+    target = {}
+    restore_attested_compound_aliases(
+        {"υπην": "ὕπειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "ὑπῆν", "lemma": "ὑπειμι"}])],
+        {"ὕπειμι"})
+    assert target["ὑπῆν"] == target["υπην"] == "ὕπειμι"

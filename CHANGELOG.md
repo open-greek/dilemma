@@ -7,6 +7,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Ancient source aliases preserve existing citation accents instead of
+  matching a different headword after removing them. Missing accents may
+  still be supplied from a uniquely supported head.
 - Modern noun form pages retain their exact grammatical references but do
   not authorize full tables whose own-head cells contradict those references.
   Independent homographs, spelling variants, and separate lexical meanings

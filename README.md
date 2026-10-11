@@ -1935,7 +1935,9 @@ compound owners do not license new aliases without direct ownership evidence.
 An automatic shorter compound owner is also withheld when only a longer,
 independently defined compound accounts for the actual source cell's preverb;
 that comparison never infers a replacement owner. Replacing an unsupported
-existing target owner requires direct evidence. A solely capitalized
+existing target owner requires direct evidence. Missing citation accents may
+be supplied from a unique positive head; an existing accent is preserved
+because it can distinguish a different lexeme or contracted form. A solely capitalized
 automatic cell also needs matching lowercase or direct evidence before gaining
 aliases, and cannot erase a possible existing name. Final
 elision is normalized to Greek koronis while the original source spelling is

@@ -136,7 +136,7 @@ def restore_attested_compound_aliases(
     # orthographic policy for the recovery path.
     from export_hunspell import (
         corpus_lexical_evidence_is_clean, grc_orthography_reason,
-        lexical_head_key,
+        lexical_head_key, TONAL_MARKS,
     )
 
     hard_exclusions = {grave_to_acute(canonicalize_final_elision(form))
@@ -194,8 +194,13 @@ def restore_attested_compound_aliases(
         if lemma[:1].isupper() and lemma.lower() in heads:
             lemma = lemma.lower()
             return lemma
+        # Missing accents in citation metadata can be supplied by a unique
+        # positive head. An existing accent can distinguish another lexeme
+        # or a contracted form, so it must not be silently replaced.
+        has_tone = any(ord(char) in TONAL_MARKS
+                       for char in unicodedata.normalize("NFD", lemma))
         options = tonal_heads[lexical_head_key(lemma)]
-        if len(options) == 1:
+        if not has_tone and len(options) == 1:
             return next(iter(options))
         # Only a completely unmarked annotation can use a unique marked
         # head. A marked conflict must not lose breathing, subscript or case.
