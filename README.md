@@ -244,10 +244,13 @@ d_grc = Dilemma(lang="grc")                   # AG only
 # Specific model scale
 d = Dilemma(scale="test")                     # use test-scale model
 
-# Treebank evaluation mode: resolve articles to ὁ, pronouns to ἐγώ/σύ
+# Treebank evaluation mode: resolve articles and personal/interrogative pronouns
 d_eval = Dilemma(resolve_articles=True)
 d_eval.lemmatize("τῆς")                       # "ὁ" (not "τῆς")
 d_eval.lemmatize("μοι")                       # "ἐγώ" (not "μοι")
+d_eval.lemmatize("αὐτοῦ")                     # "αὐτός"
+d_eval.lemmatize("τι")                        # "τις" (indefinite)
+d_eval.lemmatize("τί")                        # "τίς" (interrogative)
 
 # Byzantine text with orthographic normalization
 d_byz = Dilemma(normalize=True, period="byzantine")
@@ -257,8 +260,12 @@ d_byz.lemmatize("εκκλησια")                   # "ἐκκλησία" (res
 By default, articles and pronoun clitics self-map (e.g. `τῆς` returns
 `τῆς`). This is better for alignment pipelines where you want
 surface-form matching. Set `resolve_articles=True` to resolve them
-to canonical lemmas (`ὁ`, `ἐγώ`, `σύ`), matching treebank conventions
-(AGDT, DiGreC). The `triantafyllidis` convention auto-enables
+to canonical lemmas (`ὁ`, `ἐγώ`, `σύ`, `αὐτός`, `τις`, `τίς`), matching
+treebank conventions (AGDT, DiGreC). This mode uses accent placement to
+distinguish indefinite `τις` from interrogative `τίς`; a final grave is
+normalized to acute. Default lookup can retain independent adverb and
+particle readings of forms such as `αὐτοῦ` and `τί`.
+The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
 
@@ -341,6 +348,12 @@ inflection-table mapping, provided it reaches one positively defined head of
 the same part of speech. Thus the pitch spelling `πίτα` follows `πίττα` to
 `πίσσα`, while the independent pie reading keeps `πίτα`. Ambiguous or
 unsupported chains retain the previous fallback.
+Scalar lookup also follows an exact form page's unambiguous, same-part-of-speech
+reference chain when an intermediate word belongs to an unrelated lexical
+head. Thus `παρόντος` reaches the verb `πάρειμι` through its participle `παρών`,
+while the separate noun `παρών` and its genitive `παρῶνος` retain their own
+reading. Independent source words and their normalized keys are protected;
+conflicting references and cycles retain the previous lookup.
 This priority applies to the explicit target recorded in a source reading,
 including structured spelling and inflection references;
 scalar part-of-speech mappings keep their existing choice between homographs.

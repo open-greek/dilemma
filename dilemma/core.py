@@ -283,6 +283,21 @@ _PRONOUN_LEMMAS = {
     "σοι": "σύ", "σοί": "σύ", "σου": "σύ", "σε": "σύ",
     "σοῦ": "σύ",
     "ὑμεῖς": "σύ", "ὑμῶν": "σύ", "ὑμῖν": "σύ", "ὑμᾶς": "σύ",
+    # Personal/intensive pronoun, including the ordinary dual forms.
+    **dict.fromkeys((
+        "αὐτός", "αὐτή", "αὐτό", "αὐτοῦ", "αὐτῆς", "αὐτῷ", "αὐτῇ",
+        "αὐτόν", "αὐτήν", "αὐτοί", "αὐταί", "αὐτά", "αὐτῶν",
+        "αὐτοῖς", "αὐταῖς", "αὐτούς", "αὐτάς", "αὐτώ", "αὐτοῖν", "αὐταῖν",
+    ), "αὐτός"),
+    # Accent distinguishes the indefinite from the interrogative pronoun.
+    **dict.fromkeys((
+        "τις", "τι", "τινός", "τινί", "τινά", "τινές", "τινῶν",
+        "τισί", "τισίν", "τινάς", "τινέ", "τινοῖν",
+    ), "τις"),
+    **dict.fromkeys((
+        "τίς", "τί", "τίνος", "τίνι", "τίνα", "τίνες", "τίνων",
+        "τίσι", "τίσιν", "τίνας", "τίνε", "τίνοιν",
+    ), "τίς"),
 }
 
 # Modern Greek closed-class resolution (monotonic).
@@ -432,6 +447,12 @@ def grave_to_acute(s: str) -> str:
         else:
             out.append(ch)
     return unicodedata.normalize("NFC", "".join(out))
+
+
+# Preserve accent placement when accepting monotonic pronoun spellings.
+_MONOTONIC_PRONOUN_LEMMAS = {
+    to_monotonic(form): lemma for form, lemma in _PRONOUN_LEMMAS.items()
+}
 
 
 def strip_accents(s: str) -> str:
@@ -1948,12 +1969,10 @@ class Dilemma:
         if self._convention_name == "triantafyllidis":
             return None
 
-        if word in _PRONOUN_LEMMAS:
-            return _PRONOUN_LEMMAS[word]
-        mono = to_monotonic(word)
-        if mono in _PRONOUN_LEMMAS:
-            return _PRONOUN_LEMMAS[mono]
-        return None
+        normalized = grave_to_acute(lower)
+        if normalized in _PRONOUN_LEMMAS:
+            return _PRONOUN_LEMMAS[normalized]
+        return _MONOTONIC_PRONOUN_LEMMAS.get(to_monotonic(normalized))
 
     def _lookup_word(self, word: str) -> str | None:
         """Try lookup cascade: exact -> lowercase -> grave_to_acute -> monotonic -> stripped.

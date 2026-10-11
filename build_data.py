@@ -650,6 +650,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   canonical_references: dict = None,
                   closed_class_form_refs: dict = None,
                   adjective_heads: set = None, adjective_head_records: list = None,
+                  exact_source_references: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -1101,6 +1102,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     continue
                 if " " in ref_word:  # skip multi-word
                     continue
+                if exact_source_references is not None and pos != "name" and lemma != ref_word:
+                    exact_source_references.setdefault(lemma, {}).setdefault(pos, set()).add(ref_word)
                 # This entry (lemma) is a form of ref_word
                 _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
                 # Record for pass-2 self-map resolution (skip proper nouns
@@ -1201,6 +1204,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     continue
                 if " " in ref_word:
                     continue
+                if exact_source_references is not None and pos != "name" and lemma != ref_word:
+                    exact_source_references.setdefault(lemma, {}).setdefault(pos, set()).add(ref_word)
                 _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
                 own_etymologies = lexical_etymologies.get((lemma, pos), set())
                 etymology = _numbered_etymology(entry)
@@ -2724,6 +2729,62 @@ def recover_cross_pos_heads(all_lookup: dict, lexical_heads: dict,
     return recovered
 
 
+def resolve_exact_source_references(all_lookup: dict, lexical_heads: dict,
+                                    references: dict) -> int:
+    """Keep a form page's typed reference through an intermediate homograph.
+
+    Only exact source page references establish the chain. Every link must
+    have one target in the same part of speech and end at a positively
+    defined head. Independent words, ambiguous references, and cycles keep
+    their existing scalar reading. Normalized aliases follow only when they
+    still have the displaced owner and all source proposals agree.
+    """
+    if lexical_heads is None or references is None:
+        return 0
+    heads = set().union(*lexical_heads.values()) if lexical_heads else set()
+    head_aliases = {key for head in heads for key in (
+        head, head.lower(), to_monotonic(head), to_monotonic(head).lower(),
+        strip_accents(head.lower()))}
+
+    def endpoint(word, pos):
+        seen, intermediate_heads = set(), set()
+        while word not in seen:
+            if word in lexical_heads.get(pos, set()):
+                return word, intermediate_heads
+            if word in heads:
+                intermediate_heads.add(word)
+            seen.add(word)
+            typed = references.get(word, {})
+            if set(typed) != {pos} or len(typed[pos]) != 1:
+                return None, intermediate_heads
+            word = next(iter(typed[pos]))
+        return None, intermediate_heads
+
+    proposals = {}
+    for form, typed in references.items():
+        current = all_lookup.get(form, (None,))[0]
+        if current is None:
+            continue
+        root, intermediates = (endpoint(form, next(iter(typed)))
+                if form not in heads and len(typed) == 1 else (None, set()))
+        for key in {form, form.lower(), to_monotonic(form),
+                    to_monotonic(form).lower(), strip_accents(form.lower())}:
+            if key in all_lookup and key not in head_aliases:
+                proposals.setdefault(key, set()).add((root, current, current in intermediates))
+    corrected = 0
+    for key, choices in proposals.items():
+        roots = {root for root, _, _ in choices}
+        current, confidence = all_lookup[key]
+        if None in roots or len(roots) != 1:
+            continue
+        root = next(iter(roots))
+        if current != root and any(previous == current and blocked
+                                   for _, previous, blocked in choices):
+            all_lookup[key] = (root, confidence)
+            corrected += 1
+    return corrected
+
+
 def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
                          el_form_of_targets: dict, en_headwords: set,
                          skip: set = frozenset(), preserve_cycles=False,
@@ -2828,6 +2889,7 @@ def main():
         lexical_heads = {} if lang == "grc" else None
         typed_references = {} if lang == "grc" else None
         canonical_references = {} if lang == "grc" else None
+        exact_source_references = {} if lang == "grc" else None
         closed_class_form_refs = {}
         participle_refs, verb_heads = {}, set()
         participle_heads = set()
@@ -2872,6 +2934,7 @@ def main():
                 lexical_heads=lexical_heads,
                 typed_references=typed_references,
                 canonical_references=canonical_references,
+                exact_source_references=exact_source_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
@@ -2913,6 +2976,7 @@ def main():
                 lexical_heads=lexical_heads,
                 typed_references=typed_references,
                 canonical_references=canonical_references,
+                exact_source_references=exact_source_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
@@ -3038,6 +3102,11 @@ def main():
             for pos, heads in closed_class_heads.items():
                 for head in heads:
                     all_pos_map.setdefault(head, {})[WIKT_TO_UPOS[pos]] = head
+
+        exact_resolved = resolve_exact_source_references(
+            all_lookup, lexical_heads, exact_source_references)
+        if exact_resolved:
+            print(f"Exact source-reference resolutions: {exact_resolved:,}")
 
         # Break chained lookups: if form->lemma->X, the mapping is suspect.
         headwords = {k for k, (v, _) in all_lookup.items() if k == v}

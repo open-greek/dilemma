@@ -9,6 +9,12 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Follow unambiguous, explicitly typed form references through intermediate
+  noun homographs, so `παρόντος` reaches `πάρειμι` while the separate noun
+  `παρών` and its own declension remain intact.
+- Resolve ordinary forms of `αὐτός`, `τις`, and `τίς` to their canonical
+  pronouns in the opt-in article-resolution mode, preserving the distinction
+  between indefinite and interrogative accents and accepting capitals and graves.
 - Retain explicit source vowel lengths through verb synthesis, preserving
   forms such as `θῦνε` and `πρᾶξαι` without borrowing another cell's accent.
 - Withhold aorists inferred from the distinct future stems of `ἁνδάνω`

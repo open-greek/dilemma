@@ -12,6 +12,7 @@ from build_data import (Abbreviations, _parse_verb_tense, apply_participle_refer
                         include_participle_endpoints,
                         merge_pos_maps, merge_source_lookups, resolve_cross_source,
                         preserve_finite_verb_heads, resolve_pair_lemma,
+                        resolve_exact_source_references,
                         spelling_target, standalone_participle_inventory,
                         vowel_groups, noun_head_inventory,
                         validate_noun_head_inventory, training_pair_headword_errors,
@@ -983,6 +984,62 @@ def test_original_head_same_pos_alternative_prevents_other_pos_recovery(indirect
     assert resolve_cross_source(lookup, {"δίω": "δῖος"}, {}, set(),
                                lexical_heads=heads, typed_references=references,
                                canonical_references=canonical) == 1
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_form_reference_passes_through_an_unrelated_noun_head(tmp_path, monkeypatch, reverse):
+    import build_data
+    entries = [
+        {"word": "παρών", "pos": "noun", "senses": [{"glosses": ["a light boat"]}],
+         "forms": [{"form": "παρῶνος", "tags": ["genitive", "singular"]}]},
+        {"word": "παρών", "pos": "verb", "senses": [{
+            "glosses": ["present participle of πάρειμι"],
+            "form_of": [{"word": "πάρειμι"}], "tags": ["participle", "present"]}]},
+        {"word": "παρόντος", "pos": "verb", "senses": [{
+            "glosses": ["genitive singular of παρών"],
+            "form_of": [{"word": "παρών"}], "tags": ["participle", "genitive"]}]},
+        {"word": "πάρειμι", "pos": "verb", "senses": [{"glosses": ["to be present"]}]},
+    ]
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "en.jsonl").write_text("".join(json.dumps(e, ensure_ascii=False) + "\n"
+        for e in (entries[::-1] if reverse else entries)))
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": "en.jsonl"}})
+    monkeypatch.setattr(build_data.sys, "argv", ["build_data.py", "--lang", "grc",
+                                               "--kaikki", str(source)])
+    build_data.main()
+    lookup = json.loads((output / "ag_lookup.json").read_text())
+    assert lookup["παρόντος"] == lookup["παροντος"] == "πάρειμι"
+    assert lookup["παρών"] == lookup["παρῶνος"] == "παρών"
+    pairs = json.loads((output / "ag_pairs.json").read_text())
+    assert any(r["form"] == "παρόντος" and r["lemma"] == "πάρειμι" for r in pairs)
+
+
+@pytest.mark.parametrize("case", ["independent", "mixed_pos", "two_targets", "cycle",
+                                 "missing_head", "alias_conflict", "alias_independent"])
+def test_exact_source_resolution_keeps_unproven_or_independent_readings(case):
+    heads = {"noun": {"παρών"}, "verb": {"πάρειμι", "ἄπειμι"}}
+    refs = {"παρόντος": {"verb": {"παρών"}}, "παρών": {"verb": {"πάρειμι"}}}
+    lookup = {"παρόντος": ("παρών", 5), "παροντος": ("παρών", 5)}
+    if case == "independent": heads["adj"] = {"παρόντος"}
+    elif case == "mixed_pos": refs["παρόντος"]["noun"] = {"παρών"}
+    elif case == "two_targets": refs["παρών"]["verb"].add("ἄπειμι")
+    elif case == "cycle": refs["παρών"]["verb"] = {"παρόντος"}
+    elif case == "missing_head": refs["παρών"]["verb"] = {"ἀμάρτυρος"}
+    elif case == "alias_conflict":
+        # Different accented spellings can normalize to the same lookup key.
+        refs["παροντός"] = {"verb": {"ἄπειμι"}}
+        lookup["παροντός"] = ("παρών", 5)
+    elif case == "alias_independent": heads["noun"].add("παροντος")
+    before = dict(lookup)
+    resolve_exact_source_references(lookup, heads, refs)
+    if case in {"alias_conflict", "alias_independent"}:
+        assert lookup["παρόντος"][0] == "πάρειμι"
+        assert lookup["παροντος"] == before["παροντος"]
+    else:
+        assert lookup == before
 
 
 @pytest.mark.parametrize("reverse", [False, True])

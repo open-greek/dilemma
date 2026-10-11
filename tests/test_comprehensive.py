@@ -1661,6 +1661,16 @@ class TestArticleResolution:
         assert strip_accents(result.lower()) == strip_accents("ἐγώ"), \
             f"μοι -> expected ἐγώ, got {result}"
 
+    def test_canonical_pronouns_across_public_apis(self, d_resolve_articles):
+        """Scalar, batch, and candidate APIs share the opt-in convention."""
+        forms = ["τι", "τί", "αὐτοῦ", "Αὐτὴν", "τινῶν", "τίνων"]
+        expected = ["τις", "τίς", "αὐτός", "αὐτός", "τις", "τίς"]
+        assert d_resolve_articles.lemmatize_batch(forms, guess=False) == expected
+        for form, lemma in zip(forms, expected):
+            assert d_resolve_articles.lemmatize(form, guess=False) == lemma
+            candidates = d_resolve_articles.lemmatize_verbose(form, guess=False)
+            assert candidates[0].lemma == lemma
+
     def test_default_no_article_resolution(self, d_all):
         """Without resolve_articles, articles should self-map."""
         result = d_all.lemmatize("τοῦ")
