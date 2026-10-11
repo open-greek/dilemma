@@ -1219,6 +1219,18 @@ def _is_corrupt_headword(headword):
     return False
 
 
+def _unaccented_verb_stem(stem):
+    """Remove tone accents while retaining lexical and vowel-length marks.
+
+    The conjugation module places the accent, but still needs breathings,
+    diaeresis, iota subscript, macrons, and breves from the lexical stem.
+    """
+    return unicodedata.normalize("NFC", "".join(
+        char for char in unicodedata.normalize("NFD", stem)
+        if char not in {"\u0300", "\u0301", "\u0342"}
+    ))
+
+
 def _classify_verb(headword):
     """Classify a verb into conjugation type and stem. Returns (conj_type, stem) or (None, None).
 
@@ -1231,24 +1243,27 @@ def _classify_verb(headword):
     we return the sentinel ``conj_type='irreg'`` so the caller can
     dispatch to ``_expand_irregular_compound`` instead of Lua.
     """
+    # Slice endings only after canonical composition: in NFD an accented
+    # final vowel occupies more than one code point.
+    headword = unicodedata.normalize("NFC", headword)
     hw_plain = strip_diacritics(headword)
 
     if hw_plain.endswith("εω"):
-        return "pres-con-e", strip_diacritics(headword[:-2])
+        return "pres-con-e", _unaccented_verb_stem(headword[:-2])
     elif hw_plain.endswith("αω"):
-        return "pres-con-a", strip_diacritics(headword[:-2])
+        return "pres-con-a", _unaccented_verb_stem(headword[:-2])
     elif hw_plain.endswith("οω"):
-        return "pres-con-o", strip_diacritics(headword[:-2])
+        return "pres-con-o", _unaccented_verb_stem(headword[:-2])
     # -όλλυμι (ὄλλυμι and compounds) uses pres-lumi, NOT pres-numi.
     # The Wiktionary stem strips back to '-ολ' (e.g. ἀπόλλυμι -> ἀπολ).
     # Detect *before* the more general -ννυμι rule which would otherwise
     # mis-route these to pres-numi.
     elif hw_plain.endswith("ολλυμι"):
-        return "pres-lumi", strip_diacritics(headword[:-4])
+        return "pres-lumi", _unaccented_verb_stem(headword[:-4])
     elif hw_plain.endswith("ννυμι"):
-        return "pres-numi", strip_diacritics(headword[:-5])
+        return "pres-numi", _unaccented_verb_stem(headword[:-5])
     elif hw_plain.endswith("νυμι"):
-        return "pres-numi", strip_diacritics(headword[:-4])
+        return "pres-numi", _unaccented_verb_stem(headword[:-4])
     # Irregular -ειμι compounds (εἰμί 'to be' / εἶμι 'to go' families).
     # These need pres-irreg with hand-coded forms; we route to the
     # irregular dispatcher rather than failing into a Lua error.
@@ -1259,12 +1274,12 @@ def _classify_verb(headword):
     elif hw_plain.endswith("ημι"):
         if len(hw_plain) == 3:
             # φ + ημι would be 4 chars; this is only ημι itself
-            return "pres-emi", strip_diacritics(headword[:-3])
-        return "pres-emi", strip_diacritics(headword[:-3])
+            return "pres-emi", _unaccented_verb_stem(headword[:-3])
+        return "pres-emi", _unaccented_verb_stem(headword[:-3])
     elif hw_plain.endswith("ωμι"):
-        return "pres-omi", strip_diacritics(headword[:-3])
+        return "pres-omi", _unaccented_verb_stem(headword[:-3])
     elif hw_plain.endswith("αμι"):
-        return "pres-ami", strip_diacritics(headword[:-3])
+        return "pres-ami", _unaccented_verb_stem(headword[:-3])
     elif hw_plain == "φημι" or hw_plain.endswith("φημι"):
         # φημί and compounds (συμφημι, σύμφημι, πρόφημι) use pres-ami
         # with consonant stem 'φ'. Only routes here if we didn't match
@@ -1278,9 +1293,9 @@ def _classify_verb(headword):
         # known base matches.
         return "irreg", ""
     elif hw_plain.endswith("ω"):
-        return "pres", strip_diacritics(headword[:-1])
+        return "pres", _unaccented_verb_stem(headword[:-1])
     elif hw_plain.endswith("μαι"):
-        return "pres", strip_diacritics(headword[:-3])
+        return "pres", _unaccented_verb_stem(headword[:-3])
     return None, None
 
 
