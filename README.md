@@ -2410,10 +2410,14 @@ pinned by sha256 in `data/hf_manifest.json`
 ```bash
 python -m pytest tests/ -v                  # run all tests via pytest (recommended)
 python scripts/check_benchmark_regressions.py  # deterministic accuracy gate
+python bench_fast.py                      # compact comparison across three periods
 python tests/test_integrity.py              # data integrity + model inference checks
 python tests/test_dilemma.py                # lookup table + end-to-end lemmatization tests
 python tests/test_dilemma.py --lookup-only  # skip model tests
 ```
+
+The compact benchmark counts missing predictions as errors and continues scoring
+the remaining forms.
 
 The suite is ~1,040 tests across roughly a dozen files.
 `tests/test_comprehensive.py` is one of the largest single files (~170 tests)

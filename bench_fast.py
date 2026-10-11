@@ -4,8 +4,9 @@ import sys, json, unicodedata
 from pathlib import Path
 from dilemma import Dilemma
 
-BENCH_DIR = Path('data/benchmarks')
-EQUIV_PATH = Path('data/lemma_equivalences.json')
+ROOT = Path(__file__).resolve().parent
+BENCH_DIR = ROOT / 'data/benchmarks'
+EQUIV_PATH = ROOT / 'data/lemma_equivalences.json'
 
 with open(EQUIV_PATH) as f:
     data = json.load(f)
@@ -20,6 +21,8 @@ def strip_accents(s):
     return unicodedata.normalize('NFC', ''.join(c for c in nfkd if unicodedata.category(c) != 'Mn'))
 
 def are_equivalent(pred, gold):
+    if pred is None:
+        return False
     pa, ga = strip_accents(pred).lower(), strip_accents(gold).lower()
     if pa == ga: return True
     for e in equiv.get(gold, set()):
@@ -43,27 +46,32 @@ def load_tsv(path):
                 pairs.append((parts[0], parts[1]))
     return pairs
 
-datasets = {
-    'AG Classical': load_tsv(BENCH_DIR / 'ag_gold.tsv'),
-    'Katharevousa': load_tsv(BENCH_DIR / 'katharevousa_gold.tsv'),
-    'Demotic MG': load_tsv(BENCH_DIR / 'demotic_gold.tsv'),
-}
+def main():
+    datasets = {
+        'AG Classical': load_tsv(BENCH_DIR / 'ag_gold.tsv'),
+        'Katharevousa': load_tsv(BENCH_DIR / 'katharevousa_gold.tsv'),
+        'Demotic MG': load_tsv(BENCH_DIR / 'demotic_gold.tsv'),
+    }
 
-configs = [
-    # (label, kwargs, datasets_to_run)
-    ('all/wikt', dict(lang='all', resolve_articles=True), ['AG Classical', 'Katharevousa']),
-    ('grc/wikt', dict(lang='grc', resolve_articles=True), ['AG Classical', 'Katharevousa']),
-    ('el/triant', dict(lang='el', convention='triantafyllidis'), ['Demotic MG']),
-    ('all/triant', dict(lang='all', convention='triantafyllidis'), ['Demotic MG']),
-]
+    configs = [
+        # (label, kwargs, datasets_to_run)
+        ('all/wikt', dict(lang='all', resolve_articles=True), ['AG Classical', 'Katharevousa']),
+        ('grc/wikt', dict(lang='grc', resolve_articles=True), ['AG Classical', 'Katharevousa']),
+        ('el/triant', dict(lang='el', convention='triantafyllidis'), ['Demotic MG']),
+        ('all/triant', dict(lang='all', convention='triantafyllidis'), ['Demotic MG']),
+    ]
 
-for label, kwargs, ds_names in configs:
-    d = Dilemma(**kwargs)
-    d.preload()
-    results = []
-    for name in ds_names:
-        pairs = datasets[name]
-        correct = sum(1 for form, gold in pairs if are_equivalent(safe_lemmatize(d, form), gold))
-        pct = 100 * correct / len(pairs)
-        results.append(f'{name}: {pct:5.1f}%')
-    print(f'{label:<12}  ' + '  '.join(results))
+    for label, kwargs, ds_names in configs:
+        d = Dilemma(**kwargs)
+        d.preload()
+        results = []
+        for name in ds_names:
+            pairs = datasets[name]
+            correct = sum(1 for form, gold in pairs if are_equivalent(safe_lemmatize(d, form), gold))
+            pct = 100 * correct / len(pairs)
+            results.append(f'{name}: {pct:5.1f}%')
+        print(f'{label:<12}  ' + '  '.join(results))
+
+
+if __name__ == '__main__':
+    main()
