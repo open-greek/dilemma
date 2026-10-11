@@ -2014,3 +2014,39 @@ def test_exact_elision_heads_do_not_infer_inflections_or_fold_case(tmp_path):
     assert cased_form_key('ἀνίησ᾽') not in heads
     assert cased_form_key('ἀπόλλων᾽') not in heads
     assert len(inputs) == 3
+
+
+def test_cited_elision_homographs_survive_without_compatibility_or_corpus_proof():
+    import json
+    from export_hunspell import DATA, cased_form_key, derive_reviewed_paradigm
+    expected = {"Πλάτων᾽": "Πλάτων", "δέοι᾽": "δέω", "εἷσ᾽": "ἵζω",
+                "θεοῖσ᾽": "θεός", "νίκησ᾽": "νικάω", "πανταχοῦ᾽": "πανταχοῦ",
+                "παῖ᾽": "παίω", "ποῦ᾽": "ποῦ", "χείρ᾽": "χείρ",
+                "ἀνδρῶν᾽": "ἀνδρών", "ἄν᾽": "ἀνά", "Ἀγάθων᾽": "Ἀγάθων",
+                "Ἀπόλλων᾽": "Ἀπόλλων", "ἔνι᾽": "ἔνιοι", "ὥρασ᾽": "ὥρασι",
+                "εἶ᾽": "εἶα", "ἀνίησ᾽": "ἀνίημι"}
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    forms = {form: spec["lemma"] for spec in specs if spec["method"] == "source_forms"
+             for form in derive_reviewed_paradigm(spec, [])}
+    assert {form: forms.get(form) for form in expected} == expected
+    # These are exact cited exceptions; raw quotation counts or an arbitrary
+    # historical dictionary entry are not their admission evidence.
+    kept, report = finalize_grc_pairs(
+        sorted(expected.items()), evidence=_evidence(exact={}),
+        compatibility_forms=set(), textbook_forms=set(), export_overrides={},
+        protected_forms=set(expected), quote_keys=frozenset(map(cased_form_key, expected)),
+        quote_approved_forms=set(expected))
+    assert set(kept) == set(expected.items())
+    assert not report["quote_rejected"]
+
+
+def test_confirmed_closing_quote_rejection_overrides_compatibility_and_elision_approval():
+    from export_hunspell import cased_form_key, load_grc_spelling_review
+    forms = {"ἄφεσ᾽", "παῖ᾽", "Ἀπόλλων᾽", "ἀνίησ᾽"}
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)], evidence=_evidence(exact={}),
+        compatibility_forms=forms, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, quote_keys=frozenset(map(cased_form_key, forms)),
+        quote_approved_forms=forms, reviewed_rejects=load_grc_spelling_review())
+    assert {form for form, _ in kept} == forms - {"ἄφεσ᾽"}
+    assert report["reviewed"] == 1

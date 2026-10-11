@@ -876,6 +876,160 @@
       "citation": "Sophocles, Philoctetes 379; LSJ, ἄπειμι"
     },
     {
+      "lemma": "Πλάτων",
+      "method": "source_forms",
+      "forms": ["Πλάτων᾽"],
+      "evidence": "Diogenes Laertius, Lives of Eminent Philosophers 3.1.28, attests Πλάτων’ before οὐκ. The accusative Πλάτωνα is genuinely elided; retain this exact reading independently of complete nominatives followed by a quotation mark.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0004-001.xml",
+      "source_sha256": "2a9a8dded392c838987a357bdc739818e63b3e23dbac80199eb93f590324c9c1",
+      "citation": "Diogenes Laertius, Lives of Eminent Philosophers 3.1.28"
+    },
+    {
+      "lemma": "δέω",
+      "method": "source_forms",
+      "forms": ["δέοι᾽"],
+      "evidence": "Plato, Philebus 21b, attests δέοι’ before ἄν. This is elided second-person singular middle optative δέοιο; preserve the exact printed spelling rather than treating its apostrophe as a quotation mark.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0059-010.xml",
+      "source_sha256": "eeae6aefa9af2d14fbec398a9f68ad9eef170655f4e7928dff70923577ce1add",
+      "citation": "Plato, Philebus 21b"
+    },
+    {
+      "lemma": "ἵζω",
+      "method": "source_forms",
+      "forms": ["εἷσ᾽"],
+      "evidence": "Homer, Iliad 3.382, attests εἷσ’ before ἐν in the account of Aphrodite placing Paris in his chamber. Preserve this exact elided aorist reading independently of quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0012-001.xml",
+      "source_sha256": "d1fd7bea5d97c6ceaeb318b1a76aa281d301b2c3d2cae6ed3a2a7d55547fe9d9",
+      "citation": "Homer, Iliad 3.382"
+    },
+    {
+      "lemma": "θεός",
+      "method": "source_forms",
+      "forms": ["θεοῖσ᾽"],
+      "evidence": "Xenophanes, the fragment beginning Πάντα θεοῖσ’ ἀνέθηκαν, attests elided dative plural θεοῖσι before ἀνέθηκαν. Preserve the exact elision from this independent verse.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0267-002.xml",
+      "source_sha256": "9153c02f72238e82e1beef4f79fd5e462455cd39eb4689e26c9e972d3ad50f0f",
+      "citation": "Xenophanes, Fragmenta, GLAUx fragment 10, line 1"
+    },
+    {
+      "lemma": "νικάω",
+      "method": "source_forms",
+      "forms": ["νίκησ᾽"],
+      "evidence": "Hesiod, fragment 204.90, attests νίκησ’ before οὐδέ in the account of Helen's suitors. Preserve this genuine elided aorist spelling independently of punctuation-bearing Diorisis readings.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0020-004.xml",
+      "source_sha256": "8b3cd67b060788a80f410a379b788d2d9135a3c9864aacea6785cd3257e8c061",
+      "citation": "Hesiod, fragment 204.90"
+    },
+    {
+      "lemma": "πανταχοῦ",
+      "method": "source_forms",
+      "forms": ["πανταχοῦ᾽"],
+      "evidence": "Menander, Sentences 290, prints πανταχοῦ’ στι. The apostrophe records prodelision of following ἐστί, not removal of a vowel from πανταχοῦ. Preserve the independently printed token spelling without generating other prodelision forms.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0541-042a.xml",
+      "source_sha256": "c026bc0323ea22f5514d30cc0c8e1d38b6c570dfec913422b5ff361801c876bc",
+      "citation": "Menander, Sentences 290"
+    },
+    {
+      "lemma": "παίω",
+      "method": "source_forms",
+      "forms": ["παῖ᾽"],
+      "evidence": "Athenaeus, Deipnosophistae 3.85, page 117b, attests παῖ’ before ἐκεῖνον. Preserve the genuine elided imperative παῖε; an independently complete noun παῖ followed by a quote is a separate reading.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0008-001.xml",
+      "source_sha256": "ec47f2474c56d2ef3c501cba44120c57d41ea1189f6deade93a10f7852a0ea15",
+      "citation": "Athenaeus, Deipnosophistae 3.85, 117b"
+    },
+    {
+      "lemma": "ποῦ",
+      "method": "source_forms",
+      "forms": ["ποῦ᾽"],
+      "evidence": "Aristophanes, Lysistrata 1086, prints ποῦ’ στιν. The apostrophe represents prodelision of following ἐστίν, not elision of the interrogative's vowel. Preserve this exact printed token spelling only.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0019-007.xml",
+      "source_sha256": "c44efca7588e760222efad9fb22b7c375cad64cceeaf00b501c6dbe2ded8c10c",
+      "citation": "Aristophanes, Lysistrata 1086"
+    },
+    {
+      "lemma": "χείρ",
+      "method": "source_forms",
+      "forms": ["χείρ᾽"],
+      "evidence": "Homer, Odyssey 9.302, attests χείρ’ before ἐπιμασσάμενος. Preserve this genuine elided dative χειρί independently of complete nominatives accompanied by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0012-002.xml",
+      "source_sha256": "6015f5811a49828346d6cd5a312955c250413e563421f7284c603ce0578b14ba",
+      "citation": "Homer, Odyssey 9.302"
+    },
+    {
+      "lemma": "ἀνδρών",
+      "method": "source_forms",
+      "forms": ["ἀνδρῶν᾽"],
+      "evidence": "Euripides, Heracles 954, attests ἐς ἀνδρῶν’ ἐσπεσών. This is genuine elision of accusative ἀνδρῶνα, the men's hall; it is distinct from a complete genitive plural ἀνδρῶν followed by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0006-009.xml",
+      "source_sha256": "0698fb57293eb0fd366e0b70e1bd39f2b7972465fc4a083c72e55ff5ec5b7db8",
+      "citation": "Euripides, Heracles 954"
+    },
+    {
+      "lemma": "ἀνά",
+      "method": "source_forms",
+      "forms": ["ἄν᾽"],
+      "evidence": "Homeric Hymn to Apollo 223, attests βῆς ἄν’ ὄρος. Preserve the genuine elided preposition ἀνά, with its elision accent, independently of a complete particle ἄν followed by quotation punctuation. The corpus noun/dative annotation does not determine this owner.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0013-003.xml",
+      "source_sha256": "97c659b049b49cc3869773a7eaef837a25fda72aaad6019002795c3df6a7de9c",
+      "citation": "Homeric Hymn to Apollo 223"
+    },
+    {
+      "lemma": "Ἀγάθων",
+      "method": "source_forms",
+      "forms": ["Ἀγάθων᾽"],
+      "evidence": "Plato, Symposium 174b, attests Ἀγάθων’ before ἐπί. Preserve the exact elision of accusative Ἀγάθωνα in the proverb, independently of complete nominatives followed by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0059-011.xml",
+      "source_sha256": "1a63764f5e030be178c51dc5493bee1cc44f85a7996bfa32cdd2122cb7c0501f",
+      "citation": "Plato, Symposium 174b"
+    },
+    {
+      "lemma": "Ἀπόλλων",
+      "method": "source_forms",
+      "forms": ["Ἀπόλλων᾽"],
+      "evidence": "Euripides, Orestes 591, attests Ἀπόλλων’ before ὅς as the object of ὁρᾷς. Preserve the genuine elision of accusative Ἀπόλλωνα, independently of complete nominatives followed by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0006-016.xml",
+      "source_sha256": "e82bbe1bb78cf1d99d42d16233684d3009c0e2663a430e135affad204cca5c58",
+      "citation": "Euripides, Orestes 591"
+    },
+    {
+      "lemma": "ἔνιοι",
+      "method": "source_forms",
+      "forms": ["ἔνι᾽"],
+      "evidence": "Plutarch, Moralia 1010e, quotes ἔνι’ before οὐδέ. Preserve the genuine elision of neuter plural ἔνια independently of quotation punctuation attached to a complete ἔνι.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0007-133.xml",
+      "source_sha256": "f1f4e086eb5043474d9ba08d5d7e3ed0967ef6d7e5dd1cd0b4e0e445e5890ced",
+      "citation": "Plutarch, Moralia 1010e"
+    },
+    {
+      "lemma": "ὥρασι",
+      "method": "source_forms",
+      "forms": ["ὥρασ᾽"],
+      "evidence": "Aristophanes, Lysistrata 1037, attests ὥρασ’ before ἵκοισθ’. Herodian, Prosodia Catholica 1.501, explicitly discusses this quotation under the adverb ὥρασι. Preserve its exact genuine elision.",
+      "source_url": "https://prosodia-catholica.symmachus.org/passages/1.501.html",
+      "source_sha256": "c44efca7588e760222efad9fb22b7c375cad64cceeaf00b501c6dbe2ded8c10c",
+      "source_file": "GLAUx 0019-007.xml",
+      "citation": "Aristophanes, Lysistrata 1037; Herodian, Prosodia Catholica 1.501"
+    },
+    {
+      "lemma": "εἶα",
+      "method": "source_forms",
+      "forms": ["εἶ᾽"],
+      "evidence": "Euripides, Medea 1242, attests εἶ’ before ὁπλίζου. Ten independent edited corpus loci support this genuine elision of the interjection εἶα; preserve the exact spelling separately from audited quotation readings.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0006-003.xml",
+      "source_sha256": "bd114ae9ec68de1d1cc9ec59bebf88b6ae1d43712d3b669b59e3684070e4c146",
+      "citation": "Euripides, Medea 1242"
+    },
+    {
+      "lemma": "ἀνίημι",
+      "method": "source_forms",
+      "forms": ["ἀνίησ᾽"],
+      "evidence": "Euripides, Fragmenta 781.2, Nauck 1889, attests ἀνίησ’ before ἀτμόν. Preserve the genuine elision of ἀνίησι independently of punctuation-bearing Diorisis readings.",
+      "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/master/data/tlg0006/tlg020/tlg0006.tlg020.1st1K-grc1.xml",
+      "source_sha256": "faa891dd7d4c5b6a73786c30925bff4a47ed61049a229fd667855a464fab0a3c",
+      "citation": "Euripides, Fragmenta 781.2, Nauck 1889"
+    },
+    {
       "lemma": "εἰκονίζω",
       "method": "source_forms",
       "forms": [

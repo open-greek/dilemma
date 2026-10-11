@@ -5,9 +5,25 @@
  "reviewed": {
   "respelling": 399,
   "structural": 182,
-  "historical_ocr": 4
+  "historical_ocr": 4,
+  "corpus_quote": 1
  },
  "reviews": [
+  {
+   "form": "ἄφεσ᾽",
+   "decision": "reject",
+   "class": "corpus_quote",
+   "correct": "ἄφες",
+   "locus": "Aristophanes, Clouds 1139",
+   "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0019-003.xml",
+   "source_sha256": "8a0f3f00cca66dd410efa8127a62d20baa1d8d20c9916239ef0f7a3e1a975596",
+   "original_source_form": "ἄφεσ’",
+   "reviewed_on": "2026-10-11",
+   "reasons": [
+    "The quoted request ends with the complete second-person singular active imperative ἄφες. The source apostrophe is a closing quotation mark, not elision; the automatic middle annotation does not establish another word.",
+    "Independent review of the merged exact source readings found no genuine elided homograph. Reject this spelling after compatibility injection, leaving complete ἄφες and separately verified elisions unchanged. This decision is reversed by removing this authored review row."
+   ]
+  },
   {
    "form": "Βρούτος",
    "decision": "reject",
