@@ -6,8 +6,133 @@ import json
 
 import pytest
 
-from build_data import (_parse_verb_tense, extract_pairs, resolve_cross_source,
-                        spelling_target)
+from build_data import (Abbreviations, _parse_verb_tense,
+                        clean_training_pairs, deduplicate_pairs,
+                        drop_abbreviation_targets, extract_pairs,
+                        merge_source_lookups, resolve_cross_source,
+                        spelling_target, vowel_groups)
+
+
+def test_source_merge_prefers_a_lowercase_verb_to_another_sources_name(tmp_path):
+    el = _write(tmp_path, [
+        {"word": "Λεν", "pos": "name", "senses": [{"glosses": ["surname"]}]},
+        {"word": "Μιλάνος", "pos": "name", "senses": [{"glosses": ["surname"]}],
+         "forms": [{"form": "Μιλάνε", "tags": ["singular", "vocative"]}]},
+    ])
+    en = tmp_path / "en.jsonl"
+    en.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in [
+        {"word": "λεν", "pos": "verb", "senses": [{"form_of": [{"word": "λέω"}]}]},
+        {"word": "μιλάνε", "pos": "verb", "senses": [{"form_of": [{"word": "μιλώ"}]}]},
+    ]))
+    _, el_lookup, *_ = extract_pairs(el, "el-el")
+    _, en_lookup, *_ = extract_pairs(en, "el-en")
+    merged = {}
+    merge_source_lookups(merged, [el_lookup, en_lookup], capitals_last=True)
+    assert merged["λεν"][0] == "λέω"
+    assert merged["μιλάνε"][0] == "μιλώ"
+    assert merged["Λεν"][0] == "Λεν"
+    assert merged["Μιλάνε"][0] == "Μιλάνος"
+    old = {}
+    merge_source_lookups(old, [el_lookup, en_lookup])
+    assert old["λεν"][0] == "Λεν"
+
+
+def test_form_page_head_and_participle_cells_follow_their_verb(tmp_path):
+    dump = _write(tmp_path, [
+        {"word": "ερωτήσεις", "pos": "noun",
+         "forms": [{"form": "ερωτήσεις", "tags": ["feminine"]}],
+         "senses": [{"form_of": [{"word": "ερώτηση"}]}]},
+        {"word": "ερωτήσεις", "pos": "verb",
+         "forms": [{"form": "ερωτήσεις"}],
+         "senses": [{"form_of": [{"word": "ερωτώ"}]}]},
+        {"word": "αντιπαθών", "pos": "verb",
+         "forms": [{"form": "αντιπαθούσα", "tags": ["feminine", "nominative"]}],
+         "senses": [{"form_of": [{"word": "αντιπαθώ"}]}]},
+    ])
+    pairs, _, _, pos_map, *_ = extract_pairs(dump, "el-el")
+    lookup = {"ερωτήσεις": ("ερώτηση", 1), "ερώτηση": ("ερώτηση", 3),
+              "ερωτώ": ("ερωτώ", 3), "αντιπαθών": ("αντιπαθητικός", 1),
+              "αντιπαθητικός": ("αντιπαθητικός", 3), "αντιπαθώ": ("αντιπαθώ", 3)}
+    clean = clean_training_pairs(pairs, lookup, preserve_cells=True)
+    assert {p["lemma"] for p in clean if p["form"] == "ερωτήσεις" and p["pos"] == "noun"} == {"ερώτηση"}
+    assert {p["lemma"] for p in clean if p["form"] == "ερωτήσεις" and p["pos"] == "verb"} == {"ερωτώ"}
+    assert {p["lemma"] for p in clean if p["form"] == "αντιπαθούσα"} == {"αντιπαθώ"}
+    assert pos_map["αντιπαθούσα"]["VERB"] == "αντιπαθώ"
+    assert all("via" not in p for p in clean)
+
+
+def test_cross_source_reciprocal_synonyms_keep_both_paradigms():
+    for order in (("νησοπυριτικός", "ορθοπυριτικός"), ("ορθοπυριτικός", "νησοπυριτικός")):
+        lookup = {word: (word, 3) for word in order}
+        refs = {order[0]: order[1], order[1]: order[0]}
+        assert resolve_cross_source(lookup, {}, refs, set(), preserve_cycles=True) == 0
+        assert all(word == lemma for word, (lemma, _) in lookup.items())
+
+
+def test_pair_deduplication_preserves_each_morphological_cell():
+    pairs = [{"form": "καθηγητή", "lemma": "καθηγητής", "pos": "noun", "tags": tags}
+             for tags in (["genitive", "singular"], ["accusative", "singular"],
+                          ["vocative", "singular"], ["singular", "genitive"])]
+    pairs.append({**pairs[0], "pos": "adj"})
+    unique = deduplicate_pairs(pairs, preserve_cells=True)
+    assert len(unique) == 4
+    assert {tuple(p["tags"]) for p in unique if p["pos"] == "noun"} == {
+        ("genitive", "singular"), ("accusative", "singular"), ("vocative", "singular")}
+    assert deduplicate_pairs(pairs) == pairs[:1]
+
+
+def test_a_missing_adjective_lemma_does_not_resolve_to_a_name():
+    el = {"κυριακή": ("Κυριακή", 0), "Κυριακή": ("Κυριακή", 3),
+          "κυριακός": ("Κυριακός", 0), "Κυριακός": ("Κυριακός", 3)}
+    en = {"κυριακή": ("κυριακός", 1)}
+    merged = {}
+    merge_source_lookups(merged, [el, en], capitals_last=True)
+    assert merged["κυριακή"][0] == "Κυριακή"
+    pair = {"form": "κυριακή", "lemma": "κυριακός", "pos": "adj", "tags": ["form-of"]}
+    assert clean_training_pairs([pair], merged, preserve_cells=True) == []
+    # A real lowercase adjective page is enough to resolve the reference.
+    en["κυριακός"] = ("κυριακός", 3)
+    merged = {}
+    merge_source_lookups(merged, [el, en], capitals_last=True)
+    assert merged["κυριακή"][0] == "κυριακός"
+
+
+def test_main_keeps_noun_case_cells_after_lemma_resolution(tmp_path, monkeypatch):
+    import build_data
+    entries = [
+        {"word": "καθηγητής", "pos": "noun", "senses": [{"glosses": ["teacher"]}],
+         "forms": [{"form": "καθηγητή", "tags": [case, "singular"]}
+                   for case in ("genitive", "accusative", "vocative")]},
+        {"word": "ερώτηση", "pos": "noun", "senses": [{"glosses": ["question"]}],
+         "forms": [{"form": "ερωτήσεις", "tags": ["nominative", "plural"]}]},
+        {"word": "ερωτώ", "pos": "verb", "senses": [{"glosses": ["ask"]}]},
+        {"word": "ερωτήσεις", "pos": "verb", "forms": [{"form": "ερωτήσεις"}],
+         "senses": [{"form_of": [{"word": "ερωτώ"}]}]},
+        {"word": "Κυριακή", "pos": "noun", "senses": [{"glosses": ["Sunday"]}]},
+        {"word": "Κυριακός", "pos": "name", "senses": [{"glosses": ["male name"]}]},
+        {"word": "κυριακή", "pos": "adj", "forms": [{"form": "κυριακή"}],
+         "senses": [{"form_of": [{"word": "κυριακός"}]}]},
+    ]
+    dump = _write(tmp_path, entries)
+    (tmp_path / "el.jsonl").write_text(json.dumps({
+        "word": "Κυριακή", "pos": "name", "senses": [{"glosses": ["Sunday"]}]
+    }, ensure_ascii=False) + "\n")
+    out = tmp_path / "out"
+    monkeypatch.setattr(build_data, "DATA_DIR", out)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"en": dump.name, "el": "el.jsonl"}})
+    monkeypatch.setattr("sys.argv", ["build_data.py", "--lang", "el", "--kaikki", str(tmp_path)])
+    build_data.main()
+    pairs = json.loads((out / "mg_pairs.json").read_text())
+    cells = [p for p in pairs if p["form"] == "καθηγητή"]
+    assert len(cells) == 3
+    assert {tuple(p["tags"]) for p in cells} == {
+        (case, "singular") for case in ("genitive", "accusative", "vocative")}
+    assert {p["lemma"] for p in pairs if p["form"] == "ερωτήσεις" and p["pos"] == "verb"} == {"ερωτώ"}
+    lookup = json.loads((out / "mg_lookup.json").read_text())
+    assert lookup["κυριακή"] == "Κυριακή"
+    assert not [p for p in pairs if p["form"] == "κυριακή" and p["pos"] == "adj"]
+    pos_map = json.loads((out / "mg_pos_lookup.json").read_text())
+    assert not pos_map.get("κυριακή", {}).get("ADJ")
 
 
 @pytest.mark.parametrize(("header", "expected"), [
@@ -119,7 +244,7 @@ def test_a_pronoun_grid_of_several_persons_is_not_read(tmp_path):
          "forms": [{"form": "αυτού", "tags": ["genitive", "singular"]}],
          "senses": [{"glosses": ["he"]}]},
     ])
-    pairs, lookup, _, pos_map, _ = extract_pairs(dump, "el-en")
+    pairs, lookup, _, pos_map, *_ = extract_pairs(dump, "el-en")
     assert not [p for p in pairs if p["lemma"] == "τα" and p["form"] != "τα"]
     assert pos_map["αυτού"]["PRON"] == "αυτός"
 
@@ -211,6 +336,26 @@ def test_spelling_target():
                     "form_of": [{"word": "τιτρώσκω"}]}]) is None
     assert spelling_target("μιλῶ", []) is None
     assert spelling_target("γιος", [{"glosses": ["απόγονος"]}]) is None
+    # A word of more than one syllable keeps its accent (καλός names no
+    # καλος), and a form_of reference of a sense tagged with a case names
+    # the word the page is a form of, not a spelling (σοφίᾳ, the dative of
+    # σοφία).
+    assert spelling_target(
+        "καλός", [{"glosses": ["πολυτονική γραφή του καλος"]}]) is None
+    assert spelling_target(
+        "σοφίᾳ", [{"glosses": ["dative singular of σοφία (sofía)"],
+                   "tags": ["dative", "feminine", "form-of", "singular"],
+                   "form_of": [{"word": "σοφία"}]}]) is None
+    assert spelling_target(
+        "γειά", [{"glosses": ["obsolete spelling of γεια (geia)"],
+                  "alt_of": [{"word": "γεια"}]}]) == "γεια"
+
+
+def test_vowel_groups():
+    # A monosyllable has one run of vowels, synizesis included; a vowel
+    # with a diaeresis starts a run of its own.
+    assert [vowel_groups(w) for w in ("γιος", "γεια", "Χουαν", "καλός",
+                                      "χαϊ", "ρολόι")] == [1, 1, 1, 2, 2, 2]
 
 
 def test_two_pages_that_name_each_other_both_stay_lemmas(tmp_path):
@@ -269,3 +414,124 @@ def test_weak_pronouns_on_a_headword_line_are_no_forms(tmp_path):
     assert lookup["μας"][0] == "εγώ"
     assert not [p for p in pairs if p["lemma"] == "μόνος"
                 and p["form"] in ("μας", "σας")]
+
+
+def test_an_abbreviation_does_not_take_a_words_key(tmp_path):
+    # The English Wiktionary gives δις and δ as abbreviations of δεσποινίς.
+    # δις has a page of its own ("twice"), and the Greek Wiktionary's δ is
+    # the letter: neither becomes a form of δεσποινίς. κα, whose only
+    # other page is an abbreviation too, and στο, a contraction the English
+    # Wiktionary tags as an abbreviation, still follow theirs.
+    (tmp_path / "en").mkdir()
+    (tmp_path / "el").mkdir()
+    en = _write(tmp_path / "en", [
+        {"word": "δεσποινίς", "pos": "noun",
+         "senses": [{"glosses": ["miss, young unmarried woman"]}]},
+        {"word": "δις", "pos": "adv", "senses": [{"glosses": ["twice"]}]},
+        {"word": "δις", "pos": "noun",
+         "senses": [{"glosses": ["abbreviation of δεσποινίς: Miss"],
+                     "tags": ["abbreviation", "alt-of"],
+                     "alt_of": [{"word": "δεσποινίς"}]}]},
+        {"word": "δ", "pos": "character",
+         "senses": [{"glosses": ["the fourth letter of the Greek alphabet"],
+                     "tags": ["letter"]}]},
+        {"word": "δ", "pos": "noun",
+         "senses": [{"glosses": ["abbreviation of δεσποινίς: Miss"],
+                     "tags": ["abbreviation", "alt-of"],
+                     "alt_of": [{"word": "δεσποινίς"}]}]},
+        {"word": "κα", "pos": "noun",
+         "senses": [{"glosses": ["abbreviation of κυρία: Mrs"],
+                     "tags": ["abbreviation", "alt-of"],
+                     "alt_of": [{"word": "κυρία"}]}]},
+        {"word": "κυρία", "pos": "noun", "senses": [{"glosses": ["lady"]}]},
+        {"word": "στο", "pos": "contraction",
+         "senses": [{"glosses": ["contraction of σε + το"],
+                     "tags": ["abbreviation", "alt-of", "contraction"],
+                     "alt_of": [{"word": "σε"}]}]},
+        {"word": "σε", "pos": "prep", "senses": [{"glosses": ["in, to"]}]},
+    ])
+    el = _write(tmp_path / "el", [
+        {"word": "δ", "pos": "symbol",
+         "senses": [{"glosses": ["δέλτα: το τέταρτο γράμμα"]}]},
+        {"word": "κα", "pos": "abbrev",
+         "senses": [{"glosses": ["κυρία (με κεφαλαίο, η επίσημη γραφή)"]}]},
+        {"word": "Μαρ", "pos": "name",
+         "senses": [{"glosses": ["επώνυμο (ανδρικό ή γυναικείο)"]}]},
+    ])
+    _, en_lookup, en_headwords, _, en_targets, en_abbr = extract_pairs(
+        en, "el-en")
+    assert en_lookup["δις"][0] == "δις"
+    assert en_lookup["κα"][0] == "κυρία" and en_lookup["στο"][0] == "σε"
+    assert {"δις", "δ", "κα", "στο"} <= en_abbr.keys
+    assert "δις" in en_abbr.words and "κα" not in en_abbr.words
+    _, el_lookup, _, _, el_targets, el_abbr = extract_pairs(el, "el-el")
+    assert {"δ"} <= el_abbr.words and "κα" not in el_abbr.words
+    # A capitalized page claims no key against an abbreviation: the
+    # surname Μαρ leaves μαρ to the English Wiktionary's "Μαρ.", March.
+    assert not {"Μαρ", "μαρ"} & el_abbr.words
+    # Merged as main does: the Greek Wiktionary's keys first, then the
+    # abbreviation targets of the words of either dump dropped, then the
+    # cross-source pass.
+    merged = {}
+    for lookup in (el_lookup, en_lookup):
+        for k, (lemma, _) in lookup.items():
+            merged.setdefault(k, (lemma, 1))
+    # δις lost its target in the English dump already, δ (whose English
+    # page, "the fourth letter of", reads as a form-of page) only to the
+    # Greek dump's letter.
+    assert "δις" not in en_targets and en_targets["δ"] == "δεσποινίς"
+    words = en_abbr.words | el_abbr.words
+    assert drop_abbreviation_targets(en_targets, en_abbr, words) == 1
+    assert "δ" not in en_targets
+    resolve_cross_source(merged, en_targets, el_targets, en_headwords)
+    assert merged["δ"][0] == "δ" and merged["δις"][0] == "δις"
+    assert merged["κα"][0] == "κυρία" and merged["στο"][0] == "σε"
+    # The Ancient Greek dumps are read as before.
+    *_, grc_abbr = extract_pairs(en, "grc-en")
+    assert grc_abbr == Abbreviations(set(), set())
+
+
+
+def test_an_abbreviations_alternatives_are_forms_of_its_word(tmp_path):
+    # The English Wiktionary's δ and δις, both "abbreviation of δεσποινίς",
+    # list each other as alternatives. Those are forms of δεσποινίς, not of
+    # the page's headword: filed under δ, which keeps its key as the letter,
+    # δις would be a noun of lemma δ.
+    dump = _write(tmp_path, [
+        {"word": "δεσποινίς", "pos": "noun",
+         "senses": [{"glosses": ["miss, young unmarried woman"]}]},
+        {"word": "δ", "pos": "noun",
+         "forms": [{"form": "d", "tags": ["romanization"]},
+                   {"form": "δις", "tags": ["alternative"]}],
+         "senses": [{"glosses": ["abbreviation of δεσποινίς: Miss"],
+                     "tags": ["abbreviation", "alt-of"],
+                     "alt_of": [{"word": "δεσποινίς"}]}]},
+        {"word": "δις", "pos": "adv", "senses": [{"glosses": ["twice"]}]},
+        # An abbreviation of a phrase keeps its own forms (the plural of
+        # χωριάτικη, "χωριάτικη σαλάτα").
+        {"word": "χωριάτικη", "pos": "noun",
+         "forms": [{"form": "χωριάτικες", "tags": ["plural"]}],
+         "senses": [{"glosses": ["abbreviation of χωριάτικη σαλάτα"],
+                     "tags": ["abbreviation", "alt-of"],
+                     "alt_of": [{"word": "χωριάτικη σαλάτα"}]}]},
+        # So does a page with a sense of its own beside the abbreviation.
+        {"word": "κ", "pos": "noun",
+         "forms": [{"form": "κκ", "tags": ["alternative"]}],
+         "senses": [{"glosses": ["abbreviation of κύριος: Mr"],
+                     "tags": ["abbreviation", "alt-of"],
+                     "alt_of": [{"word": "κύριος"}]},
+                    {"glosses": ["kappa"]}]},
+    ])
+    pairs, lookup, _, pos_map, *_ = extract_pairs(dump, "el-en")
+    by_form = {}
+    for p in pairs:
+        by_form.setdefault(p["form"], set()).add(p["lemma"])
+    assert by_form["δις"] == {"δεσποινίς"}
+    assert pos_map["δις"]["NOUN"] == "δεσποινίς"
+    # The adverb's own page keeps its key.
+    assert lookup["δις"][0] == "δις"
+    assert by_form["χωριάτικες"] == {"χωριάτικη"}
+    assert by_form["κκ"] == {"κ"}
+    # The Ancient Greek dumps are read as before.
+    pairs, *_ = extract_pairs(dump, "grc-en")
+    assert ("δις", "δ") in {(p["form"], p["lemma"]) for p in pairs}

@@ -312,9 +312,15 @@ lowercase page or table claims them: the female name `Ερωτώ` does not take
 And a form-of reference of one Wiktionary that would point a lemma back at
 a word the other files under it is not followed: EN files `ρωτώ` as a form
 of `ρωτάω` while EL's `ρωτώ` table lists `ρωτάω`, and the cycle made the
-chain-breaking delete both conjugations. With both fixed, 168 capitalized
-verb lemmas of `data/mg_pairs.json` come down to 9. `lookup.db` takes them
-up when `build_lookup_db.py` next rebuilds it. A pronoun table that spans
+chain-breaking delete both conjugations. The same priority applies across
+the two dictionaries: a weak lowercase key derived from a name in one
+source does not override the other's verb form (`λεν`, `τρων`, `μιλάνε`).
+A form page's head line and its verb inflection table resolve through the
+word that page names. They do not inherit a noun homograph's lemma:
+`ερωτήσεις` remains a form of `ερωτώ` on verb rows, and the participle
+forms of `αντιπαθών` belong to `αντιπαθώ`.
+`lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
+it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms
 are no forms of the page it stands on, and is skipped whatever its
 template's name: in the 2026-09 dumps EN's `τα` page carries it under a
@@ -329,21 +335,51 @@ lemma it took the word's monotonic and accentless keys, made `γιος` a form
 of `γιός` in a cycle that deleted its paradigm, and filed the forms of
 `μιλώ` and `αγχωτικός` under `μιλῶ` and `ἀγχωτικός`. Such a page is one
 every sense of which names the page's own word without the marks monotonic
-writing drops, and for a monosyllable without its accent, by an `alt_of`
-or `form_of` reference or by that gloss (`γιος` for `γιός`, `μουστακάτος`
-for `μουστακᾶτος`): 76 pages of the Greek dump, 50 of them known only by
-the gloss, and 48 of the English one (`build_data.spelling_target`). A page
-that names a word of other letters (`ἐτρώθη`, a form of `τιτρώσκω`) or has
-a sense of its own is read as before, and so are the Ancient and Medieval
-Greek dumps, where a page whose monotonic spelling is another word's is an
-inflected form of it (the dative `φωνῇ` of `φωνή`). In the Modern Greek
-dumps two pages that name each other as forms (`αγχωτικός` and `αγχώδης`,
-each "συνώνυμο του" the other, which kaikki reads as `alt_of`), or a page
-naming a word whose key already maps back to it, both stay lemmas, where
-following the reference made a cycle that the chain-breaking deleted with
-both paradigms; and the weak pronouns `μόνος` shows on its headword line
-(`μόνος μου`, `μας`, `σας`) are not read as its forms, which had made `σας`
-a form of `μόνος`.
+writing drops, and for a monosyllable (one run of vowels, `γιος`, `γεια`)
+without its accent, by an `alt_of` or `form_of` reference or by that gloss
+(`γιος` for `γιός`, `μουστακάτος` for `μουστακᾶτος`): 76 pages of the Greek
+dump, 50 of them known only by the gloss, and 47 of the English one
+(`build_data.spelling_target`). A page that names a word of other letters
+(`ἐτρώθη`, a form of `τιτρώσκω`), a `form_of` reference of a sense tagged
+with a case (`σοφίᾳ`, "dative singular of σοφία"), and a page with a sense
+of its own are read as before, and so are the Ancient and Medieval Greek
+dumps, where a page whose monotonic spelling is another word's is an
+inflected form of it (the dative `φωνῇ` of `φωνή`). In each Modern Greek
+dump's own pass two pages that name each other as forms (`αγχωτικός` and
+`αγχώδης`, each "συνώνυμο του" the other, which kaikki reads as `alt_of`),
+or a page naming a word whose key already maps back to it, both stay
+lemmas, where following the reference made a cycle that the chain-breaking
+deleted with both paradigms. The merged lookup checks all proposed
+references before applying any of them. Reciprocal synonyms such as
+`νησοπυριτικός` and `ορθοπυριτικός` therefore keep both paradigms regardless
+of their order in the dumps. The weak pronouns `μόνος` shows on its
+headword line (`μόνος μου`, `μας`, `σας`) are not read as its forms, which
+had made `σας` a form of `μόνος`.
+
+An abbreviation is no form of the word it abbreviates, and in the Modern
+Greek dumps its reference does not move the key of a lowercase word with a
+sense of its own (`build_data.Abbreviations`). The English Wiktionary gives
+`δις` and `δ` as abbreviations of `δεσποινίς`; once `δεσποινίς` kept its
+paradigm, following them made the adverb `δις` ("twice", and the "billion"
+of `δισ.`, 20,825 monotonic tokens) and the letter `δ` its forms. They stay
+themselves, and so do `α`, `β`, `ν` and `κ`, which the same pages of
+letters had made forms of `άντε`, `βόρειος`, `νότος` and `κυρία`. The other
+abbreviations the page of one abbreviation lists as alternatives are forms
+of the word it abbreviates, not of the page's headword: `δ`'s `δις` is a
+form of `δεσποινίς`, where filed under `δ`, the letter, it was a noun of
+lemma `δ`. A key no lowercase word claims still follows its abbreviation:
+`κα` goes to `κυρία`, whose Greek Wiktionary page is an abbreviation too,
+`μαρ` to `Μάρτιος` beside the surname `Μαρ`, and the contraction `στο`
+("σε + το"), which the English Wiktionary also tags as an abbreviation, to
+`σε`.
+
+Modern Greek pair deduplication retains the part of speech and complete
+grammatical tags of each table cell. Identical rows are removed, but the
+genitive, accusative and vocative singular rows of `καθηγητή` remain
+separate even though their monotonic spelling is identical. The exporter
+can then distinguish `καθηγητῆ` from `καθηγητή`. The JSON fields remain
+`form`, `lemma`, `pos` and `tags`; internal reference metadata is not
+written to the data files.
 
 For individual form-to-lemma corrections where the lookup table returns
 the wrong lemma due to ambiguity (e.g., proper nouns beating common

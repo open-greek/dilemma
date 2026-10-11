@@ -30,6 +30,7 @@ import sys
 import unicodedata
 from collections import Counter
 from pathlib import Path
+from typing import NamedTuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
@@ -54,6 +55,8 @@ DUMPS = {
         "el": "kaikki.org-el-dictionary-MedievalGreek.jsonl",
     },
 }
+
+_GENDER_TAGS = frozenset({"masculine", "feminine", "neuter"})
 
 # Alternate filenames/paths for the nested directory layout
 _NESTED_MAP = {
@@ -307,23 +310,54 @@ _POLYTONIC_SPELLING_GLOSS = re.compile(
     r"^πολυτονική γραφή (?:του|της) (\S+?)[.,]?$")
 
 
+_GREEK_VOWELS = frozenset("αεηιουωΑΕΗΙΟΥΩ")
+# The case tags of an inflected form's sense ("dative singular of σοφία").
+_CASE_TAGS = frozenset({"nominative", "genitive", "dative", "accusative",
+                        "vocative"})
+
+
+def vowel_groups(word: str) -> int:
+    """The runs of vowels in a word, a vowel with a diaeresis starting a run
+    of its own: 1 for a monosyllable, synizesis included (γιος, γεια, μια),
+    2 for χαϊδεύω's χαϊ."""
+    groups = 0
+    previous_vowel = False
+    for ch in unicodedata.normalize("NFD", word):
+        if unicodedata.category(ch) == "Mn":
+            if ch == "\u0308" and previous_vowel:
+                groups += 1
+            continue
+        vowel = ch in _GREEK_VOWELS
+        if vowel and not previous_vowel:
+            groups += 1
+        previous_vowel = vowel
+    return groups
+
+
 def spelling_target(lemma: str, senses: list) -> str | None:
     """The word a page only gives another spelling of, or None.
 
     That word is the page's own word without the marks monotonic writing
     drops: μουστακάτος for μουστακᾶτος, αναφτερουγιάζω for ἀναφτερουγιάζω,
-    and for a monosyllable without its accent too, γιος for γιός. Every
-    sense of the page must refer to it, by an alt_of or form_of reference
-    or by a gloss that calls the page its polytonic spelling. A page that
-    refers to a word of other letters is a form of that word (ἐτρώθη of
-    τιτρώσκω), and a page with a sense of its own is a word of its own."""
+    and for a monosyllable (one run of vowels: γιος, γεια) without its
+    accent too, γιος for γιός. Every sense of the page must refer to it, by
+    an alt_of or form_of reference or by a gloss that calls the page its
+    polytonic spelling. A page that refers to a word of other letters is a
+    form of that word (ἐτρώθη of τιτρώσκω), a form_of reference of a sense
+    tagged with a case names the word the page is a form of (σοφίᾳ, the
+    dative of σοφία), and a page with a sense of its own is a word of its
+    own."""
     mono = to_monotonic(lemma)
-    spellings = {mono, strip_accents(mono)} - {lemma}
+    spellings = {mono}
+    if vowel_groups(mono) == 1:
+        spellings.add(strip_accents(mono))
+    spellings.discard(lemma)
     target = None
     for sense in senses:
-        words = [strip_length_marks(ref.get("word", ""))
-                 for ref in (sense.get("alt_of") or [])
-                 + (sense.get("form_of") or [])]
+        refs = list(sense.get("alt_of") or [])
+        if not _CASE_TAGS.intersection(sense.get("tags") or []):
+            refs += sense.get("form_of") or []
+        words = [strip_length_marks(ref.get("word", "")) for ref in refs]
         gloss = (sense.get("glosses") or [""])[0]
         named = _POLYTONIC_SPELLING_GLOSS.match(gloss)
         if named:
@@ -356,8 +390,35 @@ def _add_pos_map(pos_map: dict, form: str, lemma: str, wikt_pos: str):
             pos_map[key][upos] = lemma
 
 
+class Abbreviations(NamedTuple):
+    """What a Modern Greek dump says of its abbreviations. An abbreviation is
+    no form of the word it abbreviates, and its reference must not move a
+    key that a page presents as a word of its own: the English Wiktionary
+    gives δις and δ as abbreviations of δεσποινίς, and following them made
+    δις ("twice", "billion"; 20,825 monotonic tokens) and the letter δ forms
+    of δεσποινίς. A key no lowercase word claims still follows its
+    abbreviation (κα, "κυρία", whose Greek Wiktionary page is an abbreviation
+    too; μαρ, "Μαρτίου", beside the surname Μαρ), and so does a contraction
+    that is no word (στο, "σε + το", which the English Wiktionary tags as an
+    abbreviation as well)."""
+    keys: set       # keys whose form-of target is an abbreviation's
+    words: set      # keys of lowercase words with a sense of their own
+
+
+def drop_abbreviation_targets(targets: dict, abbreviations: Abbreviations,
+                              words: set) -> int:
+    """Drop from ``targets`` the abbreviation targets of the keys in
+    ``words``, the words of both Wiktionaries (``Abbreviations``), and
+    return how many were dropped."""
+    dropped = abbreviations.keys & words & set(targets)
+    for key in dropped:
+        del targets[key]
+    return len(dropped)
+
+
 def extract_pairs(jsonl_path: Path, lang: str,
-                   skip_name_plurals: set = None) -> tuple[list[dict], dict, set, dict, dict]:
+                  skip_name_plurals: set = None
+                  ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
     Extracts from three sources per entry:
@@ -380,10 +441,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
         pos_map: {form: {upos: lemma}} dict for POS disambiguation
         form_of_targets: {key_variant: target_lemma} for cross-source
             self-map resolution after lookups are merged
+        abbreviations: the keys whose target is an abbreviation's and the
+            keys of words of their own (``Abbreviations``), for the
+            Modern Greek dumps; empty for the others
     """
     if not jsonl_path.exists():
         print(f"  {lang}: not found at {jsonl_path}")
-        return [], {}, set(), {}
+        return [], {}, set(), {}, {}, Abbreviations(set(), set())
 
     pairs = []
     page_headwords = set()
@@ -398,6 +462,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
     # form_of/alt_of targets: {key_variant: target_lemma}
     # Used in pass 2 to resolve self-map artifacts.
     form_of_targets = {}
+    # The keys whose target is an abbreviation's, and the keys of words
+    # with a sense of their own (``Abbreviations``; Modern Greek only).
+    abbreviated_keys: set[str] = set()
+    word_keys: set[str] = set()
     pos_map = {}  # {form: {upos: lemma}} for POS disambiguation
     skip_tags = {"romanization", "table-tags", "inflection-template", "class"}
     # Articles dump all genders/persons into each headword.
@@ -637,8 +705,25 @@ def extract_pairs(jsonl_path: Path, lang: str,
                                  confidence=hw_confidence,
                                  proper_noun=(pos == "name"),
                                  closed_class_capital=_cc_cap)
+            # The keys of a lowercase word with a sense of its own (the
+            # adverb δις, "twice"; the letter δ), which an abbreviation's
+            # reference does not move (``Abbreviations``). An abbreviation
+            # is no such word: the Greek Wiktionary's pages of part of
+            # speech "abbrev" (κα, "κυρία") and the senses the English one
+            # tags "abbreviation". Nor is a capitalized page, which comes
+            # last for a key as in _add_lookup: the surname Μαρ leaves μαρ
+            # to Μάρτιος, whose abbreviation it is.
+            if (modern_greek and hw_confidence == 3 and spelling_of is None
+                    and lemma == lemma.lower() and pos != "abbrev"
+                    and not any("abbreviation" in (s.get("tags") or [])
+                                for s in entry.get("senses") or [])):
+                for key in (lemma, to_monotonic(lemma),
+                            strip_accents(lemma)):
+                    if key:
+                        word_keys.add(key)
 
             has_data = False
+            ref_targets = []
 
             # --- Source 1: form_of (this page is a form of another word) ---
             # Check both top-level form_of AND senses[].form_of.
@@ -690,6 +775,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     "tags": ["form-of"],
                 })
                 form_of_count += 1
+                ref_targets.append(ref_word)
                 has_data = True
 
             # --- Source 2: alt_of (alternative form of another word) ---
@@ -699,8 +785,36 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # and the (already filtered) top_alt_of_for_detection list
             # for non-EL sources.
             sense_alt_of = []
+            # The words that only senses tagged "abbreviation" name, in the
+            # Modern Greek dumps (the English Wiktionary's δις and δ,
+            # "abbreviation of δεσποινίς"; ``Abbreviations``).
+            abbreviation_of: set[str] = set()
+            named_otherwise: set[str] = set()
             for sense in entry.get("senses", []):
                 sense_alt_of.extend(sense.get("alt_of", []))
+                named = {strip_length_marks(ref.get("word", ""))
+                         for ref in sense.get("alt_of") or []}
+                if "abbreviation" in (sense.get("tags") or []):
+                    abbreviation_of |= named
+                else:
+                    named_otherwise |= named
+            if not modern_greek:
+                abbreviation_of.clear()
+            abbreviation_of -= named_otherwise
+            # The other spellings a page of one abbreviation lists as
+            # "alternative" abbreviate the same word, and are forms of that
+            # word rather than of the page's headword: the English
+            # Wiktionary's δ lists δις, both "abbreviation of δεσποινίς".
+            # Filed under δ, the letter that keeps its key, δις would be a
+            # noun of lemma δ.
+            abbreviated_word = None
+            if (len(abbreviation_of) == 1 and not named_otherwise
+                    and all("abbreviation" in (s.get("tags") or [])
+                            for s in entry.get("senses") or [])):
+                abbreviated_word = next(iter(abbreviation_of))
+                if (" " in abbreviated_word
+                        or not _is_greek(abbreviated_word)):
+                    abbreviated_word = None
             alt_of_refs = sense_alt_of + list(top_alt_of_for_detection)
             # A polytonic spelling page known only by its gloss (μιλῶ) is
             # an alternative form of the word it names.
@@ -723,6 +837,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         if (key and key not in form_of_targets
                                 and not key == ref_word == spelling_of):
                             form_of_targets[key] = ref_word
+                            if ref_word in abbreviation_of:
+                                abbreviated_keys.add(key)
                 _add_pos_map(pos_map, lemma, ref_word, pos)
                 pairs.append({
                     "form": lemma,
@@ -731,6 +847,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     "tags": ["alt-of"],
                 })
                 alt_of_count += 1
+                ref_targets.append(ref_word)
                 has_data = True
 
             # --- Source 3: forms[] (inflection table) ---
@@ -881,6 +998,11 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         continue
 
                 morph_tags = [t for t in tags if t not in ("canonical",)]
+                # Another abbreviation of the word a page abbreviates is a
+                # form of that word (``abbreviated_word``).
+                form_lemma = (abbreviated_word
+                              if abbreviated_word and "alternative" in tags
+                              else lemma)
 
                 # Add dialect tag if we're inside a dialect-specific table section
                 if current_dialect and current_dialect not in morph_tags:
@@ -892,45 +1014,43 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         and any(tag in _VERB_AXES for tag in tags)):
                     morph_tags.append(current_tense)
 
-                pairs.append({
+                pair = {
                     "form": form,
-                    "lemma": lemma,
+                    "lemma": form_lemma,
                     "pos": pos,
                     "tags": morph_tags,
-                })
+                }
+                # A form page's head line belongs to the referenced word,
+                # even when a noun homograph wins the page's lookup key.
+                # Inflected participle tables belong to that verb too.
+                if (modern_greek and ref_targets
+                        and ((form == lemma and set(tags) <= _GENDER_TAGS)
+                             or pos == "verb")):
+                    pair["via"] = ref_targets[0]
+                pairs.append(pair)
 
                 # Also add monotonic version as a training pair
                 mono = to_monotonic(form)
                 if mono != form:
-                    pairs.append({
-                        "form": mono,
-                        "lemma": lemma,
-                        "pos": pos,
-                        "tags": morph_tags,
-                    })
+                    pairs.append({**pair, "form": mono})
 
                 # Lookup: original, lowercase, monotonic, accent-stripped
                 _form_cc_cap = (pos in ("pron", "det", "adj")
                                 and form and form != form.lower())
-                _add_lookup_here(lookup, form, lemma, proper_noun=(pos == "name"),
+                _add_lookup_here(lookup, form, form_lemma, proper_noun=(pos == "name"),
                             closed_class_capital=_form_cc_cap)
-                _add_pos_map(pos_map, form, lemma, pos)
+                _add_pos_map(pos_map, form, pair.get("via", form_lemma), pos)
 
                 # Also add the parenthetical-expanded form (e.g. ἐστίν from ἐστί(ν))
                 if extra_form and _is_greek(extra_form):
                     _extra_cc_cap = (pos in ("pron", "det", "adj")
                                      and extra_form
                                      and extra_form != extra_form.lower())
-                    _add_lookup_here(lookup, extra_form, lemma,
+                    _add_lookup_here(lookup, extra_form, form_lemma,
                                 proper_noun=(pos == "name"),
                                 closed_class_capital=_extra_cc_cap)
-                    _add_pos_map(pos_map, extra_form, lemma, pos)
-                    pairs.append({
-                        "form": extra_form,
-                        "lemma": lemma,
-                        "pos": pos,
-                        "tags": morph_tags,
-                    })
+                    _add_pos_map(pos_map, extra_form, pair.get("via", form_lemma), pos)
+                    pairs.append({**pair, "form": extra_form})
 
     # --- Pass 2: resolve self-map artifacts using form_of/alt_of targets ---
     # For each lookup entry that is BOTH a self-map AND was detected as a
@@ -943,6 +1063,11 @@ def extract_pairs(jsonl_path: Path, lang: str,
     # Non-self mappings (correct table entries like λέγεται -> λέω)
     # are never touched. Proper nouns are excluded via form_of_targets.
     selfmap_resolved = 0
+    # An abbreviation's reference moves no key of a word with a sense of
+    # its own (``Abbreviations``); main drops those of the other dump's
+    # words before the cross-source pass.
+    abbreviations = Abbreviations(abbreviated_keys, word_keys)
+    drop_abbreviation_targets(form_of_targets, abbreviations, word_keys)
     moves = {}
     for key in list(lookup.keys()):
         lemma, conf = lookup[key]
@@ -996,19 +1121,99 @@ def extract_pairs(jsonl_path: Path, lang: str,
         print(f"    dialect-tagged forms: {dialect_tagged:,}")
     if selfmap_resolved:
         print(f"    self-maps resolved via form_of/alt_of: {selfmap_resolved:,}")
-    return pairs, lookup, page_headwords, pos_map, form_of_targets
+    return (pairs, lookup, page_headwords, pos_map, form_of_targets,
+            abbreviations)
+
+
+def merge_source_lookups(all_lookup: dict, lookups: list,
+                         capitals_last: bool = False) -> None:
+    """Merge source lookups, leaving weak capital-derived keys until last.
+
+    Each source already lowers a name's lowercase keys to confidence zero.
+    Preserve that priority across sources so a surname in one dictionary
+    cannot replace the other dictionary's ordinary verb form.
+    """
+    # A missing lowercase lemma is not a reference to a same-letter name.
+    # κυριακή's adjective page names κυριακός, but these dumps only contain
+    # the name Κυριακός. Following that fallback displaced the noun Κυριακή.
+    # Leave such a reference out so the independently attested noun wins.
+    weak_names, stronger = set(), set()
+    if capitals_last:
+        for lookup in lookups:
+            for key, (lemma, confidence) in lookup.items():
+                if confidence > 0:
+                    stronger.add(key)
+                elif key == key.lower() and lemma != lemma.lower():
+                    weak_names.add(key)
+        weak_names -= stronger
+    tiers = (False, True) if capitals_last else (None,)
+    for weak in tiers:
+        for lookup in lookups:
+            for key, (lemma, confidence) in lookup.items():
+                if weak is not None and (confidence == 0) != weak:
+                    continue
+                if lemma == lemma.lower() and lemma in weak_names and key != lemma:
+                    continue
+                all_lookup.setdefault(key, (lemma, 1))
+
+
+def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
+    """Keep every distinct Modern Greek morphological cell.
+
+    A genitive and an accusative may have the same monotonic form and
+    lemma but different polytonic realizations. Tag order is not a cell
+    distinction; POS, tags and a form page's resolution target are.
+    """
+    seen, result = set(), []
+    for pair in pairs:
+        key = (pair["form"], pair["lemma"])
+        if preserve_cells:
+            key += (pair.get("pos", ""), tuple(sorted(set(pair.get("tags", [])))),
+                    pair.get("via"))
+        if key not in seen:
+            seen.add(key)
+            result.append(pair)
+    return result
+
+
+def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False) -> list:
+    """Resolve page references before lookup homographs; omit internal metadata."""
+    headwords = {key for key, (lemma, _) in lookup.items() if key == lemma}
+    result = []
+    for pair in deduplicate_pairs(pairs, preserve_cells):
+        candidates = ([pair["via"]] if pair.get("via")
+                      else [pair["lemma"]])
+        for lemma in candidates:
+            if lemma in headwords:
+                resolved = lemma
+            elif lemma in lookup and lookup[lemma][0] in headwords:
+                resolved = lookup[lemma][0]
+            else:
+                continue
+            # An absent common-word lemma must not become a proper name
+            # merely because their lowercase keys coincide.
+            if (preserve_cells and pair.get("pos") != "name"
+                    and lemma == lemma.lower() and resolved != resolved.lower()):
+                continue
+            result.append({"form": pair["form"], "lemma": resolved,
+                           "pos": pair.get("pos", ""), "tags": pair.get("tags", [])})
+            break
+    return deduplicate_pairs(result, True) if preserve_cells else result
 
 
 def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
                          el_form_of_targets: dict, en_headwords: set,
-                         skip: set = frozenset()) -> int:
+                         skip: set = frozenset(), preserve_cycles=False) -> int:
     """Point each self-mapped key of the merged lookup at the lemma EN's
     form-of reference gives it, else EL's where EN has no page for the key
     (see main), and return how many moved. A target that maps back to the
     key is left alone: the cycle would make chain-breaking delete both
     lemmas with all their pairs (EN files ρωτώ as a form of ρωτάω, while
     EL's ρωτώ table lists ρωτάω, and both conjugations were lost)."""
-    cross_resolved = 0
+    # Compute all proposed moves before changing any lookup. Otherwise two
+    # reciprocal references that survived the per-source pass collapse onto
+    # whichever synonym happens to occur second in the merged dictionary.
+    moves = {}
     for k, (lemma, _) in list(all_lookup.items()):
         if lemma != k:
             continue  # not a self-map
@@ -1019,8 +1224,18 @@ def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
             # EN says nothing; only fall back to EL's target if EN
             # also doesn't claim this key as a real lemma headword.
             target = el_form_of_targets.get(k)
-        if (target and target != k
-                and all_lookup.get(target, (None,))[0] != k):
+        if target and target != k:
+            moves[k] = target
+    cross_resolved = 0
+    for k, target in moves.items():
+        seen = {k}
+        next_target = target
+        while preserve_cycles and next_target in moves and next_target not in seen:
+            seen.add(next_target)
+            next_target = moves[next_target]
+        if preserve_cycles and next_target in seen:
+            continue
+        if all_lookup.get(target, (None,))[0] != k:
             all_lookup[k] = (target, 1)
             cross_resolved += 1
     return cross_resolved
@@ -1073,14 +1288,18 @@ def main():
         # noun page, EL has misleading top-level form_of=[θεύς]).
         en_form_of_targets: dict[str, str] = {}
         el_form_of_targets: dict[str, str] = {}
+        en_abbreviations = Abbreviations(set(), set())
+        el_abbreviations = Abbreviations(set(), set())
 
         # Extract EN first to collect proper noun forms for corroboration
         en_name_forms = set()
         if "en" in DUMPS[lang]:
             en_path = resolve_dump(DUMPS[lang]["en"], dump_dir)
             print(f"\nScanning en Wiktionary: {DUMPS[lang]['en']}")
-            pairs, lookup, headwords, pos_map, fot = extract_pairs(en_path, f"{lang}-en")
+            pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
+                en_path, f"{lang}-en")
             en_form_of_targets.update(fot)
+            en_abbreviations = abbr
             all_pairs.extend(pairs)
             source_lookups.append(("en", lookup, headwords))
             # Merge POS map (first source wins per form+upos)
@@ -1108,12 +1327,15 @@ def main():
                 continue  # already processed
             path = resolve_dump(filename, dump_dir)
             print(f"\nScanning {wikt_lang} Wiktionary: {path.name}")
-            pairs, lookup, headwords, pos_map, fot = extract_pairs(
+            pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
                 path, f"{lang}-{wikt_lang}",
                 skip_name_plurals=en_name_forms if en_name_forms else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
+                    if k in abbr.keys:
+                        el_abbreviations.keys.add(k)
+            el_abbreviations.words.update(abbr.words)
             all_pairs.extend(pairs)
             source_lookups.append((wikt_lang, lookup, headwords))
             # Merge POS map
@@ -1140,10 +1362,8 @@ def main():
         merge_order = source_lookups
         if lang == "el":
             merge_order = sorted(source_lookups, key=lambda x: (x[0] == "en",))
-        for _, lookup, _ in merge_order:
-            for k, (lemma, _) in lookup.items():
-                if k not in all_lookup:
-                    all_lookup[k] = (lemma, 1)
+        merge_source_lookups(all_lookup, [lookup for _, lookup, _ in merge_order],
+                             capitals_last=(lang == "el"))
 
         # Cross-source self-map resolution. After per-source pass-2, any
         # remaining self-maps (key == lemma) at the merged level got
@@ -1164,9 +1384,19 @@ def main():
             "ο", "η", "το", "τον", "την", "του", "της",
             "τους", "τις", "τα", "των", "τη", "οι",
         }
+        # An abbreviation's reference moves no key that a page of either
+        # Wiktionary presents as a word of its own (``Abbreviations``):
+        # EN's δ, "abbreviation of δεσποινίς", leaves EL's letter δ alone.
+        words = en_abbreviations.words | el_abbreviations.words
+        for targets, abbreviations in (
+                (en_form_of_targets, en_abbreviations),
+                (el_form_of_targets, el_abbreviations)):
+            dropped = drop_abbreviation_targets(targets, abbreviations, words)
+            if dropped:
+                print(f"Abbreviation targets dropped for words: {dropped:,}")
         cross_resolved = resolve_cross_source(
             all_lookup, en_form_of_targets, el_form_of_targets,
-            en_headwords, _MG_ARTICLE_FORMS)
+            en_headwords, _MG_ARTICLE_FORMS, preserve_cycles=(lang == "el"))
         if cross_resolved:
             print(f"Cross-source form-of resolutions: {cross_resolved:,}")
 
@@ -1201,13 +1431,7 @@ def main():
                 # else stays at 1
 
         # Deduplicate pairs
-        seen = set()
-        unique_pairs = []
-        for p in all_pairs:
-            key = (p["form"], p["lemma"])
-            if key not in seen:
-                seen.add(key)
-                unique_pairs.append(p)
+        unique_pairs = deduplicate_pairs(all_pairs, preserve_cells=(lang == "el"))
 
         # Break chained lookups: if form->lemma->X, the mapping is suspect.
         headwords = {k for k, (v, _) in all_lookup.items() if k == v}
@@ -1236,26 +1460,8 @@ def main():
 
         # Fix training pairs: rewrite lemmas to match the cleaned lookup,
         # drop pairs whose lemma can't be resolved to a headword.
-        clean_pairs = []
-        pairs_fixed = 0
-        pairs_dropped = 0
-        for p in unique_pairs:
-            lemma = p["lemma"]
-            if lemma in headwords:
-                clean_pairs.append(p)
-            elif lemma in all_lookup:
-                resolved = all_lookup[lemma][0]
-                if resolved in headwords:
-                    clean_pairs.append({"form": p["form"], "lemma": resolved,
-                                        "pos": p.get("pos", ""), "tags": p.get("tags", [])})
-                    pairs_fixed += 1
-                else:
-                    pairs_dropped += 1
-            else:
-                pairs_dropped += 1
-        if pairs_fixed or pairs_dropped:
-            print(f"Training pairs: {pairs_fixed} lemmas resolved, {pairs_dropped} dropped")
-            unique_pairs = clean_pairs
+        unique_pairs = clean_training_pairs(unique_pairs, all_lookup,
+                                             preserve_cells=(lang == "el"))
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"
@@ -1326,7 +1532,11 @@ def main():
             resolved = {}
             for upos, lemma in upos_lemmas.items():
                 if lemma in all_lookup:
-                    resolved[upos] = all_lookup[lemma][0]
+                    target = all_lookup[lemma][0]
+                    if (lang == "el" and upos != "PROPN"
+                            and lemma == lemma.lower() and target != target.lower()):
+                        continue
+                    resolved[upos] = target
                 else:
                     resolved[upos] = lemma
             # Only keep if there are multiple distinct lemmas

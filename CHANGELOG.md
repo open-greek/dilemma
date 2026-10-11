@@ -154,28 +154,26 @@ All notable changes to Dilemma are documented here. The format follows
   a cycle that the chain-breaking deleted with the whole paradigm, and
   `μιλώ`'s and `αγχωτικός`'s forms went under `μιλῶ` and `ἀγχωτικός`. In
   the Modern Greek dumps a page whose every sense names its own monotonic
-  spelling, by an `alt_of` or `form_of` reference or by that gloss, now
-  maps to that word and makes no lemma of its own. Two pages that name each
-  other (`αγχωτικός` and `αγχώδης`, each "συνώνυμο του" the other, which
-  kaikki reads as `alt_of`; `δεσποινίς` and `δεσποινίδα`) are no longer
-  followed into a cycle that deleted both paradigms, and the weak pronouns
-  on `μόνος`'s headword line (`μόνος μου`, `μας`, `σας`) are no forms of it,
-  so `μας` and `σας` are forms of `εγώ` and `εσύ` again. 911 pairs are
-  added and 288 removed, every form of the removed ones staying under
-  another lemma, and 778 keys of `data/mg_lookup.json` change, 322 of them
-  new. With `δεσποινίς`'s paradigm kept, the English Wiktionary's
-  abbreviation pages `δις` and `δ` file those keys under it in
-  `data/mg_lookup.json`; `lookup.db`'s Ancient-first merge keeps `δις` ->
-  `δίς`. The Ancient and Medieval Greek outputs are byte for byte the same.
-  `lookup.db` takes the fix up when it is next rebuilt, and
-  `grc_polytonic.dic` exported from the rebuilt one gains 7 entries:
-  `κτιστός`, `κτιστοί`, `κτιστούς`, `κτιστέ`, `μηνιαίους`, and the
-  acute-only Modern spellings `κτιστής` and `κτιστού`. The polytonic
-  Modern Greek list gains 27 generated entries and loses one: `γιῶν`,
-  `υἱό` and its grave twin, `γυρνᾶμε`, `γυρνοῦσα`, `γύρναγα`, `μηνιαῖο`,
-  `μηνιαίως`, `μονόκερο`, `λάντζα`, `δεσποσύνη`, `στενάχωρη` and the rest of
-  their paradigms, while the subjunctive `στεναχωρῇ` gives way to the
-  adjective `στενάχωρη` of the same letters.
+  spelling (for a monosyllable, also without its accent), by an `alt_of`
+  or `form_of` reference or by that gloss, now maps to that word and makes
+  no lemma of its own; a `form_of` reference of a sense tagged with a case
+  (`σοφίᾳ`, "dative singular of σοφία") is read as before. Two pages that
+  name each other (`αγχωτικός` and `αγχώδης`, each "συνώνυμο του" the
+  other, which kaikki reads as `alt_of`; `δεσποινίς` and `δεσποινίδα`) are
+  no longer followed into a cycle that deleted both paradigms, and the weak
+  pronouns on `μόνος`'s headword line (`μόνος μου`, `μας`, `σας`) are no
+  forms of it, so `μας` and `σας` are forms of `εγώ` and `εσύ` again. An
+  abbreviation's reference no longer moves the key of a lowercase word
+  with a sense of its own: once `δεσποινίς` kept its paradigm, the English
+  Wiktionary's abbreviation pages `δις` and `δ` would have made the adverb
+  `δις` ("twice", "billion") and the letter `δ` its forms, and `α`, `β`,
+  `ν` and `κ` were forms of `άντε`, `βόρειος`, `νότος` and `κυρία`; `κα`
+  still goes to `κυρία` and the contraction `στο` to `σε`. The other
+  abbreviations such a page lists as alternatives are forms of the word it
+  abbreviates (`δ`'s `δις`, of `δεσποινίς`), not of the page's headword.
+  Reciprocal synonym references are checked together before the merged
+  lookup is changed, so `νησοπυριτικός` and `ορθοπυριτικός` each keep their
+  paradigm. `lookup.db` takes the corrected data up when it is rebuilt.
 - `data/mg_pairs.json` has the conjugation of `ρωτάω` and the other verbs
   whose forms went under a capitalized page. In the Modern Greek dumps a
   capitalized page (the female name `Ερωτώ`, the abbreviation `ΔΕΣ`, a
@@ -186,13 +184,21 @@ All notable changes to Dilemma are documented here. The format follows
   that pointed a lemma back at a word the other files under it (EN's
   `ρωτώ`, a form of `ρωτάω`; EL's `ρωτώ` table, which lists `ρωτάω`) made a
   cycle that the chain-breaking deleted with both conjugations; it is no
-  longer followed. 168 capitalized verb lemmas come down to 9, and the
-  polytonic Modern Greek list generates `ῥωτήσω`, `ῥώτησε` and `ῥωτᾷς`.
+  longer followed. This priority also applies across dictionaries, where
+  the surnames `Λεν` and `Τρων` previously overrode `λεν` and `τρων` from
+  the other source. Form pages resolve verb rows through their explicit
+  reference, preserving `ερωτήσεις` under `ερωτώ` and the participle forms
+  of `αντιπαθών` under `αντιπαθώ`, instead of a noun or adjective homograph.
   The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its
   template's name: those dumps carry it on EN's `τα` page under a generic
   template, which made `εγώ`, `εσύ`, `αυτός` and `μου` forms of `τα`.
+- Modern Greek pair deduplication preserves each part of speech and
+  grammatical tag set (#31). The genitive, accusative and vocative rows of
+  `καθηγητή` survive separately, allowing the exporter to produce the
+  circumflex genitive and acute accusative and vocative. Exact duplicate
+  rows are still removed; the JSON fields are unchanged.
 - In the polytonic Modern Greek list, two paradigm cells of the same
   letters both go in, whatever their counts: the present `περπατᾷ`,
   `προχωρᾷ` and `τηλεφωνᾷ` are back beside the imperatives `περπάτα`,
