@@ -780,9 +780,8 @@ def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
     return forms, ""
 
 
-# Cache: (conj_type, stem_len) -> list of suffix offsets extracted from a reference expansion
-# Each cached entry is [(suffix, strip_n), ...] where form = stem[:-strip_n] + suffix
-_VERB_CACHE = {}
+# Present-system cache for identical lexical requests, with all marks intact.
+_VERB_CACHE: dict[tuple[str, str, str], frozenset[str]] = {}
 
 
 # Cache: principal-parts grc-conj-args tuple -> set of forms.
@@ -1285,39 +1284,6 @@ def _classify_verb(headword):
     return None, None
 
 
-def _build_suffix_cache(forms, stem):
-    """Extract suffix patterns from expanded forms relative to the stem.
-
-    Returns list of suffixes where each form = stem_prefix + suffix.
-    The stem_prefix is the longest common prefix between stem and form.
-    """
-    stem_plain = strip_diacritics(stem.lower())
-    suffixes = []
-    for form in forms:
-        form_plain = strip_diacritics(form.lower())
-        # Find how much of the stem matches the beginning of the form
-        match_len = 0
-        for i in range(min(len(stem_plain), len(form_plain))):
-            if stem_plain[i] == form_plain[i]:
-                match_len = i + 1
-            else:
-                break
-        if match_len > 0:
-            suffixes.append(form_plain[match_len:])
-    return suffixes
-
-
-def _apply_suffix_cache(stem, suffixes, headword):
-    """Apply cached suffix patterns to a new stem. Returns set of forms."""
-    stem_plain = strip_diacritics(stem.lower())
-    forms = set()
-    for suffix in suffixes:
-        form = stem_plain + suffix
-        if len(form) > 1:
-            forms.add(form)
-    return forms
-
-
 def expand_verb(wtp, headword, head_text: str = ""):
     """Expand a verb using grc-conj template. Returns set of forms.
 
@@ -1328,9 +1294,8 @@ def expand_verb(wtp, headword, head_text: str = ""):
     their paradigms are unioned in. Without ``head_text`` the function
     behaves exactly as before (present-system only).
 
-    Uses a cache keyed by conjugation type: if we've already expanded a
-    verb with the same conj_type, apply the suffix pattern instead of
-    calling Lua.
+    Memoizes only identical present-system requests. Other verbs of the
+    same conjugation still require their own marked paradigm from Lua.
     """
     # Reject obviously corrupt OCR'd headwords up front: they would only
     # produce Lua errors and zero forms.
@@ -1354,8 +1319,9 @@ def expand_verb(wtp, headword, head_text: str = ""):
     # Present-system expansion (with cache).
     forms: set[str] = set()
     err = ""
-    if conj_type in _VERB_CACHE:
-        forms = _apply_suffix_cache(stem, _VERB_CACHE[conj_type], headword)
+    cache_key = (headword, conj_type, stem)
+    if cache_key in _VERB_CACHE:
+        forms = set(_VERB_CACHE[cache_key])
     if not forms:
         # Cache miss or empty cached result - call Lua.
         template = "{{grc-conj|" + conj_type + "|" + stem + "}}"
@@ -1379,15 +1345,13 @@ def expand_verb(wtp, headword, head_text: str = ""):
                         html = wtp.expand(template)
                         fallback_forms = parse_html_forms(html, headword)
                         if fallback_forms:
-                            _VERB_CACHE[conj_type] = _build_suffix_cache(
-                                fallback_forms, stem)
                             forms = fallback_forms
                             err = ""
                             break
                     except Exception:
                         continue
-        if forms and conj_type not in _VERB_CACHE:
-            _VERB_CACHE[conj_type] = _build_suffix_cache(forms, stem)
+        if forms:
+            _VERB_CACHE[cache_key] = frozenset(forms)
 
     if err and not forms:
         return set(), err
