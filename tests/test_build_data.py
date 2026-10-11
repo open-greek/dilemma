@@ -431,6 +431,29 @@ def test_a_sense_tagged_participle_cannot_be_a_finite_graph_endpoint(tmp_path):
         "σκουντημένος"}
 
 
+def test_related_participle_annotation_does_not_disqualify_a_finite_head(tmp_path):
+    dump = _write(tmp_path, [
+        {"word": "πίνω", "pos": "verb", "senses": [
+            {"glosses": ["καταναλώνω ένα υγρό"]},
+            {"tags": ["no-gloss", "participle", "verb"],
+             "related": [{"word": "πιωμένος"}]}]},
+        {"word": "πιωμένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "πίνω"}],
+         "senses": [{"glosses": ["που έχει πιει"]}]},
+        {"word": "κατηγορούμενος", "pos": "verb",
+         "senses": [{"tags": ["no-gloss", "participle"],
+                     "related": [{"word": "κατηγορώ"}]}]},
+    ])
+    refs, heads, participles = {}, set(), set()
+    _, _, _, pos_map, *_ = extract_pairs(
+        dump, "el-el", participle_refs=refs, verb_heads=heads,
+        participle_heads=participles)
+    assert "πίνω" in heads and "πίνω" not in participles
+    assert "κατηγορούμενος" in participles
+    assert apply_participle_references(pos_map, refs, heads, participles) == set()
+    assert pos_map["πιωμένος"]["VERB"] == "πίνω"
+
+
 def test_unresolved_participle_cannot_remove_its_independent_finite_verbs():
     pos_map = {"ανεμοδέρνω": {"VERB": "ανεμοδαρμένος"},
                "ανεμοδέρνομαι": {"VERB": "ανεμοδαρμένος"}}

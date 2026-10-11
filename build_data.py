@@ -776,6 +776,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
             if (modern_greek and pos == "verb"
                     and ("participle" in entry.get("tags", [])
                          or any("participle" in sense.get("tags", [])
+                                and not ("no-gloss" in sense.get("tags", [])
+                                         and sense.get("related")
+                                         and not sense.get("form_of")
+                                         and not sense.get("alt_of")
+                                         and any(s.get("glosses")
+                                                 and "participle" not in s.get("tags", [])
+                                                 for s in entry.get("senses", [])))
                                 for sense in entry.get("senses", [])))):
                 # These references are checked only after both dictionaries'
                 # headword POS evidence is collected. Ordinary noun/adj
