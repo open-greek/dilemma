@@ -493,6 +493,48 @@ _FORM_OF_PATTERNS = (
 _NOUN_REFERENCE_TAGS = frozenset({"form-of", "alternative", "misspelling"})
 
 
+
+def noun_table_conflicts_with_form_page(entry: dict) -> bool:
+    """A nonlexical noun form page cannot authorize a different nominal table."""
+    cases = {"nominative", "genitive", "dative", "accusative", "vocative"}
+    numbers = {"singular", "plural", "dual"}
+
+    def cells(tags):
+        tags = set(tags or [])
+        return {(case, number) for case in tags & cases for number in tags & numbers}
+
+    def grammatical(gloss):
+        return _is_closed_class_inflection_gloss(gloss) or bool(re.fullmatch(
+            r"το (?:αρσενικό|θηλυκό|ουδέτερο) "
+            r"(?:ονομαστική|γενική|δοτική|αιτιατική|κλητική) "
+            r"(?:ενικού|πληθυντικού|δυϊκού) του \S+[.;]?",
+            gloss.strip().lower()))
+
+    source_cells = set()
+    for sense in entry.get("senses") or []:
+        # A spelling-variant lemma may legitimately supply its own table.
+        if sense.get("alt_of"):
+            return False
+        if sense.get("form_of"):
+            source_cells.update(cells(sense.get("tags")))
+        if ("no-gloss" not in (sense.get("tags") or [])
+                and any(not grammatical(gloss)
+                        for gloss in sense.get("glosses") or [])):
+            # Check every gloss independently: one grammatical description
+            # does not erase an ordinary meaning in the same sense.
+            return False
+    if not source_cells:
+        return False
+    headword = strip_length_marks(entry.get("word", ""))
+    table_cells = set()
+    has_nominal_table = False
+    for row in entry.get("forms") or []:
+        row_cells = cells(row.get("tags"))
+        has_nominal_table |= bool(row_cells)
+        if strip_length_marks(row.get("form", "")) == headword:
+            table_cells.update(row_cells)
+    return has_nominal_table and not source_cells.intersection(table_cells)
+
 def extract_pairs(jsonl_path: Path, lang: str,
                   skip_name_plurals: set = None, lemma_pos: dict = None,
                   participle_refs: dict = None, verb_heads: set = None,
@@ -1067,6 +1109,14 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # --- Source 3: forms[] (inflection table) ---
             forms = entry.get("forms", [])
             if not forms:
+                if has_data:
+                    entries_with_data += 1
+                continue
+
+            if (modern_greek and pos == "noun"
+                    and noun_table_conflicts_with_form_page(entry)):
+                # Its exact form reference was already retained above. A
+                # different same-word noun or adjective owns this table.
                 if has_data:
                     entries_with_data += 1
                 continue

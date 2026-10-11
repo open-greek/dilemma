@@ -19,6 +19,82 @@ from build_data import (Abbreviations, _parse_verb_tense, apply_participle_refer
                         closed_class_head_evidence, is_independent_closed_class_entry)
 
 
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_noun_form_page_keeps_its_reference_without_borrowing_an_adjective_table(tmp_path, reverse):
+    rows = [{"form": "κρατών", "tags": ["nominative", "singular", "masculine"]},
+            {"form": "κρατούν", "tags": ["nominative", "singular", "neuter"]}]
+    entries = [
+        {"word": "κρατών", "pos": "noun", "tags": ["form-of"], "forms": rows,
+         "senses": [{"glosses": ["genitive plural of κράτος"],
+                     "form_of": [{"word": "κράτος"}], "tags": ["genitive", "plural"]}]},
+        {"word": "κρατών", "pos": "adj", "forms": rows,
+         "senses": [{"glosses": ["prevailing, dominant"]}]},
+    ]
+    pairs, _, _, typed, *_ = extract_pairs(
+        _write(tmp_path, entries[::-1] if reverse else entries), "el-el")
+    nominal = [p for p in pairs if p["pos"] == "noun"]
+    assert nominal == [{"form": "κρατών", "lemma": "κράτος", "pos": "noun",
+                        "tags": ["form-of", "genitive", "plural"]}]
+    assert any(p["form"] == "κρατούν" and p["pos"] == "adj" for p in pairs)
+    assert "NOUN" not in typed["κρατούν"]
+
+
+@pytest.mark.parametrize("kind", ["plural_table", "alternative", "mixed_alternative", "mixed_definition",
+                                  "mixed_same_sense", "ordinary_of_gloss", "nominal_head"])
+def test_noun_table_guard_retains_supported_tables(tmp_path, kind):
+    entry = {"word": "νιάτα", "pos": "noun", "senses": [
+        {"form_of": [{"word": "νιάτο"}], "tags": ["nominative", "plural"]}],
+        "forms": [{"form": "νιάτα", "tags": ["nominative", "plural"]},
+                  {"form": "νιάτων", "tags": ["genitive", "plural"]}]}
+    if kind == "alternative": entry["senses"] = [{"alt_of": [{"word": "νιάτο"}]}]
+    elif kind == "mixed_alternative":
+        entry["forms"][0]["tags"] = ["nominative", "singular"]
+        entry["senses"].append({"alt_of": [{"word": "νιάτο"}]})
+    elif kind in {"mixed_same_sense", "ordinary_of_gloss"}:
+        entry["forms"][0]["tags"] = ["nominative", "singular"]
+        entry["senses"][0]["glosses"] = ["nominative plural of νιάτο",
+            "youth" if kind == "mixed_same_sense" else "a type of vessel"]
+    elif kind == "mixed_definition":
+        entry["forms"][0]["tags"] = ["nominative", "singular"]
+        entry["senses"].append({"glosses": ["youth"]})
+    elif kind == "nominal_head": entry["senses"] = [{"glosses": ["youth"]}]
+    pairs, *_ = extract_pairs(_write(tmp_path, [entry]), "el-el")
+    assert any(p["form"] == "νιάτων" for p in pairs)
+
+
+
+@pytest.mark.parametrize("lexical", [False, True])
+def test_noun_table_guard_recognizes_exact_gender_prefixed_case_description(tmp_path, lexical):
+    entry = {"word": "μανικιουρίστας", "pos": "noun", "tags": ["form-of"],
+        "senses": [{"form_of": [{"word": "μανικιουρίστα"}],
+                    "glosses": ["το θηλυκό γενική ενικού του μανικιουρίστα"],
+                    "tags": ["genitive", "singular"]}],
+        "forms": [{"form": "μανικιουρίστας", "tags": ["nominative", "singular"]},
+                  {"form": "μανικιουρίστες", "tags": ["nominative", "plural"]}]}
+    if lexical: entry["senses"][0]["glosses"].append("a manicurist")
+    pairs, *_ = extract_pairs(_write(tmp_path, [entry]), "el-el")
+    assert any(p["form"] == "μανικιουρίστες" for p in pairs) == lexical
+    assert any(p["form"] == "μανικιουρίστας" and "genitive" in p["tags"] for p in pairs)
+
+def test_noun_table_guard_does_not_infer_a_form_page_from_incomplete_tags(tmp_path):
+    entry = {"word": "τύπου", "pos": "noun", "senses": [
+        {"form_of": [{"word": "τύπος"}], "tags": ["genitive"]}],
+        "forms": [{"form": "τύποι", "tags": ["nominative", "plural"]}]}
+    pairs, *_ = extract_pairs(_write(tmp_path, [entry]), "el-el")
+    assert any(p["form"] == "τύποι" for p in pairs)
+
+
+def test_noun_form_table_guard_is_modern_and_noun_only(tmp_path):
+    entry = {"word": "κρατών", "pos": "noun", "senses": [
+        {"form_of": [{"word": "κράτος"}], "tags": ["genitive", "plural"]}],
+        "forms": [{"form": "κρατούν", "tags": ["nominative", "singular"]}]}
+    ancient, *_ = extract_pairs(_write(tmp_path, [entry]), "grc-el")
+    assert any(p["form"] == "κρατούν" for p in ancient)
+    entry["pos"] = "adj"
+    adjectival, *_ = extract_pairs(_write(tmp_path, [entry]), "el-el")
+    assert any(p["form"] == "κρατούν" for p in adjectival)
+
 def test_modern_form_reference_preserves_its_own_dative_tags(tmp_path):
     dump = _write(tmp_path, [{
         "word": "πάση", "pos": "det",
