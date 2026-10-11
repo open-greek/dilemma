@@ -3201,6 +3201,15 @@ revision to `data/changes/diorisis_token_normalizations.json` by default;
 `--token-audit PATH` chooses another audit destination. Each recorded change
 can be reversed with `restore_source_beta`.
 
+Preserving an unresolved corpus reading does not establish a new dictionary
+spelling. The Ancient export uses that audit to require an exact independent
+lexical head, a cited source-form review, or a closed grammatical exception
+before admitting an elision implicated in quotation punctuation. Corpus
+counts and generated lookup rows do not provide that exception. Previously
+reviewed shipped spellings remain eligible; explicit spelling rejections
+still take precedence. The export audit records the withheld forms and the
+hashes of its quotation and lexical evidence.
+
 The GLAUx loader reads through the license filter in
 `build/nc_filter.py`, the same one the pair, frequency, attestation
 and tagger builders use: the 7 NonCommercial and 25 PROIEL-derived

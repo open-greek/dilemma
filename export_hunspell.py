@@ -352,6 +352,7 @@ LSJ9_FREQUENCY = DATA / "lsj9_frequency.json"
 GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_shipped_compat.json.gz"
 # Spellings a recorded review rejected (see ``load_grc_spelling_review``).
 GRC_SPELLING_REVIEW = DATA / "hunspell_grc_spelling_review.json"
+DIORISIS_TOKEN_AUDIT = DATA / "changes/diorisis_token_normalizations.json"
 GRC_LEXICAL_HEADS = DATA / "grc_lexical_heads.json"
 GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # Curated iconic AG polytonic surface forms and lemmas that are always
@@ -1265,6 +1266,66 @@ def load_grc_spelling_review(path: Path = GRC_SPELLING_REVIEW) -> frozenset[str]
     return frozenset(forms)
 
 
+def load_diorisis_quote_keys(
+    path: Path = DIORISIS_TOKEN_AUDIT,
+) -> tuple[frozenset[str], dict]:
+    """Keep ambiguous quotation evidence out of new elision admissions.
+
+    The source readers preserve unresolved readings in their original form.
+    That preservation is not positive evidence that a terminal quote is an
+    elision. Even a resolved quote can remain in another source table, so
+    include its original spelling until independent lexical or reviewed
+    evidence supports it. A normalized elision whose Unicode spelling did
+    not change needs no extra gate.
+    """
+    from build.build_diorisis_pairs import betacode_to_unicode
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 1 or not isinstance(payload.get("sources"), list):
+        raise ValueError(f"invalid Diorisis token audit: {path}")
+    keys = set()
+    counts = Counter()
+    for source in payload["sources"]:
+        for record in source["records"]:
+            reason = record["reason"]
+            if reason not in {"duplicated_closing_quote_with_same_source_cell",
+                              "unresolved_terminal_quote_or_elision"}:
+                raise ValueError(f"unknown Diorisis quotation decision: {reason}")
+            original = betacode_to_unicode(record["original_beta"])
+            normalized = betacode_to_unicode(record["normalized_beta"])
+            if not original.endswith("᾽"):
+                continue
+            if reason == "duplicated_closing_quote_with_same_source_cell" and original == normalized:
+                continue
+            keys.add(cased_form_key(original))
+            counts[reason] += 1
+    return frozenset(keys), {
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "keys": len(keys), "tokens_by_reason": dict(sorted(counts.items())),
+    }
+
+
+def load_exact_elision_heads(data_dir: Path = DATA) -> tuple[frozenset[str], dict]:
+    """Read exact lexical heads; a generated lookup row is not a witness."""
+    forms = set()
+    inputs = {}
+    for name in ("dge_headwords.json", "cunliffe_headwords.json", "grc_lexical_heads.json"):
+        path = data_dir / name
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if name == "grc_lexical_heads.json":
+            if payload.get("schema_version") != 2 or not payload.get("heads"):
+                raise ValueError(f"invalid lexical-head evidence: {path}")
+            words = (word for word, evidence in payload["heads"].items() if evidence)
+        else:
+            words = payload
+        for word in words:
+            form = canonicalize_final_elision(sanitize_form(word))
+            if form.endswith("᾽"):
+                forms.add(cased_form_key(form))
+        inputs[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return frozenset(forms), inputs
+
+
 def filter_reviewed_rejects(
     form_lemma: list[tuple[str, str]],
     rejects: frozenset[str],
@@ -1656,6 +1717,8 @@ def finalize_grc_pairs(
     reviewed_rejects: frozenset[str] = frozenset(),
     case_ownership: dict[str, int] | None = None,
     bare_elision_keys: set[str] | None = None,
+    quote_keys: frozenset[str] = frozenset(),
+    quote_approved_forms: set[str] | frozenset[str] = frozenset(),
 ) -> tuple[list[tuple[str, str]], dict]:
     """Apply the grc structural and evidence filters in release order.
 
@@ -1719,6 +1782,19 @@ def finalize_grc_pairs(
                   if cased_form_key(pair[0]) not in bare_keys]
     report["bare_elision"] = len(bare_rejected)
     report["bare_elision_rejected"] = sorted(set(bare_rejected))
+    # Unresolved quotation tokens are preserved in the corpus audit, but
+    # cannot alone license a newly accepted elision. General corpus counts
+    # and generated lookup ownership are not independent evidence here.
+    quote_allowed = {cased_form_key(form) for form in
+                     compatibility_forms | structural_protected | set(quote_approved_forms)}
+    quote_rejected = [pair for pair in form_lemma
+                      if cased_form_key(pair[0]) in quote_keys
+                      and cased_form_key(pair[0]) not in quote_allowed]
+    form_lemma = [pair for pair in form_lemma
+                  if cased_form_key(pair[0]) not in quote_keys
+                  or cased_form_key(pair[0]) in quote_allowed]
+    report["quote_evidence"] = len(quote_rejected)
+    report["quote_rejected"] = sorted(set(quote_rejected))
     form_lemma, case_rejected = filter_case_artifacts(
         form_lemma, evidence, case_ownership or {})
     report["case_artifacts"] = len(case_rejected)
@@ -2992,6 +3068,10 @@ def run_export(sanity: int | None, variants: list[str],
     case_ownership = load_case_ownership(conn) if "grc" in variants else {}
     bare_elision_keys = (load_unsupported_bare_elisions(conn)
                          if "grc" in variants else set())
+    quote_keys, quote_audit_meta = (load_diorisis_quote_keys()
+                                   if "grc" in variants else (frozenset(), {}))
+    quote_heads, quote_head_inputs = (load_exact_elision_heads()
+                                     if "grc" in variants else (frozenset(), {}))
 
     for variant in variants:
         print(f"=== Variant: {variant} ===")
@@ -3143,6 +3223,8 @@ def run_export(sanity: int | None, variants: list[str],
                 reviewed_rejects=load_grc_spelling_review(),
                 case_ownership=case_ownership,
                 bare_elision_keys=bare_elision_keys,
+                quote_keys=quote_keys,
+                quote_approved_forms=quote_heads | reviewed_paradigm_forms,
             )
             if report["invalid"]:
                 detail = ", ".join(
@@ -3159,6 +3241,7 @@ def run_export(sanity: int | None, variants: list[str],
                               "spelling"),
                 ("reviewed", "spellings a recorded review rejected"),
                 ("bare_elision", "bare elision fragments"),
+                ("quote_evidence", "elisions supported only by quotation tokens"),
                 ("case_artifacts", "capitalization artifacts"),
             ):
                 if report[key]:
@@ -3181,6 +3264,11 @@ def run_export(sanity: int | None, variants: list[str],
                 "reviewed_paradigms": reviewed_paradigm_audit,
                 "case_rejected": report["case_rejected"],
                 "bare_elision_rejected": report["bare_elision_rejected"],
+                "quote_rejected": report["quote_rejected"],
+                "quote_evidence_inputs": {
+                    "token_audit": quote_audit_meta,
+                    "lexical_heads": quote_head_inputs,
+                },
             }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
         if variant == "el":

@@ -49,6 +49,8 @@ TRACKED = [
     "data/form_profile.db",
     # Source cells preserve elision used by the Ancient alias recovery.
     "data/diorisis_pairs.json",
+    # Reversible quotation evidence consumed by the Ancient export gate.
+    "data/changes/diorisis_token_normalizations.json",
     # Input-pinned provenance for the generated noun expansion layer.
     "data/ag_noun_generation_audit.json",
     "data/ag_sophocles_noun_generation_audit.json",

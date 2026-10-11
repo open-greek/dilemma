@@ -1941,3 +1941,76 @@ def test_reviewed_irregular_compound_errors_do_not_reject_independent_homographs
     )
     assert {form for form, _lemma in kept} == good
     assert report["reviewed"] == len(bad)
+
+
+def test_diorisis_quote_index_keeps_case_and_distinguishes_existing_elision(tmp_path):
+    import json
+    from export_hunspell import cased_form_key, load_diorisis_quote_keys
+    resolved = 'duplicated_closing_quote_with_same_source_cell'
+    unresolved = 'unresolved_terminal_quote_or_elision'
+    records = [
+        {'original_beta': "*pu=r'", 'normalized_beta': '*pu=r', 'reason': resolved},
+        {'original_beta': "u(/dwr'", 'normalized_beta': "u(/dwr'", 'reason': unresolved},
+        {'original_beta': "a)ll''", 'normalized_beta': "a)ll'", 'reason': resolved},
+    ]
+    path = tmp_path/'audit.json'
+    path.write_text(json.dumps({'schema_version': 1, 'sources': [{'records': records}]}))
+    keys, meta = load_diorisis_quote_keys(path)
+    assert keys == {cased_form_key('Πῦρ᾽'), cased_form_key('ὕδωρ᾽')}
+    assert cased_form_key('πῦρ᾽') not in keys
+    assert meta['keys'] == 2 and len(meta['sha256']) == 64
+
+
+def test_quote_counts_and_generated_ownership_cannot_prove_elision():
+    from export_hunspell import cased_form_key
+    form = 'ὕδωρ᾽'
+    kept, report = finalize_grc_pairs(
+        [(form, 'ὕδωρ')], evidence=_evidence(exact={form: 1000}),
+        compatibility_forms=set(), textbook_forms=set(), export_overrides={},
+        protected_forms={form}, quote_keys=frozenset({cased_form_key(form)}))
+    assert kept == []
+    assert report['quote_rejected'] == [(form, 'ὕδωρ')]
+
+
+def test_independently_reviewed_elision_and_shipped_elision_survive_quote_gate():
+    from export_hunspell import cased_form_key
+    forms = {'εἶ᾽', 'ἀνίησ᾽'}
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)],
+        evidence=_evidence(exact={form: 5 for form in forms}),
+        compatibility_forms={'εἶ᾽'}, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, quote_keys=frozenset(map(cased_form_key, forms)),
+        quote_approved_forms={'ἀνίησ᾽'})
+    assert {form for form, _ in kept} == forms
+    assert not report['quote_rejected']
+
+
+def test_quote_exceptions_preserve_case_and_do_not_override_spelling_review():
+    from export_hunspell import cased_form_key
+    form = 'Πῦρ᾽'
+    kept, report = finalize_grc_pairs(
+        [(form, 'πῦρ')], evidence=_evidence(exact={form: 10}),
+        compatibility_forms=set(), textbook_forms=set(), export_overrides={},
+        protected_forms={form}, quote_keys=frozenset({cased_form_key(form)}),
+        quote_approved_forms={'πῦρ᾽'})
+    assert kept == [] and report['quote_evidence'] == 1
+    kept, report = finalize_grc_pairs(
+        [(form, 'πῦρ')], evidence=_evidence(exact={form: 10}),
+        compatibility_forms={form}, textbook_forms=set(), export_overrides={},
+        protected_forms={form}, quote_keys=frozenset({cased_form_key(form)}),
+        quote_approved_forms={form}, reviewed_rejects=frozenset({form}))
+    assert kept == [] and report['reviewed'] == 1
+
+
+def test_exact_elision_heads_do_not_infer_inflections_or_fold_case(tmp_path):
+    import json
+    from export_hunspell import cased_form_key, load_exact_elision_heads
+    (tmp_path/'dge_headwords.json').write_text(json.dumps(['εἶ’', 'ἀνίημι']))
+    (tmp_path/'cunliffe_headwords.json').write_text(json.dumps(['Ἀπόλλων’']))
+    (tmp_path/'grc_lexical_heads.json').write_text(json.dumps({
+        'schema_version': 2, 'heads': {'ἀλλ᾽': ['source'], 'ἀνίησ᾽': []}}))
+    heads, inputs = load_exact_elision_heads(tmp_path)
+    assert heads == set(map(cased_form_key, ('εἶ᾽', 'Ἀπόλλων᾽', 'ἀλλ᾽')))
+    assert cased_form_key('ἀνίησ᾽') not in heads
+    assert cased_form_key('ἀπόλλων᾽') not in heads
+    assert len(inputs) == 3
