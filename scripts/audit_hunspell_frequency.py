@@ -124,8 +124,9 @@ def exact_attestation_payload(
     sources: dict,
     training: dict,
 ) -> dict:
-    """Build the accent-preserving frequency map consumed by the exporter."""
+    """Build folded admission counts and case-preserving rating counts."""
     counts: Counter[str] = Counter()
+    cased_counts: Counter[str] = Counter()
     for index, raw_count in unigrams.items():
         if index < 0 or index >= len(vocab):
             raise ValueError(f"unigram index {index} is outside the vocabulary")
@@ -135,7 +136,9 @@ def exact_attestation_payload(
         if not contains_greek_text(form):
             continue
         form = canonicalize_final_elision(sanitize_form(form))
-        key = unicodedata.normalize("NFC", normalize_form(form).lower())
+        cased_key = normalize_form(form)
+        cased_counts[cased_key] += int(raw_count)
+        key = unicodedata.normalize("NFC", cased_key.lower())
         counts[key] += int(raw_count)
     return {
         "_meta": {
@@ -143,10 +146,15 @@ def exact_attestation_payload(
                 "NFC; final textual elision apostrophe to U+1FBD; "
                 "grave-to-acute; lowercase; all other marks preserved"
             ),
+            "cased_normalization": (
+                "NFC; final textual elision apostrophe to U+1FBD; "
+                "grave-to-acute; case and all other marks preserved"
+            ),
             "training": training,
             "sources": sources,
         },
         "forms": dict(sorted(counts.items())),
+        "cased_forms": dict(sorted(cased_counts.items())),
     }
 
 

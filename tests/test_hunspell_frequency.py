@@ -22,10 +22,19 @@ from scripts.audit_hunspell_frequency import (
     fixture_payload_from_json,
     load_gzip_fixture,
     exact_lookup_form,
+    exact_attestation_payload,
     load_exclusions,
     lookup_form,
 )
 from scripts.build_hunspell_heldout_fixture import exact_tokens
+
+
+def test_exact_attestation_keeps_separate_case_counts():
+    payload = exact_attestation_payload(
+        ["Λόγος", "λόγος", "λὸγος", "δ’"], {0: 100, 1: 7, 2: 2, 3: 1}, {}, {}
+    )
+    assert payload["forms"] == {"δ᾽": 1, "λόγος": 109}
+    assert payload["cased_forms"] == {"Λόγος": 100, "δ᾽": 1, "λόγος": 9}
 from export_hunspell import (
     BARE_ELISION_STEMS,
     FORM_PROFILE_DB,

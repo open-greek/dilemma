@@ -24,15 +24,15 @@
       "lemma": "πινακοθήκη",
       "method": "eta_noun",
       "stem": "πινακοθήκ",
-      "evidence": "The Ancient Greek headword is retained in lookup.db. Generate its regular first-declension eta paradigm, including the dative singular in -ῃ; short final -αι restores the stem circumflex and the genitive plural has -ῶν.",
-      "source_url": "https://www.perseus.tufts.edu/hopper/morph?l=pinakoqhkh&la=greek"
+      "evidence": "Strabo, Geography 14.1.14, attests πινακοθήκη and nominative plural πινακοθῆκαι. Derive the regular first-declension eta paradigm, including dative singular -ῃ and genitive plural -ῶν; the attested plural confirms the circumflex before short final -αι.",
+      "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/master/data/tlg0099/tlg001/tlg0099.tlg001.perseus-grc2.xml"
     },
     {
       "lemma": "κατατίθημι",
       "method": "passive_aorist_indicative",
       "stem": "κατετέθ",
-      "evidence": "Holy Saturday lamentations, first stasis: Ἡ ζωὴ ἐν τάφῳ κατετέθης Χριστέ. The passive aorist indicative adds -ην, -ης, -η, -ημεν, -ητε, -ησαν to the attested accented stem.",
-      "source_url": "https://www.faneromenihol.gr/index.php/el/?catid=9&id=4914%3Ai-zoi-en-tafo-katetethis-xriste&view=article"
+      "evidence": "The funeral service, second stasis, attests κατετέθης in the hymn beginning Ὁ θάνατός σου Κύριε. Derive the passive aorist indicative from the attested accented stem with endings -ην, -ης, -η, -ημεν, -ητε, -ησαν.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/h/b/eu/funeral/gr-en/index.html"
     },
     {
       "lemma": "λαμπρύνω",
@@ -44,8 +44,8 @@
     {
       "lemma": "ἀνθοπλίζω",
       "method": "active_aorist_participle",
-      "evidence": "Menaion for March, sticheron: θυμὸν δὲ κατὰ τῆς ἁμαρτίας μόνης ἀνθοπλίσαντες. Derive the regular active aorist participle from ἀνθοπλίσ-; long endings move the acute from the antepenult to the penult.",
-      "source_url": "https://imml.gr/wp-content/uploads/2024/12/Martios.pdf",
+      "evidence": "Menaion, March 20, Ode 7, attests ἀνθοπλίσαντες in the hymn beginning Ὅλον πρὸς σὲ μεταθέντες. Derive the regular active aorist participle from ἀνθοπλίσ-; long endings move the acute from the antepenult to the penult.",
+      "source_url": "https://inagiastriados.gr/files/leitourgika/texts/Mar/20.uni.htm",
       "stem": "ἀνθοπλίσ"
     }
   ]

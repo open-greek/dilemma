@@ -282,9 +282,9 @@ MEDIAL_BREATHING_PREFIXES = tuple(
 
 # Polytonic Modern Greek particles no lemma source proposes: the future
 # particle θὰ and the preposition γιὰ, which pre-1982 polytonic writes with
-# the grave (θὰ πάω, γιὰ τὸν πατέρα). They are the two words among the
-# language model's commonest that the dictionary rejected. νὰ comes in
-# through the lookup.
+# the grave (θὰ πάω, γιὰ τὸν πατέρα). The Byzantine/Katharevousa
+# conjunction ἐνῷ is likewise independently attested but absent from the
+# lookup. Each keeps its own exact-spelling frequency; νὰ comes through lookup.
 MG_POLYTONIC_PARTICLES = {"θὰ": "θα", "γιὰ": "γιά", "ἐνῷ": "ἐνῷ"}
 
 # Every closed-list grc form, added after the lookup and frequency gates.
@@ -1496,11 +1496,13 @@ def load_exact_rating_counts(evidence: FormProfileEvidence) -> dict[str, int]:
     The two corpora overlap, so take the larger count rather than summing.
     Grave and acute contextual forms intentionally share one spelling key.
     """
-    counts = dict(evidence.cased if evidence.cased is not None else evidence.exact)
+    counts = dict(evidence.cased or {})
     path = DATA / "hunspell_grc_form_freq.json.gz"
     if path.exists():
         with gzip.open(path, "rt", encoding="utf-8") as fh:
-            for form, count in json.load(fh).get("forms", {}).items():
+            # The legacy forms map is lowercased for admission. It cannot
+            # prove which case supplied a count, even for a lowercase key.
+            for form, count in json.load(fh).get("cased_forms", {}).items():
                 key = cased_form_key(form)
                 counts[key] = max(counts.get(key, 0), int(count))
     return counts
@@ -1524,8 +1526,9 @@ def finalize_grc_pairs(
     corpus-evidence rules. Acute twins are generated last. A twin shares its
     grave's exact-form key and so its corpus evidence, and the twin of a
     reviewed baseline grave inherits that review: the grave and the acute are
-    one word, and the downstream oxytone check requires both. Twins are only
-    checked again for structure.
+    one word, and the downstream oxytone check requires both. Twins are
+    checked again for structure. Recorded rejections and case artifacts
+    override compatibility at the end.
     """
     structural_protected = (
         textbook_forms | set(export_overrides) | set(AG_FUNCTION_WORDS)
@@ -2453,10 +2456,11 @@ def build_sfx_rules(
 
     The .aff returned contains only the SFX rule blocks, not the header.
 
-    Frequency bucketing uses bucket_for(), which combines per-form
-    corpus count, per-lemma aggregate count, and the canonical seed
-    lists passed in. When canonical_forms/canonical_lemmas are None,
-    behaviour reduces to the original per-form-count bucketing.
+    The default frequency bucketing uses bucket_for(), which combines
+    per-form counts, lemma totals, and canonical seed lists. With
+    exact_frequency, each form uses only its own case-preserving count;
+    canonical forms protect admission but never override a rating. Forms
+    are compressed separately within each resulting bucket.
     """
     if canonical_forms is None:
         canonical_forms = set()
@@ -2483,8 +2487,7 @@ def build_sfx_rules(
         if exact_frequency:
             by_bucket: dict[str, set[str]] = defaultdict(set)
             for form in forms:
-                bucket = ("C" if form in canonical_forms
-                          else freq_bucket(count_for(form, freq_map)))
+                bucket = freq_bucket(count_for(form, freq_map))
                 by_bucket[bucket].add(form)
             groups.extend((lemma, subset) for subset in by_bucket.values())
         else:
@@ -2552,7 +2555,7 @@ def build_sfx_rules(
 
     def pick_bucket(form: str, lemma: str, form_count: int) -> str:
         if exact_frequency:
-            return "C" if form in canonical_forms else freq_bucket(form_count)
+            return freq_bucket(form_count)
         return bucket_for(
             form=form,
             lemma=lemma,
@@ -2747,7 +2750,7 @@ def run_export(sanity: int | None, variants: list[str],
               "paradigm gate", file=sys.stderr)
         sys.exit(1)
     # Closed lists and pinned forms are exempt from corpus-admission filters.
-    # Only explicit canonical spellings, not their lemmas, receive a C pin.
+    # They do not override exact-spelling frequency ratings.
     export_overrides = GRC_CLOSED_LIST_FORMS
     lm_head_forms = load_lm_head_required_forms() if "grc" in variants else set()
     grc_protected_forms = grc_pinned_forms(
@@ -2767,8 +2770,8 @@ def run_export(sanity: int | None, variants: list[str],
         print(f"  AG treebank spellings outside the LM's held-out "
               f"sentences: {len(treebank_counts):,} "
               f"({sum(dev_spellings.values()):,} held-out tokens left out)")
-    print(f"  AG canonical forms (pin to C): {len(canonical_forms):,}")
-    print(f"  AG canonical lemmas (pin to C): {len(canonical_lemmas):,}")
+    print(f"  AG canonical forms (protect admission): {len(canonical_forms):,}")
+    print(f"  AG canonical lemmas: {len(canonical_lemmas):,}")
     if "grc" in variants:
         baseline = compatibility_meta.get("baseline", {})
         print(f"  AG compatibility forms: {len(compatibility_forms):,} "
@@ -2989,10 +2992,8 @@ def run_export(sanity: int | None, variants: list[str],
                 lang_tag="grc",
                 version=version,
                 commit=commit,
-                # Frequency bucket C: curated forms, top citation
-                # headwords, and the reviewed LM head, so an unaccented
-                # λυω ranks λύω first. Textbook cells and closed-list forms
-                # keep their corpus bucket.
+                # Curated forms protect admission; strict grc ratings
+                # always retain each spelling's own corpus bucket.
                 canonical_forms=(
                     canonical_forms | top_lsj9_lemmas | lm_head_forms
                 ),

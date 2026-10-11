@@ -1507,3 +1507,32 @@ def test_postclassical_loader_uses_lexical_and_independent_corpus_evidence(tmp_p
                                                 profile_path=profile, paradigm_path=lexical)
     assert {form for form, _ in out} == {"πανάγιον", "σπανίως", "σπίτι"}
     assert {row["reason"] for row in audit} == {"repeated_multiple_sources", "attested_lexical_form"}
+
+
+def test_new_corpus_capital_without_lexical_owner_cannot_duplicate_lower_word():
+    from export_hunspell import cased_form_key, filter_case_artifacts
+    evidence = _evidence({"Νέον": 100})
+    evidence = evidence._replace(cased={cased_form_key("Νέον"): 100})
+    pairs = [("νέον", "νέος"), ("Νέον", "Νέον")]
+    kept, rejected = filter_case_artifacts(pairs, evidence, {})
+    assert kept == [pairs[0]]
+    assert rejected == [pairs[1]]
+
+
+def test_exact_rating_canonical_admission_does_not_claim_frequency():
+    _aff, lines = build_sfx_rules([("ἄγνωστον", "ἄγνωστος")], {},
+                                  canonical_forms={"ἄγνωστον"},
+                                  canonical_lemmas={"ἄγνωστος"}, exact_frequency=True)
+    assert lines == ["ἄγνωστον\tfr:X"]
+
+
+def test_exact_rating_loader_never_uses_legacy_lowercased_counts(tmp_path, monkeypatch):
+    import gzip
+    import json
+    import export_hunspell as exporter
+    monkeypatch.setattr(exporter, "DATA", tmp_path)
+    with gzip.open(tmp_path / "hunspell_grc_form_freq.json.gz", "wt") as stream:
+        json.dump({"forms": {"λόγος": 1000},
+                   "cased_forms": {"Λόγος": 1000, "λόγος": 2}}, stream)
+    evidence = _evidence({"λόγος": 5000})._replace(cased={"λόγος": 3})
+    assert exporter.load_exact_rating_counts(evidence) == {"Λόγος": 1000, "λόγος": 3}
