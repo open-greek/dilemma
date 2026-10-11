@@ -1184,3 +1184,34 @@ def test_plain_twin_keeps_a_real_contracted_modern_name(monkeypatch):
         {nfc("Θωμᾷ"): 6}, {}, {nfc("Θωμᾶ")}, set(), frozenset(), Counter())
     assert shared == {nfc("Θωμᾶ"): 27}
     assert nfc("Θωμά") not in generated
+
+
+def test_inferred_nominals_do_not_demote_attested_accents():
+    # These are the real shared-rating regressions: the generator's vowel
+    # length, stress or nominal homograph is no reason to demote an
+    # attested Modern spelling. The final Ancient contraction is distinct.
+    alternatives = {
+        "γυναῖκα": "γυναίκα", "ἔρωτα": "ἐρωτά", "ναί": "ναῖ",
+        "ναὶ": "ναῖ", "μαχητής": "μαχητῆς",
+        "χορευτής": "χορευτῆς", "ἁπλῆ": "ἁπλή",
+    }
+    frequencies = {P.monotonic_key(nfc(s)): 20_000 for s in alternatives}
+    frequencies["πολύ"] = 100_000_000
+    realizations = {nfc(s): frozenset({("word", "noun nominative singular")})
+                    for s in alternatives.values()}
+    got = mg.shared_lines(
+        {nfc(s): 6 for s in alternatives}, {}, frequencies, set(),
+        realizations=realizations)
+    assert {nfc(s): got[nfc(s)] for s in alternatives if s != "ἁπλῆ"} == {
+        nfc(s): "C" for s in alternatives if s != "ἁπλῆ"}
+    assert nfc("ἁπλῆ") not in got
+
+
+def test_a_final_circumflex_cell_keeps_its_own_rating():
+    realizations = {nfc(s): frozenset({("καθηγητής", cell)}) for s, cell in (
+        ("καθηγητῆ", "noun genitive singular"),
+        ("καθηγητή", "noun accusative singular"))}
+    got = mg.shared_lines({nfc("καθηγητῆ"): 6}, {},
+                          {"καθηγητή": 20_000, "πολύ": 100_000_000}, set(),
+                          realizations=realizations)
+    assert got[nfc("καθηγητῆ")] == "C"

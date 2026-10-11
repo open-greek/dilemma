@@ -2415,6 +2415,31 @@ def dative_twins(entries: dict[str, int], generated: dict[str, int],
     return shared, new
 
 
+def nominal_final_circumflex_mismatch(spelling: str,
+                                    realizations: set[str]) -> bool:
+    """Whether a Modern nominal replaces this final contraction by an acute.
+
+    A generated paradigm is not evidence against an attested word's vowel
+    length, stress or monosyllabic accent (γυναῖκα, ἔρωτα, ναί). Only the
+    same letters and marks with a final acute positively distinguish the
+    Modern nominal from an Ancient contraction (ἁπλή beside ἁπλῆ). A
+    separately realized circumflex cell remains valid (καθηγητῆ).
+    """
+    import mg_polytonic_paradigms as paradigms
+
+    canonical = contextual_acute(spelling)
+    if canonical in realizations:
+        return False
+    word = paradigms.letters(canonical)
+    nuclei = paradigms.nuclei(word, glides=True)
+    if len(nuclei) < 2 or not any(
+            paradigms.CIRCUMFLEX in word[i].marks for i in nuclei[-1]):
+        return False
+    acute = unicodedata.normalize("NFC", unicodedata.normalize(
+        "NFD", canonical).replace("\u0342", "\u0301"))
+    return acute in realizations
+
+
 def shared_lines(attested: dict[str, int], generated: dict[str, int],
                  frequencies: dict[str, int], names: set[str],
                  avoided: set[str] = frozenset(),
@@ -2439,8 +2464,9 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
     spellings marked mg:avoid get none, and capitalized ones none, except
     the plain twin of a listed dative. Those twins are rated at R as well,
     so the Modern list does not rate only their subscript spelling.
-    An Ancient noun or adjective with a different accent receives only
-    its own slice count, not the count of another Modern realization."""
+    An Ancient final contraction replaced by the Modern nominal's acute
+    receives only its own slice count, not the other realization's count.
+    Other attested accents are not overruled by an inferred paradigm."""
     import mg_polytonic_paradigms as paradigms
 
     total = sum(frequencies.values())
@@ -2461,9 +2487,9 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
                 total), key="RMC".index)
         elif not (final_subscript(spelling)
                   or paradigms.monotonic_key(spelling) in names
-                  or (nominal_spellings.get(paradigms.monotonic_key(spelling))
-                      and contextual_acute(spelling) not in nominal_spellings[
-                          paradigms.monotonic_key(spelling)])):
+                  or nominal_final_circumflex_mismatch(
+                      spelling, nominal_spellings.get(
+                          paradigms.monotonic_key(spelling), set()))):
             bucket = max(bucket, monotonic_bucket(
                 monotonic_count(spelling, frequencies, verb_forms), total),
                 key="RMC".index)
