@@ -2075,7 +2075,7 @@ through path 2; full-pipeline success on the 28,745 LSJ-only verb
 candidates is 99.27%.
 
 A separate post-processing pass in `build/build_grc_verb_paradigms.py`
-takes the same parsed principal parts and procedurally synthesises the
+takes the same parsed principal parts and procedurally synthesizes the
 missing finite-mood cells (subjunctive / optative / imperative / aorist
 infinitive) for thematic -ω verbs via `build/synth_verb_moods.py`, plus
 the full case×gender×number declension of every participle slot via
@@ -2085,6 +2085,10 @@ verb where kaikki dropped the tense tag and the unaugmented Homeric
 variants got correctly filtered out into the epic dialect slice. Stem-
 templating only fills cells that aren't already attested by Wiktionary
 or GLAUx; real corpus cells are never overwritten.
+Corpus-only lemmas need an independent headword in `data/grc_lexical_heads.json`
+before this pass infers a citation or synthesizes forms. Without that evidence,
+the observed cells and dialects are retained, but no conjugation is extrapolated.
+Build the lexical-head inventory before building canonical verb paradigms.
 
 Coverage: on the 27K-verb output the synthesis adds ~278K finite-mood
 cells, ~775K participle cells, ~15K aor-2 cells, ~430K contract cells

@@ -17,6 +17,7 @@ Run with:
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,88 @@ def b():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+class TestCorpusOnlySynthesisEvidence:
+    @staticmethod
+    def build(b, monkeypatch, tmp_path, *, corpus, wiki=(), heads=()):
+        lexical = tmp_path / "grc_lexical_heads.json"
+        lexical.write_text(json.dumps({"heads": {
+            head: ["independent_lexicon"] for head in heads}}))
+        monkeypatch.setattr(b, "LEXICAL_HEADS_PATH", lexical)
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: (
+            list(wiki) if path == b.AG_PAIRS else list(corpus)))
+        monkeypatch.setattr(b, "load_lsj_head_texts", lambda: {})
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        return b.build_paradigms()
+
+    @staticmethod
+    def row(lemma, form, *tags):
+        return {"lemma": lemma, "form": form, "pos": "verb", "tags": list(tags)}
+
+    @pytest.mark.parametrize("lemma,form,voice", [
+        ("τείνοιυνω", "τείνουσης", "active"),
+        ("λύομαι", "λύεται", "middle"),
+    ])
+    def test_unsupported_head_keeps_observation_without_inferred_cells(
+            self, b, monkeypatch, tmp_path, lemma, form, voice):
+        row = self.row(lemma, form, voice, "present", "indicative",
+                       "third-person", "singular")
+        result = self.build(b, monkeypatch, tmp_path, corpus=[row])[lemma]
+        assert result["forms"] == {f"{voice}_present_indicative_3sg": form}
+        assert result["form_count"] == 1
+
+    def test_unsupported_dialect_only_head_preserves_default_and_dialect(
+            self, b, monkeypatch, tmp_path):
+        row = self.row("τείνοιυνω", "τείνουσης", "active", "present",
+                       "participle", "genitive", "feminine", "singular", "Epic")
+        result = self.build(b, monkeypatch, tmp_path, corpus=[row])["τείνοιυνω"]
+        observed = {"active_present_participle_gen_f_sg": "τείνουσης"}
+        assert result["forms"] == observed
+        assert result["dialects"] == {"epic": observed}
+        assert result["form_count"] == 1
+
+    @pytest.mark.parametrize("head", ["λύω", "Λύω", "λύ̆ω"])
+    def test_exact_independent_head_authorizes_citation_and_both_synthesis_passes(
+            self, b, monkeypatch, tmp_path, head):
+        row = self.row("λύω", "λύει", "active", "present", "indicative",
+                       "third-person", "singular")
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[row],
+                           heads=[head])["λύω"]["forms"]
+        assert forms["active_present_indicative_1sg"] == "λύω"
+        assert forms["active_present_optative_1sg"] == "λύοιμι"
+        assert forms["active_present_participle_nom_m_sg"] == "λύων"
+
+    def test_different_accent_does_not_authorize_synthesis(
+            self, b, monkeypatch, tmp_path):
+        row = self.row("λύω", "λύει", "active", "present", "indicative",
+                       "third-person", "singular")
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[row],
+                           heads=["λυῶ"])["λύω"]["forms"]
+        assert forms == {"active_present_indicative_3sg": "λύει"}
+
+    def test_surviving_wiktionary_owner_preserves_existing_synthesis(
+            self, b, monkeypatch, tmp_path):
+        corpus = self.row("λύω", "λύει", "active", "present", "indicative",
+                          "third-person", "singular")
+        wiki = self.row("λύω", "λύει", "form-of")
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[corpus],
+                           wiki=[wiki])["λύω"]["forms"]
+        assert forms["active_present_indicative_1sg"] == "λύω"
+        assert forms["active_present_optative_1sg"] == "λύοιμι"
+        assert forms["active_present_participle_nom_m_sg"] == "λύων"
+
+    def test_only_collapsed_wiktionary_rows_do_not_authorize_synthesis(
+            self, b, monkeypatch, tmp_path):
+        corpus = self.row("τιμάω", "τιμᾷ", "active", "present", "indicative",
+                          "third-person", "singular")
+        wiki = [self.row("τιμάω", form, "active", "present", "indicative",
+                         "first-person", "singular")
+                for form in ("τιμῶ", "τιμᾷς", "τιμᾷ", "τιμῶμεν", "τιμᾶτε", "τιμῶσι")]
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[corpus],
+                           wiki=wiki)["τιμάω"]["forms"]
+        assert forms == {"active_present_indicative_3sg": "τιμᾷ"}
 
 
 # ---------------------------------------------------------------------------

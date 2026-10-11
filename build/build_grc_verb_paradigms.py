@@ -11,6 +11,7 @@ builder can consume the file as a drop-in alternative or supplement.
 Inputs (from data/):
   - ag_pairs.json     Wiktionary kaikki form-lemma pairs (now tense-tagged)
   - glaux_pairs.json  GLAUx corpus, fully morph-tagged
+  - grc_lexical_heads.json  Independent headwords for corpus-only synthesis
   - verb_extra_pairs.json (optional) pairs from LSJ expansion
 
 Output:
@@ -67,6 +68,7 @@ GLAUX_PAIRS = DATA_DIR / "glaux_pairs.json"
 VERB_EXTRA_PAIRS = DATA_DIR / "verb_extra_pairs.json"
 LSJ_VERB_PAIRS = DATA_DIR / "ag_lsj_verb_pairs.json"  # produced by expand_lsj
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
+LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
 LSJ9_GLOSSES = Path.home() / "Documents" / "lsj9" / "lsj9_glosses.jsonl"
 OUT_PATH = DATA_DIR / "ag_verb_paradigms.json"
 
@@ -1472,6 +1474,25 @@ def build_paradigms(only_lemmas=None):
             lemma = lowercase_initial(lemma)
         return lemma
 
+    # Corpus annotations can invent a lemma by treating a noun, adjective,
+    # or inflected verb as a citation. Keep their observed cells, but do not
+    # extrapolate a conjugation without independent headword evidence.
+    # Existing Wiktionary owners retain their behavior after collapsed-cell
+    # filtering; this gate applies only to corpus-only lemmas.
+    from build_grc_lexical_heads import normalize_headword
+    with open(LEXICAL_HEADS_PATH, encoding="utf-8") as f:
+        lexical_heads = json.load(f)["heads"]
+    synthesis_heads = {
+        lowercase_initial(head)
+        for word in lexical_heads
+        if (head := normalize_headword(word)) is not None
+    }
+    synthesis_heads.update(
+        lemma for name, pairs in sources if name == "ag_pairs.json"
+        for pair in pairs
+        if (lemma := canonicalize_lemma(pair.get("lemma"))) is not None
+    )
+
     # Group by lemma, then by dialect, then by paradigm key
     by_lemma_dialect_key = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     dropped_internal_capital = 0
@@ -1655,7 +1676,7 @@ def build_paradigms(only_lemmas=None):
         # if it ends in -ω, or middle present indicative 1sg if it ends in
         # -μαι (deponent). For -μι verbs we leave the slot blank since the
         # paradigm itself should attest the 1sg form.
-        if attic_forms or any(by_dialect.values()):
+        if lemma in synthesis_heads and (attic_forms or any(by_dialect.values())):
             if lemma.endswith("ω"):  # ω
                 attic_forms.setdefault(
                     "active_present_indicative_1sg", lemma)
@@ -1723,8 +1744,12 @@ def build_paradigms(only_lemmas=None):
     # (subjunctive / optative / imperative / aorist infinitive) for
     # thematic -ω verbs from LSJ-extracted principal parts. Only writes
     # into empty slots, never overwrites corpus-derived forms.
+    synthesis_results = {lemma: paradigm for lemma, paradigm in results.items()
+                         if lemma in synthesis_heads}
+    print(f"  corpus-only lemmas retained without synthesis: "
+          f"{len(results) - len(synthesis_results):,}")
     print("  synthesising missing moods from principal parts ...")
-    synthesize_missing_moods(results, synthesis_families)
+    synthesize_missing_moods(synthesis_results, synthesis_families)
     if results:
         counts = sorted(v["form_count"] for v in results.values())
         n = len(counts)
@@ -1735,7 +1760,7 @@ def build_paradigms(only_lemmas=None):
     # Second synthesis pass: full case×gender×number participle
     # declension. Like the mood pass, only fills empty cells.
     print("  synthesising missing participles from principal parts ...")
-    synthesize_missing_participles(results, synthesis_families)
+    synthesize_missing_participles(synthesis_results, synthesis_families)
 
     # Wiktionary's conjugation tables decide the accent wherever a corpus
     # token or a synthesised cell spelled the same letters differently
