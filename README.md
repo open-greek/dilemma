@@ -2106,7 +2106,8 @@ points at a SHA whose data files match what's on HuggingFace.
 Tests run automatically on GitHub-hosted runners for pushes and pull requests
 to `main`. CI downloads data
 files from HuggingFace (`lookup.db`, `spell_index.db`,
-`lemma_attestation.json`, and `form_profile.db` for the Hunspell export),
+`lemma_attestation.json`, and `form_profile.db` for the Hunspell export,
+plus source tables including the elision-preserving `diorisis_pairs.json`),
 pinned by sha256 in `data/hf_manifest.json`
 (see [Shipping rebuilt data artifacts](#shipping-rebuilt-data-artifacts)).
 
