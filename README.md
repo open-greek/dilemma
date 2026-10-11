@@ -1902,6 +1902,13 @@ restorations, canonicalization, ambiguity skips, and portable input/source
 hashes. The merged source pairs, reviewed exact-form specification, and
 `grc_lexical_heads.json` are required inputs for this step.
 
+The Ancient export retains independently cited proper-name forms even when
+the flat lookup assigns their spelling to a common-word lemma. The finite
+`source_forms` specifications in `data/hunspell_grc_postclassical_review.json`
+record the spelling, owner, citation, and source. They preserve forms such as
+`Πῶλε` and `Ὀνησίμῳ` without exempting unrelated capitalized common nouns from
+the case filter.
+
 The Diorisis pair extractor preserves terminal Beta Code elision as Greek
 koronis, with medial σ before the mark. An elided source token therefore cannot
 silently become a complete word; unelided homographs remain separate readings.

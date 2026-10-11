@@ -1846,6 +1846,35 @@ def test_verified_name_ownership_preserves_source_names_and_lower_homonyms():
     assert exact_form_key("λόγους") not in ownership
 
 
+
+
+def test_reviewed_name_cells_survive_flat_common_word_ownership():
+    from export_hunspell import (
+        add_reviewed_postclassical_paradigms, filter_case_artifacts,
+        include_reviewed_name_ownership, load_case_ownership,
+    )
+    expected = {
+        "Παρίους": "Πάριος", "Πῶλε": "Πῶλος", "Τύχικον": "Τύχικος",
+        "Κορέ": "Κορέ", "Ἰωαδά": "Ἰωαδά", "Ὀνησίμῳ": "Ὀνήσιμος",
+    }
+    conn = _lookup_db([(form, lemma.lower(), "grc")
+                       for form, lemma in expected.items()]
+                      + [("Πόλῃ", "πόλις", "grc"),
+                         ("Στρατιώτῃ", "στρατιώτης", "grc")])
+    pairs, protected, source_audit = add_reviewed_postclassical_paradigms([], conn)
+    reviewed = {form: lemma for form, lemma in pairs if form in expected}
+    assert reviewed == expected
+    assert expected.keys() <= protected
+    ownership = load_case_ownership(conn)
+    include_reviewed_name_ownership(ownership, source_audit)
+    name_pairs = list(expected.items())
+    negatives = [("Πόλῃ", "πόλις"), ("Στρατιώτῃ", "στρατιώτης")]
+    kept, rejected = filter_case_artifacts(name_pairs + negatives,
+                                           _evidence({}), ownership)
+    assert kept == name_pairs
+    assert rejected == negatives
+
+
 def test_unclassified_corpus_tokens_require_lexical_review():
     from export_hunspell import postclassical_admission_reason
     assert postclassical_admission_reason(100, {"pta": 100, "oga": 100}, 50,
