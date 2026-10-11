@@ -230,7 +230,7 @@ def parse_morph(morph_str, pos):
 
 
 def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
-    """Extract form->lemma pairs from Diorisis XML files."""
+    """Extract pairs, retaining distinct readings of quote-normalized cells."""
     xml_files = sorted(Path(diorisis_dir).glob("*.xml"))
     if not xml_files:
         print(f"No XML files found in {diorisis_dir}")
@@ -242,16 +242,12 @@ def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
 
     t0 = time.time()
     pairs = []
-    seen = set()  # (form, lemma) dedup
+    readings = _PairReadings(pairs)
     total_tokens = 0
     skipped_no_lemma = 0
     skipped_non_greek = 0
     skipped_convert = 0
     skipped_dup = 0
-
-    pos_counts = Counter()
-    has_nominal = 0
-    has_verbal = 0
 
     for i, xml_file in enumerate(xml_files):
         try:
@@ -264,20 +260,19 @@ def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
             token_audit.append({"source": xml_file.name,
                                 "source_sha256": hashlib.sha256(xml_file.read_bytes()).hexdigest(),
                                 "records": source_context.audit})
+        normalized_keys = set()
+        for record in source_context.audit:
+            if record["normalized_beta"] == record["original_beta"]:
+                continue
+            form = betacode_to_unicode(record["normalized_beta"])
+            for reading in record["readings"]:
+                normalized_keys.add((form, nfc(reading["lemma"])))
+        readings.touch(normalized_keys)
         for word in tree.findall(".//word"):
             total_tokens += 1
 
             bc_form = source_context.beta(word)
-            lemma_el = word.find("lemma")
-
-            if lemma_el is None:
-                skipped_no_lemma += 1
-                continue
-
-            entry = lemma_el.get("entry", "")
-            raw_pos = lemma_el.get("POS", "")
-
-            if not bc_form or not entry:
+            if not bc_form:
                 skipped_no_lemma += 1
                 continue
 
@@ -287,46 +282,15 @@ def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
                 skipped_convert += 1
                 continue
 
-            # NFC normalize lemma
-            lemma = nfc(entry)
-
-            if not is_greek(form) or not is_greek(lemma):
+            if not is_greek(form):
                 skipped_non_greek += 1
                 continue
-
-            # Map POS
-            pos = DIORISIS_POS_MAP.get(raw_pos)
-
-            # Dedup by (form, lemma)
-            key = (form, lemma)
-            if key in seen:
+            variants, primary = _word_pair_readings(word, form)
+            added = readings.observe(variants, primary)
+            if primary is None:
+                skipped_no_lemma += 1
+            elif not added:
                 skipped_dup += 1
-                continue
-            seen.add(key)
-
-            # Parse morphological tags from first analysis
-            tags = []
-            analyses = lemma_el.findall("analysis")
-            if analyses:
-                morph_str = analyses[0].get("morph", "")
-                tags = parse_morph(morph_str, pos)
-
-            pair = {"form": form, "lemma": lemma}
-            if pos:
-                pair["pos"] = pos
-                pos_counts[pos] += 1
-            if tags:
-                pair["tags"] = tags
-
-                # Count morphological coverage
-                tag_set = set(tags)
-                if tag_set & {"masculine", "feminine", "neuter"}:
-                    has_nominal += 1
-                if tag_set & {"present", "imperfect", "aorist", "future",
-                              "perfect", "pluperfect"}:
-                    has_verbal += 1
-
-            pairs.append(pair)
 
         if (i + 1) % 100 == 0:
             print(f"  {i+1}/{len(xml_files)} files, "
@@ -338,8 +302,14 @@ def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
           f"{skipped_convert:,} conversion failures, "
           f"{skipped_non_greek:,} non-Greek, "
           f"{skipped_dup:,} duplicates")
-    print(f"Unique pairs: {len(pairs):,}")
+    print(f"Distinct exported readings: {len(pairs):,}")
 
+    pos_counts = Counter(pair.get("pos") for pair in pairs if pair.get("pos"))
+    has_nominal = sum(bool(set(pair.get("tags", ())) &
+                           {"masculine", "feminine", "neuter"}) for pair in pairs)
+    has_verbal = sum(bool(set(pair.get("tags", ())) &
+                          {"present", "imperfect", "aorist", "future",
+                           "perfect", "pluperfect"}) for pair in pairs)
     print(f"\nPOS distribution:")
     for pos, count in pos_counts.most_common():
         print(f"  {pos:10s}: {count:,}")
@@ -349,6 +319,82 @@ def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
     print(f"  With verbal features (T+M+V):  {has_verbal:,}")
 
     return pairs
+
+
+def _word_pair_readings(word, form):
+    """Keep every source analysis; identify the legacy first reading separately."""
+    variants = []
+    primary = None
+    for lemma_index, lemma_el in enumerate(word.findall("lemma")):
+        lemma = nfc(lemma_el.get("entry", ""))
+        if not lemma or not is_greek(lemma):
+            continue
+        pos = DIORISIS_POS_MAP.get(lemma_el.get("POS", ""))
+        analyses = lemma_el.findall("analysis")
+        for analysis_index, analysis in enumerate(analyses or [None]):
+            tags = parse_morph(analysis.get("morph", ""), pos) if analysis is not None else []
+            pair = {"form": form, "lemma": lemma}
+            if pos:
+                pair["pos"] = pos
+            if tags:
+                pair["tags"] = tags
+            variants.append(pair)
+            if lemma_index == 0 and analysis_index == 0:
+                primary = pair
+    return variants, primary
+
+
+class _PairReadings:
+    """Preserve all analyses only for keys touched by an audited normalization.
+
+    Earlier alternatives are buffered so discovering a normalized cell in a
+    later document cannot erase an earlier ordinary reading. Untouched keys
+    keep their existing first-lemma/first-analysis selection and ordering.
+    """
+
+    def __init__(self, pairs):
+        self.pairs = pairs
+        self.variants = {}
+        self.emitted = {}
+        self.normalized = set()
+
+    @staticmethod
+    def signature(pair):
+        return pair.get("pos"), tuple(pair.get("tags", ()))
+
+    def emit(self, key, signature, pair):
+        emitted = self.emitted.setdefault(key, set())
+        if signature in emitted:
+            return 0
+        emitted.add(signature)
+        self.pairs.append(pair)
+        return 1
+
+    def touch(self, keys):
+        # Dictionary insertion order is source order; never order source
+        # readings by the arbitrary iteration order of the incoming key set.
+        newly_normalized = keys - self.normalized
+        self.normalized.update(keys)
+        if not newly_normalized:
+            return
+        for key, variants in self.variants.items():
+            if key in newly_normalized:
+                for signature, pair in variants.items():
+                    self.emit(key, signature, pair)
+
+    def observe(self, variants, primary):
+        added = 0
+        for pair in variants:
+            key = pair["form"], pair["lemma"]
+            signature = self.signature(pair)
+            self.variants.setdefault(key, {}).setdefault(signature, pair)
+            if key in self.normalized:
+                added += self.emit(key, signature, pair)
+        if primary is not None:
+            key = primary["form"], primary["lemma"]
+            if key not in self.normalized and key not in self.emitted:
+                added += self.emit(key, self.signature(primary), primary)
+        return added
 
 
 def main():

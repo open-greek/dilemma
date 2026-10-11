@@ -171,3 +171,75 @@ def test_source_archives_can_write_audits_without_git_metadata(monkeypatch, erro
 
     monkeypatch.setattr(builder.subprocess, "check_output", unavailable)
     assert builder.source_revision() is None
+
+
+@pytest.mark.parametrize("quoted_first", [False, True])
+def test_normalized_cells_preserve_distinct_pos_in_both_token_orders(tmp_path, quoted_first):
+    pytest.importorskip("beta_code")
+    from build.build_diorisis_pairs import extract_diorisis
+
+    noun = _word("o(lkw=|", "ὁλκός", "noun", "masc dat sg")
+    adjective = _word("o(lkw=|", "ὁλκός", "adjective", "masc dat sg")
+    quoted = _word("o(lkw=|'", "ὁλκός", "adjective", "masc dat sg")
+    root = _root(noun + adjective, quoted)
+    if quoted_first:
+        root[:] = list(reversed(root[:]))
+    (tmp_path / "sample.xml").write_text(ET.tostring(root, encoding="unicode"))
+    rows = extract_diorisis(tmp_path)
+    assert {(r["form"], r["lemma"], r["pos"], tuple(r["tags"])) for r in rows} == {
+        ("ὁλκῷ", "ὁλκός", "noun", ("masculine", "singular", "dative")),
+        ("ὁλκῷ", "ὁλκός", "adj", ("masculine", "singular", "dative")),
+    }
+    assert len(rows) == 2
+
+
+def test_later_document_normalization_restores_all_earlier_analyses(tmp_path):
+    pytest.importorskip("beta_code")
+    from build.build_diorisis_pairs import extract_diorisis
+
+    ordinary = _word("o(lkw=|", "ὁλκός", "noun", "masc dat sg").replace(
+        "</word>", '<lemma entry="ὁλκός" POS="adjective">'
+        '<analysis morph="masc dat sg"/><analysis morph="neut dat sg"/>'
+        '</lemma></word>')
+    (tmp_path / "a.xml").write_text(f"<text><sentence>{ordinary}</sentence></text>")
+    root = _root(_word("o(lkw=|", "ὁλκός", "adjective", "masc dat sg"),
+                 _word("o(lkw=|'", "ὁλκός", "adjective", "masc dat sg"))
+    (tmp_path / "b.xml").write_text(ET.tostring(root, encoding="unicode"))
+    rows = extract_diorisis(tmp_path)
+    assert [(r["pos"], r["tags"][0]) for r in rows] == [
+        ("noun", "masculine"), ("adj", "masculine"), ("adj", "neuter")]
+    assert {r["form"] for r in rows} == {"ὁλκῷ"}
+
+
+def test_normalized_token_keeps_multiple_lemmas_and_analyses(tmp_path):
+    pytest.importorskip("beta_code")
+    from build.build_diorisis_pairs import extract_diorisis
+
+    ordinary = _word("*ba/kxou").replace(
+        "</word>", '<lemma entry="ἄλλος" POS="adjective">'
+        '<analysis morph="masc gen sg"/><analysis morph="neut gen sg"/>'
+        '</lemma></word>')
+    quoted = ordinary.replace('form="*ba/kxou"', 'form="*ba/kxou\'"')
+    root = _root(ordinary, quoted)
+    (tmp_path / "sample.xml").write_text(ET.tostring(root, encoding="unicode"))
+    rows = extract_diorisis(tmp_path)
+    assert [(r["lemma"], r["pos"], r["tags"][0]) for r in rows] == [
+        ("Βάκχος", "noun", "masculine"),
+        ("ἄλλος", "adj", "masculine"),
+        ("ἄλλος", "adj", "neuter"),
+    ]
+    assert {r["form"] for r in rows} == {"Βάκχου"}
+
+
+def test_untouched_cells_keep_legacy_first_analysis(tmp_path):
+    pytest.importorskip("beta_code")
+    from build.build_diorisis_pairs import extract_diorisis
+
+    ordinary = _word("o(lkw=|", "ὁλκός", "noun", "masc dat sg").replace(
+        "</lemma>", '<analysis morph="neut dat sg"/></lemma>').replace(
+        "</word>", '<lemma entry="ἄλλος" POS="adjective">'
+        '<analysis morph="masc dat sg"/></lemma></word>')
+    (tmp_path / "sample.xml").write_text(f"<text><sentence>{ordinary}</sentence></text>")
+    assert extract_diorisis(tmp_path) == [{"form": "ὁλκῷ", "lemma": "ὁλκός",
+                                         "pos": "noun",
+                                         "tags": ["masculine", "singular", "dative"]}]
