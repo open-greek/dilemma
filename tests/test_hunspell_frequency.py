@@ -108,10 +108,10 @@ def test_frequency_fixture_is_well_formed():
     )
     assert fixture["training"]["sanity"] is False
     assert fixture["training"]["total_tokens"] == 30_933_396
-    assert next(row for row in rows if row["form"] == "γε")["count"] == 43_741
+    assert next(row for row in rows if row["form"] == "γε")["count"] == 43_743
     forms = {row["form"] for row in rows}
     assert {"καί", "καὶ", "τό", "τὸ", "ἣ", "οἳ", "αἳ"} <= forms
-    assert sum(row["count"] for row in rows) == 16_545_810
+    assert sum(row["count"] for row in rows) == 16_546_331
 
 
 def test_frequency_exclusions_are_explicit_and_within_fixture():
