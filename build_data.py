@@ -502,6 +502,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   closed_class_heads: dict = None, closed_head_records: list = None,
                   lexical_heads: dict = None,
                   typed_references: dict = None,
+                  canonical_references: dict = None,
                   closed_class_form_refs: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
@@ -1037,6 +1038,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                                 strip_accents(lemma.lower())):
                         if key and typed_references is not None:
                             typed_references.setdefault(key, {}).setdefault(pos, set()).add(ref_word)
+                        if key and canonical_references is not None:
+                            canonical_references.setdefault(key, {}).setdefault(pos, set()).add(ref_word)
                         if (key and key not in form_of_targets
                                 and not key == ref_word == spelling_of):
                             form_of_targets[key] = ref_word
@@ -1694,6 +1697,10 @@ def is_independent_lexical_entry(entry: dict, source: str) -> bool:
         return False
     return any("no-gloss" not in (s.get("tags") or [])
                and any(g.strip() and not _is_closed_class_inflection_gloss(g)
+                       and not (source == "el" and re.match(
+                           r"^(?:(?:επικός|ποιητικός|ιωνικός|αττικός|δωρικός|αιολικός|"
+                           r"εναλλακτικός|άλλος|παλαιότερος)\s+)?τύπος\s+του\b",
+                           g.strip().lower()))
                        for g in s.get("glosses") or []) for s in senses)
 
 def validate_verb_head_inventory(inventory: dict) -> set:
@@ -1704,8 +1711,9 @@ def validate_verb_head_inventory(inventory: dict) -> set:
 def training_pair_headword_errors(pairs: list, lookup: dict,
                                   noun_heads: set = frozenset(),
                                   verb_heads: set = frozenset(),
-                                  closed_class_heads: dict = None) -> tuple:
-    """Keep flat-head validation except for independently evidenced nouns."""
+                                  closed_class_heads: dict = None,
+                                  lexical_heads: dict = None) -> tuple:
+    """Require a flat head or independent evidence for this exact POS."""
     count, examples = 0, []
     for pair in pairs:
         lemma = pair["lemma"]
@@ -1713,11 +1721,99 @@ def training_pair_headword_errors(pairs: list, lookup: dict,
                 and not (pair.get("pos") == "noun" and lemma in noun_heads)
                 and not (pair.get("pos") == "verb" and lemma in verb_heads)
                 and not (pair.get("pos") in {"det", "pron"}
-                         and lemma in (closed_class_heads or {}).get(pair.get("pos"), set()))):
+                         and lemma in (closed_class_heads or {}).get(pair.get("pos"), set()))
+                and lemma not in (lexical_heads or {}).get(pair.get("pos"), set())):
             count += 1
             if len(examples) < 5:
                 examples.append(f"{pair['form']} -> {lemma} -> {lookup[lemma]}")
     return count, examples
+
+
+def ancient_reading_head_inventory(pairs: list, lookup: dict, sources: dict) -> dict:
+    """Keep source evidence for Ancient readings outside the flat head map."""
+    import hashlib
+
+    wanted = {(p["lemma"], p.get("pos", "")) for p in pairs
+              if lookup.get(p["lemma"], (p["lemma"],))[0] != p["lemma"]}
+    evidence = {key: {} for key in wanted}
+    hashes = {}
+    for source, path in sorted(sources.items()):
+        if not path.exists():
+            continue
+        with path.open('rb') as stream:
+            hashes[source] = hashlib.file_digest(stream, 'sha256').hexdigest()
+        with path.open(encoding='utf-8') as stream:
+            for line_number, line in enumerate(stream, 1):
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                key = (strip_length_marks(entry.get('word', '')), entry.get('pos', ''))
+                if key not in wanted or not is_independent_lexical_entry(entry, source):
+                    continue
+                record = {'source': source, 'source_line': line_number, 'entry': {
+                    'word': entry['word'], 'pos': entry['pos'],
+                    'tags': entry.get('tags') or [],
+                    'form_of': entry.get('form_of') or [],
+                    'alt_of': entry.get('alt_of') or [],
+                    'senses': [{field: sense.get(field) or [] for field in
+                                ('glosses', 'tags', 'form_of', 'alt_of', 'related')}
+                               for sense in entry.get('senses') or []]}}
+                evidence[key][json.dumps(record, ensure_ascii=False, sort_keys=True)] = record
+    missing = [key for key, records in evidence.items() if not records]
+    if missing:
+        raise ValueError('Unproven Ancient reading heads: ' + repr(sorted(missing)))
+    return {'schema_version': 1, 'language': 'grc', 'source_sha256': hashes,
+            'heads': [{'lemma': lemma, 'pos': pos,
+                       'evidence': [records[key] for key in sorted(records)]}
+                      for (lemma, pos), records in sorted(evidence.items())]}
+
+
+def validate_ancient_reading_head_inventory(inventory: dict) -> dict:
+    """Recheck exact positive source definitions for non-flat Ancient heads."""
+    if (not isinstance(inventory, dict)
+            or set(inventory) != {'schema_version', 'language', 'source_sha256', 'heads'}
+            or inventory['schema_version'] != 1 or inventory['language'] != 'grc'
+            or not isinstance(inventory['heads'], list)
+            or not isinstance(inventory['source_sha256'], dict)
+            or not inventory['source_sha256']
+            or any(source not in {'en', 'el'} or not isinstance(sha, str)
+                   or re.fullmatch(r'[0-9a-f]{64}', sha) is None
+                   for source, sha in inventory['source_sha256'].items())):
+        raise ValueError('Invalid Ancient reading-head inventory')
+    result = {}
+    for row in inventory['heads']:
+        if (not isinstance(row, dict) or set(row) != {'lemma', 'pos', 'evidence'}
+                or not isinstance(row['lemma'], str) or not row['lemma']
+                or not isinstance(row['pos'], str) or row['pos'] not in WIKT_TO_UPOS
+                or row['lemma'] in result.get(row['pos'], set())
+                or not isinstance(row['evidence'], list) or not row['evidence']):
+            raise ValueError('Invalid Ancient reading-head row')
+        for proof in row['evidence']:
+            if (not isinstance(proof, dict) or set(proof) != {'source', 'source_line', 'entry'}
+                    or not isinstance(proof['source'], str)
+                    or proof['source'] not in inventory['source_sha256']
+                    or type(proof['source_line']) is not int or proof['source_line'] < 1):
+                raise ValueError('Invalid Ancient reading-head source')
+            entry = proof['entry']
+            if (not isinstance(entry, dict)
+                    or set(entry) != {'word', 'pos', 'tags', 'form_of', 'alt_of', 'senses'}
+                    or not isinstance(entry['word'], str)
+                    or strip_length_marks(entry['word']) != row['lemma']
+                    or entry['pos'] != row['pos']
+                    or any(not isinstance(entry[field], list)
+                           for field in ('tags', 'form_of', 'alt_of', 'senses'))
+                    or any(not isinstance(tag, str) for tag in entry['tags'])
+                    or any(not isinstance(sense, dict)
+                           or set(sense) != {'glosses', 'tags', 'form_of', 'alt_of', 'related'}
+                           or any(not isinstance(sense[field], list) for field in sense)
+                           or any(not isinstance(value, str)
+                                  for field in ('glosses', 'tags') for value in sense[field])
+                           for sense in entry['senses'])
+                    or not is_independent_lexical_entry(entry, proof['source'])):
+                raise ValueError('No independent Ancient reading-head evidence')
+        result.setdefault(row['pos'], set()).add(row['lemma'])
+    return result
 
 
 def closed_class_head_evidence(entry: dict, source: str) -> dict:
@@ -1897,7 +1993,8 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                        participle_roots: dict = None,
                        unresolved_verbs: set = frozenset(),
                        closed_class_heads: dict = None,
-                       lexical_heads: dict = None):
+                       lexical_heads: dict = None,
+                       canonical_references: dict = None):
     """Follow a verb's own references before a homograph's flat lookup.
 
     A polytonic participle can first name its monotonic spelling, whose
@@ -1912,9 +2009,25 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
         upos = WIKT_TO_UPOS.get(pos)
         seen = set()
         while lemma not in seen:
-            if (lemma in lexical_heads.get(pos, set())
-                    and lookup.get(lemma, (None,))[0] == lemma):
-                return lemma
+            if lemma in lexical_heads.get(pos, set()):
+                # A separate inflected homograph does not replace this
+                # lexical reading. Only explicit alternative spellings
+                # can move its own table to another lexical head.
+                pending = list((canonical_references or {}).get(lemma, {}).get(pos, set()))
+                if not pending:
+                    return lemma
+                visited, endpoints = {lemma}, set()
+                while pending:
+                    candidate = pending.pop()
+                    if candidate in visited:
+                        continue
+                    visited.add(candidate)
+                    targets = (canonical_references or {}).get(candidate, {}).get(pos, set())
+                    if targets:
+                        pending.extend(targets - visited)
+                    elif candidate in lexical_heads.get(pos, set()):
+                        endpoints.add(candidate)
+                return next(iter(endpoints)) if len(endpoints) == 1 else lemma
             seen.add(lemma)
             target = (pos_map or {}).get(lemma, {}).get(upos)
             if not target or target == lemma:
@@ -2019,7 +2132,8 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
                          participle_roots: dict = None,
                          unresolved_verbs: set = frozenset(),
                          closed_class_heads: dict = None,
-                         lexical_heads: dict = None) -> list:
+                         lexical_heads: dict = None,
+                         canonical_references: dict = None) -> list:
     """Resolve page references before lookup homographs; omit internal metadata."""
     headwords = {key for key, (lemma, _) in lookup.items() if key == lemma}
     graph_heads = set((participle_roots or {}).values())
@@ -2053,11 +2167,13 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
                 lemma_pos if preserve_cells else None,
                 participle_roots if preserve_cells else None,
                 unresolved_verbs if preserve_cells else frozenset(),
-                closed_class_heads if preserve_cells else None, lexical_heads)
+                closed_class_heads if preserve_cells else None, lexical_heads,
+                canonical_references)
             if (not noun_owner and resolved not in headwords
                     and not (pair.get("pos") == "verb" and resolved in graph_heads)
                     and not (preserve_cells and resolved in (closed_class_heads or {}).get(
-                        pair.get("pos"), set()))):
+                        pair.get("pos"), set()))
+                    and resolved not in (lexical_heads or {}).get(pair.get("pos"), set())):
                 continue
             result.append({"form": pair["form"], "lemma": resolved,
                            "pos": pair.get("pos", ""), "tags": pair.get("tags", [])})
@@ -2066,13 +2182,14 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
 
 
 def _cross_pos_alias_shadows_head(word: str, target: str,
-                                  lexical_heads: dict, typed_references: dict) -> bool:
+                                  lexical_heads: dict, typed_references: dict,
+                                  canonical_references: dict = None) -> bool:
     """An explicit other-POS reference cannot consume an independent head.
 
-    Only protect an existing lexical self-map when its proposed alias is
-    positively identified as another part of speech. A same-POS reference
-    or a chain to another independently defined head retains the existing
-    canonicalization behavior.
+    The selected alias must be positively identified as another part of
+    speech. A same-POS alternative spelling from the original word, or a
+    same-POS reference from the selected target, retains canonicalization.
+    An inflected homograph cannot consume the original word's own meaning.
     """
     head_pos = {pos for pos, heads in lexical_heads.items() if word in heads}
     references = typed_references.get(word, {})
@@ -2080,22 +2197,63 @@ def _cross_pos_alias_shadows_head(word: str, target: str,
     if not head_pos or not reference_pos or head_pos & reference_pos:
         return False
     for pos in head_pos:
-        pending, seen = [target], {word}
-        while pending:
-            candidate = pending.pop()
-            if candidate in seen:
-                continue
-            seen.add(candidate)
-            if candidate in lexical_heads.get(pos, set()):
-                return False
-            pending.extend(typed_references.get(candidate, {}).get(pos, set()) - seen)
+        # Alternative spellings may canonicalize a lexical head. A form_of
+        # reading has a different role: δίω is both an independent verb and
+        # an inflected form of δείδω, so it must retain both readings.
+        for seeds, graph in (
+                ([target], typed_references),
+                ((canonical_references or {}).get(word, {}).get(pos, set()),
+                 canonical_references or {})):
+            pending = list(seeds)
+            seen = {word}
+            while pending:
+                candidate = pending.pop()
+                if candidate in seen:
+                    continue
+                seen.add(candidate)
+                if candidate in lexical_heads.get(pos, set()):
+                    return False
+                pending.extend(graph.get(candidate, {}).get(pos, set()) - seen)
     return True
+
+
+def recover_cross_pos_heads(all_lookup: dict, lexical_heads: dict,
+                            typed_references: dict,
+                            canonical_references: dict = None) -> int:
+    """Recover proven heads already displaced during per-source extraction.
+
+    Only an explicit other-POS alias with no supported same-POS endpoint
+    qualifies. A derived lookup key follows its head only when it still
+    has that exact displaced owner and no competing recovery claims it.
+    """
+    if lexical_heads is None or typed_references is None:
+        return 0
+    heads = set().union(*lexical_heads.values()) if lexical_heads else set()
+    proposals = {}
+    for word in sorted(heads):
+        target = all_lookup.get(word, (None,))[0]
+        if (not target or target == word or not _cross_pos_alias_shadows_head(
+                word, target, lexical_heads, typed_references,
+                canonical_references)):
+            continue
+        for key in {word, word.lower(), to_monotonic(word),
+                    to_monotonic(word).lower(), strip_accents(word.lower())}:
+            if (all_lookup.get(key, (None,))[0] == target
+                    and (key not in heads or key == word)):
+                proposals.setdefault(key, set()).add(word)
+    recovered = 0
+    for key, words in proposals.items():
+        if len(words) == 1:
+            all_lookup[key] = (next(iter(words)), all_lookup[key][1])
+            recovered += 1
+    return recovered
 
 
 def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
                          el_form_of_targets: dict, en_headwords: set,
                          skip: set = frozenset(), preserve_cycles=False,
-                         lexical_heads: dict = None, typed_references: dict = None) -> int:
+                         lexical_heads: dict = None, typed_references: dict = None,
+                         canonical_references: dict = None) -> int:
     """Point each self-mapped key of the merged lookup at the lemma EN's
     form-of reference gives it, else EL's where EN has no page for the key
     (see main), and return how many moved. A target that maps back to the
@@ -2119,7 +2277,8 @@ def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
         if target and target != k:
             if (lexical_heads is not None and typed_references is not None
                     and _cross_pos_alias_shadows_head(k, target, lexical_heads,
-                                                      typed_references)):
+                                                      typed_references,
+                                                      canonical_references)):
                 continue
             moves[k] = target
     cross_resolved = 0
@@ -2176,6 +2335,7 @@ def main():
         closed_head_records = []
         lexical_heads = {} if lang == "grc" else None
         typed_references = {} if lang == "grc" else None
+        canonical_references = {} if lang == "grc" else None
         closed_class_form_refs = {}
         participle_refs, verb_heads = {}, set()
         participle_heads = set()
@@ -2216,6 +2376,7 @@ def main():
                 closed_head_records=closed_head_records if lang == "el" else None,
                 lexical_heads=lexical_heads,
                 typed_references=typed_references,
+                canonical_references=canonical_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
@@ -2254,6 +2415,7 @@ def main():
                 closed_head_records=closed_head_records if lang == "el" else None,
                 lexical_heads=lexical_heads,
                 typed_references=typed_references,
+                canonical_references=canonical_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
@@ -2328,10 +2490,16 @@ def main():
         # Reciprocal form references also arise between Ancient noun and
         # verb homographs (ἔργον / ἔργω). Keep their independent heads;
         # processing order must not collapse one into the other.
+        recovered_heads = recover_cross_pos_heads(all_lookup, lexical_heads,
+                                                   typed_references,
+                                                   canonical_references)
+        if recovered_heads:
+            print(f"Independent head lookup keys recovered: {recovered_heads:,}")
         cross_resolved = resolve_cross_source(
             all_lookup, en_form_of_targets, el_form_of_targets,
             en_headwords, _MG_ARTICLE_FORMS, preserve_cycles=True,
-            lexical_heads=lexical_heads, typed_references=typed_references)
+            lexical_heads=lexical_heads, typed_references=typed_references,
+            canonical_references=canonical_references)
         if cross_resolved:
             print(f"Cross-source form-of resolutions: {cross_resolved:,}")
 
@@ -2451,7 +2619,18 @@ def main():
                                              participle_roots=participle_roots,
                                              unresolved_verbs=unresolved_verbs,
                                              closed_class_heads=closed_class_heads if lang == "el" else None,
-                                             lexical_heads=lexical_heads)
+                                             lexical_heads=lexical_heads,
+                                             canonical_references=canonical_references)
+
+        if lang == "grc":
+            inventory = ancient_reading_head_inventory(
+                unique_pairs, all_lookup, {source: resolve_dump(filename, dump_dir)
+                                          for source, filename in DUMPS[lang].items()})
+            validate_ancient_reading_head_inventory(inventory)
+            head_path = DATA_DIR / "grc_reading_heads.json"
+            head_path.write_text(json.dumps(inventory, ensure_ascii=False, indent=2) + "\n",
+                                 encoding="utf-8")
+            print(f"Independent non-flat Ancient reading heads: {len(inventory['heads']):,}")
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"
@@ -2534,7 +2713,8 @@ def main():
                         all_lemma_pos if lang == "el" else None,
                         participle_roots if lang == "el" else None,
                         unresolved_verbs if lang == "el" else frozenset(),
-                        closed_class_heads if lang == "el" else None, lexical_heads)
+                        closed_class_heads if lang == "el" else None, lexical_heads,
+                        canonical_references)
                     if target is not None:
                         resolved[upos] = target
                 else:

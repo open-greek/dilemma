@@ -69,6 +69,8 @@ TRACKED = [
     "data/grc_lexical_heads.json",
     # Exact POS-specific source evidence for non-flat Modern morphology.
     "data/el_closed_class_heads.json",
+    # Exact POS-specific definitions for Ancient non-flat training readings.
+    "data/grc_reading_heads.json",
 ]
 
 _CHUNK = 1 << 20

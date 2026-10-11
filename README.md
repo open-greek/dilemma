@@ -316,7 +316,18 @@ same spelling in the conjugation of `ἀλέω` (grind) still belongs to `ἀλ�
 An explicit reference belonging only to another part of speech cannot consume
 an independently defined head: the noun reading of `κρίνω` points to `κρίνον`
 (lily), while the verb `κρίνω` (judge) keeps its own conjugation. References
-to a supported head of the same part of speech still canonicalize normally.
+already applied within one source receive the same check. This also preserves
+the verb `δύω` (plunge) beside the Epic numeral variant of `δύο` (two).
+Dialect-form descriptions alone do not establish a separate lexical head.
+Alternative-spelling references from the original word to a supported head
+of the same part of speech still canonicalize normally. An inflected reading
+does not replace an independently defined homograph: `δίω` keeps its own
+conjugation as well as its separate reading in the conjugation of `δείδω`.
+`data/grc_reading_heads.json` records the exact source definitions, parts of
+speech, and source hashes for surviving Ancient training heads that differ
+from their flat lookup target. The training-data integrity check requires
+this evidence; an unrelated definition under another part of speech cannot
+authorize an exception.
 
 In the Modern Greek dumps a capitalized page (a name, an abbreviation, a
 heading in sentence case) reaches its lowercase keys only where no

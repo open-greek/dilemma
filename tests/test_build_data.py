@@ -434,7 +434,7 @@ def test_ancient_nominal_reference_keeps_independent_verb_head(tmp_path, monkeyp
     import build_data
     entries = [
         {"word": "κρίνω", "pos": "verb",
-         "senses": [{"glosses": ["to distinguish, judge"]}],
+         "senses": [{"glosses": ["to distinguish among a group of things"]}],
          "forms": [{"form": "κρίνω", "tags": ["present", "first-person", "singular"]},
                    {"form": "κρίνεις", "tags": ["present", "second-person", "singular"]}]},
         {"word": "κρίνω", "pos": "noun",
@@ -448,7 +448,8 @@ def test_ancient_nominal_reference_keeps_independent_verb_head(tmp_path, monkeyp
         {"word": "δύω", "pos": "num",
          "senses": [{"alt_of": [{"word": "δύο"}]}]},
         {"word": "δύο", "pos": "num", "senses": [{"glosses": ["two"]}]},
-        {"word": "δύνω", "pos": "verb", "senses": [{"glosses": ["to sink"]}]},
+        {"word": "δύνω", "pos": "verb", "senses": [{"glosses": ["to sink"]}],
+         "forms": [{"form": "δύνεις", "tags": ["present", "second-person", "singular"]}]},
         {"word": "δύνω", "pos": "verb",
          "senses": [{"alt_of": [{"word": "δύω"}]}]},
     ]
@@ -468,10 +469,152 @@ def test_ancient_nominal_reference_keeps_independent_verb_head(tmp_path, monkeyp
     assert any(r["form"] == "κρίνω" and r["lemma"] == "κρίνον"
                and r["pos"] == "noun" for r in pairs)
     assert any(r["form"] == "δύεις" and r["lemma"] == "δύω" for r in pairs)
+    assert any(r["form"] == "δύνεις" and r["lemma"] == "δύω" for r in pairs)
     assert any(r["form"] == "δύω" and r["lemma"] == "δύο"
                and r["pos"] == "num" for r in pairs)
     pos = json.loads((output / "ag_pos_lookup.json").read_text())
     assert pos["κρίνω"] == {"NOUN": "κρίνον", "VERB": "κρίνω"}
+
+
+@pytest.mark.parametrize("gloss", ["επικός τύπος του δύο", "δωρικός τύπος του δύο",
+                                   "εναλλακτικός τύπος του δύο", "τύπος του δύο"])
+def test_ancient_dialect_reference_is_not_an_independent_lexical_definition(gloss):
+    from build_data import is_independent_lexical_entry
+    entry = {"word": "δύω", "pos": "num", "senses": [{"glosses": [gloss]}]}
+    assert not is_independent_lexical_entry(entry, "el")
+    entry["senses"].append({"glosses": ["δύο"]})
+    assert is_independent_lexical_entry(entry, "el")
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_ancient_other_pos_reference_across_sources_preserves_verb(tmp_path, monkeypatch, reverse):
+    import build_data
+    en = [
+        {"word": "δύω", "pos": "num", "senses": [{"alt_of": [{"word": "δύο"}]}]},
+        {"word": "δύω", "pos": "verb", "senses": [{"glosses": ["to plunge"]}],
+         "forms": [{"form": "δύεις", "tags": ["present", "second-person", "singular"]}]},
+        {"word": "δύο", "pos": "num", "senses": [{"glosses": ["two"]}]},
+    ]
+    el = [{"word": "δύω", "pos": "num",
+           "senses": [{"glosses": ["επικός τύπος του δύο"]}]}]
+    source = tmp_path / "source"
+    source.mkdir()
+    for name, entries in (("en", en), ("el", el)):
+        (source/(name+'.jsonl')).write_text(''.join(json.dumps(e, ensure_ascii=False)+'\n'
+            for e in (entries[::-1] if reverse else entries)))
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": "en.jsonl", "el": "el.jsonl"}})
+    monkeypatch.setattr(build_data.sys, "argv", ["build_data.py", "--lang", "grc", "--kaikki", str(source)])
+    build_data.main()
+    lookup = json.loads((output / "ag_lookup.json").read_text())
+    assert lookup["δύω"] == lookup["δυω"] == "δύω"
+    pairs = json.loads((output / "ag_pairs.json").read_text())
+    assert any(r["form"] == "δύεις" and r["lemma"] == "δύω" for r in pairs)
+    assert any(r["form"] == "δύω" and r["lemma"] == "δύο" and r["pos"] == "num" for r in pairs)
+
+
+@pytest.mark.parametrize("indirect", [False, True])
+def test_original_head_same_pos_alternative_prevents_other_pos_recovery(indirect):
+    from build_data import recover_cross_pos_heads
+    heads = {"verb": {"δίω", "δείδω"}, "adj": {"δῖος"}}
+    references = {"δίω": {"adj": {"δῖος"}, "verb": {"δειδῶ" if indirect else "δείδω"}}}
+    if indirect:
+        references["δειδῶ"] = {"verb": {"δείδω"}}
+    lookup = {"δίω": ("δῖος", 1), "διω": ("δῖος", 1)}
+    canonical = {"δίω": {"verb": references["δίω"]["verb"]}}
+    if indirect:
+        canonical["δειδῶ"] = {"verb": {"δείδω"}}
+    assert recover_cross_pos_heads(lookup, heads, references, canonical) == 0
+    assert lookup["δίω"][0] == "δῖος"
+    lookup["δίω"] = ("δίω", 3)
+    assert resolve_cross_source(lookup, {"δίω": "δῖος"}, {}, set(),
+                               lexical_heads=heads, typed_references=references,
+                               canonical_references=canonical) == 1
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_independent_verb_and_same_pos_inflection_keep_both_readings(tmp_path, monkeypatch, reverse):
+    import build_data
+    entries = [
+        {"word": "δίω", "pos": "verb", "senses": [{"glosses": ["run away, flee"]}],
+         "forms": [{"form": "δίω", "tags": ["present", "first-person", "singular"]},
+                   {"form": "δίεις", "tags": ["present", "second-person", "singular"]}]},
+        {"word": "δίω", "pos": "verb", "senses": [{
+            "form_of": [{"word": "δείδω"}],
+            "tags": ["aorist", "subjunctive", "first-person", "singular"]}]},
+        {"word": "δίω", "pos": "adj", "senses": [{"form_of": [{"word": "δῖος"}]}]},
+        {"word": "δείδω", "pos": "verb", "senses": [{"glosses": ["fear"]}]},
+        {"word": "δῖος", "pos": "adj", "senses": [{"glosses": ["divine"]}]},
+    ]
+    dump = _write(tmp_path, entries[::-1] if reverse else entries)
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": dump.name}})
+    monkeypatch.setattr(build_data.sys, "argv", [
+        "build_data.py", "--lang", "grc", "--kaikki", str(tmp_path)])
+    build_data.main()
+    lookup = json.loads((output / "ag_lookup.json").read_text())
+    assert lookup["δίω"] in {"δίω", "δείδω"}
+    assert lookup["δίω"] == lookup["διω"]
+    pairs = json.loads((output / "ag_pairs.json").read_text())
+    assert any(r["form"] == "δίεις" and r["lemma"] == "δίω" for r in pairs)
+    assert {r["lemma"] for r in pairs if r["form"] == "δίω" and r["pos"] == "verb"} == {
+        "δίω", "δείδω"}
+    assert {r["lemma"] for r in pairs if r["form"] == "δίω" and r["pos"] == "adj"} == {"δῖος"}
+    inventory = json.loads((output / 'grc_reading_heads.json').read_text())
+    heads = build_data.validate_ancient_reading_head_inventory(inventory)
+    assert build_data.training_pair_headword_errors(pairs, lookup, lexical_heads=heads)[0] == 0
+
+
+def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_path):
+    import build_data
+    import hashlib
+
+    dump = _write(tmp_path, [{'word': 'δίω', 'pos': 'verb',
+                             'senses': [{'glosses': ['run away, flee']}]}])
+    pairs = [{'form': 'δίεις', 'lemma': 'δίω', 'pos': 'verb'},
+             {'form': 'δίω', 'lemma': 'δίω', 'pos': 'adj'}]
+    lookup = {'δίω': ('δείδω', 1)}
+    inventory = build_data.ancient_reading_head_inventory(pairs[:1], lookup, {'en': dump})
+    assert inventory['source_sha256'] == {'en': hashlib.sha256(dump.read_bytes()).hexdigest()}
+    heads = build_data.validate_ancient_reading_head_inventory(inventory)
+    assert heads == {'verb': {'δίω'}}
+    flat = {'δίω': 'δείδω'}
+    assert build_data.training_pair_headword_errors(pairs, flat)[0] == 2
+    assert build_data.training_pair_headword_errors(pairs, flat, lexical_heads=heads)[0] == 1
+    with pytest.raises(ValueError, match='Unproven Ancient'):
+        build_data.ancient_reading_head_inventory(pairs, lookup, {'en': dump})
+
+
+@pytest.mark.parametrize('change', ['form_of', 'wrong_pos', 'word', 'hash',
+                                  'duplicate', 'gloss', 'missing', 'malformed'])
+def test_ancient_reading_evidence_rejects_invalid_support(tmp_path, change):
+    import build_data
+
+    dump = _write(tmp_path, [{'word': 'δίω', 'pos': 'verb',
+                             'senses': [{'glosses': ['run away, flee']}]}])
+    inventory = build_data.ancient_reading_head_inventory(
+        [{'form': 'δίεις', 'lemma': 'δίω', 'pos': 'verb'}], {'δίω': ('δείδω', 1)}, {'en': dump})
+    entry = inventory['heads'][0]['evidence'][0]['entry']
+    if change == 'form_of':
+        entry['senses'][0]['form_of'] = [{'word': 'δείδω'}]
+    elif change == 'wrong_pos':
+        inventory['heads'][0]['pos'] = 'adj'
+    elif change == 'word':
+        entry['word'] = 'δείδω'
+    elif change == 'hash':
+        inventory['source_sha256']['en'] = 'not a hash'
+    elif change == 'duplicate':
+        inventory['heads'].append(inventory['heads'][0])
+    elif change == 'gloss':
+        entry['senses'][0]['glosses'] = ['first person singular of δείδω']
+    elif change == 'missing':
+        inventory['heads'][0]['evidence'] = []
+    else:
+        entry['senses'] = [None]
+    with pytest.raises(ValueError):
+        build_data.validate_ancient_reading_head_inventory(inventory)
 
 
 @pytest.mark.parametrize("kind", ["no_reference", "same_pos_endpoint", "same_pos_chain"])

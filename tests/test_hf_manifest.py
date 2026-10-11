@@ -88,3 +88,10 @@ def test_closed_class_companion_is_published_and_generated():
     assert "data/el_closed_class_heads.json" in (ROOT / ".gitignore").read_text()
     source = (ROOT / "build_data.py").read_text()
     assert 'DATA_DIR / "el_closed_class_heads.json"' in source
+
+
+def test_ancient_reading_companion_is_published_and_generated():
+    assert "data/grc_reading_heads.json" in hf_data.TRACKED
+    assert "data/grc_reading_heads.json" in (ROOT / ".gitignore").read_text()
+    source = (ROOT / "build_data.py").read_text()
+    assert 'DATA_DIR / "grc_reading_heads.json"' in source

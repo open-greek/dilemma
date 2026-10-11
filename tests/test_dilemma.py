@@ -21,7 +21,8 @@ DATA_DIR = ROOT / "data"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from build_data import (training_pair_headword_errors, validate_noun_head_inventory,
-                        validate_verb_head_inventory, validate_closed_class_head_inventory)
+                        validate_verb_head_inventory, validate_closed_class_head_inventory,
+                        validate_ancient_reading_head_inventory)
 
 
 def check_lookup_no_chains(lookup: dict) -> tuple[int, int, list[str]]:
@@ -80,6 +81,26 @@ def test_modern_training_pair_heads_have_real_source_evidence():
     bad, examples = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads,
                                                  closed_heads)
     assert bad == 0, f"{bad} unsupported training pair heads: {examples}"
+
+
+def built_ancient_reading_heads(pairs: list, lookup: dict, data_dir: Path) -> dict:
+    if not any(p['lemma'] in lookup and lookup[p['lemma']] != p['lemma'] for p in pairs):
+        return {}
+    return validate_ancient_reading_head_inventory(json.loads(
+        (data_dir / 'grc_reading_heads.json').read_text(encoding='utf-8')))
+
+
+def test_ancient_training_pair_heads_have_real_source_evidence():
+    import pytest
+
+    pairs_path, lookup_path = DATA_DIR / 'ag_pairs.json', DATA_DIR / 'ag_lookup.json'
+    if not pairs_path.exists() or not lookup_path.exists():
+        pytest.skip('Ancient Greek built pairs and lookup are not installed')
+    pairs = json.loads(pairs_path.read_text(encoding='utf-8'))
+    lookup = json.loads(lookup_path.read_text(encoding='utf-8'))
+    heads = built_ancient_reading_heads(pairs, lookup, DATA_DIR)
+    bad, examples = training_pair_headword_errors(pairs, lookup, lexical_heads=heads)
+    assert bad == 0, f'{bad} unsupported Ancient training pair heads: {examples}'
 
 def get_known_pairs() -> list[dict]:
     """Curated test cases across varieties. Returns list of {form, lemma, variety}."""
@@ -227,7 +248,7 @@ def run_lookup_tests():
             continue
         pairs = json.load(open(pairs_path, encoding="utf-8"))
         lookup = json.load(open(lookup_path, encoding="utf-8"))
-        noun_heads, verb_heads, closed_heads = set(), set(), {}
+        noun_heads, verb_heads, closed_heads, lexical_heads = set(), set(), {}, {}
         if prefix == "mg":
             evidence_path = DATA_DIR / "el_noun_heads.json"
             try:
@@ -247,8 +268,14 @@ def run_lookup_tests():
             except (OSError, ValueError) as error:
                 results.append(("FAIL", "MG closed-class head evidence"))
                 print(f"  [FAIL] MG closed-class head evidence: {error}")
+        else:
+            try:
+                lexical_heads = built_ancient_reading_heads(pairs, lookup, DATA_DIR)
+            except (OSError, ValueError) as error:
+                results.append(("FAIL", "AG reading-head evidence"))
+                print(f"  [FAIL] AG reading-head evidence: {error}")
         bad, bad_ex = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads,
-                                                   closed_heads)
+                                                   closed_heads, lexical_heads)
         status = "PASS" if bad == 0 else "FAIL"
         results.append((status, f"{name} training pair lemmas clean"))
         print(f"\n  [{status}] {name} training pair lemmas clean: {bad}/{len(pairs)} dirty")
