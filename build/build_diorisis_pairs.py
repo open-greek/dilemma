@@ -45,6 +45,17 @@ DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"
 OUTPUT_PATH = DATA_DIR / "diorisis_pairs.json"
 
+
+def source_revision():
+    """Retain code hashes when an exported source archive has no Git metadata."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=SCRIPT_DIR, text=True,
+            stderr=subprocess.DEVNULL).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
 # Map Diorisis POS labels to Wiktionary-style POS (matching GLAUx pairs format)
 DIORISIS_POS_MAP = {
     "noun": "noun",
@@ -369,8 +380,7 @@ def main():
         audit_path.parent.mkdir(parents=True, exist_ok=True)
         source_files = ["build/build_diorisis_pairs.py", "build/diorisis_source.py"]
         payload = {"schema_version": 1,
-                   "source_commit": subprocess.check_output(
-                       ["git", "rev-parse", "HEAD"], cwd=SCRIPT_DIR, text=True).strip(),
+                   "source_commit": source_revision(),
                    "source_sha256": {name: hashlib.sha256((SCRIPT_DIR / name).read_bytes()).hexdigest()
                                      for name in source_files},
                    "sources": token_audit}

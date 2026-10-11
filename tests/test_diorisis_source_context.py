@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+import subprocess
 
 import pytest
 
@@ -157,3 +158,16 @@ def test_reader_paths_share_the_same_contextual_forms(tmp_path):
     assert sentences[-1][1] == ["<s>", "Βάκχου", "</s>"]
     context = DiorisisSourceContext(root)
     assert corpus_freq_key(betacode_to_unicode(context.beta(root.findall(".//word")[-1]))) == "βακχου"
+
+
+@pytest.mark.parametrize("error", [OSError("git unavailable"),
+                                   subprocess.CalledProcessError(128, "git")])
+def test_source_archives_can_write_audits_without_git_metadata(monkeypatch, error):
+    pytest.importorskip("beta_code")
+    from build import build_diorisis_pairs as builder
+
+    def unavailable(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(builder.subprocess, "check_output", unavailable)
+    assert builder.source_revision() is None
