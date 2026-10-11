@@ -868,6 +868,38 @@ def is_subjunctive_cell(tags: frozenset, form: str = "") -> bool:
 # Loading
 # --------------------------------------------------------------------------
 
+class Paradigms(dict):
+    """The union view used for evidence, with the original nominal cells."""
+
+    def __init__(self, forms, cell_rows):
+        super().__init__(forms)
+        self.cell_rows = cell_rows
+
+
+def form_tag_rows(paradigms, lemma: str, form: str) -> tuple[frozenset, ...]:
+    """Separate nominal cells without merging genitive and accusative tags.
+
+    Verb evidence retains its established union of tags. A single nominal
+    row can itself describe several syncretic cases or numbers; those are
+    separate cells as well, since their polytonic accents can differ.
+    """
+    tags = paradigms[lemma][form]
+    if is_verb(tags):
+        return (tags,)
+    rows = getattr(paradigms, "cell_rows", {}).get((lemma, form), (tags,))
+    out = set()
+    for row in rows:
+        row = row | (tags & {S_STEM})
+        cases = row & CASE_TAGS
+        numbers = row & {"singular", "plural"}
+        for case_ in cases or {None}:
+            for number in numbers or {None}:
+                separate = row - CASE_TAGS - {"singular", "plural"}
+                out.add(separate | ({case_} if case_ else set())
+                        | ({number} if number else set()))
+    return tuple(sorted(out, key=lambda row: tuple(sorted(row))))
+
+
 def load_verb_paradigms(path: Path = VERB_PARADIGMS
                         ) -> dict[str, dict[str, frozenset]]:
     """``load_paradigms`` for the verbs alone."""
@@ -896,11 +928,15 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
     with no ``NOMINAL_CELL_TAGS`` where another row of its part of speech
     places the form, a name's form with the letters of another word, and
     one with no case cell. The forms of an s-stem adjective carry
-    ``S_STEM``."""
+    ``S_STEM``. The result also retains separate nominal rows for
+    ``form_tag_rows``; their case tags must not collapse when generating
+    spellings (καθηγητῆ, genitive; καθηγητή, accusative or vocative)."""
     with open(path, encoding="utf-8") as fh:
         pairs = json.load(fh)
     out: dict[str, dict[str, frozenset]] = defaultdict(dict)
     rare: dict[str, dict[str, frozenset]] = defaultdict(dict)
+    rows: dict[tuple[str, str], set[frozenset]] = defaultdict(set)
+    rare_rows: dict[tuple[str, str], set[frozenset]] = defaultdict(set)
     pos_of_form: dict[str, set[str]] = defaultdict(set)
     placed: set[tuple[str, str]] = set()
     for p in pairs:
@@ -945,12 +981,18 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
             tags |= {FINITE}
         target = rare if tags & RARE_CELL_TAGS else out
         target[lemma][form] = target[lemma].get(form, frozenset()) | tags
+        if not is_verb(tags):
+            (rare_rows if target is rare else rows)[lemma, form].add(tags)
     for lemma, forms in rare.items():
         for form, tags in forms.items():
             if form in out.get(lemma, {}):
                 out[lemma][form] |= tags
+                if (lemma, form) in rare_rows:
+                    rows[lemma, form].update(rare_rows[lemma, form])
             elif not pos_of_form[form.lower()] - parts_of_speech(tags):
                 out[lemma][form] = tags
+                if (lemma, form) in rare_rows:
+                    rows[lemma, form].update(rare_rows[lemma, form])
     for lemma in list(out):
         # A name none of whose forms has a case cell is a foreign name in
         # transliteration (Τέσα, Τζέιμς, Γουίλιαμς), which Greek writes in
@@ -975,7 +1017,10 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
             for f, t in forms.items():
                 if "adj" in parts_of_speech(t):
                     forms[f] = t | {S_STEM}
-    return drop_table_fragments(dict(out))
+    kept = drop_table_fragments(dict(out))
+    return Paradigms(kept, {(lemma, form): tuple(rows[lemma, form])
+                           for lemma, forms in kept.items() for form in forms
+                           if (lemma, form) in rows})
 
 
 # The tags that place a form in its paradigm, for comparing a form with the
@@ -1132,8 +1177,10 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
     A form several lemmas share (επόμενες, of επόμενος and έπομαι; πουλάμε,
     of πουλάω and πωλώ) gets one spelling: it reads the attested spellings
     of all of their forms, and takes its tags and class from the lemma it
-    shares the most letters with (``_home_lemma``). The candidates come out
-    with the commonest spelling of their letters first (``Generated.weight``),
+    shares the most letters with (``_home_lemma``). Nominal case cells
+    keep their separate accent realizations. The
+    candidates come out with the commonest spelling of their letters first
+    (``Generated.weight``),
     so that a caller keeping the first of a set of spellings with the same
     letters keeps the commonest."""
     lemmas_of: dict[str, list[str]] = defaultdict(list)
@@ -1156,28 +1203,28 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
         if key not in pooled:
             pooled[key] = own[lemma] if len(lemmas) == 1 else _pool(
                 [own[l] for l in lemmas])
-        tags = paradigms[lemma][form]
-        vclass = verb_class(lemma, paradigms[lemma])
-        spelling = polytonic(form, tags, vclass, pooled[key], evidence, lemma)
-        if spelling is None:
-            continue
-        n = form_tokens(form, frequencies)
-        out.append(Generated(spelling, form, lemma, n, "indicative",
-                             vclass, cell(tags), n))
-        if is_subjunctive_cell(tags, form):
-            variant = subjunctive_variant(spelling)
-            # Monotonic writing spells the subjunctive -ει(ς), and writes it
-            # -η(ς) only by mistake, a few times in a hundred (σταματήσης,
-            # 80, beside σταματήσεις). Where it has the variant's letters
-            # and accent GENERATED_MIN_TOKENS times and at least a tenth as
-            # often as the form, they are another word's: the nouns
-            # υπολογιστή (12,664) beside υπολογιστεί, θέσης beside θέσεις.
-            written = frequencies.get(monotonic_key(variant), 0) \
-                if variant else 0
-            if variant and (written < min_tokens or written * 10 < n):
-                out.append(Generated(variant, form, lemma, n,
-                                     "subjunctive", vclass, cell(tags),
-                                     written))
+        for tags in form_tag_rows(paradigms, lemma, form):
+            vclass = verb_class(lemma, paradigms[lemma])
+            spelling = polytonic(form, tags, vclass, pooled[key], evidence, lemma)
+            if spelling is None:
+                continue
+            n = form_tokens(form, frequencies)
+            out.append(Generated(spelling, form, lemma, n, "indicative",
+                                 vclass, cell(tags), n))
+            if is_subjunctive_cell(tags, form):
+                variant = subjunctive_variant(spelling)
+                # Monotonic writing spells the subjunctive -ει(ς), and writes it
+                # -η(ς) only by mistake, a few times in a hundred (σταματήσης,
+                # 80, beside σταματήσεις). Where it has the variant's letters
+                # and accent GENERATED_MIN_TOKENS times and at least a tenth as
+                # often as the form, they are another word's: the nouns
+                # υπολογιστή (12,664) beside υπολογιστεί, θέσης beside θέσεις.
+                written = frequencies.get(monotonic_key(variant), 0) \
+                    if variant else 0
+                if variant and (written < min_tokens or written * 10 < n):
+                    out.append(Generated(variant, form, lemma, n,
+                                         "subjunctive", vclass, cell(tags),
+                                         written))
     out.sort(key=lambda g: (-g.weight, -g.tokens, g.mono, g.kind))
     return out
 

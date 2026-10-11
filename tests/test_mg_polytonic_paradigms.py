@@ -27,6 +27,16 @@ GRC = ["ἀνάγκη", "ἀναβαίνω", "ἀναλύω", "ἀνήρ", "ἀ�
 EVIDENCE = P.Evidence({}, GRC)
 
 
+@pytest.fixture(autouse=True)
+def nominal_forms_from_test_paradigms(monkeypatch):
+    # Unit fixtures are self-contained; do not read the on-disk corpus.
+    def forms():
+        inputs = mg._verb_inputs()
+        return frozenset(f for rows in (inputs[0] if inputs else {}).values()
+                         for f, tags in rows.items() if not P.is_verb(tags))
+    monkeypatch.setattr(mg, "_nominal_forms", forms)
+
+
 def nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
@@ -1020,3 +1030,111 @@ def test_a_name_whose_only_reading_is_a_dative(monkeypatch):
     # is generated though its count stays under M.
     assert {nfc("Ῥωσία"), nfc("Ῥωσίας"), nfc("Δανία"),
             nfc("Δανίας")} <= lst.generated
+
+
+def test_the_plain_spelling_beside_a_listed_dative(tmp_path, monkeypatch):
+    total = 100_000_000
+    paradigms = {"λαμβάνω": {"λάβει": frozenset({
+        "dependent", "third-person", "singular", "finite", P.VERB})}}
+    freq = {"μόσχα": 1_000, "πινακοθήκη": 139, "ζυρίχη": 592,
+            "βυζαντινή": 32, "λάβη": 10, "σιγηλή": 0,
+            "πολύ": total - 1_773}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset(
+        {"Μόσχα", "πινακοθήκη", "Ζυρίχη", "βυζαντινή", "λάβη", "σιγηλή"}))
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    grc = set(GRC) | {nfc(w) for w in ("Μόσχα", "πινακοθήκη", "λάβη",
+                                       "σιγηλή")}
+    counts = _counts([("Μόσχᾳ", "cap", {0: 3, 1: 3}),
+                      ("πινακοθήκῃ", "lower", {0: 3, 1: 3}),
+                      ("Ζυρίχῃ", "cap", {0: 3, 1: 3}),
+                      ("βυζαντινῇ", "lower", {0: 3, 1: 3}),
+                      ("σιγηλῇ", "lower", {0: 3, 1: 3}),
+                      ("λάβῃ", "lower", {0: 3, 1: 3})])
+    lst = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    # The list attests the datives; the nominative and accusative of the
+    # same letters, which grc has, get a Modern Greek rating, R as well,
+    # and a name's capitalized (Μόσχα: 10 per million, M).
+    assert lst.shared[nfc("Μόσχα")] == "M"
+    assert lst.shared[nfc("πινακοθήκη")] == "R"
+    # Those neither list has are generated, with their oxytone twins.
+    assert {nfc("Ζυρίχη"), nfc("βυζαντινή"), nfc("βυζαντινὴ")} \
+        <= lst.generated
+    # Not the letters of a subjunctive (λάβει), nor where monotonic text
+    # never writes the plain letters.
+    assert nfc("λάβη") not in lst.shared
+    assert nfc("σιγηλή") not in lst.shared
+    mg.write_selection(lst, tmp_path, variant="grc-mg", source="test")
+    lines = (tmp_path / "grc_mg_polytonic.dic").read_text("utf-8")
+    assert nfc("πινακοθήκη\tfr:R mg:shared\n") in lines
+    assert nfc("Ζυρίχη\tfr:R mg:generated\n") in lines
+    version = (tmp_path / "grc_mg_polytonic.version").read_text("utf-8")
+    assert "shared_buckets: C=0 M=1 R=1\n" in version
+
+
+@pytest.mark.parametrize("dative, plain", [
+    ("πινακοθήκῃ", "πινακοθήκη"),
+    ("Μόσχᾳ", "Μόσχα"),
+    ("βυζαντινῇ", "βυζαντινή"),
+    ("καρδιᾷ", "καρδιά"),
+    ("γῇ", "γῆ"),           # grc writes the plain letters with it
+    ("λόγῳ", None),         # the second declension's dative
+    ("πινακοθήκη", None),
+])
+def test_plain_twin(dative, plain):
+    assert mg.plain_twin(nfc(dative), {nfc("γῆ")}) == (
+        nfc(plain) if plain else None)
+
+
+def test_nominal_rows_preserve_genitive_accusative_and_vocative(tmp_path):
+    rows = [("καθηγητή", "καθηγητής", "noun", [case, "singular"])
+            for case in ("genitive", "accusative", "vocative")]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    freq = {"καθηγητή": 2_000}
+    generated = P.generate(par, freq, P.Evidence({}, set(), par))
+    assert {(g.spelling, g.cell) for g in generated} == {
+        (nfc("καθηγητῆ"), "noun genitive singular"),
+        (nfc("καθηγητή"), "noun accusative singular"),
+        (nfc("καθηγητή"), "noun vocative singular"),
+    }
+
+
+def test_nominal_syncretic_row_preserves_each_accent(tmp_path):
+    rows = [("μαθητή", "μαθητής", "noun",
+             ["genitive", "accusative", "vocative", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    generated = P.generate(par, {"μαθητή": 1_000}, P.Evidence({}, set(), par))
+    assert {g.spelling for g in generated} == {nfc("μαθητῆ"), nfc("μαθητή")}
+
+
+@pytest.mark.parametrize("noun_grc, noun_new", [
+    ("καθηγητῆ", "καθηγητή"), ("καθηγητή", "καθηγητῆ")])
+def test_nominal_coverage_and_shared_counts_follow_polytonic_cells(
+        tmp_path, monkeypatch, noun_grc, noun_new):
+    rows = [("καθηγητή", "καθηγητής", "noun", [case, "singular"])
+            for case in ("genitive", "accusative", "vocative")]
+    rows += [("απλή", "απλός", "adj", ["nominative", "singular", "feminine"]),
+             ("απλοί", "απλός", "adj", ["nominative", "plural", "masculine"]),
+             ("διεθνή", "διεθνής", "adj", ["accusative", "singular"]),
+             ("διεθνές", "διεθνής", "adj", ["nominative", "singular", "neuter"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    freq = {"καθηγητή": 20_000, "απλή": 10_641, "απλοί": 1_407,
+            "διεθνή": 10_000, "πολύ": 100_000_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset())
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    grc = set(GRC) | {nfc(s) for s in (noun_grc, "ἁπλῆ", "ἁπλοῖ", "διεθνῆ")}
+    counts = _counts([("ἁπλῆ", "lower", {0: 3, 1: 3}),
+                      ("ἁπλοῖ", "lower", {0: 3, 1: 3})])
+    lst = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert {nfc(noun_new), nfc("ἁπλή"), nfc("ἁπλοί")} <= lst.generated
+    assert nfc("διεθνή") not in lst.generated
+    assert lst.shared[nfc(noun_grc)] == "C"
+    assert lst.shared[nfc("διεθνῆ")] == "C"
+    assert nfc("ἁπλῆ") not in lst.shared
+    assert nfc("ἁπλοῖ") not in lst.shared
+    attested_only = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=False)
+    assert nfc("ἁπλῆ") not in attested_only.shared
+    assert nfc("ἁπλοῖ") not in attested_only.shared
