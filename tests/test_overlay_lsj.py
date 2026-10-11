@@ -704,3 +704,50 @@ def test_missing_tone_in_citation_owner_can_use_unique_positive_head():
         [("glaux_pairs.json", [{"form": "ὑπῆν", "lemma": "ὑπειμι"}])],
         {"ὕπειμι"})
     assert target["ὑπῆν"] == target["υπην"] == "ὕπειμι"
+
+
+@pytest.mark.parametrize("form,raw_owner,head", [
+    ("συνεισιέναι", "σύνείσειμι", "συνείσειμι"),
+    ("ξύνιον", "συν\u0301ιω", "συνίω"),
+])
+def test_impossible_citation_accents_use_unique_same_marked_head(form, raw_owner, head):
+    target = {form: raw_owner}
+    audit = restore_attested_compound_aliases(
+        {form: "σύνειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": form, "lemma": raw_owner}])],
+        {head, "σύνειμι"})
+    assert target[form] == head
+    assert audit["canonicalized"]
+    reading = audit["canonicalized"][0]["cells"][0]["readings"][0]
+    assert reading["form"] == form
+    assert reading["lemma"] == raw_owner
+
+
+def test_impossible_citation_accents_do_not_choose_between_positive_heads():
+    target = {"ξύνιον": "συν\u0301ιω"}
+    audit = restore_attested_compound_aliases(
+        {"ξύνιον": "σύνειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "ξύνιον", "lemma": "συν\u0301ιω"}])],
+        {"συνίω", "σύνιω", "σύνειμι"})
+    assert target["ξύνιον"] == "συν\u0301ιω"
+    assert not audit["canonicalized"]
+
+
+def test_impossible_citation_accents_do_not_replace_breathing():
+    target = {"ὑπῆν": "ὑπ\u0301ειμι"}
+    audit = restore_attested_compound_aliases(
+        {"ὑπῆν": "ὕπειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "ὑπῆν", "lemma": "ὑπ\u0301ειμι"}])],
+        {"ὔπειμι"})
+    assert target == {"ὑπῆν": "ὑπ\u0301ειμι"}
+    assert not audit["canonicalized"]
+
+
+def test_valid_enclitic_citation_accent_is_not_treated_as_malformed():
+    target = {"πρόσειμί": "πρόσειμί"}
+    audit = restore_attested_compound_aliases(
+        {"πρόσειμί": "πρόσειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "πρόσειμί", "lemma": "πρόσειμί"}])],
+        {"πρόσειμι"})
+    assert target["πρόσειμί"] == "πρόσειμί"
+    assert not audit["canonicalized"]

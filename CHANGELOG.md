@@ -11,7 +11,10 @@ All notable changes to Dilemma are documented here. The format follows
   readings under the defined parent verb instead of creating a separate head.
 - Ancient source aliases preserve existing citation accents instead of
   matching a different headword after removing them. Missing accents may
-  still be supplied from a uniquely supported head.
+  still be supplied from a uniquely supported head. Structurally impossible
+  citation accents may use the same unique-head correction while retaining
+  breathing, subscript, case, and original source metadata; valid accents
+  and ambiguous heads remain protected.
 - Modern noun form pages retain their exact grammatical references but do
   not authorize full tables whose own-head cells contradict those references.
   Independent homographs, spelling variants, and separate lexical meanings

@@ -194,13 +194,19 @@ def restore_attested_compound_aliases(
         if lemma[:1].isupper() and lemma.lower() in heads:
             lemma = lemma.lower()
             return lemma
-        # Missing accents in citation metadata can be supplied by a unique
-        # positive head. An existing accent can distinguish another lexeme
-        # or a contracted form, so it must not be silently replaced.
+        # Missing or structurally impossible citation accents can be
+        # supplied by a unique positive head with the same remaining marks.
+        # A valid accent can distinguish another lexeme or a contracted
+        # form, so it must not be silently replaced. This repairs citation
+        # metadata only; actual source spellings keep their original marks.
         has_tone = any(ord(char) in TONAL_MARKS
                        for char in unicodedata.normalize("NFD", lemma))
+        malformed_tone = has_tone and grc_orthography_reason(lemma) in {
+            "tonal_mark_on_consonant", "duplicate_tonal_marks",
+            "duplicate_tonal_marks_on_syllable", "misplaced_second_accent",
+        }
         options = tonal_heads[lexical_head_key(lemma)]
-        if not has_tone and len(options) == 1:
+        if (not has_tone or malformed_tone) and len(options) == 1:
             return next(iter(options))
         # Only a completely unmarked annotation can use a unique marked
         # head. A marked conflict must not lose breathing, subscript or case.
