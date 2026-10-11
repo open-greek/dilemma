@@ -336,6 +336,11 @@ the alternative to a different numbered etymology from an independently
 defined homograph, only that alternative entry follows the reference. For
 example, the binding and needing senses of `δέω` retain their own tables;
 the separate alternative spelling of `δήω` still points to `δήω`.
+Synthesized first-aorist active infinitives and present or future neuter
+participles retain their accent position while taking a circumflex on a
+known long penult before a short final syllable (`τμῆξαι`, `παιδεῦον`).
+Unmarked vowel length is not guessed, and finite optatives keep their
+distinct accent.
 An inflected reading
 does not replace an independently defined homograph: `δίω` keeps its own
 conjugation as well as its separate reading in the conjugation of `δείδω`.

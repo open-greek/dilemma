@@ -758,6 +758,17 @@ def decline_3rd_decl_participle(
             out[cgn] = stem_no_accent + ending
         else:
             out[cgn] = stem + ending
+            if (pattern in {"present_active", "future_active"}
+                    and cgn[1:] == ("n", "sg")):
+                # The neuter retains the masculine accent position, but
+                # a long penult before short -ον takes a circumflex.
+                import sys
+                from pathlib import Path
+                build_dir = str(Path(__file__).resolve().parent)
+                if build_dir not in sys.path:
+                    sys.path.insert(0, build_dir)
+                from synth_verb_moods import _long_penult_circumflex
+                out[cgn] = _long_penult_circumflex(stem, ending)
     return out
 
 

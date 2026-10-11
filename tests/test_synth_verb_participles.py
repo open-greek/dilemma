@@ -86,6 +86,24 @@ class TestPresentActive:
     """λύω → λύων / λύουσα / λῦον. We don't synthesise the circumflex
     on neuter sg cells, so ignore quantity marks for those compares."""
 
+    @pytest.mark.parametrize("lemma,expected", [
+        ("δήω", "δῆον"),
+        ("παιδεύω", "παιδεῦον"),
+        ("ἀΐσσω", "ἀΐσσον"),
+        ("γράφω", "γράφον"),
+        ("ἀπολύω", "ἀπολύον"),
+    ])
+    def test_neuter_long_penult_keeps_accent_position(self, synth, lemma, expected):
+        out = synth.synthesize_participles(lemma, {})
+        for case in ("nom", "acc", "voc"):
+            assert out[f"active_present_participle_{case}_n_sg"] == expected
+
+    def test_future_neuter_long_penult(self, synth):
+        out = synth.synthesize_participles("εὕω", {"fut": "εὕσω"})
+        for case in ("nom", "acc", "voc"):
+            assert out[f"active_future_participle_{case}_n_sg"] == "εὗσον"
+        assert out["active_future_participle_nom_m_sg"] == "εὕσων"
+
     def test_lyo_present_active_masculine(self, synth):
         out = synth.synthesize_participles("λύω", {})
         assert out["active_present_participle_nom_m_sg"] == "λύων"

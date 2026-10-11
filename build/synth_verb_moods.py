@@ -1304,7 +1304,7 @@ def synthesize_active_moods(
             _emit(f"active_aorist_optative_{p}{n}", aor_stem, end)
         for (p, n), end in _AOR_IMP.items():
             _emit(f"active_aorist_imperative_{p}{n}", aor_stem, end)
-        out["active_aorist_infinitive"] = aor_stem + _AOR_INF
+        out["active_aorist_infinitive"] = _long_penult_circumflex(aor_stem, _AOR_INF)
 
     return out
 
@@ -1527,6 +1527,27 @@ def _recessive_full_form(prefix: str, ending: str) -> str:
     For 2-syllable forms (e.g. λίπε from λιπ + ε), the accent is on
     the only valid recessive position (penult).
     """
+    return _accent_full_form(prefix, ending)
+
+
+def _long_penult_circumflex(prefix: str, ending: str) -> str:
+    """Apply the long-penult rule without moving a persistent stem accent.
+
+    First-aorist active infinitives and neuter participles retain their
+    accent position, unlike finite recessive forms (Smyth 425, 427).
+    Only change an acute to a circumflex when quantity establishes it.
+    """
+    original = unicodedata.normalize("NFD", prefix + ending)
+    candidate = unicodedata.normalize(
+        "NFD", _accent_full_form(prefix, ending, penult=True)
+    )
+    if candidate.replace("͂", "́") == original:
+        return unicodedata.normalize("NFC", candidate)
+    return unicodedata.normalize("NFC", original)
+
+
+def _accent_full_form(prefix: str, ending: str, *, penult: bool = False) -> str:
+    """Place a recessive or fixed-penult accent using explicit quantity."""
     if not prefix:
         return ending
     pre = _strip_tonal_accents(prefix)
@@ -1586,7 +1607,7 @@ def _recessive_full_form(prefix: str, ending: str) -> str:
     n = len(syllables)
     if n == 1:
         target = 0
-    elif n == 2 or final_long:
+    elif penult or n == 2 or final_long:
         target = n - 2  # penult
     else:
         target = n - 3  # antepenult

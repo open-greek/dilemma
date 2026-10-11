@@ -9,6 +9,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Preserve the long-penult circumflex in synthesized first-aorist active
+  infinitives and present or future neuter participles, without moving
+  persistent accents or changing finite optatives.
 - Keep independent Ancient homographs under their own headword when an
   alternative spelling belongs to a different numbered etymology. The
   binding and needing senses of `δέω` no longer acquire the lemma `δήω`.

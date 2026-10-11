@@ -371,6 +371,17 @@ class TestPresentMiddleSynthesis:
 class TestAoristMiddleFromFut:
     """Aorist middle uses the σ-stem from the future principal part."""
 
+    @pytest.mark.parametrize("lemma,future,expected", [
+        ("τμήγω", "τμήξω", "τμῆξαι"),
+        ("παιδεύω", "παιδεύσω", "παιδεῦσαι"),
+        ("γράφω", "γράψω", "γράψαι"),
+        ("λύω", "λύσω", "λύσαι"),
+        ("ἀΐσσω", "ἀΐξω", "ἀΐξαι"),  # Unmarked iota has unknown quantity.
+    ])
+    def test_active_infinitive_long_penult(self, synth, lemma, future, expected):
+        out = synth.synthesize_active_moods(lemma, {"fut": future})
+        assert out["active_aorist_infinitive"] == expected
+
     def test_lyo_aorist_middle_subjunctive(self, synth):
         out = synth.synthesize_mp_moods("λύω", {"fut": "λύσω"})
         assert out["middle_aorist_subjunctive_1sg"] == "λύσωμαι"
