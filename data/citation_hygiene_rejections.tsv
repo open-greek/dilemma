@@ -368,7 +368,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	προυργιαίτατον	πρ́ουρ�
 AG	ag_lookup.json	orphaned_tonal_mark	πραμνίοις	πραμ́νιος
 AG	ag_lookup.json	orphaned_tonal_mark	πραθένται	πρεθεν́
 AG	ag_lookup.json	orphaned_tonal_mark	προγεγενμένων	προγεγν́ημι
-AG	ag_lookup.json	orphaned_tonal_mark	προειδοῦσα	προειδ́ειμι
 AG	ag_lookup.json	orphaned_tonal_mark	προσαγγελέντων	προσαγγελ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	προσενήνεγκτο	προσενανεγ́σσω
 AG	ag_lookup.json	orphaned_tonal_mark	προσενεγκτέον	προσενεγ́γω
@@ -566,12 +565,9 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἐκκρεμανῦντα	ἐκκρεμα
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκκυμανθεῖσαν	ἐκκυμαν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκπυΐσκωσιν	ἐκπ́-υΐσκω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξεπόνασας	ἐκπονασας́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐκπρολιπγοῦσα	ἐκπρολιπγ́ειμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκτεθηλυμένῳ	ἐκτεθηλ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκτένοντες	ἐκτεπ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκτέραπται	ἐκτιραπ́σκω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐλὼν	ἐλ́ειμι
-AG	ag_lookup.json	orphaned_tonal_mark	ἐλσὼν	ἐλσ́ειμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐμβολὼν	ἐμ́-βλῴσκω
 AG	ag_lookup.json	orphaned_tonal_mark	ἔμβκλε	ἐμβκ́λω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐμβραχέντων	ἐμβραχ́ημι
@@ -588,7 +584,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἐπῇρα	ἐπ͂ραμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπαυχμήεις	ἐπαυχμ́εις
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπενήνεγκται	ἐπενανεγ́σσω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπευκτέα	ἐπευκ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐπιβιὸν	ἐπιβ́ιειμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπέβραχον	ἐπιβραχ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπέμψε	ἐπιμ́πω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπεπλήμμυρε	ἐπιπλημμυρ́ω
@@ -641,7 +636,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	ὀσφρανθήσῃ	ὀσφρ́ανω
 AG	ag_lookup.json	orphaned_tonal_mark	ὀσφρανθήσονται	ὀσφραν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	ὀφθὴναι	ὀφ́θημι
 AG	ag_lookup.json	orphaned_tonal_mark	ὁμολόγεωσι	ὁμολοιγ́γεσκω
-AG	ag_lookup.json	orphaned_tonal_mark	ὁμρρούσης	ὁμρ́ρειμι
 AG	ag_lookup.json	orphaned_tonal_mark	ὁνομάτων	ὁν͂ομα
 AG	ag_lookup.json	orphaned_tonal_mark	ὁποινοῦν	ὁπ́οις
 AG	ag_lookup.json	orphaned_tonal_mark	ὁποσαπλασιονοῦν	ὁποσαπλασ́ιος
@@ -4892,6 +4886,7 @@ AG	glaux_pairs.json	orphaned_tonal_mark	πενταπλασιάσαντος	πε�
 AG	glaux_pairs.json	orphaned_tonal_mark	ποιολύμενοι	ποιολ́ομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	περυραμένης	πρ́γυρομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	προγεγρμμένοις	προγεγ́γρμμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	προειδοῦσα	προειδ́ειμι
 AG	glaux_pairs.json	orphaned_tonal_mark	προεκκεκαθαρμένης	προεκκεκαθαρ́ννυμι
 AG	glaux_pairs.json	orphaned_tonal_mark	προκεκαθαρμένης	προκεκαθαρ́ννυμι
 AG	glaux_pairs.json	orphaned_tonal_mark	προσεπτυσμένοις	προσεπτ́γυσμαι
@@ -4911,16 +4906,21 @@ AG	glaux_pairs.json	orphaned_tonal_mark	ἀφίεναι	ἀφ́ερχομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἁλισκομένοι	ἁλισκ́ομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἐδυνά	ἐδυν́μαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἔπέζευκται	ἐεζευκ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐκπρολιπγοῦσα	ἐκπρολιπγ́ειμι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἐξερεύξαιντο	ἐκριυγ́ξαιμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐλὼν	ἐλ́ειμι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐλσὼν	ἐλσ́ειμι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἐνδεικυμένη	ἐνδεικ́ομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἐξολογεῖσθε	ἐξολογ́ζομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἐπαφίεναι	ἐπαφ́ερχομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐπιβιὸν	ἐπιβ́ιειμι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἐρέθοντες	ἐρ ́εθω
 AG	glaux_pairs.json	orphaned_tonal_mark	ἔστορι	ἐστορ́ρχομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἱδὼν	ἑδ́ρχομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἑλχθέντων	ἑλ́γω
 AG	glaux_pairs.json	orphaned_tonal_mark	ἠνοιγμένη	ἠνοιγ́ννυμι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἠνοιγμέναις	ἠνοιγ͂μαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ὁμρρούσης	ὁμρ́ρειμι
 AG	glaux_pairs.json	orphaned_tonal_mark	ὑπεισχημένος	ὑποισχ́ηνυμαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ὑπερέβαλλεν’	ὑπορεβαλλεν’́ομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ᾅμα	ᾁ̈νμ́αμαι
