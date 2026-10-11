@@ -6,9 +6,41 @@
   "respelling": 399,
   "structural": 182,
   "historical_ocr": 4,
-  "corpus_quote": 1
+  "corpus_quote": 1,
+  "corpus_fragment": 1
  },
  "reviews": [
+  {
+   "form": "ἐνεί",
+   "decision": "reject",
+   "class": "corpus_fragment",
+   "locus": "Hippocrates, De articulis 70; Eusebius, Praeparatio evangelica 9.14.2; PG 21.538, 81.288, 124.395, 126.412, 146.306",
+   "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0627-010.xml",
+   "source_sha256": "f2338e56868e67f8fb3df91121958cbe0de4009efeadab155f07fb0d40aabcd4",
+   "original_source_form": "ἐνεί",
+   "corrected_source_readings": [
+    {
+     "locus": "Hippocrates, De articulis 70",
+     "original": "ἐνεί · ραντα τὸν πῆχυν",
+     "corrected": "ἐνείραντα τὸν πῆχυν",
+     "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/master/data/tlg0627/tlg010/tlg0627.tlg010.perseus-grc2.xml",
+     "source_sha256": "b15ded7c0fd96cc75f51d9eef191b7b3ae2b1e1e11ea53ac1434d5ae71b413bf"
+    },
+    {
+     "locus": "Eusebius, Praeparatio evangelica 9.14.2",
+     "original": "ἐνεί- κασθαι",
+     "corrected": "ἐνείκασθαι",
+     "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/master/data/tlg2018/tlg001/tlg2018.tlg001.1st1K-grc1.xml",
+     "source_sha256": "c90fcf7562fccc3cb34b853df777885135e8beae4002ab56cefe91a9378bbd26"
+    }
+   ],
+   "reviewed_on": "2026-10-11",
+   "reasons": [
+    "The Hippocratic source splits the complete participle ἐνείραντα into ἐνεί and ραντα. The Eusebius witness breaks ἐνείκασθαι across a line; neither licenses an independent ἐνεί token.",
+    "The remaining indexed witnesses are OCR or tokenization artifacts: ἐκεῖ at PG 81.288, split ἐκείνην at PG 124.395, mixed-script debris at PG 126.412, and split ἐκείνοις at PG 146.306. Independent review of all seven indexed works and the merged lexical inventory found no complete homograph with this exact spelling.",
+    "Reject the exact fragment and its contextual grave after compatibility injection and during source-alias recovery. Preserve the independently defined ἔνει and the complete source words. Raw source text and annotations remain unchanged; removing this authored review row reverses the rejection."
+   ]
+  },
   {
    "form": "ἄφεσ᾽",
    "decision": "reject",

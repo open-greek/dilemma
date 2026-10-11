@@ -315,6 +315,21 @@ def test_baseline_mapping_conflicts_allow_independent_source_owner_repairs(tmp_p
     assert row["historical_conflict_owner"] == "ἀντί-ἔξειμι"
 
 
+def test_reviewed_split_fragment_cannot_license_source_aliases():
+    blocked = alias_spelling_exclusions(
+        {"nonlexical": {}, "baseline_conflicts": {}},
+        ROOT / "data" / "hunspell_grc_spelling_review.json")
+    assert "ἐνεί" in blocked
+    assert "ἔνει" not in blocked
+    target = {}
+    audit = restore_attested_compound_aliases(
+        {"ενει": "ἔνειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "ἐνεί", "lemma": "ἔνειμι"}])],
+        {"ἔνειμι"}, excluded_forms=blocked)
+    assert not {"ενει", "ένει", "ἐνεί", "ἐνεὶ"} & target.keys()
+    assert all(row["form"] not in {"ἐνεί", "ἐνεὶ"} for row in audit["recovered"])
+
+
 @pytest.mark.parametrize("hard,source", [("νί", "νὶ"), ("νὶ", "νί")])
 def test_hard_rejections_apply_to_both_contextual_accent_directions(tmp_path, hard, source):
     review = tmp_path / "review.json"

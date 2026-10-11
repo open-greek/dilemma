@@ -1991,6 +1991,12 @@ Closed apocope and consonant-final word lists remain available. The export audit
 records these rejections; raw corpus counts do not override the check because
 transcriptions can lose apostrophes.
 
+Exact reviewed corpus fragments are also excluded after compatibility and
+from source-alias recovery. The review for `ἐνεί` records the split complete
+words `ἐνείραντα` and `ἐνείκασθαι` and the remaining OCR loci; it preserves
+the independent headword `ἔνει`. The authored spelling review is reversible
+and leaves the original source readings unchanged.
+
 The optional `data/ag_source_alias_audit.json` and
 `data/ag_source_alias_manifest.json` preserve source readings and reversible
 alias changes, and pin the matching lookup, predecessor, source revision,

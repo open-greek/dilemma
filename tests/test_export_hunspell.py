@@ -2095,3 +2095,19 @@ def test_confirmed_closing_quote_rejection_overrides_compatibility_and_elision_a
         quote_approved_forms=forms, reviewed_rejects=load_grc_spelling_review())
     assert {form for form, _ in kept} == forms - {"ἄφεσ᾽"}
     assert report["reviewed"] == 1
+
+
+def test_reviewed_split_word_fragment_does_not_override_complete_homographs():
+    from export_hunspell import load_grc_spelling_review
+    rejects = load_grc_spelling_review()
+    bad = {"ἐνεί", "ἐνεὶ"}
+    good = {"ἔνει", "ἐνείραντα", "ἐνείκασθαι", "ἐκεῖ", "ἐκείνην", "ἐκείνοις"}
+    assert "ἐνεί" in rejects
+    assert not good & rejects
+    forms = bad | good
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)], evidence=_evidence(exact={}),
+        compatibility_forms=forms, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, reviewed_rejects=rejects)
+    assert {form for form, _ in kept} == good
+    assert report["reviewed"] >= len(bad)
