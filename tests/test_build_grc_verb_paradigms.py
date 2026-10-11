@@ -1506,10 +1506,40 @@ class TestCellSpellingBoundary:
             "κυλίσαι" if only_dialect else "κυλῖσαι")
         assert result["dialects"]["epic"]["active_aorist_infinitive"] == "κυλίσαι"
 
-    def test_tagless_spelling_retains_the_existing_fallback(self, b):
+    def test_tagless_spelling_cannot_reaccent_a_cell(self, b):
         spellings = {("βαίνω", b.accent_type_skeleton("βαίνον")): "βαῖνον"}
         assert b.spelling_for_cell("βαίνω", "active_present_participle_acc_n_sg",
-                                   "βαίνον", spellings, {}, {}) == "βαῖνον"
+                                   "βαίνον", spellings, {}, {}) == "βαίνον"
+
+    @pytest.mark.parametrize("lemma,optative,infinitive", [
+        ("πείθω", "πείσαι", "πεῖσαι"),
+        ("ἀγαθοποιέω", "ἀγαθοποιήσαι", "ἀγαθοποιῆσαι"),
+        ("ἀπιστέω", "ἀπιστήσαι", "ἀπιστῆσαι"),
+    ])
+    def test_tagless_infinitive_preserves_generated_default_optative(
+            self, b, monkeypatch, tmp_path, lemma, optative, infinitive):
+        rows = [
+            {"form": lemma, "lemma": lemma, "pos": "verb",
+             "tags": ["active", "present", "indicative", "first-person", "singular"]},
+            {"form": infinitive, "lemma": lemma, "pos": "verb",
+             "tags": ["form-of"]},
+            {"form": optative, "lemma": lemma, "pos": "verb",
+             "tags": ["active", "aorist", "optative", "third-person", "singular", "Epic"]},
+        ]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        def synthesize(results, *args):
+            forms = results[lemma]["forms"]
+            forms["active_aorist_optative_3sg"] = optative
+            forms["active_aorist_infinitive"] = infinitive
+            results[lemma]["form_count"] = len(forms)
+        monkeypatch.setattr(b, "synthesize_missing_moods", synthesize)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()[lemma]
+        assert result["forms"]["active_aorist_optative_3sg"] == optative
+        assert result["forms"]["active_aorist_infinitive"] == infinitive
+        assert result["dialects"]["epic"]["active_aorist_optative_3sg"] == optative
 
     def test_final_build_keeps_generated_optative_distinct_from_infinitive(self, b,
                                                                          monkeypatch,

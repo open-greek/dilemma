@@ -1091,8 +1091,9 @@ def spelling_for_cell(lemma, key, form, spellings, cells, by_letters):
     canonical = spellings.get((lemma, skeleton))
     attested = by_letters.get((lemma, skeleton), ())
     if not attested:
-        # A spelling without grammatical tags makes no competing cell claim.
-        return canonical or form
+        # A tagless spelling cannot establish which cell uses its accent.
+        # In particular, an infinitive may share letters with an optative.
+        return form
     want = key_cell_tags(key)
     fitting = {spelling for spelling in attested
                if any(tags <= want for tags in cells.get((lemma, spelling), ()))}

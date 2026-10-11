@@ -37,6 +37,8 @@ All notable changes to Dilemma are documented here. The format follows
   imperative's distinct accent.
   Explicit tense also keeps an aorist participle from deciding a future
   participle's accent; sources that omit tense can still match.
+  Tagless form references cannot change a generated cell's accent; an
+  infinitive spelling no longer supplies the accent of a default optative.
 - Exclude monotonic copies of perfect-optative auxiliaries from other
   verbs' conjugations while retaining independent aorist homographs.
   Apply the shared auxiliary check during Ancient Wiktionary extraction

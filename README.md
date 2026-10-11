@@ -2221,8 +2221,8 @@ share is still corrected, as `βαίνον` is to `βαῖνον`. When grammati
 tags exist, the replacement must fit the current cell, including an
 explicit tense. A missing tense imposes no extra restriction. An infinitive
 cannot reaccent a generated optative merely because the optative's
-own source row was filtered out. Untagged spellings retain the existing
-fallback because they make no conflicting grammatical claim. Accent
+own source row was filtered out. Untagged spellings cannot change a cell's
+accent, because they provide no grammatical evidence for that cell. Accent
 evidence also stays within the default paradigm's dialect: an Epic
 `κυλίσαι` does not replace Attic `κυλῖσαι`. A paradigm drawn entirely
 from another dialect uses that dialect's evidence. A unique matching
