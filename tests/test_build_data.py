@@ -862,6 +862,34 @@ def test_complete_reference_with_grammar_notes_does_not_prove_a_head(pos, gloss)
 
 
 @pytest.mark.parametrize("gloss", [
+    "συγκριτικός βαθμός του ἀγαθός",
+    "συγκριτικός βαθμός του ἐλαχύς",
+    "συγκριτικός βαθμός του κρατύς: ισχυρότερος",
+    "συγκριτικός βαθμός του ἀγαθός: καλύτερος",
+    "υπερθετικός βαθμός του ἀγαθός",
+    "συγκριτικός του ἀγαθός",
+])
+def test_degree_reference_does_not_supply_an_independent_adjective(gloss):
+    from build.build_grc_lexical_heads import has_definition
+    from build_data import is_independent_lexical_entry
+    entry = {"word": "λέξη", "pos": "adj", "senses": [{"glosses": [gloss]}]}
+    assert not is_independent_lexical_entry(entry, "el")
+    assert not has_definition(entry, "el")
+    entry["senses"][0]["glosses"].append("inferior, weaker")
+    assert is_independent_lexical_entry(entry, "el")
+    assert has_definition(entry, "el")
+
+
+def test_independent_adjective_definition_can_discuss_degrees():
+    from build.build_grc_lexical_heads import has_definition
+    from build_data import is_independent_lexical_entry
+    entry = {"word": "λέξη", "pos": "adj", "senses": [
+        {"glosses": ["ο συγκριτικός βαθμός δηλώνει ανώτερη ιδιότητα"]}]}
+    assert is_independent_lexical_entry(entry, "el")
+    assert has_definition(entry, "el")
+
+
+@pytest.mark.parametrize("gloss", [
     "κρητικός τύπος του ἡλικιώτης, συνέφηβος",
     "επικός τύπος του ἀγρεύω, κυριεύω, κυνηγώ, επιδιώκω, καταλαμβάνω",
     "άλλη μορφή του λύω (μια ανεξάρτητη σημασία)",

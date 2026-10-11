@@ -344,6 +344,9 @@ unsupported chains retain the previous fallback.
 This priority applies to the explicit target recorded in a source reading,
 including structured spelling and inflection references;
 scalar part-of-speech mappings keep their existing choice between homographs.
+An Ancient comparative or superlative description alone does not establish
+an independent adjective head, even when it includes a translation after a
+colon. A separately supplied lexical meaning still establishes that head.
 Synthesized first-aorist active infinitives and present or future neuter
 participles retain their accent position while taking a circumflex on a
 known long penult before a short final syllable (`τμῆξαι`, `παιδεῦον`).

@@ -1974,6 +1974,10 @@ _ANCIENT_COMPARATIVE_REFERENCE_GLOSS = re.compile(
     r"\s*\(" + _ANCIENT_GREEK_WORD + r"\)\s*[·;]\s*"
     r"συγκριτικός\s+βαθμός\s+του\s+" + _ANCIENT_GREEK_WORD + r"\s*[.;]?"
 )
+_ANCIENT_DEGREE_REFERENCE_GLOSS = re.compile(
+    r"(?:συγκριτικός|υπερθετικός)(?:\s+βαθμός)?\s+(?:του|της|των)\s+"
+    + _ANCIENT_GREEK_WORD + r"(?=\s|[:,.;]|$)"
+)
 _ANCIENT_EN_REFERENCE_MODIFIER = (
     r"(?:Attic|Ionic|Doric|Aeolic|Homeric|Epic|Delphic|Pamphylian|"
     r"post-Epic|poetic|Tragic|contracted|uncontracted|alternative|alternate|"
@@ -2101,6 +2105,10 @@ def _is_ancient_reference_gloss(gloss: str, pos: str | None = None) -> bool:
     return bool(text.lower() in _ANCIENT_REVIEWED_REFERENCE_GLOSSES
                 or _is_ancient_form_reference(text.lower())
                 or _ANCIENT_COMPARATIVE_REFERENCE_GLOSS.fullmatch(text.lower())
+                # A degree header and its translation describe the base
+                # adjective's comparison, as English structured form_of
+                # records do. A separate lexical gloss can still qualify.
+                or (pos == "adj" and _ANCIENT_DEGREE_REFERENCE_GLOSS.match(text.lower()))
                 or _ANCIENT_GRAMMATICAL_FORM_GLOSS.match(text.lower())
                 or _ANCIENT_EN_REFERENCE_GLOSS.match(text)
                 or _is_ancient_voice_reference(text.lower())

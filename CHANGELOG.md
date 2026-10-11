@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Treat Ancient comparative and superlative descriptions as grammatical
+  references when they supply no independent adjective meaning.
 - Follow explicit Ancient spelling-reference chains to their unique defined
   head before competing inflection-table mappings, preserving the pitch
   readings of `πίτα` alongside the independent pie homograph. Keep the
