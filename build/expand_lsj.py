@@ -836,7 +836,7 @@ def noun_expansion_error(headword, genitive):
     A complete source genitive does not repair the module's irregular vocative
     and dative cells. This applies equally to full, inferred and completed input.
     """
-    nom, gen = strip_diacritics(headword), strip_diacritics(genitive)
+    nom, gen = strip_diacritics(headword).lower(), strip_diacritics(genitive).lower()
     if ((nom.endswith("κυων") and gen.endswith(("κυνος", "κυονος")))
             or (nom.endswith("ανηρ") and gen.endswith(("ανδρος", "ανηρος")))
             or (nom.endswith("πατηρ") and gen.endswith("πατρος"))):

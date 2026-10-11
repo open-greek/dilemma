@@ -68,8 +68,17 @@ def test_complete_genitive_does_not_license_unsupported_irregular_cells(word, so
     assert m.expand_noun(None, word, "m", source) == (set(), "unsupported-irregular-noun")
 
 
+@pytest.mark.parametrize("word,source", [("Κύων", "Κυνός"),
+    ("Ἀνήρ", "Ἀνδρός"), ("Πατήρ", "Πατρός"),
+    ("ΚΥΩΝ", "ΚΥΝΟΣ"), ("ΑΝΗΡ", "ΑΝΔΡΟΣ"), ("ΠΑΤΗΡ", "ΠΑΤΡΟΣ")])
+def test_capitalization_does_not_bypass_the_irregular_family_guard(word, source):
+    assert m.expand_noun(None, word, "m", source, {word: (source,)}) == (
+        set(), "unsupported-irregular-noun")
+
+
 def test_regular_sikyon_is_not_mistaken_for_a_dog_compound():
     assert not m.noun_expansion_error("σικυών", "σικυῶνος")
+    assert not m.noun_expansion_error("Σικυών", "Σικυῶνος")
 
 
 def test_unique_compatible_variant_completes_a_suffix():
