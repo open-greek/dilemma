@@ -1063,6 +1063,63 @@ def test_separate_alternative_etymology_preserves_lexical_tables(
     assert lookup["δηῶ"] == "δήω"
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_separate_spelling_etymology_follows_its_reference_chain(tmp_path, monkeypatch, reverse):
+    import build_data
+
+    forms = [{"form": "πίτας", "tags": ["genitive"]},
+             {"form": "πίττα", "tags": ["alternative"]},
+             {"form": "πίσσα", "tags": ["alternative"]}]
+    entries = [
+        {"word": "πίτα", "pos": "noun", "etymology_number": 1,
+         "senses": [{"glosses": ["alternative form of πίττα"],
+                     "alt_of": [{"word": "πίττα"}]}], "forms": forms},
+        {"word": "πίτα", "pos": "noun", "etymology_number": 2,
+         "senses": [{"glosses": ["pie"]}], "forms": forms},
+        {"word": "πίττα", "pos": "noun",
+         "senses": [{"glosses": ["alternative form of πίσσα"],
+                     "alt_of": [{"word": "πίσσα"}]}]},
+        {"word": "πίσσα", "pos": "noun", "senses": [{"glosses": ["pitch"]}]},
+    ]
+    dump = _write(tmp_path, entries[::-1] if reverse else entries)
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": dump.name}})
+    monkeypatch.setattr(build_data.sys, "argv", [
+        "build_data.py", "--lang", "grc", "--kaikki", str(tmp_path)])
+    build_data.main()
+    pairs = json.loads((output / "ag_pairs.json").read_text())
+    for form in ("πίτας", "πίττα", "πίσσα"):
+        assert {p["lemma"] for p in pairs if p["form"] == form} == {"πίτα", "πίσσα"}
+
+
+@pytest.mark.parametrize("kind", ["direct", "chain", "ambiguous", "unsupported",
+                                 "wrong_pos", "cycle", "no_reference"])
+def test_reference_only_spelling_prefers_unique_positive_canonical_endpoint(kind):
+    lookup = {word: (word, 3) for word in ("πίτα", "πίσσα", "ἄσφαλτος")}
+    lookup["πίττα"] = ("πίτα", 1)
+    refs = {"πίττα": {"noun": {"πίσσα"}}}
+    if kind == "chain":
+        refs = {"πίττα": {"noun": {"πίττη"}}, "πίττη": {"noun": {"πίσσα"}}}
+    elif kind == "ambiguous":
+        refs["πίττα"]["noun"].add("ἄσφαλτος")
+    elif kind == "unsupported":
+        refs["πίττα"]["noun"] = {"πίττη"}
+    elif kind == "wrong_pos":
+        refs = {"πίττα": {"verb": {"πίσσα"}}}
+    elif kind == "cycle":
+        refs["πίσσα"] = {"noun": {"πίττα"}}
+    elif kind == "no_reference":
+        refs = {}
+    heads = {"noun": {"πίτα", "πίσσα", "ἄσφαλτος"}}
+    result = resolve_pair_lemma("πίττα", "noun", lookup,
+                                {"πίττα": {"NOUN": "πίτα"}},
+                                lexical_heads=heads, canonical_references=refs)
+    assert result == ("πίσσα" if kind in {"direct", "chain"} else "πίτα")
+    assert resolve_pair_lemma("πίτα", "noun", lookup, lexical_heads=heads,
+                              canonical_references=refs) == "πίτα"
+
+
 @pytest.mark.parametrize('change', ['form_of', 'wrong_pos', 'word', 'hash',
                                   'duplicate', 'gloss', 'missing', 'malformed'])
 def test_ancient_reading_evidence_rejects_invalid_support(tmp_path, change):

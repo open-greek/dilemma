@@ -2459,11 +2459,14 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
         upos = WIKT_TO_UPOS.get(pos)
         seen = set()
         while lemma not in seen:
-            if lemma in lexical_heads.get(pos, set()):
+            lexical = lemma in lexical_heads.get(pos, set())
+            pending = list((canonical_references or {}).get(lemma, {}).get(pos, set()))
+            if lexical or pending:
                 # A separate inflected homograph does not replace this
                 # lexical reading. Only explicit alternative spellings
                 # can move its own table to another lexical head.
-                pending = list((canonical_references or {}).get(lemma, {}).get(pos, set()))
+                # A reference-only spelling follows the same explicit
+                # chain before another homograph's table can claim it.
                 if not pending:
                     return lemma
                 visited, endpoints = {lemma}, set()
@@ -2477,7 +2480,10 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                         pending.extend(targets - visited)
                     elif candidate in lexical_heads.get(pos, set()):
                         endpoints.add(candidate)
-                return next(iter(endpoints)) if len(endpoints) == 1 else lemma
+                if len(endpoints) == 1:
+                    return next(iter(endpoints))
+                if lexical:
+                    return lemma
             seen.add(lemma)
             target = (pos_map or {}).get(lemma, {}).get(upos)
             if not target or target == lemma:

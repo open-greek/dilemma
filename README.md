@@ -336,6 +336,11 @@ the alternative to a different numbered etymology from an independently
 defined homograph, only that alternative entry follows the reference. For
 example, the binding and needing senses of `δέω` retain their own tables;
 the separate alternative spelling of `δήω` still points to `δήω`.
+A spelling-reference chain also follows explicit references before a competing
+inflection-table mapping, provided it reaches one positively defined head of
+the same part of speech. Thus the pitch spelling `πίτα` follows `πίττα` to
+`πίσσα`, while the independent pie reading keeps `πίτα`. Ambiguous or
+unsupported chains retain the previous fallback.
 Synthesized first-aorist active infinitives and present or future neuter
 participles retain their accent position while taking a circumflex on a
 known long penult before a short final syllable (`τμῆξαι`, `παιδεῦον`).
