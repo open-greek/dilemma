@@ -2566,7 +2566,8 @@ def build_sfx_rules(
             for form in forms:
                 bucket = freq_bucket(count_for(form, freq_map))
                 by_bucket[bucket].add(form)
-            groups.extend((lemma, subset) for subset in by_bucket.values())
+            # Set iteration must not choose the order of emitted bucket groups.
+            groups.extend((lemma, by_bucket[bucket]) for bucket in sorted(by_bucket))
         else:
             groups.append((lemma, forms))
     for lemma, forms in groups:

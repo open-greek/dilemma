@@ -151,6 +151,7 @@ def test_superseded_noun_family_keeps_independent_and_current_spellings():
 
 
 def test_noun_audit_rejects_different_inputs_even_with_identical_source(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "build"))
     import expand_lsj
     monkeypatch.setattr(expand_lsj, "noun_generation_input_hashes", lambda: {"fixture": "current"})
     path = tmp_path / "audit.json"
