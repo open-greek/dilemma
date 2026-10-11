@@ -624,6 +624,14 @@
       "citation": "tlg3130.003 1.4.6.2"
     },
     {
+      "lemma": "ἀναθαρρύνω",
+      "method": "source_forms",
+      "forms": ["ἀναθαρρυνόμενοι"],
+      "evidence": "Dionysius of Halicarnassus, Roman Antiquities 2.43.2, attests ἀναθαρρυνόμενοι. Preserve this exact participle while rejecting the triple-rho corruption inherited from the historical expansion.",
+      "source_url": "https://eulogikon.org/works/dionysius-halicarnassus-roman-antiquities-ndy-al",
+      "citation": "Roman Antiquities 2.43.2"
+    },
+    {
       "lemma": "πανάγιος",
       "method": "source_forms",
       "forms": ["πανάγιον"],

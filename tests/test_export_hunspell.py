@@ -1708,6 +1708,16 @@ def test_sparse_inflection_requires_an_independently_defined_head():
     assert lexical_head_key("ἀνάνηψις") != lexical_head_key("ἁνάνηψις")
 
 
+def test_reviewed_source_forms_preserve_valid_surfaces_with_corrupt_annotations():
+    import json
+    from export_hunspell import DATA, derive_reviewed_paradigm
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    forms = {form for spec in specs if spec["method"] == "source_forms"
+             for form in derive_reviewed_paradigm(spec, [])}
+    assert {"πανάγιον", "προκεκαθαρμένη", "συνεγκλειομένων", "ἀναθαρρυνόμενοι"} <= forms
+    assert "ἀναθαρρρυνόμενοι" not in forms
+
+
 def test_verified_name_ownership_preserves_source_names_and_lower_homonyms():
     from export_hunspell import include_reviewed_name_ownership, filter_case_artifacts
     ownership = {exact_form_key("Σάξονας"): 2}
