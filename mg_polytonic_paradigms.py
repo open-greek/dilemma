@@ -862,9 +862,17 @@ def is_subjunctive_cell(tags: frozenset, form: str = "") -> bool:
     if (cell(tags) in SUBJUNCTIVE_CELLS and "singular" in tags
             and ({"second-person", "third-person"} & tags)):
         return True
-    if not form or tags & NOT_SUBJUNCTIVE_TAGS:
+    if not form:
         return False
     letters_ = bare(form)
+    if "infinitive" in tags:
+        # The Modern απαρέμφατο in -ει also supplies the dependent third
+        # singular. It supplies no second-person or older -ειν form.
+        conflicts = (NOT_SUBJUNCTIVE_TAGS - {"infinitive"}) | PERSON_TAGS | {"dual"}
+        return (not tags & conflicts and letters_.endswith("ει")
+                and len(letters_) > 3)
+    if tags & NOT_SUBJUNCTIVE_TAGS:
+        return False
     return letters_.endswith(("ει", "εισ")) and len(letters_) > 3
 
 
@@ -873,7 +881,7 @@ def is_subjunctive_cell(tags: frozenset, form: str = "") -> bool:
 # --------------------------------------------------------------------------
 
 class Paradigms(dict):
-    """The union view used for evidence, with the original nominal cells."""
+    """The union view used for evidence, with original source analyses."""
 
     def __init__(self, forms, cell_rows):
         super().__init__(forms)
@@ -881,16 +889,20 @@ class Paradigms(dict):
 
 
 def form_tag_rows(paradigms, lemma: str, form: str) -> tuple[frozenset, ...]:
-    """Separate nominal cells without merging genitive and accusative tags.
+    """Separate source analyses for generation while evidence keeps a union.
 
-    Verb evidence retains its established union of tags. A single nominal
+    A participle or infinitive analysis must not suppress a finite verb
+    analysis of the same spelling. Mixed parts of speech keep their existing
+    union behavior. A single nominal
     row can itself describe several syncretic cases or numbers; those are
     separate cells as well, since their polytonic accents can differ.
     """
     tags = paradigms[lemma][form]
-    if is_verb(tags):
-        return (tags,)
     rows = getattr(paradigms, "cell_rows", {}).get((lemma, form), (tags,))
+    if is_verb(tags):
+        if any(not is_verb(row) for row in rows):
+            return (tags,)
+        return tuple(sorted(set(rows), key=lambda row: tuple(sorted(row))))
     out = set()
     for row in rows:
         row = row | (tags & {S_STEM})
@@ -1051,18 +1063,15 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
             tags |= {FINITE}
         target = rare if tags & RARE_CELL_TAGS else out
         target[lemma][form] = target[lemma].get(form, frozenset()) | tags
-        if not is_verb(tags):
-            (rare_rows if target is rare else rows)[lemma, form].add(tags)
+        (rare_rows if target is rare else rows)[lemma, form].add(tags)
     for lemma, forms in rare.items():
         for form, tags in forms.items():
             if form in out.get(lemma, {}):
                 out[lemma][form] |= tags
-                if (lemma, form) in rare_rows:
-                    rows[lemma, form].update(rare_rows[lemma, form])
+                rows[lemma, form].update(rare_rows[lemma, form])
             elif not pos_of_form[form.lower()] - parts_of_speech(tags):
                 out[lemma][form] = tags
-                if (lemma, form) in rare_rows:
-                    rows[lemma, form].update(rare_rows[lemma, form])
+                rows[lemma, form].update(rare_rows[lemma, form])
     for lemma in list(out):
         # A name none of whose forms has a case cell is a foreign name in
         # transliteration (Τέσα, Τζέιμς, Γουίλιαμς), which Greek writes in

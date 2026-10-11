@@ -1455,3 +1455,82 @@ def test_a_final_circumflex_cell_keeps_its_own_rating():
                           {"καθηγητή": 20_000, "πολύ": 100_000_000}, set(),
                           realizations=realizations)
     assert got[nfc("καθηγητῆ")] == "C"
+
+
+def _verb_source_rows(tmp_path, form, lemma, analyses):
+    import json
+
+    path = tmp_path / "pairs.json"
+    path.write_text(json.dumps([
+        {"form": form, "lemma": lemma, "pos": "verb", "tags": tags}
+        for tags in analyses], ensure_ascii=False))
+    return P.load_paradigms(path)
+
+
+def _source_row_candidates(par, form):
+    return P.generate(par, {form: 1000}, P.Evidence({}, (), par))
+
+
+def test_finite_and_participle_are_independent(tmp_path):
+    par = _verb_source_rows(tmp_path, "βολεύει", "βολεύω", [
+        ["present", "third-person", "singular"], ["passive", "participle"]])
+    # Broad evidence still retains every source tag.
+    assert {"participle", P.FINITE} <= par["βολεύω"]["βολεύει"]
+    got = _source_row_candidates(par, "βολεύει")
+    assert any(g.spelling == "βολεύῃ" and g.kind == "subjunctive"
+               and g.cell == "present" for g in got)
+    assert {g.cell for g in got if g.kind == "indicative"} == {
+        "present", "participle"}
+
+
+@pytest.mark.parametrize("form, lemma, expected", [
+    ("ξαναδεί", "ξαναβλέπω", "ξαναδῇ"),
+    ("εντάξει", "εντάσσω", "ἐντάξῃ"),
+    ("γδύσει", "γδύνω", "γδύσῃ"),
+    ("ζορίσει", "ζορίζω", "ζορίσῃ"),
+])
+def test_modern_infinitive_also_supplies_dependent_third(
+        tmp_path, form, lemma, expected):
+    par = _verb_source_rows(tmp_path, form, lemma, [["infinitive"]])
+    assert any(g.spelling == expected and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, form))
+
+
+@pytest.mark.parametrize("form, tags", [
+    ("βολεύει", ["participle"]),
+    ("λύειν", ["infinitive"]),
+    ("λύεις", ["infinitive"]),
+    ("λύσει", ["infinitive", "past"]),
+    ("λύσει", ["infinitive", "imperative"]),
+    ("λύσει", ["infinitive", "second-person"]),
+])
+def test_nonfinite_or_conflicting_reading_has_no_subjunctive(
+        tmp_path, form, tags):
+    par = _verb_source_rows(tmp_path, form, "λύω", [tags])
+    assert not any(g.kind == "subjunctive"
+                   for g in _source_row_candidates(par, form))
+
+
+def test_distinct_finite_cells_and_duplicate_order(tmp_path):
+    rows = [["present", "third-person", "singular"],
+            ["past", "third-person", "singular"]]
+    first = _verb_source_rows(tmp_path, "λύει", "λύω", rows + rows)
+    second = _verb_source_rows(tmp_path, "λύει", "λύω", list(reversed(rows)))
+    assert _source_row_candidates(first, "λύει") == _source_row_candidates(
+        second, "λύει")
+    assert len(P.form_tag_rows(first, "λύω", "λύει")) == 2
+    got = _source_row_candidates(first, "λύει")
+    assert {g.cell for g in got if g.kind == "indicative"} == {"present", "past"}
+    assert [g.cell for g in got if g.kind == "subjunctive"] == ["present"]
+
+
+def test_verb_source_rows_do_not_change_mixed_pos_behavior(tmp_path):
+    import json
+
+    path = tmp_path / "pairs.json"
+    path.write_text(json.dumps([
+        {"form": "test", "lemma": "test", "pos": "verb", "tags": ["form-of"]},
+        {"form": "test", "lemma": "test", "pos": "noun", "tags": ["nominative"]},
+    ]))
+    par = P.load_paradigms(path)
+    assert P.form_tag_rows(par, "test", "test") == (par["test"]["test"],)
