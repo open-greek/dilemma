@@ -930,6 +930,10 @@ describe their conjugation remain eligible.
 Synthesized uncontracted active imperatives receive recessive accent from
 the complete form, rather than inheriting the citation or future stem's
 accent. For example, `ἀκούω` and `ἀκούσω` give `ἄκουε` and `ἄκουσον`.
+The independently documented futures of `ἁνδάνω` and `ἐνίπτω` do not
+supply an aorist stem: their source aorists use different stems. Their
+observed aorist cells and future participles remain available; irregular
+aorist parts are not reinterpreted through regular sigmatic participle templates.
 
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)

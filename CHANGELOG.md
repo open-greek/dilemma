@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Withhold aorists inferred from the distinct future stems of `ἁνδάνω`
+  and `ἐνίπτω`, preserving observed aorists and future participles.
 - Apply recessive accent to synthesized uncontracted active imperatives
   instead of retaining their citation or future stem's accent.
 - Withhold unrestricted LSJ verb expansion when the entry explicitly limits

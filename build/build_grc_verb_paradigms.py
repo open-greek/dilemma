@@ -1178,6 +1178,30 @@ def recover_citation_breathings(pairs: list) -> dict:
             if len(forms) == 1}
 
 
+# LSJ s.v. ἁνδάνω gives aorist ἕαδον/ἅδον and later ἧσα, distinct
+# from future ἁδήσω. LSJ s.v. ἐνίπτω gives ἠνίπαπε/ἐνένιπε, distinct
+# from future ἐνίψω. Neither future licenses an inferred sigmatic aorist.
+_FUTURES_WITH_DISTINCT_AORISTS = frozenset({"ανδανω", "ενιπτω"})
+
+
+def has_distinct_aorist_stem(lemma: str) -> bool:
+    plain = "".join(c for c in unicodedata.normalize("NFD", lemma)
+                    if not unicodedata.combining(c)).lower()
+    return plain in _FUTURES_WITH_DISTINCT_AORISTS
+
+
+def parts_for_aorist_synthesis(lemma: str, parts: dict) -> dict:
+    """Withhold a future whose known aorist uses a different stem.
+
+    Keep explicit aorist principal parts available to their own templates.
+    This restriction applies to inference only, never to observed cells or
+    to generation of the independently attested future tense.
+    """
+    if has_distinct_aorist_stem(lemma) and "fut" in parts:
+        return {key: value for key, value in parts.items() if key != "fut"}
+    return parts
+
+
 def synthesize_missing_moods(results: dict, synthesis_families: dict = None) -> tuple[int, int]:
     """Fill in missing finite-mood cells via principal-parts templating.
 
@@ -1218,6 +1242,7 @@ def synthesize_missing_moods(results: dict, synthesis_families: dict = None) -> 
             parts = parse_principal_parts(head_text, lemma) if head_text else {}
         except Exception:
             parts = {}
+        parts = parts_for_aorist_synthesis(lemma, parts)
         try:
             templated = synthesize_active_moods(lemma, parts)
         except Exception:
@@ -1345,6 +1370,12 @@ def synthesize_missing_participles(results: dict, synthesis_families: dict = Non
             parts = {}
         try:
             templated = synthesize_participles(lemma, parts)
+            if has_distinct_aorist_stem(lemma):
+                # Neither the future nor a suppletive aorist licenses this
+                # regular sigmatic template. Keep future participles and
+                # the independently handled second-aorist forms below.
+                templated = {key: value for key, value in templated.items()
+                             if "_aorist_" not in key}
         except Exception:
             templated = {}
         try:

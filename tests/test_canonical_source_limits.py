@@ -71,3 +71,46 @@ def test_family_evidence_excludes_inserted_citation_and_other_head_tags(monkeypa
     result = B.build_paradigms()
     assert result["ἀέσκω"]["forms"]["active_present_indicative_1sg"] == "ἀέσκω"
     assert calls == [{"ἀέσκω": {("active", "aorist")}, "ἀφραδέω": {("active", "present")}}] * 2
+
+
+@pytest.mark.parametrize("lemma,header,observed,future", [
+    ("ἁνδάνω", "fut. ἁδήσω: aor. 1 ἧσα.", "ἅδοι", "ἁδήσων"),
+    ("ἐνίπτω", "fut. ἐνίψω: aor. ἠνίπᾰπε, also ἐνένιπε.", "ἐνένιπε", "ἐνίψων"),
+])
+def test_irregular_aorist_does_not_inherit_future_stem(
+    monkeypatch, lemma, header, observed, future
+):
+    monkeypatch.setattr(B, "load_lsj_head_texts", lambda: {lemma: header})
+    observed_key = "active_aorist_optative_3sg" if lemma == "ἁνδάνω" else "active_aorist_indicative_3sg"
+    original = {observed_key: observed}
+    result = {lemma: {"forms": dict(original), "form_count": 1}}
+    B.synthesize_missing_moods(result)
+    B.synthesize_missing_participles(result)
+    forms = result[lemma]["forms"]
+    assert forms[observed_key] == observed
+    assert "active_present_imperative_2sg" in forms
+    assert forms["active_future_participle_nom_m_sg"] == future
+    assert "active_aorist_imperative_2sg" not in forms
+    assert not any("_aorist_participle_" in key for key in forms)
+    assert not any(key.startswith("middle_aorist_") for key in forms)
+    if lemma == "ἁνδάνω":
+        assert forms["active_aorist_indicative_1sg"] == "ἧσα"
+
+
+def test_suppletive_aorist_alone_does_not_license_regular_participles(monkeypatch):
+    monkeypatch.setattr(B, "load_lsj_head_texts", lambda: {
+        "ἁνδάνω": "aor. 1 ἧσα."})
+    result = {"ἁνδάνω": {"forms": {
+        "active_aorist_participle_nom_m_sg": "ἁδών"}, "form_count": 1}}
+    B.synthesize_missing_participles(result)
+    forms = result["ἁνδάνω"]["forms"]
+    assert {key: value for key, value in forms.items()
+            if "_aorist_" in key} == {"active_aorist_participle_nom_m_sg": "ἁδών"}
+
+
+def test_aorist_source_limit_keeps_original_parts_and_ordinary_inference():
+    parts = {"fut": "ἁδήσω", "aor": "ἧσα", "pf": "ἅδηκα"}
+    assert B.parts_for_aorist_synthesis("ἁνδάνω", parts) == {
+        "aor": "ἧσα", "pf": "ἅδηκα"}
+    assert parts["fut"] == "ἁδήσω"
+    assert B.parts_for_aorist_synthesis("λύω", parts) is parts
