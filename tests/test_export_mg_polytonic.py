@@ -1474,7 +1474,7 @@ def read_list(path: Path, shared: dict[str, str] | None = None
             avoid.append(form)
             continue
         if field.endswith(" mg:shared"):
-            assert re.fullmatch(r"fr:[CM] mg:shared", field), line
+            assert re.fullmatch(r"fr:[CMR] mg:shared", field), line
             rated[form] = field
             continue
         assert re.fullmatch(r"fr:[CMR]( mg:generated)?", field), line
@@ -1492,9 +1492,9 @@ def test_the_built_list_holds_its_invariants():
     entries, avoid = read_list(MG_DIC, shared)
     grc = read_hunspell_words(GRC_DIC)
     assert not [f for f in entries if mg.grc_accepts(f, grc)]
-    # The mg:shared lines rate lowercase grc spellings, none of them avoided.
+    # The mg:shared lines rate grc spellings, including capitalized plain
+    # nominal twins and rare ones. None is also marked to be avoided.
     assert set(shared) <= grc and not set(shared) & set(avoid)
-    assert all(f[:1].islower() for f in shared)
     # The mg:avoid lines name grc spellings: με and που, which Modern Greek
     # writes μὲ and ποὺ or ποῦ, but not μὲ or ποὺ themselves, nor another
     # word (ὅ, as in ὅ,τι; the numeral ἕν), nor an enclitic-accent form.
@@ -1543,8 +1543,11 @@ def test_the_built_list_holds_its_invariants():
     import hashlib
     grc_sha = hashlib.sha256(GRC_DIC.read_bytes()).hexdigest()
     assert f"grc_dictionary_sha256: {grc_sha}\n" in version
-    # του is the Ancient enclitic genitive too: no sign of Modern Greek.
-    assert entries["του"] == "fr:R" and entries["τώρα"] == "fr:C"
+    # του is the Ancient enclitic genitive too: if grc accepts it, a
+    # shared rating is no Modern-only entry. Otherwise it stays capped.
+    assert "του" in grc or entries["του"] == "fr:R"
+    assert entries.get("τώρα", shared.get("τώρα")) in {
+        "fr:C", "fr:C mg:shared"}
     # Every input that decides the list is recorded, as it is on disk now.
     import mg_polytonic_paradigms as paradigms
     for name, path in (("lookup_db", mg.LOOKUP_DB),
