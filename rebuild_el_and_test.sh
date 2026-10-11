@@ -11,6 +11,7 @@ git checkout HEAD -- data/ag_lookup.json data/ag_pairs.json data/ag_pos_lookup.j
 echo ""
 echo "=== Step 2: build_data.py --lang el ==="
 python build_data.py --kaikki kaikki --lang el
+python build/build_el_verb_heads.py --kaikki kaikki
 
 echo ""
 echo "=== Step 3: Delete raw_lookups.db, rebuild lookup.db from JSON ==="
