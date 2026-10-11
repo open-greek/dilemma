@@ -1748,8 +1748,9 @@ def is_independent_finite_entry(entry: dict, source: str) -> bool:
 
 
 _ANCIENT_GREEK_WORD = r"[\u0370-\u03ff\u1f00-\u1fff\u0300-\u036f-]+"
+_ANCIENT_REFERENCE_ARTICLE = r"(?:του|των|της\s+λέξης)\b"
 _ANCIENT_REFERENCE_TARGET_ITEM = (
-    r"(?:(?:του|των)\s+)?"
+    rf"(?:{_ANCIENT_REFERENCE_ARTICLE}\s+)?"
     r"(?:(?:ρήματος|επιθέτου|επιρρήματος|αρχαίου|αρχαίας|ελληνιστικού|ελληνιστικής|μεταγενέστερου)\s+)*"
     + r"\*?" + _ANCIENT_GREEK_WORD
 )
@@ -1773,8 +1774,8 @@ _ANCIENT_REFERENCE_TYPE = (
 )
 _ANCIENT_REFERENCE_GLOSS = re.compile(
     rf"(?:{_ANCIENT_REFERENCE_TYPE}"
-    rf"(?:{_ANCIENT_REFERENCE_SEPARATOR}{_ANCIENT_REFERENCE_TYPE})*\s+(?:του|των)\b|"
-    r"(?:συνηρημένη|εναλλακτική|άλλη|παλαιότερη|πολυτονική)\s+μορφή\s+(?:του|των)\b)\s+"
+    rf"(?:{_ANCIENT_REFERENCE_SEPARATOR}{_ANCIENT_REFERENCE_TYPE})*\s+{_ANCIENT_REFERENCE_ARTICLE}|"
+    rf"(?:συνηρημένη|εναλλακτική|άλλη|παλαιότερη|πολυτονική)\s+μορφή\s+{_ANCIENT_REFERENCE_ARTICLE})\s*:?\s*"
     + _ANCIENT_REFERENCE_TARGET + r"\s*[.,;]?"
 )
 _ANCIENT_GRAMMATICAL_FORM_GLOSS = re.compile(
@@ -1847,6 +1848,11 @@ _ANCIENT_REVIEWED_REFERENCE_GLOSSES = frozenset({
     "αιολικός & δωρικός τύπος του ἐκεῖνος, κεῖνος",
     "αιολικός τύπος του ἁμός, -ά, -όν (ἡμέτερος)",
     "αιολικός τύπος του ἐν μέσῳ",
+    "άλλη μορφή της λέξης γλοιός, γλία",
+    "άλλη μορφή του ορυκτού κίσσηρη",
+    'άλλη μορφή του επιθέτου πορτογαλικός. θεωρείται λιγότερο επίσημη, '
+    'χρησιμοποιείται κυρίως γιατί το "πορτογαλικός" προκαλεί σύγχυση με το '
+    'δεύτερο συνθετικό του "γαλικός".',
     "επικός τύπος του ὁδός, μόνο στην οδύσσεια (σε αιτιατική): "
     "※ 8ος αιώνας πκε ⌘ ὅμηρος, ὀδύσσεια, 17 "
     "(ρ. τηλεμάχου καὶ ὀδυσσέως ἐπάνοδος εἰς ἰθάκην.), στίχ. 196 (195-196 )",

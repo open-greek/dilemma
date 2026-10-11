@@ -712,6 +712,26 @@ def test_ancient_dialect_reference_is_not_an_independent_lexical_definition(glos
     assert is_independent_lexical_entry(entry, "el")
 
 
+@pytest.mark.parametrize("pos,gloss", [
+    ("noun", "άλλη μορφή του: ανανδρία"),
+    ("noun", "άλλη μορφή του : λαδολιά"),
+    ("noun", "άλλη μορφή της λέξης συσκευαστήριο"),
+    ("noun", "άλλη μορφή του ορυκτού κίσσηρη"),
+    ("noun", "άλλη μορφή της λέξης γλοιός / γλοιά"),
+    ("adj", "άλλη μορφή της λέξης χρυσόκομος"),
+    ("adj", "επικός τύπος της λέξης γλύκιος"),
+])
+def test_reference_target_syntax_preserves_any_independent_meaning(pos, gloss):
+    from build.build_grc_lexical_heads import has_definition
+    from build_data import is_independent_lexical_entry
+    entry = {"word": "λέξη", "pos": pos, "senses": [{"glosses": [gloss]}]}
+    assert not is_independent_lexical_entry(entry, "el")
+    assert not has_definition(entry, "el")
+    entry["senses"][0]["glosses"][0] += ": μια ανεξάρτητη σημασία"
+    assert is_independent_lexical_entry(entry, "el")
+    assert has_definition(entry, "el")
+
+
 @pytest.mark.parametrize("word,source,gloss", [
     ("πρηΰνω", "el", "ιωνικός τύπος του πρᾱΰνω"),
     ("χρέομαι", "el", "ιωνικός τύπος του χράομαι"),
@@ -763,6 +783,7 @@ def test_ancient_reference_filter_preserves_an_ordinary_definition():
     "μέση-παθητική φωνή του ρήματος προδίδωμι, με εγκαταλείπουν, με προδίδουν",
     "μεσοπαθητική φωνή του ρήματος ὄλλυμι (καταστρέφομαι, χάνομαι, αφανίζομαι)",
     "μορφή του σώματος",
+    "άλλη μορφή του ορυκτού άνθρακα",
     "μορφή του γενειάζω, όμως με τη λίγο ειδικότερη σημασία ότι τώρα αρχίζω να βγάζω γένια",
     "μορφή του φώγω (ξεροψήνω, καβουρντίζω, ξεραίνω)",
     "μέση και παθητική φωνή του λυπέω. Στενοχωριέμαι, θλίβομαι.",
@@ -771,7 +792,7 @@ def test_ancient_reference_filter_preserves_an_ordinary_definition():
 ])
 def test_ancient_reference_filter_retains_inline_lexical_meanings(gloss):
     from build_data import is_independent_lexical_entry
-    pos = "noun" if gloss == "μορφή του σώματος" else "verb"
+    pos = "noun" if gloss in {"μορφή του σώματος", "άλλη μορφή του ορυκτού άνθρακα"} else "verb"
     assert is_independent_lexical_entry({"word": "λέξη", "pos": pos,
         "senses": [{"glosses": [gloss]}]}, "el")
 
@@ -862,6 +883,11 @@ def test_unknown_reference_tail_remains_lexical_evidence(gloss):
     "αιολικός & δωρικός τύπος του ἐκεῖνος, κεῖνος",
     "αιολικός τύπος του ἁμός, -ά, -όν (ἡμέτερος)",
     "αιολικός τύπος του ἐν μέσῳ",
+    "άλλη μορφή της λέξης γλοιός, γλία",
+    "άλλη μορφή του ορυκτού κίσσηρη",
+    'άλλη μορφή του επιθέτου πορτογαλικός. Θεωρείται λιγότερο επίσημη, '
+    'χρησιμοποιείται κυρίως γιατί το "πορτογαλικός" προκαλεί σύγχυση με το '
+    'δεύτερο συνθετικό του "γαλικός".',
     "επικός τύπος του ὁδός, μόνο στην Οδύσσεια (σε αιτιατική): "
     "※ 8ος αιώνας πκε ⌘ Ὅμηρος, Ὀδύσσεια, 17 "
     "(ρ. Τηλεμάχου καὶ Ὀδυσσέως ἐπάνοδος εἰς Ἰθάκην.), στίχ. 196 (195-196 )",

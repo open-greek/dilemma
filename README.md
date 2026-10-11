@@ -323,6 +323,9 @@ separate lexical head, including when the source labels the entry as a verb.
 Their inflection tables resolve to the supported parent without treating the
 variant description as an independent definition. A separate lexical meaning
 in the same entry still supports its headword.
+Reference targets can follow a colon or an explicit word label.
+The entire description must be a reference or a recognized grammatical note;
+an appended definition remains evidence of an independent meaning.
 Alternative-spelling references from the original word to a supported head
 of the same part of speech still canonicalize normally. An inflected reading
 does not replace an independently defined homograph: `δίω` keeps its own
