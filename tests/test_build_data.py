@@ -97,6 +97,16 @@ def test_a_missing_adjective_lemma_does_not_resolve_to_a_name():
     assert merged["κυριακή"][0] == "κυριακός"
 
 
+def test_name_fallback_does_not_drop_attested_noun_inflections():
+    el = {"βροντόσαυρος": ("Βροντόσαυρος", 0),
+          "Βροντόσαυρος": ("Βροντόσαυρος", 3)}
+    en = {"βροντόσαυρου": ("βροντόσαυρος", 1)}
+    merged = {}
+    merge_source_lookups(merged, [el, en], True,
+                         {"βροντόσαυρου": {"noun"}, "Βροντόσαυρος": {"name"}})
+    assert merged["βροντόσαυρου"][0] == "βροντόσαυρος"
+
+
 def test_verb_reference_chains_do_not_end_at_a_nominal_homograph():
     lookup = {"ἀντιπαθών": ("αντιπαθητικός", 1),
               "αντιπαθών": ("αντιπαθητικός", 1),

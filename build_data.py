@@ -1129,7 +1129,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
 
 
 def merge_source_lookups(all_lookup: dict, lookups: list,
-                         capitals_last: bool = False) -> None:
+                         capitals_last: bool = False, lemma_pos: dict = None) -> None:
     """Merge source lookups, leaving weak capital-derived keys until last.
 
     Each source already lowers a name's lowercase keys to confidence zero.
@@ -1155,7 +1155,9 @@ def merge_source_lookups(all_lookup: dict, lookups: list,
             for key, (lemma, confidence) in lookup.items():
                 if weak is not None and (confidence == 0) != weak:
                     continue
-                if lemma == lemma.lower() and lemma in weak_names and key != lemma:
+                if (lemma == lemma.lower() and lemma in weak_names and key != lemma
+                        and (lemma_pos is None
+                             or bool(lemma_pos.get(key, set()) & {"verb", "adj"}))):
                     continue
                 all_lookup.setdefault(key, (lemma, 1))
 
@@ -1400,7 +1402,8 @@ def main():
         if lang == "el":
             merge_order = sorted(source_lookups, key=lambda x: (x[0] == "en",))
         merge_source_lookups(all_lookup, [lookup for _, lookup, _ in merge_order],
-                             capitals_last=(lang == "el"))
+                             capitals_last=(lang == "el"),
+                             lemma_pos=all_lemma_pos)
 
         # Cross-source self-map resolution. After per-source pass-2, any
         # remaining self-maps (key == lemma) at the merged level got
