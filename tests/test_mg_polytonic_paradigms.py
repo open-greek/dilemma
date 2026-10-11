@@ -551,6 +551,55 @@ def _write_pairs(tmp_path, rows):
     return path
 
 
+def test_owned_noun_uses_paradigm_support_before_own_page_penalty(tmp_path):
+    # Two independent source tables: feminine "shadow", and the dated
+    # masculine "robber". The latter's genitive is not the common word.
+    rows = [(form, "σκιά", "noun", tags) for form, tags in [
+        ("σκιά", ["nominative", "singular"]),
+        ("σκιά", ["accusative", "singular"]),
+        ("σκιά", ["vocative", "singular"]),
+        ("σκιάς", ["genitive", "singular"]),
+        ("σκιές", ["nominative", "plural"]),
+        ("σκιών", ["genitive", "plural"])]]
+    rows += [(form, "σκιάς", "noun", tags) for form, tags in [
+        ("σκιάς", ["nominative", "singular"]),
+        ("σκιά", ["genitive", "singular"]),
+        ("σκιά", ["accusative", "singular"]),
+        ("σκιά", ["vocative", "singular"]),
+        ("σκιάδες", ["nominative", "plural"])]]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    frequencies = {"σκιά": 5853, "σκιάς": 557, "σκιές": 2734,
+                   "σκιών": 941, "σκιάδες": 51}
+    generated = P.generate(par, frequencies, P.Evidence({}, (), par))
+    shadow = [g for g in generated if g.mono == "σκιά"]
+    assert {g.lemma for g in shadow} == {"σκιά"}
+    assert {g.spelling for g in shadow} == {nfc("σκιά")}
+    # The independent masculine table and its distinct plural survive.
+    assert "genitive" in par["σκιάς"]["σκιά"]
+    assert any(g.mono == "σκιάδες" and g.lemma == "σκιάς"
+               for g in generated)
+    # A genuinely better-supported non-headword analysis can still win.
+    totals = {"σκιά": 10085, "σκιάς": 20000}
+    assert P._home_lemma("σκιά", ["σκιά", "σκιάς"], par, totals) == "σκιάς"
+
+
+@pytest.mark.parametrize("other_pos, own_tags", [
+    ("adj", ["nominative", "singular"]),
+    ("noun", ["form-of"]),
+    ("verb", ["nominative", "singular"]),
+])
+def test_noun_support_order_requires_independent_noun_heads(
+        tmp_path, other_pos, own_tags):
+    rows = [("σκιά", "σκιά", "noun", ["nominative", "singular"]),
+            ("σκιάς", "σκιάς", other_pos, own_tags),
+            ("σκιά", "σκιάς", other_pos, ["genitive", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    # Mixed parts of speech or an unsupported self head retain the old
+    # preference for the analysis beyond a word's own page.
+    assert P._home_lemma("σκιά", ["σκιά", "σκιάς"], par,
+                         {"σκιά": 10000, "σκιάς": 1}) == "σκιάς"
+
+
 def test_pseudo_lemmas_rare_cells_and_table_fragments(tmp_path, monkeypatch):
     monkeypatch.setattr(P, "FRAGMENT_SHARE", 0.3)
     rows = []

@@ -1211,7 +1211,10 @@ def _home_lemma(form: str, lemmas: list[str],
     (αστυνομικού is αστυνομικός's genitive), then the one whose letters it
     shares the longest beginning with
     (πουλάμε is πουλάω's, not πωλώ's), then the one monotonic text uses
-    most, then the first in alphabetical order."""
+    most, then the first in alphabetical order. Independently inflected
+    nouns instead use their whole paradigm's support before the own-page
+    penalty: the common feminine σκιά is not the rare masculine σκιάς's
+    genitive merely because its spelling is also a headword."""
     letters_ = bare(form)
 
     def verb(lemma: str) -> bool:
@@ -1224,6 +1227,21 @@ def _home_lemma(form: str, lemmas: list[str],
             n += 1
         return n
     own_page = form.lower()
+    # A self nominative singular with exclusively noun analyses distinguishes
+    # an owned noun paradigm from a page filed as a form of another word.
+    # Keep the existing ordering for verbs, mixed parts of speech, and nouns
+    # whose own headword has no explicit case evidence.
+    def owned_noun(lemma: str) -> bool:
+        forms = paradigms[lemma]
+        return (lemma in forms
+                and all(parts_of_speech(tags) == {"noun"}
+                        for tags in forms.values())
+                and any({"nominative", "singular"} <= tags
+                        for tags in form_tag_rows(paradigms, lemma, lemma)))
+
+    if all(owned_noun(lemma) for lemma in lemmas):
+        return min(lemmas, key=lambda l: (-totals.get(l, 0),
+                                          l == own_page, -common(l), l))
     return min(lemmas, key=lambda l: (not verb(l), l == own_page,
                                       -common(l), -totals.get(l, 0), l))
 
