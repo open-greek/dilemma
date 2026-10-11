@@ -66,8 +66,8 @@ def test_family_evidence_excludes_inserted_citation_and_other_head_tags(monkeypa
     monkeypatch.setattr(B, "load_pairs", lambda path: rows if path == B.AG_PAIRS else [])
     monkeypatch.setattr(B, "pick_best_form", lambda forms, **kw: forms[0])
     calls = []
-    monkeypatch.setattr(B, "synthesize_missing_moods", lambda result, families: calls.append(families))
-    monkeypatch.setattr(B, "synthesize_missing_participles", lambda result, families: calls.append(families))
+    monkeypatch.setattr(B, "synthesize_missing_moods", lambda result, families, quantities: calls.append(families))
+    monkeypatch.setattr(B, "synthesize_missing_participles", lambda result, families, quantities: calls.append(families))
     result = B.build_paradigms()
     assert result["ἀέσκω"]["forms"]["active_present_indicative_1sg"] == "ἀέσκω"
     assert calls == [{"ἀέσκω": {("active", "aorist")}, "ἀφραδέω": {("active", "present")}}] * 2
@@ -114,3 +114,30 @@ def test_aorist_source_limit_keeps_original_parts_and_ordinary_inference():
         "aor": "ἧσα", "pf": "ἅδηκα"}
     assert parts["fut"] == "ἁδήσω"
     assert B.parts_for_aorist_synthesis("λύω", parts) is parts
+
+
+def test_source_quantity_does_not_copy_accent_or_choose_a_conflicting_length():
+    evidence = [{"form": "θῡ́νω"}]
+    assert B.restore_source_quantity("θύνω", evidence) == "θῡ́νω"
+    assert B.restore_source_quantity("θύνω", [{"form": "θῡ̀νω"}]) == "θύνω"
+    assert B.restore_source_quantity("θύνω", evidence + [{"form": "θῠ́νω"}]) == "θύνω"
+    assert B.restore_source_quantity("θύω", evidence) == "θύω"
+    assert B.restore_source_quantity("θῠ́νω", evidence) == "θῠ́νω"
+    assert B.restore_source_quantity("θῦνω", [{"form": "θῠ́νω"}]) == "θῦνω"
+
+
+def test_explicit_principal_quantities_survive_synthesis_without_notation(monkeypatch):
+    monkeypatch.setattr(B, "load_lsj_head_texts", lambda: {
+        "θύνω": "[ῡ], only pres. and impf., rush.",
+        "πράσσω": "fut. πράξω: aor. ἔπραξα."})
+    result = {head: {"forms": {}, "form_count": 0} for head in ("θύνω", "πράσσω")}
+    quantities = {"θύνω": [{"form": "θῡ́νω"}],
+                  "πράσσω": [{"form": "πρᾱ́σσω"}, {"form": "πρᾱ́ξω"},
+                             {"form": "ἔπρᾱξα"}]}
+    B.synthesize_missing_moods(result, principal_quantities=quantities)
+    B.synthesize_missing_participles(result, principal_quantities=quantities)
+    assert result["θύνω"]["forms"]["active_present_imperative_2sg"] == "θῦνε"
+    assert result["πράσσω"]["forms"]["middle_aorist_imperative_2sg"] == "πρᾶξαι"
+    assert result["πράσσω"]["forms"]["active_aorist_optative_3sg"] == "πράξαι"
+    assert all(B.strip_vowel_length(form) == form
+               for row in result.values() for form in row["forms"].values())

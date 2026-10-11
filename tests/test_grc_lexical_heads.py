@@ -5,6 +5,7 @@ import pytest
 from build.build_grc_lexical_heads import (
     EDITED_INPUTS, KAIKKI_INPUTS, VERNACULAR_INPUTS, build_heads, has_definition,
     normalize_headword,
+    principal_quantity_rows,
 )
 
 
@@ -102,6 +103,25 @@ def test_builder_merges_independent_sources_and_pins_portable_inputs(tmp_path):
 def test_builder_fails_closed_without_an_input(tmp_path):
     with pytest.raises(FileNotFoundError):
         build_heads(tmp_path, tmp_path, tmp_path / "lsj.json")
+
+
+def test_principal_quantities_keep_source_marks_and_exclude_other_cells():
+    entry = {"word": "θύνω", "pos": "verb",
+             "senses": [{"glosses": ["to rush"]}],
+             "forms": [
+                 {"form": "θῡ́νω", "tags": ["canonical"]},
+                 {"form": "θῠ́νω", "tags": ["indicative", "first-person", "singular"]},
+                 {"form": "θῡ́νει", "tags": ["indicative", "third-person", "singular"]},
+                 {"form": "θῡ́νω", "tags": ["indicative", "first-person", "third-person", "singular"]},
+                 {"form": "θύνω", "tags": ["canonical"]},
+             ]}
+    rows = principal_quantity_rows(entry, "wiktionary_en_grc")
+    assert [row["form"] for row in rows] == ["θῡ́νω", "θῠ́νω"]
+    assert all(row["source"] == "wiktionary_en_grc" for row in rows)
+    entry["senses"] = [{"glosses": ["alternative form of θύω"]}]
+    assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
+    entry["pos"] = "noun"
+    assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
 
 
 def test_loader_requires_separate_vernacular_evidence(tmp_path):

@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Retain explicit source vowel lengths through verb synthesis, preserving
+  forms such as `θῦνε` and `πρᾶξαι` without borrowing another cell's accent.
 - Withhold aorists inferred from the distinct future stems of `ἁνδάνω`
   and `ἐνίπτω`, preserving observed aorists and future participles.
 - Apply recessive accent to synthesized uncontracted active imperatives

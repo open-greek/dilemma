@@ -934,6 +934,11 @@ The independently documented futures of `ἁνδάνω` and `ἐνίπτω` do n
 supply an aorist stem: their source aorists use different stems. Their
 observed aorist cells and future participles remain available; irregular
 aorist parts are not reinterpreted through regular sigmatic participle templates.
+Explicit vowel lengths in independent Wiktionary verb citations and first-person
+indicatives are retained in `grc_lexical_heads.json`. Synthesis uses matching
+principal-part spellings to recover these lengths without copying their accent.
+Conflicting lengths remain separate source readings and supply no inferred
+length; quantity notation is removed after accent placement.
 
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)

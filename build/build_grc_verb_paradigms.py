@@ -1202,7 +1202,49 @@ def parts_for_aorist_synthesis(lemma: str, parts: dict) -> dict:
     return parts
 
 
-def synthesize_missing_moods(results: dict, synthesis_families: dict = None) -> tuple[int, int]:
+def restore_source_quantity(form: str, evidence: list[dict]) -> str:
+    """Copy only concordant explicit lengths from this exact source spelling."""
+    def letters(value):
+        result = []
+        for char in unicodedata.normalize("NFD", value):
+            if unicodedata.combining(char) and result:
+                result[-1].append(char)
+            else:
+                result.append([char])
+        return result
+
+    def key(groups):
+        return "".join(char for group in groups for char in group
+                       if char not in _LENGTH_MARKS)
+
+    target = letters(form)
+    matched = [groups for row in evidence
+               if key(groups := letters(row["form"])) == key(target)]
+    if not matched:
+        return form
+    for index, group in enumerate(target):
+        if group[0].lower() not in "αιυ" or any(mark in group for mark in _LENGTH_MARKS):
+            continue
+        marks = {mark for groups in matched for mark in groups[index]
+                 if mark in _LENGTH_MARKS}
+        if len(marks) == 1:
+            mark = next(iter(marks))
+            if mark == "\u0306" and "\u0342" in group:
+                continue
+            # Length marks precede breathing and accent in source notation.
+            # All have combining class 230, so NFC will not reorder them.
+            group.insert(1, mark)
+    return unicodedata.normalize("NFC", "".join(char for group in target for char in group))
+
+
+def synthesis_quantities(lemma: str, parts: dict, quantities: dict | None) -> tuple[str, dict]:
+    evidence = (quantities or {}).get(lemma, [])
+    return restore_source_quantity(lemma, evidence), {
+        key: restore_source_quantity(value, evidence) for key, value in parts.items()}
+
+
+def synthesize_missing_moods(results: dict, synthesis_families: dict = None,
+                             principal_quantities: dict = None) -> tuple[int, int]:
     """Fill in missing finite-mood cells via principal-parts templating.
 
     For each verb in ``results``, parse its LSJ head text into
@@ -1242,25 +1284,26 @@ def synthesize_missing_moods(results: dict, synthesis_families: dict = None) -> 
             parts = parse_principal_parts(head_text, lemma) if head_text else {}
         except Exception:
             parts = {}
+        inference_lemma, parts = synthesis_quantities(lemma, parts, principal_quantities)
         parts = parts_for_aorist_synthesis(lemma, parts)
         try:
-            templated = synthesize_active_moods(lemma, parts)
+            templated = synthesize_active_moods(inference_lemma, parts)
         except Exception:
             templated = {}
         try:
-            templated_mp = synthesize_mp_moods(lemma, parts)
+            templated_mp = synthesize_mp_moods(inference_lemma, parts)
         except Exception:
             templated_mp = {}
         try:
-            templated_aor2 = synthesize_aor2_moods(lemma, parts)
+            templated_aor2 = synthesize_aor2_moods(inference_lemma, parts)
         except Exception:
             templated_aor2 = {}
         try:
-            templated_contract = synthesize_contract_moods(lemma, parts)
+            templated_contract = synthesize_contract_moods(inference_lemma, parts)
         except Exception:
             templated_contract = {}
         try:
-            templated_past = synthesize_past_indicatives(lemma, parts)
+            templated_past = synthesize_past_indicatives(inference_lemma, parts)
         except Exception:
             templated_past = {}
         families = (synthesis_families or {}).get(lemma)
@@ -1283,31 +1326,31 @@ def synthesize_missing_moods(results: dict, synthesis_families: dict = None) -> 
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added += 1
         for key, val in templated_mp.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_mp += 1
         for key, val in templated_aor2.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_aor2 += 1
         for key, val in templated_contract.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_contract += 1
         for key, val in templated_past.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_past += 1
         if (added or added_mp or added_aor2 or added_contract
                 or added_past):
@@ -1331,7 +1374,8 @@ def synthesize_missing_moods(results: dict, synthesis_families: dict = None) -> 
     )
 
 
-def synthesize_missing_participles(results: dict, synthesis_families: dict = None) -> tuple[int, int]:
+def synthesize_missing_participles(results: dict, synthesis_families: dict = None,
+                                   principal_quantities: dict = None) -> tuple[int, int]:
     """Fill in missing participle cells via principal-parts templating.
 
     For each verb in ``results``, parse its LSJ head text into principal
@@ -1368,8 +1412,9 @@ def synthesize_missing_participles(results: dict, synthesis_families: dict = Non
             parts = parse_principal_parts(head_text, lemma) if head_text else {}
         except Exception:
             parts = {}
+        inference_lemma, parts = synthesis_quantities(lemma, parts, principal_quantities)
         try:
-            templated = synthesize_participles(lemma, parts)
+            templated = synthesize_participles(inference_lemma, parts)
             if has_distinct_aorist_stem(lemma):
                 # Neither the future nor a suppletive aorist licenses this
                 # regular sigmatic template. Keep future participles and
@@ -1379,11 +1424,11 @@ def synthesize_missing_participles(results: dict, synthesis_families: dict = Non
         except Exception:
             templated = {}
         try:
-            templated_aor2 = synthesize_aor2_participles(lemma, parts)
+            templated_aor2 = synthesize_aor2_participles(inference_lemma, parts)
         except Exception:
             templated_aor2 = {}
         try:
-            templated_contract = synthesize_contract_participles(lemma, parts)
+            templated_contract = synthesize_contract_participles(inference_lemma, parts)
         except Exception:
             templated_contract = {}
         families = (synthesis_families or {}).get(lemma)
@@ -1400,19 +1445,19 @@ def synthesize_missing_participles(results: dict, synthesis_families: dict = Non
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added += 1
         for key, val in templated_aor2.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_aor2 += 1
         for key, val in templated_contract.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_contract += 1
         if added or added_aor2 or added_contract:
             verbs_touched += 1
@@ -1513,7 +1558,9 @@ def build_paradigms(only_lemmas=None):
     # filtering; this gate applies only to corpus-only lemmas.
     from build_grc_lexical_heads import normalize_headword
     with open(LEXICAL_HEADS_PATH, encoding="utf-8") as f:
-        lexical_heads = json.load(f)["heads"]
+        lexical_data = json.load(f)
+    lexical_heads = lexical_data["heads"]
+    principal_quantities = lexical_data.get("verb_principal_quantities", {})
     synthesis_heads = {
         lowercase_initial(head)
         for word in lexical_heads
@@ -1781,7 +1828,7 @@ def build_paradigms(only_lemmas=None):
     print(f"  corpus-only lemmas retained without synthesis: "
           f"{len(results) - len(synthesis_results):,}")
     print("  synthesising missing moods from principal parts ...")
-    synthesize_missing_moods(synthesis_results, synthesis_families)
+    synthesize_missing_moods(synthesis_results, synthesis_families, principal_quantities)
     if results:
         counts = sorted(v["form_count"] for v in results.values())
         n = len(counts)
@@ -1792,7 +1839,7 @@ def build_paradigms(only_lemmas=None):
     # Second synthesis pass: full case×gender×number participle
     # declension. Like the mood pass, only fills empty cells.
     print("  synthesising missing participles from principal parts ...")
-    synthesize_missing_participles(synthesis_results, synthesis_families)
+    synthesize_missing_participles(synthesis_results, synthesis_families, principal_quantities)
 
     # Wiktionary's conjugation tables decide the accent wherever a corpus
     # token or a synthesised cell spelled the same letters differently

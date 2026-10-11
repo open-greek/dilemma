@@ -23,7 +23,10 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from dilemma.form_sanitize import nonlexical_generated_lemma, sanitize_form
-from build_data import _is_verb_inflection_gloss, _is_ancient_reference_gloss
+from build_data import (
+    _is_verb_inflection_gloss, _is_ancient_reference_gloss,
+    is_independent_finite_entry,
+)
 
 KAIKKI_INPUTS = (
     ("wiktionary_en_grc", "en-el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
@@ -98,9 +101,40 @@ def has_definition(entry: dict, source: str = "en") -> bool:
     return False
 
 
+def principal_quantity_rows(entry: dict, source: str) -> list[dict]:
+    """Retain explicit lengths in an independent verb's citation/1sg forms.
+
+    Keep source variants separate, including contradictory quantities.
+    Neither an unmarked vowel nor another cell's accent supplies a length.
+    """
+    language = "en" if source.startswith("wiktionary_en_") else "el"
+    if not is_independent_finite_entry(entry, language):
+        return []
+    head = normalize_headword(entry.get("word", ""))
+    rows = []
+    for item in entry.get("forms", []):
+        form = unicodedata.normalize("NFC", item.get("form", ""))
+        tags = set(item.get("tags", []))
+        citation = "canonical" in tags and normalize_headword(form) == head
+        indicative = ({"first-person", "singular", "indicative"} <= tags
+                      and not tags & {"second-person", "third-person", "dual", "plural"})
+        if not (citation or indicative):
+            continue
+        if not any(mark in unicodedata.normalize("NFD", form)
+                   for mark in ("\u0304", "\u0306")):
+            continue
+        if not form or not all(unicodedata.combining(char)
+                               or "GREEK" in unicodedata.name(char, "")
+                               for char in unicodedata.normalize("NFD", form)):
+            continue
+        rows.append({"form": form, "source": source, "tags": sorted(tags)})
+    return rows
+
+
 def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
     heads: dict[str, set[str]] = defaultdict(set)
     vernacular_heads: dict[str, set[str]] = defaultdict(set)
+    quantities: dict[str, dict[str, dict]] = defaultdict(dict)
     inputs, counts = {}, Counter()
 
     def pin(source: str, path: Path) -> None:
@@ -124,6 +158,9 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
                         and has_definition(entry, "en" if source.startswith("wiktionary_en_") else "el")):
                     add(entry["word"], source,
                         vernacular_heads if language == "el" else heads)
+                    if language == "grc" and (head := normalize_headword(entry["word"])):
+                        for row in principal_quantity_rows(entry, source):
+                            quantities[head][json.dumps(row, ensure_ascii=False, sort_keys=True)] = row
 
     for name in EDITED_INPUTS:
         source = name.removesuffix(".json")
@@ -159,7 +196,10 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
             "source_head_counts": dict(sorted(counts.items())),
             "heads": {word: sorted(heads[word]) for word in sorted(heads)},
             "vernacular_heads": {word: sorted(vernacular_heads[word])
-                                 for word in sorted(vernacular_heads)}}
+                                 for word in sorted(vernacular_heads)},
+            "verb_principal_quantities": {
+                word: [quantities[word][key] for key in sorted(quantities[word])]
+                for word in sorted(quantities)}}
 
 
 def main() -> None:
