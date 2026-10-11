@@ -703,12 +703,30 @@ class TestAor2ParticipleSynthesis:
         out = synth.synthesize_aor2_participles("λύω", {"aor": "ἔλυσα"})
         assert out == {}
 
-    def test_explicit_second_aorist_takes_precedence(self, synth):
+    def test_explicit_second_aorist_supplies_active_template(self, synth):
         out = synth.synthesize_aor2_participles(
             "βλάπτω", {"aor": "ἔβλαψα", "aor2": "ἔβλαβον"}
         )
         assert out["active_aorist_participle_nom_m_sg"] == "βλαβών"
         assert all("ψ" not in form for form in out.values())
+
+    def test_middle_principal_part_does_not_mask_active(self, synth):
+        generic = {"aor": "κέκᾰδον"}
+        assert synth.synthesize_aor2_participles("χάζω", generic)
+        assert synth.synthesize_aor2_participles("χάζω", generic) == (
+            synth.synthesize_aor2_participles(
+                "χάζω", {**generic, "aor2": "κεκαδόμην"}
+            )
+        )
+
+    def test_alternate_second_aorist_does_not_replace_selected_one(self, synth):
+        generic = {"aor": "ἔτροπον"}
+        assert synth.synthesize_aor2_participles("τρέπω", generic)
+        assert synth.synthesize_aor2_participles("τρέπω", generic) == (
+            synth.synthesize_aor2_participles(
+                "τρέπω", {**generic, "aor2": "ἔτρᾰπον"}
+            )
+        )
 
 
 class TestAor2ParticipleSchemaAlignment:

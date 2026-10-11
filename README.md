@@ -2217,9 +2217,10 @@ part. An `-α` ending or a difference from the present stem is insufficient:
 sigmatic variants (`ἔπαιξα`) and liquid first aorists (`ἔμεινα`) must not
 generate second-aorist optatives or infinitives. Mixed-alpha synthesis is
 limited to established lemma/form pairs; other source forms remain in
-their attested cells. An explicitly labeled second aorist takes precedence
-over a generic aorist principal part when choosing either the mood or
-participle template.
+their attested cells. If the selected principal part does not fit the
+active second-aorist template, both mood and participle synthesis try the
+separately labeled second aorist. A middle-only principal part cannot
+displace an available active form.
 Passive aorist endings from a source table with an empty stem cannot
 supply a complete verb cell. For example, τύπτω's incomplete Ionic
 passive table lists `ῆν` and `εῖτε`; those readings are withheld while

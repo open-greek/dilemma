@@ -1715,12 +1715,14 @@ def synthesize_aor2_moods(
     if not lemma:
         return {}
     parts = principal_parts or {}
-    # A separately identified second aorist is stronger evidence than
-    # the generic principal part, which may select a first aorist.
-    aor_form = parts.get("aor2") or parts.get("aor")
-    if not aor_form:
-        return {}
+    # Keep the selected principal part if it fits this active template.
+    # Otherwise try the separately identified second aorist; that field
+    # can also contain a middle form, which must not mask an active form.
+    aor_form = parts.get("aor")
     aor_stem = extract_aor2_stem(aor_form, lemma)
+    if not aor_stem:
+        aor_form = parts.get("aor2")
+        aor_stem = extract_aor2_stem(aor_form, lemma)
     if not aor_stem:
         return {}
 

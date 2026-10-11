@@ -1115,12 +1115,30 @@ class TestAor2AlphaDetection:
         assert synth.extract_aor2_stem(form, lemma) is None
         assert synth.synthesize_aor2_moods(lemma, {"aor": form}) == {}
 
-    def test_explicit_second_aorist_takes_precedence(self, synth):
+    def test_explicit_second_aorist_supplies_active_template(self, synth):
         out = synth.synthesize_aor2_moods(
             "βλάπτω", {"aor": "ἔβλαψα", "aor2": "ἔβλαβον"}
         )
         assert out["active_aorist_infinitive"] == "βλαβεῖν"
         assert all("ψ" not in form for form in out.values())
+
+    def test_middle_principal_part_does_not_mask_active(self, synth):
+        generic = {"aor": "κέκᾰδον"}
+        assert synth.synthesize_aor2_moods("χάζω", generic)
+        assert synth.synthesize_aor2_moods("χάζω", generic) == (
+            synth.synthesize_aor2_moods(
+                "χάζω", {**generic, "aor2": "κεκαδόμην"}
+            )
+        )
+
+    def test_alternate_second_aorist_does_not_replace_selected_one(self, synth):
+        generic = {"aor": "ἔτροπον"}
+        assert synth.synthesize_aor2_moods("τρέπω", generic)
+        assert synth.synthesize_aor2_moods("τρέπω", generic) == (
+            synth.synthesize_aor2_moods(
+                "τρέπω", {**generic, "aor2": "ἔτρᾰπον"}
+            )
+        )
 
     def test_mixed_alpha_pair_requires_matching_lemma(self, synth):
         assert not synth._is_aor_2_alpha_form("εὗρα", "λύω")
