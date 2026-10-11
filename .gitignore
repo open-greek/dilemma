@@ -32,6 +32,7 @@ data/mg_lookup.json
 data/mg_pairs.json
 data/el_participles.json
 data/el_noun_heads.json
+data/el_adjective_heads.json
 data/el_verb_heads.json
 data/grc_lexical_heads.json
 data/lsj9_pos_lookup.json

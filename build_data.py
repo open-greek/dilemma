@@ -7,6 +7,7 @@ references, and dialect-tagged paradigms. Produces:
   - data/mg_pairs.json: Modern Greek form->lemma training pairs
   - data/el_participles.json: source-owned standalone participle morphology
   - data/el_noun_heads.json: source evidence for independent noun owners
+  - data/el_adjective_heads.json: source evidence for independent adjective owners
   - data/el_closed_class_heads.json: POS-specific determiner/pronoun head evidence
   - data/ag_pairs.json: Ancient Greek form->lemma training pairs
   - data/mg_lookup.json: flat lookup table {form: lemma}
@@ -493,6 +494,73 @@ _FORM_OF_PATTERNS = (
 _NOUN_REFERENCE_TAGS = frozenset({"form-of", "alternative", "misspelling"})
 
 
+def _is_adjective_derived_form_gloss(gloss: str) -> bool:
+    """Degree, contraction, or participle descriptions do not define a head."""
+    return bool(re.match(
+        r"^(?:(?:comparative|superlative)(?: (?:degree|form))? of\b|"
+        r"(?:(?:masculine|feminine|neuter|common|nominative|genitive|dative|accusative|vocative|singular|plural|dual)[ /-]+)+of\b|"
+        r"(?:contracted|uncontracted)(?: form)? of\b|"
+        r"(?:a )?(?:rare|more formal|less formal|older|old|alternative|alternate) "
+        r"(?:form|variant|pronunciation|spelling) of\b|"
+        r"(?:polytonic spelling|monotonic (?:script|spelling))[: ]|"
+        r"etymological (?:spelling|speeling) of\b|"
+        r"(?:βλέπε|δες)\s+\S+|"
+        r"(?:(?:με άρθρο,? )?σχετικός υπερθετικός|συγκριτικός|υπερθετικός)"
+        r"(?: βαθμός)? (?:του|της|των|με περίφραση)\b|"
+        r"(?:(?:παθητική|ενεργητική|μέση|μεσοπαθητική|ενεστώτα|αορίστου|παρακειμένου) )+μετοχή\b|"
+        r"(?:συνηρημένος|συνηρημένη|συνηρημένο|ασυναίρετος|ασυναίρετη|ασυναίρετο) "
+        r"(?:τύπος|μορφή) (?:του|της)\b)", gloss.strip().lower()))
+
+
+def is_independent_adjective_entry(entry: dict, source: str) -> bool:
+    """Require an adjective definition, rather than a grammatical form label."""
+    reference_tags = _NOUN_REFERENCE_TAGS | {"alt-of"}
+    if (entry.get("pos") != "adj" or source not in {"en", "el"}
+            or not _is_greek(strip_length_marks(entry.get("word", "")))
+            or reference_tags.intersection(entry.get("tags") or [])
+            or (source != "el" and (entry.get("form_of") or entry.get("alt_of")))
+            or any(template.get("name") == "head"
+                   and isinstance(template.get("args", {}), dict)
+                   and template.get("args", {}).get("1") == "el"
+                   and template.get("args", {}).get("2") in {
+                       "adjective form", "adjective forms", "noun form", "noun forms"}
+                   for template in entry.get("head_templates") or []
+                   if isinstance(template, dict))):
+        return False
+    senses = entry.get("senses") or []
+    if (not senses or any(s.get("form_of") or s.get("alt_of")
+                          or reference_tags.intersection(s.get("tags") or [])
+                          for s in senses)):
+        return False
+    word = strip_length_marks(entry.get("word", ""))
+    return any("no-gloss" not in (sense.get("tags") or [])
+               and not {"comparative", "superlative"}.intersection(sense.get("tags") or [])
+               and not any(_is_adjective_derived_form_gloss(gloss)
+                           for gloss in sense.get("glosses") or [])
+               and any(not _is_closed_class_inflection_gloss(gloss)
+                       and strip_accents(gloss.strip().lower()) != strip_accents(word.lower())
+                       and not re.fullmatch(
+                           r"το (?:αρσενικό|θηλυκό|ουδέτερο) "
+                           r"(?:ονομαστική|γενική|δοτική|αιτιατική|κλητική) "
+                           r"(?:ενικού|πληθυντικού|δυϊκού) του \S+[.;]?",
+                           gloss.strip().lower())
+                       for gloss in sense.get("glosses") or [])
+               for sense in senses)
+
+
+def adjective_head_evidence(entry: dict, source: str) -> dict:
+    """Keep the source definition and declared head type for adjective proof."""
+    return {
+        "source": source, "headword": entry["word"], "pos": entry["pos"],
+        "tags": sorted(set(entry.get("tags") or [])),
+        "form_of": entry.get("form_of") or [], "alt_of": entry.get("alt_of") or [],
+        "head_templates": entry.get("head_templates") or [],
+        "senses": [{key: sense.get(key) or []
+                    for key in ("glosses", "tags", "form_of", "alt_of")}
+                   for sense in entry.get("senses") or []],
+    }
+
+
 
 def noun_table_conflicts_with_form_page(entry: dict) -> bool:
     """A nonlexical noun form page cannot authorize a different nominal table."""
@@ -546,6 +614,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   typed_references: dict = None,
                   canonical_references: dict = None,
                   closed_class_form_refs: dict = None,
+                  adjective_heads: set = None, adjective_head_records: list = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -820,6 +889,15 @@ def extract_pairs(jsonl_path: Path, lang: str,
                           and any(s.get("glosses")
                                   and "no-gloss" not in s.get("tags", [])
                                   for s in entry.get("senses", [])))
+            adjective_owner = (modern_greek
+                               and is_independent_adjective_entry(entry, wikt_source)
+                               and spelling_of is None)
+            if adjective_owner:
+                if adjective_heads is not None:
+                    adjective_heads.add(lemma)
+                if adjective_head_records is not None:
+                    adjective_head_records.append({
+                        "lemma": lemma, **adjective_head_evidence(entry, wikt_source)})
             if (modern_greek and pos in {"det", "pron"}
                     and is_independent_closed_class_entry(entry, wikt_source)):
                 if closed_class_heads is not None:
@@ -1286,6 +1364,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 }
                 if noun_owner:
                     pair["noun_owner"] = True
+                if adjective_owner:
+                    pair["adjective_owner"] = True
                 if (is_participle and participle_cells is not None
                         and _is_nominal_participle_cell(morph_tags)):
                     participle_cells.append({
@@ -1454,7 +1534,8 @@ def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
         key = (pair["form"], pair["lemma"])
         if preserve_cells:
             key += (pair.get("pos", ""), tuple(sorted(set(pair.get("tags", [])))),
-                    pair.get("via"), bool(pair.get("noun_owner")))
+                    pair.get("via"), bool(pair.get("noun_owner")),
+                    bool(pair.get("adjective_owner")))
         if key not in seen:
             seen.add(key)
             result.append(pair)
@@ -1627,7 +1708,7 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
     def fail(message):
         raise ValueError(f"Invalid {pos}-head evidence: " + message)
 
-    reference_tags = _NOUN_REFERENCE_TAGS | ({"alt-of"} if pos in {"det", "pron"} else set())
+    reference_tags = _NOUN_REFERENCE_TAGS | ({"alt-of"} if pos in {"det", "pron", "adj"} else set())
 
     if (not isinstance(inventory, dict) or inventory.get("schema_version") != 1
             or inventory.get("language") != "el"):
@@ -1654,7 +1735,7 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
             if (not isinstance(entry, dict)
                     or set(entry) != ({"source", "headword", "pos", "tags", "senses",
                                       "form_of", "alt_of"}
-                                     | ({"head_templates"} if pos in {"det", "pron"} else set()))):
+                                     | ({"head_templates"} if pos in {"det", "pron", "adj"} else set()))):
                 fail("incomplete source entry for " + lemma)
             source, word = entry["source"], entry["headword"]
             if (source not in hashes or entry["pos"] != pos
@@ -1670,7 +1751,7 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
                     or (source != "el" and (entry["form_of"] or entry["alt_of"]))):
                 fail("reference-only head for " + lemma)
             declared_form = False
-            if pos in {"det", "pron"}:
+            if pos in {"det", "pron", "adj"}:
                 templates = entry["head_templates"]
                 if (not isinstance(templates, list)
                         or not all(isinstance(t, dict)
@@ -1679,7 +1760,7 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
                                            for k, v in t.get("args", {}).items())
                                    for t in templates)):
                     fail("malformed head templates for " + lemma)
-                declared_form = _declared_closed_class_form(entry)
+                declared_form = pos in {"det", "pron"} and _declared_closed_class_form(entry)
             substantive = False
             for sense in senses:
                 if (not isinstance(sense, dict)
@@ -1715,6 +1796,23 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
 def validate_noun_head_inventory(inventory: dict) -> set:
     """Return exact source-backed noun exceptions to the flat-head rule."""
     return _validate_head_inventory(inventory, "noun")
+
+
+def adjective_head_inventory(records: list, lookup: dict, source_hashes: dict) -> dict:
+    """Record exact adjective definitions whose flat head belongs elsewhere."""
+    return noun_head_inventory(records, lookup, source_hashes)
+
+
+def validate_adjective_head_inventory(inventory: dict) -> set:
+    """Authorize only positively defined, exact Modern adjective heads."""
+    heads = _validate_head_inventory(inventory, "adj")
+    for row in inventory["heads"]:
+        for evidence in row["evidence"]:
+            entry = {**evidence, "word": evidence["headword"]}
+            if not is_independent_adjective_entry(entry, evidence["source"]):
+                raise ValueError("Invalid adj-head evidence: no independent adjective definition for "
+                                 + row["lemma"])
+    return heads
 
 
 
@@ -1963,7 +2061,8 @@ def training_pair_headword_errors(pairs: list, lookup: dict,
                                   noun_heads: set = frozenset(),
                                   verb_heads: set = frozenset(),
                                   closed_class_heads: dict = None,
-                                  lexical_heads: dict = None) -> tuple:
+                                  lexical_heads: dict = None,
+                                  adjective_heads: set = frozenset()) -> tuple:
     """Require a flat head or independent evidence for this exact POS."""
     count, examples = 0, []
     for pair in pairs:
@@ -1974,6 +2073,7 @@ def training_pair_headword_errors(pairs: list, lookup: dict,
         if (needs_proof
                 and not (pair.get("pos") == "noun" and lemma in noun_heads)
                 and not (pair.get("pos") == "verb" and lemma in verb_heads)
+                and not (pair.get("pos") == "adj" and lemma in adjective_heads)
                 and not (pair.get("pos") in {"det", "pron"}
                          and lemma in (closed_class_heads or {}).get(pair.get("pos"), set()))
                 and lemma not in (lexical_heads or {}).get(pair.get("pos"), set())):
@@ -2251,7 +2351,8 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                        unresolved_verbs: set = frozenset(),
                        closed_class_heads: dict = None,
                        lexical_heads: dict = None,
-                       canonical_references: dict = None):
+                       canonical_references: dict = None,
+                       adjective_heads: set = frozenset()):
     """Follow a verb's own references before a homograph's flat lookup.
 
     A polytonic participle can first name its monotonic spelling, whose
@@ -2259,6 +2360,9 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
     still name its actual verb. A known non-verb cannot be a verb lemma.
     """
     original = lemma
+    if pos == "adj" and lemma in adjective_heads:
+        # This exact target is a defined adjective, not a noun homograph.
+        return lemma
     if lexical_heads is not None:
         # A same-POS reference ends at a positively defined lexical head,
         # before the untyped lookup can follow another homograph's edge.
@@ -2390,7 +2494,8 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
                          unresolved_verbs: set = frozenset(),
                          closed_class_heads: dict = None,
                          lexical_heads: dict = None,
-                         canonical_references: dict = None) -> list:
+                         canonical_references: dict = None,
+                         adjective_heads: set = frozenset()) -> list:
     """Resolve page references before lookup homographs; omit internal metadata."""
     headwords = {key for key, (lemma, _) in lookup.items() if key == lemma}
     graph_heads = set((participle_roots or {}).values())
@@ -2399,6 +2504,9 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
     for pair in deduplicate_pairs(pairs, preserve_readings):
         noun_owner = (preserve_cells and pair.get("pos") == "noun"
                       and pair.get("noun_owner") and not pair.get("via"))
+        adjective_owner = (preserve_cells and pair.get("pos") == "adj"
+                           and pair.get("adjective_owner") and not pair.get("via"))
+        own_nominal = noun_owner or adjective_owner
         own_root = (preserve_cells and pair.get("pos") == "verb"
                     and pair.get("via") in unresolved_verbs
                     and pair["lemma"] in (participle_roots or {}))
@@ -2418,18 +2526,20 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
             # The POS check below makes this fallback safe from homographs.
             candidates.append(pair["lemma"])
         for lemma in candidates:
-            resolved = pair["lemma"] if noun_owner else resolve_pair_lemma(
+            resolved = pair["lemma"] if own_nominal else resolve_pair_lemma(
                 lemma, pair.get("pos", "") if preserve_readings else "name", lookup,
                 pos_map if preserve_readings else None,
                 lemma_pos if preserve_cells else None,
                 participle_roots if preserve_cells else None,
                 unresolved_verbs if preserve_cells else frozenset(),
                 closed_class_heads if preserve_cells else None, lexical_heads,
-                canonical_references)
-            if (not noun_owner and resolved not in headwords
+                canonical_references, adjective_heads if preserve_cells else frozenset())
+            if (not own_nominal and resolved not in headwords
                     and not (pair.get("pos") == "verb" and resolved in graph_heads)
                     and not (preserve_cells and resolved in (closed_class_heads or {}).get(
                         pair.get("pos"), set()))
+                    and not (preserve_cells and pair.get("pos") == "adj"
+                             and resolved in adjective_heads)
                     and resolved not in (lexical_heads or {}).get(pair.get("pos"), set())):
                 continue
             result.append({"form": pair["form"], "lemma": resolved,
@@ -2600,6 +2710,7 @@ def main():
         participle_verb_refs = {}
         participle_cells = []
         noun_heads, noun_source_hashes = [], {}
+        adjective_heads, adjective_head_records = set(), []
         participle_roots, unresolved_verbs = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
 
@@ -2629,6 +2740,8 @@ def main():
                 participle_verb_refs=participle_verb_refs,
                 participle_cells=participle_cells if lang == "el" else None,
                 noun_heads=noun_heads if lang == "el" else None,
+                adjective_heads=adjective_heads if lang == "el" else None,
+                adjective_head_records=adjective_head_records if lang == "el" else None,
                 closed_class_heads=closed_class_heads if lang == "el" else None,
                 closed_head_records=closed_head_records if lang == "el" else None,
                 lexical_heads=lexical_heads,
@@ -2668,6 +2781,8 @@ def main():
                 participle_verb_refs=participle_verb_refs,
                 participle_cells=participle_cells if lang == "el" else None,
                 noun_heads=noun_heads if lang == "el" else None,
+                adjective_heads=adjective_heads if lang == "el" else None,
+                adjective_head_records=adjective_head_records if lang == "el" else None,
                 closed_class_heads=closed_class_heads if lang == "el" else None,
                 closed_head_records=closed_head_records if lang == "el" else None,
                 lexical_heads=lexical_heads,
@@ -2849,6 +2964,14 @@ def main():
                 f.write("\n")
             print(f"Independent noun heads: {len(noun_inventory['heads']):,}")
             print(f"  -> {noun_heads_path}")
+            adjective_inventory = adjective_head_inventory(
+                adjective_head_records, all_lookup, noun_source_hashes)
+            validate_adjective_head_inventory(adjective_inventory)
+            adjective_path = DATA_DIR / "el_adjective_heads.json"
+            adjective_path.write_text(json.dumps(adjective_inventory, ensure_ascii=False,
+                                                  indent=2) + "\n", encoding="utf-8")
+            print(f"Independent adjective heads: {len(adjective_inventory['heads']):,}")
+            print(f"  -> {adjective_path}")
             closed_inventory = closed_class_head_inventory(
                 closed_head_records, all_lookup, noun_source_hashes)
             validate_closed_class_head_inventory(closed_inventory)
@@ -2877,7 +3000,8 @@ def main():
                                              unresolved_verbs=unresolved_verbs,
                                              closed_class_heads=closed_class_heads if lang == "el" else None,
                                              lexical_heads=lexical_heads,
-                                             canonical_references=canonical_references)
+                                             canonical_references=canonical_references,
+                                             adjective_heads=adjective_heads if lang == "el" else frozenset())
 
         if lang == "grc":
             inventory = ancient_reading_head_inventory(
@@ -2971,7 +3095,7 @@ def main():
                         participle_roots if lang == "el" else None,
                         unresolved_verbs if lang == "el" else frozenset(),
                         closed_class_heads if lang == "el" else None, lexical_heads,
-                        canonical_references)
+                        canonical_references, adjective_heads if lang == "el" else frozenset())
                     if target is not None:
                         resolved[upos] = target
                 else:
@@ -2983,7 +3107,9 @@ def main():
             closed_target_differs = lang == "el" and any(
                 upos in resolved and resolved[upos] != all_lookup.get(form, (form,))[0]
                 for upos in ("DET", "PRON"))
-            if len(set(resolved.values())) > 1 or closed_target_differs:
+            adjective_target_differs = (lang == "el" and resolved.get("ADJ") in adjective_heads
+                                       and resolved["ADJ"] != all_lookup.get(form, (form,))[0])
+            if len(set(resolved.values())) > 1 or closed_target_differs or adjective_target_differs:
                 ambiguous_pos[form] = resolved
 
         pos_lookup_path = DATA_DIR / f"{prefix}_pos_lookup.json"

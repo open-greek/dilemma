@@ -7,6 +7,11 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Independently defined Modern adjectives keep their source morphology through
+  flat noun or verb homographs. `el_adjective_heads.json` records the exact
+  source definitions and input hashes; typed ADJ lookup retains these owners
+  without changing scalar lookup. The adjective `κρατών` owns `κρατούν`,
+  `κρατούσα`, and `κρατούσες`; the noun reference still names `κράτος`.
 - Canonical Ancient verb citations can recover a missing breathing from a
   unique matching source cell. Explicitly defective verbs retain supplied cells
   while synthesized forms stay within source-supported tense and voice families.

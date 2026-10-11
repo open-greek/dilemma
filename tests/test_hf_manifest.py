@@ -95,3 +95,15 @@ def test_ancient_reading_companion_is_published_and_generated():
     assert "data/grc_reading_heads.json" in (ROOT / ".gitignore").read_text()
     source = (ROOT / "build_data.py").read_text()
     assert 'DATA_DIR / "grc_reading_heads.json"' in source
+
+
+def test_adjective_companion_is_published_generated_and_downloaded():
+    from fnmatch import fnmatch
+    from dilemma import _download
+
+    path = "data/el_adjective_heads.json"
+    assert path in hf_data.TRACKED
+    assert path in (ROOT / ".gitignore").read_text()
+    assert 'DATA_DIR / "el_adjective_heads.json"' in (ROOT / "build_data.py").read_text()
+    assert any(fnmatch(path, pattern) for pattern in _download.INCLUDES)
+    assert not any(fnmatch(path, pattern) for pattern in _download.BASE_IGNORES)

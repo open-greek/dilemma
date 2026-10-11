@@ -61,6 +61,8 @@ TRACKED = [
     "data/el_participles.json",
     # Independent noun heads retained beside flat-lookup homographs.
     "data/el_noun_heads.json",
+    # Defined adjectives retained beside noun/verb flat homographs.
+    "data/el_adjective_heads.json",
     # Independent finite verb heads selected by the source reference graph.
     "data/el_verb_heads.json",
     # Expanded lexical POS coverage exceeds GitHub's regular-file size limit.

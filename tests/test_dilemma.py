@@ -21,6 +21,7 @@ DATA_DIR = ROOT / "data"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from build_data import (training_pair_headword_errors, validate_noun_head_inventory,
+                        validate_adjective_head_inventory,
                         validate_verb_head_inventory, validate_closed_class_head_inventory,
                         validate_ancient_reading_head_inventory)
 
@@ -72,6 +73,10 @@ def test_modern_training_pair_heads_have_real_source_evidence():
     assert evidence_path.exists(), "Missing el_noun_heads.json; rebuild Modern Greek data"
     noun_heads = validate_noun_head_inventory(
         json.loads(evidence_path.read_text(encoding="utf-8")))
+    adjective_path = DATA_DIR / "el_adjective_heads.json"
+    assert adjective_path.exists(), "Missing el_adjective_heads.json; rebuild Modern Greek data"
+    adjective_heads = validate_adjective_head_inventory(
+        json.loads(adjective_path.read_text(encoding="utf-8")))
     verb_path = DATA_DIR / "el_verb_heads.json"
     assert verb_path.exists(), "Missing el_verb_heads.json; run build/build_el_verb_heads.py"
     verb_heads = validate_verb_head_inventory(json.loads(verb_path.read_text(encoding="utf-8")))
@@ -79,7 +84,7 @@ def test_modern_training_pair_heads_have_real_source_evidence():
     lookup = json.loads(lookup_path.read_text(encoding="utf-8"))
     closed_heads = built_closed_class_heads(pairs, lookup, DATA_DIR)
     bad, examples = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads,
-                                                 closed_heads)
+                                                 closed_heads, adjective_heads=adjective_heads)
     assert bad == 0, f"{bad} unsupported training pair heads: {examples}"
 
 
@@ -249,6 +254,7 @@ def run_lookup_tests():
         pairs = json.load(open(pairs_path, encoding="utf-8"))
         lookup = json.load(open(lookup_path, encoding="utf-8"))
         noun_heads, verb_heads, closed_heads, lexical_heads = set(), set(), {}, {}
+        adjective_heads = set()
         if prefix == "mg":
             evidence_path = DATA_DIR / "el_noun_heads.json"
             try:
@@ -257,6 +263,12 @@ def run_lookup_tests():
             except (OSError, ValueError) as error:
                 results.append(("FAIL", "MG noun-head evidence"))
                 print(f"  [FAIL] MG noun-head evidence: {error}")
+            try:
+                adjective_heads = validate_adjective_head_inventory(json.loads(
+                    (DATA_DIR / "el_adjective_heads.json").read_text(encoding="utf-8")))
+            except (OSError, ValueError) as error:
+                results.append(("FAIL", "MG adjective-head evidence"))
+                print(f"  [FAIL] MG adjective-head evidence: {error}")
             try:
                 verb_heads = validate_verb_head_inventory(json.loads(
                     (DATA_DIR / "el_verb_heads.json").read_text(encoding="utf-8")))
@@ -275,7 +287,7 @@ def run_lookup_tests():
                 results.append(("FAIL", "AG reading-head evidence"))
                 print(f"  [FAIL] AG reading-head evidence: {error}")
         bad, bad_ex = training_pair_headword_errors(pairs, lookup, noun_heads, verb_heads,
-                                                   closed_heads, lexical_heads)
+                                                   closed_heads, lexical_heads, adjective_heads)
         status = "PASS" if bad == 0 else "FAIL"
         results.append((status, f"{name} training pair lemmas clean"))
         print(f"\n  [{status}] {name} training pair lemmas clean: {bad}/{len(pairs)} dirty")
