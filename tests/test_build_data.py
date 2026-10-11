@@ -265,6 +265,43 @@ def test_cross_source_reciprocal_synonyms_keep_both_paradigms():
         assert all(word == lemma for word, (lemma, _) in lookup.items())
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_preserves_ancient_noun_and_verb_in_reference_cycle(tmp_path, monkeypatch, reverse):
+    import build_data
+    entries = [
+        {"word": "ἔργον", "pos": "noun",
+         "senses": [{"glosses": ["work, deed"]}],
+         "forms": [{"form": "ἔργα", "tags": ["nominative", "plural"]}]},
+        {"word": "ἔργω", "pos": "verb",
+         "senses": [{"glosses": ["to enclose"]}],
+         "forms": [{"form": "ἔργεις", "tags": ["present", "second-person"]}]},
+        {"word": "ἔργον", "pos": "verb",
+         "senses": [{"form_of": [{"word": "ἔργω"}]}]},
+        {"word": "ἔργω", "pos": "noun",
+         "senses": [{"form_of": [{"word": "ἔργον"}]}]},
+        {"word": "λόγον", "pos": "noun",
+         "senses": [{"form_of": [{"word": "λόγος"}]}]},
+        {"word": "λόγος", "pos": "noun",
+         "senses": [{"glosses": ["word, account"]}]},
+    ]
+    dump = _write(tmp_path, entries[::-1] if reverse else entries)
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": dump.name}})
+    monkeypatch.setattr(build_data.sys, "argv", [
+        "build_data.py", "--lang", "grc", "--kaikki", str(tmp_path)])
+    build_data.main()
+    lookup = json.loads((output / "ag_lookup.json").read_text())
+    assert lookup["ἔργον"] == "ἔργον"
+    assert lookup["ἔργω"] == "ἔργω"
+    assert lookup["λόγον"] == "λόγος"
+    pairs = json.loads((output / "ag_pairs.json").read_text())
+    assert any(row["form"] == "ἔργα" and row["lemma"] == "ἔργον"
+               and row["pos"] == "noun" for row in pairs)
+    assert any(row["form"] == "ἔργεις" and row["lemma"] == "ἔργω"
+               and row["pos"] == "verb" for row in pairs)
+
+
 def test_pair_deduplication_preserves_each_morphological_cell():
     pairs = [{"form": "καθηγητή", "lemma": "καθηγητής", "pos": "noun", "tags": tags}
              for tags in (["genitive", "singular"], ["accusative", "singular"],

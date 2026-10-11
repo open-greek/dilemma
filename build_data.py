@@ -2157,9 +2157,12 @@ def main():
             dropped = drop_abbreviation_targets(targets, abbreviations, words)
             if dropped:
                 print(f"Abbreviation targets dropped for words: {dropped:,}")
+        # Reciprocal form references also arise between Ancient noun and
+        # verb homographs (ἔργον / ἔργω). Keep their independent heads;
+        # processing order must not collapse one into the other.
         cross_resolved = resolve_cross_source(
             all_lookup, en_form_of_targets, el_form_of_targets,
-            en_headwords, _MG_ARTICLE_FORMS, preserve_cycles=(lang == "el"))
+            en_headwords, _MG_ARTICLE_FORMS, preserve_cycles=True)
         if cross_resolved:
             print(f"Cross-source form-of resolutions: {cross_resolved:,}")
 
