@@ -1686,6 +1686,10 @@ def is_independent_lexical_entry(entry: dict, source: str) -> bool:
     Ancient homographs can have separate lexical and form-of entries even
     within one part of speech. Their own tables remain separate readings.
     """
+    if entry.get("pos") not in WIKT_TO_UPOS:
+        # Letter names, symbols, and phrase headers do not establish a
+        # lexical POS owner for an inflected word with the same spelling.
+        return False
     if entry.get("pos") == "verb":
         return is_independent_finite_entry(entry, source)
     senses = entry.get("senses") or []
@@ -1741,7 +1745,10 @@ def ancient_reading_head_inventory(pairs: list, lookup: dict, sources: dict) -> 
         if not path.exists():
             continue
         with path.open('rb') as stream:
-            hashes[source] = hashlib.file_digest(stream, 'sha256').hexdigest()
+            digest = hashlib.sha256()
+            for block in iter(lambda: stream.read(1024 * 1024), b''):
+                digest.update(block)
+            hashes[source] = digest.hexdigest()
         with path.open(encoding='utf-8') as stream:
             for line_number, line in enumerate(stream, 1):
                 try:

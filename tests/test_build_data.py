@@ -486,6 +486,13 @@ def test_ancient_dialect_reference_is_not_an_independent_lexical_definition(glos
     assert is_independent_lexical_entry(entry, "el")
 
 
+@pytest.mark.parametrize('pos', ['character', 'symbol', 'phrase', 'suffix', 'prefix'])
+def test_nonword_source_sections_do_not_establish_lexical_owners(pos):
+    from build_data import is_independent_lexical_entry
+    assert not is_independent_lexical_entry(
+        {'word': 'α', 'pos': pos, 'senses': [{'glosses': ['the letter alpha']}]}, 'en')
+
+
 @pytest.mark.parametrize("reverse", [False, True])
 def test_ancient_other_pos_reference_across_sources_preserves_verb(tmp_path, monkeypatch, reverse):
     import build_data
@@ -567,7 +574,7 @@ def test_independent_verb_and_same_pos_inflection_keep_both_readings(tmp_path, m
     assert build_data.training_pair_headword_errors(pairs, lookup, lexical_heads=heads)[0] == 0
 
 
-def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_path):
+def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_path, monkeypatch):
     import build_data
     import hashlib
 
@@ -576,6 +583,8 @@ def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_pat
     pairs = [{'form': 'δίεις', 'lemma': 'δίω', 'pos': 'verb'},
              {'form': 'δίω', 'lemma': 'δίω', 'pos': 'adj'}]
     lookup = {'δίω': ('δείδω', 1)}
+    # Python 3.10 is supported and has no hashlib.file_digest.
+    monkeypatch.delattr(hashlib, 'file_digest', raising=False)
     inventory = build_data.ancient_reading_head_inventory(pairs[:1], lookup, {'en': dump})
     assert inventory['source_sha256'] == {'en': hashlib.sha256(dump.read_bytes()).hexdigest()}
     heads = build_data.validate_ancient_reading_head_inventory(inventory)
