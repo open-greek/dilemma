@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "exclusions": [
-    {"form": "του", "reason": "Modern/unaccented spelling; polytonic article is τοῦ"},
     {"form": "τα-", "reason": "hyphenated corpus fragment"},
     {"form": "μη", "reason": "unaccented corpus token; polytonic particle is μή"},
     {"form": "κι", "reason": "Modern Greek contraction"},
@@ -24,7 +23,6 @@
     {"form": "δʹ", "reason": "Greek numeral"},
     {"form": "σ", "reason": "single-letter corpus fragment"},
     {"form": "βʹ", "reason": "Greek numeral"},
-    {"form": "τώρα", "reason": "Modern Greek adverb"},
     {"form": "δ", "reason": "apostrophe-tokenized bare elision stem"},
     {"form": "Ϛ", "reason": "Greek numeral sign"},
     {"form": "τὴ", "reason": "Modern Greek article; the polytonic Modern Greek list carries it"},

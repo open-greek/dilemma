@@ -790,7 +790,8 @@ def test_consonant_final_complete_words_are_kept(form, lemma):
 
 def test_reviewed_lm_head_is_pinned():
     forms = load_lm_head_required_forms()
-    assert len(forms) == 973
+    assert len(forms) == 975
+    assert {"του", "τώρα"} <= forms
     # The polytonic Modern article and the anastrophe accent of ἐκ are
     # required. The Diorisis macron artifact δῑ is gone from the LM since
     # its retraining, and the Modern Greek στὴν, which the LM writes only
@@ -1536,3 +1537,17 @@ def test_exact_rating_loader_never_uses_legacy_lowercased_counts(tmp_path, monke
                    "cased_forms": {"Λόγος": 1000, "λόγος": 2}}, stream)
     evidence = _evidence({"λόγος": 5000})._replace(cased={"λόγος": 3})
     assert exporter.load_exact_rating_counts(evidence) == {"Λόγος": 1000, "λόγος": 3}
+
+
+def test_source_review_admits_only_the_documented_forms():
+    from export_hunspell import derive_reviewed_paradigm
+    assert derive_reviewed_paradigm(
+        {"method": "source_forms", "forms": ["κάρτευς", "ἐπεστονάχιζε"]}, []
+    ) == {"κάρτευς", "ἐπεστονάχιζε"}
+
+
+def test_source_review_normalizes_contextual_grave_to_acute():
+    from export_hunspell import derive_reviewed_paradigm
+    assert derive_reviewed_paradigm(
+        {"method": "source_forms", "forms": ["κεντροβαρὲς", "ὑπερανεστηκὸς"]}, []
+    ) == {"κεντροβαρές", "ὑπερανεστηκός"}

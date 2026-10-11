@@ -1328,6 +1328,11 @@ def filter_case_artifacts(
 def derive_reviewed_paradigm(spec: dict, source_forms: list[str]) -> set[str]:
     """Derive one reviewed grammatical class from its documented source."""
     method = spec["method"]
+    if method == "source_forms":
+        # A checked textual witness can support a sparse exact form without
+        # implying an unattested paradigm. Its citation lives with the data.
+        return {contextual_acute(unicodedata.normalize("NFC", form))
+                for form in spec["forms"]}
     if method in {"lookup_paradigm", "verb_paradigm"}:
         forms = set()
         for form in source_forms:
@@ -1368,7 +1373,7 @@ def add_reviewed_postclassical_paradigms(
     pairs: list[tuple[str, str]], conn: sqlite3.Connection, *,
     review_path: Path = DATA / "hunspell_grc_postclassical_review.json",
 ) -> tuple[list[tuple[str, str]], set[str], list[dict]]:
-    """Keep defensible liturgical paradigms even where the corpora are sparse."""
+    """Keep source-checked forms and paradigms where the corpora are sparse."""
     specs = json.loads(review_path.read_text(encoding="utf-8"))
     if specs["schema_version"] != 1:
         raise ValueError("unsupported postclassical review schema")
@@ -1757,6 +1762,8 @@ class FormProfileEvidence(NamedTuple):
     well-formed spelling with those letters;
     ``treebank_confirmed`` holds the keys both treebanks annotate, on one
     spelling and more than once each.
+    ``cased`` uses the same grave-to-acute normalization as ``exact``, but
+    retains capitalization so a name cannot lend frequency to a common word.
     """
     exact: dict[str, int]
     dominant: dict[str, int]

@@ -28,6 +28,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import sqlite3
 import struct
 import sys
 import unicodedata
@@ -46,17 +47,23 @@ from dilemma.form_sanitize import (  # noqa: E402
 from export_hunspell import (  # noqa: E402
     BARE_ELISION_STEMS,
     FORM_PROFILE_DB,
+    LOOKUP_DB,
+    GRC_REJECT_FORMS,
     GRC_CLOSED_LIST_FORMS,
+    FormProfileEvidence,
     contextual_acute,
     filter_dominated_spelling_variants,
+    filter_case_artifacts,
     grc_orthography_reason,
     grc_pinned_forms,
     load_canonical_ag_sets,
+    load_case_ownership,
     load_form_profile_freq,
     load_grc_spelling_review,
     load_grc_textbook_forms,
     load_lm_head_required_forms,
     load_top_lsj9_lemmas,
+    add_reviewed_postclassical_paradigms,
     new_form_structural_reason,
 )
 
@@ -440,11 +447,20 @@ def audit_whole_artifact(
     compatibility = load_gzip_fixture(compatibility_path)
     # A form a recorded spelling review rejected is no longer required,
     # nor is its contextual grave or acute twin.
-    review = {contextual_acute(form) for form in load_grc_spelling_review()}
+    review = {contextual_acute(form) for form in
+              set(load_grc_spelling_review()) | set(GRC_REJECT_FORMS)}
     required = {
         form for form in compatibility.get("forms", [])
         if contextual_acute(form) not in review
     }
+    # Compatibility cannot require a source error or a synthetic case variant
+    # that the same reviewed export rules now explicitly reject.
+    profile = load_form_profile_freq()
+    with sqlite3.connect(f"file:{LOOKUP_DB}?mode=ro", uri=True) as conn:
+        ownership = load_case_ownership(conn)
+    kept, _case_rejected = filter_case_artifacts(
+        [(form, form) for form in required], profile, ownership)
+    required = {form for form, _lemma in kept}
     reviewed = required | set(GRC_CLOSED_LIST_FORMS)
     invalid = sorted(
         form for form in forms
@@ -470,11 +486,13 @@ def audit_whole_artifact(
         "grave_without_acute": grave_without_acute,
         "citation_headwords_missing": sorted(citation_headwords - forms),
         "flags_without_identity": sorted(flags_without_identity),
-        "weak_respellings": weak_respellings(forms - required - inherited),
+        "weak_respellings": weak_respellings(forms - required - inherited, profile),
     }
 
 
-def weak_respellings(new_forms: set[str]) -> list[str]:
+def weak_respellings(
+    new_forms: set[str], profile: FormProfileEvidence | None = None,
+) -> list[str]:
     """New entries that fail the exporter's respelling-evidence rule.
 
     The exporter applies the rule before affix compression and again to the
@@ -486,9 +504,12 @@ def weak_respellings(new_forms: set[str]) -> list[str]:
             f"{FORM_PROFILE_DB} is required for the respelling audit; "
             "run `python -m dilemma download --with-attestation`"
         )
-    profile = load_form_profile_freq()
+    if profile is None:
+        profile = load_form_profile_freq()
     canonical_forms, _canonical_lemmas = load_canonical_ag_sets()
     textbook_forms, _textbook_meta = load_grc_textbook_forms()
+    with sqlite3.connect(f"file:{LOOKUP_DB}?mode=ro", uri=True) as conn:
+        _pairs, source_reviewed, _audit = add_reviewed_postclassical_paradigms([], conn)
     _kept, rejected = filter_dominated_spelling_variants(
         [(form, form) for form in sorted(new_forms)],
         profile.exact, profile.dominant, profile.treebank,
@@ -496,7 +517,7 @@ def weak_respellings(new_forms: set[str]) -> list[str]:
         protected_forms=grc_pinned_forms(
             canonical_forms, load_top_lsj9_lemmas(), textbook_forms,
             load_lm_head_required_forms(),
-        ),
+        ) | source_reviewed,
         treebank_confirmed=profile.treebank_confirmed,
     )
     return [form for form, _lemma in rejected]
@@ -643,7 +664,15 @@ def main() -> int:
         "--attestation-out", type=Path,
         help="write the exporter's deterministic exact-form frequency map",
     )
+    parser.add_argument(
+        "--attestation-only", action="store_true",
+        help="write --attestation-out without changing or auditing the coverage fixture",
+    )
     args = parser.parse_args()
+    if args.attestation_only and args.attestation_out is None:
+        parser.error("--attestation-only requires --attestation-out")
+    if args.attestation_only and args.write_fixture:
+        parser.error("--attestation-only cannot change the coverage fixture")
 
     try:
         if args.source == "fixture":
@@ -670,7 +699,7 @@ def main() -> int:
             encoding="utf-8",
         )
         print(f"wrote {args.fixture}")
-    elif args.source != "fixture":
+    elif args.source != "fixture" and not args.attestation_only:
         committed = json.loads(args.fixture.read_text(encoding="utf-8"))
         if generated != committed:
             print("ERROR: frequency fixture is stale; regenerate with --write-fixture",
@@ -693,6 +722,8 @@ def main() -> int:
             ),
         )
         print(f"wrote {args.attestation_out}")
+    if args.attestation_only:
+        return 0
 
     if args.baseline_dictionary is not None:
         if args.source == "fixture":

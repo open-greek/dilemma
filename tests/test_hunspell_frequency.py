@@ -29,12 +29,6 @@ from scripts.audit_hunspell_frequency import (
 from scripts.build_hunspell_heldout_fixture import exact_tokens
 
 
-def test_exact_attestation_keeps_separate_case_counts():
-    payload = exact_attestation_payload(
-        ["Λόγος", "λόγος", "λὸγος", "δ’"], {0: 100, 1: 7, 2: 2, 3: 1}, {}, {}
-    )
-    assert payload["forms"] == {"δ᾽": 1, "λόγος": 109}
-    assert payload["cased_forms"] == {"Λόγος": 100, "δ᾽": 1, "λόγος": 9}
 from export_hunspell import (
     BARE_ELISION_STEMS,
     FORM_PROFILE_DB,
@@ -43,23 +37,36 @@ from export_hunspell import (
     HOMERIC_SHORT_PREPOSITIONS,
     LOOKUP_DB,
     add_grc_reviewed_forms,
+    add_postclassical_corpus_forms,
+    add_reviewed_postclassical_paradigms,
     exact_form_key,
     filter_by_lemma_freq,
     finalize_grc_pairs,
     grc_orthography_reason,
     grc_pinned_forms,
     load_canonical_ag_sets,
+    load_case_ownership,
+    load_exact_rating_counts,
     load_form_profile_freq,
     load_grc_compatibility_forms,
     load_grc_spelling_review,
     load_grc_textbook_forms,
     load_lm_head_required_forms,
+    load_lm_dev_spellings,
     load_top_lsj9_lemmas,
     sanitize_export_pairs,
     select_forms,
     strip_accents,
     write_variant,
 )
+
+
+def test_exact_attestation_keeps_separate_case_counts():
+    payload = exact_attestation_payload(
+        ["Λόγος", "λόγος", "λὸγος", "δ’"], {0: 100, 1: 7, 2: 2, 3: 1}, {}, {}
+    )
+    assert payload["forms"] == {"δ᾽": 1, "λόγος": 109}
+    assert payload["cased_forms"] == {"Λόγος": 100, "δ᾽": 1, "λόγος": 9}
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 FIXTURE = FIXTURE_DIR / "hunspell_lm_top1000.json"
@@ -110,9 +117,10 @@ def test_frequency_exclusions_are_explicit_and_within_fixture():
     fixture_forms = {row["form"] for row in _fixture()["forms"]}
     exclusions = load_exclusions(EXCLUSIONS)
 
-    assert len(exclusions) == 32
+    assert len(exclusions) == 30
     assert set(exclusions) <= fixture_forms
-    assert {"του", "ἀλλ", "ἀπ", "αʹ", "βʹ", "τώρα"} <= set(exclusions)
+    assert {"ἀλλ", "ἀπ", "αʹ", "βʹ"} <= set(exclusions)
+    assert not {"του", "τώρα"} & set(exclusions)
     # Modern Greek graves the grc dictionary leaves to the Modern Greek list.
     assert {"τὴ", "στὴν"} <= set(exclusions)
 
@@ -136,7 +144,9 @@ def test_frequency_head_checks_a_grave_spelling_exactly(tmp_path):
     not FORM_PROFILE_DB.exists(), reason="form_profile.db not downloaded"
 )
 def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
-    forms, dominant, treebank, metadata, confirmed = load_form_profile_freq()
+    profile = load_form_profile_freq()
+    forms, dominant, treebank = profile.exact, profile.dominant, profile.treebank
+    metadata, confirmed = profile.metadata, profile.treebank_confirmed
 
     assert metadata["content_hash"] == (
         "d9bfe0176b2b17b948961ea7ad9e47ae0527bb27f79e57210df7b55a15d8e086"
@@ -166,6 +176,7 @@ def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
     assert {exact_form_key(f) for f in ("πρώτω", "γλώσσᾳ", "πειρᾷς")} <= confirmed
     assert exact_form_key("ταΐς") not in confirmed
     assert exact_form_key("ὄσα") not in confirmed
+    assert profile.cased["Σωκράτης"] > profile.cased.get("σωκράτης", 0)
 
 
 def test_whole_artifact_compatibility_fixture_is_reviewed_and_pinned():
@@ -347,7 +358,7 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
         ),
         attestation_freq=profile.exact,
     )
-    conn.close()
+    case_ownership = load_case_ownership(conn)
     textbook_forms, textbook_meta = load_grc_textbook_forms()
     pairs = filter_by_lemma_freq(
         pairs,
@@ -357,6 +368,9 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
         strict_form_freq_map=profile.exact,
         keep_forms=top_lemmas | textbook_forms,
     )
+    pairs, reviewed_forms, _source_audit = add_reviewed_postclassical_paradigms(pairs, conn)
+    pairs, _corpus_audit = add_postclassical_corpus_forms(pairs, conn, load_lm_dev_spellings())
+    conn.close()
     compatibility_forms, _compatibility_meta = load_grc_compatibility_forms()
     # The same helpers, in the same order, as export_hunspell.run_export.
     pairs, _added = add_grc_reviewed_forms(
@@ -375,15 +389,16 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
         protected_forms=grc_pinned_forms(
             canonical_forms, top_lemmas, textbook_forms,
             load_lm_head_required_forms(),
-        ),
+        ) | reviewed_forms,
         reviewed_rejects=load_grc_spelling_review(),
+        case_ownership=case_ownership,
     )
     assert report["invalid"]
     assert report["dominated"]
     write_variant(
         variant="grc",
         form_lemma=pairs,
-        freq_map=freq,
+        freq_map=load_exact_rating_counts(profile),
         out_dir=tmp_path,
         dic_name="coverage",
         lang_tag="grc",

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "reviewed_paradigm_specifications",
   "reviewed_on": "2026-10-11",
-  "note": "These are source specifications, not generated dictionary rows. The exporter derives the listed grammatical classes and records every resulting form in its audit.",
+  "note": "These are reviewed source specifications, not generated dictionary rows. The exporter retains checked exact spellings and derives only the explicitly documented grammatical classes; its audit records every resulting form.",
   "paradigms": [
     {
       "lemma": "ἀειμακάριστος",
@@ -47,6 +47,512 @@
       "evidence": "Menaion, March 20, Ode 7, attests ἀνθοπλίσαντες in the hymn beginning Ὅλον πρὸς σὲ μεταθέντες. Derive the regular active aorist participle from ἀνθοπλίσ-; long endings move the acute from the antepenult to the penult.",
       "source_url": "https://inagiastriados.gr/files/leitourgika/texts/Mar/20.uni.htm",
       "stem": "ἀνθοπλίσ"
+    },
+    {
+      "lemma": "κάρτος",
+      "method": "source_forms",
+      "forms": [
+        "κάρτευς"
+      ],
+      "evidence": "Exact word verified in HESIODUS, Theogonia, 647, 710 (TLG tlg0020.001). Edition: West, M.L, Clarendon Press, 1966. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg0020.001 647, 710"
+    },
+    {
+      "lemma": "ἐπιστοναχίζω",
+      "method": "source_forms",
+      "forms": [
+        "ἐπεστονάχιζε"
+      ],
+      "evidence": "Exact word verified in HESIODUS, Theogonia, 843 (TLG tlg0020.001). Edition: West, M.L, Clarendon Press, 1966. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg0020.001 843"
+    },
+    {
+      "lemma": "τρυφάω",
+      "method": "source_forms",
+      "forms": [
+        "τρυφήσατε"
+      ],
+      "evidence": "Exact word verified in JOANNES CHRYSOSTOMUS, Sermo catecheticus in pascha [Sp.], 59.722.56 (TLG tlg2062.259). Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2062.259 59.722.56"
+    },
+    {
+      "lemma": "καθομιλέω",
+      "method": "source_forms",
+      "forms": [
+        "καθωμιληκώς"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 6.35 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only. The witness has contextual grave in καθωμιληκὼς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 6.35"
+    },
+    {
+      "lemma": "ξυγγραφεύς",
+      "method": "source_forms",
+      "forms": [
+        "ξυγγραφεῖ"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 7.51.2 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 7.51.2"
+    },
+    {
+      "lemma": "ἀγλαΐζω",
+      "method": "source_forms",
+      "forms": [
+        "ἀγλαΐζοιτο"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 8.4.1 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 8.4.1"
+    },
+    {
+      "lemma": "στρατεύω",
+      "method": "source_forms",
+      "forms": [
+        "στρατευθεῖσαι"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 4.36.23 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 4.36.23"
+    },
+    {
+      "lemma": "εἰσφέρω",
+      "method": "source_forms",
+      "forms": [
+        "εἰσενεχθείς"
+      ],
+      "evidence": "Exact word verified in JOANNES MALALAS, Chronographia, 458.5 (TLG tlg2871.001). Edition: Dindorf, L, Weber, 1831. Admit the attested form only. The witness has contextual grave in εἰσενεχθεὶς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2871.001 458.5"
+    },
+    {
+      "lemma": "φλάμμουλον",
+      "method": "source_forms",
+      "forms": [
+        "φλάμμουλον"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De administrando imperio, 46.114, 49.21, 49.22, 49.25, 49.27 (TLG tlg3023.008). Edition: Moravcsik, G, Dumbarton Oaks, 1967. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.008 46.114, 49.21, 49.22, 49.25, 49.27"
+    },
+    {
+      "lemma": "μικροπανίτης",
+      "method": "source_forms",
+      "forms": [
+        "μικροπανίται"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 2.140.13-2.140.14 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only. Rejoin the word across the printed line-end hyphen.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 2.140.13-2.140.14"
+    },
+    {
+      "lemma": "χαμαιρριφής",
+      "method": "source_forms",
+      "forms": [
+        "χαμαιρριφής"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.10 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.10"
+    },
+    {
+      "lemma": "πειράω",
+      "method": "source_forms",
+      "forms": [
+        "πειραθησόμενον"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.140.7 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.140.7"
+    },
+    {
+      "lemma": "ἐκδιδράσκω",
+      "method": "source_forms",
+      "forms": [
+        "ἐκδιδράσκουσαι"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 0.335.5 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 0.335.5"
+    },
+    {
+      "lemma": "καταφάσκω",
+      "method": "source_forms",
+      "forms": [
+        "κατέφασκον"
+      ],
+      "evidence": "Exact word verified in THEOPHYLACTUS SIMOCATTA, Historiae, 2.6.5.4 (TLG tlg3130.003). Edition: de Boor, C, Teubner, 1887. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3130.003 2.6.5.4"
+    },
+    {
+      "lemma": "ἀπεκδημέω",
+      "method": "source_forms",
+      "forms": [
+        "ἀπεκδημήσας"
+      ],
+      "evidence": "Exact word verified in THEOPHYLACTUS SIMOCATTA, Historiae, 1.11.5.4 (TLG tlg3130.003). Edition: de Boor, C, Teubner, 1887. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3130.003 1.11.5.4"
+    },
+    {
+      "lemma": "κλειδοῦχος",
+      "method": "source_forms",
+      "forms": [
+        "κλειδούχων"
+      ],
+      "evidence": "Exact word verified in LEO Diaconus, Historia, 1.4.3-1.4.4 (TLG tlg3069.001). Edition: Hase, K.B, Weber, 1828. Admit the attested form only. Rejoin the word across the printed line-end hyphen.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3069.001 1.4.3-1.4.4"
+    },
+    {
+      "lemma": "ὑποποιέω",
+      "method": "source_forms",
+      "forms": [
+        "ὑποποιησάμενοι"
+      ],
+      "evidence": "Exact word verified in LEO Diaconus, Historia, 1.4.4 (TLG tlg3069.001). Edition: Hase, K.B, Weber, 1828. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3069.001 1.4.4"
+    },
+    {
+      "lemma": "ἐκτυπόω",
+      "method": "source_forms",
+      "forms": [
+        "ἐκτυπωθεῖσαν"
+      ],
+      "evidence": "Exact word verified in LEO Diaconus, Historia, 70.16 (TLG tlg3069.001). Edition: Hase, K.B, Weber, 1828. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3069.001 70.16"
+    },
+    {
+      "lemma": "ἐκλείπω",
+      "method": "source_forms",
+      "forms": [
+        "ἐκλίποισαν"
+      ],
+      "evidence": "Exact word verified in SEPTUAGINTA, Psalmi, 103.34 (TLG tlg0527.027). Edition: Rahlfs, A, Württembergische Bibelanstalt, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg0527.027 103.34"
+    },
+    {
+      "lemma": "φιλοπάτωρ",
+      "method": "source_forms",
+      "forms": [
+        "φιλοπάτορας"
+      ],
+      "evidence": "Exact word verified in BASILIUS, Homiliae in hexaemeron, 8.5.26 (TLG tlg2040.001). Edition: Giet, S, Cerf, 1968. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2040.001 8.5.26"
+    },
+    {
+      "lemma": "προκαθέζομαι",
+      "method": "source_forms",
+      "forms": [
+        "προκαθεζόμεθα"
+      ],
+      "evidence": "Exact word verified in GREGORIUS NAZIANZENUS, In theophania (orat. 38), 36.321.30-36.321.31 (TLG tlg2022.046). Admit the attested form only. Rejoin the word across the printed line-end hyphen.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2022.046 36.321.30-36.321.31"
+    },
+    {
+      "lemma": "ἀγνώμων",
+      "method": "source_forms",
+      "forms": [
+        "ἀγνωμονέστερε"
+      ],
+      "evidence": "Exact word verified in GREGORIUS NAZIANZENUS, In theophania (orat. 38), 36.329.12 (TLG tlg2022.046). Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2022.046 36.329.12"
+    },
+    {
+      "lemma": "χριστέμπορος",
+      "method": "source_forms",
+      "forms": [
+        "χριστέμπορος"
+      ],
+      "evidence": "Exact word verified in DIDACHE XII APOSTOLORUM, Didache, 12.4.1 (TLG tlg1311.001). Edition: Audet, J.P, Lecoffre, 1958. Admit the attested form only. Remove the contextual second accent before an enclitic.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg1311.001 12.4.1"
+    },
+    {
+      "lemma": "πονηρόφρων",
+      "method": "source_forms",
+      "forms": [
+        "πονηρόφρων"
+      ],
+      "evidence": "Exact word verified in DIDACHE XII APOSTOLORUM, Didache, 3.5.2 (TLG tlg1311.001). Edition: Audet, J.P, Lecoffre, 1958. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg1311.001 3.5.2"
+    },
+    {
+      "lemma": "ὑπερανίστημι",
+      "method": "source_forms",
+      "forms": [
+        "ὑπερανεστηκός"
+      ],
+      "evidence": "Exact word verified in PROCOPIUS, De aedificiis, 1.4.15.2, 4.10.6 (TLG tlg4029.003). Edition: Wirth, G. (post J. Haury), Teubner, 1964. Admit the attested form only. The witness has contextual grave in ὑπερανεστηκὸς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4029.003 1.4.15.2, 4.10.6"
+    },
+    {
+      "lemma": "ταινιόω",
+      "method": "source_forms",
+      "forms": [
+        "ἐταινίου"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 1.13.7.15 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 1.13.7.15"
+    },
+    {
+      "lemma": "Σάξων",
+      "method": "source_forms",
+      "forms": [
+        "Σάξονας"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 1.13.7.8, 1.13.7.15 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 1.13.7.8, 1.13.7.15"
+    },
+    {
+      "lemma": "διυπνίζω",
+      "method": "source_forms",
+      "forms": [
+        "διυπνίσῃ"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 2.5.1.7, 15.1.6 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 2.5.1.7, 15.1.6"
+    },
+    {
+      "lemma": "ἐξοικίζω",
+      "method": "source_forms",
+      "forms": [
+        "ἐξοικίζει"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 15.4.5.21 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 15.4.5.21"
+    },
+    {
+      "lemma": "ἐλλόγιμος",
+      "method": "source_forms",
+      "forms": [
+        "ἐλλογιμωτέρους"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 6.35.2 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 6.35.2"
+    },
+    {
+      "lemma": "ἀρειανίζω",
+      "method": "source_forms",
+      "forms": [
+        "ἀρειανίζοντας"
+      ],
+      "evidence": "Exact word verified in THEOPHANES CONFESSOR, Chronographia, 66.21 (TLG tlg4046.001). Edition: de Boor, C, Teubner, 1883. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4046.001 66.21"
+    },
+    {
+      "lemma": "ἀμοιρέω",
+      "method": "source_forms",
+      "forms": [
+        "ἀμοιρήσαντες"
+      ],
+      "evidence": "Exact word verified in THEOPHANES CONFESSOR, Chronographia, 263.12 (TLG tlg4046.001). Edition: de Boor, C, Teubner, 1883. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4046.001 263.12"
+    },
+    {
+      "lemma": "ἀποτυφλόω",
+      "method": "source_forms",
+      "forms": [
+        "ἀπετύφλωσαν"
+      ],
+      "evidence": "Exact word verified in THEOPHANES CONTINUATUS, Chronographia, 397 (TLG tlg4153.001). Edition: Bekker, I, Weber, 1838. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4153.001 397"
+    },
+    {
+      "lemma": "φακτιονάριος",
+      "method": "source_forms",
+      "forms": [
+        "φακτιονάριοι"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 2.140.13 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 2.140.13"
+    },
+    {
+      "lemma": "βηγάριος",
+      "method": "source_forms",
+      "forms": [
+        "βηγάριοι"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 2.119.20, 2.119.29, 2.140.14, 2.154.12, 2.154.19 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 2.119.20, 2.119.29, 2.140.14, 2.154.12, 2.154.19"
+    },
+    {
+      "lemma": "αὐγούστα",
+      "method": "source_forms",
+      "forms": [
+        "αὐγούστας"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 1.41.23, 1.42.27, 2.7.1, 2.25.8, 2.92.14, 2.122.2, 2.122.17, 2.178.13, 2.181.7 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 1.41.23, 1.42.27, 2.7.1, 2.25.8, 2.92.14, 2.122.2, 2.122.17, 2.178.13, 2.181.7"
+    },
+    {
+      "lemma": "μαρκέσιος",
+      "method": "source_forms",
+      "forms": [
+        "μαρκεσίου"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.171.2, 0.599.25, 0.609.9, 0.619.9 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.171.2, 0.599.25, 0.609.9, 0.619.9"
+    },
+    {
+      "lemma": "οὐρανοδρόμος",
+      "method": "source_forms",
+      "forms": [
+        "οὐρανοδρόμος"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.9 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.9"
+    },
+    {
+      "lemma": "κεντροβαρής",
+      "method": "source_forms",
+      "forms": [
+        "κεντροβαρές"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.10 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only. The witness has contextual grave in κεντροβαρὲς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.10"
+    },
+    {
+      "lemma": "γαστροκνημίς",
+      "method": "source_forms",
+      "forms": [
+        "γαστροκνημῖδας"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.11, 2.14452.439 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.11, 2.14452.439"
+    },
+    {
+      "lemma": "διαθρύπτω",
+      "method": "source_forms",
+      "forms": [
+        "διαθρυβείς"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.12 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.12"
+    },
+    {
+      "lemma": "Καλαμάνος",
+      "method": "source_forms",
+      "forms": [
+        "Καλαμάνον"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.140.5, 1.14452.140.12 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.140.5, 1.14452.140.12"
+    },
+    {
+      "lemma": "ἀποσαλεύω",
+      "method": "source_forms",
+      "forms": [
+        "ἀποσαλεῦον"
+      ],
+      "evidence": "Exact word verified in Joannes CINNAMUS, Epitome rerum ab Joanne et Alexio Comnenis gestarum, 167.15, 234.17 (TLG tlg3020.001). Edition: Meineke, A, Weber, 1836. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3020.001 167.15, 234.17"
+    },
+    {
+      "lemma": "μεγαλόκρατες",
+      "method": "source_forms",
+      "forms": [
+        "μεγαλόκρατες"
+      ],
+      "evidence": "Exact word verified in Joannes ZONARAS, Epitome historiarum, 175 (TLG tlg3135.002). Edition: Büttner-Wobst, T, Weber, 1897. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3135.002 175"
+    },
+    {
+      "lemma": "Δελεάνος",
+      "method": "source_forms",
+      "forms": [
+        "Δελεάνος"
+      ],
+      "evidence": "Exact word verified in JOANNES SCYLITZES, Synopsis historiarum, 4.23.2, 4.23.33, 4.23.35, 4.25, 4.27.12, 4.29 (TLG tlg3063.001). Edition: Thurn, J, De Gruyter, 1973. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3063.001 4.23.2, 4.23.33, 4.23.35, 4.25, 4.27.12, 4.29"
+    },
+    {
+      "lemma": "τιθήνημα",
+      "method": "source_forms",
+      "forms": [
+        "τιθήνημα"
+      ],
+      "evidence": "Anna Comnena, Alexias, proem 1.1.2; TLG 2703.001, 0.1.1.2. Admit the documented spelling only.",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/02/CSHB02_corpusscriptorum02niebuoft.pdf"
+    },
+    {
+      "lemma": "παχυμουλαράτος",
+      "method": "source_forms",
+      "forms": [
+        "παχυμουλαράτος"
+      ],
+      "evidence": "Ptochoprodromica III.59; LBG s.v. παχυμουλαράτος. Admit the documented spelling only.",
+      "source_url": "https://austriaca.at/0xc1aa5572_0x00149a11.pdf"
+    },
+    {
+      "lemma": "δίβουλος",
+      "method": "source_forms",
+      "forms": [
+        "δίβουλος"
+      ],
+      "evidence": "Triantafyllidis, Λεξικό της κοινής νεοελληνικής, s.v. δίβουλος; etymology explicitly identifies medieval δίβουλος. Admit the documented spelling only.",
+      "source_url": "https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/triantafyllides/search.html?lq=%25βούλ%25&page=5"
+    },
+    {
+      "lemma": "μπροστά",
+      "method": "source_forms",
+      "forms": [
+        "μπροστά"
+      ],
+      "evidence": "Center for the Greek Language, Online Lexica, μπροστά; etymology explicitly lists medieval μπροστά < ἐμπροστά < ἐμπρός. Admit the documented spelling only.",
+      "source_url": "https://dictionaries.greeklanguage.gr/index.php?chronoform=ShowLima&limaID=9848&option=com_chronoforms5"
+    },
+    {
+      "lemma": "συναινέω",
+      "method": "source_forms",
+      "forms": [
+        "συναινοῦντα"
+      ],
+      "evidence": "Exact word verified in JOANNES CHRYSOSTOMUS, Homilies on Genesis, 54.474.38 (TLG tlg2062.112). Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2062.112 54.474.38"
+    },
+    {
+      "lemma": "Τουρκία",
+      "method": "source_forms",
+      "forms": [
+        "Τουρκίᾳ"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De administrando imperio, 37.42 (TLG tlg3023.008). Edition: Moravcsik, G, Dumbarton Oaks, 1967. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.008 37.42"
     }
   ]
 }
