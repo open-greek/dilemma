@@ -2852,6 +2852,129 @@
     "The single copied corpus token has three lambdas; the third-person singular of μέλλω is μέλλει. The historical expansion uses the corrupted lemma μέλλλω.",
     "The merged Wiktionary data independently maps μέλλει to μέλλω and has no entry for μέλλλει."
    ]
+  },
+  {
+   "form": "δεἰσί",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "δέ εἰσί",
+   "locus": "LSJ δίειμι",
+   "reasons": [
+    "Raw PG9 p353 prints a token join of δέ and εἰσί; the internal smooth breathing comes from the independent second word. It is not an inflection of δίειμι.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἄνεσει",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀνέσει",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The PG62 p280 occurrence is the dative of ἄνεσις (living in leisure), not ἄνειμι. Long final -ει prevents the supplied antepenultimate accent; the independent fresh head ἀνέσει and source lemma ἄνεσις support the correction.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "εἴσιών",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "εἰσιών",
+   "locus": "LSJ εἴσειμι",
+   "reasons": [
+    "The compound participle has final long -ών; the obsolete generated form retains an antepenultimate accent from the infinitive/verb head and adds the participial accent. No exact source record or count supports this marked spelling.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἄνιόντι",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀνιόντι",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The first accent lies four syllables from the end, beyond the Greek lexical accent limit; the source participle is ἀνιόντι. No exact source/count supports this marked form.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἄνιών",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀνιών",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The long final -ών prohibits the generated antepenultimate accent. LSJ ἄνειμι explicitly quotes ἀνιών; no exact source/count supports the extra headword accent.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἀντάνιόν",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀντανιόν",
+   "locus": "LSJ ἀντάνειμι",
+   "reasons": [
+    "An unsupported extra preverb/headword accent precedes the participial -ιόν. No exact source/count supports this spelling; the source family is ἀντάνειμι, not a separately defined double-accent host.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάροντες",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρόντες",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "The PG33 p379 transfiguration context is present participial συμπαρόντες, confirmed independently in the published Greek Cyril Catecheses 12.16. The shifted accent was supplied by approximate headword-prefix joining.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ],
+   "source_url": "https://www.matia.gr/pisth/pdf/pg_migne/Cyrillus_Hierosolymitanus_PG_33/Catecheses_ad_illuminandos.pdf"
+  },
+  {
+   "form": "συμπάροντι",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρόντι",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "The PG52 p425 parallel παρὼν/συνανίων context is a participle; source family συμπάρειμι has συμπαρών, retaining the participial suffix accent. The approximate route moved it into the preverb.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάροντων",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρόντων",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "PG33 p507 discusses those present with Cornelius. The long final -ων makes the generated antepenultimate accent impossible; this is participial συμπαρόντων.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάρων",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρών",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "Both recovered OCR contexts describe a person being present. The source family συμπάρειμι has oxytone present participle συμπαρών; no independently defined homograph supports the generated spelling.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάρησαν",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρῆσαν",
+   "locus": "Letter of the churches of Lyon and Vienne 1.11",
+   "reasons": [
+    "PG5 p719 is the Lyon/Vienne martyr letter 1.11; independent Greek text explicitly has συμπαρῆσαν τοῖς μάρτυσι. The shifted acute is OCR/approximate-family output.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ],
+   "source_url": "https://catholiclibrary.org/library/view?chunk.id=00000005&docId=/Fathers-Synchronized-EN/Epistle_to_Diognetus__Epistula_ecclesiarum_apud_Lugdunum_et_Viennam.en.html"
   }
  ]
 }

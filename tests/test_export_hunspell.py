@@ -1861,3 +1861,28 @@ def test_reviewed_historical_ocr_errors_do_not_survive_compatibility(bad, correc
     )
     assert {form for form, _lemma in kept} == {correct, control}
     assert report["reviewed"] == 1
+
+
+def test_reviewed_irregular_compound_errors_do_not_reject_independent_homographs():
+    from export_hunspell import load_grc_spelling_review
+    bad = {"δεἰσί", "ἄνεσει", "εἴσιών", "ἄνιόντι", "ἄνιών", "ἀντάνιόν",
+           "συμπάροντες", "συμπάροντι", "συμπάροντων", "συμπάρων", "συμπάρησαν"}
+    good = {"ἄνιόν", "ἐπείσιόν", "ὕπεστί", "ὕπεστίν", "εἴσω", "ὑποκάτω",
+            "παρέξω", "ἄνων", "ἄνοντος", "προσάνων", "ἄνιοι",
+            "ἀνέσει", "εἰσιών", "ἀνιόντι", "ἀνιών", "συμπαρόντες",
+            "συμπαρόντι", "συμπαρόντων", "συμπαρών", "συμπαρῆσαν"}
+    rejects = load_grc_spelling_review()
+    assert bad <= rejects
+    assert not good & rejects
+    forms = sorted(bad | good)
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in forms],
+        evidence=_evidence(exact={form: 1 for form in forms}),
+        compatibility_forms=set(forms),
+        textbook_forms=set(),
+        export_overrides={},
+        protected_forms=set(),
+        reviewed_rejects=rejects,
+    )
+    assert {form for form, _lemma in kept} == good
+    assert report["reviewed"] == len(bad)
