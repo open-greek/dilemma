@@ -1080,6 +1080,8 @@ def test_separate_spelling_etymology_follows_its_reference_chain(tmp_path, monke
          "senses": [{"glosses": ["alternative form of πίσσα"],
                      "alt_of": [{"word": "πίσσα"}]}]},
         {"word": "πίσσα", "pos": "noun", "senses": [{"glosses": ["pitch"]}]},
+        {"word": "Πίτα", "pos": "name", "senses": [{"glosses": ["a surname"]}],
+         "forms": [{"form": "Πίτα", "tags": ["nominative", "singular"]}]},
     ]
     dump = _write(tmp_path, entries[::-1] if reverse else entries)
     output = tmp_path / "output"
@@ -1091,6 +1093,10 @@ def test_separate_spelling_etymology_follows_its_reference_chain(tmp_path, monke
     pairs = json.loads((output / "ag_pairs.json").read_text())
     for form in ("πίτας", "πίττα", "πίσσα"):
         assert {p["lemma"] for p in pairs if p["form"] == form} == {"πίτα", "πίσσα"}
+    typed = json.loads((output / "ag_pos_lookup.json").read_text())
+    if not reverse:
+        # Preserve the preexisting scalar choice for this source order.
+        assert typed["πίτα"]["NOUN"] == "πίτα"
 
 
 @pytest.mark.parametrize("kind", ["direct", "chain", "ambiguous", "unsupported",
@@ -1114,8 +1120,12 @@ def test_reference_only_spelling_prefers_unique_positive_canonical_endpoint(kind
     heads = {"noun": {"πίτα", "πίσσα", "ἄσφαλτος"}}
     result = resolve_pair_lemma("πίττα", "noun", lookup,
                                 {"πίττα": {"NOUN": "πίτα"}},
-                                lexical_heads=heads, canonical_references=refs)
+                                lexical_heads=heads, canonical_references=refs,
+                                reference_target=True)
     assert result == ("πίσσα" if kind in {"direct", "chain"} else "πίτα")
+    assert resolve_pair_lemma("πίττα", "noun", lookup,
+                              {"πίττα": {"NOUN": "πίτα"}},
+                              lexical_heads=heads, canonical_references=refs) == "πίτα"
     assert resolve_pair_lemma("πίτα", "noun", lookup, lexical_heads=heads,
                               canonical_references=refs) == "πίτα"
 

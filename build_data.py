@@ -2441,7 +2441,8 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                        closed_class_heads: dict = None,
                        lexical_heads: dict = None,
                        canonical_references: dict = None,
-                       adjective_heads: set = frozenset()):
+                       adjective_heads: set = frozenset(), *,
+                       reference_target: bool = False):
     """Follow a verb's own references before a homograph's flat lookup.
 
     A polytonic participle can first name its monotonic spelling, whose
@@ -2461,12 +2462,13 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
         while lemma not in seen:
             lexical = lemma in lexical_heads.get(pos, set())
             pending = list((canonical_references or {}).get(lemma, {}).get(pos, set()))
-            if lexical or pending:
+            if lexical or (reference_target and pending):
                 # A separate inflected homograph does not replace this
                 # lexical reading. Only explicit alternative spellings
                 # can move its own table to another lexical head.
-                # A reference-only spelling follows the same explicit
-                # chain before another homograph's table can claim it.
+                # An explicit source target follows the same chain before
+                # another homograph's table can claim it. A scalar POS map
+                # has no source-entry context and keeps its prior fallback.
                 if not pending:
                     return lemma
                 visited, endpoints = {lemma}, set()
@@ -2628,7 +2630,8 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
                 participle_roots if preserve_cells else None,
                 unresolved_verbs if preserve_cells else frozenset(),
                 closed_class_heads if preserve_cells else None, lexical_heads,
-                canonical_references, adjective_heads if preserve_cells else frozenset())
+                canonical_references, adjective_heads if preserve_cells else frozenset(),
+                reference_target=bool(pair.get("via")))
             if (not own_nominal and resolved not in headwords
                     and not (pair.get("pos") == "verb" and resolved in graph_heads)
                     and not (preserve_cells and resolved in (closed_class_heads or {}).get(

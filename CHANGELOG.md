@@ -11,7 +11,8 @@ All notable changes to Dilemma are documented here. The format follows
 ### Fixed
 - Follow explicit Ancient spelling-reference chains to their unique defined
   head before competing inflection-table mappings, preserving the pitch
-  readings of `πίτα` alongside the independent pie homograph.
+  readings of `πίτα` alongside the independent pie homograph. Keep the
+  existing scalar part-of-speech choice when it lacks source-entry context.
 - Preserve the long-penult circumflex in synthesized first-aorist active
   infinitives and present or future neuter participles, without moving
   persistent accents or changing finite optatives.
