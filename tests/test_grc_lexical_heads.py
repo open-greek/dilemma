@@ -124,6 +124,38 @@ def test_principal_quantities_keep_source_marks_and_exclude_other_cells():
     assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
 
 
+@pytest.mark.parametrize("header", ["grc-noun", "grc-adj", "head"])
+def test_quantity_provenance_rejects_nominal_header_mislabeled_as_verb(header):
+    entry = {"word": "κινδύνευμα", "pos": "verb",
+             "head_templates": [{"name": header, "args": {"1": "grc", "2": "noun"}}],
+             "senses": [{"glosses": ["a risk, venture"]}],
+             "forms": [{"form": "κινδῡ́νευμᾰ", "tags": ["canonical"]}]}
+    assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
+
+
+@pytest.mark.parametrize("extra_tag", ["optative", "subjunctive", "imperative",
+                                        "infinitive", "participle", "neuter"])
+def test_quantity_provenance_rejects_conflicting_finite_cell_tags(extra_tag):
+    entry = {"word": "συμφύω", "pos": "verb",
+             "senses": [{"glosses": ["to grow together"]}],
+             "forms": [{"form": "σῠμφῠείην", "tags": [
+                 "indicative", "first-person", "singular", extra_tag]}]}
+    assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
+
+
+def test_quantity_provenance_rejects_nominal_citation_tags():
+    entry = {"word": "ἐνηρόσιον", "pos": "verb",
+             "senses": [{"glosses": ["rent for corn-land"]}],
+             "forms": [{"form": "ἐνηρόσῐον", "tags": ["canonical", "neuter"]}]}
+    assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
+
+
+def test_canonical_tag_does_not_override_contradictory_mood_tags():
+    entry = {"word": "θύνω", "pos": "verb", "senses": [{"glosses": ["to rush"]}],
+             "forms": [{"form": "θῡ́νω", "tags": ["canonical", "indicative", "optative"]}]}
+    assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
+
+
 def test_loader_requires_separate_vernacular_evidence(tmp_path):
     from export_hunspell import load_grc_lexical_heads, lexical_head_key
     path = tmp_path / "heads.json"

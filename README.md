@@ -938,7 +938,8 @@ Explicit vowel lengths in independent Wiktionary verb citations and first-person
 indicatives are retained in `grc_lexical_heads.json`. Synthesis uses matching
 principal-part spellings to recover these lengths without copying their accent.
 Conflicting lengths remain separate source readings and supply no inferred
-length; quantity notation is removed after accent placement.
+length. Nominal headers and contradictory grammatical tags cannot supply
+verb quantities; quantity notation is removed after accent placement.
 
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)

@@ -110,14 +110,31 @@ def principal_quantity_rows(entry: dict, source: str) -> list[dict]:
     language = "en" if source.startswith("wiktionary_en_") else "el"
     if not is_independent_finite_entry(entry, language):
         return []
+    templates = entry.get("head_templates") or []
+    nominal_headers = {"grc-noun", "grc-proper noun", "grc-adj", "grc-adjective"}
+    if any(template.get("name") in nominal_headers
+           or (template.get("name") == "head"
+               and template.get("args", {}).get("1") == "grc"
+               and template.get("args", {}).get("2") in {"noun", "proper noun", "adjective"})
+           for template in templates):
+        return []
     head = normalize_headword(entry.get("word", ""))
     rows = []
     for item in entry.get("forms", []):
         form = unicodedata.normalize("NFC", item.get("form", ""))
         tags = set(item.get("tags", []))
+        if any(len(tags & category) > 1 for category in (
+                {"indicative", "optative", "subjunctive", "imperative"},
+                {"first-person", "second-person", "third-person"},
+                {"singular", "dual", "plural"})):
+            continue
+        if tags & {"masculine", "feminine", "neuter", "nominative", "genitive",
+                   "dative", "accusative", "vocative", "participle", "infinitive"}:
+            continue
         citation = "canonical" in tags and normalize_headword(form) == head
         indicative = ({"first-person", "singular", "indicative"} <= tags
-                      and not tags & {"second-person", "third-person", "dual", "plural"})
+                      and not tags & {"second-person", "third-person", "dual", "plural",
+                                      "optative", "subjunctive", "imperative"})
         if not (citation or indicative):
             continue
         if not any(mark in unicodedata.normalize("NFD", form)
