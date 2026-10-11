@@ -253,6 +253,13 @@ All notable changes to Dilemma are documented here. The format follows
   of pooling the masculine genitive under the feminine noun. Explicit
   form-of and alternative-spelling entries still follow their references;
   flat lookup arbitration and verb resolution are unchanged.
+- Distinct noun case-and-number cells select their primary owner by
+  whole-paradigm frequency, while nouns supplying the same cells retain
+  the closest lexical stem. Independent noun heads remain eligible when
+  an inflected form also has an adjective or adverb reading. Alternative
+  explicit cells retain a rare spelling without borrowing the primary
+  homonym's count (`σκατά` and masculine `σκατᾶ`). Diminutives and synonyms
+  in another noun's table cannot acquire that noun's declension.
 - In the polytonic Modern Greek list, two paradigm cells of the same
   letters both go in, whatever their counts: the present `περπατᾷ`,
   `προχωρᾷ` and `τηλεφωνᾷ` are back beside the imperatives `περπάτα`,

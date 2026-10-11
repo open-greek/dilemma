@@ -2739,7 +2739,22 @@ A form several words share gets one spelling, from the word that is a verb
 rather than another word's page, then the one whose letters it shares the
 longest beginning with (`πουλᾶμε` is `πουλάω`'s, not `πωλώ`'s), reading the
 attested spellings of all of them (`ἑπόμενες`, beside the attested
-`ἑπόμενη` of `επόμενος`). A monotonic spelling has the letters, the
+`ἑπόμενη` of `επόμενος`). When independently inflected nouns supply
+different explicit case-and-number cells, their whole-paradigm monotonic
+counts select the primary owner. Thus common feminine `σκιά` retains its
+own nominative, and `σκατά` the neuter plural of `σκατό`. Adjective or
+adverb readings of an inflected form do not invalidate its independent
+noun head. Nouns supplying the same cells retain the closest lexical
+stem, so a diminutive or synonym in another word's table does not acquire
+that word's declension. Finite verbs, names, and mixed headword analyses
+keep their existing selection rule.
+
+A different explicit cell of another independently inflected noun remains
+at `R` with zero pooled count: `χημεῖα`, plural of `χημείο`, remains beside
+`χημεία`, and masculine genitive `σκατᾶ` beside neuter plural `σκατά`.
+These alternatives do not borrow the common homonym's frequency or
+provide evidence for raising another spelling's rating. A monotonic
+spelling has the letters, the
 accented vowel and any diaeresis of the polytonic one. The rest is decided
 as follows:
 
