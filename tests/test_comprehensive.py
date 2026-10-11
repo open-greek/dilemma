@@ -629,7 +629,6 @@ class TestElidedJunkValues:
     @pytest.mark.parametrize("stem,expected,pos", [
         ("ἀλλ", "ἀλλά", "CCONJ"),
         ("οὐδ", "οὐδέ", "CCONJ"),
-        ("μηδ", "μηδέ", "CCONJ"),
         ("μήτ", "μήτε", "CCONJ"),
         ("ἡνίκ", "ἡνίκα", "ADV"),
     ])
@@ -638,6 +637,15 @@ class TestElidedJunkValues:
         assert d_all.lemmatize(stem, guess=False) == expected
         assert d_all.lemmatize_batch([stem]) == [expected]
         assert d_all.lemmatize_pos(stem, pos) == expected
+
+    @pytest.mark.parametrize("form", ["μηδ᾽", "μηδ’", "μηδ'"])
+    def test_source_elision_keeps_its_apostrophe(self, d_all, form):
+        # Diorisis writes an elided μηδέ. The corrected reader preserves
+        # its apostrophe instead of creating the unmarked fragment μηδ.
+        assert d_all.lemmatize(form) == "μηδέ"
+        assert d_all.lemmatize(form, guess=False) == "μηδέ"
+        assert d_all.lemmatize_batch([form]) == ["μηδέ"]
+        assert d_all.lemmatize_pos(form, "CCONJ") == "μηδέ"
 
     def test_junk_value_never_returned(self, d_all):
         """No path may RESOLVE a word to a lemma ending in a spacing
