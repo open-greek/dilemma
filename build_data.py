@@ -390,6 +390,30 @@ def _add_pos_map(pos_map: dict, form: str, lemma: str, wikt_pos: str):
             pos_map[key][upos] = lemma
 
 
+def _add_verb_reference(references: dict, form: str, lemma: str):
+    """Keep every explicit verb target separate from inflection-table claims."""
+    if references is None:
+        return
+    for key in (form, form.lower(), to_monotonic(form), to_monotonic(form).lower(),
+                strip_accents(form.lower())):
+        if key and key != lemma:
+            references.setdefault(key, set()).add(lemma)
+
+
+def _is_participle_sense(sense: dict, has_ordinary_sense: bool) -> bool:
+    return ("participle" in sense.get("tags", [])
+            and not (has_ordinary_sense and "no-gloss" in sense.get("tags", [])
+                     and sense.get("related")
+                     and not sense.get("form_of") and not sense.get("alt_of")))
+
+
+def _is_synonym_sense(sense: dict) -> bool:
+    """A synonym label is not an inflection or spelling reference."""
+    return (bool({"synonym", "synonym-of"}.intersection(sense.get("tags", [])))
+            or any(re.match(r"^(?:συνώνυμ\w*|synonyms? of)\b", gloss.strip().lower())
+                   for gloss in sense.get("glosses", [])))
+
+
 def merge_pos_maps(target: dict, source: dict, prefer_verb_refs=False):
     """Retain a second source's verb reference over a self-map.
 
@@ -435,7 +459,8 @@ def drop_abbreviation_targets(targets: dict, abbreviations: Abbreviations,
 def extract_pairs(jsonl_path: Path, lang: str,
                   skip_name_plurals: set = None, lemma_pos: dict = None,
                   participle_refs: dict = None, verb_heads: set = None,
-                  participle_heads: set = None
+                  participle_heads: set = None, verb_refs: dict = None,
+                  participle_verb_refs: dict = None
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -773,17 +798,14 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # the primary source for pass-2 form_of_targets.
             sense_form_of = []
             named_verb_roots = set()
-            if (modern_greek and pos == "verb"
-                    and ("participle" in entry.get("tags", [])
-                         or any("participle" in sense.get("tags", [])
-                                and not ("no-gloss" in sense.get("tags", [])
-                                         and sense.get("related")
-                                         and not sense.get("form_of")
-                                         and not sense.get("alt_of")
-                                         and any(s.get("glosses")
-                                                 and "participle" not in s.get("tags", [])
-                                                 for s in entry.get("senses", [])))
-                                for sense in entry.get("senses", [])))):
+            entry_participle = "participle" in entry.get("tags", [])
+            has_ordinary_sense = any(s.get("glosses") and "participle" not in s.get("tags", [])
+                                     for s in entry.get("senses", []))
+            is_participle = (modern_greek and pos == "verb"
+                            and (entry_participle or any(
+                                _is_participle_sense(s, has_ordinary_sense)
+                                for s in entry.get("senses", []))))
+            if is_participle:
                 # These references are checked only after both dictionaries'
                 # headword POS evidence is collected. Ordinary noun/adj
                 # etymology pointers remain excluded.
@@ -812,6 +834,15 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         if _is_greek(word)
                     }
                     named_verb_roots.update(named_verbs)
+                    sense_verb = next(iter(named_verbs)) if len(named_verbs) == 1 else None
+                    for ref in sense["form_of"]:
+                        target = strip_length_marks(ref.get("word", ""))
+                        if target and _is_greek(target):
+                            _add_verb_reference(verb_refs, lemma, sense_verb or target)
+                            if (entry_participle
+                                    or _is_participle_sense(sense, has_ordinary_sense)):
+                                _add_verb_reference(participle_verb_refs, lemma,
+                                                    sense_verb or target)
                     if lemma_pos is not None:
                         # Only an explicit reference licenses correcting a
                         # head's POS. A parenthetical verb in a case-form
@@ -869,6 +900,14 @@ def extract_pairs(jsonl_path: Path, lang: str,
             named_otherwise: set[str] = set()
             for sense in entry.get("senses", []):
                 sense_alt_of.extend(sense.get("alt_of", []))
+                if modern_greek and pos == "verb" and not _is_synonym_sense(sense):
+                    for ref in sense.get("alt_of", []):
+                        target = strip_length_marks(ref.get("word", ""))
+                        if target and _is_greek(target):
+                            _add_verb_reference(verb_refs, lemma, target)
+                            if (entry_participle
+                                    or _is_participle_sense(sense, has_ordinary_sense)):
+                                _add_verb_reference(participle_verb_refs, lemma, target)
                 named = {strip_length_marks(ref.get("word", ""))
                          for ref in sense.get("alt_of") or []}
                 if "abbreviation" in (sense.get("tags") or []):
@@ -899,6 +938,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     strip_length_marks(ref.get("word", ""))
                     for ref in form_of_refs + alt_of_refs}:
                 alt_of_refs.append({"word": spelling_of})
+                if modern_greek and pos == "verb":
+                    _add_verb_reference(verb_refs, lemma, spelling_of)
+                    if is_participle:
+                        _add_verb_reference(participle_verb_refs, lemma, spelling_of)
 
             for ref in alt_of_refs:
                 ref_word = strip_length_marks(ref.get("word", ""))
@@ -1261,49 +1304,84 @@ def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
 def apply_participle_references(pos_map: dict, references: dict,
                                verb_heads: set,
                                participle_heads: set = frozenset(),
-                               lemma_pos: dict = None) -> set:
+                               lemma_pos: dict = None,
+                               verb_refs: dict = None,
+                               participle_verb_refs: dict = None) -> set:
     """Resolve participle pointers to lexical verbs from one graph snapshot.
 
-    Explicitly tagged participles are intermediate forms, even when another
-    dictionary gives them a descriptive definition under the verb POS.
-    Sense references take priority over entry-level pointers. A source cycle
-    has no preferred member: its entry-level exits must agree on one verb.
+    Explicit sense references take priority over entry-level pointers, which
+    take priority over inflection-table evidence. A successful tier retains
+    all its supported endpoints; ambiguity is not resolved by source order.
     """
     finite_heads = verb_heads - participle_heads - references.keys()
+
+    def eligible(target):
+        return not lemma_pos or target not in lemma_pos or "verb" in lemma_pos[target]
+
+    table = {word: {target} for word, values in pos_map.items()
+             if (target := values.get("VERB")) and target != word and eligible(target)}
+    # The default preserves this helper's original direct-call convention.
+    # Production extraction always supplies the separate explicit multimap.
+    sense = table if verb_refs is None else {
+        word: {target for target in targets if target != word and eligible(target)}
+        for word, targets in verb_refs.items()}
+    if participle_verb_refs is not None:
+        # A finite-form homograph's references do not describe a separately
+        # tagged participle. Keep the latter's own entry provenance.
+        for word in participle_heads | participle_verb_refs.keys():
+            sense[word] = {target for target in participle_verb_refs.get(word, ())
+                           if target != word and eligible(target)}
     # Top-level etymology metadata can name a nominal label such as λόγιο.
     # An unrelated verb's form table does not make that label a verb alias.
-    references = {word: {target for target in targets
-                         if not lemma_pos or target not in lemma_pos
-                         or "verb" in lemma_pos[target]}
+    references = {word: {target for target in targets if eligible(target)}
                   for word, targets in references.items()}
-    sense = {word: target for word, values in pos_map.items()
-             if (target := values.get("VERB")) and target != word}
 
-    # Find cycles in the preferred, single-target sense graph. Only nodes
-    # reachable from a participle pointer can affect this resolution.
-    pending = list(references)
-    reachable = set()
+    pending, reachable = list(references), set()
     while pending:
         word = pending.pop()
         if word in reachable or word in finite_heads:
             continue
         reachable.add(word)
-        if word in sense:
-            pending.append(sense[word])
-        pending.extend(references.get(word, ()))
-    cycles, checked = {}, set()
+        for tier in (sense, references, table):
+            pending.extend(tier.get(word, ()))
+
+    # Strongly connected components of the preferred explicit-reference
+    # graph. A cycle has no preferred member; its outgoing evidence must
+    # identify one agreed finite verb before any member can be rewritten.
+    order, visited = [], set()
     for start in reachable:
-        path, positions = [], {}
-        word = start
-        while (word in reachable and word not in checked
-               and word not in positions):
-            positions[word] = len(path)
-            path.append(word)
-            word = sense.get(word)
-        if word in positions:
-            group = frozenset(path[positions[word]:])
-            cycles.update((member, group) for member in group)
-        checked.update(path)
+        if start in visited:
+            continue
+        stack = [(start, False)]
+        while stack:
+            word, finish = stack.pop()
+            if finish:
+                order.append(word)
+            elif word not in visited:
+                visited.add(word)
+                stack.append((word, True))
+                stack.extend((target, False) for target in sense.get(word, ())
+                             if target in reachable and target not in visited)
+    reverse = {}
+    for word in reachable:
+        for target in sense.get(word, ()):
+            if target in reachable:
+                reverse.setdefault(target, set()).add(word)
+    cycles, assigned = {}, set()
+    for start in reversed(order):
+        if start in assigned:
+            continue
+        group, pending = set(), [start]
+        while pending:
+            word = pending.pop()
+            if word in assigned:
+                continue
+            assigned.add(word)
+            group.add(word)
+            pending.extend(reverse.get(word, ()))
+        if len(group) > 1:
+            component = frozenset(group)
+            cycles.update((word, component) for word in group)
 
     def roots(word, path=frozenset()):
         if word in finite_heads:
@@ -1312,18 +1390,14 @@ def apply_participle_references(pos_map: dict, references: dict,
         if marker in path:
             return set()
         path = path | {marker}
-        if word in cycles:
-            # A cycle's sense edges cannot establish a lexical endpoint.
-            targets = {target for member in cycles[word]
-                       for target in references.get(member, ())
-                       if target not in cycles[word]}
-        else:
-            if word in sense:
-                preferred = roots(sense[word], path)
-                if preferred:
-                    return preferred
-            targets = references.get(word, ())
-        return {root for target in targets for root in roots(target, path)}
+        members = cycles.get(word, {word})
+        for tier in (sense, references, table):
+            targets = {target for member in members for target in tier.get(member, ())
+                       if target not in members}
+            supported = {root for target in targets for root in roots(target, path)}
+            if supported:
+                return supported
+        return set()
 
     replacements = {}
     for lemma in references:
@@ -1520,6 +1594,8 @@ def main():
         all_lemma_pos = {}
         participle_refs, verb_heads = {}, set()
         participle_heads = set()
+        verb_refs = {}
+        participle_verb_refs = {}
         participle_roots, unresolved_verbs = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
 
@@ -1545,7 +1621,8 @@ def main():
             pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
                 en_path, f"{lang}-en", lemma_pos=all_lemma_pos,
                 participle_refs=participle_refs, verb_heads=verb_heads,
-                participle_heads=participle_heads)
+                participle_heads=participle_heads, verb_refs=verb_refs,
+                participle_verb_refs=participle_verb_refs)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -1575,7 +1652,8 @@ def main():
                 skip_name_plurals=en_name_forms if en_name_forms else None,
                 lemma_pos=all_lemma_pos,
                 participle_refs=participle_refs, verb_heads=verb_heads,
-                participle_heads=participle_heads)
+                participle_heads=participle_heads, verb_refs=verb_refs,
+                participle_verb_refs=participle_verb_refs)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -1590,7 +1668,7 @@ def main():
         if lang == "el":
             unresolved_verbs = apply_participle_references(
                 all_pos_map, participle_refs, verb_heads, participle_heads,
-                all_lemma_pos)
+                all_lemma_pos, verb_refs, participle_verb_refs)
             participle_roots = {word: all_pos_map[word]["VERB"]
                                 for word in participle_refs
                                 if word not in unresolved_verbs}

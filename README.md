@@ -331,10 +331,16 @@ it can correct an incorrect head-page POS (`δηώ`). A broken reference does
 not remove a separately attested verb head or proper-name head form.
 A participle's top-level reference can resolve its verb only when that
 target reaches an independent lexical verb entry in either dictionary,
-including through an explicit spelling-reference chain. An existing sense-level
-reference chain to such a verb takes priority. Participles tagged on the
+including through an explicit spelling-reference chain. All explicit verb
+targets from both dictionaries are retained separately from inflection-table
+claims. A successful sense-level reference chain from the participle's own
+entries takes priority over top-level pointers. A finite-form homograph's
+references do not replace that parent, and a sense labeled as a synonym is
+not a spelling alias. Other alias nodes use their explicit verb references;
+table evidence is used only when neither supplies a finite endpoint.
+Conflicting successful targets remain unresolved. Participles tagged on the
 entry or one of its senses
-remain intermediate forms, and a cycle must have one unambiguous exit to a
+remain intermediate forms, and an explicit-reference cycle must have one unambiguous exit to a
 finite verb. This check runs after both sources have been read, so entry
 order does not affect it. A resolved participle keeps that finite verb
 through POS-specific cleanup instead of inheriting a flat homograph's

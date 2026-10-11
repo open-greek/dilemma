@@ -201,7 +201,11 @@ All notable changes to Dilemma are documented here. The format follows
   explicit reference chain to an independent lexical verb entry, after
   both dictionaries have supplied their POS. An existing sense-level
   reference chain to such a verb takes priority over top-level inflection
-  or spelling pointers. Participles tagged on entries or senses remain intermediate forms;
+  or spelling pointers, with inflection-table evidence used only as a fallback.
+  All explicit targets from both dictionaries survive collection; a tagged
+  participle uses its own entry's references before those of a finite-form
+  homograph, and synonym labels do not count as spelling aliases. Conflicting
+  successful targets remain unresolved. Participles tagged on entries or senses remain intermediate forms;
   cycles resolve only when their exits identify one finite verb.
   A resolved participle retains that verb through POS-specific cleanup;
   unresolved readings in the top-pointer graph are omitted without
