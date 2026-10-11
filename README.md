@@ -2198,6 +2198,8 @@ and `είεν` copies when they explicitly carry perfect-optative tags.
 The distinct aorist forms of ἵημι and imperative forms of ἵστημι remain.
 Each marked auxiliary also needs its corresponding mood, preserving the
 aorist middle indicative `ἔστω` of ἵστημι beside the imperative of εἰμί.
+Conflicting mood labels, or conflicting tense labels on a monotonic copy,
+remain available for later disambiguation.
 Ancient Wiktionary extraction applies the same check before creating training
 pairs and lookup entries, so a compound tense cannot teach the isolated
 auxiliary as a form of the main verb. Original source dumps remain unchanged.

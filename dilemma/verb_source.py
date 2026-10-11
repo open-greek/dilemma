@@ -25,9 +25,14 @@ def is_periphrastic_auxiliary(form, lemma, tags):
     """Whether a source row contains εἰμί rather than its own verb."""
     if lemma in ("εἰμί", "εἶμι"):
         return False
-    return (any(form in forms and mood in tags
+    tags = set(tags)
+    moods = tags & {"indicative", "subjunctive", "optative", "imperative",
+                    "infinitive", "participle"}
+    tenses = tags & {"present", "imperfect", "future", "aorist", "perfect",
+                     "pluperfect", "future-perfect"}
+    return (any(form in forms and moods == {mood}
                 for mood, forms in _EIMI_FORMS_BY_MOOD.items())
             or (form in _PERFECT_OPTATIVE_AUXILIARY_COPIES
-                and {"perfect", "optative"} <= set(tags)))
+                and tenses == {"perfect"} and moods == {"optative"}))
 
 
