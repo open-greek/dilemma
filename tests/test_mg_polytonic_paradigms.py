@@ -41,6 +41,67 @@ def nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
 
+@pytest.mark.parametrize("grc, listed, rejected, expected", [
+    ({"διακοσμητικά"}, set(), set(), {"διακοσμητικὰ": 100}),
+    ({"διακοσμητικά", "διακοσμητικὰ"}, set(), set(), {}),
+    ({"διακοσμητικά"}, {"διακοσμητικὰ"}, set(), {}),
+    ({"διακοσμητικά"}, set(), {"διακοσμητικὰ"}, {}),
+])
+def test_exact_grc_acute_does_not_cover_a_missing_grave(
+        monkeypatch, grc, listed, rejected, expected):
+    candidate = P.Generated("διακοσμητικά", "διακοσμητικά",
+                            "διακοσμητικός", 100, "indicative", "adj",
+                            "adj nominative plural", 100)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (
+        {}, {"διακοσμητικά": 100}))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: [candidate])
+    report, shared = Counter(), {}
+    generated = mg.generated_verb_forms(
+        CorpusCounts(), set(), grc, listed, frozenset(rejected), report,
+        shared=shared)
+    assert generated == expected
+    assert shared == {"διακοσμητικά": 100, **(
+        {"διακοσμητικὰ": 100} if "διακοσμητικὰ" in grc else {})}
+    assert report["generated_covered_twins"] == len(expected)
+
+
+def test_covered_grave_keeps_the_orthography_guard(monkeypatch):
+    candidate = P.Generated("διακοσμητικά", "διακοσμητικά",
+                            "διακοσμητικός", 100, "indicative", "adj",
+                            "adj nominative plural", 100)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {}))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: [candidate])
+    monkeypatch.setattr(mg, "mg_orthography_reason",
+                        lambda spelling, lexicon: "rejected")
+    assert mg.generated_verb_forms(
+        CorpusCounts(), set(), {"διακοσμητικά"}, set(), frozenset(),
+        Counter()) == {}
+
+
+@pytest.mark.parametrize("spelling, grc, tokens, kind, expected", [
+    # A diaeresis-equivalent spelling does not open this exact-word route.
+    ("ζωικά", {"ζωϊκά"}, 100, "indicative", {}),
+    # An alternate noun cell still carries no pooled homonym count.
+    ("διακοσμητικά", {"διακοσμητικά"}, 0, "noun-alternative",
+     {"διακοσμητικὰ": 0}),
+])
+def test_covered_grave_preserves_exact_spelling_and_count(
+        monkeypatch, spelling, grc, tokens, kind, expected):
+    candidate = P.Generated(spelling, spelling, "fixture", tokens, kind,
+                            "noun", "noun nominative plural", tokens)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {}))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: [candidate])
+    shared = {}
+    got = mg.generated_verb_forms(
+        CorpusCounts(), set(), grc, set(), frozenset(), Counter(),
+        shared=shared)
+    assert got == expected
+    assert shared == {}
+
+
 def gen(mono: str, tags=(), vclass: str = "A", siblings=(), lemma: str = "",
         evidence: P.Evidence = EVIDENCE) -> str | None:
     return P.polytonic(mono, frozenset(tags), vclass, list(siblings),

@@ -1949,6 +1949,16 @@ def generated_verb_forms(
                     if spelling in grc_words:
                         shared[spelling] = max(shared.get(spelling, 0),
                                                g.tokens)
+            # An exact grc acute covers only that spelling. Its contextual
+            # grave may still be missing from both dictionaries.
+            if g.spelling in grc_words:
+                for twin in oxytone_twins(g.spelling):
+                    if (twin not in kept and twin not in listed
+                            and not grc_accepts(twin, grc_words)
+                            and mg_orthography_reason(twin, lexicon) is None
+                            and contextual_acute(twin) not in reviewed):
+                        kept[twin] = g.tokens
+                        report["generated_covered_twins"] += 1
             continue
         letters = paradigms.bare(g.spelling)
         taken = dict(rivals.get(letters, {}))
