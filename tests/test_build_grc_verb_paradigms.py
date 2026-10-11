@@ -1281,3 +1281,62 @@ class TestDropCollapsedCells:
         pairs = [{"form": "τιμῶ", "lemma": "τιμάω", "pos": "verb",
                   "tags": ["active", "indicative"]}]
         assert b.drop_collapsed_cells(pairs)[0] == pairs
+
+    def test_collapsed_middle_reading_keeps_independent_passive_reading(self, b):
+        pairs = [{"form": f, "lemma": "λύω", "pos": "verb",
+                  "tags": ["middle", "present", "indicative", "first-person", "singular"]}
+                 for f in ("λύομαι", "λύει", "λύεται", "λυόμεθα")]
+        pairs[0]["tags"].append("passive")
+        kept, cells, dropped = b.drop_collapsed_cells(pairs)
+        assert (cells, dropped) == (1, 3)
+        assert len(kept) == 1 and kept[0]["form"] == "λύομαι"
+        assert kept[0]["_paradigm_keys"] == ("passive_present_indicative_1sg",)
+
+
+class TestAmbiguousSourceCells:
+    def test_same_form_has_both_voice_readings(self, b):
+        assert b.verb_keys_from_tags({"middle", "passive", "present", "indicative",
+                                     "third-person", "singular"}) == (
+            "middle_present_indicative_3sg", "passive_present_indicative_3sg")
+
+    def test_dual_second_and_third_person_are_both_preserved(self, b):
+        assert b.verb_keys_from_tags({"active", "present", "indicative", "dual",
+                                     "second-person", "third-person"}) == (
+            "active_present_indicative_2du", "active_present_indicative_3du")
+
+    def test_infinitive_ignores_irrelevant_person_number_tags(self, b):
+        assert b.verb_keys_from_tags({"middle", "aorist", "infinitive", "dual",
+                                     "second-person", "third-person"}) == (
+            "middle_aorist_infinitive",)
+
+    def test_uncorrelated_person_number_labels_do_not_invent_four_cells(self, b):
+        assert b.verb_keys_from_tags({"active", "imperfect", "indicative",
+                                     "first-person", "third-person", "singular", "plural"}) == ()
+
+    def test_one_ambiguous_finite_mood_preserves_both_readings(self, b):
+        assert b.verb_keys_from_tags({"active", "present", "indicative", "subjunctive",
+                                     "second-person", "plural"}) == (
+            "active_present_indicative_2pl", "active_present_subjunctive_2pl")
+
+    def test_dialect_alternatives_are_preserved_and_aliases_deduplicated(self, b):
+        assert b.extract_dialects({"Ionic", "Attic", "Homeric", "Epic"}) == (
+            "", "epic", "ionic")
+
+    def test_cell_filter_and_dialects_do_not_depend_on_hash_seed(self):
+        import os
+        import subprocess
+        import sys
+        script = '''
+import json
+from build.build_grc_verb_paradigms import drop_collapsed_cells, extract_dialects
+rows = [{"form": f, "lemma": "λύω", "pos": "verb", "tags": [
+    "middle", "present", "indicative", "first-person", "singular"]}
+    for f in ("λύομαι", "λύει", "λύεται", "λυόμεθα")]
+rows[0]["tags"].append("passive")
+print(json.dumps([drop_collapsed_cells(rows),
+    extract_dialects({"Ionic", "Attic", "Homeric", "Epic"})], sort_keys=True))
+'''
+        outputs = [subprocess.check_output(
+            [sys.executable, "-c", script], cwd=REPO_ROOT,
+            env={**os.environ, "PYTHONHASHSEED": seed}) for seed in ("0", "73", "999")]
+        assert outputs[0] == outputs[1] == outputs[2]

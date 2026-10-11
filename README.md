@@ -2056,6 +2056,13 @@ token's analysis.
 
 #### Choosing the form that fills a cell
 
+Source tags are interpreted deterministically. A single ambiguous grammatical
+axis contributes each explicit reading, and a form tagged for several dialects
+contributes to each slice. Tags with several ambiguous axes cannot establish
+which values belong together; they stay in the raw data but do not populate
+canonical cells. Filtering a collapsed cell does not discard another valid
+reading of the same form.
+
 Several sources can offer a form for the same cell, and the sources
 disagree. The pass ranks the candidates and, before ranking, discards
 two kinds of evidence that are wrong rather than merely weaker:

@@ -364,56 +364,56 @@ def pick_best_form(forms, key: str | None = None, lemma: str | None = None,
     ))
 
 
-def verb_key_from_tags(tags):
-    """Convert a tag set to a paradigm key.
+def verb_keys_from_tags(tags):
+    """Return the fully specified readings of one source tag set.
 
-    Returns None if the tags are not a fully-specified finite verb /
-    infinitive / participle cell.
+    One ambiguous axis (such as middle/passive voice) names alternatives.
+    Multiple ambiguous axes do not identify their pairings: first/third
+    person plus singular/plural cannot safely become four invented cells.
+    Those rows remain in the raw data but do not select canonical cells.
     """
+    from itertools import product
+
     tags = set(tags)
-    voice = next(iter(tags & VOICE_TAGS), None)
-    tense = next(iter(tags & TENSE_TAGS), None)
-    mood = next(iter(tags & MOOD_TAGS), None)
-    if not voice or not tense or not mood:
-        return None
-    if "mediopassive" in tags:
-        voice = "middle"
+    voices = {"middle" if t == "mediopassive" else t for t in tags & VOICE_TAGS}
+    tenses, moods = tags & TENSE_TAGS, tags & MOOD_TAGS
+    if not voices or not tenses or not moods:
+        return ()
+    if moods == {"infinitive"}:
+        axes = (voices, tenses, moods)
+    elif moods == {"participle"}:
+        genders = tags & GENDER_TAGS
+        cases = tags & CASE_TAGS or ({"nominative"} if genders else set())
+        numbers = tags & NUMBER_TAGS or ({"singular"} if genders else set())
+        axes = (voices, tenses, moods, cases, genders, numbers)
+    elif moods & {"infinitive", "participle"}:
+        return ()
+    else:
+        axes = (voices, tenses, moods, tags & PERSON_TAGS, tags & NUMBER_TAGS)
+    if any(not axis for axis in axes) or sum(len(axis) > 1 for axis in axes) > 1:
+        return ()
+    keys = []
+    for values in product(*(sorted(axis) for axis in axes)):
+        voice, tense, mood, *rest = values
+        if mood == "infinitive":
+            key = f"{voice}_{tense}_infinitive"
+        elif mood == "participle":
+            case, gender, number = rest
+            key = (f"{voice}_{tense}_participle_"
+                   f"{CASE_SHORT[case]}_{GENDER_SHORT[gender]}_{NUMBER_SHORT[number]}")
+        else:
+            person, number = rest
+            if mood == "imperative" and person == "first-person":
+                continue
+            key = f"{voice}_{tense}_{mood}_{PERSON_SHORT[person]}{NUMBER_SHORT[number]}"
+        keys.append(key)
+    return tuple(keys)
 
-    if mood == "infinitive":
-        return f"{voice}_{tense}_infinitive"
 
-    if mood == "participle":
-        case = next(iter(tags & CASE_TAGS), None)
-        gender = next(iter(tags & GENDER_TAGS), None)
-        number = next(iter(tags & NUMBER_TAGS), None)
-        # Wiktionary tables usually give only the nom-sg of each gender;
-        # corpus data (GLAUx) carries full case+number on participle forms.
-        # Default to nom-sg when only gender is present (Wiktionary case).
-        if gender and not case:
-            case = "nominative"
-        if gender and not number:
-            number = "singular"
-        if not (case and gender and number):
-            return None
-        return (
-            f"{voice}_{tense}_participle_"
-            f"{CASE_SHORT[case]}_{GENDER_SHORT[gender]}_{NUMBER_SHORT[number]}"
-        )
-
-    person = next(iter(tags & PERSON_TAGS), None)
-    number = next(iter(tags & NUMBER_TAGS), None)
-    if not person or not number:
-        return None
-    # Imperative has no first person. kaikki sometimes mistags Koine
-    # alternatives like λυσάτωσαν as 1sg (Wiktionary's 'type-a/type-b'
-    # appendix rows leak into the 1sg slot). Drop these to avoid
-    # corrupting the paradigm.
-    if mood == "imperative" and person == "first-person":
-        return None
-    return (
-        f"{voice}_{tense}_{mood}_"
-        f"{PERSON_SHORT[person]}{NUMBER_SHORT[number]}"
-    )
+def verb_key_from_tags(tags):
+    """Return a key only when the source identifies one canonical cell."""
+    keys = verb_keys_from_tags(tags)
+    return keys[0] if len(keys) == 1 else None
 
 
 # A real paradigm cell holds one form, sometimes two or three spellings of
@@ -427,35 +427,37 @@ COLLAPSED_CELL_FORMS = 4
 
 
 def drop_collapsed_cells(verb_pairs) -> tuple:
-    """Drop Wiktionary cells that hold too many forms to be one cell."""
+    """Drop collapsed source cells without discarding another valid reading."""
     by_cell = defaultdict(set)
+    row_keys = []
     for p in verb_pairs:
-        key = verb_key_from_tags(set(p.get("tags") or []))
+        keys = verb_keys_from_tags(p.get("tags") or [])
+        row_keys.append(keys)
         form = (p.get("form") or "").strip()
-        if not key or not form or not p.get("lemma"):
+        if not form or not p.get("lemma"):
             continue
         letters = accent_type_skeleton(form)
-        # ἐστί and ἐστίν are one form, not two.
-        by_cell[(p["lemma"], key)].add(letters.rstrip("ν") or letters)
+        for key in keys:
+            by_cell[(p["lemma"], key)].add(letters.rstrip("ν") or letters)
     collapsed = {cell for cell, forms in by_cell.items()
                  if len(forms) >= COLLAPSED_CELL_FORMS}
-    kept = [p for p in verb_pairs
-            if (p.get("lemma"),
-                verb_key_from_tags(set(p.get("tags") or []))) not in collapsed]
-    return kept, len(collapsed), len(verb_pairs) - len(kept)
+    kept = []
+    dropped = 0
+    for p, keys in zip(verb_pairs, row_keys):
+        surviving = tuple(key for key in keys if (p.get("lemma"), key) not in collapsed)
+        if keys and not surviving:
+            dropped += 1
+        elif surviving != keys:
+            kept.append({**p, "_paradigm_keys": surviving})
+        else:
+            kept.append(p)
+    return kept, len(collapsed), dropped
 
 
-def extract_dialect(tags):
-    """Return the (single) dialect this form belongs to, or '' for Attic/default."""
-    tags = set(tags)
-    for d in DIALECT_TAGS:
-        if d in tags:
-            if d in ("Attic", "Homeric"):
-                # Treat Attic as the default slice. Homeric is alias for Epic
-                # and we fold it in.
-                return "" if d == "Attic" else "epic"
-            return d.lower()
-    return ""
+def extract_dialects(tags):
+    """Keep each explicitly named dialect; no set-order choice."""
+    return tuple(sorted({"" if tag == "Attic" else "epic" if tag == "Homeric"
+                         else tag.lower() for tag in set(tags) & DIALECT_TAGS})) or ("",)
 
 
 # ---------------------------------------------------------------------------
@@ -1428,8 +1430,8 @@ def build_paradigms(only_lemmas=None):
             if form in EIMI_AUXILIARY_FORMS and lemma not in ("εἰμί", "εἶμι"):
                 dropped_auxiliary += 1
                 continue
-            key = verb_key_from_tags(tags)
-            if not key:
+            keys = p.get("_paradigm_keys", verb_keys_from_tags(tags))
+            if not keys:
                 continue
             # Crasis / sandhi forms (κἄβλεψας from καί + ἔβλεψας) are
             # textual artifacts, not canonical paradigm cells. Drop
@@ -1461,7 +1463,6 @@ def build_paradigms(only_lemmas=None):
             if is_iota_dropped_contract_form(form, lemma):
                 dropped_iota_dropped += 1
                 continue
-            dialect = extract_dialect(tags)
             # Glaux has no dialect axis, so Homeric / Epic forms come
             # in tagged identically to their Attic counterparts. The
             # detectors below recover dialect status from the surface
@@ -1470,17 +1471,19 @@ def build_paradigms(only_lemmas=None):
             # paradigm. Attic slots stay clean; the Homeric / Epic
             # forms are still preserved for downstream consumers that
             # want them.
-            if not dialect:
-                if is_homeric_iterative_imperfect(form, lemma, key):
-                    dialect = "epic"
-                    rerouted_iterative += 1
-                elif is_homeric_root_aorist_passive(form, lemma, key):
-                    dialect = "epic"
-                    rerouted_root_aorist_passive += 1
-                elif is_homeric_unaugmented_past_indicative(form, lemma, key):
-                    dialect = "epic"
-                    rerouted_unaugmented += 1
-            by_lemma_dialect_key[lemma][dialect][key].append(form)
+            for key in keys:
+                for dialect in extract_dialects(tags):
+                    if not dialect:
+                        if is_homeric_iterative_imperfect(form, lemma, key):
+                            dialect = "epic"
+                            rerouted_iterative += 1
+                        elif is_homeric_root_aorist_passive(form, lemma, key):
+                            dialect = "epic"
+                            rerouted_root_aorist_passive += 1
+                        elif is_homeric_unaugmented_past_indicative(form, lemma, key):
+                            dialect = "epic"
+                            rerouted_unaugmented += 1
+                    by_lemma_dialect_key[lemma][dialect][key].append(form)
     if dropped_internal_capital:
         print(f"  dropped (internal capitals / mojibake): "
               f"{dropped_internal_capital:,}")
