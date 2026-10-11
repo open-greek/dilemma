@@ -1329,6 +1329,59 @@ class TestDropCollapsedCells:
         assert len(kept) == 1 and kept[0]["form"] == "λύομαι"
         assert kept[0]["_paradigm_keys"] == ("passive_present_indicative_1sg",)
 
+    def test_independent_dialect_variants_do_not_form_a_collapsed_cell(self, b):
+        rows = [
+            {"form": form, "lemma": "ἔρχομαι", "pos": "verb",
+             "tags": ["active", "aorist", "indicative", "first-person", "singular", dialect]}
+            for form, dialect in (("ἦλθον", "Attic"), ("ἤλυθον", "Epic"),
+                                  ("ἦνθον", "Doric"), ("ἦλθα", "Koine"))
+        ]
+        assert b.drop_collapsed_cells(rows) == (rows, 0, 0)
+
+    def test_collapsed_attic_cell_keeps_independent_doric_reading(self, b):
+        rows = [{**row, "tags": row["tags"] + ["Attic"]} for row in self.COLLAPSED]
+        rows[0]["tags"].append("Doric")
+        kept, cells, dropped = b.drop_collapsed_cells(rows)
+        assert (cells, dropped) == (1, len(rows) - 1)
+        assert len(kept) == 1 and kept[0]["form"] == "τιμῶ"
+        assert kept[0]["_paradigm_readings"] == (
+            ("active_present_indicative_1sg", "doric"),)
+
+    def test_default_and_explicit_attic_share_the_same_collapse_guard(self, b):
+        rows = [{**row, "tags": row["tags"] + (["Attic"] if i % 2 else [])}
+                for i, row in enumerate(self.COLLAPSED)]
+        assert b.drop_collapsed_cells(rows) == ([], 1, len(rows))
+
+    def test_filtered_dialect_cannot_leak_back_during_paradigm_build(self, b, monkeypatch, tmp_path):
+        rows = [{**row, "tags": row["tags"] + ["Attic"]} for row in self.COLLAPSED]
+        rows[0]["tags"].append("Doric")
+        rows.append({"form": "τιμᾷς", "lemma": "τιμάω", "pos": "verb",
+                     "tags": ["active", "present", "indicative", "second-person", "singular"]})
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["τιμάω"]
+        assert result["forms"]["active_present_indicative_1sg"] == "τιμάω"
+        assert result["dialects"]["doric"]["active_present_indicative_1sg"] == "τιμῶ"
+
+    def test_distinct_dialect_stems_keep_their_own_paradigm_cells(self, b, monkeypatch, tmp_path):
+        forms = {"Attic": "ἦλθον", "Epic": "ἤλυθον", "Doric": "ἦνθον", "Koine": "ἦλθα"}
+        rows = [{"form": form, "lemma": "ἔρχομαι", "pos": "verb",
+                 "tags": ["active", "aorist", "indicative", "first-person", "singular", dialect]}
+                for dialect, form in forms.items()]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["ἔρχομαι"]
+        key = "active_aorist_indicative_1sg"
+        assert result["forms"][key] == forms["Attic"]
+        for dialect in ("Epic", "Doric", "Koine"):
+            assert result["dialects"][dialect.lower()][key] == forms[dialect]
+
 
 class TestAmbiguousSourceCells:
     def test_same_form_has_both_voice_readings(self, b):

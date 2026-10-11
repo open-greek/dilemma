@@ -2143,7 +2143,10 @@ two kinds of evidence that are wrong rather than merely weaker:
 - A Wiktionary table row that reaches kaikki with its person and number
   collapsed onto the first cell. A real cell holds one form and at most
   a few spellings of it, so four or more distinct letter sequences in
-  one cell means the row lost its person-number axis. The detector counts
+  one cell of the same dialect means the row lost its person-number axis.
+  Independently tagged Attic, Epic, Doric, and Koine variants are counted
+  separately; rejecting one dialect's damaged cell preserves the others.
+  The detector counts
   letters without diacritics; polytonic and simplified copies of contracted
   and uncontracted forms do not multiply that count. All surviving source
   variants remain available for choosing the canonical spelling. For example, τιμάω's entire

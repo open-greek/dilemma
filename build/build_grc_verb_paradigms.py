@@ -427,12 +427,14 @@ COLLAPSED_CELL_FORMS = 4
 
 
 def drop_collapsed_cells(verb_pairs) -> tuple:
-    """Drop collapsed source cells without discarding another valid reading."""
+    """Drop collapsed source cells within one dialect and retain other readings."""
     by_cell = defaultdict(set)
     row_keys = []
     for p in verb_pairs:
         keys = verb_keys_from_tags(p.get("tags") or [])
-        row_keys.append(keys)
+        readings = tuple((key, dialect) for key in keys
+                         for dialect in extract_dialects(p.get("tags") or []))
+        row_keys.append((keys, readings))
         form = (p.get("form") or "").strip()
         if not form or not p.get("lemma"):
             continue
@@ -440,18 +442,27 @@ def drop_collapsed_cells(verb_pairs) -> tuple:
         # position do not create distinct letter sequences. A contracted
         # and uncontracted form with both copies is still two candidates.
         letters = strip_accents(form).lower()
-        for key in keys:
-            by_cell[(p["lemma"], key)].add(letters.rstrip("ν") or letters)
+        # Attic, Epic, Doric, and Koine may supply different stems for
+        # one person-number cell. Their union is not a damaged table row.
+        for key, dialect in readings:
+            by_cell[(p["lemma"], key, dialect)].add(letters.rstrip("ν") or letters)
     collapsed = {cell for cell, forms in by_cell.items()
                  if len(forms) >= COLLAPSED_CELL_FORMS}
     kept = []
     dropped = 0
-    for p, keys in zip(verb_pairs, row_keys):
-        surviving = tuple(key for key in keys if (p.get("lemma"), key) not in collapsed)
-        if keys and not surviving:
+    for p, (keys, readings) in zip(verb_pairs, row_keys):
+        surviving = tuple((key, dialect) for key, dialect in readings
+                          if (p.get("lemma"), key, dialect) not in collapsed)
+        if readings and not surviving:
             dropped += 1
-        elif surviving != keys:
-            kept.append({**p, "_paradigm_keys": surviving})
+        elif surviving != readings:
+            surviving_keys = tuple(key for key in keys
+                                   if any(k == key for k, _ in surviving))
+            row = {**p, "_paradigm_keys": surviving_keys}
+            if surviving != tuple((key, dialect) for key in surviving_keys
+                                  for dialect in extract_dialects(p.get("tags") or [])):
+                row["_paradigm_readings"] = surviving
+            kept.append(row)
         else:
             kept.append(p)
     return kept, len(collapsed), dropped
@@ -1526,19 +1537,20 @@ def build_paradigms(only_lemmas=None):
             # paradigm. Attic slots stay clean; the Homeric / Epic
             # forms are still preserved for downstream consumers that
             # want them.
-            for key in keys:
-                for dialect in extract_dialects(tags):
-                    if not dialect:
-                        if is_homeric_iterative_imperfect(form, lemma, key):
-                            dialect = "epic"
-                            rerouted_iterative += 1
-                        elif is_homeric_root_aorist_passive(form, lemma, key):
-                            dialect = "epic"
-                            rerouted_root_aorist_passive += 1
-                        elif is_homeric_unaugmented_past_indicative(form, lemma, key):
-                            dialect = "epic"
-                            rerouted_unaugmented += 1
-                    by_lemma_dialect_key[lemma][dialect][key].append(form)
+            readings = p.get("_paradigm_readings", tuple(
+                (key, dialect) for key in keys for dialect in extract_dialects(tags)))
+            for key, dialect in readings:
+                if not dialect:
+                    if is_homeric_iterative_imperfect(form, lemma, key):
+                        dialect = "epic"
+                        rerouted_iterative += 1
+                    elif is_homeric_root_aorist_passive(form, lemma, key):
+                        dialect = "epic"
+                        rerouted_root_aorist_passive += 1
+                    elif is_homeric_unaugmented_past_indicative(form, lemma, key):
+                        dialect = "epic"
+                        rerouted_unaugmented += 1
+                by_lemma_dialect_key[lemma][dialect][key].append(form)
     if dropped_internal_capital:
         print(f"  dropped (internal capitals / mojibake): "
               f"{dropped_internal_capital:,}")
