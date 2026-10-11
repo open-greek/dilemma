@@ -939,7 +939,8 @@ indicatives are retained in `grc_lexical_heads.json`. Synthesis uses matching
 principal-part spellings to recover these lengths without copying their accent.
 Conflicting lengths remain separate source readings and supply no inferred
 length. Nominal headers and contradictory grammatical tags cannot supply
-verb quantities; quantity notation is removed after accent placement.
+verb quantities. A declared verb-form page needs a separate lexical definition;
+quantity notation is removed after accent placement.
 
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)

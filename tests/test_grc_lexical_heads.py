@@ -156,6 +156,37 @@ def test_canonical_tag_does_not_override_contradictory_mood_tags():
     assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
 
 
+@pytest.mark.parametrize("header", [
+    {"name": "grc-verb form"},
+    {"name": "head", "args": {"1": "grc", "2": "verb form"}},
+])
+@pytest.mark.parametrize("gloss", [
+    "late third-person singular aorist middle optative of δύνω",
+    "uncontracted first-person singular present mediopassive indicative of κρατέω",
+    "/(Attic) first-person singular aorist active subjunctive of ἀγγέλλω",
+    "future active infinitive uncontracted of βάλλω",
+    "second/third-person dual aorist active subjunctive of ἀγγέλλω",
+    "prevocalic/clause-final third-person singular aorist active indicative of ἀνατίθημι",
+])
+def test_declared_verb_form_page_cannot_supply_independent_quantities(header, gloss):
+    entry = {"word": "μέμαα", "pos": "verb",
+             "head_templates": [header],
+             "senses": [{"glosses": [gloss]}],
+             "forms": [{"form": "μέμᾰᾰ", "tags": ["canonical"]}]}
+    assert principal_quantity_rows(entry, "wiktionary_en_grc") == []
+    entry["senses"].append({"glosses": ["to wish eagerly, strive, yearn, desire"]})
+    assert principal_quantity_rows(entry, "wiktionary_en_grc")
+
+
+@pytest.mark.parametrize("gloss", ["to pull down", "wake up, rouse", "raise or build instead"])
+def test_declared_form_page_retains_a_separate_lexical_definition(gloss):
+    entry = {"word": "μέμαα", "pos": "verb",
+             "head_templates": [{"name": "grc-verb form"}],
+             "senses": [{"glosses": [gloss]}],
+             "forms": [{"form": "μέμᾰᾰ", "tags": ["canonical"]}]}
+    assert principal_quantity_rows(entry, "wiktionary_en_grc")
+
+
 def test_loader_requires_separate_vernacular_evidence(tmp_path):
     from export_hunspell import load_grc_lexical_heads, lexical_head_key
     path = tmp_path / "heads.json"

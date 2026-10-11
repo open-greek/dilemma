@@ -101,6 +101,35 @@ def has_definition(entry: dict, source: str = "en") -> bool:
     return False
 
 
+def has_lexical_form_page_sense(entry: dict) -> bool:
+    """A declared verb-form page needs a separate lexical definition.
+
+    Source labels and dialect qualifiers do not turn a grammatical cell
+    description into a definition. Keep genuine senses on mislabeled pages.
+    """
+    for sense in entry.get("senses", []):
+        if (sense.get("form_of") or sense.get("alt_of")
+                or set(sense.get("tags", [])) & {"form-of", "alt-of", "inflection-of"}):
+            continue
+        for gloss in sense.get("glosses", []):
+            text = gloss.strip().lower()
+            while True:
+                stripped = re.sub(
+                    r"^(?:/\s*|\([^()]*\)\s*|(?:late|uncontracted|contracted|"
+                    r"paroxytone|unaugmented|prevocalic/clause-final)\s+)", "", text)
+                if stripped == text:
+                    break
+                text = stripped
+            grammatical = re.match(
+                r"^(?:(?:first|second|third)(?:/(?:first|second|third))*[ -]person\b|"
+                r"(?:(?:present|past|aorist|perfect|imperfect|pluperfect|future|"
+                r"active|middle|passive|mediopassive|uncontracted|contracted)\s+)+"
+                r"(?:infinitive|participle|indicative|subjunctive|optative|imperative)\b)", text)
+            if text and not grammatical and not is_reference_gloss(text, "verb"):
+                return True
+    return False
+
+
 def principal_quantity_rows(entry: dict, source: str) -> list[dict]:
     """Retain explicit lengths in an independent verb's citation/1sg forms.
 
@@ -111,6 +140,13 @@ def principal_quantity_rows(entry: dict, source: str) -> list[dict]:
     if not is_independent_finite_entry(entry, language):
         return []
     templates = entry.get("head_templates") or []
+    if (any(template.get("name") == "grc-verb form"
+            or (template.get("name") == "head"
+                and template.get("args", {}).get("1") == "grc"
+                and template.get("args", {}).get("2") == "verb form")
+            for template in templates)
+            and not has_lexical_form_page_sense(entry)):
+        return []
     nominal_headers = {"grc-noun", "grc-proper noun", "grc-adj", "grc-adjective"}
     if any(template.get("name") in nominal_headers
            or (template.get("name") == "head"
