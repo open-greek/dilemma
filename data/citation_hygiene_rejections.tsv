@@ -11,7 +11,6 @@ AG	ag_lookup.json	duplicate_tonal_marks	φιλό́κτητος	Φιλό́κτη�
 AG	ag_lookup.json	duplicate_tonal_marks	αὺτοῦ	αυτοῦ́
 AG	ag_lookup.json	duplicate_tonal_marks	δέῖ	δεί́ω
 AG	ag_lookup.json	duplicate_tonal_marks	θέλῆ	θογιλῆ́σκω
-AG	ag_lookup.json	duplicate_tonal_marks	κατέλθεῖν	κατέ́ρχομαι
 AG	ag_lookup.json	duplicate_tonal_marks	πασὶ	πασιέ͂ς
 AG	ag_lookup.json	duplicate_tonal_marks	τὸῦ	τό́ς
 AG	ag_lookup.json	duplicate_tonal_marks	μέτῆκται	τῆ́γνυμι
@@ -172,7 +171,6 @@ AG	ag_lookup.json	leading_combining	ἔπλευν	́πολω
 AG	ag_lookup.json	leading_combining	ἔρδης	́ρδω
 AG	ag_lookup.json	leading_combining	ἔρρευν	́ρορω
 AG	ag_lookup.json	nonlexical_symbol	᾽	᾽
-AG	ag_lookup.json	orphaned_tonal_mark	Ῥυτίνῳ	*ʽ ́ρυτινον
 AG	ag_lookup.json	orphaned_tonal_mark	·δοὺς	·́δωμι
 AG	ag_lookup.json	orphaned_tonal_mark	·τούτων	·τ́ουτον
 AG	ag_lookup.json	orphaned_tonal_mark	Βαρκός	Βαρ́ξ
@@ -189,20 +187,15 @@ AG	ag_lookup.json	orphaned_tonal_mark	Καβήλεω	Καβ́λης
 AG	ag_lookup.json	orphaned_tonal_mark	Κικερωνείων	Κικερ́ωνις
 AG	ag_lookup.json	orphaned_tonal_mark	Κιμβρίων	Κιμβ́ριος
 AG	ag_lookup.json	orphaned_tonal_mark	Κλαύσῳ	Κλ́σαυσος
-AG	ag_lookup.json	orphaned_tonal_mark	Κορίλλῃ	Κοριλ ́λα
 AG	ag_lookup.json	orphaned_tonal_mark	Κυπέως	Κυπ͂ος
-AG	ag_lookup.json	orphaned_tonal_mark	Λασθένειά	Λασθέ ́νεια
 AG	ag_lookup.json	orphaned_tonal_mark	Λημνιάδεσσιν	Λημν́ιαυς
 AG	ag_lookup.json	orphaned_tonal_mark	Λυγγὶ	Λυγ́ξ
 AG	ag_lookup.json	orphaned_tonal_mark	Λυγγὸς	Λυγ́ξ
-AG	ag_lookup.json	orphaned_tonal_mark	Μακεδονικαὶ	Μακεδ ́νιος
 AG	ag_lookup.json	orphaned_tonal_mark	Μακεδονικὰς	Μακεδ́νιος
-AG	ag_lookup.json	orphaned_tonal_mark	Μήιον	Μῃ ́ων
 AG	ag_lookup.json	orphaned_tonal_mark	Πετράχου	Π́ετραχος
 AG	ag_lookup.json	orphaned_tonal_mark	Πάμφω	Παμφ́ας
 AG	ag_lookup.json	orphaned_tonal_mark	Παρσίους	Παρ́σιος
 AG	ag_lookup.json	orphaned_tonal_mark	Πνθέου	Πνν́θεος
-AG	ag_lookup.json	orphaned_tonal_mark	Πρώνακτι	Πρῶ ́ναξ
 AG	ag_lookup.json	orphaned_tonal_mark	Ῥήου	Ρ̓́ηος
 AG	ag_lookup.json	orphaned_tonal_mark	Σθένιδος	Σ́θενις
 AG	ag_lookup.json	orphaned_tonal_mark	Σκαμανδρίαις	Σκαμαν́δριος
@@ -212,7 +205,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	Τετρίκου	Τετ́ρικος
 AG	ag_lookup.json	orphaned_tonal_mark	Τηλεφαάσσῃ	Τηλεφ́αασσα
 AG	ag_lookup.json	orphaned_tonal_mark	Τιγγὸς	Τιγ́ξ
 AG	ag_lookup.json	orphaned_tonal_mark	Φράτερσιν	Φ́ρατερ
-AG	ag_lookup.json	orphaned_tonal_mark	Φραδασμένης	Φρ́γαδασμαι
 AG	ag_lookup.json	orphaned_tonal_mark	Χεροννήσοιο	Χερον̈́νησος
 AG	ag_lookup.json	orphaned_tonal_mark	αγλώσσης	αγ́λωσσα
 AG	ag_lookup.json	orphaned_tonal_mark	αιτοῖς	αιτοῖες͂ς
@@ -223,19 +215,14 @@ AG	ag_lookup.json	orphaned_tonal_mark	αὐτη-	αὐτηε-͂ς
 AG	ag_lookup.json	orphaned_tonal_mark	βδελυττόμεναι	βδελυττ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἔβλπτον	βλπτ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	βοηθήμα	βοηθεμ͂ος
-AG	ag_lookup.json	orphaned_tonal_mark	βοσκησεῖσθε	βοσκησ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	βροτῖσιν	βροτ́ς
 AG	ag_lookup.json	orphaned_tonal_mark	βσρειότερος	βσρ͂ειος
 AG	ag_lookup.json	orphaned_tonal_mark	γνομένη	γ́λνυμι
 AG	ag_lookup.json	orphaned_tonal_mark	γνόμενον	γ́νω
 AG	ag_lookup.json	orphaned_tonal_mark	γμένα	γ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἔγρυπεν	γ̔υπ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	γαννύμενοι	γαν́νυμαι
-AG	ag_lookup.json	orphaned_tonal_mark	γαννύμενος	γαν́νυμαι
-AG	ag_lookup.json	orphaned_tonal_mark	γεγλωσσάμενον	γεγλωσ́ομαι
 AG	ag_lookup.json	orphaned_tonal_mark	γεννητρίους	γεννητ́ριος
 AG	ag_lookup.json	orphaned_tonal_mark	γαγέ	γηγ́υμι
-AG	ag_lookup.json	orphaned_tonal_mark	ἔδνα	γιδ́σνω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐμφυὼς	γιμφ́συω
 AG	ag_lookup.json	orphaned_tonal_mark	γένγται	γινγ́σκω
 AG	ag_lookup.json	orphaned_tonal_mark	γοητότερον	γοετ͂ος
@@ -267,10 +254,8 @@ AG	ag_lookup.json	orphaned_tonal_mark	δῦνων	δυπ͂ω
 AG	ag_lookup.json	orphaned_tonal_mark	δυσπνουστέρους	δυσ́πνους
 AG	ag_lookup.json	orphaned_tonal_mark	δυσκενότατός	δυσκ͂ενος
 AG	ag_lookup.json	orphaned_tonal_mark	δυσπαρισώτους	δυσπαρ́σωτος
-AG	ag_lookup.json	orphaned_tonal_mark	εταγμένῃ	ετ́γαγμαι
 AG	ag_lookup.json	orphaned_tonal_mark	εἴρητκι	εἰρκ́νω
 AG	ag_lookup.json	orphaned_tonal_mark	εἰσέλθης	εἰσ́λημι
-AG	ag_lookup.json	orphaned_tonal_mark	εἱλκωμένους	εἱλ́χωμαι
 AG	ag_lookup.json	orphaned_tonal_mark	εὔγλαγον	εὐγλαγ́α
 AG	ag_lookup.json	orphaned_tonal_mark	εὐδαιμοβεστάταις	εὐδαιμοβεσ́ς
 AG	ag_lookup.json	orphaned_tonal_mark	εὐθυνκέναι	εὐθυνκ́ημι
@@ -279,40 +264,33 @@ AG	ag_lookup.json	orphaned_tonal_mark	εὐρουστέρου	εὐρουσ́ς
 AG	ag_lookup.json	orphaned_tonal_mark	εὐφορέστερά	εὐφορ͂ος
 AG	ag_lookup.json	orphaned_tonal_mark	ζωργηθέντες	ζωρ́γω
 AG	ag_lookup.json	orphaned_tonal_mark	θατέρας	θ͂ας
-AG	ag_lookup.json	orphaned_tonal_mark	θερμῄνειεν	θαιρ́ͅνειομαι
 AG	ag_lookup.json	orphaned_tonal_mark	θεἰμαρμένον	θιἰμαρ́ͅσκω
 AG	ag_lookup.json	orphaned_tonal_mark	θλιφθείσης	θλ́ιπω
 AG	ag_lookup.json	orphaned_tonal_mark	ἔθλασσεν	θλασ́θω
 AG	ag_lookup.json	orphaned_tonal_mark	θλιβέντων	θλιβ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	θλιφθέντ’	θλιφ́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	καταπιανθεῖσα	καθαπιαν́ω
-AG	ag_lookup.json	orphaned_tonal_mark	καθειργμένη	καθειργ́ννυμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκάθῃρεν	καθῃρ́σκω
 AG	ag_lookup.json	orphaned_tonal_mark	κακατείναντα	κακ́-ἀτείνω
 AG	ag_lookup.json	orphaned_tonal_mark	κακηγορίστατος	κακηγ́ορης
-AG	ag_lookup.json	orphaned_tonal_mark	καπφθιμένου	καπφθ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	καταβρογχίζοντι	καταβρογχ́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	καταγινώκομεν	καταγινωκμ́σκω
 AG	ag_lookup.json	orphaned_tonal_mark	καταδαρθέντες	καταδαρ́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	κατέκτας	κατακτ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	καταλημφθήσονται	καταλημφ́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	καταξηραινό	καταξηραιν́υμι
-AG	ag_lookup.json	orphaned_tonal_mark	καταρ’ρ’ηγνύμενα	καταρ’ρ’ηγ́νυμαι
 AG	ag_lookup.json	orphaned_tonal_mark	κατεληλεσμένους	κατεληλσ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	κατολισθημάτων	κατολισθ͂ημα
 AG	ag_lookup.json	orphaned_tonal_mark	κατορθωκότα	κατορθ́οωκε
-AG	ag_lookup.json	orphaned_tonal_mark	κεκαθαρμένοισιν	κεκαθ́αρμαι
 AG	ag_lookup.json	orphaned_tonal_mark	κεροῦσσ’	κενρσ́’ω
 AG	ag_lookup.json	orphaned_tonal_mark	κεχαρισμενωτέραν	κεχαρισμεν́ος
 AG	ag_lookup.json	orphaned_tonal_mark	κινδυνοδέστερα	κινδυνοδ͂ος
 AG	ag_lookup.json	orphaned_tonal_mark	κέχρῳσμαι	κιχρῳσ́ͅσκω
-AG	ag_lookup.json	orphaned_tonal_mark	κεκαθαρμένῃ	κκ́γαθαρμαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκκεκαθαρμένοι	κκεκαθαρ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκκεκαθαρμένους	κκεκαθαρ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	κοινωνεῖα	κοινωιμ͂αμι
 AG	ag_lookup.json	orphaned_tonal_mark	κολοπτέρους	κολοπ́ς
 AG	ag_lookup.json	orphaned_tonal_mark	κυστέως	κυστ͂ος
-AG	ag_lookup.json	orphaned_tonal_mark	κἠλειφόμην	κἠλειφ́μσκομαι
 AG	ag_lookup.json	orphaned_tonal_mark	λαβόμεν	λά-β́μεͅσκω
 AG	ag_lookup.json	orphaned_tonal_mark	λαγνιστάτην	λαγ͂νισς
 AG	ag_lookup.json	orphaned_tonal_mark	λαγνιστάτας	λαγνισ́ς
@@ -322,7 +300,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	λεανθέντες	λεαν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	λεανθεῖσαν	λεαν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	λεανθείσῃ	λεαν́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐλέγξα	λεγ́σσω
-AG	ag_lookup.json	orphaned_tonal_mark	λέγετι	λεγετ́ρχομαι
 AG	ag_lookup.json	orphaned_tonal_mark	λειανθέντες	λειαν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	λειανθεῖσαν	λειαν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	λειμακεστέροισί	λειμακεσ́ς
@@ -330,18 +307,13 @@ AG	ag_lookup.json	orphaned_tonal_mark	λευκανθεῖσαν	λευκαν́ͅ
 AG	ag_lookup.json	orphaned_tonal_mark	λημφθέν	λημ́πτω
 AG	ag_lookup.json	orphaned_tonal_mark	λημφθὲν	λημ́πτω
 AG	ag_lookup.json	orphaned_tonal_mark	λυπανθῆναι	λυπαν́ͅζω
-AG	ag_lookup.json	orphaned_tonal_mark	λωβασεῖσθε	λωβασ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	μακρυνθήσονται	μακρυν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	μαρτνράμενος	μαρτν́ρω
 AG	ag_lookup.json	orphaned_tonal_mark	μαχόμεθον	μαχομεθ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	μιγμένα	μγ́ννυμι
 AG	ag_lookup.json	orphaned_tonal_mark	μελαγχολών	μελαγ́-χλῴσκω
 AG	ag_lookup.json	orphaned_tonal_mark	μελαντάτῳ	μελαν́ς
-AG	ag_lookup.json	orphaned_tonal_mark	μετειληχὸς	μετειλ́ηχομαι
-AG	ag_lookup.json	orphaned_tonal_mark	μετημφιέννυτο	μετημφ́ιννυμαι
 AG	ag_lookup.json	orphaned_tonal_mark	μετριοποτίστατος	μετριοπ́οτης
 AG	ag_lookup.json	orphaned_tonal_mark	μηθενὶ	μηθεν́ς
-AG	ag_lookup.json	orphaned_tonal_mark	μήπσθ’	μην́πομαι
 AG	ag_lookup.json	orphaned_tonal_mark	μεμιαμμένον	μιμιαμ́ͅσκω
 AG	ag_lookup.json	orphaned_tonal_mark	μεμιαμμένος	μιμιαμ́ͅσκω
 AG	ag_lookup.json	orphaned_tonal_mark	μνησό	μιμνησͅοκ́
@@ -354,7 +326,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	μορξάμενοι	μορ́σσω
 AG	ag_lookup.json	orphaned_tonal_mark	μωμοσκοπηθὲν	μωμοσκοπ́ληω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐνδεικνυμένον	νδεικν́υνυμι
 AG	ag_lookup.json	orphaned_tonal_mark	νεσταλμένα	νεσ́λλω
-AG	ag_lookup.json	orphaned_tonal_mark	νενόμενον	νν́γομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξομοιωθῆ	ξεομοιωθ͂υμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξηγσάμεθα	ξηγ́ζω
 AG	ag_lookup.json	orphaned_tonal_mark	ξηρόταταν	ξηρ͂αν
@@ -369,16 +340,13 @@ AG	ag_lookup.json	orphaned_tonal_mark	πλείονων	π́λυος
 AG	ag_lookup.json	orphaned_tonal_mark	πάθηθε	παθηθ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	παραλημφθείη	παραλημ́πω
 AG	ag_lookup.json	orphaned_tonal_mark	παραμᾶκες	παραμαιδ͂κεσκω
-AG	ag_lookup.json	orphaned_tonal_mark	παρήμπισχεν	παραμπισ́σσω
 AG	ag_lookup.json	orphaned_tonal_mark	παρηρτημένοις	παραρτ́ληω
 AG	ag_lookup.json	orphaned_tonal_mark	παρατετυχότα	παρατετ́ουχε
 AG	ag_lookup.json	orphaned_tonal_mark	παριμένοντος	παριμεπ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	παρωξυμένων	παρωξ́ομαι
 AG	ag_lookup.json	orphaned_tonal_mark	παυσώμαθε	παυσωμαθ́νω
 AG	ag_lookup.json	orphaned_tonal_mark	παχυτριχώτερα	παχυτρ́ϊχος
 AG	ag_lookup.json	orphaned_tonal_mark	πεισθῆς	πεισ́ςζω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπείταδε	πειταδ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	πενταπλασιάσαντος	πεντ́-απλασιάννυμι
 AG	ag_lookup.json	orphaned_tonal_mark	περαθέμην	περαθ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	περιεσπένδον	περιεσπανδ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	πεφλέχθαι	πεφ́γω
@@ -393,26 +361,19 @@ AG	ag_lookup.json	orphaned_tonal_mark	πλεννωδέστατα	πλεννωδ�
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπλήμμυρε	πλημμυρ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ποθλίβειν	ποθλ́ͅβω
 AG	ag_lookup.json	orphaned_tonal_mark	ποιμανθησόμεθα	ποιμαν́ͅζω
-AG	ag_lookup.json	orphaned_tonal_mark	ποιολύμενοι	ποιολ́ομαι
 AG	ag_lookup.json	orphaned_tonal_mark	πορρώτερα	πορ́ρος
 AG	ag_lookup.json	orphaned_tonal_mark	πουλυτελέστατα	πουλυτελ͂ος
 AG	ag_lookup.json	orphaned_tonal_mark	πουλυχρονιώτεραι	πουλυχ́ρονιος
-AG	ag_lookup.json	orphaned_tonal_mark	περυραμένης	πρ́γυρομαι
 AG	ag_lookup.json	orphaned_tonal_mark	προυργιαίτατον	πρ́ουργιος
 AG	ag_lookup.json	orphaned_tonal_mark	πραμνίοις	πραμ́νιος
 AG	ag_lookup.json	orphaned_tonal_mark	πραθένται	πρεθεν́
-AG	ag_lookup.json	orphaned_tonal_mark	προγεγρμμένοις	προγεγ́γρμμαι
 AG	ag_lookup.json	orphaned_tonal_mark	προγεγενμένων	προγεγν́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	προειδοῦσα	προειδ́ειμι
-AG	ag_lookup.json	orphaned_tonal_mark	προεκκεκαθαρμένης	προεκκεκαθαρ́ννυμι
-AG	ag_lookup.json	orphaned_tonal_mark	προκεκαθαρμένης	προκεκαθαρ́ννυμι
 AG	ag_lookup.json	orphaned_tonal_mark	προσαγγελέντων	προσαγγελ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	προσενήνεγκτο	προσενανεγ́σσω
 AG	ag_lookup.json	orphaned_tonal_mark	προσενεγκτέον	προσενεγ́γω
-AG	ag_lookup.json	orphaned_tonal_mark	προσεπτυσμένοις	προσεπτ́γυσμαι
 AG	ag_lookup.json	orphaned_tonal_mark	προτέτρεψαι	προτετρ́επω
 AG	ag_lookup.json	orphaned_tonal_mark	προωδοπεποίηκε	προωδοπιποιηκ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	προωρισμένῃ	προωρ́γισμαι
 AG	ag_lookup.json	orphaned_tonal_mark	πρᾳΰνοντα	πρᾳϋπ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	πτυάλοισι	πτ́υαλον
 AG	ag_lookup.json	orphaned_tonal_mark	πτόντων	πτ́ων
@@ -433,7 +394,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	σκιρρωθῶσι	σκιιμρρ́ͅω
 AG	ag_lookup.json	orphaned_tonal_mark	σκιρροῦσθαί	σκιρ́-ρόω
 AG	ag_lookup.json	orphaned_tonal_mark	σκιρροῦσθαι	σκιρ́-ρόω
 AG	ag_lookup.json	orphaned_tonal_mark	σνῶν	σν́ο
-AG	ag_lookup.json	orphaned_tonal_mark	σεσησμένῃ	σσ́γησμαι
 AG	ag_lookup.json	orphaned_tonal_mark	στρεβλέοντας	στ́ρ-εἰβλέω
 AG	ag_lookup.json	orphaned_tonal_mark	στίκτοις	στ́ϊκτος
 AG	ag_lookup.json	orphaned_tonal_mark	στάνων	σταπ́ω
@@ -450,14 +410,11 @@ AG	ag_lookup.json	orphaned_tonal_mark	συνεσρεύσαντες	συνεσρ�
 AG	ag_lookup.json	orphaned_tonal_mark	συνεφλέχθαι	συνεφ́γω
 AG	ag_lookup.json	orphaned_tonal_mark	συνεζήκει	συνζ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	συνηνεγμένων	συνηνγ́ημι
-AG	ag_lookup.json	orphaned_tonal_mark	συνσεσημμένης	συνσεσημ́ννυμι
-AG	ag_lookup.json	orphaned_tonal_mark	συντιθιμένου	συντιθ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	συνεξηλελαμένον	συξηλελ́γαω
 AG	ag_lookup.json	orphaned_tonal_mark	συστάτῳ	συσ́ς
 AG	ag_lookup.json	orphaned_tonal_mark	συνέσφιγκται	συσφιγ́γνυμι
 AG	ag_lookup.json	orphaned_tonal_mark	σχαμάτων	σχ͂αμα
 AG	ag_lookup.json	orphaned_tonal_mark	ἐσώθεν	σωθ́σκω
-AG	ag_lookup.json	orphaned_tonal_mark	τεῖται	τ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	τὸτὴν	τ́οτος
 AG	ag_lookup.json	orphaned_tonal_mark	ἐτέτυκο	τ́υκω
 AG	ag_lookup.json	orphaned_tonal_mark	τόντων	τ́ων
@@ -500,7 +457,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	τριγχίων	τριγ́χιον
 AG	ag_lookup.json	orphaned_tonal_mark	τρισκαιδεκαταίων	τρισκαιδεκατ́αιοι
 AG	ag_lookup.json	orphaned_tonal_mark	τρισκαιδεκήρει	τρισκαιδεκερ͂ες
 AG	ag_lookup.json	orphaned_tonal_mark	τριτοίοις	τριτ́οιοι
-AG	ag_lookup.json	orphaned_tonal_mark	ἐτυπτήθη	τυπ́ταμαι
 AG	ag_lookup.json	orphaned_tonal_mark	φανερωτέρως	φανερ͂ως
 AG	ag_lookup.json	orphaned_tonal_mark	πεφαρμαγμένῳ	φαρμαγ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	φυγὲ	φευγ́υμι
@@ -526,7 +482,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	χρῶνταιδὲ	χρωοτ͂νιδω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐχρώ	χρωσ́
 AG	ag_lookup.json	orphaned_tonal_mark	χἁλίκα	χἁλ́ͅκος
 AG	ag_lookup.json	orphaned_tonal_mark	ψήσσῃ	ψ́ησσα
-AG	ag_lookup.json	orphaned_tonal_mark	ψευδαλαζόσιν	ψευδαλ́αζα
 AG	ag_lookup.json	orphaned_tonal_mark	ψλεψὶ	ψλεψ́
 AG	ag_lookup.json	orphaned_tonal_mark	ἀλλόμενος	ἀαιρλ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἠβουλήθεν	ἀβουλαθν́σκω
@@ -560,12 +515,9 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἀνέτρεψεν’	ἀνατρεψεν
 AG	ag_lookup.json	orphaned_tonal_mark	ἀνελάμψεν	ἀνελαμ́πτω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀνορθωκόσιν	ἀνορθ́ωκα
 AG	ag_lookup.json	orphaned_tonal_mark	ἀντετείνοντές	ἀντετ́ͅνω
-AG	ag_lookup.json	orphaned_tonal_mark	ἀντιτειαγμένος	ἀντιιαγ́ομαι
-AG	ag_lookup.json	orphaned_tonal_mark	ἀντικαταδέδυκσε	ἀντικαταδαδυκ́ννυμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἀξιοτιμοτάτου	ἀξιοτιμ͂ος
 AG	ag_lookup.json	orphaned_tonal_mark	ἀπνούστατός	ἀπ́νους
 AG	ag_lookup.json	orphaned_tonal_mark	ἀπνόντων	ἀπ́νω
-AG	ag_lookup.json	orphaned_tonal_mark	ἀπολεσθησομένους	ἀπ́ολομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἀπαγμόνων	ἀπαγ́μων
 AG	ag_lookup.json	orphaned_tonal_mark	ἀπήμβλυται	ἀπαμβλ́λυω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀπελίπαμεν	ἀπελλ́γω
@@ -573,11 +525,9 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἀπογλυκανθέντες	ἀπογ�
 AG	ag_lookup.json	orphaned_tonal_mark	ἀποδειχθή	ἀποδειχθ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀποδπτχθῆναι	ἀποδπτ́γω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀποκεκαθαρμένοι	ἀποκεκαθαρ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ἀποκτειννύμενος	ἀποκτειν́νυμαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἀπομορχθεὶς	ἀπομορ́γω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀποπεμπτέα	ἀποπεμπ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀπεπνιγῆ	ἀποπενιγ͂υμι
-AG	ag_lookup.json	orphaned_tonal_mark	ἀποπνιξεῖσθέ	ἀποπνιξ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἀποσυρρέντων	ἀποσυρρ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	ἀποσχοληθέντα	ἀποσχολ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀποφῄνωμεν	ἀποφν́ρχομαω
@@ -589,13 +539,11 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἀρρέσιν	ἀρρ́ες
 AG	ag_lookup.json	orphaned_tonal_mark	ἀρσσκόμενοι	ἀρσ́ͅσκω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀρτηριοτμηθέντες	ἀρτηριοτ́μω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀσχέτουτε	ἀσχ́τωυ
-AG	ag_lookup.json	orphaned_tonal_mark	ἀφίεναι	ἀφ́ερχομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἀφιένα	ἀφ́ιι
 AG	ag_lookup.json	orphaned_tonal_mark	ἀφηλπικὼς	ἀφαλπ́λιω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀφελχθείη	ἀφελ́γω
 AG	ag_lookup.json	orphaned_tonal_mark	ἀχρούστατόν	ἀχ́ροος
 AG	ag_lookup.json	orphaned_tonal_mark	ἀχρουστέρα	ἀχ́ρους
-AG	ag_lookup.json	orphaned_tonal_mark	ἁλισκομένοι	ἁλισκ́ομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἁμαρτήνων	ἁμαρτηπ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	Ἀγγὶ	Ἀγ́ξ
 AG	ag_lookup.json	orphaned_tonal_mark	Ἀζενὶ	Ἀζεν́ς
@@ -607,8 +555,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἐγκρατί	ἐγκρατ́ς
 AG	ag_lookup.json	orphaned_tonal_mark	ἐλεγέ	ἐγλλυμ́
 AG	ag_lookup.json	orphaned_tonal_mark	ἐγχριμπτούσας	ἐγχριμ́ͅπτω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐγχωσθήσεται	ἐγχωσ́ͅζω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐδυνά	ἐδυν́μαι
-AG	ag_lookup.json	orphaned_tonal_mark	ἔπέζευκται	ἐεζευκ́ννυμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἑτομένων	ἐετ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκκεκαθαρμένα	ἐκ́κεκαθαρμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξέλθη	ἐκ́λω
@@ -621,7 +567,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἐκκυμανθεῖσαν	ἐκκυμα
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκπυΐσκωσιν	ἐκπ́-υΐσκω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξεπόνασας	ἐκπονασας́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκπρολιπγοῦσα	ἐκπρολιπγ́ειμι
-AG	ag_lookup.json	orphaned_tonal_mark	ἐξερεύξαιντο	ἐκριυγ́ξαιμαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκτεθηλυμένῳ	ἐκτεθηλ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκτένοντες	ἐκτεπ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐκτέραπται	ἐκτιραπ́σκω
@@ -634,37 +579,27 @@ AG	ag_lookup.json	orphaned_tonal_mark	ἐμπεπτωκένει	ἐμπεπτω�
 AG	ag_lookup.json	orphaned_tonal_mark	ἐμπιπλεὶς	ἐμπιπλ́ημι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐμπλαστῶδες	ἐμπλαστωιδ͂δεσκω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐναπομορχθείσης	ἐναπομορ́γω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐνδεικυμένη	ἐνδεικ́ομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξῇρα	ἐξ͂ραμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξημελγμένον	ἐξαμελ́λγω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξηρθρηκός	ἐξαρθρ́ληο
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξηρθρηκὸς	ἐξαρθρ́ληο
-AG	ag_lookup.json	orphaned_tonal_mark	ἐξολογεῖσθε	ἐξολογ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐξομολγησόμεθα	ἐξομολ́σσω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπῇρα	ἐπ͂ραμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπαυχμήεις	ἐπαυχμ́εις
-AG	ag_lookup.json	orphaned_tonal_mark	ἐπαφίεναι	ἐπαφ́ερχομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπενήνεγκται	ἐπενανεγ́σσω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπευκτέα	ἐπευκ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐπηνώρθωται	ἐπηνορθ́ωω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπιβιὸν	ἐπιβ́ιειμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπέβραχον	ἐπιβραχ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπέμψε	ἐπιμ́πω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐπεπλήμμυρε	ἐπιπλημμυρ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐρέθοντες	ἐρ ́εθω
-AG	ag_lookup.json	orphaned_tonal_mark	ἐρέθουσα	ἐρ ́εθω
-AG	ag_lookup.json	orphaned_tonal_mark	ἤρεθον	ἐρ ́εθω
-AG	ag_lookup.json	orphaned_tonal_mark	ἤρεθε	ἐρ́εθω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐρραστωνεῦσθαι	ἐρρ́-αστωνέω
 AG	ag_lookup.json	orphaned_tonal_mark	’ἔρρε	ἐρρ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ἔρχι	ἐρχ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	εἰσῆλ	ἐσομ͂λ
 AG	ag_lookup.json	orphaned_tonal_mark	ἐστῖν	ἐστ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ἔστορι	ἐστορ́ρχομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἔστωταν	ἐστων́νω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐφρανθησόμεθα	ἐφραν́ͅζω
 AG	ag_lookup.json	orphaned_tonal_mark	ἐχθροῦς	ἐχθ́ρεος
-AG	ag_lookup.json	orphaned_tonal_mark	ἱδὼν	ἑδ́ρχομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἑς	ἑες͂ς
 AG	ag_lookup.json	orphaned_tonal_mark	ἑλχθῇ	ἑλ́γνυμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἑλχθέν	ἑλ́γω
@@ -686,8 +621,6 @@ AG	ag_lookup.json	orphaned_tonal_mark	Ἐρασιτράτου	Ἐρασ́ιτρ�
 AG	ag_lookup.json	orphaned_tonal_mark	Ἐρεβοίας	Ἐρεβ́οιος
 AG	ag_lookup.json	orphaned_tonal_mark	Ἑρμοπτσλέμου	Ἑρμοπτσ́λεμος
 AG	ag_lookup.json	orphaned_tonal_mark	ἠνεῳγμέναις	ἠναις́γνυμι
-AG	ag_lookup.json	orphaned_tonal_mark	ἠνοιγμένη	ἠνοιγ́ννυμι
-AG	ag_lookup.json	orphaned_tonal_mark	ἠνοιγμέναις	ἠνοιγ͂μαι
 AG	ag_lookup.json	orphaned_tonal_mark	ἠνεῳγμένοις	ἠνοις́γνυμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἠνεῳγμένους	ἠνους́γνυμι
 AG	ag_lookup.json	orphaned_tonal_mark	ἠπειλημμένοις	ἠπό-ιλημ́ω
@@ -714,22 +647,17 @@ AG	ag_lookup.json	orphaned_tonal_mark	ὁποινοῦν	ὁπ́οις
 AG	ag_lookup.json	orphaned_tonal_mark	ὁποσαπλασιονοῦν	ὁποσαπλασ́ιος
 AG	ag_lookup.json	orphaned_tonal_mark	ὅτιοῦν	ὁσ́τσιοῦν
 AG	ag_lookup.json	orphaned_tonal_mark	ὕλαττον	ὑλαττ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ὑπεραγαλλόμενος	ὑπέρ-ἀγαλ́λω
 AG	ag_lookup.json	orphaned_tonal_mark	ὑπενόμενσα	ὑπενομεν́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ὑπερνηχόμενον	ὑπερν́ηχω
 AG	ag_lookup.json	orphaned_tonal_mark	ὑπερφαινό	ὑπερφαιν́υμι
 AG	ag_lookup.json	orphaned_tonal_mark	ὑπέστρε	ὑπισετ́ρω
 AG	ag_lookup.json	orphaned_tonal_mark	ὑποθύψας	ὑποθ́ψσκω
-AG	ag_lookup.json	orphaned_tonal_mark	ὑπεισχημένος	ὑποισχ́ηνυμαι
 AG	ag_lookup.json	orphaned_tonal_mark	ὑπολειφόντων	ὑπολειφ́ω
-AG	ag_lookup.json	orphaned_tonal_mark	ὑπερέβαλλεν’	ὑπορεβαλλεν’́ομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ὑποσυνηλιμμένα	ὑποσυνηλιμ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ὑπεστορεσμένοις	ὑπό-στορεσ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ὠλιγορηκότα	ὠλιγορ́οηκε
 AG	ag_lookup.json	orphaned_tonal_mark	ᾀδόμενά	ᾀδ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	ᾐρκότας	ᾀρ́ζω
-AG	ag_lookup.json	orphaned_tonal_mark	ᾅμα	ᾁ̈νμ́αμαι
-AG	ag_lookup.json	orphaned_tonal_mark	ᾗἀδικεῖται	ᾗἀδικ́ζομαι
 AG	ag_lookup.json	orphaned_tonal_mark	ᾠδίνουσα	ᾠδιπ́ω
 AG	ag_lookup.json	orphaned_tonal_mark	Ἀνθρωπος	᾽́Ανθρωπος
 AG	ag_lookup.json	orphaned_tonal_mark	Ὠκίμου	᾽́Ωκιμον
@@ -962,10 +890,18 @@ AG	ag_lookup.json	untrusted_grave	καγὸλ	Καγὸλ
 AG	ag_lookup.json	untrusted_grave	Καλαβρά	Καλαβρὰ
 AG	ag_lookup.json	untrusted_grave	Καλαβράν	Καλαβρὰ
 AG	ag_lookup.json	untrusted_grave	Καλαβράς	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβρα	Καλαβρὰ
 AG	ag_lookup.json	untrusted_grave	Καλαβραί	Καλαβρὰ
 AG	ag_lookup.json	untrusted_grave	Καλαβραίν	Καλαβρὰ
 AG	ag_lookup.json	untrusted_grave	Καλαβραίς	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβραι	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβραιν	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβραις	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβραν	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβρας	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβρων	Καλαβρὰ
 AG	ag_lookup.json	untrusted_grave	Καλαβρᾴ	Καλαβρὰ
+AG	ag_lookup.json	untrusted_grave	Καλαβρῶν	Καλαβρὰ
 AG	ag_lookup.json	untrusted_grave	Καλλιμαχὶς	Καλλιμαχὶς
 AG	ag_lookup.json	untrusted_grave	καλλιμαχὶς	Καλλιμαχὶς
 AG	ag_lookup.json	untrusted_grave	Καλλιστιανὸς	Καλλιστιανὸς
@@ -1095,6 +1031,13 @@ AG	ag_lookup.json	untrusted_grave	Κυριναλίαις	Κυρινάλιὰ
 AG	ag_lookup.json	untrusted_grave	Κυριναλίαν	Κυρινάλιὰ
 AG	ag_lookup.json	untrusted_grave	Κυριναλίας	Κυρινάλιὰ
 AG	ag_lookup.json	untrusted_grave	Κυριναλίᾳ	Κυρινάλιὰ
+AG	ag_lookup.json	untrusted_grave	Κυριναλια	Κυρινάλιὰ
+AG	ag_lookup.json	untrusted_grave	Κυριναλιαι	Κυρινάλιὰ
+AG	ag_lookup.json	untrusted_grave	Κυριναλιαιν	Κυρινάλιὰ
+AG	ag_lookup.json	untrusted_grave	Κυριναλιαις	Κυρινάλιὰ
+AG	ag_lookup.json	untrusted_grave	Κυριναλιαν	Κυρινάλιὰ
+AG	ag_lookup.json	untrusted_grave	Κυριναλιας	Κυρινάλιὰ
+AG	ag_lookup.json	untrusted_grave	Κυριναλιων	Κυρινάλιὰ
 AG	ag_lookup.json	untrusted_grave	Κυριναλιῶν	Κυρινάλιὰ
 AG	ag_lookup.json	untrusted_grave	Λαμπαδίς	Λαμπαδὶς
 AG	ag_lookup.json	untrusted_grave	Λαμπαδὶς	Λαμπαδὶς
@@ -1222,11 +1165,20 @@ AG	ag_lookup.json	untrusted_grave	νεικολαίς	Νεικολαὶς
 AG	ag_lookup.json	untrusted_grave	νεικολαις	Νεικολαὶς
 AG	ag_lookup.json	untrusted_grave	νεικολαὶς	Νεικολαὶς
 AG	ag_lookup.json	untrusted_grave	Νεκρά	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκράν	Νεκρὰ
 AG	ag_lookup.json	untrusted_grave	Νεκράς	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκρα	Νεκρὰ
 AG	ag_lookup.json	untrusted_grave	Νεκραί	Νεκρὰ
 AG	ag_lookup.json	untrusted_grave	Νεκραίν	Νεκρὰ
 AG	ag_lookup.json	untrusted_grave	Νεκραίς	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκραι	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκραιν	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκραις	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκραν	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκρας	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκρων	Νεκρὰ
 AG	ag_lookup.json	untrusted_grave	Νεκρᾴ	Νεκρὰ
+AG	ag_lookup.json	untrusted_grave	Νεκρῶν	Νεκρὰ
 AG	ag_lookup.json	untrusted_grave	Νεφοτιανός	Νεφοτιανὸς
 AG	ag_lookup.json	untrusted_grave	Νεφοτιανὸς	Νεφοτιανὸς
 AG	ag_lookup.json	untrusted_grave	νεφοτιανος	Νεφοτιανὸς
@@ -1507,16 +1459,6 @@ AG	ag_lookup.json	untrusted_grave	Σκὶμ	Σκὶμ
 AG	ag_lookup.json	untrusted_grave	σκίμ	Σκὶμ
 AG	ag_lookup.json	untrusted_grave	σκιμ	Σκὶμ
 AG	ag_lookup.json	untrusted_grave	σκὶμ	Σκὶμ
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθε	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθοι	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθοιν	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθοις	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθον	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθος	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθου	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθους	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθω	Σολομωνιακὸς λίθος
-AG	ag_lookup.json	untrusted_grave	σολομωνιακος λιθων	Σολομωνιακὸς λίθος
 AG	ag_lookup.json	untrusted_grave	Σουηριανὸς	Σουηριανὸς
 AG	ag_lookup.json	untrusted_grave	σουηριανὸς	Σουηριανὸς
 AG	ag_lookup.json	untrusted_grave	Σοφιστής	Σοφιστὴς
@@ -1619,24 +1561,6 @@ AG	ag_lookup.json	untrusted_grave	Τοτσὶς	Τοτσὶς
 AG	ag_lookup.json	untrusted_grave	τοτσίς	Τοτσὶς
 AG	ag_lookup.json	untrusted_grave	τοτσις	Τοτσὶς
 AG	ag_lookup.json	untrusted_grave	τοτσὶς	Τοτσὶς
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμνα	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμναι	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμναιν	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμναις	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμνας	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμνη	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμνην	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμνης	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτων-ιας λιμνων	Τριτων-ιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμνα	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμναι	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμναιν	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμναις	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμνας	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμνη	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμνην	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμνης	Τριτωνιὰς λίμνη
-AG	ag_lookup.json	untrusted_grave	τριτωνιας λιμνων	Τριτωνιὰς λίμνη
 AG	ag_lookup.json	untrusted_grave	Τρυφωνιανὸς	Τρυφωνιανὸς
 AG	ag_lookup.json	untrusted_grave	τρυφωνιανὸς	Τρυφωνιανὸς
 AG	ag_lookup.json	untrusted_grave	Τυρρανίς	Τυρρανὶς
@@ -1719,24 +1643,6 @@ AG	ag_lookup.json	untrusted_grave	ατινά	ατινὰ
 AG	ag_lookup.json	untrusted_grave	αἰδάδ	αἰδὰδ
 AG	ag_lookup.json	untrusted_grave	αἰδὰδ	αἰδὰδ
 AG	ag_lookup.json	untrusted_grave	βαδόν	βαδὸν
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχνα	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχναι	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχναιν	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχναις	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχνας	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχνη	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχνην	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχνης	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπ-ηις τεχνων	γριπ-ηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχνα	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχναι	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχναιν	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχναις	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχνας	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχνη	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχνην	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχνης	γριπηὶς τέχνη
-AG	ag_lookup.json	untrusted_grave	γριπηις τεχνων	γριπηὶς τέχνη
 AG	ag_lookup.json	untrusted_grave	διασκέ	διασκὲ
 AG	ag_lookup.json	untrusted_grave	δέρ	δὲρ
 AG	ag_lookup.json	untrusted_grave	επὶ	επὶ
@@ -1749,7 +1655,11 @@ AG	ag_lookup.json	untrusted_grave	ικαὶ	ικαὶ
 AG	ag_lookup.json	untrusted_grave	ιὴν	ιὴν
 AG	ag_lookup.json	untrusted_grave	κακοζηλό	κακοζηλὸ
 AG	ag_lookup.json	untrusted_grave	καλύ	καλὺ
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτέ	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτε	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτοί	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτοίν	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτοίς	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτοι	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτοιν	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτοις	καρυ-ωτὸς
@@ -1757,8 +1667,68 @@ AG	ag_lookup.json	untrusted_grave	καρυ-ωτον	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτος	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτου	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτους	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτού	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτούς	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτω	καρυ-ωτὸς
 AG	ag_lookup.json	untrusted_grave	καρυ-ωτων	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτόν	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτός	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτώ	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτών	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καρυ-ωτῴ	καρυ-ωτὸς
+AG	ag_lookup.json	untrusted_grave	καραδίνεε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδίνει	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέει	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέειν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέεις	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέεσθαι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέεσθε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέεσθον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέεται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέετε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέετον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέησθε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέησθον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέηται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέητε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέητον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιμεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιμι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιντο	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιο	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοις	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοισθε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοισθον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιτε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιτο	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέοιτον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέομαι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέομεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέονται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέου	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέουσα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέουσι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέουσιν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέω	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέωμαι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέωμεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέων	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέωνται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέωσι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέωσιν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέῃ	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινέῃς	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεέσθω	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεέσθων	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεέτω	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεέτων	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινείσθω	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινείσθων	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινείτω	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινείτων	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεε	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεει	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεειν	καρὰδινέω
@@ -1793,6 +1763,10 @@ AG	ag_lookup.json	untrusted_grave	καραδινειτε	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινειτον	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινειτω	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινειτων	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεοίμεθα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεοίμην	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεοίσθην	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεοίτην	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεοι	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεοιεν	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεοιμεθα	καρὰδινέω
@@ -1809,6 +1783,7 @@ AG	ag_lookup.json	untrusted_grave	καραδινεοιτε	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεοιτην	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεοιτο	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεοιτον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεομένη	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεομαι	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεομεθα	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεομεν	καρὰδινέω
@@ -1830,6 +1805,20 @@ AG	ag_lookup.json	untrusted_grave	καραδινεων	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεωνται	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεωσι	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινεωσιν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεόμεθα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεόμενον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεόμενος	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεόντων	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεώμεθα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖ	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖς	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖσθαι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖσθε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖσθον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖτε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινεῖτον	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινη	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινης	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινησθε	καρὰδινέω
@@ -1837,7 +1826,19 @@ AG	ag_lookup.json	untrusted_grave	καραδινησθον	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινηται	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινητε	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινητον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίη	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίημεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίην	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίης	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίησαν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίητε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίητον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίμεθα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίμην	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίσθην	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοίτην	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινοι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοιήτην	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινοιεν	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινοιη	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινοιημεν	καρὰδινέω
@@ -1862,6 +1863,7 @@ AG	ag_lookup.json	untrusted_grave	καραδινοιτην	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινοιτο	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινοιτον	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινου	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινουμένη	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινουμαι	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινουμεθα	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινουμεν	καρὰδινέω
@@ -1874,6 +1876,30 @@ AG	ag_lookup.json	untrusted_grave	καραδινουντων	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινουσα	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινουσι	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινουσιν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινούμεθα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινούμενον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινούμενος	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινούντων	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖ	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖμεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖμι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖντο	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖο	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖς	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖσθε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖσθον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖτε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖτο	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῖτον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦ	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦμαι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦμεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦνται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦσα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦσι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινοῦσιν	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινω	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινωμαι	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινωμεθα	καρὰδινέω
@@ -1882,6 +1908,21 @@ AG	ag_lookup.json	untrusted_grave	καραδινων	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινωνται	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινωσι	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	καραδινωσιν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινώμεθα	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῆσθε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῆσθον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῆται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῆτε	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῆτον	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῇ	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῇς	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῶ	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῶμαι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῶμεν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῶν	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῶνται	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῶσι	καρὰδινέω
+AG	ag_lookup.json	untrusted_grave	καραδινῶσιν	καρὰδινέω
 AG	ag_lookup.json	untrusted_grave	κατακεέ	κατακεὲ
 AG	ag_lookup.json	untrusted_grave	καταμή	καταμὴ
 AG	ag_lookup.json	untrusted_grave	καταντικρὺς	καταντικρὺς
@@ -1891,92 +1932,12 @@ AG	ag_lookup.json	untrusted_grave	κλιδόν	κλιδὸν
 AG	ag_lookup.json	untrusted_grave	κλιδὸν	κλιδὸν
 AG	ag_lookup.json	untrusted_grave	κλύ	κλὺ
 AG	ag_lookup.json	untrusted_grave	κλῃδών	κλῃδὼν
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθε	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθοι	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθοιν	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθοις	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθον	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθος	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθου	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθους	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθω	κορσοειδὴς λίθος
-AG	ag_lookup.json	untrusted_grave	κορσοειδης λιθων	κορσοειδὴς λίθος
 AG	ag_lookup.json	untrusted_grave	κρινό	κρινὸ
 AG	ag_lookup.json	untrusted_grave	κράξ	κρὰξ
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκε	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκοι	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκοιν	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκοις	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκον	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκος	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκου	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκους	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκω	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνο-κεφαλοειδης πιθηκων	κυνο-κεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκε	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκοι	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκοιν	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκοις	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκον	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκος	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκου	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκους	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκω	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυνοκεφαλοειδης πιθηκων	κυνοκεφαλοειδὴς πίθηκος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιππε	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιπποι	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιπποιν	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιπποις	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιππον	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιππος	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιππου	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιππους	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιππω	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγ-ος ιππων	κυφαγωγ-ὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιππε	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιπποι	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιπποιν	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιπποις	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιππον	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιππος	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιππου	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιππους	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιππω	κυφαγωγὸς ἵππος
-AG	ag_lookup.json	untrusted_grave	κυφαγωγος ιππων	κυφαγωγὸς ἵππος
 AG	ag_lookup.json	untrusted_grave	κάὶ	κὰι
 AG	ag_lookup.json	untrusted_grave	κό	κὸ
 AG	ag_lookup.json	untrusted_grave	κᾀπὸ	κᾀπὸ
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοπε	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοποι	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοποιν	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοποις	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοπον	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοπος	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοπου	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοπους	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοπω	λιχανοειδὴς τόπος
-AG	ag_lookup.json	untrusted_grave	λιχανοειδης τοπων	λιχανοειδὴς τόπος
 AG	ag_lookup.json	untrusted_grave	λὰς	λὰς
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτε	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτοι	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτοιν	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτοις	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτον	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτος	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτου	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτους	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτω	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαν-αθηρ σιτων	μελαν-αθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτε	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτοι	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτοιν	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτοις	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτον	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτος	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτου	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτους	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτω	μελαναθὴρ σῖτος
-AG	ag_lookup.json	untrusted_grave	μελαναθηρ σιτων	μελαναθὴρ σῖτος
 AG	ag_lookup.json	untrusted_grave	μεσφὶ	μεσφὶ
 AG	ag_lookup.json	untrusted_grave	μεταπολὺ	μεταπολὺ
 AG	ag_lookup.json	untrusted_grave	μονονοὺχ	μονονοὺχ
@@ -1989,102 +1950,15 @@ AG	ag_lookup.json	untrusted_grave	οὐδεγὸς	οὐδεγὸς
 AG	ag_lookup.json	untrusted_grave	οὐσὲ	οὐσὲ
 AG	ag_lookup.json	untrusted_grave	οὔν	οὒν
 AG	ag_lookup.json	untrusted_grave	παραπουλὺ	παραπουλὺ
-AG	ag_lookup.json	untrusted_grave	πηχυαλες ιματια	πηχυαλὲς ἱμάτιον
-AG	ag_lookup.json	untrusted_grave	πηχυαλες ιματιοιν	πηχυαλὲς ἱμάτιον
-AG	ag_lookup.json	untrusted_grave	πηχυαλες ιματιοις	πηχυαλὲς ἱμάτιον
-AG	ag_lookup.json	untrusted_grave	πηχυαλες ιματιον	πηχυαλὲς ἱμάτιον
-AG	ag_lookup.json	untrusted_grave	πηχυαλες ιματιου	πηχυαλὲς ἱμάτιον
-AG	ag_lookup.json	untrusted_grave	πηχυαλες ιματιω	πηχυαλὲς ἱμάτιον
-AG	ag_lookup.json	untrusted_grave	πηχυαλες ιματιων	πηχυαλὲς ἱμάτιον
 AG	ag_lookup.json	untrusted_grave	πλευρ’ὸν	πλευρ’ὸν
 AG	ag_lookup.json	untrusted_grave	πολλαχοὺ	πολλαχοὺ
 AG	ag_lookup.json	untrusted_grave	ποχὺ	ποχὺ
 AG	ag_lookup.json	untrusted_grave	προεκόψ	προεκὸψ
 AG	ag_lookup.json	untrusted_grave	προκατάρ	προκατὰρ
 AG	ag_lookup.json	untrusted_grave	προσιό	προσιὸ
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιε	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιοι	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιοιν	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιοις	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιον	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιος	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιου	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιους	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιω	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτο-ποιητικος αιτιων	πρωτο-ποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιε	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιοι	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιοιν	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιοις	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιον	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιος	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιου	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιους	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιω	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτοποιητικος αιτιων	πρωτοποιητικὸς αἴτιος
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκα	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκαι	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκαιν	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκαις	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκας	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκη	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκην	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκης	πρῳτερικὴ συκῆ
-AG	ag_lookup.json	untrusted_grave	πρωτερικη συκων	πρῳτερικὴ συκῆ
 AG	ag_lookup.json	untrusted_grave	ροὰς	ροὰς
 AG	ag_lookup.json	untrusted_grave	ρυπαρὰ	ρυπαρὰ
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδε	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδοι	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδοιν	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδοις	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδον	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδος	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδου	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδους	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδω	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σαμφαριτικη ναρδων	σαμφαριτικὴ νάρδος
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχε	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχοι	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχοιν	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχοις	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχον	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχος	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχου	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχους	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχω	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευο-πλαστικος τροχων	σκευο-πλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχε	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχοι	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχοιν	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχοις	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχον	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχος	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχου	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχους	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχω	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκευοπλαστικος τροχων	σκευοπλαστικὸς τροχός
-AG	ag_lookup.json	untrusted_grave	σκολοπ-ηις μοιρα	σκολοπ-ηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπ-ηις μοιραι	σκολοπ-ηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπ-ηις μοιραιν	σκολοπ-ηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπ-ηις μοιραις	σκολοπ-ηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπ-ηις μοιραν	σκολοπ-ηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπ-ηις μοιρας	σκολοπ-ηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπ-ηις μοιρων	σκολοπ-ηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπηις μοιρα	σκολοπηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπηις μοιραι	σκολοπηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπηις μοιραιν	σκολοπηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπηις μοιραις	σκολοπηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπηις μοιραν	σκολοπηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπηις μοιρας	σκολοπηῒς μοῖρα
-AG	ag_lookup.json	untrusted_grave	σκολοπηις μοιρων	σκολοπηῒς μοῖρα
 AG	ag_lookup.json	untrusted_grave	συνεκκρινό	συνεκκρινὸ
-AG	ag_lookup.json	untrusted_grave	συντονολυδιστι αρμονια	συντονολυδιστὶ ἁρμονία
-AG	ag_lookup.json	untrusted_grave	συντονολυδιστι αρμονιαι	συντονολυδιστὶ ἁρμονία
-AG	ag_lookup.json	untrusted_grave	συντονολυδιστι αρμονιαιν	συντονολυδιστὶ ἁρμονία
-AG	ag_lookup.json	untrusted_grave	συντονολυδιστι αρμονιαις	συντονολυδιστὶ ἁρμονία
-AG	ag_lookup.json	untrusted_grave	συντονολυδιστι αρμονιαν	συντονολυδιστὶ ἁρμονία
-AG	ag_lookup.json	untrusted_grave	συντονολυδιστι αρμονιας	συντονολυδιστὶ ἁρμονία
-AG	ag_lookup.json	untrusted_grave	συντονολυδιστι αρμονιων	συντονολυδιστὶ ἁρμονία
 AG	ag_lookup.json	untrusted_grave	σχιδακιδὸν	σχιδακιδὸν
 AG	ag_lookup.json	untrusted_grave	σύγ	σὺγ
 AG	ag_lookup.json	untrusted_grave	ταύτ	ταὺτ
@@ -2093,26 +1967,6 @@ AG	ag_lookup.json	untrusted_grave	τησδὶ	τησδὶ
 AG	ag_lookup.json	untrusted_grave	τοσαύ	τοσαὺ
 AG	ag_lookup.json	untrusted_grave	τοσησδί	τοσησδὶ
 AG	ag_lookup.json	untrusted_grave	τοσουδί	τοσουδὶ
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηρε	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηροι	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηροιν	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηροις	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηρον	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηρος	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηρου	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηρους	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηρω	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτ-ος κηρων	τρακτ-ὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηρε	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηροι	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηροιν	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηροις	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηρον	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηρος	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηρου	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηρους	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηρω	τρακτὸς κηρός
-AG	ag_lookup.json	untrusted_grave	τρακτος κηρων	τρακτὸς κηρός
 AG	ag_lookup.json	untrusted_grave	τριακονταὲν	τριακονταὲν
 AG	ag_lookup.json	untrusted_grave	τέξ	τὲξ
 AG	ag_lookup.json	untrusted_grave	υπεκπρὸ	υπεκπρὸ
@@ -2387,36 +2241,6 @@ AG	ag_lookup.json	untrusted_grave	ἱεροβοὸς	Ἱεροβοὸς
 AG	ag_lookup.json	untrusted_grave	Ἱεροβοὸς	Ἱεροβοὸς
 AG	ag_lookup.json	untrusted_grave	ἳρις	Ἳρις
 AG	ag_lookup.json	untrusted_grave	Ἳρις	Ἳρις
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτε	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτοι	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτοιν	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτοις	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτον	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτος	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτου	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτους	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτω	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυ-λιπης αρτων	ὀξυ-λιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτε	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτοι	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτοιν	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτοις	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτον	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτος	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτου	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτους	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτω	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οξυλιπης αρτων	ὀξυλιπὴς ἄρτος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθε	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθοι	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθοιν	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθοις	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθον	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθος	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθου	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθους	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθω	ὀψιανὸς λίθος
-AG	ag_lookup.json	untrusted_grave	οψιανος λιθων	ὀψιανὸς λίθος
 AG	ag_lookup.json	untrusted_grave	ὁντιναδὴ	ὁντιναδὴ
 AG	ag_lookup.json	untrusted_grave	οπλ-ιστα	ὁπλ-ιστὴς
 AG	ag_lookup.json	untrusted_grave	οπλ-ισται	ὁπλ-ιστὴς
@@ -2428,6 +2252,16 @@ AG	ag_lookup.json	untrusted_grave	οπλ-ιστην	ὁπλ-ιστὴς
 AG	ag_lookup.json	untrusted_grave	οπλ-ιστης	ὁπλ-ιστὴς
 AG	ag_lookup.json	untrusted_grave	οπλ-ιστου	ὁπλ-ιστὴς
 AG	ag_lookup.json	untrusted_grave	οπλ-ιστων	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ιστά	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ιστάς	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ιστήν	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ιστής	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ισταί	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ισταίν	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ισταίς	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ιστού	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ιστῄ	ὁπλ-ιστὴς
+AG	ag_lookup.json	untrusted_grave	ὁπλ-ιστῶν	ὁπλ-ιστὴς
 AG	ag_lookup.json	untrusted_grave	ὁποθενδὴ	ὁποθενδὴ
 AG	ag_lookup.json	untrusted_grave	ὁπό	ὁπὸ
 AG	ag_lookup.json	untrusted_grave	ὁτῳδή	ὁτῳδὴ
@@ -2568,6 +2402,7 @@ AG	glaux_pairs.json	final_keraia_or_prime	αεʹ	αεʹ
 AG	glaux_pairs.json	final_keraia_or_prime	αζ	αζʹ
 AG	glaux_pairs.json	final_keraia_or_prime	αζʹ	αζʹ
 AG	glaux_pairs.json	final_keraia_or_prime	αηʹ	αηʹ
+AG	glaux_pairs.json	final_keraia_or_prime	αης	αηςʹ
 AG	glaux_pairs.json	final_keraia_or_prime	αθ	αθʹ
 AG	glaux_pairs.json	final_keraia_or_prime	αθʹ	αθʹ
 AG	glaux_pairs.json	final_keraia_or_prime	αθξτψασχσνη	αθξτψασχσνηʹ
@@ -3136,7 +2971,6 @@ EL	glaux_pairs.json	final_keraia_or_prime	φϚα	φϚαʹ
 EL	glaux_pairs.json	final_keraia_or_prime	ψυπφς	ψυπφςʹ
 EL	glaux_pairs.json	final_keraia_or_prime	ωϚα	ωϚαʹ
 EL	glaux_pairs.json	final_keraia_or_prime	ωϚᾱ	ωϚαʹ
-EL	glaux_pairs.json	final_keraia_or_prime	ϋ	ϋʹ
 EL	glaux_pairs.json	final_keraia_or_prime	ϋκ	ϋκʹ
 EL	glaux_pairs.json	final_keraia_or_prime	Ϛʹηʹ	Ϛʹηʹ
 EL	glaux_pairs.json	final_keraia_or_prime	Ϛʹιδʹ	Ϛʹιδʹ
@@ -3953,6 +3787,7 @@ AG	glaux_pairs.json	nonlexical_numeral	ξδ	ξδʹ
 AG	glaux_pairs.json	nonlexical_numeral	ξδʹ	ξδʹ
 AG	glaux_pairs.json	nonlexical_numeral	ξε	ξεʹ
 AG	glaux_pairs.json	nonlexical_numeral	ξεʹ	ξεʹ
+AG	glaux_pairs.json	nonlexical_numeral	ξη	ξηʹ
 AG	glaux_pairs.json	nonlexical_numeral	ξηʹ	ξηʹ
 AG	glaux_pairs.json	nonlexical_numeral	ξϚʹ	ξϚʹ
 AG	glaux_pairs.json	nonlexical_numeral	ξϛ	ξϛʹ
@@ -3967,7 +3802,6 @@ AG	glaux_pairs.json	nonlexical_numeral	οε	οεʹ
 AG	glaux_pairs.json	nonlexical_numeral	οεʹ	οεʹ
 AG	glaux_pairs.json	nonlexical_numeral	οζ	οζʹ
 AG	glaux_pairs.json	nonlexical_numeral	οζʹ	οζʹ
-AG	glaux_pairs.json	nonlexical_numeral	οη	οηʹ
 AG	glaux_pairs.json	nonlexical_numeral	οηʹ	οηʹ
 AG	glaux_pairs.json	nonlexical_numeral	οϚʹ	οϚʹ
 AG	glaux_pairs.json	nonlexical_numeral	παʹ	παʹ
@@ -3989,6 +3823,7 @@ AG	glaux_pairs.json	nonlexical_numeral	ρδ	ρδʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρδʹ	ρδʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρζ	ρζʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρζʹ	ρζʹ
+AG	glaux_pairs.json	nonlexical_numeral	ρη	ρηʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρηʹ	ρηʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρι	ριʹ
 AG	glaux_pairs.json	nonlexical_numeral	ριʹ	ριʹ
@@ -4059,6 +3894,7 @@ AG	glaux_pairs.json	nonlexical_numeral	ρξδ	ρξδʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρξε	ρξεʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρξεʹ	ρξεʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρξζʹ	ρξζʹ
+AG	glaux_pairs.json	nonlexical_numeral	ρξη	ρξηʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρξηʹ	ρξηʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρξθ	ρξθʹ
 AG	glaux_pairs.json	nonlexical_numeral	ρξθʹ	ρξθʹ
@@ -4691,6 +4527,7 @@ EL	glaux_pairs.json	nonlexical_numeral	ρδ	ρδʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρδʹ	ρδʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρζ	ρζʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρζʹ	ρζʹ
+EL	glaux_pairs.json	nonlexical_numeral	ρη	ρηʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρηʹ	ρηʹ
 EL	glaux_pairs.json	nonlexical_numeral	ριʹ	ριʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρῑ	ριʹ
@@ -4758,6 +4595,7 @@ EL	glaux_pairs.json	nonlexical_numeral	ρξδ	ρξδʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρξε	ρξεʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρξεʹ	ρξεʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρξζʹ	ρξζʹ
+EL	glaux_pairs.json	nonlexical_numeral	ρξη	ρξηʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρξηʹ	ρξηʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρξθ	ρξθʹ
 EL	glaux_pairs.json	nonlexical_numeral	ρξθʹ	ρξθʹ
@@ -5011,18 +4849,82 @@ EL	glaux_pairs.json	nonlexical_numeral	Ϡξʹ	Ϡξʹ
 EL	glaux_pairs.json	nonlexical_numeral	Ϡοθ	Ϡοθʹ
 EL	glaux_pairs.json	nonlexical_numeral	Ϡπ	Ϡπʹ
 EL	glaux_pairs.json	nonlexical_numeral	Ϡπβ	Ϡπβʹ
+AG	glaux_pairs.json	orphaned_tonal_mark	Ῥυτίνῳ	*ʽ ́ρυτινον
 AG	glaux_pairs.json	orphaned_tonal_mark	-λί	-λ́ς
 AG	glaux_pairs.json	orphaned_tonal_mark	Κιμβρίοις	Κιμβ́ριος
+AG	glaux_pairs.json	orphaned_tonal_mark	Κορίλλῃ	Κοριλ ́λα
+AG	glaux_pairs.json	orphaned_tonal_mark	Λασθένειά	Λασθέ ́νεια
 AG	glaux_pairs.json	orphaned_tonal_mark	Λυγγός	Λυγ́ξ
+AG	glaux_pairs.json	orphaned_tonal_mark	Μακεδονικαὶ	Μακεδ ́νιος
 AG	glaux_pairs.json	orphaned_tonal_mark	Μακεδονικοὺς	Μακεδ ́νιος
+AG	glaux_pairs.json	orphaned_tonal_mark	Μήιον	Μῃ ́ων
+AG	glaux_pairs.json	orphaned_tonal_mark	Πρώνακτι	Πρῶ ́ναξ
+AG	glaux_pairs.json	orphaned_tonal_mark	Φραδασμένης	Φρ́γαδασμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	βοσκησεῖσθε	βοσκησ́ζομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	γαννύμενοι	γαν́νυμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	γαννύμενος	γαν́νυμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	γεγλωσσάμενον	γεγλωσ́ομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	γλί	γλ́ς
+AG	glaux_pairs.json	orphaned_tonal_mark	εταγμένῃ	ετ́γαγμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	εἱλκωμένους	εἱλ́χωμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	θερμῄνειεν	θαιρ́ͅνειομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	κεκαθαρμένα	καθαρ́νω
 AG	glaux_pairs.json	orphaned_tonal_mark	κεκαθαρμένους	καθαρ́νω
+AG	glaux_pairs.json	orphaned_tonal_mark	καθειργμένη	καθειργ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	καπφθιμένου	καπφθ́ζομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	καταρ’ρ’ηγνύμενα	καταρ’ρ’ηγ́νυμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	κεκαθαρμένοισιν	κεκαθ́αρμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	κεκαθαρμένῃ	κκ́γαθαρμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	κἠλειφόμην	κἠλειφ́μσκομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	λεανθεῖσιν	λεαν́ω
+AG	glaux_pairs.json	orphaned_tonal_mark	λέγετι	λεγετ́ρχομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	λωβασεῖσθε	λωβασ́ζομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	μιγμένα	μγ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	μετειληχὸς	μετειλ́ηχομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	μετημφιέννυτο	μετημφ́ιννυμαι
 AG	glaux_pairs.json	orphaned_tonal_mark	μαθέ	μηθ́υμι
+AG	glaux_pairs.json	orphaned_tonal_mark	μήπσθ’	μην́πομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	νὶ	ν́ς
+AG	glaux_pairs.json	orphaned_tonal_mark	νενόμενον	νν́γομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	παρήμπισχεν	παραμπισ́σσω
+AG	glaux_pairs.json	orphaned_tonal_mark	παρωξυμένων	παρωξ́ομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	πενταπλασιάσαντος	πεντ́-απλασιάννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	ποιολύμενοι	ποιολ́ομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	περυραμένης	πρ́γυρομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	προγεγρμμένοις	προγεγ́γρμμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	προεκκεκαθαρμένης	προεκκεκαθαρ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	προκεκαθαρμένης	προκεκαθαρ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	προσεπτυσμένοις	προσεπτ́γυσμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	προωρισμένῃ	προωρ́γισμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	σεσησμένῃ	σσ́γησμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	συνσεσημμένης	συνσεσημ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	συντιθιμένου	συντιθ́ζομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	τέθλασται	τιθλασ́ͅσκω
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐτυπτήθη	τυπ́ταμαι
 AG	glaux_pairs.json	orphaned_tonal_mark	χἄτερος	χ̓͂ς
+AG	glaux_pairs.json	orphaned_tonal_mark	ἀντιτειαγμένος	ἀντιιαγ́ομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἀντικαταδέδυκσε	ἀντικαταδαδυκ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἀπολεσθησομένους	ἀπ́ολομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἀποκτειννύμενος	ἀποκτειν́νυμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἀποπνιξεῖσθέ	ἀποπνιξ́ζομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἀφίεναι	ἀφ́ερχομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἁλισκομένοι	ἁλισκ́ομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐδυνά	ἐδυν́μαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἔπέζευκται	ἐεζευκ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐξερεύξαιντο	ἐκριυγ́ξαιμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐνδεικυμένη	ἐνδεικ́ομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐξολογεῖσθε	ἐξολογ́ζομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐπαφίεναι	ἐπαφ́ερχομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἐρέθοντες	ἐρ ́εθω
+AG	glaux_pairs.json	orphaned_tonal_mark	ἔστορι	ἐστορ́ρχομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἱδὼν	ἑδ́ρχομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	ἑλχθέντων	ἑλ́γω
+AG	glaux_pairs.json	orphaned_tonal_mark	ἠνοιγμένη	ἠνοιγ́ννυμι
+AG	glaux_pairs.json	orphaned_tonal_mark	ἠνοιγμέναις	ἠνοιγ͂μαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ὑπεισχημένος	ὑποισχ́ηνυμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ὑπερέβαλλεν’	ὑπορεβαλλεν’́ομαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ᾅμα	ᾁ̈νμ́αμαι
+AG	glaux_pairs.json	orphaned_tonal_mark	ᾗἀδικεῖται	ᾗἀδικ́ζομαι
 AG	glaux_pairs.json	orphaned_tonal_mark	––⏑⏑–σί	––⏑⏑–σ́ς
 EL	glaux_pairs.json	orphaned_tonal_mark	Ῥυτίνῳ	*ʽ ́ρυτινον
 EL	glaux_pairs.json	orphaned_tonal_mark	-λί	-λ́ς
@@ -5089,7 +4991,6 @@ EL	glaux_pairs.json	orphaned_tonal_mark	γαννύμενος	γαν́νυμαι
 EL	glaux_pairs.json	orphaned_tonal_mark	γεγλωσσάμενον	γεγλωσ́ομαι
 EL	glaux_pairs.json	orphaned_tonal_mark	γεννητρίους	γεννητ́ριος
 EL	glaux_pairs.json	orphaned_tonal_mark	γαγέ	γηγ́υμι
-EL	glaux_pairs.json	orphaned_tonal_mark	ἔδνα	γιδ́σνω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐμφυὼς	γιμφ́συω
 EL	glaux_pairs.json	orphaned_tonal_mark	γένγται	γινγ́σκω
 EL	glaux_pairs.json	orphaned_tonal_mark	γλί	γλ́ς
@@ -5311,7 +5212,6 @@ EL	glaux_pairs.json	orphaned_tonal_mark	συστάτῳ	συσ́ς
 EL	glaux_pairs.json	orphaned_tonal_mark	συνέσφιγκται	συσφιγ́γνυμι
 EL	glaux_pairs.json	orphaned_tonal_mark	σχαμάτων	σχ͂αμα
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐσώθεν	σωθ́σκω
-EL	glaux_pairs.json	orphaned_tonal_mark	τεῖται	τ́ζομαι
 EL	glaux_pairs.json	orphaned_tonal_mark	τὸτὴν	τ́οτος
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐτέτυκο	τ́υκω
 EL	glaux_pairs.json	orphaned_tonal_mark	τόντων	τ́ων
@@ -5331,6 +5231,7 @@ EL	glaux_pairs.json	orphaned_tonal_mark	τηλικουτονὶ	τηλικουτ
 EL	glaux_pairs.json	orphaned_tonal_mark	τηνδεδί	τηνδεδ́ς
 EL	glaux_pairs.json	orphaned_tonal_mark	τηνδεδὶ	τηνδεδ́ς
 EL	glaux_pairs.json	orphaned_tonal_mark	ταρὰ	τηρ́
+EL	glaux_pairs.json	orphaned_tonal_mark	τέθλασται	τιθλασ́ͅσκω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐτέθλαστο	τιθλασ́ͅσκω
 EL	glaux_pairs.json	orphaned_tonal_mark	τοιασδὶ	τοασδ́ς
 EL	glaux_pairs.json	orphaned_tonal_mark	τοιαυτησὶ	τοαυτησ́ς
@@ -5380,7 +5281,6 @@ EL	glaux_pairs.json	orphaned_tonal_mark	χρῶνταιδὲ	χρωοτ͂νιδ�
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐχρώ	χρωσ́
 EL	glaux_pairs.json	orphaned_tonal_mark	χἁλίκα	χἁλ́ͅκος
 EL	glaux_pairs.json	orphaned_tonal_mark	ψήσσῃ	ψ́ησσα
-EL	glaux_pairs.json	orphaned_tonal_mark	ψευδαλαζόσιν	ψευδαλ́αζα
 EL	glaux_pairs.json	orphaned_tonal_mark	ψλεψὶ	ψλεψ́
 EL	glaux_pairs.json	orphaned_tonal_mark	ἀλλόμενος	ἀαιρλ́ω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἠβουλήθεν	ἀβουλαθν́σκω
@@ -5500,15 +5400,11 @@ EL	glaux_pairs.json	orphaned_tonal_mark	ἐπαυχμήεις	ἐπαυχμ́ε�
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐπαφίεναι	ἐπαφ́ερχομαι
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐπενήνεγκται	ἐπενανεγ́σσω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐπευκτέα	ἐπευκ́ω
-EL	glaux_pairs.json	orphaned_tonal_mark	ἐπηνώρθωται	ἐπηνορθ́ωω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐπιβιὸν	ἐπιβ́ιειμι
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐπέβραχον	ἐπιβραχ́ω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐπέμψε	ἐπιμ́πω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐπεπλήμμυρε	ἐπιπλημμυρ́ω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐρέθοντες	ἐρ ́εθω
-EL	glaux_pairs.json	orphaned_tonal_mark	ἐρέθουσα	ἐρ ́εθω
-EL	glaux_pairs.json	orphaned_tonal_mark	ἤρεθον	ἐρ ́εθω
-EL	glaux_pairs.json	orphaned_tonal_mark	ἤρεθε	ἐρ́εθω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἐρραστωνεῦσθαι	ἐρρ́-αστωνέω
 EL	glaux_pairs.json	orphaned_tonal_mark	’ἔρρε	ἐρρ́ω
 EL	glaux_pairs.json	orphaned_tonal_mark	ἔρχι	ἐρχ́ω
@@ -5567,7 +5463,6 @@ EL	glaux_pairs.json	orphaned_tonal_mark	ὁνομάτων	ὁν͂ομα
 EL	glaux_pairs.json	orphaned_tonal_mark	ὁποινοῦν	ὁπ́οις
 EL	glaux_pairs.json	orphaned_tonal_mark	ὁποσαπλασιονοῦν	ὁποσαπλασ́ιος
 EL	glaux_pairs.json	orphaned_tonal_mark	ὅτιοῦν	ὁσ́τσιοῦν
-EL	glaux_pairs.json	orphaned_tonal_mark	ὑπεραγαλλόμενος	ὑπέρ-ἀγαλ́λω
 EL	glaux_pairs.json	orphaned_tonal_mark	ὑπενόμενσα	ὑπενομεν́ω
 EL	glaux_pairs.json	orphaned_tonal_mark	ὑπερνηχόμενον	ὑπερν́ηχω
 EL	glaux_pairs.json	orphaned_tonal_mark	ὑπερφαινό	ὑπερφαιν́υμι
@@ -5752,6 +5647,7 @@ EL	glaux_pairs.json	overline	ὁρμὴ-καὶ	ὁρμή-κα̅ι̅
 EL	glaux_pairs.json	overline	ὑποχονδρ	ὑποχονδρ̅
 AG	glaux_pairs.json	untrusted_grave	κλῃδὼν	κλῃδὼν
 AG	glaux_pairs.json	untrusted_grave	περιέ	περιὲ
+AG	glaux_pairs.json	untrusted_grave	υθέ	υθὲ
 AG	glaux_pairs.json	untrusted_grave	ἐπιτοπουλὺ	ἐπιτοπουλὺ
 AG	glaux_pairs.json	untrusted_grave	ὁπὸ	ὁπὸ
 EL	glaux_pairs.json	untrusted_grave	·μὴ	·μὴ
@@ -5822,6 +5718,7 @@ EL	glaux_pairs.json	untrusted_grave	τοσησδί	τοσησδὶ
 EL	glaux_pairs.json	untrusted_grave	τοσουδί	τοσουδὶ
 EL	glaux_pairs.json	untrusted_grave	τριακονταὲν	τριακονταὲν
 EL	glaux_pairs.json	untrusted_grave	τέξ	τὲξ
+EL	glaux_pairs.json	untrusted_grave	υθέ	υθὲ
 EL	glaux_pairs.json	untrusted_grave	υπεκπρὸ	υπεκπρὸ
 EL	glaux_pairs.json	untrusted_grave	υπὸ	υπὸ
 EL	glaux_pairs.json	untrusted_grave	χὂν	χὂν
@@ -6358,17 +6255,6 @@ combined	lbg_pairs.json	editorial_siglum	βουλλισματι	βούλ(λ)ισ
 combined	lbg_pairs.json	editorial_siglum	βουλλισματοιν	βούλ(λ)ισμα
 combined	lbg_pairs.json	editorial_siglum	βουλλισματος	βούλ(λ)ισμα
 combined	lbg_pairs.json	editorial_siglum	βουλλισματων	βούλ(λ)ισμα
-combined	lbg_pairs.json	editorial_siglum	βουτται	βούτ(τ)η
-combined	lbg_pairs.json	editorial_siglum	βουτταιν	βούτ(τ)η
-combined	lbg_pairs.json	editorial_siglum	βουτταις	βούτ(τ)η
-combined	lbg_pairs.json	editorial_siglum	βουττη	βούτ(τ)η
-combined	lbg_pairs.json	editorial_siglum	βουττην	βούτ(τ)η
-combined	lbg_pairs.json	editorial_siglum	βουττης	βούτ(τ)η
-combined	lbg_pairs.json	editorial_siglum	βουττων	βούτ(τ)η
-combined	lbg_pairs.json	editorial_siglum	βρουλλοιν	βροῦλ(λ)ον
-combined	lbg_pairs.json	editorial_siglum	βρουλλοις	βροῦλ(λ)ον
-combined	lbg_pairs.json	editorial_siglum	βρουλλον	βροῦλ(λ)ον
-combined	lbg_pairs.json	editorial_siglum	βρουλλω	βροῦλ(λ)ον
 combined	lbg_pairs.json	editorial_siglum	βρυλα	βρύλ(λ)ον
 combined	lbg_pairs.json	editorial_siglum	βρυλλα	βρύλ(λ)ον
 combined	lbg_pairs.json	editorial_siglum	βρυλλοιν	βρύλ(λ)ον
@@ -6436,14 +6322,6 @@ combined	lbg_pairs.json	editorial_siglum	διαδεματι	διάδε(σ)μα
 combined	lbg_pairs.json	editorial_siglum	διαδεματοιν	διάδε(σ)μα
 combined	lbg_pairs.json	editorial_siglum	διαδεματος	διάδε(σ)μα
 combined	lbg_pairs.json	editorial_siglum	διαδεματων	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσμασι	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσμασιν	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσματα	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσματε	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσματι	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσματοιν	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσματος	διάδε(σ)μα
-combined	lbg_pairs.json	editorial_siglum	διαδεσματων	διάδε(σ)μα
 combined	lbg_pairs.json	editorial_siglum	διβελια	διβέλ(λ)ιον
 combined	lbg_pairs.json	editorial_siglum	διβελιοιν	διβέλ(λ)ιον
 combined	lbg_pairs.json	editorial_siglum	διβελιοις	διβέλ(λ)ιον
@@ -6486,11 +6364,6 @@ combined	lbg_pairs.json	editorial_siglum	ζυγοστατιον	ζυγοστατ
 combined	lbg_pairs.json	editorial_siglum	ζυγοστατιου	ζυγοστατ(ε)ίον
 combined	lbg_pairs.json	editorial_siglum	ζυγοστατιω	ζυγοστατ(ε)ίον
 combined	lbg_pairs.json	editorial_siglum	ζυγοστατιων	ζυγοστατ(ε)ίον
-combined	lbg_pairs.json	editorial_siglum	θρυλημασι	θρύλ(λ)ημα
-combined	lbg_pairs.json	editorial_siglum	θρυλημασιν	θρύλ(λ)ημα
-combined	lbg_pairs.json	editorial_siglum	θρυληματε	θρύλ(λ)ημα
-combined	lbg_pairs.json	editorial_siglum	θρυληματι	θρύλ(λ)ημα
-combined	lbg_pairs.json	editorial_siglum	θρυληματοιν	θρύλ(λ)ημα
 combined	lbg_pairs.json	editorial_siglum	θρυλλημα	θρύλ(λ)ημα
 combined	lbg_pairs.json	editorial_siglum	θρυλλημασι	θρύλ(λ)ημα
 combined	lbg_pairs.json	editorial_siglum	θρυλλημασιν	θρύλ(λ)ημα
@@ -6510,7 +6383,6 @@ combined	lbg_pairs.json	editorial_siglum	καβαλλιναιν	καβαλ(λ)ί
 combined	lbg_pairs.json	editorial_siglum	καβαλλιναις	καβαλ(λ)ίνα
 combined	lbg_pairs.json	editorial_siglum	καβαλλιναν	καβαλ(λ)ίνα
 combined	lbg_pairs.json	editorial_siglum	καβαλλινας	καβαλ(λ)ίνα
-combined	lbg_pairs.json	editorial_siglum	καβαλλινων	καβαλ(λ)ίνα
 combined	lbg_pairs.json	editorial_siglum	καθυπομιμνησκε	καθυπο(μι)μνήσκω
 combined	lbg_pairs.json	editorial_siglum	καθυπομιμνησκει	καθυπο(μι)μνήσκω
 combined	lbg_pairs.json	editorial_siglum	καθυπομιμνησκειν	καθυπο(μι)μνήσκω
@@ -7136,13 +7008,6 @@ combined	lbg_pairs.json	editorial_siglum	κλοτζατοκοπωνται	κλο
 combined	lbg_pairs.json	editorial_siglum	κουκουλιοιν	κουκούλ(λ)ιον
 combined	lbg_pairs.json	editorial_siglum	κουκουλιοις	κουκούλ(λ)ιον
 combined	lbg_pairs.json	editorial_siglum	κουκουλιω	κουκούλ(λ)ιον
-combined	lbg_pairs.json	editorial_siglum	κουκουλλια	κουκούλ(λ)ιον
-combined	lbg_pairs.json	editorial_siglum	κουκουλλιοιν	κουκούλ(λ)ιον
-combined	lbg_pairs.json	editorial_siglum	κουκουλλιοις	κουκούλ(λ)ιον
-combined	lbg_pairs.json	editorial_siglum	κουκουλλιον	κουκούλ(λ)ιον
-combined	lbg_pairs.json	editorial_siglum	κουκουλλιου	κουκούλ(λ)ιον
-combined	lbg_pairs.json	editorial_siglum	κουκουλλιω	κουκούλ(λ)ιον
-combined	lbg_pairs.json	editorial_siglum	κουκουλλιων	κουκούλ(λ)ιον
 combined	lbg_pairs.json	editorial_siglum	κραββατοξυλα	κραββατ(τ)όξυλον
 combined	lbg_pairs.json	editorial_siglum	κραββατοξυλοιν	κραββατ(τ)όξυλον
 combined	lbg_pairs.json	editorial_siglum	κραββατοξυλοις	κραββατ(τ)όξυλον
@@ -7654,19 +7519,10 @@ combined	lbg_pairs.json	editorial_siglum	μαξιλαριοις	μαξιλ(λ)ά
 combined	lbg_pairs.json	editorial_siglum	μαξιλαριον	μαξιλ(λ)άριον
 combined	lbg_pairs.json	editorial_siglum	μαξιλαριω	μαξιλ(λ)άριον
 combined	lbg_pairs.json	editorial_siglum	μαξιλλαρια	μαξιλ(λ)άριον
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριοιν	μαξιλ(λ)άριον
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριοις	μαξιλ(λ)άριον
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριου	μαξιλ(λ)άριον
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριω	μαξιλ(λ)άριον
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριων	μαξιλ(λ)άριον
 combined	lbg_pairs.json	editorial_siglum	μαξιλαριε	μαξιλ(λ)άριος
 combined	lbg_pairs.json	editorial_siglum	μαξιλαριοι	μαξιλ(λ)άριος
 combined	lbg_pairs.json	editorial_siglum	μαξιλαριος	μαξιλ(λ)άριος
 combined	lbg_pairs.json	editorial_siglum	μαξιλαριους	μαξιλ(λ)άριος
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριε	μαξιλ(λ)άριος
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριοι	μαξιλ(λ)άριος
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριος	μαξιλ(λ)άριος
-combined	lbg_pairs.json	editorial_siglum	μαξιλλαριους	μαξιλ(λ)άριος
 combined	lbg_pairs.json	editorial_siglum	μαραθροριζα	μαραθρόρ(ρ)ιζον
 combined	lbg_pairs.json	editorial_siglum	μαραθροριζοιν	μαραθρόρ(ρ)ιζον
 combined	lbg_pairs.json	editorial_siglum	μαραθροριζοις	μαραθρόρ(ρ)ιζον
@@ -7706,29 +7562,6 @@ combined	lbg_pairs.json	editorial_siglum	μεταχρωννυετε	μεταχρ
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυετον	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυετω	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυετων	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυη	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυης	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυησθε	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυησθον	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυηται	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυητε	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυητον	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοι	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιεν	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιμεθα	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιμεν	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιμην	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιμι	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιντο	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιο	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοις	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοισθε	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοισθην	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοισθον	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιτε	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιτην	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιτο	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοιτον	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυομαι	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυομεθα	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυομεν	μεταχρων(ν)ύω
@@ -7740,12 +7573,7 @@ combined	lbg_pairs.json	editorial_siglum	μεταχρωννυονται	μετα
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυοντων	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυου	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυουσα	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυω	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυωμαι	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυωμεθα	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυωμεν	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωννυων	μεταχρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	μεταχρωννυωνται	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυε	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυει	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυειν	μεταχρων(ν)ύω
@@ -7760,6 +7588,29 @@ combined	lbg_pairs.json	editorial_siglum	μεταχρωνυετε	μεταχρω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυετον	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυετω	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυετων	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυη	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυης	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυησθε	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυησθον	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυηται	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυητε	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυητον	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοι	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιεν	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιμεθα	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιμεν	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιμην	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιμι	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιντο	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιο	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοις	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοισθε	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοισθην	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοισθον	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιτε	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιτην	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιτο	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοιτον	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυομαι	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυομεθα	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυομεν	μεταχρων(ν)ύω
@@ -7771,7 +7622,12 @@ combined	lbg_pairs.json	editorial_siglum	μεταχρωνυονται	μεταχ
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυοντων	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυου	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυουσα	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυω	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυωμαι	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυωμεθα	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυωμεν	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μεταχρωνυων	μεταχρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	μεταχρωνυωνται	μεταχρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	μυτζοκοκα	μυτζόκοκ(κ)ον
 combined	lbg_pairs.json	editorial_siglum	μυτζοκοκκα	μυτζόκοκ(κ)ον
 combined	lbg_pairs.json	editorial_siglum	μυτζοκοκκοιν	μυτζόκοκ(κ)ον
@@ -8047,12 +7903,6 @@ combined	lbg_pairs.json	editorial_siglum	πριμμικηριους	πριμ(μ)
 combined	lbg_pairs.json	editorial_siglum	πριμμικηριω	πριμ(μ)ικήριος
 combined	lbg_pairs.json	editorial_siglum	πριμμικηριων	πριμ(μ)ικήριος
 combined	lbg_pairs.json	editorial_siglum	πριμικηρατα	πριμ(μ)ικηράτον
-combined	lbg_pairs.json	editorial_siglum	πριμικηρατοιν	πριμ(μ)ικηράτον
-combined	lbg_pairs.json	editorial_siglum	πριμικηρατοις	πριμ(μ)ικηράτον
-combined	lbg_pairs.json	editorial_siglum	πριμικηρατον	πριμ(μ)ικηράτον
-combined	lbg_pairs.json	editorial_siglum	πριμικηρατου	πριμ(μ)ικηράτον
-combined	lbg_pairs.json	editorial_siglum	πριμικηρατω	πριμ(μ)ικηράτον
-combined	lbg_pairs.json	editorial_siglum	πριμικηρατων	πριμ(μ)ικηράτον
 combined	lbg_pairs.json	editorial_siglum	πριμμικηρατα	πριμ(μ)ικηράτον
 combined	lbg_pairs.json	editorial_siglum	πριμμικηρατοιν	πριμ(μ)ικηράτον
 combined	lbg_pairs.json	editorial_siglum	πριμμικηρατοις	πριμ(μ)ικηράτον
@@ -8128,13 +7978,6 @@ combined	lbg_pairs.json	editorial_siglum	σακκελιζωμεθα	σακ(κ)ε
 combined	lbg_pairs.json	editorial_siglum	σακκελιζωμεν	σακ(κ)ελίζω
 combined	lbg_pairs.json	editorial_siglum	σακκελιζων	σακ(κ)ελίζω
 combined	lbg_pairs.json	editorial_siglum	σακκελιζωνται	σακ(κ)ελίζω
-combined	lbg_pairs.json	editorial_siglum	σακκορραφια	σακκορ(ρ)άφιον
-combined	lbg_pairs.json	editorial_siglum	σακκορραφιοιν	σακκορ(ρ)άφιον
-combined	lbg_pairs.json	editorial_siglum	σακκορραφιοις	σακκορ(ρ)άφιον
-combined	lbg_pairs.json	editorial_siglum	σακκορραφιον	σακκορ(ρ)άφιον
-combined	lbg_pairs.json	editorial_siglum	σακκορραφιου	σακκορ(ρ)άφιον
-combined	lbg_pairs.json	editorial_siglum	σακκορραφιω	σακκορ(ρ)άφιον
-combined	lbg_pairs.json	editorial_siglum	σακκορραφιων	σακκορ(ρ)άφιον
 combined	lbg_pairs.json	editorial_siglum	σβενει	σβέν(ν)ω
 combined	lbg_pairs.json	editorial_siglum	σβενειν	σβέν(ν)ω
 combined	lbg_pairs.json	editorial_siglum	σβενεις	σβέν(ν)ω
@@ -8275,7 +8118,11 @@ combined	lbg_pairs.json	editorial_siglum	σουκοβαλανω	σουκ(λ)οβ
 combined	lbg_pairs.json	editorial_siglum	σουκοβαλανων	σουκ(λ)οβάλανος
 combined	lbg_pairs.json	editorial_siglum	στελιε	στέλ(λ)ιος
 combined	lbg_pairs.json	editorial_siglum	στελιοι	στέλ(λ)ιος
+combined	lbg_pairs.json	editorial_siglum	στελιοιν	στέλ(λ)ιος
+combined	lbg_pairs.json	editorial_siglum	στελιοις	στέλ(λ)ιος
 combined	lbg_pairs.json	editorial_siglum	στελιους	στέλ(λ)ιος
+combined	lbg_pairs.json	editorial_siglum	στελιω	στέλ(λ)ιος
+combined	lbg_pairs.json	editorial_siglum	στελιων	στέλ(λ)ιος
 combined	lbg_pairs.json	editorial_siglum	στελλιε	στέλ(λ)ιος
 combined	lbg_pairs.json	editorial_siglum	στελλιοι	στέλ(λ)ιος
 combined	lbg_pairs.json	editorial_siglum	στελλιοιν	στέλ(λ)ιος
@@ -8562,29 +8409,6 @@ combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυετε	συνε
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυετον	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυετω	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυετων	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυη	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυης	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυησθε	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυησθον	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυηται	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυητε	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυητον	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοι	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιεν	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιμεθα	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιμεν	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιμην	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιμι	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιντο	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιο	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοις	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοισθε	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοισθην	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοισθον	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιτε	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιτην	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιτο	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοιτον	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυομαι	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυομεθα	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυομεν	συνεπιρρων(ν)ύω
@@ -8596,12 +8420,7 @@ combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυονται	συ
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυοντων	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυου	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυουσα	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυω	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυωμαι	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυωμεθα	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυωμεν	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυων	συνεπιρρων(ν)ύω
-combined	lbg_pairs.json	editorial_siglum	συνεπιρρωννυωνται	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυε	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυει	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυειν	συνεπιρρων(ν)ύω
@@ -8616,6 +8435,29 @@ combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυετε	συνεπ
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυετον	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυετω	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυετων	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυη	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυης	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυησθε	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυησθον	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυηται	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυητε	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυητον	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοι	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιεν	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιμεθα	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιμεν	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιμην	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιμι	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιντο	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιο	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοις	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοισθε	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοισθην	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοισθον	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιτε	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιτην	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιτο	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοιτον	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυομαι	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυομεθα	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυομεν	συνεπιρρων(ν)ύω
@@ -8627,7 +8469,12 @@ combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυονται	συν
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυοντων	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυου	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυουσα	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυω	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυωμαι	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυωμεθα	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυωμεν	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυων	συνεπιρρων(ν)ύω
+combined	lbg_pairs.json	editorial_siglum	συνεπιρρωνυωνται	συνεπιρρων(ν)ύω
 combined	lbg_pairs.json	editorial_siglum	σφακελλε	σφάκελ(λ)ος
 combined	lbg_pairs.json	editorial_siglum	σφακελλοι	σφάκελ(λ)ος
 combined	lbg_pairs.json	editorial_siglum	σφακελλοιν	σφάκελ(λ)ος
@@ -8714,17 +8561,15 @@ combined	lbg_pairs.json	editorial_siglum	τρουλιον	τρουλ(λ)ίον
 combined	lbg_pairs.json	editorial_siglum	τρουλιου	τρουλ(λ)ίον
 combined	lbg_pairs.json	editorial_siglum	τρουλιω	τρουλ(λ)ίον
 combined	lbg_pairs.json	editorial_siglum	τρουλιων	τρουλ(λ)ίον
-combined	lbg_pairs.json	editorial_siglum	τρουλλιοιν	τρουλ(λ)ίον
-combined	lbg_pairs.json	editorial_siglum	τρουλλιοις	τρουλ(λ)ίον
-combined	lbg_pairs.json	editorial_siglum	τρουλλιον	τρουλ(λ)ίον
-combined	lbg_pairs.json	editorial_siglum	τρουλλιου	τρουλ(λ)ίον
-combined	lbg_pairs.json	editorial_siglum	τρουλλιω	τρουλ(λ)ίον
-combined	lbg_pairs.json	editorial_siglum	τρουλλιων	τρουλ(λ)ίον
 combined	lbg_pairs.json	editorial_siglum	τρουλαι	τροῦλ(λ)α
 combined	lbg_pairs.json	editorial_siglum	τρουλαιν	τροῦλ(λ)α
 combined	lbg_pairs.json	editorial_siglum	τρουλαις	τροῦλ(λ)α
 combined	lbg_pairs.json	editorial_siglum	τρουλαν	τροῦλ(λ)α
 combined	lbg_pairs.json	editorial_siglum	τρουλας	τροῦλ(λ)α
+combined	lbg_pairs.json	editorial_siglum	τρουλλαι	τροῦλ(λ)α
+combined	lbg_pairs.json	editorial_siglum	τρουλλαιν	τροῦλ(λ)α
+combined	lbg_pairs.json	editorial_siglum	τρουλλαις	τροῦλ(λ)α
+combined	lbg_pairs.json	editorial_siglum	τρουλλαν	τροῦλ(λ)α
 combined	lbg_pairs.json	editorial_siglum	φελλοπαπουτζα	φελ(λ)οπάπουτζον
 combined	lbg_pairs.json	editorial_siglum	φελλοπαπουτζοιν	φελ(λ)οπάπουτζον
 combined	lbg_pairs.json	editorial_siglum	φελλοπαπουτζοις	φελ(λ)οπάπουτζον
@@ -8753,15 +8598,6 @@ combined	lbg_pairs.json	editorial_siglum	φισκιαις	φισκ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	φισκιαν	φισκ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	φισκιας	φισκ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	φισκιων	φισκ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριε	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριοι	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριοιν	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριοις	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριον	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριου	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριους	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριω	φλαμ(μ)ουλάριος
-combined	lbg_pairs.json	editorial_siglum	φλαμμουλαριων	φλαμ(μ)ουλάριος
 combined	lbg_pairs.json	editorial_siglum	φλαμουλαριε	φλαμ(μ)ουλάριος
 combined	lbg_pairs.json	editorial_siglum	φλαμουλαριοι	φλαμ(μ)ουλάριος
 combined	lbg_pairs.json	editorial_siglum	φλαμουλαριοιν	φλαμ(μ)ουλάριος
@@ -9237,13 +9073,11 @@ combined	lbg_pairs.json	editorial_siglum	χρυσωρυχειαιν	χρυσωρ
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχειαις	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχειαν	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχειας	χρυσωρυχ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	χρυσωρυχια	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχιαι	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχιαιν	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχιαις	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχιαν	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	χρυσωρυχιας	χρυσωρυχ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	χρυσωρυχιων	χρυσωρυχ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	αλαβαστοπωλα	ἀλαβαστ(ρ)οπώλης
 combined	lbg_pairs.json	editorial_siglum	αλαβαστοπωλαι	ἀλαβαστ(ρ)οπώλης
 combined	lbg_pairs.json	editorial_siglum	αλαβαστοπωλαιν	ἀλαβαστ(ρ)οπώλης
@@ -9318,16 +9152,6 @@ combined	lbg_pairs.json	editorial_siglum	ανασκυλευμου	ἀνασκυ�
 combined	lbg_pairs.json	editorial_siglum	ανασκυλευμους	ἀνασκυλευ(σ)μός
 combined	lbg_pairs.json	editorial_siglum	ανασκυλευμω	ἀνασκυλευ(σ)μός
 combined	lbg_pairs.json	editorial_siglum	ανασκυλευμων	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμε	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμοι	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμοιν	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμοις	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμον	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμος	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμου	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμους	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμω	ἀνασκυλευ(σ)μός
-combined	lbg_pairs.json	editorial_siglum	ανασκυλευσμων	ἀνασκυλευ(σ)μός
 combined	lbg_pairs.json	editorial_siglum	ανθυπατισα	ἀνθυπάτισ(σ)α
 combined	lbg_pairs.json	editorial_siglum	ανθυπατισαι	ἀνθυπάτισ(σ)α
 combined	lbg_pairs.json	editorial_siglum	ανθυπατισαιν	ἀνθυπάτισ(σ)α
@@ -9843,7 +9667,6 @@ combined	lbg_pairs.json	editorial_siglum	αλυσιδωνται	ἁλυσ(ε)ι�
 combined	lbg_pairs.json	editorial_siglum	αλυσιδωσθε	ἁλυσ(ε)ιδόω
 combined	lbg_pairs.json	editorial_siglum	αλυσιδωσθον	ἁλυσ(ε)ιδόω
 combined	lbg_pairs.json	editorial_siglum	αλυσιδωται	ἁλυσ(ε)ιδόω
-combined	lbg_pairs.json	editorial_siglum	αλυσιδωτον	ἁλυσ(ε)ιδόω
 combined	lbg_pairs.json	editorial_siglum	εκπελευε	ἐκπελ(λ)εὐω
 combined	lbg_pairs.json	editorial_siglum	εκπελευει	ἐκπελ(λ)εὐω
 combined	lbg_pairs.json	editorial_siglum	εκπελευειν	ἐκπελ(λ)εὐω
@@ -10327,67 +10150,6 @@ combined	lbg_pairs.json	editorial_siglum	εξατωρειαις	ἐξατωρ(ε
 combined	lbg_pairs.json	editorial_siglum	εξατωρειαν	ἐξατωρ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	εξατωρειας	ἐξατωρ(ε)ία
 combined	lbg_pairs.json	editorial_siglum	εξατωρειων	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξατωρια	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξατωριαι	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξατωριαιν	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξατωριαις	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξατωριαν	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξατωριας	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξατωριων	ἐξατωρ(ε)ία
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευε	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευει	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευειν	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευεις	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευεσθαι	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευεσθε	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευεσθον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευεσθω	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευεσθων	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευεται	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευετε	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευετον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευετω	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευετων	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευη	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευης	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευησθε	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευησθον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευηται	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευητε	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευητον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοι	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιεν	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιμεθα	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιμεν	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιμην	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιμι	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιντο	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιο	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοις	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοισθε	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοισθην	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοισθον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιτε	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιτην	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιτο	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοιτον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευομαι	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευομεθα	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευομεν	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευομενη	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευομενον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευομενος	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευον	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευονται	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευοντων	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευου	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευουσα	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευω	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευωμαι	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευωμεθα	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευωμεν	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευων	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσατευωνται	ἐξκουσ(σ)ατεύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσατευε	ἐξκουσ(σ)ατεύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσατευει	ἐξκουσ(σ)ατεύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσατευειν	ἐξκουσ(σ)ατεύω
@@ -10442,60 +10204,6 @@ combined	lbg_pairs.json	editorial_siglum	εξκουσσατευωμεθα	ἐξ�
 combined	lbg_pairs.json	editorial_siglum	εξκουσσατευωμεν	ἐξκουσ(σ)ατεύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσατευων	ἐξκουσ(σ)ατεύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσατευωνται	ἐξκουσ(σ)ατεύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευε	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευει	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευειν	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευεις	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευεσθαι	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευεσθε	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευεσθον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευεσθω	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευεσθων	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευεται	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευετε	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευετον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευετω	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευετων	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευη	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευης	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευησθε	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευησθον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευηται	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευητε	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευητον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοι	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιεν	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιμεθα	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιμεν	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιμην	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιμι	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιντο	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιο	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοις	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοισθε	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοισθην	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοισθον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιτε	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιτην	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιτο	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοιτον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευομαι	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευομεθα	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευομεν	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευομενη	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευομενον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευομενος	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευον	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευονται	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευοντων	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευου	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευουσα	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευω	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευωμαι	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευωμεθα	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευωμεν	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευων	ἐξκουσ(σ)εύω
-combined	lbg_pairs.json	editorial_siglum	εξκουσευωνται	ἐξκουσ(σ)εύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσευε	ἐξκουσ(σ)εύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσευει	ἐξκουσ(σ)εύω
 combined	lbg_pairs.json	editorial_siglum	εξκουσσευειν	ἐξκουσ(σ)εύω
@@ -10576,173 +10284,6 @@ combined	lbg_pairs.json	editorial_siglum	επινοιοις	ἐπίν(ο)ιον
 combined	lbg_pairs.json	editorial_siglum	επινοιον	ἐπίν(ο)ιον
 combined	lbg_pairs.json	editorial_siglum	επινοιου	ἐπίν(ο)ιον
 combined	lbg_pairs.json	editorial_siglum	επινοιω	ἐπίν(ο)ιον
-combined	lbg_pairs.json	editorial_siglum	επιδενε	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενει	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενειν	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενεις	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενεσθαι	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενεσθε	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενεσθον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενεσθω	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενεσθων	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενεται	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενετε	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενετον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενετω	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενετων	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενη	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενης	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενησθε	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενησθον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενηται	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενητε	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενητον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοι	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιεν	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιμεθα	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιμεν	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιμην	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιμι	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιντο	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιο	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοις	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοισθε	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοισθην	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοισθον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιτε	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιτην	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιτο	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοιτον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενομεθα	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενομεν	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενομενη	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενομενον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενομενος	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενον	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενονται	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενοντων	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενου	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενουσα	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενωμαι	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενωμεθα	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενωμεν	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενων	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιδενωνται	ἐπιδέν(ν)ω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεει	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεειν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεεις	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεεσθαι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεεσθε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεεσθον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεεσθω	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεεσθων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεεται	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεετε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεετον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεετω	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεετων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεη	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεης	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεησθε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεησθον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεηται	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεητε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεητον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογει	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογειν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεις	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεισθαι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεισθε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεισθον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεισθω	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεισθων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογειται	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογειτε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογειτον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογειτω	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογειτων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιμεθα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιμεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιμην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιμι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιντο	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιο	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοις	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοισθε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοισθην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοισθον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιτε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιτην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιτο	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοιτον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεομαι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεομεθα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεομεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεομενη	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεομενον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεομενος	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεονται	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεοντων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεου	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεουσα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεω	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεωμαι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεωμεθα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεωμεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογεωνται	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογη	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογης	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογησθε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογησθον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογηται	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογητε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογητον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιη	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιημεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιης	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιησαν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιητε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιητην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιητον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιμεθα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιμεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιμην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιμι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιντο	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιο	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοις	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοισθε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοισθην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοισθον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιτε	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιτην	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιτο	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογοιτον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογου	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουμαι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουμεθα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουμεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουμενη	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουμενον	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουμενος	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουνται	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουντων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογουσα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογω	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογωμαι	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογωμεθα	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογωμεν	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογων	ἐπιρ(ρ)ωγολογέω
-combined	lbg_pairs.json	editorial_siglum	επιρρωγολογωνται	ἐπιρ(ρ)ωγολογέω
 combined	lbg_pairs.json	editorial_siglum	επιρωγολογεε	ἐπιρ(ρ)ωγολογέω
 combined	lbg_pairs.json	editorial_siglum	επιρωγολογεει	ἐπιρ(ρ)ωγολογέω
 combined	lbg_pairs.json	editorial_siglum	επιρωγολογεειν	ἐπιρ(ρ)ωγολογέω
@@ -10993,15 +10534,6 @@ combined	lbg_pairs.json	editorial_siglum	ιντερρουπτευωμεθα	ἰ�
 combined	lbg_pairs.json	editorial_siglum	ιντερρουπτευωμεν	ἰντερ(ρ)ουπτεύω
 combined	lbg_pairs.json	editorial_siglum	ιντερρουπτευων	ἰντερ(ρ)ουπτεύω
 combined	lbg_pairs.json	editorial_siglum	ιντερρουπτευωνται	ἰντερ(ρ)ουπτεύω
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυνα	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυναι	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυναιν	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυναις	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυνας	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυνη	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυνην	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυνης	ὀλιγο(ρ)ρημοσύνη
-combined	lbg_pairs.json	editorial_siglum	ολιγορημοσυνων	ὀλιγο(ρ)ρημοσύνη
 combined	lbg_pairs.json	editorial_siglum	ολιγορρημοσυνα	ὀλιγο(ρ)ρημοσύνη
 combined	lbg_pairs.json	editorial_siglum	ολιγορρημοσυναι	ὀλιγο(ρ)ρημοσύνη
 combined	lbg_pairs.json	editorial_siglum	ολιγορρημοσυναιν	ὀλιγο(ρ)ρημοσύνη
@@ -11161,24 +10693,13 @@ combined	lbg_pairs.json	editorial_siglum	ομορρωμεν	ὁμορ(ρ)έω
 combined	lbg_pairs.json	editorial_siglum	ομορρων	ὁμορ(ρ)έω
 combined	lbg_pairs.json	editorial_siglum	ομορρωνται	ὁμορ(ρ)έω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυε	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυει	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυειν	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυεις	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυεσθαι	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυεσθε	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυεσθον	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυεσθω	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυεσθων	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυεται	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυετε	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυετον	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυετω	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυετων	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυη	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυης	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυησθε	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυησθον	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυηται	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυητε	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυητον	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυνε	ὑπεκδύ(ν)ω
@@ -11237,37 +10758,19 @@ combined	lbg_pairs.json	editorial_siglum	υπεκδυνων	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυνωνται	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοι	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοιεν	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοιμεθα	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοιμεν	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοιμην	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοιμι	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοιντο	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοιο	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοις	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοισθε	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοισθην	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοισθον	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοιτε	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοιτην	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυοιτο	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοιτον	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυομαι	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυομεθα	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυομεν	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυομενη	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυομενον	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυομενος	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυον	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυονται	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυοντων	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυου	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυουσα	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυω	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυωμαι	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυωμεθα	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυωμεν	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υπεκδυων	ὑπεκδύ(ν)ω
-combined	lbg_pairs.json	editorial_siglum	υπεκδυωνται	ὑπεκδύ(ν)ω
 combined	lbg_pairs.json	editorial_siglum	υψιβαθε	ὑψίβαθ(μ)ος
 combined	lbg_pairs.json	editorial_siglum	υψιβαθμε	ὑψίβαθ(μ)ος
 combined	lbg_pairs.json	editorial_siglum	υψιβαθμοι	ὑψίβαθ(μ)ος
@@ -11524,7 +11027,11 @@ AG	perseus_pairs.json	nonlexical_numeral	ιβ᾽	ιβ᾽
 AG	perseus_pairs.json	nonlexical_numeral	κγ᾽	κγ᾽
 AG	perseus_pairs.json	nonlexical_numeral	νβ᾽	νβ᾽
 AG	perseus_pairs.json	orphaned_tonal_mark	ἐσίδεσθ᾽	εἰσορ́αω
+AG	perseus_pairs.json	orphaned_tonal_mark	ἀφήλατο	ἀφ́αλλομαι
 AG	perseus_pairs.json	orphaned_tonal_mark	Ἀφροδιτης	Ἀφροδ́ιτη
+EL	raw_lookups.db:mg	orphaned_tonal_mark	γ́	γ́
+EL	raw_lookups.db:mg	orphaned_tonal_mark	κ́	κ́
+EL	raw_lookups.db:mg	orphaned_tonal_mark	χ́	χ́
 AG	vlg_headwords.json	editorial_siglum	(Ϝ)ίκατι	(Ϝ)ίκατι
 AG	vlg_headwords.json	editorial_siglum	(Ϝ)ίλσις	(Ϝ)ίλσις
 AG	vlg_headwords.json	editorial_siglum	(Ϝ)ιν	(Ϝ)ιν
