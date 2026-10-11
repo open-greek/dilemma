@@ -1098,7 +1098,42 @@ def load_lsj_head_texts() -> dict:
     return heads
 
 
-def synthesize_missing_moods(results: dict) -> tuple[int, int]:
+def restrict_synthesis_family(forms: dict, families: set | None) -> dict:
+    """Keep an explicitly defective verb within its supported tense and voice."""
+    if families is None:
+        return forms
+    return {key: form for key, form in forms.items()
+            if tuple(key.split("_")[:2]) in families}
+
+
+def recover_citation_breathings(pairs: list) -> dict:
+    """Use a unique matching present citation cell to fill a missing breathing."""
+    from export_hunspell import grc_orthography_reason
+
+    candidates = defaultdict(set)
+    citation_keys = {"active_present_indicative_1sg",
+                     "middle_present_indicative_1sg",
+                     "passive_present_indicative_1sg"}
+    for pair in pairs:
+        lemma = pair.get("lemma") or ""
+        if any(char in "\u0313\u0314" for char in unicodedata.normalize("NFD", lemma)):
+            continue
+        form = strip_vowel_length(pair.get("form") or "")
+        if form == lemma or not citation_keys.intersection(
+                pair.get("_paradigm_keys", verb_keys_from_tags(pair.get("tags", [])))):
+            continue
+        if grc_orthography_reason(form) is not None:
+            continue
+        without_breathing = unicodedata.normalize("NFC", "".join(
+            char for char in unicodedata.normalize("NFD", form)
+            if char not in "\u0313\u0314"))
+        if without_breathing == lemma:
+            candidates[lemma].add(form)
+    return {lemma: next(iter(forms)) for lemma, forms in candidates.items()
+            if len(forms) == 1}
+
+
+def synthesize_missing_moods(results: dict, synthesis_families: dict = None) -> tuple[int, int]:
     """Fill in missing finite-mood cells via principal-parts templating.
 
     For each verb in ``results``, parse its LSJ head text into
@@ -1158,6 +1193,12 @@ def synthesize_missing_moods(results: dict) -> tuple[int, int]:
             templated_past = synthesize_past_indicatives(lemma, parts)
         except Exception:
             templated_past = {}
+        families = (synthesis_families or {}).get(lemma)
+        templated = restrict_synthesis_family(templated, families)
+        templated_mp = restrict_synthesis_family(templated_mp, families)
+        templated_aor2 = restrict_synthesis_family(templated_aor2, families)
+        templated_contract = restrict_synthesis_family(templated_contract, families)
+        templated_past = restrict_synthesis_family(templated_past, families)
         # Track per-voice to report stats; merge for the actual write.
         if not (templated or templated_mp or templated_aor2
                 or templated_contract or templated_past):
@@ -1220,7 +1261,7 @@ def synthesize_missing_moods(results: dict) -> tuple[int, int]:
     )
 
 
-def synthesize_missing_participles(results: dict) -> tuple[int, int]:
+def synthesize_missing_participles(results: dict, synthesis_families: dict = None) -> tuple[int, int]:
     """Fill in missing participle cells via principal-parts templating.
 
     For each verb in ``results``, parse its LSJ head text into principal
@@ -1269,6 +1310,10 @@ def synthesize_missing_participles(results: dict) -> tuple[int, int]:
             templated_contract = synthesize_contract_participles(lemma, parts)
         except Exception:
             templated_contract = {}
+        families = (synthesis_families or {}).get(lemma)
+        templated = restrict_synthesis_family(templated, families)
+        templated_aor2 = restrict_synthesis_family(templated_aor2, families)
+        templated_contract = restrict_synthesis_family(templated_contract, families)
         if not (templated or templated_aor2 or templated_contract):
             continue
         forms = paradigm.setdefault("forms", {})
@@ -1356,6 +1401,8 @@ def build_paradigms(only_lemmas=None):
             if stripped:
                 lsj_by_stripped[stripped].append(hw)
     print(f"  LSJ headwords loaded: {len(lsj_headwords):,}")
+    citation_breathings = recover_citation_breathings(
+        next(pairs for name, pairs in sources if name == "ag_pairs.json"))
 
     def canonicalize_lemma(lemma: str) -> str | None:
         """Apply lemma normalization. Returns None if the lemma should
@@ -1373,6 +1420,7 @@ def build_paradigms(only_lemmas=None):
             candidates = lsj_by_stripped.get(stripped, [])
             if len(candidates) == 1:
                 lemma = candidates[0]
+        lemma = citation_breathings.get(lemma, lemma)
         # Then force lowercase: verbs aren't proper nouns, and LSJ /
         # kaikki occasionally preserve a capital from a denominal
         # (Αἰγυπτιάζω, Βακχεύω, Δημοσθενίζω - "to act like X" verbs
@@ -1394,6 +1442,7 @@ def build_paradigms(only_lemmas=None):
     rerouted_root_aorist_passive = 0
     canonicalized = 0
     lowercased = 0
+    defective_lemmas = set()
     for src_name, verb_pairs in sources:
         for p in verb_pairs:
             lemma_raw = p.get("lemma")
@@ -1426,6 +1475,9 @@ def build_paradigms(only_lemmas=None):
                     canonicalized += 1
             if only_lemmas is not None and lemma not in only_lemmas:
                 continue
+            if ("defective" in tags
+                    and strip_accents(form) == strip_accents(lemma_raw)):
+                defective_lemmas.add(lemma)
             if "form-of" in tags or "alt-of" in tags or "alternative" in tags:
                 continue
             # Periphrastic cells ("τετιμηκότες εἶτε") leave the auxiliary
@@ -1529,6 +1581,7 @@ def build_paradigms(only_lemmas=None):
           f" ({len(wiki_cells):,} with a cell)")
 
     results = {}
+    synthesis_families = {}
     for lemma in sorted(by_lemma_dialect_key.keys()):
         by_dialect = by_lemma_dialect_key[lemma]
         attic_forms_raw = by_dialect.get("", {})
@@ -1539,6 +1592,13 @@ def build_paradigms(only_lemmas=None):
                                   wiktionary_letters=wiki_letters)
             if best:
                 attic_forms[key] = grave_to_acute(best)
+
+        if lemma in defective_lemmas:
+            # A citation inserted below does not attest a complete present
+            # system. Only accepted source cells authorize synthesis.
+            synthesis_families[lemma] = {
+                tuple(key.split("_")[:2]) for key in attic_forms
+            }
 
         # Default convention: the lemma is the active present indicative 1sg
         # if it ends in -ω, or middle present indicative 1sg if it ends in
@@ -1593,6 +1653,10 @@ def build_paradigms(only_lemmas=None):
                     picked[key] = grave_to_acute(best)
             if picked:
                 paradigm.setdefault("dialects", {})[dialect] = picked
+                if lemma in synthesis_families:
+                    synthesis_families[lemma].update(
+                        tuple(key.split("_")[:2]) for key in picked
+                    )
 
         results[lemma] = paradigm
 
@@ -1608,7 +1672,7 @@ def build_paradigms(only_lemmas=None):
     # thematic -ω verbs from LSJ-extracted principal parts. Only writes
     # into empty slots, never overwrites corpus-derived forms.
     print("  synthesising missing moods from principal parts ...")
-    synthesize_missing_moods(results)
+    synthesize_missing_moods(results, synthesis_families)
     if results:
         counts = sorted(v["form_count"] for v in results.values())
         n = len(counts)
@@ -1619,7 +1683,7 @@ def build_paradigms(only_lemmas=None):
     # Second synthesis pass: full case×gender×number participle
     # declension. Like the mood pass, only fills empty cells.
     print("  synthesising missing participles from principal parts ...")
-    synthesize_missing_participles(results)
+    synthesize_missing_participles(results, synthesis_families)
 
     # Wiktionary's conjugation tables decide the accent wherever a corpus
     # token or a synthesised cell spelled the same letters differently

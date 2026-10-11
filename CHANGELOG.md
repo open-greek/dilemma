@@ -7,6 +7,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Canonical Ancient verb citations can recover a missing breathing from a
+  unique matching source cell. Explicitly defective verbs retain supplied cells
+  while synthesized forms stay within source-supported tense and voice families.
 - Ancient English form senses with nested translations retain their source
   readings under the defined parent verb instead of creating a separate head.
 - Ancient source aliases preserve existing citation accents instead of

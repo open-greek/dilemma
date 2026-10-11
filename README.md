@@ -2106,6 +2106,17 @@ which values belong together; they stay in the raw data but do not populate
 canonical cells. Filtering a collapsed cell does not discard another valid
 reading of the same form.
 
+An unbreathed citation form can acquire a breathing from a unique surviving
+present first-person source cell when all other letters and marks agree.
+Existing breathings, accents, subscripts, and ambiguous candidates are preserved.
+This corrects the canonical citation without changing the original source rows.
+
+For a verb whose own citation is explicitly marked defective, procedural
+synthesis is limited to the tense and voice families present in retained source
+cells, including dialect slices. An automatically inserted citation cell does
+not authorize a present paradigm, and a defective tag on a different referenced
+head is not inherited. Supplied cells remain unchanged.
+
 Several sources can offer a form for the same cell, and the sources
 disagree. The pass ranks the candidates and, before ranking, discards
 two kinds of evidence that are wrong rather than merely weaker:
