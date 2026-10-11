@@ -836,6 +836,36 @@
       "citation": "Herodian, On the Declension of Nouns 2.291"
     },
     {
+      "lemma": "συμπερίειμι",
+      "method": "source_forms",
+      "forms": [
+        "συμπεριόντα"
+      ],
+      "evidence": "Choricius, Tyrannicida, in Choricii Gazaei Orationes declamationes fragmenta, edited by J. F. Boissonade (Paris, 1846), printed page 54, attests συμπεριόντα. Preserve this exact participle under the independently defined lexical head συμπερίειμι without restoring the approximate generated compound paradigm.",
+      "source_url": "https://storage.lib.uchicago.edu/pres/2006/pres2006-0875.pdf",
+      "citation": "Choricius, Tyrannicida, Boissonade 1846, page 54"
+    },
+    {
+      "lemma": "συνάνειμι",
+      "method": "source_forms",
+      "forms": [
+        "συνανιόντε"
+      ],
+      "evidence": "Aelian, On the Nature of Animals 6.63, attests συνανιόντε. LSJ defines συνάνειμι as grow up with and cites the same construction. Preserve the exact dual participle under that compound owner instead of the shorter annotation ἄνειμι.",
+      "source_url": "https://el.wikisource.org/wiki/Περί_ζώων_ιδιότητος/στ#63",
+      "citation": "Aelian, On the Nature of Animals 6.63; LSJ, συνάνειμι"
+    },
+    {
+      "lemma": "προσυπέχω",
+      "method": "source_forms",
+      "forms": [
+        "προσυποσχεῖν"
+      ],
+      "evidence": "Aelius Aristides, Oration 52, attests προσυποσχεῖν in a construction about paying the penalty for an outrage. LSJ cites this construction at Aristid.2.429 J. under προσυπέχω. The same infinitive and sense occur in the reproduced Demosthenes Prooemia text. Preserve this exact aorist infinitive under προσυπέχω rather than the defective εἶμι compound annotation προσύπειμι.",
+      "source_url": "https://www.ens.psl.eu/IMG/file/concours/2003/AL/grec_epreuve_commune_ecrit.pdf",
+      "citation": "Aelius Aristides, Oration 52 (Aristid.2.429 J. in LSJ); LSJ, προσυπέχω; Demosthenes, Prooemia"
+    },
+    {
       "lemma": "εἰκονίζω",
       "method": "source_forms",
       "forms": [

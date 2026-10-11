@@ -1881,6 +1881,28 @@ Dilemma's nonlexical classifier. Its generator is
 `build/build_ag_expansion_exclusions.py`.
 Running it without `--reference` downloads and verifies that exact artifact.
 
+After withholding approximate irregular-compound paradigms, the overlay
+separately preserves actual source cells and their original, monotonic, and
+unaccented lookup aliases within the historically represented families. This
+requires a clean merged Wiktionary, corpus, or reviewed textual cell and a
+positively defined Ancient lexical owner; a historical letter pattern alone
+never generates a spelling. Existing independent readings and hard spelling
+rejections take precedence. Unresolved source or marked-cell ownership ties,
+and unsupported aorist, perfect, or pluperfect annotations under εἰμί/εἶμι
+compound owners do not license new aliases without direct ownership evidence.
+An automatic shorter compound owner is also withheld when only a longer,
+independently defined compound accounts for the actual source cell's preverb;
+that comparison never infers a replacement owner. Final
+elision is normalized to Greek koronis while the original source spelling is
+retained in the audit. `--source-alias-audit FILE` records all readings,
+restorations, canonicalization, ambiguity skips, and portable input/source
+hashes. The merged source pairs, reviewed exact-form specification, and
+`grc_lexical_heads.json` are required inputs for this step.
+
+The Diorisis pair extractor preserves terminal Beta Code elision as Greek
+koronis, with medial σ before the mark. An elided source token therefore cannot
+silently become a complete word; unelided homographs remain separate readings.
+
 Expansion sources sometimes encode restored letters with Leiden square
 brackets or spelling alternatives with parentheses. These delimiters are
 metadata, not Greek spelling. The build resolves only the structurally safe

@@ -13,12 +13,347 @@ from overlay_lsj import (
     verify_file,
     verify_sentinels,
     load_noun_generation_audit,
+    restore_attested_compound_aliases,
+    load_alias_lexical_heads,
+    load_alias_source_pairs,
+    alias_spelling_exclusions,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "data" / "ag_expansion_reference.json"
 LOOKUP_DB = ROOT / "data" / "lookup.db"
+
+
+def test_attested_alias_recovery_uses_source_cells_and_corrected_owners():
+    reference = {"ὕπην": "ὕπειμι", "υπην": "ὕπειμι",
+                 "ἄνοντος": "ἄνειμι", "ανοντος": "ἄνειμι",
+                 "παρέξοντος": "παρέξειμι", "παρεξοντος": "παρέξειμι"}
+    target = {}
+    sources = [("glaux_pairs.json", [
+        {"form": "ὑπῆν", "lemma": "ὕπειμι"},
+        {"form": "ἄνοντος", "lemma": "ἄνω"},
+        {"form": "παρέξοντος", "lemma": "παρέχω"},
+    ])]
+    audit = restore_attested_compound_aliases(
+        reference, {}, target, sources, {"ὕπειμι", "ἄνω", "παρέχω"})
+    assert target["υπην"] == "ὕπειμι"
+    assert target["ανοντος"] == "ἄνω"
+    assert target["παρεξοντος"] == "παρέχω"
+    assert "ὕπην" not in target
+    assert audit["recovered_count"] == len(target)
+
+
+def test_source_alias_scope_includes_old_base_cells_and_defined_compound_heads():
+    reference = {"ανοντος": "ἄνω", "παρεξοντος": "παρέχω"}
+    base = {"ανοντος": "ἄνω", "παρεξοντος": "παρέχω",
+            "διέξειμι": "διέξειμι"}
+    target = {}
+    sources = [("glaux_pairs.json", [{"form": "ἄνοντος", "lemma": "ἄνω"},
+                                     {"form": "παρέξοντος", "lemma": "παρέχω"}])]
+    restore_attested_compound_aliases(reference, base, target, sources,
+                                     {"ἄνω", "παρέχω", "ἄνειμι", "παρέξειμι", "διέξειμι"})
+    assert target["ανοντος"] == "ἄνω"
+    assert target["παρεξοντος"] == "παρέχω"
+    assert target["διέξειμι"] == target["διεξειμι"] == "διέξειμι"
+
+
+def test_compound_cell_shape_never_generates_or_licenses_a_spelling():
+    reference = {"ανοντος": "ἄνω", "παρεξοντος": "παρέχω"}
+    target = {}
+    audit = restore_attested_compound_aliases(reference, {}, target, [],
+                                             {"ἄνειμι", "παρέξειμι"})
+    assert audit["pattern_scoped_aliases"] == 2
+    assert not target
+
+
+def test_existing_historical_key_can_use_a_corrected_compound_source_owner():
+    reference = {"αντεπησαν": "ἀντεπαείδω"}
+    target = {}
+    audit = restore_attested_compound_aliases(reference, {}, target,
+        [("glaux_pairs.json", [{"form": "ἀντεπῇσαν", "lemma": "ἀντέπειμι"},
+                               {"form": "ἀντεπῇς", "lemma": "ἀντέπειμι"}])],
+        {"ἀντέπειμι"})
+    assert target["αντεπησαν"] == "ἀντέπειμι"
+    assert "ἀντεπῇς" not in target
+    assert audit["current_compound_source_scoped_aliases"] == 1
+
+
+def test_represented_historical_family_can_retain_actual_source_cells_only():
+    reference = {"ἀντεπίοι": "ἀντέπειμι"}
+    target = {}
+    audit = restore_attested_compound_aliases(reference, {}, target,
+        [("glaux_pairs.json", [{"form": "ἀντεπῇσαν", "lemma": "ἀντέπειμι"},
+                               {"form": "ὑπῆν", "lemma": "ὕπειμι"}])],
+        {"ἀντέπειμι", "ὕπειμι"})
+    assert target["αντεπησαν"] == "ἀντέπειμι"
+    assert "ὑπῆν" not in target
+    assert "ἀντεπίοι" not in target
+    assert audit["additional_historical_family_source_cell_scope"] == 2
+
+
+def test_source_precedence_retains_all_exact_cell_readings():
+    reference = {"διέξιών": "διέξειμι", "διεξιων": "διέξειμι"}
+    sources = [
+        ("perseus_pairs.json", [{"form": "διεξιὼν", "lemma": "διέξειμι"}]),
+        ("glaux_pairs.json", [{"form": "διεξιών", "lemma": "διεξέρχομαι"}]),
+    ]
+    target = {}
+    audit = restore_attested_compound_aliases(
+        reference, {}, target, sources, {"διέξειμι", "διεξέρχομαι"})
+    assert target["διεξιων"] == "διέξειμι"
+    row = next(row for row in audit["recovered"] if row["form"] == "διεξιων")
+    assert [r["owner"] for r in row["cells"][0]["readings"]] == [
+        "διέξειμι", "διεξέρχομαι"]
+
+
+def test_automatic_owner_disputes_do_not_replace_correct_bare_fallbacks():
+    reference = {"συνηγμενον": "σύνειμι", "ανηγμενος": "ἄνειμι",
+                 "παρηγμενα": "πάρειμι"}
+    sources = [("glaux_pairs.json", [
+        {"form": "συνηγμένον", "lemma": "σύνειμι"},
+        {"form": "ἀνηγμένος", "lemma": "ἄνειμι"},
+        {"form": "παρηγμένα", "lemma": "πάρειμι"},
+    ]), ("diorisis_pairs.json", [
+        {"form": "συνηγμένον", "lemma": "συνάγω"},
+        {"form": "ἀνηγμένος", "lemma": "ἀνάγω"},
+        {"form": "παρηγμένα", "lemma": "παράγω"},
+    ])]
+    target = {"συνηγμένον": "σύνειμι", "ἀνηγμένος": "ἄνειμι",
+              "παρηγμένα": "πάρειμι"}
+    audit = restore_attested_compound_aliases(reference, {}, target, sources,
+        {"σύνειμι", "ἄνειμι", "πάρειμι", "συνάγω", "ἀνάγω", "παράγω"})
+    assert not set(reference) & target.keys()
+    assert audit["automatic_owner_conflict_count"] == 3
+    assert target["συνηγμένον"] == "σύνειμι"
+    assert all(row["cells"][0]["automatic_owner_conflict"]
+               for row in audit["ambiguous"])
+
+
+def test_unsupported_perfect_middle_annotation_needs_direct_owner_evidence():
+    reference = {"παρηγμενα": "πάρειμι"}
+    pair = {"form": "παρηγμένα", "lemma": "πάρειμι", "pos": "verb",
+            "tags": ["perfect", "participle", "middle", "plural", "neuter"]}
+    target = {"παρηγμένα": "πάρειμι"}
+    audit = restore_attested_compound_aliases(reference, {}, target,
+        [("glaux_pairs.json", [pair])], {"πάρειμι"})
+    assert "παρηγμενα" not in target
+    assert audit["unsupported_annotation_morphology_count"] == 1
+    assert target["παρηγμένα"] == "πάρειμι"
+    directly_reviewed = [("hunspell_grc_postclassical_review.json", [pair])]
+    restore_attested_compound_aliases(reference, {}, target, directly_reviewed, {"πάρειμι"})
+    assert target["παρηγμενα"] == "πάρειμι"
+
+
+@pytest.mark.parametrize("tense", ["aorist", "perfect", "pluperfect"])
+def test_defective_compound_tense_annotations_do_not_license_new_aliases(tense):
+    target = {"προσυποσχεῖν": "προσυποσχάω"}
+    audit = restore_attested_compound_aliases(
+        {"προσυποσχειν": "προσύπειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "προσυποσχεῖν", "lemma": "προσύπειμι",
+                                "tags": [tense, "infinitive", "active"]}])],
+        {"προσύπειμι"})
+    assert "προσυποσχειν" not in target
+    assert target["προσυποσχεῖν"] == "προσυποσχάω"
+    assert audit["unsupported_annotation_morphology_count"] == 1
+
+
+def test_longer_positive_compound_shape_withholds_without_inferring_its_owner():
+    target = {"συνανιόντε": "συνανίω"}
+    audit = restore_attested_compound_aliases(
+        {"συνανιοντε": "ἄνειμι"}, {}, target,
+        [("ag_pairs.json", [{"form": "ἰόντε", "lemma": "εἶμι"}]),
+         ("glaux_pairs.json", [{"form": "συνανιόντε", "lemma": "ἄνειμι",
+                                 "tags": ["present", "participle", "active"]}])],
+        {"ἄνειμι", "συνάνειμι", "εἶμι"})
+    assert target["συνανιόντε"] == "συνανίω"
+    assert "συνανιοντε" not in target
+    assert audit["unsupported_compound_owner_shape_count"] == 1
+    row = next(row for row in audit["ambiguous"] if row["form"] == "συνανιοντε")
+    assert row["cells"][0]["potential_compound_shape_owners"] == ["συνάνειμι"]
+
+
+@pytest.mark.parametrize("form,bare,monotonic,old_owner,automatic_owner,reviewed_owner", [
+    ("συνανιόντε", "συνανιοντε", "συνανιόντε", "συνανίω", "ἄνειμι", "συνάνειμι"),
+    ("προσυποσχεῖν", "προσυποσχειν", "προσυποσχείν", "προσυποσχάω", "προσύπειμι", "προσυπέχω"),
+])
+def test_cited_exact_cells_correct_bad_annotations_without_generating_a_family(
+        form, bare, monotonic, old_owner, automatic_owner, reviewed_owner):
+    target = {form: old_owner}
+    reviewed, _ = load_alias_source_pairs(ROOT / "data")
+    reviewed = [reviewed[0], ("diorisis_pairs.json", [
+        {"form": form, "lemma": automatic_owner, "tags": ["aorist"]}])]
+    audit = restore_attested_compound_aliases({bare: automatic_owner}, {}, target,
+        reviewed, {automatic_owner, reviewed_owner})
+    assert target[form] == target[bare] == reviewed_owner
+    assert {key for key, owner in target.items() if owner == reviewed_owner} == {
+        form, bare, monotonic}
+    correction = next(row for row in audit["canonicalized"] if row["form"] == form)
+    assert correction["owner"] == reviewed_owner
+    assert any(row.get("citation") for row in correction["cells"][0]["readings"]
+               if row["source"] == "hunspell_grc_postclassical_review.json")
+
+
+def test_source_backed_terminal_elision_keeps_original_and_bare_aliases():
+    reference = {"απησθ’": "ἄπειμι"}
+    target = {}
+    audit = restore_attested_compound_aliases(reference, {}, target,
+        [("glaux_pairs.json", [{"form": "ἀπῆσθ’", "lemma": "ἄπειμι"}])], {"ἄπειμι"})
+    assert target["ἀπῆσθ’"] == target["απησθ’"] == "ἄπειμι"
+    assert target["ἀπῆσθ᾽"] == target["απησθ᾽"] == "ἄπειμι"
+    assert "απησθ" not in target
+    elided = next(row for row in audit["recovered"] if row["form"] == "ἀπῆσθ’")
+    reading = elided["cells"][0]["readings"][0]
+    assert reading["original_form"] == "ἀπῆσθ’"
+    assert reading["form"] == "ἀπῆσθ᾽"
+
+
+def test_baseline_mapping_conflicts_allow_independent_source_owner_repairs(tmp_path):
+    review = tmp_path / "review.json"
+    review.write_text(json.dumps({"schema_version": 1, "reviews": [
+        {"form": "δεἰσί", "decision": "reject"}]}))
+    exclusions = {"nonlexical": {"δηα": "abbreviation"},
+                  "baseline_conflicts": {"ἀντεξῄεσαν": "ἀντί-ἔξειμι"}}
+    blocked = alias_spelling_exclusions(exclusions, review)
+    assert "ἀντεξῄεσαν" not in blocked
+    assert {"δηα", "δεἰσί"} <= blocked
+    target = {"ἀντεξῄεσαν": "ἀντί-ἔξειμι"}
+    audit = restore_attested_compound_aliases(
+        {"αντεξηεσαν": "ἀντέξειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "ἀντεξῄεσαν", "lemma": "ἀντέξειμι"}])],
+        {"ἀντέξειμι"}, excluded_forms=blocked,
+        historical_conflicts=exclusions["baseline_conflicts"])
+    assert target["αντεξηεσαν"] == "ἀντέξειμι"
+    assert audit["canonicalized"][0]["historical_conflict_owner"] == "ἀντί-ἔξειμι"
+
+
+@pytest.mark.parametrize("hard,source", [("νί", "νὶ"), ("νὶ", "νί")])
+def test_hard_rejections_apply_to_both_contextual_accent_directions(tmp_path, hard, source):
+    review = tmp_path / "review.json"
+    review.write_text(json.dumps({"schema_version": 1, "reviews": []}))
+    blocked = alias_spelling_exclusions({"nonlexical": {hard: "abbreviation"}}, review)
+    assert "νί" in blocked
+    target = {}
+    restore_attested_compound_aliases({source: "πρόειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": source, "lemma": "νί"}])], {"νί"},
+        excluded_forms={hard})
+    assert not target
+
+
+def test_distinct_marked_owners_and_independent_target_readings_are_preserved():
+    reference = {"ἄνειμι": "πρόειμι", "ανειμι": "πρόειμι"}
+    sources = [("ag_pairs.json", [
+        {"form": "ἄνειμι", "lemma": "ἄνειμι"},
+        {"form": "ἀνεῖμι", "lemma": "ἀνίημι"},
+    ])]
+    target = {"ἄνειμι": "ἀνέρχομαι"}
+    audit = restore_attested_compound_aliases(
+        reference, {}, target, sources, {"ἄνειμι", "ἀνίημι", "ἀνέρχομαι"})
+    assert "ανειμι" not in target
+    assert target["ἄνειμι"] == "ἀνέρχομαι"
+    assert any(row["form"] == "ανειμι" for row in audit["ambiguous"])
+
+
+def test_source_alias_recovery_canonicalizes_only_supported_exact_cells():
+    reference = {"ἀντέξηεσαν": "ἀντέξειμι", "αντεξηεσαν": "ἀντέξειμι"}
+    sources = [("glaux_pairs.json", [
+        {"form": "ἀντεξῄεσαν", "lemma": "ἀντέξειμι"},
+    ])]
+    target = {"ἀντεξῄεσαν": "ἀντί-ἔξειμι"}
+    audit = restore_attested_compound_aliases(
+        reference, {}, target, sources, {"ἀντέξειμι"})
+    assert target["ἀντεξῄεσαν"] == "ἀντέξειμι"
+    assert target["αντεξηεσαν"] == "ἀντέξειμι"
+    assert audit["canonicalized_count"] == 1
+
+
+def test_source_alias_recovery_requires_positive_heads_and_clean_source_forms():
+    reference = {"ὕπον": "ὕπειμι", "υπον": "ὕπειμι",
+                 "ἄλλλως": "πρόειμι", "αλλλως": "πρόειμι",
+                 "ἐνΘήβαις": "πρόειμι", "ενΘηβαις": "πρόειμι"}
+    sources = [("glaux_pairs.json", [
+        {"form": "ὑπόν", "lemma": "invented-owner"},
+        {"form": "ἄλλλως", "lemma": "ἄλλως"},
+        {"form": "ἐνΘήβαις", "lemma": "Θῆβαι"},
+        {"form": "γράφει", "lemma": "γράφω"},
+    ])]
+    target = {}
+    audit = restore_attested_compound_aliases(
+        reference, {}, target, sources, {"ἄλλως", "Θῆβαι", "γράφω"})
+    assert not target
+    assert len(audit["rejected_source_rows"]) == 3
+
+
+def test_source_alias_recovery_does_not_cross_case_or_reinfer_a_marked_owner():
+    reference = {"μετάποντος": "μετάπειμι", "μεταποντος": "μετάπειμι",
+                 "ὑπῆν": "ὕπειμι", "υπην": "ὕπειμι"}
+    sources = [("glaux_pairs.json", [
+        {"form": "μετάποντος", "lemma": "μεταποντος"},
+        {"form": "ὑπῆν", "lemma": "ὑπείμι"},
+    ])]
+    target = {}
+    restore_attested_compound_aliases(
+        reference, {}, target, sources, {"Μετάποντος", "ὕπειμι", "ὑπείμι"})
+    assert "μεταποντος" not in target
+    assert target["υπην"] == "ὑπείμι"
+
+
+def test_alias_recovery_preserves_same_source_ties_independently_of_row_order():
+    reference = {"ἄνοντος": "ἄνειμι", "ανοντος": "ἄνειμι"}
+    pairs = [{"form": "ἄνοντος", "lemma": "ἄνω"},
+             {"form": "ἄνοντος", "lemma": "ἄνειμι"}]
+    for ordered in (pairs, list(reversed(pairs))):
+        target = {}
+        audit = restore_attested_compound_aliases(
+            reference, {}, target, [("ag_pairs.json", ordered)], {"ἄνω", "ἄνειμι"})
+        assert "ανοντος" not in target and "ἄνοντος" not in target
+        assert audit["same_source_tied_cells"][0]["selected_owner"] is None
+        selected = {"ἄνοντος": "ἄνω"}
+        audit = restore_attested_compound_aliases(
+            reference, {}, selected, [("ag_pairs.json", ordered)], {"ἄνω", "ἄνειμι"})
+        assert selected["ανοντος"] == "ἄνω"
+        assert audit["same_source_tied_cells"][0]["selected_owner"] == "ἄνω"
+
+
+def test_explicit_exclusion_blocks_a_colliding_cell_and_its_alias():
+    reference = {"ὕπην": "ὕπειμι", "υπην": "ὕπειμι"}
+    sources = [("glaux_pairs.json", [{"form": "ὑπῆν", "lemma": "ὕπειμι"}])]
+    for excluded in ({"ὑπῆν"}, {"υπην"}):
+        target = {}
+        restore_attested_compound_aliases(reference, {}, target, sources,
+                                         {"ὕπειμι"}, excluded_forms=excluded)
+        assert not set(target) & excluded
+
+
+def test_alias_lexical_heads_require_nonempty_ancient_evidence(tmp_path):
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({"schema_version": 2,
+                               "heads": {"ὕπειμι": ["lsj9_headwords"], "ἄνω": []},
+                               "vernacular_heads": {"κάθομαι": ["wiktionary_en_el"]}}))
+    assert load_alias_lexical_heads(path) == {"ὕπειμι"}
+
+
+def test_exact_reviewed_cells_preserve_lookup_aliases_and_citation_proof(tmp_path):
+    import overlay_lsj
+    for name in overlay_lsj.SOURCE_PAIR_NAMES:
+        (tmp_path / name).write_text("[]")
+    spec = {"lemma": "συμπερίειμι", "method": "source_forms",
+            "forms": ["συμπεριόντα"], "citation": "Choricius, Tyrannicida, page 54",
+            "evidence": "Exact form independently verified in the printed edition."}
+    review = {"schema_version": 1, "paradigms": [spec, {
+        "lemma": "συμπερίειμι", "method": "lookup_paradigm"}]}
+    (tmp_path / "hunspell_grc_postclassical_review.json").write_text(json.dumps(review))
+    pairs, pins = load_alias_source_pairs(tmp_path)
+    assert len(pairs[0][1]) == 1
+    assert "hunspell_grc_postclassical_review.json" in pins
+    reference = {"σύμπεριόντα": "συμπερίειμι", "συμπεριοντα": "συμπερίειμι"}
+    target = {}
+    audit = restore_attested_compound_aliases(reference, {}, target, pairs,
+                                             {"συμπερίειμι"})
+    assert target["συμπεριόντα"] == target["συμπεριοντα"] == "συμπερίειμι"
+    assert all(row["cells"][0]["readings"][0]["citation"] == spec["citation"]
+               for row in audit["recovered"] if row["form"] in
+               {"συμπεριόντα", "συμπεριοντα"})
 
 
 def test_overlay_adds_only_expansion_entries_and_preserves_current_values():

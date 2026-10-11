@@ -2,7 +2,7 @@
 """Extract form->lemma pairs from Diorisis Ancient Greek corpus.
 
 Diorisis (Vatri & McGillivray, 2018) is a 10M-token lemmatized corpus
-of Ancient Greek (Homer through 5th c. AD). Lemma accuracy is ~91.4%
+of Ancient Greek (Homer through the 5th century CE). Lemma accuracy is ~91.4%
 (vs GLAUx's 98.8%), so pairs from this corpus should be treated as
 lower-confidence and only used when they don't conflict with existing
 entries from Wiktionary, LSJ, or GLAUx.
@@ -24,6 +24,7 @@ Usage:
 
 import argparse
 import json
+import sys
 import unicodedata
 import time
 import xml.etree.ElementTree as ET
@@ -31,9 +32,12 @@ from collections import Counter
 from pathlib import Path
 
 from beta_code import beta_code_to_greek
-from corpus_freq_key import beta_trailing_paren_is_elision
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SCRIPT_DIR))
+from dilemma.form_sanitize import canonicalize_final_elision  # noqa: E402
+from build.corpus_freq_key import beta_trailing_paren_is_elision  # noqa: E402
+
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"
 OUTPUT_PATH = DATA_DIR / "diorisis_pairs.json"
@@ -88,18 +92,22 @@ def strip_non_greek(s):
 def betacode_to_unicode(bc):
     """Convert Beta Code form to NFC-normalized Unicode Greek.
 
-    Strips any non-Greek residue (apostrophes from elision, quotes). A final
-    ``)`` that Diorisis writes for elision (``di)``, ``par)``) is dropped
-    before conversion; converted, it would be a breathing on the last vowel
-    or consonant (``δἰ`` for δι’).
+    Preserve a final apostrophe or Diorisis's elision ``)`` as Greek koronis.
+    Remove that marker before conversion so it cannot become a final-vowel
+    breathing, and keep medial σ before elision. Other non-Greek residue is
+    stripped; a real final breathing on a short vowel word remains unchanged.
     """
     try:
-        if beta_trailing_paren_is_elision(bc):
+        elided = bc.endswith("'") or beta_trailing_paren_is_elision(bc)
+        if elided:
             bc = bc[:-1]
         uni = beta_code_to_greek(bc)
         uni = nfc(uni)
-        # Strip non-Greek characters (apostrophes, quotes from elision)
         cleaned = strip_non_greek(uni)
+        if cleaned and elided:
+            if cleaned.endswith("ς"):
+                cleaned = cleaned[:-1] + "σ"
+            cleaned = canonicalize_final_elision(cleaned + "’")
         return cleaned if cleaned else ""
     except Exception:
         return ""
