@@ -312,9 +312,6 @@ GRC_REJECT_FORMS = frozenset({
     # them: GLAUx Galen splits γί νεται and ἐνέρ γειαν; Galen/Heron split
     # μεγί στων. The unrelated Hesychian headword γία does not validate γί.
     "γί", "ἐνέρ", "μεγί",
-    # Littré sometimes prints the phrase ἐπὶ τὸ πουλύ without spaces.
-    # A joined editorial phrase is not an independently supported word.
-    "ἐπιτοπουλύ",
 })
 
 # lookup.db deliberately keeps these bare stems as tolerant lemmatizer
@@ -1459,6 +1456,10 @@ def postclassical_admission_reason(
 
 def postclassical_spelling_reason(form: str) -> str | None:
     """Require lexical review for context marks in an unknown corpus token."""
+    # Littré prints this phrase as one unit; other editions separate it.
+    # Keep compatibility admission separate from new corpus-only words.
+    if form == "ἐπιτοπουλύ":
+        return "joined_editorial_phrase"
     if ord(form[-1]) in SPACING_DIACRITICS:
         # Closing quotation marks and numeral signs share this encoding.
         # Genuine elisions still enter through lexical or reviewed forms.

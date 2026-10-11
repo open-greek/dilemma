@@ -1676,8 +1676,10 @@ def test_ancient_name_and_common_homograph_preserve_both_owners():
     assert rejected == []
 
 
-def test_joined_editorial_phrase_is_not_a_dictionary_word():
-    assert grc_orthography_reason("ἐπιτοπουλύ") is not None
+def test_joined_editorial_phrase_needs_review_without_rejecting_compatibility():
+    from export_hunspell import postclassical_spelling_reason
+    assert postclassical_spelling_reason("ἐπιτοπουλύ") == "joined_editorial_phrase"
+    assert grc_orthography_reason("ἐπιτοπουλύ") is None
 
 
 def test_heldout_trusted_token_cannot_restore_untrusted_works():
