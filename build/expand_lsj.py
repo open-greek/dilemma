@@ -830,10 +830,25 @@ def resolve_noun_genitive(headword, gender, supplied="", wikt_genitives=None):
     return reconstructed, ""
 
 
+def noun_expansion_error(headword, genitive):
+    """Withhold evidenced irregular families unsupported by the generic route.
+
+    A complete source genitive does not repair the module's irregular vocative
+    and dative cells. This applies equally to full, inferred and completed input.
+    """
+    nom, gen = strip_diacritics(headword), strip_diacritics(genitive)
+    if ((nom.endswith("κυων") and gen.endswith(("κυνος", "κυονος")))
+            or (nom.endswith("ανηρ") and gen.endswith(("ανδρος", "ανηρος")))
+            or (nom.endswith("πατηρ") and gen.endswith("πατρος"))):
+        return "unsupported-irregular-noun"
+    return ""
+
+
 def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
     """Expand a noun using grc-decl, caching identical lexical requests."""
     headword = unicodedata.normalize("NFC", headword)
     genitive, error = resolve_noun_genitive(headword, gender, genitive, wikt_genitives)
+    error = error or noun_expansion_error(headword, genitive)
     if error:
         return set(), error
 
@@ -1704,7 +1719,9 @@ def expand_all():
         supplied = entry["genitive"]
         resolved, error = resolve_noun_genitive(hw, entry["gender"], supplied,
                                                wikt_genitives)
-        if supplied and not _genitive_is_junk(supplied) and (error or resolved != supplied):
+        error = error or noun_expansion_error(hw, resolved)
+        if (error == "unsupported-irregular-noun" or
+                (supplied and not _genitive_is_junk(supplied) and (error or resolved != supplied))):
             superseded.add(sanitize_form(hw))
         if error or resolved != supplied:
             genitive_audit[hw] = {"supplied": supplied, "resolved": resolved,

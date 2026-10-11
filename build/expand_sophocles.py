@@ -28,6 +28,7 @@ from expand_lsj import (
     mark_alpha_length, AG_LOOKUP, DATA_DIR, ARTICLES,
     load_wiktionary_genitives, resolve_noun_genitive, _genitive_is_junk,
     noun_generation_input_hashes,
+    noun_expansion_error,
 )
 from dilemma.form_sanitize import (  # noqa: E402
     has_editorial_sigla,
@@ -339,14 +340,17 @@ def expand_all():
     resolutions = {}
     for hw, entry in entries.items():
         supplied = entry.get("supplied_genitive", "")
-        if not supplied or not entry["gender"]:
+        if not entry["gender"]:
             continue
-        resolved, error = resolve_noun_genitive(hw, entry["gender"], supplied,
+        resolved, error = resolve_noun_genitive(hw, entry["gender"], entry["genitive"],
                                                wikt_genitives)
+        error = error or noun_expansion_error(hw, resolved)
+        if not supplied and error != "unsupported-irregular-noun":
+            continue
         if error or resolved != supplied:
             resolutions[hw] = {"supplied": supplied, "resolved": resolved,
                                "reason": error or "completed-genitive"}
-            if not _genitive_is_junk(supplied):
+            if error == "unsupported-irregular-noun" or not _genitive_is_junk(supplied):
                 superseded.add(hw)
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0}

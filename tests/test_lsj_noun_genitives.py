@@ -61,6 +61,17 @@ def test_full_source_is_not_replaced_by_a_conflicting_variant():
     assert m.resolve_noun_genitive("πατήρ", "m", "πατρός", {"πατήρ": ("πατέρος",)}) == ("πατρός", "")
 
 
+@pytest.mark.parametrize("word,source", [("γυναικάνηρ", "ανδρος"),
+    ("γυναικάνηρ", "γυναικάνδρος"), ("σαρκοκύων", "κυνος"),
+    ("σαρκοκύων", "σαρκοκυνός"), ("πατήρ", "πατρός")])
+def test_complete_genitive_does_not_license_unsupported_irregular_cells(word, source):
+    assert m.expand_noun(None, word, "m", source) == (set(), "unsupported-irregular-noun")
+
+
+def test_regular_sikyon_is_not_mistaken_for_a_dog_compound():
+    assert not m.noun_expansion_error("σικυών", "σικυῶνος")
+
+
 def test_unique_compatible_variant_completes_a_suffix():
     assert m.resolve_noun_genitive("ῥῆγμα", "n", "ατος", {"ῥῆγμα": ("ῥήγματος",)}) == ("ῥήγματος", "")
 
