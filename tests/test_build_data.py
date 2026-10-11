@@ -1080,6 +1080,9 @@ def test_separate_spelling_etymology_follows_its_reference_chain(tmp_path, monke
          "senses": [{"glosses": ["alternative form of πίσσα"],
                      "alt_of": [{"word": "πίσσα"}]}]},
         {"word": "πίσσα", "pos": "noun", "senses": [{"glosses": ["pitch"]}]},
+        {"word": "πίττας", "pos": "noun",
+         "senses": [{"form_of": [{"word": "πίττα"}],
+                     "tags": ["genitive", "singular"]}]},
         {"word": "Πίτα", "pos": "name", "senses": [{"glosses": ["a surname"]}],
          "forms": [{"form": "Πίτα", "tags": ["nominative", "singular"]}]},
     ]
@@ -1093,6 +1096,9 @@ def test_separate_spelling_etymology_follows_its_reference_chain(tmp_path, monke
     pairs = json.loads((output / "ag_pairs.json").read_text())
     for form in ("πίτας", "πίττα", "πίσσα"):
         assert {p["lemma"] for p in pairs if p["form"] == form} == {"πίτα", "πίσσα"}
+    assert {p["lemma"] for p in pairs if p["form"] == "πίττας"} == {"πίσσα"}
+    assert {p["lemma"] for p in pairs if p["form"] == "πίτα"
+            and "alt-of" in p["tags"]} == {"πίσσα"}
     typed = json.loads((output / "ag_pos_lookup.json").read_text())
     if not reverse:
         # Preserve the preexisting scalar choice for this source order.

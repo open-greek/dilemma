@@ -341,7 +341,8 @@ inflection-table mapping, provided it reaches one positively defined head of
 the same part of speech. Thus the pitch spelling `πίτα` follows `πίττα` to
 `πίσσα`, while the independent pie reading keeps `πίτα`. Ambiguous or
 unsupported chains retain the previous fallback.
-This priority applies to the explicit target recorded in a source reading;
+This priority applies to the explicit target recorded in a source reading,
+including structured spelling and inflection references;
 scalar part-of-speech mappings keep their existing choice between homographs.
 Synthesized first-aorist active infinitives and present or future neuter
 participles retain their accent position while taking a circumflex on a

@@ -2631,7 +2631,9 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
                 unresolved_verbs if preserve_cells else frozenset(),
                 closed_class_heads if preserve_cells else None, lexical_heads,
                 canonical_references, adjective_heads if preserve_cells else frozenset(),
-                reference_target=bool(pair.get("via")))
+                reference_target=(bool(pair.get("via"))
+                                  or bool({"alt-of", "form-of"}
+                                          & set(pair.get("tags", [])))))
             if (not own_nominal and resolved not in headwords
                     and not (pair.get("pos") == "verb" and resolved in graph_heads)
                     and not (preserve_cells and resolved in (closed_class_heads or {}).get(
