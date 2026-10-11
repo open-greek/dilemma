@@ -347,7 +347,8 @@ Synthesized first-aorist active infinitives and present or future neuter
 participles retain their accent position while taking a circumflex on a
 known long penult before a short final syllable (`τμῆξαι`, `παιδεῦον`).
 Unmarked vowel length is not guessed, and finite optatives keep their
-distinct accent.
+distinct accent. A diphthong consumes only two vowels; a following vowel
+starts another syllable when determining the accent's permitted position.
 An inflected reading
 does not replace an independently defined homograph: `δίω` keeps its own
 conjugation as well as its separate reading in the conjugation of `δείδω`.

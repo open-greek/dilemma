@@ -440,6 +440,21 @@ class TestAoristMiddleFromFut:
         assert synth._recessive_full_form(stem, "αι") == unicodedata.normalize(
             "NFC", expected)
 
+    @pytest.mark.parametrize("stem,expected", [
+        ("κατερηρειιμ", "κατερηρειίμον"),
+        ("κοιιλν", "κοιίλνον"),
+        ("σιιτομετρουισκ", "σιιτομετρουίσκον"),
+    ])
+    def test_three_vowels_do_not_form_one_syllable(self, synth, stem, expected):
+        assert synth._accent_full_form(stem, "ον", penult=True) == expected
+
+    @pytest.mark.parametrize("stem", [
+        "κατερηρείιμ", "κοίιλν", "σιιτομετρούισκ",
+    ])
+    def test_three_vowels_do_not_acquire_antepenult_circumflex(self, synth,
+                                                             stem):
+        assert synth._long_penult_circumflex(stem, "ον") == stem + "ον"
+
 
 class TestAoristMiddleFromAor:
     """When only the aorist principal part is given (no fut), σ-stem

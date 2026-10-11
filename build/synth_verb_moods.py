@@ -1568,9 +1568,7 @@ def _accent_full_form(prefix: str, ending: str, *, penult: bool = False) -> str:
             after += 1
         return True
 
-    # Identify vowel-syllable positions (one per maximal vowel run).
-    # We collect (position-of-base, is_long-flag) so we can pick the
-    # antepenult / penult.
+    # Identify syllables, allowing at most two vowels per diphthong.
     syllables: list[int] = []  # index of base vowel char in `chars`
     i = 0
     while i < len(chars):
@@ -1579,23 +1577,17 @@ def _accent_full_form(prefix: str, ending: str, *, penult: bool = False) -> str:
             i += 1
             continue
         if c in _GREEK_VOWELS:
-            # Start of a vowel-syllable. Scan to the end of the cluster
-            # (consecutive base vowels merge into a diphthong = one syl).
             start = i
             i += 1
             # Skip combining marks attached to this vowel.
             while i < len(chars) and unicodedata.combining(chars[i]):
                 i += 1
-            # Greedily merge consecutive vowel bases as a diphthong.
-            while i < len(chars) and chars[i] in _GREEK_VOWELS:
-                # only treat as same syllable for known diphthongs
-                # (αι ει οι υι αυ ευ ηυ ου).
-                if is_diphthong(start, i):
+            # Consume one partner only: ειι is ει + ι, not one syllable.
+            if (i < len(chars) and chars[i] in _GREEK_VOWELS
+                    and is_diphthong(start, i)):
+                i += 1
+                while i < len(chars) and unicodedata.combining(chars[i]):
                     i += 1
-                    while i < len(chars) and unicodedata.combining(chars[i]):
-                        i += 1
-                else:
-                    break
             syllables.append(start)
         else:
             i += 1

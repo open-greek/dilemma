@@ -16,6 +16,8 @@ All notable changes to Dilemma are documented here. The format follows
 - Preserve the long-penult circumflex in synthesized first-aorist active
   infinitives and present or future neuter participles, without moving
   persistent accents or changing finite optatives.
+  Count a vowel after a complete diphthong as a separate syllable, avoiding
+  a circumflex on the antepenult of three-vowel sequences.
 - Keep independent Ancient homographs under their own headword when an
   alternative spelling belongs to a different numbered etymology. The
   binding and needing senses of `δέω` no longer acquire the lemma `δήω`.
