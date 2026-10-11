@@ -2727,11 +2727,13 @@ def main():
                 else:
                     resolved[upos] = lemma
             # Only keep if there are multiple distinct lemmas
-            owned_closed_head = any(
-                resolved.get(WIKT_TO_UPOS[pos]) in closed_class_heads.get(pos, set())
-                and resolved[WIKT_TO_UPOS[pos]] != all_lookup.get(form, (form,))[0]
-                for pos in ("det", "pron"))
-            if len(set(resolved.values())) > 1 or owned_closed_head:
+            # Agreement between typed readings does not make the scalar
+            # fallback correct: τη/την can both point to ο while the
+            # unqualified key still points to the form itself.
+            closed_target_differs = lang == "el" and any(
+                upos in resolved and resolved[upos] != all_lookup.get(form, (form,))[0]
+                for upos in ("DET", "PRON"))
+            if len(set(resolved.values())) > 1 or closed_target_differs:
                 ambiguous_pos[form] = resolved
 
         pos_lookup_path = DATA_DIR / f"{prefix}_pos_lookup.json"

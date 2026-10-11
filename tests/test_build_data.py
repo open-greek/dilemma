@@ -275,6 +275,45 @@ def test_main_publishes_named_weak_pronoun_reference_without_form_head_proof(tmp
         (output / "el_closed_class_heads.json").read_text())["heads"])
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_keeps_agreeing_closed_targets_when_scalar_fallback_differs(tmp_path, monkeypatch, reverse):
+    import build_data
+    source = tmp_path / "source"
+    source.mkdir()
+    entries = [
+        {"word": form, "pos": pos, "senses": [{"form_of": [{"word": "ο"}]}]}
+        for form in ("τη", "την") for pos in ("det", "pron")
+    ] + [{"word": "ο", "pos": "article", "senses": [{"glosses": ["the"]}]},
+         {"word": "συμφωνεί", "pos": "verb", "senses": [{"form_of": [{"word": "συμφωνώ"}]}]},
+         {"word": "συμφωνώ", "pos": "verb", "senses": [{"glosses": ["agree"]}]}]
+    (source / "en.jsonl").write_text("".join(json.dumps(e, ensure_ascii=False) + "\n"
+                                              for e in (entries[::-1] if reverse else entries)))
+    (source / "el.jsonl").write_text("")
+    original = build_data.resolve_cross_source
+
+    def preserve_scalar_forms(lookup, *args, **kwargs):
+        result = original(lookup, *args, **kwargs)
+        # The independently maintained scalar lookup is deliberately not
+        # retargeted by a typed closed-class publication decision.
+        for form in ("τη", "την"):
+            lookup[form] = (form, 3)
+        return result
+
+    monkeypatch.setattr(build_data, "resolve_cross_source", preserve_scalar_forms)
+    output = tmp_path / "data"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"en": "en.jsonl", "el": "el.jsonl"}})
+    monkeypatch.setattr(build_data.sys, "argv", ["build_data.py", "--lang", "el", "--kaikki", str(source)])
+    build_data.main()
+    typed = json.loads((output / "mg_pos_lookup.json").read_text())
+    flat = json.loads((output / "mg_lookup.json").read_text())
+    for form in ("τη", "την"):
+        assert typed[form] == {"DET": "ο", "PRON": "ο"}
+        assert flat[form] == form
+    assert "ο" not in typed  # Agreement with the scalar fallback needs no field.
+    assert "συμφωνεί" not in typed  # The publication exception is closed-class only.
+
+
 @pytest.mark.parametrize("damage", ["missing", "cycle", "wrong_pos", "divergent"])
 def test_named_weak_pronoun_requires_one_supported_same_pos_root(damage):
     from build_data import apply_closed_class_form_references
