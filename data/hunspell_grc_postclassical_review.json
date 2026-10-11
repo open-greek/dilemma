@@ -656,6 +656,186 @@
       "citation": "Deipnosophistae 13.2 (555c)"
     },
     {
+      "lemma": "κλώστρα",
+      "method": "source_forms",
+      "forms": [
+        "κλώστρας"
+      ],
+      "evidence": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 515 attests κλώστρας. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Διήγησις_παιδιόφραστος_των_τετραπόδων_ζώων",
+      "citation": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 515"
+    },
+    {
+      "lemma": "μαγαρίζω",
+      "method": "source_forms",
+      "forms": [
+        "μαγαρισμένε"
+      ],
+      "evidence": "Tale of the Donkey, Wolf, and Fox, verse 366 attests μαγαρισμένε. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Γαδάρου,_λύκου_κι_αλουπούς_διήγησις_ωραία",
+      "citation": "Tale of the Donkey, Wolf, and Fox, verse 366"
+    },
+    {
+      "lemma": "μαγαρίζω",
+      "method": "source_forms",
+      "forms": [
+        "μαγαρισμένη"
+      ],
+      "evidence": "Peri Gerontos (About the Old Man Marrying a Girl), verse 126 attests μαγαρισμένη. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Περί_γέροντος_να_μην_πάρη_κορίτσι",
+      "citation": "Peri Gerontos (About the Old Man Marrying a Girl), verse 126"
+    },
+    {
+      "lemma": "μαζώνω",
+      "method": "source_forms",
+      "forms": [
+        "μαζωμένα"
+      ],
+      "evidence": "Tale of the Donkey, Wolf, and Fox, verse 217 attests μαζωμένα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Γαδάρου,_λύκου_κι_αλουπούς_διήγησις_ωραία",
+      "citation": "Tale of the Donkey, Wolf, and Fox, verse 217"
+    },
+    {
+      "lemma": "μαραίνω",
+      "method": "source_forms",
+      "forms": [
+        "μαραμένη"
+      ],
+      "evidence": "Peri Gerontos (About the Old Man Marrying a Girl), verse 42 attests μαραμένη. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Περί_γέροντος_να_μην_πάρη_κορίτσι",
+      "citation": "Peri Gerontos (About the Old Man Marrying a Girl), verse 42"
+    },
+    {
+      "lemma": "μαυλίστρα",
+      "method": "source_forms",
+      "forms": [
+        "μαυλίστρα"
+      ],
+      "evidence": "Tale of the Donkey, Wolf, and Fox, verse 510 attests μαυλίστρα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Γαδάρου,_λύκου_κι_αλουπούς_διήγησις_ωραία",
+      "citation": "Tale of the Donkey, Wolf, and Fox, verse 510"
+    },
+    {
+      "lemma": "μυρίζω",
+      "method": "source_forms",
+      "forms": [
+        "μυρισμένα"
+      ],
+      "evidence": "Apokopos (Legrand 1870 edition), verse 26 attests μυρισμένα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος",
+      "citation": "Apokopos (Legrand 1870 edition), verse 26"
+    },
+    {
+      "lemma": "πανίτσιν",
+      "method": "source_forms",
+      "forms": [
+        "πανίτσιν"
+      ],
+      "evidence": "Poulologos (Bird Parliament), verses 176, 180 attests πανίτσιν. Preserve this exact surface as its own owner without inferring an unattested normalized lemma.",
+      "source_url": "https://el.wikisource.org/wiki/Πουλολόγος",
+      "citation": "Poulologos (Bird Parliament), verses 176, 180"
+    },
+    {
+      "lemma": "σπήλιο",
+      "method": "source_forms",
+      "forms": [
+        "σπήλιο"
+      ],
+      "evidence": "Death of Digenes (folk ballads), part A, verse 6 attests σπήλιο. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Ο_θάνατος_του_Διγενή",
+      "citation": "Death of Digenes (folk ballads), part A, verse 6"
+    },
+    {
+      "lemma": "σπίτι",
+      "method": "source_forms",
+      "forms": [
+        "σπήτι"
+      ],
+      "evidence": "Poulologos (Bird Parliament), verse 521 attests σπήτι. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Πουλολόγος",
+      "citation": "Poulologos (Bird Parliament), verse 521"
+    },
+    {
+      "lemma": "τιμώ",
+      "method": "source_forms",
+      "forms": [
+        "τιμημένος"
+      ],
+      "evidence": "Poulologos (Bird Parliament), verse 519 attests τιμημένος. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Πουλολόγος",
+      "citation": "Poulologos (Bird Parliament), verse 519"
+    },
+    {
+      "lemma": "τορνεύω",
+      "method": "source_forms",
+      "forms": [
+        "τορνεμένα"
+      ],
+      "evidence": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 921 attests τορνεμένα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Διήγησις_παιδιόφραστος_των_τετραπόδων_ζώων",
+      "citation": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 921"
+    },
+    {
+      "lemma": "φηκάρι",
+      "method": "source_forms",
+      "forms": [
+        "φηκάρια"
+      ],
+      "evidence": "Apokopos (Legrand 1870 edition), verse 468 attests φηκάρια. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος",
+      "citation": "Apokopos (Legrand 1870 edition), verse 468"
+    },
+    {
+      "lemma": "ποιέω",
+      "method": "source_forms",
+      "forms": [
+        "ἔποικα"
+      ],
+      "evidence": "Apokopos (Legrand 1881 edition), verse 525 attests ἔποικα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος_του_Μπεργαδή",
+      "citation": "Apokopos (Legrand 1881 edition), verse 525"
+    },
+    {
+      "lemma": "ποιέω",
+      "method": "source_forms",
+      "forms": [
+        "ἔποικεν"
+      ],
+      "evidence": "Apokopos (Legrand 1881 edition), verse 358 attests ἔποικεν. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος_του_Μπεργαδή",
+      "citation": "Apokopos (Legrand 1881 edition), verse 358"
+    },
+    {
+      "lemma": "μεταλαμπαδεύω",
+      "method": "source_forms",
+      "forms": [
+        "μεταλαμπαδευομένην"
+      ],
+      "evidence": "Clement of Alexandria, Stromata 2.23.138.2, attests μεταλαμπαδευομένην in the discussion of marriage and the succession of generations. Preserve the exact participle independently of the inflected corpus lemma.",
+      "source_url": "https://eulogikon.org/works/clement-alexandria-stromata-qya-ah",
+      "citation": "Stromata 2.23.138.2"
+    },
+    {
+      "lemma": "χράομαι",
+      "method": "source_forms",
+      "forms": [
+        "ἔχρητο"
+      ],
+      "evidence": "Aesop, Fables 135.2 and 135.3, Chambry edition, attests ἔχρητο. Preserve the exact textual variant without restoring its unrelated historical generated lemma.",
+      "source_url": "https://obtic.huma-num.fr/obvil-web/corpus/fabula-numerica/anonymes_chambry",
+      "citation": "Aesop, Fables 135.2 and 135.3 (Chambry)"
+    },
+    {
+      "lemma": "τάχος",
+      "method": "source_forms",
+      "forms": [
+        "τάχεϊ"
+      ],
+      "evidence": "Herodian, On the Declension of Nouns, book 2, page 291, explicitly cites τάχεϊ beside τάχεσι as a singular and plural dative pair. Preserve the exact diaeretic spelling.",
+      "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/4c9c843d80ee94b4371f52add5f7d68bbfe7ba4c/data/tlg0087/tlg013/tlg0087.tlg013.1st1K-grc1.xml",
+      "citation": "Herodian, On the Declension of Nouns 2.291"
+    },
+    {
       "lemma": "εἰκονίζω",
       "method": "source_forms",
       "forms": [

@@ -1748,6 +1748,24 @@ def test_reviewed_source_forms_preserve_valid_surfaces_with_corrupt_annotations(
     assert "ἀναθαρρρυνόμενοι" not in forms
 
 
+def test_reviewed_sparse_textual_forms_keep_their_exact_spelling():
+    import json
+    from export_hunspell import DATA, derive_reviewed_paradigm
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    forms = {form: spec["lemma"] for spec in specs if spec["method"] == "source_forms"
+             for form in derive_reviewed_paradigm(spec, [])}
+    expected = {"κλώστρας": "κλώστρα", "μαγαρισμένε": "μαγαρίζω",
+                "μαγαρισμένη": "μαγαρίζω", "μαζωμένα": "μαζώνω",
+                "μαραμένη": "μαραίνω", "μαυλίστρα": "μαυλίστρα",
+                "μεταλαμπαδευομένην": "μεταλαμπαδεύω", "μυρισμένα": "μυρίζω",
+                "πανίτσιν": "πανίτσιν", "σπήλιο": "σπήλιο", "σπήτι": "σπίτι",
+                "τιμημένος": "τιμώ", "τορνεμένα": "τορνεύω", "φηκάρια": "φηκάρι",
+                "ἔποικα": "ποιέω", "ἔποικεν": "ποιέω", "ἔχρητο": "χράομαι",
+                "τάχεϊ": "τάχος"}
+    assert {form: forms.get(form) for form in expected} == expected
+    assert "ὤοντο" not in forms
+
+
 def test_verified_name_ownership_preserves_source_names_and_lower_homonyms():
     from export_hunspell import include_reviewed_name_ownership, filter_case_artifacts
     ownership = {exact_form_key("Σάξονας"): 2}
