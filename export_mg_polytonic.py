@@ -2911,7 +2911,7 @@ def input_digests(generate_verbs: bool = True) -> dict[str, str | None]:
     import mg_polytonic_paradigms as paradigms
 
     files = [("lookup_db", LOOKUP_DB), ("form_profile", FORM_PROFILE)]
-    if generate_verbs:
+    if generate_verbs or MONOTONIC_BUCKETS:
         files.append(("verb_paradigms", paradigms.VERB_PARADIGMS))
     if generate_verbs or MONOTONIC_BUCKETS:
         files.append(("form_frequencies", paradigms.MG_FORM_FREQ))

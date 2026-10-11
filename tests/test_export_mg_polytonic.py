@@ -1257,6 +1257,7 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     assert mg.input_digests(generate_verbs=False) == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None,
+        "verb_paradigms": None,
         "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
 
 
