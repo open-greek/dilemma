@@ -330,8 +330,20 @@ heads or create new verb lemmas. When the gloss names that same reference,
 it can correct an incorrect head-page POS (`δηώ`). A broken reference does
 not remove a separately attested verb head or proper-name head form.
 A participle's top-level reference can resolve its verb only when that
-target has its own verb entry in either dictionary. This check runs after
-both sources have been read, so entry order does not affect it.
+target reaches an independent lexical verb entry in either dictionary,
+including through an explicit spelling-reference chain. An existing sense-level
+reference chain to such a verb takes priority. Participles tagged on the
+entry or one of its senses
+remain intermediate forms, and a cycle must have one unambiguous exit to a
+finite verb. This check runs after both sources have been read, so entry
+order does not affect it. A resolved participle keeps that finite verb
+through POS-specific cleanup instead of inheriting a flat homograph's
+lemma; unresolved readings in this top-pointer graph are omitted while
+independent noun and adjective readings remain. Other participles' existing
+readings are unchanged, but they cannot act as finite endpoints for this graph.
+Nominal labels in top-level references cannot supply verb endpoints through
+unrelated inflection tables. An unresolved participle also cannot remove an
+independently defined finite verb through a reverse table or lookup alias.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms

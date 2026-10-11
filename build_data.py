@@ -434,7 +434,8 @@ def drop_abbreviation_targets(targets: dict, abbreviations: Abbreviations,
 
 def extract_pairs(jsonl_path: Path, lang: str,
                   skip_name_plurals: set = None, lemma_pos: dict = None,
-                  participle_refs: dict = None, verb_heads: set = None
+                  participle_refs: dict = None, verb_heads: set = None,
+                  participle_heads: set = None
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -615,8 +616,6 @@ def extract_pairs(jsonl_path: Path, lang: str,
 
             if lemma_pos is not None:
                 lemma_pos.setdefault(lemma, set()).add(pos)
-            if verb_heads is not None and pos == "verb":
-                verb_heads.add(lemma)
 
             page_headwords.add(lemma)
             page_headwords.add(lemma.lower())
@@ -705,6 +704,14 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     )
                     if any(p in gloss for p in _form_of_patterns):
                         is_form_of_page = True
+            if (verb_heads is not None and pos == "verb" and not sense_has_form_of
+                    and not top_form_of_for_detection and not top_alt_of_for_detection
+                    and "form-of" not in (entry.get("tags") or [])
+                    and not any("form-of" in (s.get("tags") or [])
+                                for s in entry.get("senses") or [])):
+                # A verb-tagged inflection/alternate page is not an
+                # independent lexical verb parent for another participle.
+                verb_heads.add(lemma)
             hw_confidence = 1 if is_form_of_page else 3
             # A page that only gives another spelling of a word (γιός, the
             # Greek Wiktionary's "πολυτονική γραφή του γιος") is no lemma:
@@ -766,14 +773,18 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # the primary source for pass-2 form_of_targets.
             sense_form_of = []
             named_verb_roots = set()
-            if (modern_greek and pos == "verb" and participle_refs is not None
-                    and "participle" in entry.get("tags", [])):
+            if (modern_greek and pos == "verb"
+                    and ("participle" in entry.get("tags", [])
+                         or any("participle" in sense.get("tags", [])
+                                for sense in entry.get("senses", [])))):
                 # These references are checked only after both dictionaries'
                 # headword POS evidence is collected. Ordinary noun/adj
                 # etymology pointers remain excluded.
+                if participle_heads is not None:
+                    participle_heads.add(lemma)
                 for ref in entry.get("form_of", []):
                     target = strip_length_marks(ref.get("word", ""))
-                    if target and _is_greek(target):
+                    if participle_refs is not None and target and _is_greek(target):
                         participle_refs.setdefault(lemma, set()).add(target)
             for sense in entry.get("senses", []):
                 sense_form_of.extend(sense.get("form_of", []))
@@ -1241,18 +1252,90 @@ def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
 
 
 def apply_participle_references(pos_map: dict, references: dict,
-                               verb_heads: set) -> None:
-    """Use a participle's direct verb pointer after all source heads are known."""
-    for lemma, targets in references.items():
-        supported = targets & verb_heads
+                               verb_heads: set,
+                               participle_heads: set = frozenset(),
+                               lemma_pos: dict = None) -> set:
+    """Resolve participle pointers to lexical verbs from one graph snapshot.
+
+    Explicitly tagged participles are intermediate forms, even when another
+    dictionary gives them a descriptive definition under the verb POS.
+    Sense references take priority over entry-level pointers. A source cycle
+    has no preferred member: its entry-level exits must agree on one verb.
+    """
+    finite_heads = verb_heads - participle_heads - references.keys()
+    # Top-level etymology metadata can name a nominal label such as λόγιο.
+    # An unrelated verb's form table does not make that label a verb alias.
+    references = {word: {target for target in targets
+                         if not lemma_pos or target not in lemma_pos
+                         or "verb" in lemma_pos[target]}
+                  for word, targets in references.items()}
+    sense = {word: target for word, values in pos_map.items()
+             if (target := values.get("VERB")) and target != word}
+
+    # Find cycles in the preferred, single-target sense graph. Only nodes
+    # reachable from a participle pointer can affect this resolution.
+    pending = list(references)
+    reachable = set()
+    while pending:
+        word = pending.pop()
+        if word in reachable or word in finite_heads:
+            continue
+        reachable.add(word)
+        if word in sense:
+            pending.append(sense[word])
+        pending.extend(references.get(word, ()))
+    cycles, checked = {}, set()
+    for start in reachable:
+        path, positions = [], {}
+        word = start
+        while (word in reachable and word not in checked
+               and word not in positions):
+            positions[word] = len(path)
+            path.append(word)
+            word = sense.get(word)
+        if word in positions:
+            group = frozenset(path[positions[word]:])
+            cycles.update((member, group) for member in group)
+        checked.update(path)
+
+    def roots(word, path=frozenset()):
+        if word in finite_heads:
+            return {word}
+        marker = cycles.get(word, word)
+        if marker in path:
+            return set()
+        path = path | {marker}
+        if word in cycles:
+            # A cycle's sense edges cannot establish a lexical endpoint.
+            targets = {target for member in cycles[word]
+                       for target in references.get(member, ())
+                       if target not in cycles[word]}
+        else:
+            if word in sense:
+                preferred = roots(sense[word], path)
+                if preferred:
+                    return preferred
+            targets = references.get(word, ())
+        return {root for target in targets for root in roots(target, path)}
+
+    replacements = {}
+    for lemma in references:
+        supported = roots(lemma)
         if len(supported) == 1:
-            target = next(iter(supported))
-            if target != lemma:
-                pos_map.setdefault(lemma, {})["VERB"] = target
+            replacements[lemma] = next(iter(supported))
+    # Evaluate all paths before mutation. A finite endpoint must stay terminal
+    # even if an inflection table elsewhere supplied a reverse POS edge.
+    for root in set(replacements.values()):
+        pos_map.setdefault(root, {})["VERB"] = root
+    for lemma, target in replacements.items():
+        pos_map.setdefault(lemma, {})["VERB"] = target
+    return set(references) - replacements.keys()
 
 
 def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
-                       pos_map: dict = None, lemma_pos: dict = None):
+                       pos_map: dict = None, lemma_pos: dict = None,
+                       participle_roots: dict = None,
+                       unresolved_verbs: set = frozenset()):
     """Follow a verb's own references before a homograph's flat lookup.
 
     A polytonic participle can first name its monotonic spelling, whose
@@ -1263,12 +1346,20 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
     if pos == "verb" and pos_map is not None:
         seen = set()
         while lemma not in seen:
+            if lemma in unresolved_verbs:
+                return None
+            if participle_roots and lemma in participle_roots:
+                # This endpoint is supported by the verb reference graph;
+                # a flat noun or finite-form homograph must not replace it.
+                return participle_roots[lemma]
             seen.add(lemma)
             target = pos_map.get(lemma, {}).get("VERB")
             if not target or target == lemma:
                 break
             lemma = target
     resolved = lookup.get(lemma, (lemma,))[0]
+    if pos == "verb" and resolved in unresolved_verbs:
+        return None
     if (pos == "verb" and lookup.get(resolved, (None,))[0] != resolved
             and lookup.get(original, (None,))[0] == original
             and lemma_pos and "verb" in lemma_pos.get(original, set())):
@@ -1284,12 +1375,41 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
     return resolved
 
 
+def preserve_finite_verb_heads(pos_map: dict, lookup: dict, finite_heads: set,
+                               participle_roots: dict, unresolved_verbs: set):
+    """Keep lexical verbs whose flat or table alias hits an unresolved form.
+
+    A participle can name two independently defined verbs. Omitting that
+    ambiguous participle must not also omit either finite verb and its own
+    paradigm merely because an inflection table supplied the reverse alias.
+    """
+    for head in finite_heads:
+        word, seen = head, set()
+        while word not in seen:
+            if (word in unresolved_verbs
+                    or lookup.get(word, (word,))[0] in unresolved_verbs):
+                participle_roots[head] = head
+                pos_map.setdefault(head, {})["VERB"] = head
+                break
+            seen.add(word)
+            target = pos_map.get(word, {}).get("VERB")
+            if not target or target == word:
+                break
+            word = target
+
+
 def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
-                         pos_map: dict = None, lemma_pos: dict = None) -> list:
+                         pos_map: dict = None, lemma_pos: dict = None,
+                         participle_roots: dict = None,
+                         unresolved_verbs: set = frozenset()) -> list:
     """Resolve page references before lookup homographs; omit internal metadata."""
     headwords = {key for key, (lemma, _) in lookup.items() if key == lemma}
+    graph_heads = set((participle_roots or {}).values())
     result = []
     for pair in deduplicate_pairs(pairs, preserve_cells):
+        if (preserve_cells and pair.get("pos") == "verb"
+                and (pair.get("via") or pair["lemma"]) in unresolved_verbs):
+            continue
         candidates = ([pair["via"]] if pair.get("via")
                       else [pair["lemma"]])
         if pair.get("via") and preserve_cells and pair.get("pos") == "verb":
@@ -1301,8 +1421,11 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
             resolved = resolve_pair_lemma(
                 lemma, pair.get("pos", "") if preserve_cells else "name", lookup,
                 pos_map if preserve_cells else None,
-                lemma_pos if preserve_cells else None)
-            if resolved not in headwords:
+                lemma_pos if preserve_cells else None,
+                participle_roots if preserve_cells else None,
+                unresolved_verbs if preserve_cells else frozenset())
+            if (resolved not in headwords
+                    and not (pair.get("pos") == "verb" and resolved in graph_heads)):
                 continue
             result.append({"form": pair["form"], "lemma": resolved,
                            "pos": pair.get("pos", ""), "tags": pair.get("tags", [])})
@@ -1386,6 +1509,8 @@ def main():
         all_pos_map = {}  # {form: {upos: lemma}} for POS disambiguation
         all_lemma_pos = {}
         participle_refs, verb_heads = {}, set()
+        participle_heads = set()
+        participle_roots, unresolved_verbs = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
 
         # Per-source form_of_targets, kept separately so we can prefer
@@ -1409,7 +1534,8 @@ def main():
             print(f"\nScanning en Wiktionary: {DUMPS[lang]['en']}")
             pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
                 en_path, f"{lang}-en", lemma_pos=all_lemma_pos,
-                participle_refs=participle_refs, verb_heads=verb_heads)
+                participle_refs=participle_refs, verb_heads=verb_heads,
+                participle_heads=participle_heads)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -1438,7 +1564,8 @@ def main():
                 path, f"{lang}-{wikt_lang}",
                 skip_name_plurals=en_name_forms if en_name_forms else None,
                 lemma_pos=all_lemma_pos,
-                participle_refs=participle_refs, verb_heads=verb_heads)
+                participle_refs=participle_refs, verb_heads=verb_heads,
+                participle_heads=participle_heads)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -1451,7 +1578,12 @@ def main():
             merge_pos_maps(all_pos_map, pos_map, prefer_verb_refs=(lang == "el"))
 
         if lang == "el":
-            apply_participle_references(all_pos_map, participle_refs, verb_heads)
+            unresolved_verbs = apply_participle_references(
+                all_pos_map, participle_refs, verb_heads, participle_heads,
+                all_lemma_pos)
+            participle_roots = {word: all_pos_map[word]["VERB"]
+                                for word in participle_refs
+                                if word not in unresolved_verbs}
 
         # Collect headword sets by source for confidence scoring
         en_headwords = set()
@@ -1566,12 +1698,20 @@ def main():
         # Recompute headwords after chain-breaking
         headwords = {k for k, (v, _) in all_lookup.items() if k == v}
 
+        if lang == "el":
+            preserve_finite_verb_heads(
+                all_pos_map, all_lookup,
+                verb_heads - participle_heads - participle_refs.keys(),
+                participle_roots, unresolved_verbs)
+
         # Fix training pairs: rewrite lemmas to match the cleaned lookup,
         # drop pairs whose lemma can't be resolved to a headword.
         unique_pairs = clean_training_pairs(unique_pairs, all_lookup,
                                              preserve_cells=(lang == "el"),
                                              pos_map=all_pos_map,
-                                             lemma_pos=all_lemma_pos)
+                                             lemma_pos=all_lemma_pos,
+                                             participle_roots=participle_roots,
+                                             unresolved_verbs=unresolved_verbs)
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"
@@ -1641,12 +1781,19 @@ def main():
             # Resolve each lemma through the flat lookup
             resolved = {}
             for upos, lemma in upos_lemmas.items():
-                if lemma in all_lookup:
+                if (lang == "el" and upos == "VERB"
+                        and (form in unresolved_verbs or lemma in unresolved_verbs)):
+                    continue
+                source_lemma = (form if lang == "el" and upos == "VERB"
+                                and form in participle_roots else lemma)
+                if source_lemma in all_lookup or source_lemma in participle_roots:
                     target = resolve_pair_lemma(
-                        lemma, next((p for p, u in WIKT_TO_UPOS.items() if u == upos), "")
+                        source_lemma, next((p for p, u in WIKT_TO_UPOS.items() if u == upos), "")
                         if lang == "el" else "name", all_lookup,
                         all_pos_map if lang == "el" else None,
-                        all_lemma_pos if lang == "el" else None)
+                        all_lemma_pos if lang == "el" else None,
+                        participle_roots if lang == "el" else None,
+                        unresolved_verbs if lang == "el" else frozenset())
                     if target is not None:
                         resolved[upos] = target
                 else:

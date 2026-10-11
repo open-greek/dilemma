@@ -197,8 +197,18 @@ All notable changes to Dilemma are documented here. The format follows
   that verb's forms despite a mislabeled head page (`δηώ`). Descriptive
   glosses do not redirect passive heads or create new verb lemmas, and
   broken references leave independently attested head forms in place.
-  A participle's top-level reference is used only when the target has a
-  separate verb entry, after both dictionaries have supplied their POS.
+  A participle's top-level reference is used only when the target has an
+  explicit reference chain to an independent lexical verb entry, after
+  both dictionaries have supplied their POS. An existing sense-level
+  reference chain to such a verb takes priority over top-level inflection
+  or spelling pointers. Participles tagged on entries or senses remain intermediate forms;
+  cycles resolve only when their exits identify one finite verb.
+  A resolved participle retains that verb through POS-specific cleanup;
+  unresolved readings in the top-pointer graph are omitted without
+  removing nominal readings or changing other participles' existing analyses.
+  Nominal labels cannot supply verb endpoints through unrelated tables,
+  and an unresolved participle cannot remove its independently defined
+  finite verb through a reverse table or lookup alias.
   The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its

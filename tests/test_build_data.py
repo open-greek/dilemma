@@ -10,7 +10,8 @@ from build_data import (Abbreviations, _parse_verb_tense, apply_participle_refer
                         clean_training_pairs, deduplicate_pairs,
                         drop_abbreviation_targets, extract_pairs,
                         merge_pos_maps, merge_source_lookups, resolve_cross_source,
-                        resolve_pair_lemma, spelling_target, vowel_groups)
+                        preserve_finite_verb_heads, resolve_pair_lemma,
+                        spelling_target, vowel_groups)
 
 
 def test_source_merge_prefers_a_lowercase_verb_to_another_sources_name(tmp_path):
@@ -259,6 +260,221 @@ def test_participle_top_reference_requires_an_independent_verb_head(tmp_path, re
     assert pos_map["αστροσπαρμένος"]["VERB"] == "αστρόσπαρτος"
     assert not any(p["lemma"] == "αστρόσπαρτος" and p["pos"] == "verb" for p in clean)
     assert any(p["form"] == "ποτήρια" and p["lemma"] == "ποτήρι" for p in clean)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_participle_sense_verb_wins_over_a_top_level_alternate(tmp_path, reverse):
+    entries = [
+        {"word": "σωροβολιάζομαι", "pos": "verb", "senses": [{"glosses": ["lie in a heap"]}]},
+        {"word": "σωροβολιασμένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "σοροβολιασμένος"}],
+         "senses": [{"form_of": [{"word": "σωροβολιάζομαι"}],
+                     "glosses": ["μετοχή παθητικού παρακειμένου του ρήματος σωροβολιάζομαι"]}]},
+        {"word": "σοροβολιασμένος", "pos": "verb", "tags": ["participle"],
+         "senses": [{"form_of": [{"word": "σοροβολιάζομαι"}],
+                     "alt_of": [{"word": "σωροβολιασμένος"}],
+                     "glosses": ["μετοχή παθητικού παρακειμένου του ρήματος σοροβολιάζομαι, άλλη γραφή του σωροβολιασμένος"]}]},
+    ]
+    dump = _write(tmp_path, list(reversed(entries)) if reverse else entries)
+    refs, heads, lemma_pos = {}, set(), {}
+    pairs, lookup, _, pos_map, *_ = extract_pairs(
+        dump, "el-el", lemma_pos=lemma_pos, participle_refs=refs, verb_heads=heads)
+    assert heads == {"σωροβολιάζομαι"}
+    apply_participle_references(pos_map, refs, heads)
+    assert pos_map["σωροβολιασμένος"]["VERB"] == "σωροβολιάζομαι"
+    clean = clean_training_pairs(pairs, lookup, True, pos_map, lemma_pos)
+    assert any(p["form"] == "σοροβολιασμένος" and p["lemma"] == "σωροβολιάζομαι" for p in clean)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_direct_verb_reference_wins_over_another_lexical_verb(tmp_path, reverse):
+    entries = [
+        {"word": "σωροβολιάζομαι", "pos": "verb"},
+        {"word": "σωρεύω", "pos": "verb"},
+        {"word": "σωροβολιασμένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "σωρεύω"}],
+         "senses": [{"form_of": [{"word": "σωροβολιάζομαι"}]}]},
+    ]
+    dump = _write(tmp_path, list(reversed(entries)) if reverse else entries)
+    refs, heads = {}, set()
+    _, _, _, pos_map, *_ = extract_pairs(
+        dump, "el-el", participle_refs=refs, verb_heads=heads)
+    assert heads == {"σωροβολιάζομαι", "σωρεύω"}
+    apply_participle_references(pos_map, refs, heads)
+    assert pos_map["σωροβολιασμένος"]["VERB"] == "σωροβολιάζομαι"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_participle_top_reference_preserves_supported_chains(reverse):
+    pos_map = {"γραμμένος": {"VERB": "γεγραμμένος"},
+               "γεγραμμένος": {"VERB": "γράφω"},
+               "ειπωμένος": {"VERB": "ειπωμένος"},
+               "κύκλος": {"VERB": "κύκλοςβ"},
+               "κύκλοςβ": {"VERB": "κύκλος"}}
+    items = [("γραμμένος", {"λέω"}), ("ειπωμένος", {"λέω"}),
+             ("κύκλος", {"γράφω"})]
+    refs = dict(reversed(items) if reverse else items)
+    apply_participle_references(pos_map, refs, {"γράφω", "λέω", "ειπωμένος"})
+    assert pos_map["γραμμένος"]["VERB"] == "γράφω"
+    assert pos_map["ειπωμένος"]["VERB"] == "λέω"
+    assert pos_map["κύκλος"]["VERB"] == "γράφω"
+
+
+def test_lexical_verb_head_allows_incidental_form_words_in_gloss(tmp_path):
+    dump = _write(tmp_path, [{"word": "τρανώνω", "pos": "verb",
+                              "senses": [{"glosses": ["make more of something"]}]}])
+    heads = set()
+    extract_pairs(dump, "el-en", verb_heads=heads)
+    assert heads == {"τρανώνω"}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_participle_top_reference_can_reach_a_lexical_verb_through_a_spelling(reverse):
+    pos_map = {"αγαπημένος": {"VERB": "αγαπημένος"},
+               "αγαπώ": {"VERB": "αγαπάω"}}
+    items = [("αγαπημένος", {"αγαπώ"}), ("αστροσπαρμένος", {"αστρόσπαρτος"})]
+    apply_participle_references(pos_map, dict(reversed(items) if reverse else items),
+                               {"αγαπάω"})
+    assert pos_map["αγαπημένος"]["VERB"] == "αγαπάω"
+    assert "αστροσπαρμένος" not in pos_map
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_participle_top_reference_requires_one_existing_lexical_endpoint(reverse):
+    pos_map = {"γράφει": {"VERB": "γράφω"}, "λέει": {"VERB": "λέω"}}
+    items = [("έγκυρος", {"γράφει", "γράφω"}),
+             ("αμφίβολος", {"γράφει", "λέει"}),
+             ("εξαρτώμενος", {"άλλος"}), ("άλλος", {"γράφω"})]
+    apply_participle_references(pos_map, dict(reversed(items) if reverse else items),
+                               {"γράφω", "λέω"})
+    assert pos_map["έγκυρος"]["VERB"] == "γράφω"
+    assert "αμφίβολος" not in pos_map
+    assert pos_map["εξαρτώμενος"]["VERB"] == "γράφω"
+    assert pos_map["άλλος"]["VERB"] == "γράφω"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_participle_graph_keeps_finite_endpoints_and_rejects_isolated_cycles(reverse):
+    pos_map = {"συνάπτω": {"VERB": "συνημμένος"},
+               "συνημμένος": {"VERB": "συνημμένος"},
+               "πρώτος": {"VERB": "δεύτερος"},
+               "δεύτερος": {"VERB": "πρώτος"},
+               "τρίτος": {"VERB": "τέταρτος"},
+               "τέταρτος": {"VERB": "τρίτος"},
+               "πέμπτος": {"VERB": "πέμπτος"},
+               "έκτος": {"VERB": "έκτος"}}
+    items = [("συνημμένος", {"συνάπτω"}),
+             ("πρώτος", {"γράφω"}), ("δεύτερος", {"γράφω"}),
+             ("τρίτος", {"γράφω"}), ("τέταρτος", {"λέω"}),
+             ("πέμπτος", {"έκτος"}), ("έκτος", {"πέμπτος"})]
+    refs = dict(reversed(items) if reverse else items)
+    apply_participle_references(pos_map, refs,
+                               {"συνάπτω", "συνημμένος", "γράφω", "λέω", "πέμπτος", "έκτος"})
+    assert pos_map["συνάπτω"]["VERB"] == "συνάπτω"
+    assert pos_map["συνημμένος"]["VERB"] == "συνάπτω"
+    assert pos_map["πρώτος"]["VERB"] == pos_map["δεύτερος"]["VERB"] == "γράφω"
+    assert pos_map["τρίτος"]["VERB"] == "τέταρτος"
+    assert pos_map["τέταρτος"]["VERB"] == "τρίτος"
+    assert pos_map["πέμπτος"]["VERB"] == "πέμπτος"
+    assert pos_map["έκτος"]["VERB"] == "έκτος"
+
+
+def test_graph_cleanup_preserves_finite_endpoint_and_omits_unresolved_verbs():
+    lookup = {"φέρω": ("φέρνω", 3), "φέρνω": ("φέρνω", 3),
+              "φέρων": ("φέρων", 3), "φορτίο": ("φορτίο", 3),
+              "πρώτος": ("πρώτος", 3), "δεύτερος": ("δεύτερος", 3)}
+    pos_map = {"φέρων": {"VERB": "φέρω"}, "φέρω": {"VERB": "φέρω"},
+               "πρώτος": {"VERB": "δεύτερος"}, "δεύτερος": {"VERB": "πρώτος"}}
+    refs = {"φέρων": {"φέρω"}, "πρώτος": {"δεύτερος"}, "δεύτερος": {"πρώτος"}}
+    unresolved = apply_participle_references(pos_map, refs, {"φέρω", "φέρνω"})
+    roots = {word: pos_map[word]["VERB"] for word in refs if word not in unresolved}
+    pairs = [{"form": word, "lemma": word, "pos": "verb", "tags": []}
+             for word in refs]
+    pairs.append({"form": "πρώτος", "lemma": "φορτίο", "pos": "noun", "tags": []})
+    clean = clean_training_pairs(pairs, lookup, True, pos_map, {}, roots, unresolved)
+    assert {tuple((p["form"], p["lemma"], p["pos"])) for p in clean} == {
+        ("φέρων", "φέρω", "verb"), ("πρώτος", "φορτίο", "noun")}
+    # A non-graph finite-form reading retains the existing lookup behavior.
+    assert resolve_pair_lemma("φέρω", "verb", lookup, pos_map, {}, roots, unresolved) == "φέρνω"
+
+
+def test_tagged_head_metadata_does_not_expand_candidate_cleanup_scope():
+    pos_map = {"πρώτος": {"VERB": "πρώτος"}, "δεύτερος": {"VERB": "δεύτερος"}}
+    unresolved = apply_participle_references(
+        pos_map, {"πρώτος": {"δεύτερος"}}, {"δεύτερος"}, {"πρώτος", "δεύτερος"})
+    assert unresolved == {"πρώτος"}
+    assert pos_map["δεύτερος"]["VERB"] == "δεύτερος"
+
+
+def test_unresolved_graph_root_cannot_return_through_flat_alias():
+    lookup = {"τύπος": ("άγνωστος", 1), "άγνωστος": ("άγνωστος", 3)}
+    pair = {"form": "άλλος", "lemma": "τύπος", "pos": "verb", "tags": []}
+    assert clean_training_pairs([pair], lookup, True, {}, {"άγνωστος": {"verb"}},
+                                {}, {"άγνωστος"}) == []
+
+
+def test_a_sense_tagged_participle_cannot_be_a_finite_graph_endpoint(tmp_path):
+    dump = _write(tmp_path, [
+        {"word": "σκουντηγμένος", "pos": "verb",
+         "senses": [{"glosses": ["nudged, pushed"],
+                     "tags": ["participle", "masculine"]}]},
+        {"word": "σκουντημένος", "pos": "verb", "tags": ["participle"],
+         "form_of": [{"word": "σκουντηγμένος"}],
+         "senses": [{"glosses": ["που έχει σκουντηθεί"]}]},
+    ])
+    refs, heads, participles = {}, set(), set()
+    _, _, _, pos_map, *_ = extract_pairs(
+        dump, "el-el", participle_refs=refs, verb_heads=heads,
+        participle_heads=participles)
+    assert participles == {"σκουντηγμένος", "σκουντημένος"}
+    assert apply_participle_references(pos_map, refs, heads, participles) == {
+        "σκουντημένος"}
+
+
+def test_unresolved_participle_cannot_remove_its_independent_finite_verbs():
+    pos_map = {"ανεμοδέρνω": {"VERB": "ανεμοδαρμένος"},
+               "ανεμοδέρνομαι": {"VERB": "ανεμοδαρμένος"}}
+    refs = {"ανεμοδαρμένος": {"ανεμοδέρνω", "ανεμοδέρνομαι"}}
+    heads = {"ανεμοδέρνω", "ανεμοδέρνομαι"}
+    unresolved = apply_participle_references(pos_map, refs, heads)
+    assert unresolved == {"ανεμοδαρμένος"}
+    roots = {}
+    lookup = {word: ("ανεμοδαρμένος", 1) for word in heads | unresolved}
+    preserve_finite_verb_heads(pos_map, lookup, heads, roots, unresolved)
+    pairs = [{"form": word, "lemma": word, "pos": "verb", "tags": []}
+             for word in heads | unresolved]
+    clean = clean_training_pairs(pairs, lookup, True, pos_map, {}, roots, unresolved)
+    assert {(r["form"], r["lemma"]) for r in clean} == {(w, w) for w in heads}
+
+
+def test_nominal_top_reference_cannot_create_a_second_verb_endpoint():
+    pos_map = {"λόγιο": {"VERB": "συμβουλεύω"}}
+    refs = {"χρισμένος": {"χρίω", "λόγιο"}}
+    unresolved = apply_participle_references(
+        pos_map, refs, {"χρίω", "συμβουλεύω"}, {"χρισμένος"},
+        {"λόγιο": {"adj"}, "χρίω": {"verb"}, "συμβουλεύω": {"verb"}})
+    assert unresolved == set()
+    assert pos_map["χρισμένος"]["VERB"] == "χρίω"
+
+
+def test_main_keeps_graph_verb_separate_from_finite_form_homograph(tmp_path, monkeypatch):
+    import build_data
+    entries = [{"word": "φέρω", "pos": "verb", "senses": [{"glosses": ["carry"]}]},
+               {"word": "φέρω", "pos": "verb", "senses": [{"form_of": [{"word": "φέρνω"}]}]},
+               {"word": "φέρνω", "pos": "verb", "senses": [{"glosses": ["bring"]}]},
+               {"word": "φέρων", "pos": "verb", "tags": ["participle"],
+                "form_of": [{"word": "φέρω"}], "forms": [{"form": "φέροντα"}]},
+               {"word": "φορτίο", "pos": "noun", "forms": [{"form": "φέρων"}]}]
+    dump = _write(tmp_path, entries)
+    out = tmp_path / "out"
+    monkeypatch.setattr(build_data, "DATA_DIR", out)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"el": dump.name}})
+    monkeypatch.setattr("sys.argv", ["build_data.py", "--lang", "el", "--kaikki", str(tmp_path)])
+    build_data.main()
+    pairs = json.loads((out / "mg_pairs.json").read_text())
+    assert any(p["form"] == "φέροντα" and p["lemma"] == "φέρω" and p["pos"] == "verb" for p in pairs)
+    pos = json.loads((out / "mg_pos_lookup.json").read_text())
+    assert pos["φέρων"]["VERB"] == "φέρω"
 
 
 def test_main_keeps_noun_case_cells_after_lemma_resolution(tmp_path, monkeypatch):
