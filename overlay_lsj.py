@@ -378,6 +378,7 @@ def main() -> None:
     print(f"Pinned exclusions: {stats['excluded_entries']:,}")
     print(f"Already present: {stats['already_present']:,}")
     print(f"Current mapping conflicts preserved: {stats['conflicts_preserved']:,}")
+    print(f"Nonlexical generated lemma entries skipped: {stats['nonlexical_lemma_entries']:,}")
     print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
     print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
