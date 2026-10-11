@@ -1587,7 +1587,7 @@ def expand_all():
         # lemmas whose citation form starts with U+1FBF. sanitize_form()
         # reattaches the breathing to the base letter and NFC-composes.
         hw_clean = sanitize_form(hw)
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 # Accented version
                 if form not in lookup:
@@ -1695,7 +1695,7 @@ def expand_verbs():
 
         # See sanitize_form() rationale in expand_all() above.
         hw_clean = sanitize_form(hw)
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
                     lookup[form] = hw_clean

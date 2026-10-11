@@ -359,7 +359,7 @@ def expand_all():
 
         stats["expanded"] += 1
 
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
                     lookup[form] = hw
@@ -466,7 +466,7 @@ def expand_verbs():
 
         stats["expanded"] += 1
 
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
                     lookup[form] = hw
