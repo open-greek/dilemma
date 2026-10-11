@@ -7,6 +7,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `el_noun_heads.json` records independent noun senses and source hashes for
+  morphology owners that differ from the flat lookup. Data integrity checks
+  require this positive evidence for every such noun exception.
 - The polytonic Modern Greek list rates the frequent Modern Greek spellings
   grc has (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`), which it leaves out, with
   lines of their own, `θέση<TAB>fr:C mg:shared`: 6,301 of them, `C` or `M`
@@ -234,6 +237,12 @@ All notable changes to Dilemma are documented here. The format follows
   `καθηγητή` survive separately, allowing the exporter to produce the
   circumflex genitive and acute accusative and vocative. Exact duplicate
   rows are still removed; the JSON fields are unchanged.
+- An independently defined Modern Greek noun's table keeps its source
+  lemma when the same headword is also another noun's inflected form.
+  The masculine `σκιάς` and feminine `σκιά` retain separate cells instead
+  of pooling the masculine genitive under the feminine noun. Explicit
+  form-of and alternative-spelling entries still follow their references;
+  flat lookup arbitration and verb resolution are unchanged.
 - In the polytonic Modern Greek list, two paradigm cells of the same
   letters both go in, whatever their counts: the present `περπατᾷ`,
   `προχωρᾷ` and `τηλεφωνᾷ` are back beside the imperatives `περπάτα`,

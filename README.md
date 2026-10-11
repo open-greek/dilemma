@@ -367,6 +367,21 @@ row records `form`, `lemma`, original `pos: "verb"`, `kind` (`headword` or
 Inflection rows require an explicit case and number and exclude finite
 person or mood cells. Different source spellings and cells remain separate;
 only identical readings merge their source editions.
+An independently defined noun's own table also retains its source lemma
+in the training pairs, even when the flat lookup chooses an inflectional
+homograph. The masculine noun `σκιάς` and the feminine genitive `σκιάς`
+of `σκιά` therefore keep separate paradigms. Form-of and alternative-spelling
+entries still follow their explicit references; no ownership marker enters
+the output JSON, and flat lookup arbitration is unchanged.
+`data/el_noun_heads.json` documents the independent noun heads for which that
+flat choice differs, with exact source headwords, noun senses, tags, and
+SHA-256 hashes of the source editions. The version-1 envelope has
+`language: "el"`, `source_sha256`, and `heads`; each head retains all distinct
+qualifying source entries in `evidence`. Integrity checks permit a non-self-mapped
+noun lemma only when this companion contains valid independent evidence for
+that exact head. Inflection, alternative-spelling, and misspelling entries
+cannot authorize an exception. Both the command-line data check and pytest
+validate the built pairs against the lookup and this companion.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms

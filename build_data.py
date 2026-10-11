@@ -5,6 +5,8 @@ Scans both EN and EL Wiktionary dumps for Greek entries, extracts every
 inflected form -> lemma pair from inflection tables, form_of/alt_of
 references, and dialect-tagged paradigms. Produces:
   - data/mg_pairs.json: Modern Greek form->lemma training pairs
+  - data/el_participles.json: source-owned standalone participle morphology
+  - data/el_noun_heads.json: source evidence for independent noun owners
   - data/ag_pairs.json: Ancient Greek form->lemma training pairs
   - data/mg_lookup.json: flat lookup table {form: lemma}
   - data/ag_lookup.json: flat lookup table {form: lemma}
@@ -456,12 +458,46 @@ def drop_abbreviation_targets(targets: dict, abbreviations: Abbreviations,
     return len(dropped)
 
 
+_FORM_OF_PATTERNS = (
+    # EN Wiktionary patterns
+    " of ", " singular of ", " plural of ",
+    " form of ", " active of ", " passive of ",
+    " participle of ", " indicative of ",
+    # EL case/number
+    " πρόσωπο ", " ενικού ", " πληθυντικού ",
+    " γενική ", " αιτιατική ", " ονομαστική ",
+    " κλητική ", " δοτική ",
+    # EL gender
+    " αρσενικού ", " θηλυκού ", " ουδέτερου ",
+    # EL tense
+    " αορίστου ", " ενεστώτα ", " μέλλοντα ",
+    " παρατατικού ", " παρακειμένου ",
+    " στιγμιαίου ", " εξαρτημένου ", " συντελεσμένου ",
+    # EL mood
+    " οριστικής ", " υποτακτικής ", " προστακτικής ",
+    # EL voice
+    " ενεργητικού ", " παθητικού ",
+    " ρήματος ",
+    # EL verb/participle forms
+    " μετοχή ", " απαρέμφατο ",
+    # EL voice descriptions (gloss-initial)
+    "παθητική φωνή ", "μεσοπαθητική φωνή ",
+    "ενεργητική φωνή ",
+    # EL variant/alternative form
+    "μορφή του ", "μορφή τού ",
+    # EL diminutive/augmentative
+    "υποκοριστικό του ", "μεγεθυντικό του ",
+)
+
+_NOUN_REFERENCE_TAGS = frozenset({"form-of", "alternative", "misspelling"})
+
+
 def extract_pairs(jsonl_path: Path, lang: str,
                   skip_name_plurals: set = None, lemma_pos: dict = None,
                   participle_refs: dict = None, verb_heads: set = None,
                   participle_heads: set = None, verb_refs: dict = None,
                   participle_verb_refs: dict = None,
-                  participle_cells: list = None,
+                  participle_cells: list = None, noun_heads: list = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -698,36 +734,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 senses = entry.get("senses", [])
                 if senses:
                     gloss = (senses[0].get("glosses") or [""])[0].lower()
-                    _form_of_patterns = (
-                        # EN Wiktionary patterns
-                        " of ", " singular of ", " plural of ",
-                        " form of ", " active of ", " passive of ",
-                        " participle of ", " indicative of ",
-                        # EL case/number
-                        " πρόσωπο ", " ενικού ", " πληθυντικού ",
-                        " γενική ", " αιτιατική ", " ονομαστική ",
-                        " κλητική ", " δοτική ",
-                        # EL gender
-                        " αρσενικού ", " θηλυκού ", " ουδέτερου ",
-                        # EL tense
-                        " αορίστου ", " ενεστώτα ", " μέλλοντα ",
-                        " παρατατικού ", " παρακειμένου ",
-                        " στιγμιαίου ", " εξαρτημένου ", " συντελεσμένου ",
-                        # EL mood
-                        " οριστικής ", " υποτακτικής ", " προστακτικής ",
-                        # EL voice
-                        " ενεργητικού ", " παθητικού ",
-                        " ρήματος ",
-                        # EL verb/participle forms
-                        " μετοχή ", " απαρέμφατο ",
-                        # EL voice descriptions (gloss-initial)
-                        "παθητική φωνή ", "μεσοπαθητική φωνή ",
-                        "ενεργητική φωνή ",
-                        # EL variant/alternative form
-                        "μορφή του ", "μορφή τού ",
-                        # EL diminutive/augmentative
-                        "υποκοριστικό του ", "μεγεθυντικό του ",
-                    )
+                    _form_of_patterns = _FORM_OF_PATTERNS
                     if any(p in gloss for p in _form_of_patterns):
                         is_form_of_page = True
             if (verb_heads is not None and pos == "verb" and not sense_has_form_of
@@ -751,6 +758,30 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # a spelling (the dative φωνῇ of φωνή), and is read as before.
             spelling_of = (spelling_target(lemma, entry.get("senses") or [])
                            if modern_greek else None)
+            # A lexical noun's own table does not belong to an inflectional
+            # homograph of its headword. Keep that ownership through pair
+            # cleanup even when the flat lookup chooses the other reading.
+            noun_owner = (modern_greek and pos == "noun"
+                          and not is_form_of_page and spelling_of is None
+                          and not _NOUN_REFERENCE_TAGS.intersection(entry.get("tags") or [])
+                          and not any(_NOUN_REFERENCE_TAGS.intersection(s.get("tags") or [])
+                                      for s in entry.get("senses", []))
+                          and any(s.get("glosses")
+                                  and "no-gloss" not in s.get("tags", [])
+                                  for s in entry.get("senses", [])))
+            if noun_owner and noun_heads is not None:
+                noun_heads.append({
+                    "lemma": lemma, "source": wikt_source,
+                    "headword": entry["word"], "pos": pos,
+                    "tags": sorted(set(entry.get("tags") or [])),
+                    "form_of": entry.get("form_of") or [],
+                    "alt_of": entry.get("alt_of") or [],
+                    "senses": [
+                        {key: sense.get(key) or []
+                         for key in ("glosses", "tags", "form_of", "alt_of")}
+                        for sense in entry.get("senses") or []
+                    ],
+                })
             # Closed-class capitals like Αυτής (formal pronoun) must not
             # hijack the lowercase αυτής key from regular αυτής -> αυτός.
             _cc_cap = (pos in ("pron", "det", "adj")
@@ -1156,6 +1187,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     "pos": pos,
                     "tags": morph_tags,
                 }
+                if noun_owner:
+                    pair["noun_owner"] = True
                 if (is_participle and participle_cells is not None
                         and _is_nominal_participle_cell(morph_tags)):
                     participle_cells.append({
@@ -1323,7 +1356,7 @@ def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
         key = (pair["form"], pair["lemma"])
         if preserve_cells:
             key += (pair.get("pos", ""), tuple(sorted(set(pair.get("tags", [])))),
-                    pair.get("via"))
+                    pair.get("via"), bool(pair.get("noun_owner")))
         if key not in seen:
             seen.add(key)
             result.append(pair)
@@ -1374,6 +1407,106 @@ def standalone_participle_inventory(cells: list, unresolved: set) -> dict:
         ],
     }
 
+
+
+def noun_head_inventory(records: list, lookup: dict, source_hashes: dict) -> dict:
+    """Document independent noun heads not representable by one flat reading."""
+    grouped = {}
+    for record in records:
+        lemma = record["lemma"]
+        if lookup.get(lemma, (None,))[0] == lemma:
+            continue
+        evidence = {key: value for key, value in record.items() if key != "lemma"}
+        key = json.dumps(evidence, ensure_ascii=False, sort_keys=True)
+        grouped.setdefault(lemma, {})[key] = evidence
+    return {
+        "schema_version": 1, "language": "el",
+        "source_sha256": dict(sorted(source_hashes.items())),
+        "heads": [{"lemma": lemma, "evidence": [rows[key] for key in sorted(rows)]}
+                  for lemma, rows in sorted(grouped.items())],
+    }
+
+
+def validate_noun_head_inventory(inventory: dict) -> set:
+    """Return positively supported heads, rejecting malformed or form evidence.
+
+    The input hashes identify the source editions. Evidence retains their
+    exact headword and senses, so a noun exception cannot be authorized by
+    an inflection, spelling reference, empty definition, or another head.
+    """
+    def fail(message):
+        raise ValueError("Invalid noun-head evidence: " + message)
+
+    if (not isinstance(inventory, dict) or inventory.get("schema_version") != 1
+            or inventory.get("language") != "el"):
+        fail("expected schema_version 1 and language el")
+    hashes = inventory.get("source_sha256")
+    if (not isinstance(hashes, dict) or not hashes
+            or any(source not in {"en", "el"} or not isinstance(value, str)
+                   or re.fullmatch(r"[0-9a-f]{64}", value) is None
+                   for source, value in hashes.items())):
+        fail("missing source edition hashes")
+    rows = inventory.get("heads")
+    if not isinstance(rows, list):
+        fail("heads must be a list")
+    result = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            fail("head must be an object")
+        lemma, evidence = row.get("lemma"), row.get("evidence")
+        if not isinstance(lemma, str) or not lemma or lemma in result:
+            fail("missing or duplicate lemma")
+        if not isinstance(evidence, list) or not evidence:
+            fail("missing independent evidence for " + lemma)
+        for entry in evidence:
+            if (not isinstance(entry, dict)
+                    or set(entry) != {"source", "headword", "pos", "tags", "senses",
+                                      "form_of", "alt_of"}):
+                fail("incomplete source entry for " + lemma)
+            source, word = entry["source"], entry["headword"]
+            if (source not in hashes or entry["pos"] != "noun"
+                    or not isinstance(word, str) or strip_length_marks(word) != lemma):
+                fail("wrong source head or part of speech for " + lemma)
+            tags, senses = entry["tags"], entry["senses"]
+            if (not isinstance(tags, list) or not all(isinstance(t, str) for t in tags)
+                    or _NOUN_REFERENCE_TAGS.intersection(tags)
+                    or not isinstance(senses, list) or not senses):
+                fail("nonlexical noun evidence for " + lemma)
+            if (not isinstance(entry["form_of"], list)
+                    or not isinstance(entry["alt_of"], list)
+                    or (source != "el" and (entry["form_of"] or entry["alt_of"]))):
+                fail("reference-only head for " + lemma)
+            substantive = False
+            for sense in senses:
+                if (not isinstance(sense, dict)
+                        or set(sense) != {"glosses", "tags", "form_of", "alt_of"}
+                        or not all(isinstance(sense[k], list) for k in sense)
+                        or not all(isinstance(g, str) and g.strip() for g in sense["glosses"])
+                        or not all(isinstance(t, str) for t in sense["tags"])
+                        or sense["form_of"] or sense["alt_of"]
+                        or _NOUN_REFERENCE_TAGS.intersection(sense["tags"])):
+                    fail("form or malformed sense for " + lemma)
+                substantive |= bool(sense["glosses"] and "no-gloss" not in sense["tags"])
+            first_gloss = (senses[0]["glosses"] or [""])[0].lower()
+            if (not substantive or any(p in first_gloss for p in _FORM_OF_PATTERNS)
+                    or spelling_target(lemma, senses) is not None):
+                fail("no independent lexical sense for " + lemma)
+        result.add(lemma)
+    return result
+
+
+def training_pair_headword_errors(pairs: list, lookup: dict,
+                                  noun_heads: set = frozenset()) -> tuple:
+    """Keep flat-head validation except for independently evidenced nouns."""
+    count, examples = 0, []
+    for pair in pairs:
+        lemma = pair["lemma"]
+        if (lemma in lookup and lookup[lemma] != lemma
+                and not (pair.get("pos") == "noun" and lemma in noun_heads)):
+            count += 1
+            if len(examples) < 5:
+                examples.append(f"{pair['form']} -> {lemma} -> {lookup[lemma]}")
+    return count, examples
 
 def apply_participle_references(pos_map: dict, references: dict,
                                verb_heads: set,
@@ -1587,6 +1720,8 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
     graph_heads = set((participle_roots or {}).values())
     result = []
     for pair in deduplicate_pairs(pairs, preserve_cells):
+        noun_owner = (preserve_cells and pair.get("pos") == "noun"
+                      and pair.get("noun_owner") and not pair.get("via"))
         own_root = (preserve_cells and pair.get("pos") == "verb"
                     and pair.get("via") in unresolved_verbs
                     and pair["lemma"] in (participle_roots or {}))
@@ -1606,13 +1741,13 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
             # The POS check below makes this fallback safe from homographs.
             candidates.append(pair["lemma"])
         for lemma in candidates:
-            resolved = resolve_pair_lemma(
+            resolved = pair["lemma"] if noun_owner else resolve_pair_lemma(
                 lemma, pair.get("pos", "") if preserve_cells else "name", lookup,
                 pos_map if preserve_cells else None,
                 lemma_pos if preserve_cells else None,
                 participle_roots if preserve_cells else None,
                 unresolved_verbs if preserve_cells else frozenset())
-            if (resolved not in headwords
+            if (not noun_owner and resolved not in headwords
                     and not (pair.get("pos") == "verb" and resolved in graph_heads)):
                 continue
             result.append({"form": pair["form"], "lemma": resolved,
@@ -1701,6 +1836,7 @@ def main():
         verb_refs = {}
         participle_verb_refs = {}
         participle_cells = []
+        noun_heads, noun_source_hashes = [], {}
         participle_roots, unresolved_verbs = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
 
@@ -1728,7 +1864,8 @@ def main():
                 participle_refs=participle_refs, verb_heads=verb_heads,
                 participle_heads=participle_heads, verb_refs=verb_refs,
                 participle_verb_refs=participle_verb_refs,
-                participle_cells=participle_cells if lang == "el" else None)
+                participle_cells=participle_cells if lang == "el" else None,
+                noun_heads=noun_heads if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -1760,7 +1897,8 @@ def main():
                 participle_refs=participle_refs, verb_heads=verb_heads,
                 participle_heads=participle_heads, verb_refs=verb_refs,
                 participle_verb_refs=participle_verb_refs,
-                participle_cells=participle_cells if lang == "el" else None)
+                participle_cells=participle_cells if lang == "el" else None,
+                noun_heads=noun_heads if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -1771,6 +1909,16 @@ def main():
             source_lookups.append((wikt_lang, lookup, headwords))
             # Merge POS map
             merge_pos_maps(all_pos_map, pos_map, prefer_verb_refs=(lang == "el"))
+
+        if lang == "el":
+            import hashlib
+            for source, _, _ in source_lookups:
+                path = resolve_dump(DUMPS[lang][source], dump_dir)
+                with path.open("rb") as stream:
+                    digest = hashlib.sha256()
+                    for block in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(block)
+                    noun_source_hashes[source] = digest.hexdigest()
 
         # Collect headword sets by source for confidence scoring
         en_headwords = set()
@@ -1902,6 +2050,14 @@ def main():
                 all_pos_map, all_lookup,
                 verb_heads - participle_heads - participle_refs.keys(),
                 participle_roots, unresolved_verbs)
+            noun_inventory = noun_head_inventory(noun_heads, all_lookup, noun_source_hashes)
+            validate_noun_head_inventory(noun_inventory)
+            noun_heads_path = DATA_DIR / "el_noun_heads.json"
+            with noun_heads_path.open("w", encoding="utf-8") as f:
+                json.dump(noun_inventory, f, ensure_ascii=False, indent=2)
+                f.write("\n")
+            print(f"Independent noun heads: {len(noun_inventory['heads']):,}")
+            print(f"  -> {noun_heads_path}")
             inventory = standalone_participle_inventory(
                 participle_cells, unresolved_verbs)
             participles_path = DATA_DIR / "el_participles.json"

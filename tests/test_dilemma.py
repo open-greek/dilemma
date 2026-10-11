@@ -14,7 +14,13 @@ import json
 import sys
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = ROOT / "data"
+
+# The file also supports direct execution from outside the repository.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from build_data import training_pair_headword_errors, validate_noun_head_inventory
 
 
 def check_lookup_no_chains(lookup: dict) -> tuple[int, int, list[str]]:
@@ -40,6 +46,23 @@ def check_lookup_lemmas_are_headwords(lookup: dict) -> tuple[int, int, list[str]
     examples = sorted(list(missing))[:10]
     return len(missing), len(lemmas), examples
 
+
+
+def test_modern_training_pair_heads_have_real_source_evidence():
+    """Run the actual pair/flat-lookup invariant in the normal pytest suite."""
+    import pytest
+
+    pairs_path, lookup_path = DATA_DIR / "mg_pairs.json", DATA_DIR / "mg_lookup.json"
+    if not pairs_path.exists() or not lookup_path.exists():
+        pytest.skip("Modern Greek built pairs and lookup are not installed")
+    evidence_path = DATA_DIR / "el_noun_heads.json"
+    assert evidence_path.exists(), "Missing el_noun_heads.json; rebuild Modern Greek data"
+    noun_heads = validate_noun_head_inventory(
+        json.loads(evidence_path.read_text(encoding="utf-8")))
+    pairs = json.loads(pairs_path.read_text(encoding="utf-8"))
+    lookup = json.loads(lookup_path.read_text(encoding="utf-8"))
+    bad, examples = training_pair_headword_errors(pairs, lookup, noun_heads)
+    assert bad == 0, f"{bad} unsupported training pair heads: {examples}"
 
 def get_known_pairs() -> list[dict]:
     """Curated test cases across varieties. Returns list of {form, lemma, variety}."""
@@ -187,14 +210,16 @@ def run_lookup_tests():
             continue
         pairs = json.load(open(pairs_path, encoding="utf-8"))
         lookup = json.load(open(lookup_path, encoding="utf-8"))
-        bad = 0
-        bad_ex = []
-        for p in pairs:
-            lemma = p["lemma"]
-            if lemma in lookup and lookup[lemma] != lemma:
-                bad += 1
-                if len(bad_ex) < 5:
-                    bad_ex.append(f"{p['form']} -> {lemma} -> {lookup[lemma]}")
+        noun_heads = set()
+        if prefix == "mg":
+            evidence_path = DATA_DIR / "el_noun_heads.json"
+            try:
+                noun_heads = validate_noun_head_inventory(
+                    json.loads(evidence_path.read_text(encoding="utf-8")))
+            except (OSError, ValueError) as error:
+                results.append(("FAIL", "MG noun-head evidence"))
+                print(f"  [FAIL] MG noun-head evidence: {error}")
+        bad, bad_ex = training_pair_headword_errors(pairs, lookup, noun_heads)
         status = "PASS" if bad == 0 else "FAIL"
         results.append((status, f"{name} training pair lemmas clean"))
         print(f"\n  [{status}] {name} training pair lemmas clean: {bad}/{len(pairs)} dirty")

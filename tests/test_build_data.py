@@ -13,7 +13,8 @@ from build_data import (Abbreviations, _parse_verb_tense, apply_participle_refer
                         merge_pos_maps, merge_source_lookups, resolve_cross_source,
                         preserve_finite_verb_heads, resolve_pair_lemma,
                         spelling_target, standalone_participle_inventory,
-                        vowel_groups)
+                        vowel_groups, noun_head_inventory,
+                        validate_noun_head_inventory, training_pair_headword_errors)
 
 
 def test_source_merge_prefers_a_lowercase_verb_to_another_sources_name(tmp_path):
@@ -1278,3 +1279,192 @@ def test_resolved_participle_owner_precedes_its_unresolved_alias(tmp_path):
         [row], lookup, preserve_cells=True, pos_map=pos_map,
         lemma_pos=pos_evidence, participle_roots={},
         unresolved_verbs=unresolved) == []
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_independent_noun_table_keeps_its_owner_beside_form_homograph(tmp_path, reverse):
+    entries = [
+        {"word": "σκιά", "pos": "noun", "senses": [{"glosses": ["shadow"]}],
+         "forms": [{"form": "σκιά", "tags": ["nominative", "singular"]},
+                   {"form": "σκιάς", "tags": ["genitive", "singular"]}]},
+        {"word": "σκιάς", "pos": "noun", "senses": [{"glosses": ["robber"]}],
+         "forms": [{"form": "σκιάς", "tags": ["masculine"]},
+                   {"form": "σκιάς", "tags": ["nominative", "singular"]},
+                   {"form": "σκιά", "tags": ["genitive", "singular"]}]},
+        {"word": "σκιάς", "pos": "noun",
+         "senses": [{"glosses": ["genitive singular of σκιά"],
+                     "form_of": [{"word": "σκιά"}]}],
+         "forms": [{"form": "σκιάς", "tags": ["feminine"]}]},
+    ]
+    pairs, _, *_ = extract_pairs(_write(tmp_path, entries[::-1] if reverse else entries), "el-el")
+    # The flat lookup is allowed to choose the feminine reading. It cannot
+    # change the separate masculine source table's owner.
+    lookup = {"σκιά": ("σκιά", 3), "σκιάς": ("σκιά", 1)}
+    cleaned = clean_training_pairs(pairs, lookup, preserve_cells=True)
+    cells = {(r["form"], r["lemma"], tuple(sorted(r["tags"]))) for r in cleaned}
+    assert ("σκιά", "σκιάς", ("genitive", "singular")) in cells
+    assert ("σκιάς", "σκιάς", ("nominative", "singular")) in cells
+    assert ("σκιάς", "σκιά", ("genitive", "singular")) in cells
+    assert ("σκιάς", "σκιά", ("feminine",)) in cells
+    assert all(set(r) == {"form", "lemma", "pos", "tags"} for r in cleaned)
+
+
+def test_noun_ownership_does_not_override_form_or_alternative_references(tmp_path):
+    entries = [
+        {"word": "τύπου", "pos": "noun",
+         "senses": [{"glosses": ["genitive of τύπος"],
+                     "form_of": [{"word": "τύπος"}]}],
+         "forms": [{"form": "τύπου", "tags": ["genitive", "singular"]}]},
+        {"word": "τυπάκι", "pos": "noun",
+         "senses": [{"glosses": ["alternative spelling of τυπάκιο"],
+                     "alt_of": [{"word": "τυπάκιο"}]}],
+         "forms": [{"form": "τυπάκια", "tags": ["nominative", "plural"]}]},
+        {"word": "Μεγαλειότατε", "pos": "noun",
+         "tags": ["form-of", "singular", "vocative"],
+         "form_of": [{"word": "μεγαλειότατος"}],
+         "senses": [{"glosses": ["addressing an emperor or king"]}],
+         "forms": [{"form": "Μεγαλειότατε", "tags": ["masculine"]}]},
+        {"word": "τίτλε", "pos": "noun",
+         "senses": [{"tags": ["form-of"], "glosses": ["addressing someone by title"]}],
+         "forms": [{"form": "τίτλε", "tags": ["vocative"]}]},
+        {"word": "τύπωμα", "pos": "noun", "tags": ["alternative"],
+         "senses": [{"glosses": ["a printed impression"]}],
+         "forms": [{"form": "τύπωμα", "tags": ["nominative", "singular"]}]},
+    ]
+    pairs, _, *_ = extract_pairs(_write(tmp_path, entries), "el-el")
+    assert not any(r.get("noun_owner") for r in pairs)
+    lookup = {"τύπου": ("τύπος", 1), "τύπος": ("τύπος", 3),
+              "τυπάκι": ("τυπάκιο", 1), "τυπάκιο": ("τυπάκιο", 3),
+              "Μεγαλειότατε": ("μεγαλειότατος", 1),
+              "μεγαλειότατος": ("μεγαλειότατος", 3),
+              "τίτλε": ("τίτλος", 1), "τίτλος": ("τίτλος", 3),
+              "τύπωμα": ("τύπος", 1)}
+    cleaned = clean_training_pairs(pairs, lookup, preserve_cells=True)
+    assert {r["lemma"] for r in cleaned} == {"τύπος", "τυπάκιο", "μεγαλειότατος", "τίτλος"}
+    ancient, *_ = extract_pairs(_write(tmp_path, entries), "grc-el")
+    assert not any(r.get("noun_owner") for r in ancient)
+
+
+def test_internal_noun_ownership_survives_deduplication():
+    row = {"form": "σκιά", "lemma": "σκιάς", "pos": "noun",
+           "tags": ["genitive", "singular"]}
+    owned = {**row, "noun_owner": True}
+    lookup = {"σκιά": ("σκιά", 3), "σκιάς": ("σκιά", 1)}
+    expected = {("σκιά", "σκιά"), ("σκιά", "σκιάς")}
+    for pairs in ([row, owned], [owned, row]):
+        assert len(deduplicate_pairs(pairs, preserve_cells=True)) == 2
+        assert {(r["form"], r["lemma"]) for r in clean_training_pairs(
+            pairs, lookup, preserve_cells=True)} == expected
+
+
+def _noun_evidence(tmp_path):
+    records = []
+    entry = {"word": "σκιάς", "pos": "noun", "senses": [{"glosses": ["robber"]}],
+             "forms": [{"form": "σκιά", "tags": ["genitive", "singular"]}]}
+    extract_pairs(_write(tmp_path, [entry]), "el-el", noun_heads=records)
+    return noun_head_inventory(records, {"σκιάς": ("σκιά", 1)}, {"el": "a" * 64})
+
+
+def test_noun_head_evidence_is_deterministic_and_authorizes_only_exact_nouns(tmp_path):
+    records = []
+    entries = [{"word": "σκιάς", "pos": "noun",
+                "senses": [{"glosses": [gloss]}]} for gloss in ["robber", "uncouth man"]]
+    extract_pairs(_write(tmp_path, entries), "el-el", noun_heads=records)
+    lookup = {"σκιάς": ("σκιά", 1), "σκιά": ("σκιά", 3)}
+    inventory = noun_head_inventory(records + records, lookup, {"el": "a" * 64})
+    assert inventory == noun_head_inventory(records[::-1], lookup, {"el": "a" * 64})
+    assert len(inventory["heads"][0]["evidence"]) == 2
+    heads = validate_noun_head_inventory(inventory)
+    pairs = [{"form": "σκιά", "lemma": "σκιάς", "pos": "noun"},
+             {"form": "σκιά", "lemma": "σκιάς", "pos": "verb"}]
+    assert training_pair_headword_errors(pairs, {k: v[0] for k, v in lookup.items()}, heads)[0] == 1
+    assert training_pair_headword_errors(pairs, {k: v[0] for k, v in lookup.items()})[0] == 2
+    assert noun_head_inventory(records, {"σκιάς": ("σκιάς", 3)}, {"el": "a" * 64})["heads"] == []
+
+
+@pytest.mark.parametrize("change", [
+    "wrong_head", "wrong_pos", "wrong_source", "missing_hash", "empty_evidence",
+    "missing_tags", "empty_gloss", "no_gloss", "form_tag", "alternative_tag",
+    "misspelling_tag", "sense_form", "sense_alternative", "sense_form_tag",
+    "reference_gloss", "top_reference", "duplicate_head",
+])
+def test_noun_head_evidence_rejects_missing_or_forged_support(tmp_path, change):
+    inventory = _noun_evidence(tmp_path)
+    row = inventory["heads"][0]
+    evidence = row["evidence"][0]
+    sense = evidence["senses"][0]
+    if change == "wrong_head": evidence["headword"] = "σκιά"
+    elif change == "wrong_pos": evidence["pos"] = "verb"
+    elif change == "wrong_source": evidence["source"] = "other"
+    elif change == "missing_hash": inventory["source_sha256"] = {}
+    elif change == "empty_evidence": row["evidence"] = []
+    elif change == "missing_tags": del evidence["tags"]
+    elif change == "empty_gloss": sense["glosses"] = []
+    elif change == "no_gloss": sense["tags"] = ["no-gloss"]
+    elif change == "form_tag": evidence["tags"] = ["form-of"]
+    elif change == "alternative_tag": evidence["tags"] = ["alternative"]
+    elif change == "misspelling_tag": evidence["tags"] = ["misspelling"]
+    elif change == "sense_form": sense["form_of"] = [{"word": "σκιά"}]
+    elif change == "sense_alternative": sense["alt_of"] = [{"word": "σκιά"}]
+    elif change == "sense_form_tag": sense["tags"] = ["form-of"]
+    elif change == "reference_gloss": sense["glosses"] = ["genitive singular of σκιά"]
+    elif change == "top_reference":
+        evidence["source"] = "en"
+        inventory["source_sha256"] = {"en": "b" * 64}
+        evidence["form_of"] = [{"word": "σκιά"}]
+    elif change == "duplicate_head": inventory["heads"].append(row)
+    with pytest.raises(ValueError, match="noun-head evidence"):
+        validate_noun_head_inventory(inventory)
+
+
+def test_noun_evidence_excludes_form_tags_but_keeps_independent_el_etymology(tmp_path):
+    records = []
+    entries = [
+        {"word": "ποτήρι", "pos": "noun", "form_of": [{"word": "ποτήριον"}],
+         "senses": [{"glosses": ["drinking glass"]}]},
+        {"word": "Μεγαλειότατε", "pos": "noun", "tags": ["form-of"],
+         "senses": [{"glosses": ["addressing an emperor or king"]}]},
+        {"word": "τύπου", "pos": "noun", "senses": [{"form_of": [{"word": "τύπος"}]}]},
+    ]
+    extract_pairs(_write(tmp_path, entries), "el-el", noun_heads=records)
+    assert [r["lemma"] for r in records] == ["ποτήρι"]
+    inventory = noun_head_inventory(records, {}, {"el": "a" * 64})
+    assert validate_noun_head_inventory(inventory) == {"ποτήρι"}
+
+
+def test_main_emits_noun_head_companion_with_exact_input_hashes(tmp_path, monkeypatch):
+    import hashlib
+    import build_data
+
+    source = tmp_path / "source"
+    source.mkdir()
+    en = source / "en.jsonl"
+    el = source / "el.jsonl"
+    en.write_text(json.dumps({"word": "σκιάς", "pos": "noun", "senses": [
+        {"form_of": [{"word": "σκιά"}], "glosses": ["genitive of σκιά"]}
+    ]}, ensure_ascii=False) + "\n", encoding="utf-8")
+    entries = [
+        {"word": "σκιά", "pos": "noun", "senses": [{"glosses": ["shadow"]}],
+         "forms": [{"form": "σκιάς", "tags": ["genitive", "singular"]}]},
+        {"word": "σκιάς", "pos": "noun", "senses": [{"glosses": ["robber"]}],
+         "forms": [{"form": "σκιά", "tags": ["genitive", "singular"]}]},
+    ]
+    el.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries), encoding="utf-8")
+    output = tmp_path / "data"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"en": "en.jsonl", "el": "el.jsonl"}})
+    monkeypatch.setattr(build_data.sys, "argv", ["build_data.py", "--lang", "el", "--kaikki", str(source)])
+    build_data.main()
+    inventory = json.loads((output / "el_noun_heads.json").read_text())
+    assert inventory["source_sha256"] == {
+        "en": hashlib.sha256(en.read_bytes()).hexdigest(),
+        "el": hashlib.sha256(el.read_bytes()).hexdigest(),
+    }
+    assert validate_noun_head_inventory(inventory) == {"σκιάς"}
+    pairs = json.loads((output / "mg_pairs.json").read_text())
+    lookup = json.loads((output / "mg_lookup.json").read_text())
+    assert lookup["σκιάς"] == "σκιά"
+    assert training_pair_headword_errors(pairs, lookup)[0] > 0
+    assert training_pair_headword_errors(pairs, lookup, {"σκιάς"})[0] == 0
+    assert (output / "el_participles.json").exists()
+    assert all(set(p) == {"form", "lemma", "pos", "tags"} for p in pairs)
