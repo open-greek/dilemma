@@ -7,6 +7,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Ancient English form senses with nested translations retain their source
+  readings under the defined parent verb instead of creating a separate head.
 - Ancient source aliases preserve existing citation accents instead of
   matching a different headword after removing them. Missing accents may
   still be supplied from a uniquely supported head.

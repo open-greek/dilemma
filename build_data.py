@@ -1943,6 +1943,13 @@ def is_independent_lexical_entry(entry: dict, source: str) -> bool:
                    or reference_tags.intersection(s.get("tags") or []) for s in senses)):
         return False
     return any("no-gloss" not in (s.get("tags") or [])
+               # English form senses retain their grammatical header and
+               # nested translation in one list. The child translation
+               # does not define another head. Greek entries can instead
+               # cite a present first-person head before its own meanings.
+               and not (source == "en" and entry.get("pos") == "verb"
+                        and s.get("glosses")
+                        and _is_verb_inflection_gloss(s["glosses"][0]))
                and any(g.strip() and not _is_closed_class_inflection_gloss(g)
                        and not _is_ancient_reference_gloss(g, entry.get("pos"))
                        for g in s.get("glosses") or []) for s in senses)
