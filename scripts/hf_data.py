@@ -54,6 +54,8 @@ TRACKED = [
     "data/el_participles.json",
     # Independent noun heads retained beside flat-lookup homographs.
     "data/el_noun_heads.json",
+    # Independent finite verb heads selected by the source reference graph.
+    "data/el_verb_heads.json",
 ]
 
 _CHUNK = 1 << 20
