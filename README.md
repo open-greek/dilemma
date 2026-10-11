@@ -309,6 +309,10 @@ Cross-source form references preserve cycles in every Greek language dataset.
 A noun and verb can each have an inflection spelled like the other's headword:
 `ἔργον` (work) and `ἔργω` (enclose) retain separate lemmas and paradigms instead
 of collapsing according to the order of the source entries.
+Ancient training pairs retain each source morphological reading. Their table
+owners and same-part-of-speech references resolve to independently defined
+heads before the flat lookup: `ἀλέομαι` (shun) keeps its own table, while the
+same spelling in the conjugation of `ἀλέω` (grind) still belongs to `ἀλέω`.
 
 In the Modern Greek dumps a capitalized page (a name, an abbreviation, a
 heading in sentence case) reaches its lowercase keys only where no

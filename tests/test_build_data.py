@@ -271,14 +271,18 @@ def test_main_preserves_ancient_noun_and_verb_in_reference_cycle(tmp_path, monke
     entries = [
         {"word": "ἔργον", "pos": "noun",
          "senses": [{"glosses": ["work, deed"]}],
-         "forms": [{"form": "ἔργα", "tags": ["nominative", "plural"]}]},
+         "forms": [{"form": "ἔργον", "tags": ["canonical"]},
+                   {"form": "ἔργα", "tags": ["nominative", "plural"]}]},
         {"word": "ἔργω", "pos": "verb",
          "senses": [{"glosses": ["to enclose"]}],
-         "forms": [{"form": "ἔργεις", "tags": ["present", "second-person"]}]},
+         "forms": [{"form": "ἔργω", "tags": ["canonical"]},
+                   {"form": "ἔργεις", "tags": ["present", "second-person"]}]},
         {"word": "ἔργον", "pos": "verb",
-         "senses": [{"form_of": [{"word": "ἔργω"}]}]},
+         "senses": [{"form_of": [{"word": "ἔργω"}]}],
+         "forms": [{"form": "ἔργουσα", "tags": ["feminine"]}]},
         {"word": "ἔργω", "pos": "noun",
-         "senses": [{"form_of": [{"word": "ἔργον"}]}]},
+         "senses": [{"form_of": [{"word": "ἔργον"}]}],
+         "forms": [{"form": "ἔργω", "tags": ["dual", "nominative"]}]},
         {"word": "λόγον", "pos": "noun",
          "senses": [{"form_of": [{"word": "λόγος"}]}]},
         {"word": "λόγος", "pos": "noun",
@@ -300,6 +304,49 @@ def test_main_preserves_ancient_noun_and_verb_in_reference_cycle(tmp_path, monke
                and row["pos"] == "noun" for row in pairs)
     assert any(row["form"] == "ἔργεις" and row["lemma"] == "ἔργω"
                and row["pos"] == "verb" for row in pairs)
+    assert {row["lemma"] for row in pairs if row["form"] == "ἔργουσα"} == {"ἔργω"}
+    assert {row["lemma"] for row in pairs if row["form"] == "ἔργω"
+            and row["pos"] == "noun"} == {"ἔργον"}
+    pos = json.loads((output / "ag_pos_lookup.json").read_text())
+    assert pos["ἔργω"]["NOUN"] == "ἔργον"
+    assert pos["ἔργον"]["VERB"] == "ἔργω"
+    assert all("via" not in row for row in pairs)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_ancient_independent_homographs_keep_their_own_tables(tmp_path, reverse):
+    entries = [
+        {"word": "ταμία", "pos": "noun",
+         "senses": [{"glosses": ["female housekeeper"]}],
+         "forms": [{"form": "ταμίαι", "tags": ["plural", "nominative"]}]},
+        {"word": "ταμία", "pos": "noun",
+         "senses": [{"form_of": [{"word": "ταμίας"}]}],
+         "forms": [{"form": "ταμία", "tags": ["vocative", "singular"]}]},
+        {"word": "ταμίας", "pos": "noun",
+         "senses": [{"glosses": ["male steward"]}],
+         "forms": [{"form": "ταμία", "tags": ["vocative", "singular"]}]},
+        {"word": "ἀλέομαι", "pos": "verb",
+         "senses": [{"glosses": ["to shun"]}],
+         "forms": [{"form": "ἀλέεται", "tags": ["present", "third-person", "singular"]}]},
+        {"word": "ἀλέομαι", "pos": "verb",
+         "senses": [{"form_of": [{"word": "ἀλέω"}]}],
+         "forms": [{"form": "ἀλέεται", "tags": ["present", "third-person", "singular"]}]},
+        {"word": "ἀλέω", "pos": "verb",
+         "senses": [{"glosses": ["to grind"]}],
+         "forms": [{"form": "ἀλέομαι", "tags": ["present", "first-person", "singular"]}]},
+    ]
+    heads = {}
+    pairs, _, _, pos_map, *_ = extract_pairs(
+        _write(tmp_path, entries[::-1] if reverse else entries), "grc-en", lexical_heads=heads)
+    # Both lexical heads survived the reciprocal-reference pass. A page's
+    # own table and another reading's reference table must remain distinct.
+    lookup = {word: (word, 4) for word in ("ταμία", "ταμίας", "ἀλέομαι", "ἀλέω")}
+    clean = clean_training_pairs(pairs, lookup, pos_map=pos_map, lexical_heads=heads)
+    assert {r["lemma"] for r in clean if r["form"] == "ταμίαι"} == {"ταμία"}
+    assert {r["lemma"] for r in clean if r["form"] == "ταμία"
+            and "vocative" in r["tags"]} == {"ταμίας"}
+    assert {r["lemma"] for r in clean if r["form"] == "ἀλέεται"} == {"ἀλέομαι", "ἀλέω"}
+    assert all("via" not in row for row in clean)
 
 
 def test_pair_deduplication_preserves_each_morphological_cell():

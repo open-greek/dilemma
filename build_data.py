@@ -500,6 +500,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   participle_verb_refs: dict = None,
                   participle_cells: list = None, noun_heads: list = None,
                   closed_class_heads: dict = None, closed_head_records: list = None,
+                  lexical_heads: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -727,6 +728,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
             sense_has_form_of = any(
                 s.get("form_of") or s.get("alt_of")
                 for s in entry.get("senses") or [])
+            if lexical_heads is not None and is_independent_lexical_entry(entry, wikt_source):
+                lexical_heads.setdefault(pos, set()).add(lemma)
             is_form_of_page = bool(top_form_of_for_detection
                                    or top_alt_of_for_detection
                                    or sense_has_form_of)
@@ -1229,9 +1232,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # A form page's head line belongs to the referenced word,
                 # even when a noun homograph wins the page's lookup key.
                 # Inflected participle tables belong to that verb too.
-                if (modern_greek and pos != "name" and (ref_targets or verb_target)
+                if ((modern_greek or lexical_heads is not None) and pos != "name"
+                        and (ref_targets or verb_target)
                         and ((form == lemma and set(tags) <= _GENDER_TAGS)
-                             or pos == "verb")):
+                             or pos == "verb" or lexical_heads is not None)):
                     pair["via"] = verb_target or ref_targets[0]
                 pairs.append(pair)
 
@@ -1589,6 +1593,26 @@ def is_independent_finite_entry(entry: dict, source: str) -> bool:
         return False
     return True
 
+
+def is_independent_lexical_entry(entry: dict, source: str) -> bool:
+    """Require a definition of this word, excluding inflection-only pages.
+
+    Ancient homographs can have separate lexical and form-of entries even
+    within one part of speech. Their own tables remain separate readings.
+    """
+    if entry.get("pos") == "verb":
+        return is_independent_finite_entry(entry, source)
+    senses = entry.get("senses") or []
+    reference_tags = _NOUN_REFERENCE_TAGS | {"alt-of"}
+    if (reference_tags.intersection(entry.get("tags") or [])
+            or (source != "el" and (entry.get("form_of") or entry.get("alt_of")))
+            or any(s.get("form_of") or s.get("alt_of")
+                   or reference_tags.intersection(s.get("tags") or []) for s in senses)):
+        return False
+    return any("no-gloss" not in (s.get("tags") or [])
+               and any(g.strip() and not _is_closed_class_inflection_gloss(g)
+                       for g in s.get("glosses") or []) for s in senses)
+
 def validate_verb_head_inventory(inventory: dict) -> set:
     """Return independently defined finite heads, excluding participles."""
     return _validate_head_inventory(inventory, "verb")
@@ -1788,7 +1812,8 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                        pos_map: dict = None, lemma_pos: dict = None,
                        participle_roots: dict = None,
                        unresolved_verbs: set = frozenset(),
-                       closed_class_heads: dict = None):
+                       closed_class_heads: dict = None,
+                       lexical_heads: dict = None):
     """Follow a verb's own references before a homograph's flat lookup.
 
     A polytonic participle can first name its monotonic spelling, whose
@@ -1796,6 +1821,22 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
     still name its actual verb. A known non-verb cannot be a verb lemma.
     """
     original = lemma
+    if lexical_heads is not None:
+        # A same-POS reference ends at a positively defined lexical head,
+        # before the untyped lookup can follow another homograph's edge.
+        # Do not treat an inflection-only POS label as lexical evidence.
+        upos = WIKT_TO_UPOS.get(pos)
+        seen = set()
+        while lemma not in seen:
+            if (lemma in lexical_heads.get(pos, set())
+                    and lookup.get(lemma, (None,))[0] == lemma):
+                return lemma
+            seen.add(lemma)
+            target = (pos_map or {}).get(lemma, {}).get(upos)
+            if not target or target == lemma:
+                break
+            lemma = target
+        lemma = original
     if pos in {"det", "pron"} and pos_map is not None and closed_class_heads:
         upos = WIKT_TO_UPOS[pos]
         seen = set()
@@ -1893,12 +1934,14 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
                          pos_map: dict = None, lemma_pos: dict = None,
                          participle_roots: dict = None,
                          unresolved_verbs: set = frozenset(),
-                         closed_class_heads: dict = None) -> list:
+                         closed_class_heads: dict = None,
+                         lexical_heads: dict = None) -> list:
     """Resolve page references before lookup homographs; omit internal metadata."""
     headwords = {key for key, (lemma, _) in lookup.items() if key == lemma}
     graph_heads = set((participle_roots or {}).values())
     result = []
-    for pair in deduplicate_pairs(pairs, preserve_cells):
+    preserve_readings = preserve_cells or lexical_heads is not None
+    for pair in deduplicate_pairs(pairs, preserve_readings):
         noun_owner = (preserve_cells and pair.get("pos") == "noun"
                       and pair.get("noun_owner") and not pair.get("via"))
         own_root = (preserve_cells and pair.get("pos") == "verb"
@@ -1921,12 +1964,12 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
             candidates.append(pair["lemma"])
         for lemma in candidates:
             resolved = pair["lemma"] if noun_owner else resolve_pair_lemma(
-                lemma, pair.get("pos", "") if preserve_cells else "name", lookup,
-                pos_map if preserve_cells else None,
+                lemma, pair.get("pos", "") if preserve_readings else "name", lookup,
+                pos_map if preserve_readings else None,
                 lemma_pos if preserve_cells else None,
                 participle_roots if preserve_cells else None,
                 unresolved_verbs if preserve_cells else frozenset(),
-                closed_class_heads if preserve_cells else None)
+                closed_class_heads if preserve_cells else None, lexical_heads)
             if (not noun_owner and resolved not in headwords
                     and not (pair.get("pos") == "verb" and resolved in graph_heads)
                     and not (preserve_cells and resolved in (closed_class_heads or {}).get(
@@ -1935,7 +1978,7 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
             result.append({"form": pair["form"], "lemma": resolved,
                            "pos": pair.get("pos", ""), "tags": pair.get("tags", [])})
             break
-    return deduplicate_pairs(result, True) if preserve_cells else result
+    return deduplicate_pairs(result, True) if preserve_readings else result
 
 
 def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
@@ -2015,6 +2058,7 @@ def main():
         all_lemma_pos = {}
         closed_class_heads = {}
         closed_head_records = []
+        lexical_heads = {} if lang == "grc" else None
         participle_refs, verb_heads = {}, set()
         participle_heads = set()
         verb_refs = {}
@@ -2051,7 +2095,8 @@ def main():
                 participle_cells=participle_cells if lang == "el" else None,
                 noun_heads=noun_heads if lang == "el" else None,
                 closed_class_heads=closed_class_heads if lang == "el" else None,
-                closed_head_records=closed_head_records if lang == "el" else None)
+                closed_head_records=closed_head_records if lang == "el" else None,
+                lexical_heads=lexical_heads)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -2086,7 +2131,8 @@ def main():
                 participle_cells=participle_cells if lang == "el" else None,
                 noun_heads=noun_heads if lang == "el" else None,
                 closed_class_heads=closed_class_heads if lang == "el" else None,
-                closed_head_records=closed_head_records if lang == "el" else None)
+                closed_head_records=closed_head_records if lang == "el" else None,
+                lexical_heads=lexical_heads)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -2197,7 +2243,7 @@ def main():
                 # else stays at 1
 
         # Deduplicate pairs
-        unique_pairs = deduplicate_pairs(all_pairs, preserve_cells=(lang == "el"))
+        unique_pairs = deduplicate_pairs(all_pairs, preserve_cells=(lang in {"el", "grc"}))
         if lang == "el":
             for pos, heads in closed_class_heads.items():
                 for head in heads:
@@ -2279,7 +2325,8 @@ def main():
                                              lemma_pos=all_lemma_pos,
                                              participle_roots=participle_roots,
                                              unresolved_verbs=unresolved_verbs,
-                                             closed_class_heads=closed_class_heads if lang == "el" else None)
+                                             closed_class_heads=closed_class_heads if lang == "el" else None,
+                                             lexical_heads=lexical_heads)
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"
@@ -2357,12 +2404,12 @@ def main():
                 if source_lemma in all_lookup or source_lemma in participle_roots:
                     target = resolve_pair_lemma(
                         source_lemma, next((p for p, u in WIKT_TO_UPOS.items() if u == upos), "")
-                        if lang == "el" else "name", all_lookup,
-                        all_pos_map if lang == "el" else None,
+                        if lang in {"el", "grc"} else "name", all_lookup,
+                        all_pos_map if lang in {"el", "grc"} else None,
                         all_lemma_pos if lang == "el" else None,
                         participle_roots if lang == "el" else None,
                         unresolved_verbs if lang == "el" else frozenset(),
-                        closed_class_heads if lang == "el" else None)
+                        closed_class_heads if lang == "el" else None, lexical_heads)
                     if target is not None:
                         resolved[upos] = target
                 else:
