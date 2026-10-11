@@ -14,15 +14,22 @@ Only forms that are genuinely ambiguous (2+ distinct UPOS->lemma mappings)
 are included. Monotonic and lowercase variants are added for lookup cascade.
 """
 
+import argparse
 import json
 import sqlite3
+import sys
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
 OUTPUT_PATH = Path(__file__).parent.parent / "data" / "treebank_pos_lookup.json"
+KAIKKI_DIR = None
 
 # Openly licensed sources only. UD_Ancient_Greek-Perseus and -PROIEL are
 # CC BY-NC-SA (NonCommercial) and are NOT used; the AGDT POS data comes from the
@@ -149,6 +156,133 @@ def _clean_lemma(lemma: str) -> bool:
     return "̅" not in unicodedata.normalize("NFD", lemma)
 
 
+def _lower_priority_pos_models():
+    """Use the runtime cascade, without the corpus table being rebuilt."""
+    from dilemma.core import Dilemma
+
+    models = []
+    for lang in ("grc", "all"):
+        model = Dilemma(lang=lang, scale=0, skip_pos=True)
+        model._load_pos_lookups(include_treebank=False, data_dir=DATA_DIR)
+        models.append(model)
+    return models
+
+
+def _different_owner(lemma, other):
+    return bool(other) and strip_accents(lemma) != strip_accents(other)
+
+
+def _defined_pos_targets(wanted):
+    """Require fresh independent definitions for additional corpus overrides."""
+    if KAIKKI_DIR is None:
+        return set()
+    from build_data import WIKT_TO_UPOS, is_independent_lexical_entry, strip_length_marks
+
+    found = set()
+    for source, relative in (
+            ("en", "en-el/kaikki.org-dictionary-AncientGreek.jsonl"),
+            ("el", "el/kaikki.org-dictionary-AncientGreek.jsonl")):
+        path = Path(KAIKKI_DIR) / relative
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                entry = json.loads(line)
+                target = (strip_length_marks(entry.get("word", "")),
+                          WIKT_TO_UPOS.get(entry.get("pos")))
+                if (entry.get("lang_code") == "grc" and target in wanted
+                        and is_independent_lexical_entry(entry, source)):
+                    found.add(target)
+    return found
+
+
+def _project_pos_entries(lookup, conflicts=None):
+    """Project only unique POS owners; retain every distinct POS reading."""
+    result = dict(lookup)
+    proposals = defaultdict(lambda: defaultdict(set))
+    for form, upos_lemmas in lookup.items():
+        for key in {form.lower(), to_monotonic(form.lower())} - {form}:
+            if key in lookup:
+                continue
+            for upos, lemma in upos_lemmas.items():
+                proposals[key][upos].add(lemma)
+    for key, values in proposals.items():
+        unique = {upos: next(iter(lemmas)) for upos, lemmas in sorted(values.items())
+                  if len(lemmas) == 1}
+        if unique:
+            result[key] = unique
+    for form, ambiguous_pos in (conflicts or {}).items():
+        if form in lookup or form not in result:
+            continue
+        remaining = {upos: lemma for upos, lemma in result[form].items()
+                     if upos not in ambiguous_pos}
+        if remaining:
+            result[form] = remaining
+        else:
+            del result[form]
+    return result
+
+
+def _projection_conflicts(corpus, protected):
+    """Retain competing corpus owners when new votes acquire aliases."""
+    claims = defaultdict(lambda: defaultdict(set))
+    for form, upos_counts in corpus.items():
+        for key in {form.lower(), to_monotonic(form.lower())} & protected:
+            for upos, counts in upos_counts.items():
+                claims[key][upos].update(counts)
+    return {key: {upos for upos, lemmas in values.items() if len(lemmas) > 1}
+            for key, values in claims.items()}
+
+
+def _restore_shadowed_corpus_votes(lookup, candidates, corpus):
+    """Restore defined exact votes hidden by lower or projected POS entries."""
+    unambiguous = {}
+    for form, (upos, lemma) in candidates.items():
+        counts = corpus[form][upos]
+        highest = max(counts.values())
+        owners = {owner for owner, count in counts.items() if count == highest}
+        if owners == {lemma}:
+            unambiguous[form] = (upos, lemma)
+    # Keep every tied claim in corpus for projection-conflict checks, but do
+    # not let an arbitrary ordering authorize an additional scalar override.
+    candidates = unambiguous
+    wanted = {(lemma, upos) for upos, lemma in candidates.values()}
+    defined = _defined_pos_targets(wanted)
+    candidates = {form: value for form, value in candidates.items()
+                  if (value[1], value[0]) in defined}
+    if not candidates:
+        return 0, {}
+    models = _lower_priority_pos_models()
+    lower = [(model._pos_ag_lookup, model._pos_lookup) for model in models]
+    added = 0
+    protected = set()
+    conflicts = {}
+    while candidates:
+        projected = _project_pos_entries(lookup, conflicts)
+        for model, tables in zip(models, lower):
+            combined = []
+            for table in tables:
+                overlaid = table.copy()
+                for form, values in projected.items():
+                    overlaid[form] = {**table.get(form, {}), **values}
+                combined.append(overlaid)
+            model._pos_ag_lookup, model._pos_lookup = combined
+        corrections = {}
+        for form, (upos, lemma) in candidates.items():
+            if any(_different_owner(lemma, model._pos_table_lookup(form, upos))
+                   for model in models):
+                corrections[form] = {upos: lemma}
+        if not corrections:
+            break
+        # Apply one simultaneous round so traversal order cannot change which
+        # exact corpus votes are compared with the same projected table.
+        lookup.update(corrections)
+        added += len(corrections)
+        for form in corrections:
+            protected.update({form.lower(), to_monotonic(form.lower())} - {form})
+            del candidates[form]
+        conflicts = _projection_conflicts(corpus, protected)
+    return added, conflicts
+
+
 def build_lookup():
     # Collect all (form, upos) -> {lemma: count} from treebanks
     # form_upos_lemmas[form][upos][lemma] = count
@@ -252,13 +386,13 @@ def build_lookup():
     # meaning different UPOS tags lead to different lemmas.
     # For each UPOS, pick the most frequent lemma.
     lookup = {}
-    for form in set(form_upos_lemmas) | set(corpus_upos_lemmas):
+    for form in sorted(set(form_upos_lemmas) | set(corpus_upos_lemmas)):
         tb = form_upos_lemmas.get(form, {})
         co = corpus_upos_lemmas.get(form, {})
         # For each UPOS, pick the most frequent lemma; gold treebank wins, the
         # corpus only fills UPOS the treebank doesn't cover for this form.
         resolved = {}
-        for upos in set(tb) | set(co):
+        for upos in sorted(set(tb) | set(co)):
             counts = tb[upos] if upos in tb else co[upos]
             resolved[upos] = max(counts, key=counts.get)
 
@@ -275,6 +409,9 @@ def build_lookup():
     # lemma disagrees with the current single-value lookup - e.g. γραφῆς, where
     # the lookup kept Wiktionary's γραφεύς and discarded the corpus γραφή. Add
     # it as a POS-keyed candidate so lemmatize_pos surfaces the corpus reading.
+    # A matching bare lookup does not make the corpus vote redundant when a
+    # lower-priority POS table would return a different lemma. Check both
+    # language scopes with the runtime's own source order and normalization.
     # POS-gated, so bare context-free lemmatize() is unaffected.
     bare = {}
     if LOOKUP_DB_PATH.exists():
@@ -285,6 +422,7 @@ def build_lookup():
             if _f not in bare:
                 bare[_f] = _l
         _c.close()
+    fallback_candidates = {}
     disagree_added = 0
     for form, upos_dict in corpus_upos_lemmas.items():
         if form in lookup or form not in bare:
@@ -295,23 +433,17 @@ def build_lookup():
         if counts[lemma] < 2:          # require GLAUx (w=2) or GLAUx+Diorisis
             continue
         cur = bare[form]
-        if (lemma != cur
-                and strip_accents(lemma) != strip_accents(cur)):
+        if _different_owner(lemma, cur):
             lookup[form] = {upos: lemma}
             disagree_added += 1
-    print(f"Corpus-disagreement POS entries added: {disagree_added}")
+        else:
+            fallback_candidates[form] = (upos, lemma)
+    restored, conflicts = _restore_shadowed_corpus_votes(
+        lookup, fallback_candidates, corpus_upos_lemmas)
+    print(f"Corpus-disagreement POS entries added: {disagree_added}; "
+          f"defined votes retained against POS fallback: {restored}")
 
-    # Add lowercase and monotonic variants
-    extra = {}
-    for form, upos_lemmas in list(lookup.items()):
-        lower = form.lower()
-        if lower != form and lower not in lookup:
-            extra[lower] = upos_lemmas
-        mono = to_monotonic(form.lower())
-        if mono != form and mono != lower and mono not in lookup:
-            extra[mono] = upos_lemmas
-
-    lookup.update(extra)
+    lookup = _project_pos_entries(lookup, conflicts)
     print(f"After adding lowercase/monotonic variants: {len(lookup)}")
 
     # Sort for stable output
@@ -326,4 +458,11 @@ def build_lookup():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--kaikki", type=Path,
+                        help="Fresh Kaikki directory for independent POS target definitions")
+    parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    args = parser.parse_args()
+    KAIKKI_DIR = args.kaikki
+    OUTPUT_PATH = args.output
     build_lookup()

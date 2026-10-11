@@ -9,6 +9,13 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Keep explicitly tagged articles from returning a noncanonical POS-table
+  target in scalar and batch calls, while preserving the existing Ancient
+  and Modern article lemmas.
+- Retain independently defined corpus POS votes when a lower-priority table
+  or normalized spelling would select another lemma despite a matching bare
+  lookup. Require a unique highest-weight owner and fresh same-POS dictionary
+  evidence for this recovery; preserve tied claims without selecting one.
 - Recognize nominal case descriptions with multiple cases and grammatical
   qualifiers as inflections. Explicit spelling references and broken inflection
   templates no longer establish lexical heads; genuine meanings on form pages

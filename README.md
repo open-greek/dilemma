@@ -1277,11 +1277,9 @@ d.lemmatize_pos("λευκόν", "NOUN")  # "λευκόν" (noun: white-of-egg)
 d.lemmatize_pos("λευκόν", "ADJ")   # "λευκός" (adjective: white)
 ```
 
-POS disambiguates rather than overrides: the regular lookup runs first to
-produce all valid candidates, and POS selects among them only when there
-are multiple options. When a form has just one candidate, POS is ignored,
-ensuring POS-aware lemmatization never produces worse results than the
-baseline.
+Curated POS entries can select among regular lookup candidates or override
+a single candidate when the dictionaries and corpus evidence support a
+different lemma for that part of speech.
 
 With `convention="triantafyllidis"` or `lang="el"`, POS tags also fix MG
 self-map issues for adjective and verb inflections. MG lookup tables
@@ -1292,13 +1290,33 @@ infinitive/1sg form (-ω, -ώ, -μαι) is preferred. Adverbs and nouns keep
 their MG self-maps unchanged.
 
 The POS lookup tables (~1.82M AG-only entries, ~1.86M combined) are built
-from six sources in priority order: UD treebanks (gold), LSJ9
+from six sources in priority order: AGDT originals and licensed corpus votes, LSJ9
 indeclinables (2.2K adverbs, prepositions, conjunctions, particles,
 interjections with unambiguous POS), GLAUx corpus (8.7K entries), MG
 Wiktionary, AG Wiktionary, LSJ9 grammar. For polytonic input (breathing
 marks, circumflex), the AG-only POS entries are checked first to avoid
 MG lemma overrides on Ancient Greek text, mirroring the main lookup's
 AG-first logic.
+
+Rebuild the corpus POS table after a source refresh with
+`python build/build_treebank_pos_lookup.py --kaikki PATH_TO_KAIKKI`.
+A corpus vote that agrees with the bare lookup can still be needed when a
+lower-priority POS table or a projected spelling would select another lemma.
+These additional entries require a unique highest-weight corpus owner and an
+independent definition of the exact lemma and part of speech in the English
+or Greek Ancient Greek extracts. Tied corpus owners remain in the source
+evidence and cannot authorize an additional scalar override.
+Without `--kaikki`, this additional recovery is disabled. Lowercase and
+monotonic aliases retain each unambiguous part of speech, and withhold a part
+of speech with competing owners. Newly recovered entries also account for
+conflicting corpus claims that did not qualify for recovery. Exact spellings
+remain available.
+
+Explicit `DET` tags retain the established article lemma (`ὁ` or `ο`) when
+an auxiliary POS table instead returns a noncanonical form. This uses the
+same article inventory and accent-sensitive normalization as the optional
+article resolver and applies before candidate selection in both scalar and
+batch calls; untagged words, pronouns, and other POS tags are unchanged.
 
 ### Spelling correction
 
