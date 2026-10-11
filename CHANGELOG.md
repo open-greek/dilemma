@@ -320,6 +320,10 @@ All notable changes to Dilemma are documented here. The format follows
   explicit cells retain a rare spelling without borrowing the primary
   homonym's count (`σκατά` and masculine `σκατᾶ`). Diminutives and synonyms
   in another noun's table cannot acquire that noun's declension.
+  A separate adjective or adverb head sharing the spelling no longer
+  disables arbitration between independently owned noun cells; the
+  neuter plural `σκατά` retains its counts and masculine `σκατᾶ` remains
+  a distinct rare reading with zero pooled frequency.
 - In the polytonic Modern Greek list, two paradigm cells of the same
   letters both go in, whatever their counts: the present `περπατᾷ`,
   `προχωρᾷ` and `τηλεφωνᾷ` are back beside the imperatives `περπάτα`,

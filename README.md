@@ -2841,7 +2841,11 @@ adverb readings of an inflected form do not invalidate its independent
 noun head. Nouns supplying the same cells retain the closest lexical
 stem, so a diminutive or synonym in another word's table does not acquire
 that word's declension. Finite verbs, names, and mixed headword analyses
-keep their existing selection rule.
+keep their existing selection rule. An independently defined adjective or
+adverb sharing the form does not reset an already selected noun owner:
+the noun cells still determine the primary and rare alternative readings.
+This refinement leaves a preferred adjective, finite verb, or name in its
+existing selection path.
 
 A different explicit cell of another independently inflected noun remains
 at `R` with zero pooled count: `χημεῖα`, plural of `χημείο`, remains beside
