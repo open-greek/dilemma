@@ -1015,6 +1015,54 @@ def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_pat
         build_data.ancient_reading_head_inventory(pairs, lookup, {'en': dump})
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("number_type", [str, int])
+def test_separate_alternative_etymology_preserves_lexical_tables(
+        tmp_path, monkeypatch, reverse, number_type):
+    import build_data
+
+    entries = [
+        {"word": "δέω", "pos": "verb", "etymology_number": 1,
+         "senses": [{"glosses": ["to bind"]}],
+         "forms": [{"form": "δέω", "tags": ["present", "indicative", "active",
+                                                "first-person", "singular"]},
+                   {"form": "δῶ", "tags": ["present", "indicative", "active",
+                                               "first-person", "singular"]}]},
+        {"word": "δέω", "pos": "verb", "etymology_number": 2,
+         "senses": [{"glosses": ["to need"]}],
+         "forms": [{"form": "δέομαι", "tags": ["present", "indicative", "middle",
+                                                   "first-person", "singular"]}]},
+        {"word": "δέω", "pos": "verb", "etymology_number": 3,
+         "senses": [{"glosses": ["alternative form of δήω"],
+                     "alt_of": [{"word": "δήω"}]}],
+         "forms": [{"form": "δήει", "tags": ["present", "indicative", "active",
+                                                  "third-person", "singular"]}]},
+        {"word": "δήω", "pos": "verb", "senses": [{"glosses": ["to find"]}]},
+        {"word": "δηῶ", "pos": "verb",
+         "senses": [{"glosses": ["alternative form of δήω"],
+                     "alt_of": [{"word": "δήω"}]}]},
+    ]
+    for entry in entries:
+        if "etymology_number" in entry:
+            entry["etymology_number"] = number_type(entry["etymology_number"])
+    dump = _write(tmp_path, entries[::-1] if reverse else entries)
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": dump.name}})
+    monkeypatch.setattr(build_data.sys, "argv", [
+        "build_data.py", "--lang", "grc", "--kaikki", str(tmp_path)])
+    build_data.main()
+    pairs = json.loads((output / "ag_pairs.json").read_text())
+    lookup = json.loads((output / "ag_lookup.json").read_text())
+    for form in ("δῶ", "δέομαι"):
+        assert {p["lemma"] for p in pairs if p["form"] == form} == {"δέω"}
+        assert lookup[form] == "δέω"
+    assert {p["lemma"] for p in pairs if p["form"] == "δήει"} == {"δήω"}
+    assert {p["lemma"] for p in pairs if p["form"] == "δέω"} == {"δέω", "δήω"}
+    assert lookup["δέω"] == "δέω"
+    assert lookup["δηῶ"] == "δήω"
+
+
 @pytest.mark.parametrize('change', ['form_of', 'wrong_pos', 'word', 'hash',
                                   'duplicate', 'gloss', 'missing', 'malformed'])
 def test_ancient_reading_evidence_rejects_invalid_support(tmp_path, change):

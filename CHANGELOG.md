@@ -9,6 +9,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Keep independent Ancient homographs under their own headword when an
+  alternative spelling belongs to a different numbered etymology. The
+  binding and needing senses of `δέω` no longer acquire the lemma `δήω`.
 - Withhold bare nonpast endings when an Ancient aorist template explicitly
   supplies only its indicative stem, preserving indicative-only tables,
   complete competing templates, and independent grammatical readings.

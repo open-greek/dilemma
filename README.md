@@ -331,7 +331,12 @@ description. Such translations do not define another head: `ἦλθον` retains
 its aorist readings under `ἔρχομαι`. Greek present-tense head descriptions
 followed by their own lexical meanings remain independent.
 Alternative-spelling references from the original word to a supported head
-of the same part of speech still canonicalize normally. An inflected reading
+of the same part of speech still canonicalize normally. When a source assigns
+the alternative to a different numbered etymology from an independently
+defined homograph, only that alternative entry follows the reference. For
+example, the binding and needing senses of `δέω` retain their own tables;
+the separate alternative spelling of `δήω` still points to `δήω`.
+An inflected reading
 does not replace an independently defined homograph: `δίω` keeps its own
 conjugation as well as its separate reading in the conjugation of `δείδω`.
 `data/grc_reading_heads.json` records the exact source definitions, parts of

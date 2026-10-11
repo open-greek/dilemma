@@ -633,6 +633,11 @@ def noun_table_conflicts_with_form_page(entry: dict) -> bool:
             table_cells.update(row_cells)
     return has_nominal_table and not source_cells.intersection(table_cells)
 
+def _numbered_etymology(entry: dict) -> int | None:
+    number = str(entry.get("etymology_number", ""))
+    return int(number) if number.isascii() and number.isdecimal() and int(number) > 0 else None
+
+
 def extract_pairs(jsonl_path: Path, lang: str,
                   skip_name_plurals: set = None, lemma_pos: dict = None,
                   participle_refs: dict = None, verb_heads: set = None,
@@ -751,6 +756,9 @@ def extract_pairs(jsonl_path: Path, lang: str,
     # (e.g. γωνιακός lists τῶν as its genitive plural "form").
     closed_class_headwords = set()
     article_forms = set()
+    # An alternative spelling in one numbered etymology must not rename
+    # another etymology's independently defined word and inflection table.
+    lexical_etymologies = {}
     with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             try:
@@ -758,6 +766,11 @@ def extract_pairs(jsonl_path: Path, lang: str,
             except json.JSONDecodeError:
                 continue
             pos = entry.get("pos", "")
+            etymology = _numbered_etymology(entry)
+            if (lang.startswith("grc-") and etymology is not None
+                    and is_independent_lexical_entry(entry, lang.split("-", 1)[1])):
+                head = strip_length_marks(entry.get("word", ""))
+                lexical_etymologies.setdefault((head, pos), set()).add(etymology)
             if pos in skip_all_forms_pos | filter_cross_forms_pos:
                 hw = strip_length_marks(entry.get("word", ""))
                 if hw:
@@ -1189,16 +1202,21 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if " " in ref_word:
                     continue
                 _add_lookup_here(lookup, lemma, ref_word, proper_noun=(pos == "name"))
+                own_etymologies = lexical_etymologies.get((lemma, pos), set())
+                etymology = _numbered_etymology(entry)
+                separate_etymology = (bool(own_etymologies) and etymology is not None
+                                      and etymology not in own_etymologies)
                 if pos != "name" and lemma != ref_word:
                     for key in (lemma, lemma.lower(),
                                 to_monotonic(lemma), to_monotonic(lemma).lower(),
                                 strip_accents(lemma.lower())):
                         if key and typed_references is not None:
                             typed_references.setdefault(key, {}).setdefault(pos, set()).add(ref_word)
-                        if key and canonical_references is not None:
+                        if key and canonical_references is not None and not separate_etymology:
                             canonical_references.setdefault(key, {}).setdefault(pos, set()).add(ref_word)
                         if (key and key not in form_of_targets
-                                and not key == ref_word == spelling_of):
+                                and not key == ref_word == spelling_of
+                                and not separate_etymology):
                             form_of_targets[key] = ref_word
                             if ref_word in abbreviation_of:
                                 abbreviated_keys.add(key)
