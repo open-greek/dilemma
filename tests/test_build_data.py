@@ -218,6 +218,94 @@ def test_pronoun_form_proof_does_not_override_structured_parent_or_adverb(tmp_pa
         assert {p["lemma"] for p in cleaned if p["pos"] == "pron"} == {"αυτός"}
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_named_weak_pronoun_keeps_its_typed_lexical_parent_without_head_proof(tmp_path, reverse):
+    from build_data import apply_closed_class_form_references
+    entries = [
+        {"word": "τονε", "pos": "pron", "senses": [{"form_of": [{"word": "τον"}]}]},
+        {"word": "τον", "pos": "pron", "tags": ["form-of"], "senses": [
+            {"glosses": ["αδύνατος τύπος της προσωπικής αντωνυμίας γ' προσώπου: αυτόν"]}]},
+        {"word": "αυτόν", "pos": "pron", "senses": [{"form_of": [{"word": "αυτός"}]}]},
+        {"word": "αυτός", "pos": "pron", "senses": [{"glosses": ["he, himself"]}]},
+    ]
+    heads, refs = {}, {}
+    pairs, _, _, pos_map, *_ = extract_pairs(_write(tmp_path, entries[::-1] if reverse else entries),
+        "el-el", closed_class_heads=heads, closed_class_form_refs=refs)
+    assert heads == {"pron": {"αυτός"}}
+    assert refs == {("τον", "pron"): {"αυτόν"}}
+    pos_map.setdefault("τον", {})["DET"] = "ο"
+    assert apply_closed_class_form_references(pos_map, refs, heads) == {("τον", "pron"): "αυτός"}
+    assert pos_map["τον"] == {"PRON": "αυτός", "DET": "ο"}
+    flat = {"τονε": ("τόνος", 3), "τον": ("τον", 3), "αυτόν": ("αυτός", 3),
+            "αυτός": ("αυτός", 3), "τόνος": ("τόνος", 3), "ο": ("ο", 3)}
+    cleaned = clean_training_pairs(pairs, flat, preserve_cells=True, pos_map=pos_map,
+                                   closed_class_heads=heads)
+    assert {p["lemma"] for p in cleaned} == {"αυτός"}
+    assert flat["τονε"][0] == "τόνος"  # Unqualified homograph lookup is untouched.
+
+
+def test_main_publishes_named_weak_pronoun_reference_without_form_head_proof(tmp_path, monkeypatch):
+    import build_data
+    source = tmp_path / "source"
+    source.mkdir()
+    en = [
+        {"word": "τονε", "pos": "pron", "senses": [{"form_of": [{"word": "τον"}]}]},
+        {"word": "τονε", "pos": "noun", "senses": [{"alt_of": [{"word": "τόνος"}]}]},
+        {"word": "τόνος", "pos": "noun", "senses": [{"glosses": ["tone"]}]},
+        {"word": "αυτόν", "pos": "pron", "senses": [{"form_of": [{"word": "αυτός"}]}]},
+        {"word": "αυτός", "pos": "pron", "senses": [{"glosses": ["he, himself"]}]},
+    ]
+    el = [{"word": "τον", "pos": "pron", "tags": ["form-of"], "senses": [
+        {"glosses": ["αδύνατος τύπος της προσωπικής αντωνυμίας γ' προσώπου: αυτόν"]}]}]
+    for edition, entries in (("en", en), ("el", el)):
+        (source / (edition + ".jsonl")).write_text("".join(
+            json.dumps(e, ensure_ascii=False) + "\n" for e in entries), encoding="utf-8")
+    output = tmp_path / "data"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"en": "en.jsonl", "el": "el.jsonl"}})
+    monkeypatch.setattr(build_data.sys, "argv", ["build_data.py", "--lang", "el", "--kaikki", str(source)])
+    build_data.main()
+    typed = json.loads((output / "mg_pos_lookup.json").read_text())
+    assert typed["τον"]["PRON"] == "αυτός"
+    assert typed["τονε"]["PRON"] == "αυτός"
+    assert typed["τονε"]["NOUN"] == "τόνος"
+    pairs = json.loads((output / "mg_pairs.json").read_text())
+    assert {p["lemma"] for p in pairs if p["form"] == "τονε" and p["pos"] == "pron"} == {"αυτός"}
+    assert all(h["lemma"] != "τον" for h in json.loads(
+        (output / "el_closed_class_heads.json").read_text())["heads"])
+
+
+@pytest.mark.parametrize("damage", ["missing", "cycle", "wrong_pos", "divergent"])
+def test_named_weak_pronoun_requires_one_supported_same_pos_root(damage):
+    from build_data import apply_closed_class_form_references
+    refs = {("τον", "pron"): {"αυτόν"}}
+    table = {"τον": {"PRON": "τον", "DET": "ο"}, "αυτόν": {"PRON": "αυτός"}}
+    heads = {"pron": {"αυτός"}}
+    if damage == "missing": table.pop("αυτόν")
+    elif damage == "cycle": table["αυτόν"]["PRON"] = "τον"
+    elif damage == "wrong_pos": heads = {"det": {"αυτός"}}
+    elif damage == "divergent":
+        refs["τον", "pron"].add("άλλον")
+        table["άλλον"] = {"PRON": "άλλος"}
+        heads["pron"].add("άλλος")
+    assert apply_closed_class_form_references(table, refs, heads) == {}
+    assert table["τον"] == {"PRON": "τον", "DET": "ο"}
+
+
+@pytest.mark.parametrize("damage", ["wrong_source", "wrong_pos", "no_form_tag", "prose", "related"])
+def test_named_weak_pronoun_reference_requires_the_exact_form_description(damage):
+    from build_data import _named_weak_pronoun_reference
+    entry = {"word": "τον", "pos": "pron", "tags": ["form-of"]}
+    sense = {"glosses": ["αδύνατος τύπος της προσωπικής αντωνυμίας γ' προσώπου: αυτόν"]}
+    source = "el"
+    if damage == "wrong_source": source = "en"
+    elif damage == "wrong_pos": entry["pos"] = "det"
+    elif damage == "no_form_tag": entry["tags"] = []
+    elif damage == "prose": sense["glosses"][0] += " σε άλλη φράση"
+    elif damage == "related": sense = {"glosses": ["personal pronoun"], "related": [{"word": "αυτόν"}]}
+    assert _named_weak_pronoun_reference(entry, sense, source) is None
+
+
 @pytest.mark.parametrize("change", ["nominal", "wrong_pos", "form_gloss", "form_ref", "alt_tag", "no_gloss", "hash"])
 def test_closed_class_inventory_rejects_forged_or_wrong_pos_proof(change):
     proof = closed_class_head_inventory([{"lemma": "πας", **closed_class_head_evidence(

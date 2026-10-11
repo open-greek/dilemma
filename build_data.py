@@ -501,6 +501,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   participle_cells: list = None, noun_heads: list = None,
                   closed_class_heads: dict = None, closed_head_records: list = None,
                   lexical_heads: dict = None,
+                  closed_class_form_refs: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -878,6 +879,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         participle_refs.setdefault(lemma, set()).add(target)
             for sense in entry.get("senses", []):
                 sense_form_of.extend(sense.get("form_of", []))
+                if closed_class_form_refs is not None:
+                    named = _named_weak_pronoun_reference(entry, sense, wikt_source)
+                    if named:
+                        closed_class_form_refs.setdefault((lemma, pos), set()).add(named)
                 sense_verb = None
                 # A malformed head page may have the wrong POS even when
                 # its inflection pages explicitly identify it as a verb:
@@ -1496,6 +1501,47 @@ def _closed_class_person_case_gloss(gloss: str) -> bool:
         gloss.strip().lower()))
 
 
+def _named_weak_pronoun_reference(entry: dict, sense: dict, source: str) -> str | None:
+    """An exact Greek form description names its personal-pronoun parent."""
+    if (source != "el" or entry.get("pos") != "pron"
+            or "form-of" not in set(entry.get("tags", [])) | set(sense.get("tags", []))
+            or sense.get("form_of") or sense.get("alt_of")):
+        return None
+    targets = set()
+    for gloss in sense.get("glosses", []):
+        match = re.fullmatch(
+            r"αδύνατος τύπος της προσωπικής αντωνυμίας [αβγ]['’΄] προσώπου:\s*(\w+)[.;]?",
+            gloss.strip().lower())
+        if match and _is_greek(match[1]):
+            targets.add(strip_length_marks(match[1]))
+    return next(iter(targets)) if len(targets) == 1 else None
+
+
+def apply_closed_class_form_references(pos_map: dict, references: dict, heads: dict) -> dict:
+    """Use named form references only when their typed chain has lexical proof."""
+    selected = {}
+    for (form, pos), targets in references.items():
+        roots = set()
+        for target in targets:
+            seen = {form}
+            while target not in seen:
+                if target in heads.get(pos, set()):
+                    roots.add(target)
+                    break
+                seen.add(target)
+                target = pos_map.get(target, {}).get(WIKT_TO_UPOS[pos])
+                if not target:
+                    break
+        if len(roots) == 1:
+            selected[form, pos] = next(iter(roots))
+    # Resolve every chain against the same snapshot before changing table edges.
+    for (form, pos), root in selected.items():
+        for key in (form, form.lower(), to_monotonic(form), to_monotonic(form).lower(),
+                    strip_accents(form.lower())):
+            pos_map.setdefault(key, {})[WIKT_TO_UPOS[pos]] = root
+    return selected
+
+
 def _validate_head_inventory(inventory: dict, pos: str) -> set:
     """Return positively supported heads, rejecting malformed or form evidence.
 
@@ -2092,6 +2138,7 @@ def main():
         closed_class_heads = {}
         closed_head_records = []
         lexical_heads = {} if lang == "grc" else None
+        closed_class_form_refs = {}
         participle_refs, verb_heads = {}, set()
         participle_heads = set()
         verb_refs = {}
@@ -2129,7 +2176,8 @@ def main():
                 noun_heads=noun_heads if lang == "el" else None,
                 closed_class_heads=closed_class_heads if lang == "el" else None,
                 closed_head_records=closed_head_records if lang == "el" else None,
-                lexical_heads=lexical_heads)
+                lexical_heads=lexical_heads,
+                closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -2165,7 +2213,8 @@ def main():
                 noun_heads=noun_heads if lang == "el" else None,
                 closed_class_heads=closed_class_heads if lang == "el" else None,
                 closed_head_records=closed_head_records if lang == "el" else None,
-                lexical_heads=lexical_heads)
+                lexical_heads=lexical_heads,
+                closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -2278,6 +2327,8 @@ def main():
         # Deduplicate pairs
         unique_pairs = deduplicate_pairs(all_pairs, preserve_cells=(lang in {"el", "grc"}))
         if lang == "el":
+            apply_closed_class_form_references(all_pos_map, closed_class_form_refs,
+                                                closed_class_heads)
             for pos, heads in closed_class_heads.items():
                 for head in heads:
                     all_pos_map.setdefault(head, {})[WIKT_TO_UPOS[pos]] = head
