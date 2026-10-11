@@ -1344,16 +1344,16 @@ class TestCellSpellingBoundary:
          ["active", "aorist", "infinitive"]),
         ("ἀλέξω", "active_aorist_optative_3sg", "ἀλεξήσαι", "ἀλεξῆσαι",
          ["active", "aorist", "infinitive"]),
-        ("ὄζω", "middle_aorist_imperative_2sg", "ὀζῆσαι", "ὀζήσαι",
+        ("ὄζω", "middle_aorist_imperative_2sg", "ὄζησαι", "ὀζήσαι",
          ["active", "aorist", "optative", "third-person", "singular"]),
         ("ἐκτέμνω", "active_future_participle_nom_m_sg", "ἐκτεμῶν", "ἐκτεμών",
          ["active", "aorist", "participle", "masculine"]),
     ])
     def test_another_cell_cannot_reaccent_a_selected_form(self, b, lemma, key,
                                                        selected, other, tags):
-        cells, by_letters = b.wiktionary_cells([
-            {"form": other, "lemma": lemma, "tags": tags}])
-        spellings = {(lemma, b.accent_type_skeleton(selected)): other}
+        rows = [{"form": other, "lemma": lemma, "tags": tags}]
+        cells, by_letters = b.wiktionary_cells(rows)
+        spellings, _ = b.wiktionary_spellings(rows)
         assert b.spelling_for_cell(lemma, key, selected, spellings,
                                    cells, by_letters) == selected
 
@@ -1364,6 +1364,38 @@ class TestCellSpellingBoundary:
         spellings = {("βαίνω", b.accent_type_skeleton("βαίνον")): "βαῖνον"}
         assert b.spelling_for_cell("βαίνω", "active_present_participle_acc_n_sg",
                                    "βαίνον", spellings, cells, by_letters) == "βαῖνον"
+
+    def test_unique_cell_evidence_wins_when_global_choice_matches_input(self, b):
+        rows = [
+            {"form": "κυλῖσαι", "lemma": "κυλίνδω",
+             "tags": ["active", "aorist", "infinitive"]},
+            {"form": "κυλίσαι", "lemma": "κυλίνδω",
+             "tags": ["active", "aorist", "optative", "third-person", "singular"]},
+        ]
+        cells, letters = b.wiktionary_cells(rows)
+        spellings = {("κυλίνδω", b.accent_type_skeleton("κυλίσαι")): "κυλίσαι"}
+        assert b.spelling_for_cell("κυλίνδω", "active_aorist_infinitive",
+                                   "κυλίσαι", spellings, cells, letters) == "κυλῖσαι"
+
+    @pytest.mark.parametrize("only_dialect", [False, True])
+    def test_final_build_uses_its_own_dialect_evidence(self, b, monkeypatch,
+                                                     tmp_path, only_dialect):
+        lemma = "ἐκμολεῖν" if only_dialect else "κυλίνδω"
+        rows = [{"form": "κυλίσαι", "lemma": lemma, "pos": "verb",
+                 "tags": ["active", "aorist", "infinitive", "Epic"]}]
+        if not only_dialect:
+            rows.append({"form": "κυλῖσαι", "lemma": lemma, "pos": "verb",
+                         "tags": ["active", "aorist", "infinitive"]})
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "corpus_count", lambda form: 10 if form == "κυλίσαι" else 1)
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()[lemma]
+        assert result["forms"]["active_aorist_infinitive"] == (
+            "κυλίσαι" if only_dialect else "κυλῖσαι")
+        assert result["dialects"]["epic"]["active_aorist_infinitive"] == "κυλίσαι"
 
     def test_tagless_spelling_retains_the_existing_fallback(self, b):
         spellings = {("βαίνω", b.accent_type_skeleton("βαίνον")): "βαῖνον"}

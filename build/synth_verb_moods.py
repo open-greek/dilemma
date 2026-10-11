@@ -741,8 +741,9 @@ _AOR_MID_OPT: Dict[tuple, str] = {
 }
 
 
-# Aorist-middle imperative. 2sg ``-αι`` (e.g. λῦσαι) -- circumflex on
-# the stem (jtauber preserves it). 3sg/2pl/3pl have ending-accent.
+# Aorist-middle imperative. The 2sg is recessive (κέλευσαι, not the
+# infinitive κελεῦσαι); final -αι counts as short. The other endings
+# retain their existing stem or ending accent.
 _AOR_MID_IMP: Dict[tuple, str] = {
     ("2", "sg"): "αι",
     ("3", "sg"): "άσθω",
@@ -1461,7 +1462,11 @@ def synthesize_mp_moods(
         for (p, n), end in _AOR_MID_OPT.items():
             _emit_mp(f"middle_aorist_optative_{p}{n}", aor_stem, end)
         for (p, n), end in _AOR_MID_IMP.items():
-            _emit_mp(f"middle_aorist_imperative_{p}{n}", aor_stem, end)
+            key = f"middle_aorist_imperative_{p}{n}"
+            if (p, n) == ("2", "sg"):
+                out[key] = _recessive_full_form(aor_stem, end)
+            else:
+                _emit_mp(key, aor_stem, end)
         out["middle_aorist_infinitive"] = aor_stem + _AOR_MID_INF
 
     # ---- Aorist passive (θη-stem) ----
@@ -1656,6 +1661,20 @@ def _recessive_full_form(prefix: str, ending: str) -> str:
     target_long = (
         target_vowel.lower() in ("η", "ω") or target_is_diph
     )
+    # A supplied macron or circumflex also establishes vowel quantity.
+    # Repositioning an accent must not turn a known long α/ι/υ into a
+    # guessed short one. Match by base-letter position because stripping
+    # the old accent changes the combining-character offsets.
+    original_letters = []
+    for char in unicodedata.normalize("NFD", prefix + ending):
+        if unicodedata.combining(char):
+            if original_letters:
+                original_letters[-1].append(char)
+        else:
+            original_letters.append([char])
+    base_number = sum(not unicodedata.combining(c) for c in chars[:base_idx])
+    target_marks = original_letters[base_number][1:]
+    target_long = target_long or any(mark in target_marks for mark in ("̄", "͂"))
     # Greek accent rule: circumflex (̃) goes on the penult when the
     # penult vowel is LONG and the ultimate is SHORT; otherwise we
     # place an acute (́). The rule applies only to penult/ult, not to

@@ -2190,7 +2190,19 @@ tags exist, the replacement must fit the current cell, including an
 explicit tense. A missing tense imposes no extra restriction. An infinitive
 cannot reaccent a generated optative merely because the optative's
 own source row was filtered out. Untagged spellings retain the existing
-fallback because they make no conflicting grammatical claim.
+fallback because they make no conflicting grammatical claim. Accent
+evidence also stays within the default paradigm's dialect: an Epic
+`κυλίσαι` does not replace Attic `κυλῖσαι`. A paradigm drawn entirely
+from another dialect uses that dialect's evidence. A unique matching
+cell takes precedence over the corpus's preferred accent.
+
+Synthesized first-aorist middle imperatives in the second-person singular
+use recessive accent, with final `-αι` counted as short: `κέλευσαι` and
+`ὄζησαι`, compared with the active infinitives `κελεῦσαι` and `ὀζῆσαι`.
+Long penults written with η or ω, a diphthong, or explicit source quantity
+take a circumflex in two-syllable forms (`κρῶξαι`). The existing source-cell
+correction still supplies vowel quantity that an unmarked α, ι, or υ
+cannot establish.
 Passive aorist endings from a source table with an empty stem cannot
 supply a complete verb cell. For example, τύπτω's incomplete Ionic
 passive table lists `ῆν` and `εῖτε`; those readings are withheld while

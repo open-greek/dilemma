@@ -1000,7 +1000,7 @@ def key_cell_tags(key: str) -> frozenset:
     return frozenset(tags)
 
 
-def wiktionary_cells(verb_pairs) -> tuple:
+def wiktionary_cells(verb_pairs, *, dialect=None) -> tuple:
     """Where Wiktionary puts each spelling, and which spellings share letters.
 
     Returns ``(cells, by_letters)``: ``cells`` maps (lemma, spelling) to the
@@ -1008,11 +1008,14 @@ def wiktionary_cells(verb_pairs) -> tuple:
     (lemma, accent skeleton) to the spellings sharing those letters. Quantity
     marks are dropped from every spelling, so λῦσᾰν and λύσαν are one key, and
     entries carrying no cell tags are skipped, because an empty cell would
-    match every other spelling's.
+    match every other spelling's. When ``dialect`` is supplied, only rows
+    assigned to that slice contribute evidence; ``""`` is the Attic default.
     """
     cells = defaultdict(set)
     by_letters = defaultdict(set)
     for p in verb_pairs:
+        if dialect is not None and dialect not in extract_dialects(p.get("tags") or []):
+            continue
         lemma, form = p.get("lemma"), (p.get("form") or "").strip()
         if not lemma or not form:
             continue
@@ -1028,7 +1031,7 @@ def wiktionary_cells(verb_pairs) -> tuple:
     return dict(cells), dict(by_letters)
 
 
-def wiktionary_spellings(verb_pairs) -> tuple:
+def wiktionary_spellings(verb_pairs, *, dialect=None) -> tuple:
     """Map (lemma, letters) to Wiktionary's spelling of those letters.
 
     Wiktionary's conjugation tables mark vowel quantity (``λῦσᾰν``), and the
@@ -1036,9 +1039,14 @@ def wiktionary_spellings(verb_pairs) -> tuple:
     the table cell, so it decides the accent; the quantity marks themselves
     are dropped. Used to correct cells that a corpus token or the synthesis
     pass spelled with a different accent.
+
+    When ``dialect`` is supplied, a spelling in another dialect cannot
+    decide the default slice's accent.
     """
     by_letters = defaultdict(set)
     for p in verb_pairs:
+        if dialect is not None and dialect not in extract_dialects(p.get("tags") or []):
+            continue
         lemma, form = p.get("lemma"), (p.get("form") or "").strip()
         if not lemma or not form or not is_pure_greek(form):
             continue
@@ -1066,12 +1074,10 @@ def spelling_for_cell(lemma, key, form, spellings, cells, by_letters):
     """Keep another grammatical cell from deciding this cell's accent."""
     skeleton = accent_type_skeleton(form)
     canonical = spellings.get((lemma, skeleton))
-    if not canonical or canonical == form:
-        return form
     attested = by_letters.get((lemma, skeleton), ())
     if not attested:
         # A spelling without grammatical tags makes no competing cell claim.
-        return canonical
+        return canonical or form
     want = key_cell_tags(key)
     fitting = {spelling for spelling in attested
                if any(tags <= want for tags in cells.get((lemma, spelling), ()))}
@@ -1606,13 +1612,14 @@ def build_paradigms(only_lemmas=None):
     # letters: everything Wiktionary lists (used to rank candidates).
     wiki_pairs = [p for name, pairs in sources
                   if name == "ag_pairs.json" for p in pairs]
-    wiki_spellings, wiki_letters = wiktionary_spellings(wiki_pairs)
-    wiki_cells, wiki_letters_spellings = wiktionary_cells(wiki_pairs)
+    _, wiki_letters = wiktionary_spellings(wiki_pairs)
+    wiki_cells, _ = wiktionary_cells(wiki_pairs)
     print(f"  Wiktionary spellings: {len(wiki_letters):,}"
           f" ({len(wiki_cells):,} with a cell)")
 
     results = {}
     synthesis_families = {}
+    default_dialects = {}
     for lemma in sorted(by_lemma_dialect_key.keys()):
         by_dialect = by_lemma_dialect_key[lemma]
         attic_forms_raw = by_dialect.get("", {})
@@ -1654,6 +1661,7 @@ def build_paradigms(only_lemmas=None):
             if not by_size:
                 continue
             dialect, kv = by_size[0]
+            default_dialects[lemma] = dialect
             for key, variants in kv.items():
                 best = pick_best_form(variants, key=key,
                                       wiktionary_letters=wiki_letters)
@@ -1729,12 +1737,18 @@ def build_paradigms(only_lemmas=None):
     # participle), the marked one is the table's and the other is the
     # variant it also lists, so the rewrite is exactly what is wanted.
     renormalized = 0
+    spelling_indexes = {}
     for lemma, paradigm in results.items():
+        dialect = default_dialects.get(lemma, "")
+        if dialect not in spelling_indexes:
+            spellings, _ = wiktionary_spellings(wiki_pairs, dialect=dialect)
+            cells, letters = wiktionary_cells(wiki_pairs, dialect=dialect)
+            spelling_indexes[dialect] = spellings, cells, letters
+        spellings, cells, letters = spelling_indexes[dialect]
         forms = paradigm.get("forms", {})
         for key, form in list(forms.items()):
             canonical = spelling_for_cell(
-                lemma, key, form, wiki_spellings, wiki_cells,
-                wiki_letters_spellings)
+                lemma, key, form, spellings, cells, letters)
             if canonical != form:
                 forms[key] = canonical
                 renormalized += 1

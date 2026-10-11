@@ -404,6 +404,30 @@ class TestAoristMiddleFromFut:
         out = synth.synthesize_mp_moods("λύω", {"fut": "λύσω"})
         assert out["middle_aorist_infinitive"] == "λύσασθαι"
 
+    @pytest.mark.parametrize("lemma,future,expected", [
+        ("ὄζω", "ὀζήσω", "ὄζησαι"),
+        ("κελεύω", "κελεύσω", "κέλευσαι"),
+        ("παιδεύω", "παιδεύσω", "παίδευσαι"),
+        ("κρώζω", "κρώξω", "κρῶξαι"),
+        ("νήφω", "νήψω", "νῆψαι"),
+        ("πρήθω", "πρήσω", "πρῆσαι"),
+    ])
+    def test_second_singular_imperative_is_recessive(self, synth, lemma,
+                                                    future, expected):
+        out = synth.synthesize_mp_moods(lemma, {"fut": future})
+        assert out["middle_aorist_imperative_2sg"] == expected
+
+    @pytest.mark.parametrize("stem,expected", [
+        ("λῦσ", "λῦσαι"),
+        ("λῡ́σ", "λῡ͂σαι"),
+        ("παιδεῦσ", "παίδευσαι"),
+        ("λυσ", "λύσαι"),
+    ])
+    def test_recessive_accent_preserves_explicit_quantity(self, synth, stem,
+                                                         expected):
+        assert synth._recessive_full_form(stem, "αι") == unicodedata.normalize(
+            "NFC", expected)
+
 
 class TestAoristMiddleFromAor:
     """When only the aorist principal part is given (no fut), σ-stem
