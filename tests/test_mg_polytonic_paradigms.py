@@ -1524,6 +1524,98 @@ def test_distinct_finite_cells_and_duplicate_order(tmp_path):
     assert [g.cell for g in got if g.kind == "subjunctive"] == ["present"]
 
 
+@pytest.mark.parametrize("tags", [
+    {"feminine", "nominative", "singular"},
+    {"participle", "feminine", "singular"},
+])
+def test_contracted_participle_is_not_an_untagged_imperative(tags):
+    assert gen("κυκλοφορούσα", tags, "B1") == "κυκλοφοροῦσα"
+
+
+@pytest.mark.parametrize("form, tags", [
+    ("ζήτα", {"imperative"}), ("ζήτα", {"form-of"}),
+    ("βοήθα", {"imperative"}), ("βοήθα", set()),
+])
+def test_explicit_and_untagged_contracted_imperatives_keep_long_alpha(
+        form, tags):
+    assert gen(form, tags, "B1") == form
+
+
+@pytest.mark.parametrize("form, lemma, plural", [
+    ("πάρε", "παίρνω", False), ("πάρτε", "παίρνω", True),
+    ("φύγε", "φεύγω", False), ("κοιτάξτε", "κοιτάζω", True),
+    ("πετάξτε", "πετάω", True), ("σπάσε", "σπάω", False),
+    ("σπάστε", "σπάω", True), ("χαμογελάστε", "χαμογελάω", True),
+    ("κρεμάστε", "κρεμάω", True), ("φυλάξτε", "φυλάω", True),
+    ("γελάστε", "γελάω", True),
+])
+def test_sparse_imperative_rows_defer_to_perfective_cell(
+        tmp_path, form, lemma, plural):
+    number = "plural" if plural else "singular"
+    sparse = ["imperative", "second-person", number]
+    full = sparse + ["active", "perfective"]
+    rows = [full, sparse, ["form-of"], ["alt-of"], ["alternative"], []]
+    par = _verb_source_rows(tmp_path, form, lemma, rows + rows)
+    reverse = _verb_source_rows(tmp_path, form, lemma, list(reversed(rows)))
+    # The sparse row must not independently borrow a long stem vowel.
+    assert len(P.form_tag_rows(par, lemma, form)) == 1
+    assert "perfective" in P.form_tag_rows(par, lemma, form)[0]
+    assert P.form_tag_rows(par, lemma, form) == P.form_tag_rows(reverse, lemma, form)
+
+
+def test_aorist_row_defers_to_explicit_perfective_past(tmp_path):
+    par = _verb_source_rows(tmp_path, "σπάσαν", "σπάω", [
+        ["active", "indicative", "past", "perfective", "third-person", "plural"],
+        ["aorist", "third-person", "plural"]])
+    rows = P.form_tag_rows(par, "σπάω", "σπάσαν")
+    assert len(rows) == 1
+    assert {"past", "perfective"} <= rows[0]
+
+
+def test_standalone_aorist_keeps_its_perfective_stem_length(tmp_path):
+    par = _verb_source_rows(tmp_path, "σπάσαν", "σπάω", [
+        ["aorist", "third-person", "plural"]])
+    row, = P.form_tag_rows(par, "σπάω", "σπάσαν")
+    siblings = [P.Sibling("σπᾶμε", 1000, frozenset({"present", "imperfective"}))]
+    assert gen("σπάσαν", row, "B1", siblings) == "σπάσαν"
+    # A contradictory aspect annotation is retained rather than normalized.
+    par = _verb_source_rows(tmp_path, "σπάσαν", "σπάω", [
+        ["aorist", "imperfective", "third-person", "plural"]])
+    row, = P.form_tag_rows(par, "σπάω", "σπάσαν")
+    assert "aorist" in row and "perfective" not in row
+
+
+def test_generic_reference_does_not_erase_distinct_explicit_cells(tmp_path):
+    par = _verb_source_rows(tmp_path, "βολεύει", "βολεύω", [
+        ["present", "third-person", "singular"],
+        ["participle", "passive"], ["form-of"], []])
+    rows = P.form_tag_rows(par, "βολεύω", "βολεύει")
+    assert len(rows) == 2
+    assert {P.cell(row) for row in rows} == {"present", "participle"}
+    assert any(g.spelling == "βολεύῃ" and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, "βολεύει"))
+
+
+def test_sparse_present_is_not_subsumed_by_conflicting_imperfect_row(tmp_path):
+    par = _verb_source_rows(tmp_path, "θλίβει", "θλίβω", [
+        ["present", "third-person", "singular"],
+        ["present", "imperfect", "active", "third-person", "singular"]])
+    rows = P.form_tag_rows(par, "θλίβω", "θλίβει")
+    assert {P.cell(row) for row in rows} == {"present", "imperfect"}
+    assert any(g.spelling == "θλίβῃ" and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, "θλίβει"))
+
+
+def test_aorist_infinitive_retains_dependent_third_without_past(tmp_path):
+    par = _verb_source_rows(tmp_path, "συμμαχήσει", "συμμαχώ", [
+        ["aorist", "impersonal", "infinitive"]])
+    row, = P.form_tag_rows(par, "συμμαχώ", "συμμαχήσει")
+    assert {"perfective", "infinitive"} <= row
+    assert "past" not in row
+    assert any(g.spelling == "συμμαχήσῃ" and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, "συμμαχήσει"))
+
+
 def test_verb_source_rows_do_not_change_mixed_pos_behavior(tmp_path):
     import json
 
@@ -1534,3 +1626,207 @@ def test_verb_source_rows_do_not_change_mixed_pos_behavior(tmp_path):
     ]))
     par = P.load_paradigms(path)
     assert P.form_tag_rows(par, "test", "test") == (par["test"]["test"],)
+
+
+def _dative_rival_generation(monkeypatch, candidates, frequencies, grc,
+                            listed=(), cells=None):
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, frequencies))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: cells or {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: candidates)
+    return mg.generated_verb_forms(
+        CorpusCounts(), set(), set(grc), set(listed), frozenset(), Counter())
+
+
+@pytest.mark.parametrize("candidate, realized, ancient", [
+    (P.Generated("κυνήγα", "κυνήγα", "κυνηγάω", 226, "indicative", "B1", "imperative", 226),
+     P.Generated("κυνηγᾶ", "κυνηγά", "κυνηγάω", 1647, "indicative", "B1", "present", 1647), "κυνηγά"),
+    (P.Generated("ἔγγραφη", "έγγραφη", "έγγραφος", 151, "indicative", "adj", "adj nominative singular", 151),
+     P.Generated("ἐγγραφή", "εγγραφή", "εγγραφή", 1339, "indicative", "noun", "noun nominative singular", 1339), "ἐγγραφῆ"),
+    (P.Generated("ὀντᾶ", "οντά", "οντάς", 73, "indicative", "noun", "noun genitive singular", 73),
+     P.Generated("ὅντα", "όντα", "ων", 2502, "indicative", "adj", "adj accusative plural", 2502), "ὄντα"),
+    (P.Generated("ὁρός", "ορός", "ορός", 656, "indicative", "noun", "noun nominative singular", 656),
+     P.Generated("ὄρος", "όρος", "όρος", 3839, "indicative", "noun", "noun nominative singular", 3839), "ὅρος"),
+])
+def test_unknown_ancient_rival_count_belongs_to_exact_realized_modern_cells(
+        monkeypatch, candidate, realized, ancient):
+    got = _dative_rival_generation(monkeypatch, [realized, candidate],
+                                  {realized.mono: realized.tokens,
+                                   candidate.mono: candidate.tokens}, {ancient})
+    assert candidate.spelling in got
+
+
+def test_unknown_ancient_rival_with_same_realized_cell_still_blocks(monkeypatch):
+    candidate = P.Generated("φάκελους", "φάκελους", "φάκελος", 59,
+                            "indicative", "noun", "noun accusative plural", 59)
+    realized = P.Generated("φακέλους", "φακέλους", "φάκελος", 2712,
+                           "indicative", "noun", "noun accusative plural", 2712)
+    got = _dative_rival_generation(monkeypatch, [realized, candidate],
+                                  {"φακέλους": 2712, "φάκελους": 59}, {"φακελοῦς"})
+    assert candidate.spelling not in got
+
+
+def test_unknown_ancient_rival_without_positive_realization_keeps_guard(monkeypatch):
+    candidate = P.Generated("κυνήγα", "κυνήγα", "κυνηγάω", 226,
+                            "indicative", "B1", "imperative", 226)
+    got = _dative_rival_generation(monkeypatch, [candidate],
+                                  {"κυνηγά": 1647, "κυνήγα": 226}, {"κυνηγά"})
+    assert candidate.spelling not in got
+
+
+@pytest.mark.parametrize("plain, dative, lemma", [
+    ("εἰδοποιῶ", "εἰδοποιῷ", "ειδοποιώ"),
+    ("θεραπευτῶ", "θεραπευτῷ", "θεραπεύω"),
+])
+def test_unrepresented_dative_cannot_reject_its_counted_plain_realization(
+        monkeypatch, plain, dative, lemma):
+    mono = P.monotonic_key(plain)
+    candidate = P.Generated(plain, mono, lemma, 1000, "indicative", "B2", "present", 1000)
+    got = _dative_rival_generation(monkeypatch, [candidate], {mono: 1000}, {dative})
+    assert plain in got
+
+
+def test_independently_inflected_name_survives_distinct_lowercase_coverage_at_zero_count(
+        monkeypatch):
+    candidate = P.Generated("Νανᾶ", "Νανά", "νανάς", 1000000, "indicative",
+                            "name", "name genitive singular", 1000000)
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"Νανάς"})
+    got = _dative_rival_generation(monkeypatch, [candidate], {"νανά": 1000000}, {"νανά"})
+    assert got["Νανᾶ"] == 0
+
+
+@pytest.mark.parametrize("candidate, proof, covered", [
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "noun", "noun genitive singular", 1000), {"Νανάς"}, "νανά"),
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "name", "name genitive singular", 1000), set(), "νανά"),
+    (P.Generated("Νανᾶ", "Νανά", "νανά", 1000, "indicative", "name", "name nominative singular", 1000), {"Νανά"}, "νανά"),
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "name", "name genitive singular", 1000), {"Νανάς"}, "νανᾶ"),
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "name", "name genitive singular", 1000), {"Νανάς"}, "Νανά"),
+    (P.Generated("Γράψη", "Γράψη", "γράψης", 1000, "indicative", "name", "name genitive singular", 1000), {"Γράψης"}, "γράψῃ"),
+])
+def test_name_coverage_controls_remain_closed(monkeypatch, candidate, proof, covered):
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: proof)
+    got = _dative_rival_generation(monkeypatch, [candidate],
+                                  {P.monotonic_key(candidate.spelling): 1000}, {covered})
+    assert candidate.spelling not in got
+
+
+def test_ancient_dative_count_belongs_to_realized_plain_cell(monkeypatch):
+    candidates = [
+        P.Generated("κοίτα", "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "imperative", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    got = _dative_rival_generation(
+        monkeypatch, candidates, {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτα", "κοίτᾳ"})
+    assert got == {"κοιτᾶ": 100}
+
+
+def test_plain_noun_cells_do_not_block_a_distinct_verb(monkeypatch):
+    candidates = [
+        P.Generated("χώρα", "χώρα", "χώρα", 1000, "indicative", "noun",
+                    "noun nominative singular", 1000),
+        P.Generated("χωρᾶ", "χωρά", "χωρώ", 100, "indicative", "B1",
+                    "present", 100),
+    ]
+    got = _dative_rival_generation(
+        monkeypatch, candidates, {"χώρα": 1000, "χωρά": 100},
+        {"χώρα", "χώρᾳ"})
+    assert got == {"χωρᾶ": 100}
+
+
+def test_unrepresented_dative_without_plain_evidence_is_unchanged(monkeypatch):
+    candidate = P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100,
+                            "indicative", "A", "present", 100)
+    assert _dative_rival_generation(
+        monkeypatch, [candidate], {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτᾳ"}) == {}
+
+
+def test_exact_traditional_finite_rival_keeps_its_cells(monkeypatch):
+    candidates = [
+        P.Generated("κοιτᾷ", "κοιτά", "κοιτάζω", 1000, "indicative", "A",
+                    "present", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    assert _dative_rival_generation(
+        monkeypatch, candidates, {"κοιτά": 1000}, {"κοιτᾷ"}) == {}
+
+
+def test_listed_subscript_rival_keeps_existing_cell_evidence(monkeypatch):
+    candidate = P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100,
+                            "indicative", "A", "present", 100)
+    assert _dative_rival_generation(
+        monkeypatch, [candidate], {"κοίτα": 1000, "κοιτά": 100}, set(),
+        listed={"κοίτᾳ"},
+        cells={"κοίτα": frozenset({("κοιτάζω", "present")})}) == {}
+
+
+def test_plain_multi_cell_evidence_preserves_same_cell_rejection(monkeypatch):
+    candidates = [
+        P.Generated("κοίτα", "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "imperative", 1000),
+        P.Generated("κοίτα", "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "present", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    assert _dative_rival_generation(
+        monkeypatch, candidates, {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτα", "κοίτᾳ"}) == {}
+
+
+@pytest.mark.parametrize("plain", ["κοῖτα", "κόϊτα", "Κοίτα"])
+def test_dative_plain_lookup_preserves_other_marks_and_case(monkeypatch, plain):
+    candidates = [
+        P.Generated(plain, "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "imperative", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    got = _dative_rival_generation(
+        monkeypatch, candidates, {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτᾳ"})
+    assert "κοιτᾶ" not in got
+
+
+@pytest.mark.parametrize("modern, traditional, lemma, own, other", [
+    ("κάηκαν", "καῆκαν", "καίω", 796, 16),
+    ("σώθηκαν", "σωθῆκαν", "σώζω", 316, 7),
+])
+def test_dominant_explicit_stress_variant_retains_its_own_count(
+        monkeypatch, modern, traditional, lemma, own, other):
+    candidate = P.Generated(modern, modern, lemma, own, "indicative",
+                            "A", "past", own)
+    got = _dative_rival_generation(
+        monkeypatch, [candidate],
+        {modern: own, P.monotonic_key(traditional): other}, set(),
+        listed={traditional},
+        cells={P.monotonic_key(traditional): frozenset({(lemma, "past")})})
+    assert got[modern] == own
+
+
+@pytest.mark.parametrize("kind, cell, own, tokens", [
+    ("indicative", "past", 16, 16),
+    ("indicative", "past", 7, 7),
+    ("indicative", "past", 32, 32),
+    ("indicative", "other", 796, 796),
+    ("indicative", "noun", 796, 796),
+    ("subjunctive", "dependent", 796, 100000),
+    ("noun-alternative", "noun genitive singular", 0, 0),
+    ("indicative", "past", 7, 100000),
+])
+def test_literal_list_rival_retains_unspecific_weak_or_borrowed_boundaries(
+        kind, cell, own, tokens):
+    candidate = P.Generated("κάηκαν", "κάηκαν", "καίω", tokens, kind,
+                            "A", cell, own)
+    rival = mg.Rival(frozenset({("καίω", cell)}), 16, "list")
+    assert mg._stops(candidate, rival)
+
+
+def test_identified_nominal_stress_variant_uses_its_own_count():
+    candidate = P.Generated("φάκελους", "φάκελους", "φάκελος", 1000,
+                            "indicative", "noun", "noun accusative plural", 1000)
+    rival = mg.Rival(frozenset({("φάκελος", "noun accusative plural")}), 10, "list")
+    assert not mg._stops(candidate, rival)

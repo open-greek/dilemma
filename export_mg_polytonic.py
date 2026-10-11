@@ -134,11 +134,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import sys
 import unicodedata
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable, NamedTuple
 
@@ -163,6 +165,7 @@ LOOKUP_DB = ROOT / "data" / "lookup.db"
 # Spellings a recorded review of this list rejected, in the format of
 # data/hunspell_grc_spelling_review.json, which is read too.
 MG_SPELLING_REVIEW = ROOT / "data" / "hunspell_mg_spelling_review.json"
+MODERN_LEXICAL_HEADS = ROOT / "data" / "grc_lexical_heads.json"
 DIC_NAME = "grc_mg_polytonic"
 
 KORONIS = "\u1FBD"
@@ -1755,8 +1758,11 @@ def attested_lowercase(counts: CorpusCounts,
 # (``_stops``). Two paradigm cells of the same letters are two forms, and
 # both go in, for the context to tell apart: the imperative περπάτα and the
 # present περπατᾷ, the noun τηλέφωνα and the imperative τηλεφώνα. Two
-# spellings of the same cell are one form: the generated one gives way to
-# the list's attested spelling (ἀνέβουμε to ἀνεβοῦμε) and to one generated
+# spellings of the same cell are one form: the generated one normally gives
+# way to the list's attested spelling (ἀνέβουμε to ἀνεβοῦμε). An identified
+# Modern cell with more than twice the attested spelling's own monotonic
+# count retains its stress variant too (κάηκαν beside καῆκαν). It gives way
+# to one generated
 # before it, which monotonic text has at least as often (πεθάναν, 61
 # tokens, to πέθαναν, 8,404), and to a grc spelling whose monotonic form
 # monotonic text has at least as often as its own (φάκελους, 59, to
@@ -1778,6 +1784,7 @@ class Rival(NamedTuple):
     cells: frozenset    # its monotonic form's paradigm cells, (lemma, cell)
     tokens: int         # its monotonic form's count (a generated one's weight)
     source: str         # "list", "grc" or "generated"
+    counted_form: str = ""  # positive Modern spelling supplying a borrowed count
 
 
 _VERB_INPUTS: dict[str, object] = {}
@@ -1820,6 +1827,58 @@ def _noun_alternatives(candidates) -> set[str]:
              if g.kind == "noun-alternative"}
             - {contextual_acute(g.spelling) for g in candidates
                if g.kind != "noun-alternative"})
+
+
+@lru_cache(maxsize=4)
+def _modern_lexical_heads(path: Path, digest: str) -> frozenset[str]:
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != digest:
+        raise ValueError(f"Modern lexical-head evidence changed while loading: {path}")
+    payload = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise ValueError(f"invalid Modern lexical-head evidence: {path}")
+    heads = payload.get("vernacular_heads")
+    if payload.get("schema_version") != 2 or not isinstance(heads, dict):
+        raise ValueError(f"invalid Modern lexical-head evidence: {path}")
+    sources = {"wiktionary_el_el", "wiktionary_en_el"}
+    return frozenset(unicodedata.normalize("NFC", head)
+                     for head, editions in heads.items()
+                     if isinstance(head, str) and isinstance(editions, list)
+                     and any(isinstance(edition, str) and edition in sources
+                             for edition in editions))
+
+
+def load_modern_lexical_heads(path: Path | None = None) -> frozenset[str]:
+    """Positive Modern definitions; absent evidence retains every guard.
+
+    Only the Modern section of the shared companion supplies this proof.
+    Ancient dictionary membership and self-mapped lookup headers do not.
+    """
+    path = MODERN_LEXICAL_HEADS if path is None else path
+    return (_modern_lexical_heads(path, sha256_file(path))
+            if path.exists() else frozenset())
+
+
+def _generated_orthography_reason(g, lexicon, lexical_heads) -> str | None:
+    reason = mg_orthography_reason(g.spelling, lexicon)
+    if (reason == "truncated_word" and g.vclass == "noun"
+            and g.cell.split()[:1] == ["noun"]
+            and g.mono == g.lemma and g.mono in lexical_heads):
+        # A separately defined loanword such as ροκ is not a clipping of
+        # another word merely because Ancient Greek also has ῥόκα.
+        return None
+    return reason
+
+
+def _independently_inflected_name(g, lexical_heads) -> bool:
+    parts = g.cell.split()
+    head = g.lemma[:1].upper() + g.lemma[1:]
+    return (g.vclass == "name" and parts[:1] == ["name"]
+            and len(parts) == 3
+            and parts[1] in {"nominative", "genitive", "accusative", "vocative"}
+            and parts[2] in {"singular", "plural"}
+            and g.mono.lower() != g.lemma.lower()
+            and (g.lemma in lexical_heads or head in lexical_heads))
 
 
 def generated_verb_forms(
@@ -1870,7 +1929,14 @@ def generated_verb_forms(
     attested = attested_lowercase(counts, sources)
     evidence = paradigms.Evidence(attested, grc_words, verb_paradigms)
     candidates = paradigms.generate(verb_paradigms, frequencies, evidence)
+    lexical_heads = load_modern_lexical_heads()
     realized = _realization_cells(candidates)
+    counted_cells: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for g in candidates:
+        if (g.kind == "indicative" and g.spelling[:1].islower()
+                and paradigms.monotonic_key(g.spelling)
+                == paradigms.monotonic_key(g.mono)):
+            counted_cells[paradigms.monotonic_key(g.spelling)].add((g.lemma, g.cell))
     if realizations is not None:
         realizations.update(realized)
     if alternatives is not None:
@@ -1920,11 +1986,34 @@ def generated_verb_forms(
                 # writing. The selected slice's spelling remains evidence
                 # for a cell even when it differs from the generated one.
                 own_cells = realized.get(canonical, ())
+                counted_form = ""
                 if source == "list":
                     own_cells = own_cells or cells.get(key, ())
+                elif target is datives and not own_cells:
+                    # The monotonic count of an unrepresented Ancient
+                    # dative belongs to its positively realized plain
+                    # spelling, when one exists. It competes as those cells:
+                    # κοίτᾳ must not borrow κοίτα's imperative count to block
+                    # the distinct present κοιτᾷ. This changes no coverage
+                    # or shared-rating evidence for the Ancient spelling.
+                    plain = canonical[:-1] + unicodedata.normalize(
+                        "NFC", unicodedata.normalize("NFD", canonical[-1])
+                        .replace("\u0345", ""))
+                    own_cells = realized.get(plain, ())
+                    if own_cells:
+                        counted_form = paradigms.monotonic_key(plain)
+                elif target is rivals and not own_cells:
+                    # This count is Modern, even when the Ancient spelling
+                    # is not a Modern realization. Attribute it only to the
+                    # positively realized cells of that exact monotonic
+                    # spelling; an unknown κυνηγά must not borrow the present
+                    # κυνηγᾶ's count to block the imperative κυνήγα.
+                    own_cells = counted_cells.get(key, ())
+                    if own_cells:
+                        counted_form = key
                 target[letters][canonical] = Rival(
                     frozenset(own_cells), frequencies.get(key, 0),
-                    source)
+                    source, counted_form)
     reviewed = {contextual_acute(f) for f in reviewed_rejects}
     total = sum(frequencies.values())
     # A loanword of Wiktionary's may end in a consonant (μπάσκετ, μοτέλ,
@@ -1969,7 +2058,7 @@ def generated_verb_forms(
                 report["generated_letters_taken"] += 1
                 continue
             report["generated_letters_shared"] += 1
-        if mg_orthography_reason(g.spelling, lexicon) is not None:
+        if _generated_orthography_reason(g, lexicon, lexical_heads) is not None:
             report["generated_orthography"] += 1
             continue
         if contextual_acute(g.spelling) in reviewed:
@@ -1991,7 +2080,11 @@ def generated_verb_forms(
         paradigms.monotonic_key(g.spelling): g for g in capitalized}.values())
     for g in capitalized:
         key = paradigms.monotonic_key(g.spelling)
-        if (g.spelling in kept or _without_diaeresis(key) in covered
+        distinct_name = (_without_diaeresis(key) in covered
+                         and _independently_inflected_name(g, lexical_heads)
+                         and not any(_same_spelling(_lowercase(g.spelling), word)
+                                     for word in rivals.get(paradigms.bare(g.spelling), {})))
+        if (g.spelling in kept or (_without_diaeresis(key) in covered and not distinct_name)
                 or _without_diaeresis(key) in covered_subjunctive
                 or key in covered_capitals):
             report["generated_capital_covered"] += 1
@@ -2013,7 +2106,12 @@ def generated_verb_forms(
             report["generated_orthography"] += 1
             continue
         report["generated_capital"] += 1
-        kept[g.spelling] = g.tokens
+        # Distinct name cells retain their spelling without inheriting the
+        # lowercase homonym's pooled frequency. Their own slice attestation
+        # may still supply a rating.
+        kept[g.spelling] = 0 if distinct_name else g.tokens
+        if distinct_name:
+            report["generated_capital_distinct_name"] += 1
         covered_capitals.add(key)
     report["generated"] = len(kept)
     return kept
@@ -2043,18 +2141,45 @@ def _marks_monotonic_drops(spelling: str) -> bool:
 def _stops(g, rival: Rival) -> bool:
     """Whether a spelling of the same letters keeps the generated ``g``
     out (``RIVAL_RATIO``): a subjunctive twin gives way to any spelling far
-    commoner than its own letters; another spelling gives way to a
-    spelling of its cell, the list's or one generated before it or a grc
+    commoner than its own letters; another spelling normally gives way to
+    a spelling of its cell, the list's or one generated before it or a grc
     spelling at least as common, and to a far commoner spelling of no
-    cell; another cell's spelling never stops it."""
+    cell. An identified Modern stress variant far commoner than the list's
+    spelling retains its own count. Another cell's spelling never stops it.
+    """
+    if rival.counted_form:
+        import mg_polytonic_paradigms as paradigms
+        if paradigms.monotonic_key(g.spelling) == rival.counted_form:
+            # An unrepresented Ancient spelling cannot use this Modern
+            # realization's own count to reject that very realization.
+            return False
     # A rival monotonic text never writes says nothing of the form's use.
     far_commoner = 0 < rival.tokens and RIVAL_RATIO * g.weight <= rival.tokens
     if g.kind == "subjunctive" and far_commoner:
         return True
     if _same_cell(g.lemma, g.cell, rival.cells):
+        if (rival.source == "list" and g.kind == "indicative"
+                and _identified_generated_cell(g.cell)
+                and g.weight > RIVAL_RATIO * rival.tokens):
+            # Independently supplied Modern stress variants do not disappear
+            # merely because the slice also contains a rarer spelling of
+            # their cell (κάηκαν beside καῆκαν). Keep both; the candidate's
+            # own monotonic count, never a parent or homonym's, rates it.
+            return False
         return rival.source != "grc" or 0 < rival.tokens and \
             g.weight <= rival.tokens
     return not rival.cells and far_commoner
+
+
+def _identified_generated_cell(cell: str) -> bool:
+    """Positive verb morphology or a nominal case and number."""
+    if cell in {"present", "past", "imperfect", "dependent", "imperative",
+                "participle"}:
+        return True
+    parts = cell.split()
+    return (len(parts) == 3 and parts[0] in NOMINAL_CELL_POS
+            and parts[1] in {"nominative", "genitive", "accusative", "vocative"}
+            and parts[2] in {"singular", "plural"})
 
 
 def _same_spelling(left: str, right: str) -> bool:
@@ -3015,6 +3140,8 @@ def input_digests(generate_verbs: bool = True) -> dict[str, str | None]:
             paradigms.PARTICIPLE_PARADIGMS.name)))
     if generate_verbs or MONOTONIC_BUCKETS:
         files.append(("form_frequencies", paradigms.MG_FORM_FREQ))
+    if generate_verbs:
+        files.append(("modern_lexical_heads", MODERN_LEXICAL_HEADS))
     return {name: sha256_file(path) if path.exists() else None
             for name, path in files}
 

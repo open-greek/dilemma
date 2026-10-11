@@ -748,6 +748,7 @@ def _long_final(tags: frozenset, word: list[Letter], vclass: str) -> bool:
     of the majority is kept by ``GERUND_ACUTE``."""
     if word[-1].base == "α" and ("imperative" in tags or (
             vclass == "B1" and FINITE not in tags
+            and not _is_participle(tags)
             and not {"past", "imperfect", "aorist"} & tags)):
         return True
     return False
@@ -902,7 +903,28 @@ def form_tag_rows(paradigms, lemma: str, form: str) -> tuple[frozenset, ...]:
     if is_verb(tags):
         if any(not is_verb(row) for row in rows):
             return (tags,)
-        return tuple(sorted(set(rows), key=lambda row: tuple(sorted(row))))
+        # A reference marker supplies no additional grammatical analysis.
+        # Sparse rows defer to source rows that specify the same morphology
+        # more fully; they must not lose a perfective tag and invent a second
+        # imperative accent. Conflicting explicit cells remain separate.
+        morphology = set()
+        for row in rows:
+            row = row - {"form-of", "alt-of", "alternative"}
+            # Aorist supplies perfective aspect. It supplies past tense only
+            # to a past cell: an aorist infinitive also supplies the Modern
+            # dependent third singular and must not become a past reading.
+            if "aorist" in row and "imperfective" not in row:
+                past = (cell(row) == "past" and "infinitive" not in row
+                        and not _is_participle(row))
+                row = row - {"aorist"} | {"perfective"}
+                if past:
+                    row = row | {"past"}
+            morphology.add(row)
+        return tuple(sorted((row for row in morphology
+                             if not any(row < other and (
+                                 cell(row) == "other" or cell(row) == cell(other))
+                                 for other in morphology)),
+                            key=lambda row: tuple(sorted(row))))
     out = set()
     for row in rows:
         row = row | (tags & {S_STEM})

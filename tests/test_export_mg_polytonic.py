@@ -1240,6 +1240,9 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     lookup.write_bytes(b"lookup")
     monkeypatch.setattr(mg, "LOOKUP_DB", lookup)
     monkeypatch.setattr(mg, "FORM_PROFILE", tmp_path / "missing.db")
+    heads = tmp_path / "grc_lexical_heads.json"
+    heads.write_bytes(b"heads")
+    monkeypatch.setattr(mg, "MODERN_LEXICAL_HEADS", heads)
     import hashlib
     import mg_polytonic_paradigms as paradigms
     freq = tmp_path / "mg_freq.txt"
@@ -1253,7 +1256,8 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None, "verb_paradigms": None,
         "participle_paradigms": hashlib.sha256(b"participles").hexdigest(),
-        "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
+        "form_frequencies": hashlib.sha256(b"freq").hexdigest(),
+        "modern_lexical_heads": hashlib.sha256(b"heads").hexdigest()}
     assert mg.input_digests(generate_verbs=False) == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None}
@@ -1264,6 +1268,59 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
         "verb_paradigms": None,
         "participle_paradigms": hashlib.sha256(b"participles").hexdigest(),
         "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
+
+
+def test_generated_independent_loan_head_is_not_a_truncated_other_word():
+    import mg_polytonic_paradigms as P
+
+    rock = P.Generated("ῥόκ", "ροκ", "ροκ", 5573, "indicative", "noun",
+                       "noun", 5573)
+    assert mg.mg_orthography_reason("ῥόκ", {"ῥόκα"}) == "truncated_word"
+    assert mg._generated_orthography_reason(rock, {"ῥόκα"}, {"ροκ"}) is None
+    assert mg._generated_orthography_reason(rock, {"ῥόκα"}, set()) == "truncated_word"
+
+
+def test_loan_head_proof_does_not_cover_inflections_or_other_parts_of_speech():
+    import mg_polytonic_paradigms as P
+
+    candidate = P.Generated("ῥόκ", "ροκ", "ροκ", 100, "indicative", "noun",
+                            "noun", 100)
+    assert mg._generated_orthography_reason(
+        candidate._replace(lemma="ρόκα", cell="noun genitive singular"),
+        {"ῥόκα"}, {"ροκ", "ρόκα"}) == "truncated_word"
+    assert mg._generated_orthography_reason(
+        candidate._replace(vclass="adj", cell="adj"),
+        {"ῥόκα"}, {"ροκ"}) == "truncated_word"
+
+
+def test_positive_loan_head_proof_preserves_other_structural_rejects():
+    import mg_polytonic_paradigms as P
+
+    candidate = P.Generated("ρόκ", "ροκ", "ροκ", 100, "indicative", "noun",
+                            "noun", 100)
+    reason = mg.mg_orthography_reason(candidate.spelling, {"ρόκα"})
+    assert reason is not None and reason != "truncated_word"
+    assert mg._generated_orthography_reason(candidate, {"ρόκα"}, {"ροκ"}) == reason
+
+
+def test_modern_head_proof_does_not_use_ancient_or_empty_self_headers(tmp_path):
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({"schema_version": 2,
+                               "heads": {"ροκ": ["wiktionary_en_grc"]},
+                               "vernacular_heads": {
+                                   "ροκ": ["wiktionary_en_el", "wiktionary_el_el"],
+                                   "τύπος": [], "άλλο": ["wiktionary_en_grc"]}},
+                              ensure_ascii=False))
+    assert mg.load_modern_lexical_heads(path) == {"ροκ"}
+    # Memoization is keyed by content, not only a reused artifact path.
+    path.write_text(json.dumps({"schema_version": 2,
+                               "vernacular_heads": {"ροκ": []}}))
+    assert mg.load_modern_lexical_heads(path) == set()
+    assert mg.load_modern_lexical_heads(tmp_path / "missing.json") == set()
+    path = tmp_path / "malformed.json"
+    path.write_text(json.dumps({"schema_version": 1, "heads": {"ροκ": []}}))
+    with pytest.raises(ValueError, match="Modern lexical-head"):
+        mg.load_modern_lexical_heads(path)
 
 
 # --------------------------------------------------------------------------
