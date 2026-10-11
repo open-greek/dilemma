@@ -104,3 +104,29 @@ def test_real_templates_preserve_head_and_correct_voice(word, good, bad):
     assert word in forms
     assert good in forms
     assert bad not in forms
+
+
+@pytest.mark.parametrize("word", ["ἐπάνειμι", "ἄνειμι", "πάρειμι", "σύνοιδα"])
+def test_irregular_compounds_do_not_invent_marked_paradigms(word):
+    assert expand_lsj.expand_verb(None, word) == (set(), "unsupported-irregular-compound")
+    assert expand_lsj.expand_verb(None, unicodedata.normalize("NFD", word)) == (
+        set(), "unsupported-irregular-compound")
+    assert not expand_lsj._expand_irregular_compound(word)
+
+
+@pytest.mark.parametrize("word,good,bad", [
+    ("εἰμί", "ἐστί", "ᾔει"),
+    ("εἶμι", "ᾔει", "ἐστί"),
+    ("οἶδα", "ᾔδει", "φῄς"),
+    ("χρή", "χρῆν", "ᾔει"),
+])
+def test_literal_irregular_bases_keep_their_distinct_reviewed_paradigms(word, good, bad):
+    forms, error = expand_lsj.expand_verb(None, word)
+    assert not error
+    assert word in forms and good in forms
+    assert bad not in forms
+
+
+def test_unmarked_eimi_does_not_choose_or_combine_two_lexical_paradigms():
+    assert expand_lsj.expand_verb(None, "ειμι") == (set(), "irregular-no-base-match")
+    assert not expand_lsj._expand_irregular_compound("ειμι")

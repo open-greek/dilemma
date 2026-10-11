@@ -61,15 +61,19 @@ def superseded_verb_generation(lemma: str) -> bool:
 
     Historical middle lemmas used an extra thematic vowel and unrestricted
     active output; -φημι used an unsupported regular or compound route;
-    -ννυμι lost the first nu. Rebuild those families with the current generator
-    instead of recovering their old generated rows. Independent base entries
+    -ννυμι lost the first nu. Irregular compounds used an approximate prefix
+    joiner that lost subscripts and combined incompatible base paradigms.
+    Rebuild supported families and withhold unsupported compound generation
+    instead of recovering old generated rows. Independent base entries
     and any spelling already in the current target remain untouched.
     """
     plain = "".join(
         char for char in unicodedata.normalize("NFD", lemma)
         if not unicodedata.combining(char)
     )
-    return plain.endswith(("μαι", "φημι", "ννυμι"))
+    irregular_compound = (plain.lower().endswith(("ειμι", "οιδα", "χρη"))
+                          and plain.lower() not in {"ειμι", "οιδα", "χρη"})
+    return plain.endswith(("μαι", "φημι", "ννυμι")) or irregular_compound
 
 
 def file_sha256(path: Path) -> str:

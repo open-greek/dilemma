@@ -236,3 +236,21 @@ def test_historical_nonlexical_guard_preserves_base_and_current_evidence():
     assert target == {"έφʼωμαι": "independent-current-analysis"}
     assert stats["already_present"] == 1
     assert stats["nonlexical_lemma_entries"] == 1
+
+
+def test_overlay_withholds_irregular_compounds_but_preserves_independent_rows():
+    reference_base = {"ἐπανῄει": "ἐπάνειμι"}
+    reference = {
+        **reference_base,
+        "ἐπάνηει": "ἐπάνειμι",
+        "ἄνεστί": "ἄνειμι",
+        "πάρεισι": "πάρειμι",
+        "σύνηδει": "σύνοιδα",
+        "ᾔει": "εἶμι",
+    }
+    target = {"πάρεισι": "independent-source", "ἄνειμι": "ἄνειμι"}
+    before = dict(target)
+    stats = overlay_expansion(reference, reference_base, target)
+    assert target == {**before, "ᾔει": "εἶμι"}
+    assert stats["superseded_verb_entries"] == 3
+    assert stats["already_present"] == 1
