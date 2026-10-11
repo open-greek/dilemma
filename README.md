@@ -426,7 +426,10 @@ validate the built pairs against the lookup and this companion.
 Independently defined Modern adjectives retain their own source tables through
 the same flat homographs. Adjective `κρατών` therefore owns `κρατούν`,
 `κρατούσα`, and `κρατούσες`, while noun `κρατών` remains the genitive plural
-of `κράτος`. `data/el_adjective_heads.json` records exact adjective definitions,
+of `κράτος`. A new typed adjective field preserves the previously published
+non-adjective fields and their scalar fallbacks; an adjective correction does
+not expose unrelated internal noun or adverb table mappings.
+`data/el_adjective_heads.json` records exact adjective definitions,
 declared head types, source forms, and source-edition hashes for non-flat owners.
 Certification also requires an explicit adjective head template, forms in at
 least two genders, or an explicitly indeclinable header. A raw adjective POS

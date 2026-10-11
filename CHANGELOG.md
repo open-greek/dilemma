@@ -25,6 +25,8 @@ All notable changes to Dilemma are documented here. The format follows
   `κρατούσα`, and `κρατούσες`; the noun reference still names `κράτος`.
   Certification requires explicit adjective morphology, so mislabeled noun or
   adverb entries and definition-only headers cannot supply a new ownership exception.
+  Newly published ADJ overrides preserve the previous non-adjective fields
+  and scalar fallbacks instead of exposing unrelated internal table mappings.
 - Canonical Ancient verb citations can recover a missing breathing from a
   unique matching source cell. Explicitly defective verbs retain supplied cells
   while synthesized forms stay within source-supported tense and voice families.

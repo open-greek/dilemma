@@ -168,6 +168,39 @@ def test_adjective_companion_is_deterministic_and_omits_flat_self_heads():
     assert B.validate_adjective_head_inventory(first) == {'κρατών'}
 
 
+@pytest.mark.parametrize('form,old_target,other_pos', [
+    ('αδελφή', 'αδελφός', 'NOUN'), ('μονάχα', 'μοναχός', 'ADV')])
+def test_adjective_publication_does_not_expose_an_unpublished_other_pos(
+        form, old_target, other_pos):
+    previous = {'ADJ': old_target, other_pos: old_target}
+    resolved = {'ADJ': form, other_pos: old_target}
+    # The scalar already supplies the adjective head; its repair must not
+    # newly override the noun/adverb's prior scalar fallback.
+    assert B.published_pos_readings(resolved, previous, form,
+                                   adjective_heads={form}) == {}
+    assert B.published_pos_readings(resolved, previous, 'another scalar',
+                                   adjective_heads={form}) == {'ADJ': form}
+
+
+def test_adjective_publication_keeps_previously_explicit_nonadjective_fields():
+    previous = {'ADJ': 'αδελφός', 'NOUN': 'αδελφή'}
+    resolved = {'ADJ': 'αδελφή', 'NOUN': 'αδελφή'}
+    assert B.published_pos_readings(resolved, previous, 'αδελφή',
+                                   adjective_heads={'αδελφή'}) == resolved
+    # A separately published closed-class path also keeps its existing fields.
+    same = {'ADJ': 'αδελφός', 'PRON': 'αδελφός'}
+    current = {'ADJ': 'αδελφή', 'PRON': 'αδελφός'}
+    assert B.published_pos_readings(current, same, 'αδελφή', True,
+                                   {'αδελφή'}) == current
+
+
+def test_adjective_only_publication_requires_positive_evidence():
+    previous = {'ADJ': 'αδελφός', 'NOUN': 'αδελφός'}
+    resolved = {'ADJ': 'αδελφή', 'NOUN': 'αδελφός'}
+    assert B.published_pos_readings(resolved, previous, 'αδελφός') == {}
+    assert B.published_pos_readings(previous, previous, 'αδελφός') == {}
+
+
 def test_main_generates_adjective_proof_and_publishes_exact_typed_owner(tmp_path, monkeypatch):
     source, output = tmp_path / 'source', tmp_path / 'data'
     source.mkdir()

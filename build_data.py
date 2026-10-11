@@ -2697,6 +2697,23 @@ def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
     return cross_resolved
 
 
+def published_pos_readings(resolved: dict, previous: dict, scalar_target: str,
+                           closed_target_differs: bool = False,
+                           adjective_heads: set = frozenset()) -> dict:
+    """Publish an adjective override without exposing unrelated POS fallbacks.
+
+    Previously published ambiguous or closed-class readings keep every POS.
+    An adjective-only correction adds its own field to an otherwise omitted
+    key; it does not newly certify that key's other internal table mappings.
+    """
+    if len(set(previous.values())) > 1 or closed_target_differs:
+        return resolved
+    adjective = resolved.get("ADJ")
+    if adjective in adjective_heads and adjective != scalar_target:
+        return {"ADJ": adjective}
+    return {}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build Dilemma training data")
     parser.add_argument("--kaikki", type=str, default=None,
@@ -3141,10 +3158,17 @@ def main():
             closed_target_differs = lang == "el" and any(
                 upos in resolved and resolved[upos] != all_lookup.get(form, (form,))[0]
                 for upos in ("DET", "PRON"))
-            adjective_target_differs = (lang == "el" and resolved.get("ADJ") in adjective_heads
-                                       and resolved["ADJ"] != all_lookup.get(form, (form,))[0])
-            if len(set(resolved.values())) > 1 or closed_target_differs or adjective_target_differs:
-                ambiguous_pos[form] = resolved
+            previous = dict(resolved)
+            if lang == "el" and resolved.get("ADJ") in adjective_heads:
+                # Modern adjective resolution previously used only this flat
+                # target. Preserve the old publication of all other POS fields.
+                previous["ADJ"] = resolve_pair_lemma(
+                    upos_lemmas["ADJ"], "adj", all_lookup)
+            published = published_pos_readings(
+                resolved, previous, all_lookup.get(form, (form,))[0],
+                closed_target_differs, adjective_heads if lang == "el" else frozenset())
+            if published:
+                ambiguous_pos[form] = published
 
         pos_lookup_path = DATA_DIR / f"{prefix}_pos_lookup.json"
         with open(pos_lookup_path, "w", encoding="utf-8") as f:
