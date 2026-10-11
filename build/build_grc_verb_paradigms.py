@@ -436,7 +436,10 @@ def drop_collapsed_cells(verb_pairs) -> tuple:
         form = (p.get("form") or "").strip()
         if not form or not p.get("lemma"):
             continue
-        letters = accent_type_skeleton(form)
+        # Polytonic and simplified copies, quantity marks, and an accent's
+        # position do not create distinct letter sequences. A contracted
+        # and uncontracted form with both copies is still two candidates.
+        letters = strip_accents(form).lower()
         for key in keys:
             by_cell[(p["lemma"], key)].add(letters.rstrip("ν") or letters)
     collapsed = {cell for cell, forms in by_cell.items()

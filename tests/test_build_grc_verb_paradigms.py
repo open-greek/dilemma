@@ -1282,6 +1282,43 @@ class TestDropCollapsedCells:
                   "tags": ["active", "indicative"]}]
         assert b.drop_collapsed_cells(pairs)[0] == pairs
 
+    @pytest.mark.parametrize("lemma,forms", [
+        ("αἰσχόω", ("αἰσχόω", "αισχόω", "αἰσχῶ", "αισχώ")),
+        ("ἀκριτομυθέω", ("ἀκριτομυθέω", "ακριτομυθέω",
+                          "ἀκριτομυθῶ", "ακριτομυθώ")),
+        ("ἀπιχθυόομαι", ("ἀπιχθυόομαι", "απιχθυόομαι",
+                         "ἀπιχθυοῦμαι", "απιχθυούμαι")),
+        ("ἐκλιστράω", ("ἐκλιστράω", "εκλιστράω",
+                        "ἐκλιστρῶ", "εκλιστρώ")),
+    ])
+    def test_contract_variants_with_simplified_copies_survive(self, b, lemma, forms):
+        # All four entries are source variants of the same explicit cell.
+        voice = "passive" if lemma.endswith("μαι") else "active"
+        pairs = [{"form": form, "lemma": lemma, "pos": "verb",
+                  "tags": [voice, "present", "indicative", "first-person",
+                           "singular"]} for form in forms]
+        kept, cells, dropped = b.drop_collapsed_cells(pairs)
+        assert kept == pairs
+        assert (cells, dropped) == (0, 0)
+
+    @pytest.mark.parametrize("forms", [
+        ("τιμᾷς", "τιμάς", "τιμᾶς", "τιμᾱς"),
+        ("προΐῃ", "προίη", "προΐη", "προῑη"),
+    ])
+    def test_diacritics_and_quantity_do_not_inflate_letter_count(self, b, forms):
+        pairs = [{"form": form, "lemma": "τιμάω", "pos": "verb",
+                  "tags": ["active", "present", "subjunctive", "second-person",
+                           "singular"]} for form in forms]
+        assert b.drop_collapsed_cells(pairs) == (pairs, 0, 0)
+
+    def test_simplified_copies_do_not_hide_a_true_person_number_collapse(self, b):
+        pairs = self.COLLAPSED + [
+            {**row, "form": b.strip_accents(row["form"])}
+            for row in self.COLLAPSED]
+        kept, cells, dropped = b.drop_collapsed_cells(pairs)
+        assert kept == []
+        assert (cells, dropped) == (1, len(pairs))
+
     def test_collapsed_middle_reading_keeps_independent_passive_reading(self, b):
         pairs = [{"form": f, "lemma": "λύω", "pos": "verb",
                   "tags": ["middle", "present", "indicative", "first-person", "singular"]}
