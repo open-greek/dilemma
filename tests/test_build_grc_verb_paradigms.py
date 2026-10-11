@@ -1233,6 +1233,55 @@ class TestWiktionaryCells:
         assert ("λύω", "λῦσαν") in cells
 
 
+class TestCellSpellingBoundary:
+    @pytest.mark.parametrize("lemma,key,selected,other,tags", [
+        ("ἰαύω", "active_aorist_optative_3sg", "ἰαύσαι", "ἰαῦσαι",
+         ["active", "aorist", "infinitive"]),
+        ("ἀλέξω", "active_aorist_optative_3sg", "ἀλεξήσαι", "ἀλεξῆσαι",
+         ["active", "aorist", "infinitive"]),
+        ("ὄζω", "middle_aorist_imperative_2sg", "ὀζῆσαι", "ὀζήσαι",
+         ["active", "aorist", "optative", "third-person", "singular"]),
+    ])
+    def test_another_cell_cannot_reaccent_a_selected_form(self, b, lemma, key,
+                                                       selected, other, tags):
+        cells, by_letters = b.wiktionary_cells([
+            {"form": other, "lemma": lemma, "tags": tags}])
+        spellings = {(lemma, b.accent_type_skeleton(selected)): other}
+        assert b.spelling_for_cell(lemma, key, selected, spellings,
+                                   cells, by_letters) == selected
+
+    def test_same_cell_can_still_correct_an_accent(self, b):
+        cells, by_letters = b.wiktionary_cells([
+            {"form": "βαῖνον", "lemma": "βαίνω",
+             "tags": ["active", "participle", "neuter"]}])
+        spellings = {("βαίνω", b.accent_type_skeleton("βαίνον")): "βαῖνον"}
+        assert b.spelling_for_cell("βαίνω", "active_present_participle_acc_n_sg",
+                                   "βαίνον", spellings, cells, by_letters) == "βαῖνον"
+
+    def test_tagless_spelling_retains_the_existing_fallback(self, b):
+        spellings = {("βαίνω", b.accent_type_skeleton("βαίνον")): "βαῖνον"}
+        assert b.spelling_for_cell("βαίνω", "active_present_participle_acc_n_sg",
+                                   "βαίνον", spellings, {}, {}) == "βαῖνον"
+
+    def test_final_build_keeps_generated_optative_distinct_from_infinitive(self, b,
+                                                                         monkeypatch,
+                                                                         tmp_path):
+        rows = [{"form": "ἰαῦσαι", "lemma": "ἰαύω", "pos": "verb",
+                 "tags": ["active", "aorist", "infinitive"]}]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        def synthesize(results, *args):
+            forms = results["ἰαύω"]["forms"]
+            forms["active_aorist_optative_3sg"] = "ἰαύσαι"
+            results["ἰαύω"]["form_count"] = len(forms)
+        monkeypatch.setattr(b, "synthesize_missing_moods", synthesize)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["ἰαύω"]["forms"]
+        assert result["active_aorist_optative_3sg"] == "ἰαύσαι"
+        assert result["active_aorist_infinitive"] == "ἰαῦσαι"
+
+
 class TestDropCollapsedCells:
     # kaikki delivers τιμάω's whole present active indicative row tagged
     # first-person singular, so one cell holds six different forms.

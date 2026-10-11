@@ -2177,12 +2177,16 @@ whether Wiktionary lists it for this verb, then its corpus count in
 `form_profile.db`.
 
 Finally, Wiktionary's conjugation tables decide the accent of any cell
-that a corpus token or the synthesiser spelled the same letters
+that a corpus token or the synthesizer spelled the same letters
 differently. That pass reads which cell Wiktionary puts each spelling
 in, so an accent that is the only thing telling two cells apart
 survives — `λύσαι` is λύω's aorist optative third-person singular and
 `λῦσαι` its aorist middle imperative — while a spelling both cells
-share is still corrected, as `βαίνον` is to `βαῖνον`.
+share is still corrected, as `βαίνον` is to `βαῖνον`. When grammatical
+tags exist, the replacement must fit the current cell. An infinitive
+cannot reaccent a generated optative merely because the optative's
+own source row was filtered out. Untagged spellings retain the existing
+fallback because they make no conflicting grammatical claim.
 
 ### Export to ONNX
 

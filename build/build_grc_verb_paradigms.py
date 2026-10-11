@@ -1068,6 +1068,24 @@ def wiktionary_spellings(verb_pairs) -> tuple:
     return out, set(by_letters)
 
 
+def spelling_for_cell(lemma, key, form, spellings, cells, by_letters):
+    """Keep another grammatical cell from deciding this cell's accent."""
+    skeleton = accent_type_skeleton(form)
+    canonical = spellings.get((lemma, skeleton))
+    if not canonical or canonical == form:
+        return form
+    attested = by_letters.get((lemma, skeleton), ())
+    if not attested:
+        # A spelling without grammatical tags makes no competing cell claim.
+        return canonical
+    want = key_cell_tags(key)
+    fitting = {spelling for spelling in attested
+               if any(tags <= want for tags in cells.get((lemma, spelling), ()))}
+    if len(fitting) == 1:
+        return next(iter(fitting))
+    return canonical if canonical in fitting else form
+
+
 def load_pairs(path: Path):
     if not path.exists():
         print(f"  skipping {path.name} (not present)", flush=True)
@@ -1709,27 +1727,16 @@ def build_paradigms(only_lemmas=None):
     # spellings the same cell (βαίνον beside βαῖνον, the neuter present
     # participle), the marked one is the table's and the other is the
     # variant it also lists, so the rewrite is exactly what is wanted.
-    wiki = wiki_spellings
     renormalized = 0
     for lemma, paradigm in results.items():
         forms = paradigm.get("forms", {})
         for key, form in list(forms.items()):
-            canonical = wiki.get((lemma, accent_type_skeleton(form)))
-            if not canonical or canonical == form:
-                continue
-            # Where two spellings share the letters, prefer the one
-            # Wiktionary files under this very cell.
-            want = key_cell_tags(key)
-            fitting = {sp for sp
-                       in wiki_letters_spellings.get(
-                           (lemma, accent_type_skeleton(form)), ())
-                       if any(c <= want for c in wiki_cells.get((lemma, sp), ()))}
-            if len(fitting) == 1:
-                canonical = fitting.pop()
-                if canonical == form:
-                    continue
-            forms[key] = canonical
-            renormalized += 1
+            canonical = spelling_for_cell(
+                lemma, key, form, wiki_spellings, wiki_cells,
+                wiki_letters_spellings)
+            if canonical != form:
+                forms[key] = canonical
+                renormalized += 1
     print(f"  re-accented from Wiktionary spellings: {renormalized:,} cells")
     if results:
         counts = sorted(v["form_count"] for v in results.values())

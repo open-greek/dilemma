@@ -9,6 +9,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Require matching grammatical evidence when a conjugation table corrects
+  a verb cell's accent, so an infinitive cannot change an optative or
+  imperative's distinct accent.
 - Count Ancient verb table variants within each dialect when detecting lost
   person and number labels. Valid Attic, Epic, Doric, and Koine readings no
   longer combine into a false damaged cell, and filtering one dialect keeps
