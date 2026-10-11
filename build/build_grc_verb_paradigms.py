@@ -1000,6 +1000,22 @@ def key_cell_tags(key: str) -> frozenset:
     return frozenset(tags)
 
 
+def spelling_readings(pair):
+    """Surviving cell/dialect claims, including partially collapsed rows."""
+    if "_paradigm_readings" in pair:
+        return tuple((key_cell_tags(key), dialect)
+                     for key, dialect in pair["_paradigm_readings"])
+    tags = set(pair.get("tags") or [])
+    dialects = extract_dialects(tags)
+    if "_paradigm_keys" in pair:
+        return tuple((key_cell_tags(key), dialect)
+                     for key in pair["_paradigm_keys"] for dialect in dialects)
+    if "mediopassive" in tags:
+        tags = (tags - {"mediopassive"}) | {"middle"}
+    cell = frozenset(tags & _CELL_TAGS)
+    return tuple((cell, dialect) for dialect in dialects)
+
+
 def wiktionary_cells(verb_pairs, *, dialect=None) -> tuple:
     """Where Wiktionary puts each spelling, and which spellings share letters.
 
@@ -1014,19 +1030,15 @@ def wiktionary_cells(verb_pairs, *, dialect=None) -> tuple:
     cells = defaultdict(set)
     by_letters = defaultdict(set)
     for p in verb_pairs:
-        if dialect is not None and dialect not in extract_dialects(p.get("tags") or []):
-            continue
         lemma, form = p.get("lemma"), (p.get("form") or "").strip()
         if not lemma or not form:
             continue
-        tags = set(p.get("tags") or [])
-        if "mediopassive" in tags:
-            tags = (tags - {"mediopassive"}) | {"middle"}
-        cell = frozenset(tags & _CELL_TAGS)
-        if not cell:
+        claims = {cell for cell, source_dialect in spelling_readings(p)
+                  if cell and (dialect is None or source_dialect == dialect)}
+        if not claims:
             continue
         unmarked = strip_vowel_length(form)
-        cells[(lemma, unmarked)].add(cell)
+        cells[(lemma, unmarked)].update(claims)
         by_letters[(lemma, accent_type_skeleton(form))].add(unmarked)
     return dict(cells), dict(by_letters)
 
@@ -1045,7 +1057,8 @@ def wiktionary_spellings(verb_pairs, *, dialect=None) -> tuple:
     """
     by_letters = defaultdict(set)
     for p in verb_pairs:
-        if dialect is not None and dialect not in extract_dialects(p.get("tags") or []):
+        if not any(dialect is None or source_dialect == dialect
+                   for _, source_dialect in spelling_readings(p)):
             continue
         lemma, form = p.get("lemma"), (p.get("form") or "").strip()
         if not lemma or not form or not is_pure_greek(form):

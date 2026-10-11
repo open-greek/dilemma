@@ -1337,6 +1337,32 @@ class TestWiktionaryCells:
              "tags": ["active", "neuter", "participle"]}])
         assert ("λύω", "λῦσαν") in cells
 
+    def test_partially_collapsed_row_cannot_restore_a_removed_dialect(self, b):
+        tags = ["active", "aorist", "infinitive", "Attic"]
+        rows = [{"form": form, "lemma": "κυλίνδω", "tags": tags}
+                for form in ("κυλίσειν", "κυλισάμεν", "κυλισάμεναι")]
+        rows.append({"form": "κυλίσαι", "lemma": "κυλίνδω",
+                     "tags": [*tags, "Epic"]})
+        kept, _, _ = b.drop_collapsed_cells(rows)
+        assert len(kept) == 1
+        assert kept[0]["_paradigm_readings"] == (("active_aorist_infinitive", "epic"),)
+        assert b.wiktionary_cells(kept, dialect="") == ({}, {})
+        assert b.wiktionary_spellings(kept, dialect="") == ({}, set())
+        cells, letters = b.wiktionary_cells(kept, dialect="epic")
+        assert ("κυλίνδω", "κυλίσαι") in cells
+        spellings, _ = b.wiktionary_spellings(kept, dialect="epic")
+        assert b.spelling_for_cell("κυλίνδω", "active_aorist_infinitive",
+                                   "κυλῖσαι", spellings, cells, letters) == "κυλίσαι"
+
+    def test_removed_cells_cannot_decide_another_cells_accent(self, b):
+        rows = [{"form": "κυλίσαι", "lemma": "κυλίνδω",
+                 "tags": ["active", "aorist", "infinitive", "optative"],
+                 "_paradigm_keys": ("active_aorist_optative_3sg",)}]
+        cells, letters = b.wiktionary_cells(rows, dialect="")
+        spellings, _ = b.wiktionary_spellings(rows, dialect="")
+        assert b.spelling_for_cell("κυλίνδω", "active_aorist_infinitive",
+                                   "κυλῖσαι", spellings, cells, letters) == "κυλῖσαι"
+
 
 class TestCellSpellingBoundary:
     @pytest.mark.parametrize("lemma,key,selected,other,tags", [

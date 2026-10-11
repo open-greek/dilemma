@@ -2195,6 +2195,8 @@ evidence also stays within the default paradigm's dialect: an Epic
 `κυλίσαι` does not replace Attic `κυλῖσαι`. A paradigm drawn entirely
 from another dialect uses that dialect's evidence. A unique matching
 cell takes precedence over the corpus's preferred accent.
+If a damaged table row survives in only some cells or dialects, only
+those retained readings can supply accent evidence.
 
 Synthesized first-aorist middle imperatives in the second-person singular
 use recessive accent, with final `-αι` counted as short: `κέλευσαι` and
