@@ -1546,6 +1546,39 @@ def read_list(path: Path, shared: dict[str, str] | None = None
     return out, avoid
 
 
+def _built_orthography_errors(entries, grc, noun_heads=frozenset(), lexical_heads=frozenset()):
+    """Check the production guards, including exact source-backed noun heads."""
+    import mg_polytonic_paradigms as P
+    attested = {f for f, field in entries.items() if "mg:generated" not in field}
+    wide = attested | grc
+    invalid = []
+    for spelling in entries:
+        reason = mg_orthography_reason(spelling, attested if spelling in attested else wide)
+        if reason and spelling not in attested:
+            mono = P.monotonic_key(spelling)
+            if mono in noun_heads:
+                head = P.Generated(spelling, mono, mono, 0, "indicative", "noun", "noun", 0)
+                reason = mg._generated_orthography_reason(head, wide, lexical_heads)
+        if reason:
+            invalid.append(spelling)
+    return invalid
+
+
+def test_built_orthography_check_uses_exact_positive_noun_head_evidence():
+    entries = {"ῥόκ": "fr:M mg:generated"}
+    assert _built_orthography_errors(entries, {"ῥόκα"}) == ["ῥόκ"]
+    assert _built_orthography_errors(entries, {"ῥόκα"}, {"ροκ"}) == ["ῥόκ"]
+    assert _built_orthography_errors(entries, {"ῥόκα"}, set(), {"ροκ"}) == ["ῥόκ"]
+    assert _built_orthography_errors(entries, {"ῥόκα"}, {"ροκ"}, {"ροκ"}) == []
+    # A non-head inflection and an attested fragment never use this path.
+    assert _built_orthography_errors(entries, {"ῥόκα"}, {"ρόκα"}, {"ροκ"}) == ["ῥόκ"]
+    assert _built_orthography_errors({"ῥόκ": "fr:M", "ῥόκα": "fr:R"}, set(),
+                                    {"ροκ"}, {"ροκ"}) == ["ῥόκ"]
+    # Positive head proof cannot excuse another structural rejection.
+    assert _built_orthography_errors({"ρόκ": "fr:R mg:generated"}, {"ρόκα"},
+                                    {"ροκ"}, {"ροκ"}) == ["ρόκ"]
+
+
 @pytest.mark.skipif(not MG_DIC.exists() or not GRC_DIC.exists(),
                     reason="grc_mg_polytonic.dic not built")
 def test_the_built_list_holds_its_invariants():
@@ -1569,14 +1602,17 @@ def test_the_built_list_holds_its_invariants():
     listed = {contextual_acute(f) for f in entries}
     assert not [f for f in avoid if contextual_acute(f) in listed]
     # No attested spelling is a fragment of another (τόμ for τόμο), nor a
-    # generated one of an attested one or of grc's: a loanword of
-    # Wiktionary's may be the other's letters without a vowel (καρτέλ,
-    # καρτέλα).
-    attested = {f for f, field in entries.items() if "mg:generated" not in field}
-    wide = attested | grc
-    invalid = [f for f in entries
-               if mg_orthography_reason(f, attested if f in attested
-                                        else wide)]
+    # generated one of an attested one or of grc's unless the exact noun
+    # head is independently defined in a Modern source (ροκ beside ῥόκα).
+    # The shared companion supplies positive Modern proof, not Ancient
+    # membership; the source pair must independently place this noun head.
+    import mg_polytonic_paradigms as paradigms
+    source_noun_heads = {
+        paradigms.monotonic_key(p["lemma"])
+        for p in json.loads(paradigms.VERB_PARADIGMS.read_text(encoding="utf-8"))
+        if p.get("pos") == "noun" and p.get("form") == p.get("lemma")}
+    invalid = _built_orthography_errors(entries, grc, source_noun_heads,
+                                        mg.load_modern_lexical_heads())
     assert not invalid, invalid[:20]
     # The core function words of polytonic Modern Greek are accepted:
     # by the list, or already by grc.
