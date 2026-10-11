@@ -3,13 +3,37 @@
  "description": "Spellings the corpus evidence admitted but a recorded review rejected. respelling: a common word written with the wrong diacritics in OCR text (στρατηγού for στρατηγοῦ), among the entries the gate reports as respellings of frequent words. structural: a reviewed-baseline entry that fails the orthography rules and is not a word a writer types (editorial underdots, synizesis ties, spurious extra accents). historical_ocr: exact spellings inherited from duplicated consonants in historical expansion lemmas, checked against their cited corpus loci and independent lexical evidence.",
  "method": "Two independent reviewers labelled every candidate from its attestation by source and up to three corpus sentences; a form is listed only where both rejected it. αὗθις and ἄπαντα, which both rejected, are kept: GLAUx attests them in held-out text, and a breathing variant may be an edition's own spelling. The historical_ocr additions were independently checked against the merged lexical data and the cited passages; this review does not reject valid forms merely because their historical lemma was damaged.",
  "reviewed": {
-  "respelling": 399,
+  "respelling": 400,
   "structural": 182,
   "historical_ocr": 4,
   "corpus_quote": 1,
   "corpus_fragment": 1
  },
  "reviews": [
+  {
+   "form": "ἐπεῖ",
+   "decision": "reject",
+   "class": "respelling",
+   "locus": "Herodotus, Histories 1.141.2, Godley volume I, printed page 180; reviewed indexed conjunction, locative, and word-fragment contexts",
+   "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/master/data/tlg0016/tlg001/tlg0016.tlg001.perseus-grc2.xml",
+   "source_sha256": "03836a4c33ad93a72391bac4bb945137752fefd2a3ae2e954b631f1ee1f39ada",
+   "original_source_form": "ἐπεῖ",
+   "corrected_source_readings": [
+    {
+     "locus": "Herodotus, Histories 1.141.2, Godley volume I, printed page 180",
+     "original": "ὀρχεόμενοι, ἐπεῖ οὐδ’ ἐμέο",
+     "corrected": "ὀρχεόμενοι, ἐπεὶ οὐδ’ ἐμέο",
+     "source_url": "https://archive.org/download/historiesvolumei00hero_249/historiesvolumei00hero_249.pdf",
+     "source_sha256": "132c1fa50b19df67d2c5ccdd4b5108c3bb86ec9018e3e88c4a40b085378f065f"
+    }
+   ],
+   "reviewed_on": "2026-10-11",
+   "reasons": [
+    "Direct inspection of Godley's printed Herodotus text shows the conjunction ἐπεὶ; its digital transcription incorrectly has ἐπεῖ. The reviewed GLAUx and Diorisis second-person ἔπειμι annotations occur in conjunction or locative contexts, not in genuine second-person verb uses.",
+    "Independent review of all indexed witnesses found misaccented conjunctions, locative ἐκεῖ transcriptions, split longer words, and other damaged text; it found no complete lexical homograph with this exact spelling. The refreshed lexical entries and their verb tables supply ἔπει for the second person, not ἐπεῖ.",
+    "Reject only this exact spelling and the new aliases it licenses. Preserve ἔπει, ἐπεί, ἐπεὶ, ἐκεῖ, and complete source words. No single replacement is asserted for the heterogeneous damaged contexts, and their original source text and annotations remain unchanged. Removing this authored review row reverses the rejection."
+   ]
+  },
   {
    "form": "ἐνεί",
    "decision": "reject",

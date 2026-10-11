@@ -2111,3 +2111,19 @@ def test_reviewed_split_word_fragment_does_not_override_complete_homographs():
         protected_forms=forms, reviewed_rejects=rejects)
     assert {form for form, _ in kept} == good
     assert report["reviewed"] >= len(bad)
+
+
+def test_reviewed_circumflex_transcription_preserves_real_verb_and_connectives():
+    from export_hunspell import load_grc_spelling_review
+    rejects = load_grc_spelling_review()
+    bad = "ἐπεῖ"
+    good = {"ἔπει", "ἐπεί", "ἐπεὶ", "ἐκεῖ", "ἐπεῖδεν"}
+    assert bad in rejects
+    assert not good & rejects
+    forms = good | {bad}
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)], evidence=_evidence(exact={}),
+        compatibility_forms=forms, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, reviewed_rejects=rejects)
+    assert {form for form, _ in kept} == good
+    assert report["reviewed"] == 1

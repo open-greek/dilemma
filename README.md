@@ -1997,6 +1997,11 @@ words `ἐνείραντα` and `ἐνείκασθαι` and the remaining OCR lo
 the independent headword `ἔνει`. The authored spelling review is reversible
 and leaves the original source readings unchanged.
 
+The exact `ἐπεῖ` review distinguishes erroneous transcription from genuine
+`ἔπει`, `ἐπεί`/`ἐπεὶ`, and `ἐκεῖ`. The printed Herodotus witness has `ἐπεὶ`;
+the reviewed corpus contexts do not establish a circumflex verb form.
+The decision does not choose one replacement for unrelated damaged passages.
+
 The optional `data/ag_source_alias_audit.json` and
 `data/ag_source_alias_manifest.json` preserve source readings and reversible
 alias changes, and pin the matching lookup, predecessor, source revision,

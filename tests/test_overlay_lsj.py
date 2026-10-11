@@ -330,6 +330,21 @@ def test_reviewed_split_fragment_cannot_license_source_aliases():
     assert all(row["form"] not in {"ἐνεί", "ἐνεὶ"} for row in audit["recovered"])
 
 
+def test_reviewed_transcription_does_not_make_a_false_verb_alias():
+    blocked = alias_spelling_exclusions(
+        {"nonlexical": {}, "baseline_conflicts": {}},
+        ROOT / "data" / "hunspell_grc_spelling_review.json")
+    target = {"επει": "ἐπεί", "ἐπεί": "ἐπεί", "ἔπει": "ἔπειμι"}
+    before = dict(target)
+    restore_attested_compound_aliases(
+        {"επει": "ἔπειμι"}, {}, target,
+        [("glaux_pairs.json", [{"form": "ἐπεῖ", "lemma": "ἔπειμι"}]),
+         ("diorisis_pairs.json", [{"form": "ἐπεῖ", "lemma": "ἔπειμι"}])],
+        {"ἔπειμι", "ἐπεί"}, excluded_forms=blocked)
+    assert "ἐπεῖ" not in target
+    assert all(target[key] == owner for key, owner in before.items())
+
+
 @pytest.mark.parametrize("hard,source", [("νί", "νὶ"), ("νὶ", "νί")])
 def test_hard_rejections_apply_to_both_contextual_accent_directions(tmp_path, hard, source):
     review = tmp_path / "review.json"
