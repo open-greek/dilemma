@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from dilemma.verb_source import is_periphrastic_auxiliary
+from dilemma.nominal_header_forms import is_abbreviated_nominal_header
 from dilemma.verb_table_fragments import (
     retain_complete_passive_aorist_readings, stemless_passive_aorist_dialects,
 )
@@ -1327,6 +1328,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     continue
 
                 if any(t in skip_tags for t in tags):
+                    continue
+
+                if (lang.startswith("grc-")
+                        and is_abbreviated_nominal_header(entry, f_entry)):
                     continue
 
                 form = strip_length_marks(form_text)

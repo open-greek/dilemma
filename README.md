@@ -2218,6 +2218,12 @@ Ancient Wiktionary extraction applies the same check before creating training
 pairs and lookup entries, so a compound tense cannot teach the isolated
 auxiliary as a form of the main verb. Original source dumps remain unchanged.
 
+Ancient nominal headers can abbreviate a genitive ending, such as `-ῆς`
+beside `αὐλή`. An omitted hyphen does not make that ending a complete
+inflection. Unqualified header endings are withheld from training, lookup,
+and POS data; complete case forms, marked alternatives, and independent
+parts of speech remain available.
+
 ### Export to ONNX
 
 Generates ONNX model files so inference works without PyTorch.
