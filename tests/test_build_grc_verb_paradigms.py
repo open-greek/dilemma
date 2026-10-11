@@ -1110,6 +1110,7 @@ class TestAuxiliaryForms:
         ("είμεν", "ἵημι", ["active", "aorist", "optative"]),
         ("είτε", "ἵημι", ["active", "aorist", "optative"]),
         ("ἑστῶ", "ἵστημι", ["active", "perfect", "imperative"]),
+        ("ἔστω", "ἵστημι", ["middle", "aorist", "indicative"]),
         ("είτε", "τύπτω", ["middle", "perfect"]),
         ("είτε", "τύπτω", ["middle", "optative"]),
         ("είτε", "εἰμί", ["active", "perfect", "optative"]),

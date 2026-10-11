@@ -2196,6 +2196,11 @@ Periphrastic forms contribute the main verb, not the separate auxiliary
 εἰμί. The filter also recognizes the source's monotonic `είμεν`, `είτε`,
 and `είεν` copies when they explicitly carry perfect-optative tags.
 The distinct aorist forms of ἵημι and imperative forms of ἵστημι remain.
+Each marked auxiliary also needs its corresponding mood, preserving the
+aorist middle indicative `ἔστω` of ἵστημι beside the imperative of εἰμί.
+Ancient Wiktionary extraction applies the same check before creating training
+pairs and lookup entries, so a compound tense cannot teach the isolated
+auxiliary as a form of the main verb. Original source dumps remain unchanged.
 
 ### Export to ONNX
 

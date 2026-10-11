@@ -36,6 +36,8 @@ from collections import Counter
 from pathlib import Path
 from typing import NamedTuple
 
+from dilemma.verb_source import is_periphrastic_auxiliary
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
 
@@ -1378,6 +1380,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         and current_tense not in morph_tags
                         and any(tag in _VERB_AXES for tag in tags)):
                     morph_tags.append(current_tense)
+
+                # An isolated εἰμί auxiliary in a periphrastic table is not
+                # a form of the table's main verb. Filter before producing
+                # training pairs, their monotonic copies, or lookup claims.
+                if (lang.startswith("grc-") and pos == "verb"
+                        and is_periphrastic_auxiliary(form, form_lemma, morph_tags)):
+                    continue
 
                 pair = {
                     "form": form,

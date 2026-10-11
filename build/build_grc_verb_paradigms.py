@@ -58,6 +58,8 @@ from dilemma.morph_diff import (  # noqa: E402
     _strip_diacritics,
 )
 
+from dilemma.verb_source import EIMI_AUXILIARY_FORMS, is_periphrastic_auxiliary
+
 AG_PAIRS = DATA_DIR / "ag_pairs.json"
 GLAUX_PAIRS = DATA_DIR / "glaux_pairs.json"
 VERB_EXTRA_PAIRS = DATA_DIR / "verb_extra_pairs.json"
@@ -937,33 +939,6 @@ def is_homeric_root_aorist_passive(
         return False
     fb = strip_accents(form).lower().rstrip("’'ʼ᾽ʹ")
     return any(fb.endswith(ending) for ending in _ROOT_AORIST_MIDDLE_ENDINGS)
-
-
-# Forms of εἰμί that Wiktionary's periphrastic cells contribute to the verb
-# they conjugate: "τετιμηκότες εἶτε" leaves εἶτε tagged as a perfect optative
-# of τιμάω. Every one is a subjunctive, optative, imperative or infinitive of
-# εἰμί, so under any other lemma the pair is the auxiliary, not a cell.
-EIMI_AUXILIARY_FORMS = {
-    "ὦ", "ᾖς", "ᾖ", "ὦμεν", "ἦτε", "ὦσι", "ὦσιν",
-    "εἴην", "εἴης", "εἴη", "εἶμεν", "εἴημεν", "εἶτε", "εἴητε",
-    "εἶεν", "εἴησαν", "εἶναι", "ἔστω", "ἔστων", "ὄντων",
-}
-
-# The source pipeline also emits these monotonic copies of the plural
-# perfect optative auxiliaries. Do not normalize every auxiliary spelling:
-# rough-breathing εἷμεν / εἷτε are genuine aorists of ἵημι, and ἑστῶ
-# belongs to ἵστημι. The explicit perfect-optative context distinguishes
-# the reviewed copies from those independent verb forms.
-_PERFECT_OPTATIVE_AUXILIARY_COPIES = {"είμεν", "είτε", "είεν"}
-
-
-def is_periphrastic_auxiliary(form, lemma, tags):
-    """Whether a source row contains εἰμί rather than its own verb."""
-    if lemma in ("εἰμί", "εἶμι"):
-        return False
-    return (form in EIMI_AUXILIARY_FORMS
-            or (form in _PERFECT_OPTATIVE_AUXILIARY_COPIES
-                and {"perfect", "optative"} <= set(tags)))
 
 
 _LENGTH_MARKS = ("̄", "̆")  # combining macron, breve

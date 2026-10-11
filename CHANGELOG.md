@@ -16,6 +16,9 @@ All notable changes to Dilemma are documented here. The format follows
   participle's accent; sources that omit tense can still match.
 - Exclude monotonic copies of perfect-optative auxiliaries from other
   verbs' conjugations while retaining independent aorist homographs.
+  Apply the shared auxiliary check during Ancient Wiktionary extraction
+  so isolated auxiliaries cannot become training examples for the main verb.
+  Match the auxiliary's mood so the distinct indicative `ἔστω` survives.
 - Count Ancient verb table variants within each dialect when detecting lost
   person and number labels. Valid Attic, Epic, Doric, and Koine readings no
   longer combine into a false damaged cell, and filtering one dialect keeps
