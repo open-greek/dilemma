@@ -460,7 +460,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   skip_name_plurals: set = None, lemma_pos: dict = None,
                   participle_refs: dict = None, verb_heads: set = None,
                   participle_heads: set = None, verb_refs: dict = None,
-                  participle_verb_refs: dict = None
+                  participle_verb_refs: dict = None,
+                  participle_cells: list = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -811,6 +812,21 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # etymology pointers remain excluded.
                 if participle_heads is not None:
                     participle_heads.add(lemma)
+                if participle_cells is not None:
+                    head_tags = [set(entry.get("tags", []))]
+                    if not entry_participle:
+                        head_tags = [set(entry.get("tags", [])) | set(s.get("tags", []))
+                                     for s in entry.get("senses", [])
+                                     if _is_participle_sense(s, has_ordinary_sense)]
+                    for tags in head_tags:
+                        if tags & _PARTICIPLE_FINITE_TAGS:
+                            continue
+                        participle_cells.append({
+                            "form": lemma, "lemma": lemma, "pos": pos,
+                            "kind": "headword", "tags": sorted(tags | {"participle"}),
+                            "source_form": word, "source_lemma": word,
+                            "source": lang.split("-", 1)[-1],
+                        })
                 for ref in entry.get("form_of", []):
                     target = strip_length_marks(ref.get("word", ""))
                     if participle_refs is not None and target and _is_greek(target):
@@ -1140,6 +1156,19 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     "pos": pos,
                     "tags": morph_tags,
                 }
+                if (is_participle and participle_cells is not None
+                        and _is_nominal_participle_cell(morph_tags)):
+                    participle_cells.append({
+                        "form": form, "lemma": lemma, "pos": pos,
+                        "kind": "inflection",
+                        "tags": sorted(set(morph_tags) | {"participle"}),
+                        "source_form": form_text, "source_lemma": word,
+                        "source": lang.split("-", 1)[-1],
+                    })
+                    if extra_form and _is_greek(extra_form):
+                        participle_cells.append({
+                            **participle_cells[-1], "form": extra_form,
+                        })
                 # A form page's head line belongs to the referenced word,
                 # even when a noun homograph wins the page's lookup key.
                 # Inflected participle tables belong to that verb too.
@@ -1299,6 +1328,51 @@ def deduplicate_pairs(pairs: list, preserve_cells: bool = False) -> list:
             seen.add(key)
             result.append(pair)
     return result
+
+
+_PARTICIPLE_FINITE_TAGS = frozenset({
+    "first-person", "second-person", "third-person", "indicative",
+    "subjunctive", "imperative", "optative", "infinitive", "finite",
+    "dependent",
+})
+
+
+def _is_nominal_participle_cell(tags) -> bool:
+    """An explicitly recorded nominal cell, never a finite verbal form."""
+    tags = set(tags)
+    return (bool(tags & {"nominative", "genitive", "accusative", "vocative", "dative"})
+            and bool(tags & {"singular", "plural", "dual"})
+            and not tags & _PARTICIPLE_FINITE_TAGS)
+
+
+def standalone_participle_inventory(cells: list, unresolved: set) -> dict:
+    """Preserve source participles separately from finite-verb training rows.
+
+    A missing or ambiguous finite parent does not invalidate a dictionary's
+    own participle headword or nominal inflection table. Keep the exact source
+    spellings and cells under that participle, without inventing a finite
+    lemma or an adjective reading. Edition provenance is merged only for
+    identical rows; different readings remain distinct.
+    """
+    grouped = {}
+    for row in cells:
+        if row["lemma"] not in unresolved:
+            continue
+        key = (row["form"], row["lemma"], row["pos"], row["kind"],
+               tuple(sorted(set(row["tags"]))), row["source_form"],
+               row["source_lemma"])
+        grouped.setdefault(key, set()).add(row["source"])
+    return {
+        "schema_version": 1,
+        "language": "el",
+        "cells": [
+            {"form": form, "lemma": lemma, "pos": pos, "kind": kind,
+             "tags": list(tags), "source_form": source_form,
+             "source_lemma": source_lemma, "sources": sorted(sources)}
+            for (form, lemma, pos, kind, tags, source_form, source_lemma), sources
+            in sorted(grouped.items())
+        ],
+    }
 
 
 def apply_participle_references(pos_map: dict, references: dict,
@@ -1618,6 +1692,7 @@ def main():
         participle_heads = set()
         verb_refs = {}
         participle_verb_refs = {}
+        participle_cells = []
         participle_roots, unresolved_verbs = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
 
@@ -1644,7 +1719,8 @@ def main():
                 en_path, f"{lang}-en", lemma_pos=all_lemma_pos,
                 participle_refs=participle_refs, verb_heads=verb_heads,
                 participle_heads=participle_heads, verb_refs=verb_refs,
-                participle_verb_refs=participle_verb_refs)
+                participle_verb_refs=participle_verb_refs,
+                participle_cells=participle_cells if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -1675,7 +1751,8 @@ def main():
                 lemma_pos=all_lemma_pos,
                 participle_refs=participle_refs, verb_heads=verb_heads,
                 participle_heads=participle_heads, verb_refs=verb_refs,
-                participle_verb_refs=participle_verb_refs)
+                participle_verb_refs=participle_verb_refs,
+                participle_cells=participle_cells if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -1817,6 +1894,14 @@ def main():
                 all_pos_map, all_lookup,
                 verb_heads - participle_heads - participle_refs.keys(),
                 participle_roots, unresolved_verbs)
+            inventory = standalone_participle_inventory(
+                participle_cells, unresolved_verbs)
+            participles_path = DATA_DIR / "el_participles.json"
+            with open(participles_path, "w", encoding="utf-8") as f:
+                json.dump(inventory, f, ensure_ascii=False, indent=2)
+                f.write("\n")
+            print(f"Standalone participle cells: {len(inventory['cells']):,}")
+            print(f"  -> {participles_path}")
 
         # Fix training pairs: rewrite lemmas to match the cleaned lookup,
         # drop pairs whose lemma can't be resolved to a headword.

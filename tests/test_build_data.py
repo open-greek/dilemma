@@ -12,7 +12,8 @@ from build_data import (Abbreviations, _parse_verb_tense, apply_participle_refer
                         include_participle_endpoints,
                         merge_pos_maps, merge_source_lookups, resolve_cross_source,
                         preserve_finite_verb_heads, resolve_pair_lemma,
-                        spelling_target, vowel_groups)
+                        spelling_target, standalone_participle_inventory,
+                        vowel_groups)
 
 
 def test_source_merge_prefers_a_lowercase_verb_to_another_sources_name(tmp_path):
@@ -1164,3 +1165,77 @@ def test_an_abbreviations_alternatives_are_forms_of_its_word(tmp_path):
     # The Ancient Greek dumps are read as before.
     pairs, *_ = extract_pairs(dump, "grc-en")
     assert ("δις", "δ") in {(p["form"], p["lemma"]) for p in pairs}
+
+
+def test_source_participle_cells_are_separate_from_finite_training(tmp_path):
+    dump = _write(tmp_path, [
+        {"word": "μεμονωμένος", "pos": "verb", "tags": ["participle"],
+         "senses": [{"tags": ["no-gloss"]}],
+         "forms": [
+             {"form": "μεμονωμένος", "tags": ["nominative", "masculine", "singular"]},
+             {"form": "μεμονωμένα", "tags": ["nominative", "neuter", "plural"]},
+             {"form": "μεμονωμένα", "tags": ["accusative", "neuter", "plural"]},
+             {"form": "μεμονωμένῳ", "tags": ["dative", "masculine", "singular"]},
+             {"form": "μεμονωμένο", "tags": ["neuter"]},
+             {"form": "μονώνω", "tags": ["indicative", "first-person", "singular"]},
+             {"form": "κακό", "tags": ["nominative", "singular", "third-person"]},
+         ]},
+        {"word": "άπτερος", "pos": "adj",
+         "forms": [{"form": "άπτερα", "tags": ["nominative", "plural"]}]},
+        {"word": "πίνω", "pos": "verb",
+         "senses": [{"glosses": ["drink"]},
+                    {"tags": ["no-gloss", "participle", "verb"],
+                     "related": [{"word": "πιωμένος"}]}],
+         "forms": [{"form": "πίνουν", "tags": ["third-person", "plural"]}]},
+    ])
+    cells = []
+    with_cells = extract_pairs(dump, "el-el", participle_cells=cells)
+    assert with_cells == extract_pairs(dump, "el-el")
+    inventory = standalone_participle_inventory(cells, {"μεμονωμένος", "πίνω"})
+    assert inventory["schema_version"] == 1 and inventory["language"] == "el"
+    assert {r["lemma"] for r in inventory["cells"]} == {"μεμονωμένος"}
+    assert {r["form"] for r in inventory["cells"]} == {
+        "μεμονωμένος", "μεμονωμένα", "μεμονωμένῳ"}
+    same_form = [r for r in inventory["cells"] if r["form"] == "μεμονωμένα"]
+    assert len(same_form) == 2
+    assert {tuple(r["tags"]) for r in same_form} == {
+        ("accusative", "neuter", "participle", "plural"),
+        ("neuter", "nominative", "participle", "plural"),
+    }
+    assert all(r["pos"] == "verb" and r["sources"] == ["el"]
+               for r in inventory["cells"])
+    pairs, lookup, *_ = with_cells
+    cleaned = clean_training_pairs(pairs, lookup, preserve_cells=True,
+                                   unresolved_verbs={"μεμονωμένος"})
+    assert not any(r["lemma"] == "μεμονωμένος" for r in cleaned)
+    assert any(r["lemma"] == "άπτερος" for r in cleaned)
+    ancient_cells = []
+    extract_pairs(dump, "grc-el", participle_cells=ancient_cells)
+    assert ancient_cells == []
+
+
+def test_participle_inventory_preserves_headwords_and_source_variants(tmp_path):
+    dump = _write(tmp_path, [
+        {"word": "ξεθεωμένος", "pos": "verb", "tags": ["participle"],
+         "senses": [{"glosses": ["exhausted"]}]},
+        {"word": "περιπλανώμενος", "pos": "verb",
+         "senses": [{"glosses": ["wandering"], "tags": ["participle", "present"]}],
+         "forms": [{"form": "περιπλανώμενη", "tags": ["feminine", "nominative", "singular"]}]},
+        {"word": "λυμένος", "pos": "verb", "tags": ["participle"],
+         "forms": [{"form": "λυμένη", "tags": ["feminine", "nominative", "singular"]}]},
+    ])
+    cells = []
+    extract_pairs(dump, "el-en", participle_cells=cells)
+    extract_pairs(dump, "el-el", participle_cells=cells)
+    wanted = {"ξεθεωμένος", "περιπλανώμενος"}
+    first = standalone_participle_inventory(cells, wanted)
+    assert first == standalone_participle_inventory(list(reversed(cells)), wanted)
+    assert {r["lemma"] for r in first["cells"]} == wanted
+    assert all(r["sources"] == ["el", "en"] for r in first["cells"])
+    head = next(r for r in first["cells"] if r["lemma"] == "ξεθεωμένος")
+    assert head["form"] == "ξεθεωμένος" and head["kind"] == "headword"
+    assert head["tags"] == ["participle"]
+    # A sense's explicit grammatical annotation is retained, not inferred.
+    head = next(r for r in first["cells"] if r["kind"] == "headword"
+                and r["lemma"] == "περιπλανώμενος")
+    assert head["tags"] == ["participle", "present"]

@@ -350,6 +350,19 @@ lemma; independent noun and adjective readings remain.
 Nominal labels in top-level references cannot supply verb endpoints through
 unrelated inflection tables. An unresolved participle also cannot remove an
 independently defined finite verb through a reverse table or lookup alias.
+The build also writes `data/el_participles.json` for explicitly recorded
+participles whose finite parent remains unresolved. This is morphology for
+dictionary export, separate from the verb training pairs: it preserves the
+source headword and its own nominal inflection cells without inventing a
+finite verb or relabeling it as an adjective. A headword without a table
+retains only its own spelling, with no inferred case or descendants.
+The version-1 JSON envelope has `language: "el"` and a `cells` array. Each
+row records `form`, `lemma`, original `pos: "verb"`, `kind` (`headword` or
+`inflection`), grammatical `tags` including `participle`, the unmodified
+`source_form` and `source_lemma`, and sorted source editions in `sources`.
+Inflection rows require an explicit case and number and exclude finite
+person or mood cells. Different source spellings and cells remain separate;
+only identical readings merge their source editions.
 `lookup.db` takes these changes up when `build_lookup_db.py` next rebuilds
 it. A pronoun table that spans
 several grammatical persons is the shared personal-pronoun grid, whose forms

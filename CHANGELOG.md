@@ -216,6 +216,12 @@ All notable changes to Dilemma are documented here. The format follows
   Nominal labels cannot supply verb endpoints through unrelated tables,
   and an unresolved participle cannot remove its independently defined
   finite verb through a reverse table or lookup alias.
+  Separately, `el_participles.json` preserves explicitly recorded participle
+  headwords and nominal table cells whose finite parent remains unresolved.
+  Exporters can retain that morphology without adding unsupported verb
+  roots or inventing adjective readings. The versioned schema keeps exact
+  source spellings, distinct grammatical cells, and all source editions;
+  headwords without a table add no inferred inflections.
   The pairs are regenerated from the 2026-10-03 Kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its
