@@ -220,6 +220,7 @@ def build_lookup():
             continue
         w = _CORPUS_WEIGHT[src]
         n = 0
+        seen_edges = set()
         for p in json.load(open(path, encoding="utf-8")):
             form, lemma = p.get("form"), p.get("lemma")
             upos = _CORPUS_POS_TO_UPOS.get(p.get("pos"))
@@ -229,6 +230,12 @@ def build_lookup():
                 continue
             if not _clean_lemma(lemma):
                 continue
+            # Distinct morphological readings may share one POS edge.
+            # They preserve source ambiguity, not independent votes.
+            edge = (form, upos, lemma)
+            if edge in seen_edges:
+                continue
+            seen_edges.add(edge)
             corpus_upos_lemmas[form][upos][lemma] += w
             n += 1
         print(f"  {src} corpus: +{n:,} POS edges (weight {w})")

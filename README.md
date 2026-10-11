@@ -3201,6 +3201,11 @@ revision to `data/changes/diorisis_token_normalizations.json` by default;
 `--token-audit PATH` chooses another audit destination. Each recorded change
 can be reversed with `restore_source_beta`.
 
+When normalization brings source cells together, the pair extractor retains
+their distinct part-of-speech and morphology readings. POS disambiguation
+counts each form/lemma/POS edge once per corpus, so additional morphology
+readings do not multiply that source's vote.
+
 Preserving an unresolved corpus reading does not establish a new dictionary
 spelling. The Ancient export uses that audit to require an exact independent
 lexical head, a cited source-form review, or a closed grammatical exception
