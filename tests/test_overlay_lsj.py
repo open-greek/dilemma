@@ -444,6 +444,27 @@ def test_exact_reviewed_cells_preserve_lookup_aliases_and_citation_proof(tmp_pat
                {"συμπεριόντα", "συμπεριοντα"})
 
 
+def test_reviewed_archimedes_grave_preserves_acute_and_grave_aliases(tmp_path):
+    import overlay_lsj
+    source = Path(overlay_lsj.__file__).parent / "data" / "hunspell_grc_postclassical_review.json"
+    spec = next(row for row in json.loads(source.read_text())["paradigms"]
+                if row["lemma"] == "ἀπόχρη")
+    assert spec["forms"] == ["ἀποχρὴ"]
+    for name in overlay_lsj.SOURCE_PAIR_NAMES:
+        (tmp_path / name).write_text("[]")
+    (tmp_path / source.name).write_text(json.dumps({"schema_version": 1,
+                                                   "paradigms": [spec]}))
+    pairs, _pins = load_alias_source_pairs(tmp_path)
+    target = {}
+    audit = restore_attested_compound_aliases(
+        {"ἀποχρή": "ἀπόχρη", "ἀποχρὴ": "ἀπόχρη"}, {}, target,
+        pairs, {"ἀπόχρη"})
+    assert target["ἀποχρή"] == target["ἀποχρὴ"] == "ἀπόχρη"
+    assert all(row["cells"][0]["readings"][0]["original_form"] == "ἀποχρὴ"
+               for row in audit["recovered"] if row["form"] in
+               {"ἀποχρή", "ἀποχρὴ"})
+
+
 def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
     reference_base = {"base": "old-base", "base-conflict": "old"}
     reference = {

@@ -19,6 +19,9 @@ All notable changes to Dilemma are documented here. The format follows
   while synthesized forms stay within source-supported tense and voice families.
 - Ancient English form senses with nested translations retain their source
   readings under the defined parent verb instead of creating a separate head.
+- Retain the directly cited Archimedes spelling `ἀποχρὴ` and its contextual
+  acute twin through the reviewed exact-form route, without changing the
+  accent boundary for other source citation heads.
 - Ancient source aliases preserve existing citation accents instead of
   matching a different headword after removing them. Missing accents may
   still be supplied from a uniquely supported head. Structurally impossible

@@ -1651,6 +1651,22 @@ def test_source_review_normalizes_contextual_grave_to_acute():
     ) == {"κεντροβαρές", "ὑπερανεστηκός"}
 
 
+def test_reviewed_archimedes_grave_and_acute_survive_export_filters():
+    import json
+    from export_hunspell import DATA, derive_reviewed_paradigm, finalize_grc_pairs
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    spec = next(row for row in specs if row["lemma"] == "ἀπόχρη")
+    assert spec["forms"] == ["ἀποχρὴ"]
+    acute = derive_reviewed_paradigm(spec, [])
+    assert acute == {"ἀποχρή"}
+    pairs, report = finalize_grc_pairs(
+        [("ἀποχρὴ", "ἀπόχρη")], evidence=_evidence({"ἀποχρή": 1}),
+        compatibility_forms=set(), textbook_forms=acute,
+        export_overrides={}, protected_forms=acute)
+    assert set(pairs) == {("ἀποχρὴ", "ἀπόχρη"), ("ἀποχρή", "ἀπόχρη")}
+    assert report["acute_twins"] == 1
+
+
 @pytest.mark.parametrize("capital,lower,lemma", [
     ("Σάρκα", "σάρκα", "σάρξ"), ("Σαφής", "σαφής", "σαφής"),
     ("Τύπος", "τύπος", "τύπος"), ("Φράζε", "φράζε", "φράζω"),

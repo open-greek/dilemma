@@ -49,6 +49,17 @@
       "stem": "ἀνθοπλίσ"
     },
     {
+      "lemma": "ἀπόχρη",
+      "method": "source_forms",
+      "forms": [
+        "ἀποχρὴ"
+      ],
+      "evidence": "Archimedes, Arenarius 1, Mugler volume 2 (1971), page 137 line 22: ἀποχρὴ δέ μοι ἐς τὰν ἀπόδειξιν τοῦ προκειμένου γωνίαν λαβεῖν. The edited First1KGreek witness prints the contextual grave. Retain this exact Doric third-person singular present spelling under the independently defined impersonal head ἀπόχρη; the exporter supplies its citation acute without changing valid source citation accents globally.",
+      "source_url": "https://raw.githubusercontent.com/OpenGreekAndLatin/First1KGreek/master/data/tlg0552/tlg006/tlg0552.tlg006.1st1K-grc1.xml",
+      "citation": "Archimedes, Arenarius 1; Charles Mugler, Archimède volume 2 (1971), page 137 line 22",
+      "source_sha256": "187306650d6a58db0309e915f8472a997c15e8079efd83847c0cf06953706622"
+    },
+    {
       "lemma": "κάρτος",
       "method": "source_forms",
       "forms": [

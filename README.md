@@ -1976,6 +1976,10 @@ record the spelling, owner, citation, and source. They preserve forms such as
 `Πῶλε` and `Ὀνησίμῳ` without exempting unrelated capitalized common nouns from
 the case filter.
 
+Exact reviewed forms also retain Archimedes' Doric `ἀποχρὴ` under `ἀπόχρη`,
+with its contextual acute twin. This textual exception does not remove accents
+from other valid citation heads when recovering aliases.
+
 The Diorisis pair extractor preserves terminal Beta Code elision as Greek
 koronis, with medial σ before the mark. An elided source token therefore cannot
 silently become a complete word; unelided homographs remain separate readings.
