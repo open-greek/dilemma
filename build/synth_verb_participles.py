@@ -1023,7 +1023,9 @@ def synthesize_aor2_participles(
     if not lemma:
         return {}
     parts = principal_parts or {}
-    aor_form = parts.get("aor") or parts.get("aor2")
+    # The generic principal part can be a first aorist even when LSJ
+    # separately supplies a second aorist for this template.
+    aor_form = parts.get("aor2") or parts.get("aor")
     if not aor_form:
         return {}
     stem = _aor2_stem(aor_form)

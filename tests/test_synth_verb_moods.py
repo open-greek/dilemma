@@ -1056,18 +1056,14 @@ class TestContractMoodsSchemaAlignment:
 
 
 class TestAor2AlphaDetection:
-    """The classifier ``_is_aor_2_alpha_form`` distinguishes mixed-α
-    aor-2 forms from clean sigmatic σ-aorists by checking root identity
-    against the lemma stem."""
+    """Only established lemma/form pairs supply mixed-alpha templates."""
 
     def test_pipto_alpha_detected(self, synth):
         # ἔπεσα is mixed-α: σ comes from a different root (πεσ- vs πιπτ-).
         assert synth._is_aor_2_alpha_form("ἔπεσα", "πίπτω")
 
     def test_lego_alpha_detected(self, synth):
-        # εἶπα: π before α, lemma λέγω predicts cluster ξ via γ → mismatch
-        # but actually our heuristic catches this through the cluster
-        # mismatch (σ != ξ). Either way, εἶπα is recognised as α-aor-2.
+        # The alpha indicative retains the second-aorist mood system.
         assert synth._is_aor_2_alpha_form("εἶπα", "λέγω")
 
     def test_heurisko_alpha_detected(self, synth):
@@ -1098,6 +1094,36 @@ class TestAor2AlphaDetection:
         # Alpha-pattern aor 1sg → unaugmented stem.
         assert synth.extract_aor2_stem("ἔπεσα", "πίπτω") == "πεσ"
         assert synth.extract_aor2_stem("εὗρα", "εὑρίσκω") == "εὗρ"
+
+    @pytest.mark.parametrize("lemma, form", [
+        ("παίζω", "ἔπαιξα"),
+        ("κηρύσσω", "ἐκήρυξα"),
+        ("ἀΐσσω", "ἤιξα"),
+        ("ἐθέλω", "ἠθέλησα"),
+        ("ὄζω", "ὤζησα"),
+        ("κερδαίνω", "ἐκέρδᾱνα"),
+        ("ξαίνω", "ἔξηνα"),
+        ("μένω", "ἔμεινα"),
+        ("νέμω", "ἔνειμα"),
+        ("φέρω", "ἤνεγκα"),
+        ("λήγω", "πάντα"),
+    ])
+    def test_other_alpha_forms_do_not_supply_second_aorist_cells(
+        self, synth, lemma, form
+    ):
+        assert not synth._is_aor_2_alpha_form(form, lemma)
+        assert synth.extract_aor2_stem(form, lemma) is None
+        assert synth.synthesize_aor2_moods(lemma, {"aor": form}) == {}
+
+    def test_explicit_second_aorist_takes_precedence(self, synth):
+        out = synth.synthesize_aor2_moods(
+            "βλάπτω", {"aor": "ἔβλαψα", "aor2": "ἔβλαβον"}
+        )
+        assert out["active_aorist_infinitive"] == "βλαβεῖν"
+        assert all("ψ" not in form for form in out.values())
+
+    def test_mixed_alpha_pair_requires_matching_lemma(self, synth):
+        assert not synth._is_aor_2_alpha_form("εὗρα", "λύω")
 
 
 class TestSuppletionGuard:

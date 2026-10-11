@@ -703,6 +703,13 @@ class TestAor2ParticipleSynthesis:
         out = synth.synthesize_aor2_participles("λύω", {"aor": "ἔλυσα"})
         assert out == {}
 
+    def test_explicit_second_aorist_takes_precedence(self, synth):
+        out = synth.synthesize_aor2_participles(
+            "βλάπτω", {"aor": "ἔβλαψα", "aor2": "ἔβλαβον"}
+        )
+        assert out["active_aorist_participle_nom_m_sg"] == "βλαβών"
+        assert all("ψ" not in form for form in out.values())
+
 
 class TestAor2ParticipleSchemaAlignment:
     def test_keys_match_jtauber_pattern(self, synth):

@@ -175,88 +175,25 @@ def _is_aor_2_active_form(aor_form: str) -> bool:
     return False
 
 
-# Mixed α-aor-2 detection: aor 1sg ends in -α but is NOT a clean sigmatic
-# σ/ψ/ξ-aorist or κ-aorist. Examples: ἔπεσα (πίπτω), εἶπα (λέγω),
-# ἤνεγκα (φέρω), ἦλθα (ἔρχομαι), εὗρα (εὑρίσκω). These verbs take
-# α-style endings on the active and middle indicative, but the rest of
-# the paradigm (subj/opt/imp/inf/ptc) follows the aor-2 ο-thematic pattern.
+# These mixed-alpha forms retain the thematic second-aorist mood system.
+# An alpha ending alone is not evidence: liquid first aorists and sigmatic
+# variants also end in alpha even when the present stem looks different.
+_MIXED_ALPHA_AORISTS = frozenset({
+    ("πιπτω", "επεσα"),
+    ("λεγω", "ειπα"),
+    ("ευρισκω", "ευρα"),
+})
+
+
 def _is_aor_2_alpha_form(aor_form: str, lemma: Optional[str] = None) -> bool:
-    """True iff ``aor_form`` is a mixed-α aor-2 1sg active form.
+    """Recognize supported mixed-alpha second aorists by lemma and form.
 
-    Heuristic: the form ends in -α (not -ον) and is NOT cleanly sigmatic
-    (not -σα / -ψα / -ξα where the σ/ψ/ξ is a regular sigmatic-aorist
-    cluster predicted from the lemma's present stem). κ-aorists (ἔδωκα)
-    are excluded because they belong to the athematic system.
-
-    When ``lemma`` is supplied, we additionally validate that a
-    σ/ψ/ξ ending really is suppletive (i.e. the σ doesn't match a
-    sigmatic-aorist prediction from the lemma's stem). This catches
-    ἔπεσα (πίπτω): πτ + σ would predict πσ which is not what the corpus
-    has.
-
-    Returns False when the form is missing, doesn't end in -α, or is a
-    clean sigmatic / κ-aorist.
+    Unrecognized alpha forms supply no second-aorist templates. Source
+    cells remain available independently, including dialectal forms and
+    compounds whose mood formation has not been established here.
     """
-    if not aor_form:
-        return False
-    plain = _strip_accents_lower(aor_form)
-    if not plain.endswith(("α", "ᾰ")):
-        return False
-    if len(plain) < 3:
-        return False
-    if not lemma:
-        # Conservative: without a lemma we can't tell suppletion from
-        # sigmatic; reject.  The caller always passes a lemma.
-        return False
-    # Athematic verbs (-μι / -μαι) handle κ-aorists in their own
-    # athematic synthesis pipeline; we only treat thematic -ω verbs.
-    if not is_thematic_omega(lemma):
-        return False
-    # Check whether the form is a CLEAN sigmatic σ/ψ/ξ-aorist whose
-    # cluster is predicted from the lemma's present stem AND whose
-    # body (after stripping the augment + cluster + α) matches the
-    # lemma stem (after stripping the predicted-cluster source
-    # consonant). Forms that pass both checks are treated as regular
-    # sigmatic σ-aorists, not mixed-α aor-2.
-    cluster = plain[-2]
-    if cluster in ("σ", "ψ", "ξ"):
-        pres_stem = _present_stem(lemma)
-        if pres_stem:
-            plain_pres = _strip_accents_lower(pres_stem)
-            if plain_pres:
-                last = plain_pres[-1]
-                expected: Optional[str] = None
-                cluster_source: Optional[str] = None
-                if last in ("π", "β", "φ"):
-                    expected = "ψ"; cluster_source = last
-                elif last in ("κ", "γ", "χ"):
-                    expected = "ξ"; cluster_source = last
-                elif last in ("τ", "δ", "θ", "ν", "ζ"):
-                    expected = "σ"; cluster_source = last
-                elif last in _GREEK_VOWELS:
-                    expected = "σ"; cluster_source = ""  # no consonant absorbed
-                if expected == cluster:
-                    # Strip the augment from the aor form and trim the
-                    # σ/ψ/ξ + α cluster.  Compare the result to the
-                    # lemma stem with the cluster-source consonant
-                    # trimmed off (vowel-stems trim 0 chars).
-                    body_no_aug = _strip_simple_augment(aor_form)
-                    if body_no_aug is not None:
-                        body_plain = _strip_accents_lower(body_no_aug)
-                        # body_plain ends in cluster + α; trim those.
-                        if body_plain.endswith(cluster + "α") or \
-                                body_plain.endswith(cluster + "ᾰ"):
-                            body_root = body_plain[:-2]
-                            lemma_root = (
-                                plain_pres[:-1] if cluster_source
-                                else plain_pres
-                            )
-                            if body_root == lemma_root:
-                                # Clean sigmatic σ-aorist; not mixed-α.
-                                return False
-    # Otherwise: any -α ending that isn't a clean sigmatic σ/ψ/ξ-aorist
-    # (verified against the lemma's present stem) is treated as mixed-α.
-    return True
+    return (_strip_accents_lower(lemma), _strip_accents_lower(aor_form)) in \
+        _MIXED_ALPHA_AORISTS
 
 
 def _strip_simple_augment(form: str) -> Optional[str]:
@@ -302,7 +239,7 @@ def extract_aor2_stem(
     ``ἤγαγον`` -> ``ἀγαγ``  (temporal augment η -> α)
 
     Also accepts mixed-α aor-2 forms (-α suffix instead of -ον):
-    ``ἔπεσα`` -> ``πεσ``, ``εἶπα`` -> ``εἰπ``, ``ἤνεγκα`` -> ``ἐνεγκ``.
+    ``ἔπεσα`` -> ``πεσ``, ``εἶπα`` -> ``εἰπ``, ``εὗρα`` -> ``εὑρ``.
 
     Returns ``None`` if the form doesn't look like an aor-2.
 
@@ -1778,7 +1715,9 @@ def synthesize_aor2_moods(
     if not lemma:
         return {}
     parts = principal_parts or {}
-    aor_form = parts.get("aor") or parts.get("aor2")
+    # A separately identified second aorist is stronger evidence than
+    # the generic principal part, which may select a first aorist.
+    aor_form = parts.get("aor2") or parts.get("aor")
     if not aor_form:
         return {}
     aor_stem = extract_aor2_stem(aor_form, lemma)
