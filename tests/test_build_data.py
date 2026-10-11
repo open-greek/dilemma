@@ -413,6 +413,16 @@ def test_unresolved_graph_root_cannot_return_through_flat_alias():
                                 {}, {"άγνωστος"}) == []
 
 
+def test_resolved_graph_root_is_followed_after_a_flat_alias():
+    lookup = {"τρισευτυχισμένος": ("ευτυχισμένος", 1),
+              "ευτυχισμένος": ("ευτυχισμένος", 3), "ευτυχώ": ("ευτυχώ", 3)}
+    pair = {"form": "τρισευτυχισμένη", "lemma": "τρισευτυχισμένος",
+            "pos": "verb", "tags": ["feminine", "singular"]}
+    result = clean_training_pairs([pair], lookup, True, {}, {},
+                                  {"ευτυχισμένος": "ευτυχώ"}, set())
+    assert result == [{**pair, "lemma": "ευτυχώ"}]
+
+
 def test_a_sense_tagged_participle_cannot_be_a_finite_graph_endpoint(tmp_path):
     dump = _write(tmp_path, [
         {"word": "σκουντηγμένος", "pos": "verb",

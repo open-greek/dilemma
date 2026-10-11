@@ -1439,6 +1439,8 @@ def resolve_pair_lemma(lemma: str, pos: str, lookup: dict,
                 break
             lemma = target
     resolved = lookup.get(lemma, (lemma,))[0]
+    if pos == "verb" and participle_roots and resolved in participle_roots:
+        return participle_roots[resolved]
     if pos == "verb" and resolved in unresolved_verbs:
         return None
     if (pos == "verb" and lookup.get(resolved, (None,))[0] != resolved
