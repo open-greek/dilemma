@@ -1079,6 +1079,9 @@ class Selection(NamedTuple):
     # The lowercase spellings that pass rules 2 to 5 but grc has as
     # written, with their tokens: rated for Modern Greek (``shared_lines``).
     shared: dict[str, int] | None = None
+    # Selected subscript forms, including names already accepted by grc.
+    # Their plain nominal twins may still need a Modern rating.
+    datives: dict[str, int] | None = None
 
 
 _BREATHING_HOMOGRAPH_KEYS = frozenset(
@@ -1186,6 +1189,7 @@ def select_forms(
 
     entries: dict[str, int] = {}
     shared: dict[str, int] = {}
+    datives: dict[str, int] = {}
     for form, n in selected.items():
         for spelling in [form, *oxytone_twins(form)]:
             if spelling in entries:
@@ -1197,6 +1201,8 @@ def select_forms(
                     report["twin_rejected"] += 1
                     continue
                 report["twins"] += 1
+            if final_subscript(spelling):
+                datives[spelling] = n
             if grc_accepts(spelling, grc_words):
                 report["in_grc"] += 1
                 if spelling in grc_words and spelling[:1].islower():
@@ -1210,7 +1216,7 @@ def select_forms(
             del entries[spelling]
             report["capital_of_listed_word"] += 1
     report["entries"] = len(entries)
-    return Selection(entries, dict(report), dict(rejected), shared)
+    return Selection(entries, dict(report), dict(rejected), shared, datives)
 
 
 # --------------------------------------------------------------------------
@@ -1659,7 +1665,7 @@ def select_list(
             reviewed_rejects, report, shared=shared_generated,
             realizations=realizations)
         twins, new_twins = dative_twins(
-            selection.entries, generated, grc_words,
+            {**(selection.datives or {}), **selection.entries}, generated, grc_words,
             set(lines) | MG_LETTERS_OF_ANOTHER_WORD, reviewed_rejects, report)
         generated.update(new_twins)
         report["generated"] = len(generated)

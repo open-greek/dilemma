@@ -1032,7 +1032,9 @@ def test_a_name_whose_only_reading_is_a_dative(monkeypatch):
             nfc("Δανίας")} <= lst.generated
 
 
-def test_the_plain_spelling_beside_a_listed_dative(tmp_path, monkeypatch):
+@pytest.mark.parametrize("dative_in_grc", [False, True])
+def test_the_plain_spelling_beside_a_listed_dative(tmp_path, monkeypatch,
+                                                  dative_in_grc):
     total = 100_000_000
     paradigms = {"λαμβάνω": {"λάβει": frozenset({
         "dependent", "third-person", "singular", "finite", P.VERB})}}
@@ -1046,6 +1048,8 @@ def test_the_plain_spelling_beside_a_listed_dative(tmp_path, monkeypatch):
     monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
     grc = set(GRC) | {nfc(w) for w in ("Μόσχα", "πινακοθήκη", "λάβη",
                                        "σιγηλή")}
+    if dative_in_grc:
+        grc |= {nfc("πινακοθήκῃ"), nfc("Μόσχᾳ")}
     counts = _counts([("Μόσχᾳ", "cap", {0: 3, 1: 3}),
                       ("πινακοθήκῃ", "lower", {0: 3, 1: 3}),
                       ("Ζυρίχῃ", "cap", {0: 3, 1: 3}),
