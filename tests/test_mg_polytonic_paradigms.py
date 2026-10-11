@@ -746,6 +746,53 @@ def test_noun_plural_homograph_does_not_invalidate_independent_head(tmp_path, re
     assert nfc("σκατᾶ") not in mg._realization_cells(out)
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("other_pos", ["adj", "adv"])
+def test_independent_adjective_does_not_reset_a_chosen_noun_cell(
+        tmp_path, reverse, other_pos):
+    rows = [("σκατό", "σκατό", "noun", ["nominative", "singular"]),
+            ("σκατάς", "σκατάς", "noun", ["nominative", "singular"]),
+            ("σκατά", "σκατό", "noun", ["nominative", "plural"]),
+            ("σκατά", "σκατό", "noun", ["accusative", "plural"]),
+            ("σκατά", "σκατάς", "noun", ["genitive", "singular"]),
+            ("σκατά", "σκατά", other_pos, ["invariable"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows[::-1] if reverse else rows))
+    out = P.generate(par, {"σκατά": 50_000, "σκατό": 2_000, "σκατάς": 5},
+                     P.Evidence({}, GRC, par))
+    common = [g for g in out if g.spelling == nfc("σκατά")]
+    alternate = [g for g in out if g.spelling == nfc("σκατᾶ")]
+    assert common and {g.lemma for g in common} == {"σκατό"}
+    assert all(g.tokens == g.weight == 50_000 for g in common)
+    assert alternate and {g.lemma for g in alternate} == {"σκατάς"}
+    assert all(g.kind == "noun-alternative" and g.tokens == g.weight == 0
+               for g in alternate)
+    assert nfc("σκατᾶ") not in mg._realization_cells(out)
+
+
+@pytest.mark.parametrize("other_pos", ["verb", "name", "noun", ""])
+def test_noun_subset_does_not_absorb_another_grammatical_owner(other_pos):
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    third = frozenset({"pos:" + other_pos}) if other_pos else frozenset()
+    par = {"σκιά": {"σκιά": noun("nominative", "singular")},
+           "σκιάς": {"σκιάς": noun("nominative", "singular"),
+                     "σκιά": noun("genitive", "singular")},
+           "σκιάζω": {"σκιάζω": third, "σκιά": third}}
+    assert P._noun_home_candidates(list(par), par, "σκιάς") == []
+
+
+def test_noun_subset_keeps_a_preferred_adjective_and_requires_its_head():
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    adj = frozenset({"pos:adj"})
+    par = {"σκιά": {"σκιά": noun("nominative", "singular")},
+           "σκιάς": {"σκιάς": noun("nominative", "singular"),
+                     "σκιά": noun("genitive", "singular")},
+           "σκιάτος": {"σκιάτος": adj, "σκιά": adj}}
+    totals = {"σκιά": 10000, "σκιάς": 10, "σκιάτος": 100000}
+    assert P._home_lemma("σκιά", list(par), par, totals) == "σκιάτος"
+    del par["σκιάτος"]["σκιάτος"]
+    assert P._noun_home_candidates(list(par), par, "σκιάς") == []
+
+
 def test_same_noun_plural_cell_keeps_diminutive_owner(tmp_path):
     rows = [("σκατό", "σκατό", "noun", ["nominative", "singular"]),
             ("σκατά", "σκατό", "adv", ["adverb"]),

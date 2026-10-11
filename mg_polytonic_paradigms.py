@@ -1284,6 +1284,29 @@ def _noun_cell_representatives(form: str, lemmas: list[str], paradigms,
                   for group in groups.values())
 
 
+def _noun_home_candidates(lemmas: list[str], paradigms,
+                          default_home: str) -> list[str]:
+    """Keep noun arbitration when an unrelated adjective/adverb is present.
+
+    This only refines an existing noun choice. A finite/name owner, an
+    unsupported noun head, or a preferred adjective keeps the usual ordering.
+    """
+    owned = [lemma for lemma in lemmas if _owned_noun(lemma, paradigms)]
+    if len(owned) == len(lemmas):
+        return owned
+    if len(owned) < 2 or default_home not in owned:
+        return []
+    for lemma in set(lemmas) - set(owned):
+        forms = paradigms[lemma]
+        head_pos = parts_of_speech(forms.get(lemma, frozenset()))
+        if (not head_pos or not head_pos <= {"adj", "adv"}
+                or any(not parts_of_speech(tags)
+                       or not parts_of_speech(tags) <= {"adj", "adv"}
+                       for tags in forms.values())):
+            return []
+    return owned
+
+
 def _home_lemma(form: str, lemmas: list[str],
                 paradigms: dict[str, dict[str, frozenset]],
                 totals: dict[str, int]) -> str:
@@ -1314,17 +1337,19 @@ def _home_lemma(form: str, lemmas: list[str],
     # distinguishes an owned noun from a page filed as another word's form.
     # Keep the existing ordering for finite/name collisions, mixed heads,
     # and nouns whose own headword has no explicit case evidence.
-    if all(_owned_noun(lemma, paradigms) for lemma in lemmas):
-        if _different_noun_cells(form, lemmas, paradigms):
-            representatives = _noun_cell_representatives(form, lemmas, paradigms, totals)
+    default_home = min(lemmas, key=lambda l: (not verb(l), l == own_page,
+                                            -common(l), -totals.get(l, 0), l))
+    noun_lemmas = _noun_home_candidates(lemmas, paradigms, default_home)
+    if noun_lemmas:
+        if _different_noun_cells(form, noun_lemmas, paradigms):
+            representatives = _noun_cell_representatives(form, noun_lemmas, paradigms, totals)
             return min(representatives, key=lambda l: (-totals.get(l, 0),
                                               l == own_page, -common(l), l))
         # A table also containing a diminutive's plural is not its lexical
         # owner: same-cell forms retain the closer independently defined stem.
-        return min(lemmas, key=lambda l: (-common(l), l == own_page,
+        return min(noun_lemmas, key=lambda l: (-common(l), l == own_page,
                                           -totals.get(l, 0), l))
-    return min(lemmas, key=lambda l: (not verb(l), l == own_page,
-                                      -common(l), -totals.get(l, 0), l))
+    return default_home
 
 
 # The endings of a verb's dictionary form (γράφω, μιλώ, μιλῶ, έρχομαι,
@@ -1403,10 +1428,10 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
         # A dominant noun's frequency cannot erase another noun's explicitly
         # sourced cell (χημεία versus χημεῖα; σκατά versus σκατᾶ). Only
         # independently owned noun paradigms enter this alternate route.
-        if (len(lemmas) > 1
-                and all(_owned_noun(l, paradigms) for l in lemmas)
-                and _different_noun_cells(form, lemmas, paradigms)):
-            for other in _noun_cell_representatives(form, lemmas, paradigms, totals):
+        noun_lemmas = _noun_home_candidates(lemmas, paradigms, lemma)
+        if (len(noun_lemmas) > 1
+                and _different_noun_cells(form, noun_lemmas, paradigms)):
+            for other in _noun_cell_representatives(form, noun_lemmas, paradigms, totals):
                 if other == lemma:
                     continue
                 for tags in form_tag_rows(paradigms, other, form):
