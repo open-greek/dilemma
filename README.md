@@ -919,8 +919,11 @@ headwords are a subset of LSJ and already covered by the LSJ expansion
 plus the GLAUx Homeric corpus (557K pairs). See
 [LSJ/Sophocles expansion](#lsjsophocles-expansion) for the build step.
 
-Verb expansion rejects source entries explicitly identified as prefixes or
-as imperative forms of another verb. It checks the original headword spelling
+Verb expansion rejects source entries explicitly identified as prefixes,
+imperative forms of another verb, or defective verbs whose entry explicitly
+limits the available persons. Those restrictions preserve source-attested
+forms without inventing an unrestricted paradigm. It checks the original
+headword spelling
 before quantity marks are removed, so the prefix ἡμῐ cannot receive a verb
 paradigm merely because its letters end in -μι. Ordinary verb entries that
 describe their conjugation remain eligible.

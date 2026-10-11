@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Withhold unrestricted LSJ verb expansion when the entry explicitly limits
+  its available persons, preserving attested forms of defective verbs.
 - Require an accented source form when parsing LSJ principal parts, skipping
   unaccented OCR tokens without inventing their missing accent.
 - Retain observed cells for corpus-only Ancient verb lemmas without expanding

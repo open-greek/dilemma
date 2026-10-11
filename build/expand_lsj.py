@@ -1371,7 +1371,7 @@ def _classify_verb(headword):
 
 
 def verb_entry_rejection(head_text: str) -> str:
-    """Keep prefixes and explicitly cross-referenced imperatives out of Lua.
+    """Keep nonparadigmatic entries out of unrestricted Lua expansion.
 
     A headword's ending alone does not make it a verb citation form. Keep
     ordinary verb entries that begin by documenting a person or tense: an
@@ -1389,6 +1389,15 @@ def verb_entry_rejection(head_text: str) -> str:
         lead, re.IGNORECASE,
     ):
         return "inflected-imperative-headword"
+    # Some defective verbs explicitly license only particular persons.
+    # A regular template would invent the rest of their paradigm; retain
+    # source-attested forms through extraction instead. Ignore Markdown
+    # emphasis in the dictionary text when recognizing this restriction.
+    if re.search(
+        r"\botherwise\s+only\s+in\s+[123]\s*(?:sg|pl|du)\.",
+        head_text.replace("*", ""), re.IGNORECASE,
+    ):
+        return "person-limited-verb-entry"
     return ""
 
 

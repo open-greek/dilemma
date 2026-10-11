@@ -18,6 +18,13 @@ import expand_lsj
      "inflected-imperative-headword"),
     ("κεκρίσθω", ", 3 sg. imperat. pf. Pass. of κρύπτω.",
      "inflected-imperative-headword"),
+    ("ἠμί", "I say, the 1st pers. of pres. being used in Att. dialogue in "
+     "emphatic repetitions; otherwise only in 3 sg. ἠσί Hermipp.1.",
+     "person-limited-verb-entry"),
+    ("ἡμί", "*I say*, the 1st pers. being used in Att. dialogue in emphatic "
+     "repetitions; *otherwise only in 3 sg.* ἠσί Hermipp.1. II. impf. ἦν, "
+     "3 sg. ἦ (*the only part used by Hom.*).",
+     "person-limited-verb-entry"),
 ])
 def test_nonparadigmatic_entries_never_call_lua(word, text, reason):
     assert expand_lsj.expand_verb(None, word, head_text=text) == (set(), reason)
@@ -28,6 +35,7 @@ def test_nonparadigmatic_entries_never_call_lua(word, text, reason):
     "3 sg. imper. στερείτω Pl.Lg.958e; otherwise pres. occurs only in form στερίσκω.",
     "late form of ἀποκτείνω, Plb.1.69.11.",
     "3 sg. χοῖ, 3 pl. χοῦσι; inf. χοῦν; part. χῶν.",
+    "I say, 1st pers. pres.; 3 sg. ἠσί; a complete paradigm is supplied.",
     "describe or represent in the form of man, Ph.1.282.",
     "", 
 ])
