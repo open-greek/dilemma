@@ -826,6 +826,37 @@ def load_lsj_head_texts() -> dict[str, str]:
     return heads
 
 
+def _perfect_participle_cells(table: str) -> str:
+    """Keep the participle token from the pinned Lua periphrastic cells.
+
+    In the perfect middle subjunctive/optative, the module incorrectly
+    prefixes the lexical stem to the auxiliary. The first token in each
+    affected table cell is the correctly generated participle. Retain it
+    without inferring another form, and omit the malformed auxiliary and
+    its alternatives. Other table cells and arbitrary Greek text are intact.
+    """
+    middle = False
+    periphrastic = False
+    output = []
+    for line in table.splitlines(keepends=True):
+        if line.startswith('! rowspan="4" | '):
+            middle = "middle/" in line
+            periphrastic = False
+        elif line.startswith("! ") and not line.startswith("! rowspan"):
+            periphrastic = middle and line.strip() in {"! subjunctive", "! optative"}
+        prefix = '| class="grc-conj-finite-form" | '
+        if periphrastic and line.startswith(prefix):
+            content = line[len(prefix):]
+            first_token = content.split()[0] if content.split() else ""
+            # These are the actual cell tokens, not generated inflections.
+            # Fail closed if the pinned table no longer supplies one.
+            plain = strip_diacritics(first_token)
+            participle = first_token if plain.endswith(("μενος", "μενοι", "μενω")) else ""
+            line = prefix + participle + ("\n" if line.endswith("\n") else "")
+        output.append(line)
+    return "".join(output)
+
+
 def _expand_principal_part(wtp, headword: str, tense_args: list[str]
                             ) -> set[str]:
     """Expand a single ``{{grc-conj|...}}`` invocation derived from
@@ -846,6 +877,8 @@ def _expand_principal_part(wtp, headword: str, tense_args: list[str]
     except Exception:
         _PP_CACHE[cache_key] = set()
         return set()
+    if tense_args[0] == "perf":
+        html = _perfect_participle_cells(html)
     forms = parse_html_forms(html, headword)
     _PP_CACHE[cache_key] = forms
     return forms
