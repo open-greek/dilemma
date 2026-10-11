@@ -202,3 +202,37 @@ def test_shipped_lookup_contains_no_editorial_sigla():
         assert count == 0
     finally:
         connection.close()
+
+
+def test_historical_nonlexical_lemmas_do_not_regenerate_source_notation():
+    reference = {
+        "έφʼωμαι": "ἐφʼ ᾧ",
+        "λεχέτω": "λέγω =⟩ λέχω",
+        "οὐδεπέτω": "οὐδέ πω",
+        "παρέσται": "παρά,εἰσ-εἰμί",
+        "ἀναθαρρρέω": "ἀναθαρρρέω",
+        "μέλλλω": "μέλλλω",
+        "ἀπορρρέω": "ἀπορρρέω",
+        "ὑποδ̣έω": "ὑποδ̣έω",
+        "γῶνται": "γῶ",
+        "ὕεται": "ὕω",
+        "τἀμά": "ἐμός",
+    }
+    target = {}
+    stats = overlay_expansion(reference, {}, target)
+    assert target == {"γῶνται": "γῶ", "ὕεται": "ὕω", "τἀμά": "ἐμός"}
+    assert stats["nonlexical_lemma_entries"] == 8
+
+
+def test_historical_nonlexical_guard_preserves_base_and_current_evidence():
+    reference = {
+        "έφʼωμαι": "ἐφʼ ᾧ",
+        "μέλλλω": "μέλλλω",
+        "παρέσται": "παρά,εἰσ-εἰμί",
+    }
+    base = {"μέλλλω": "independent-base-analysis"}
+    target = {"έφʼωμαι": "independent-current-analysis"}
+    stats = overlay_expansion(reference, base, target)
+    assert target == {"έφʼωμαι": "independent-current-analysis"}
+    assert stats["already_present"] == 1
+    assert stats["nonlexical_lemma_entries"] == 1

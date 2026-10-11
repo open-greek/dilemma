@@ -70,6 +70,24 @@ def superseded_verb_generation(lemma: str) -> bool:
     return plain.endswith(("μαι", "φημι", "ννυμι"))
 
 
+def nonlexical_generated_lemma(lemma: str) -> bool:
+    """Reject historical paradigms derived from source notation or OCR junk.
+
+    This only gates missing historical expansion rows. It does not remove a
+    spelling supplied by the reference base or the current source layers.
+    Short lemmas remain eligible: length alone does not establish corruption.
+    The OCR tests match the current generator's explicit corruption classes.
+    """
+    if any(char.isspace() or char in ",;" for char in lemma):
+        return True
+    decomposed = unicodedata.normalize("NFD", lemma)
+    if any(ord(char) in {0x0323, 0x0324, 0x032E, 0x0325}
+           for char in decomposed):
+        return True
+    plain = "".join(char for char in decomposed
+                    if not unicodedata.combining(char)).lower()
+    return any(cluster in plain for cluster in ("ννν", "λλλ", "μμμ", "ρρρ", "σσσ"))
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -148,6 +166,7 @@ def overlay_expansion(
         "excluded_entries": 0,
         "already_present": 0,
         "conflicts_preserved": 0,
+        "nonlexical_lemma_entries": 0,
         "superseded_verb_entries": 0,
         "superseded_noun_entries": 0,
         "added": 0,
@@ -169,6 +188,9 @@ def overlay_expansion(
             stats["already_present"] += 1
             if target[form] != lemma:
                 stats["conflicts_preserved"] += 1
+            continue
+        if nonlexical_generated_lemma(lemma):
+            stats["nonlexical_lemma_entries"] += 1
             continue
         if superseded_verb_generation(lemma):
             stats["superseded_verb_entries"] += 1
