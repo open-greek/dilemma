@@ -1687,3 +1687,28 @@ def test_heldout_trusted_token_cannot_restore_untrusted_works():
     assert postclassical_admission_reason(
         21, {"pta": 21, "pg": 3, "oga": 3, "first1k": 3}, 10,
         heldout_count=1, pos="noun") is None
+
+
+@pytest.mark.parametrize("bad,correct", [
+    ("τέσσσαρας", "τέσσαρας"),
+    ("ἀναθαρρρυνόμενοι", "ἀναθαρρυνόμενοι"),
+    ("συμμμαχίας", "συμμαχίας"),
+    ("μέλλλει", "μέλλει"),
+])
+def test_reviewed_historical_ocr_errors_do_not_survive_compatibility(bad, correct):
+    from export_hunspell import load_grc_spelling_review
+    rejects = load_grc_spelling_review()
+    assert bad in rejects
+    assert correct not in rejects
+    control = "Βρισηίδος"  # A damaged historical lemma does not invalidate its form.
+    kept, report = finalize_grc_pairs(
+        [(bad, bad), (correct, correct), (control, control)],
+        evidence=_evidence(exact={bad: 1, correct: 1, control: 1}),
+        compatibility_forms={bad, correct, control},
+        textbook_forms=set(),
+        export_overrides={},
+        protected_forms=set(),
+        reviewed_rejects=rejects,
+    )
+    assert {form for form, _lemma in kept} == {correct, control}
+    assert report["reviewed"] == 1

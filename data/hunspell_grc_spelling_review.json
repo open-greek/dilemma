@@ -1,10 +1,11 @@
 {
  "schema_version": 1,
- "description": "Spellings the corpus evidence admitted but a recorded review rejected. respelling: a common word written with the wrong diacritics in OCR text (στρατηγού for στρατηγοῦ), among the entries the gate reports as respellings of frequent words. structural: a reviewed-baseline entry that fails the orthography rules and is not a word a writer types (editorial underdots, synizesis ties, spurious extra accents).",
- "method": "Two independent reviewers labelled every candidate from its attestation by source and up to three corpus sentences; a form is listed only where both rejected it. αὗθις and ἄπαντα, which both rejected, are kept: GLAUx attests them in held-out text, and a breathing variant may be an edition's own spelling.",
+ "description": "Spellings the corpus evidence admitted but a recorded review rejected. respelling: a common word written with the wrong diacritics in OCR text (στρατηγού for στρατηγοῦ), among the entries the gate reports as respellings of frequent words. structural: a reviewed-baseline entry that fails the orthography rules and is not a word a writer types (editorial underdots, synizesis ties, spurious extra accents). historical_ocr: exact spellings inherited from duplicated consonants in historical expansion lemmas, checked against their cited corpus loci and independent lexical evidence.",
+ "method": "Two independent reviewers labelled every candidate from its attestation by source and up to three corpus sentences; a form is listed only where both rejected it. αὗθις and ἄπαντα, which both rejected, are kept: GLAUx attests them in held-out text, and a breathing variant may be an edition's own spelling. The historical_ocr additions were independently checked against the merged lexical data and the cited passages; this review does not reject valid forms merely because their historical lemma was damaged.",
  "reviewed": {
   "respelling": 399,
-  "structural": 182
+  "structural": 182,
+  "historical_ocr": 4
  },
  "reviews": [
   {
@@ -2805,6 +2806,51 @@
    "reasons": [
     "ῥᾳθυμίας with a spurious acute on the first syllable",
     "spurious extra accent on a non-enclitic word; correct form is ῥᾳθυμίας, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "τέσσσαρας",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "τέσσαρας",
+   "locus": "Plutarch, Lucullus 27.2",
+   "reasons": [
+    "The single copied corpus token has three sigmas; the lexical accusative of τέσσαρες is τέσσαρας. The historical expansion also copied the corrupted form as its lemma.",
+    "The merged Wiktionary data independently maps τέσσαρας to τέσσαρες and has no entry for τέσσσαρας."
+   ]
+  },
+  {
+   "form": "ἀναθαρρρυνόμενοι",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "ἀναθαρρυνόμενοι",
+   "locus": "Dionysius of Halicarnassus, Roman Antiquities 2.43.2",
+   "reasons": [
+    "The historical lemma ἀναθαρρρέω contains a duplicated rho, and the generated form copied a third rho. The cited passage uses the participle of ἀναθαρρύνω.",
+    "The Greek text at Roman Antiquities 2.43.2 reads ἀναθαρρυνόμενοι; the merged lexical data retains ἀναθαρρύνω."
+   ],
+   "source_url": "https://eulogikon.org/works/dionysius-halicarnassus-roman-antiquities-ndy-al"
+  },
+  {
+   "form": "συμμμαχίας",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "συμμαχίας",
+   "locus": "Appian, Mithridatic Wars 17.114",
+   "reasons": [
+    "The single copied corpus token has three mus; this inflection of συμμαχία has two. The historical expansion uses the corrupted lemma συμμμαχία.",
+    "The merged Wiktionary data independently maps συμμαχίας to συμμαχία and has no entry for συμμμαχίας."
+   ]
+  },
+  {
+   "form": "μέλλλει",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "μέλλει",
+   "locus": "Hippocratic corpus, Diseases of Women 1.64",
+   "reasons": [
+    "The single copied corpus token has three lambdas; the third-person singular of μέλλω is μέλλει. The historical expansion uses the corrupted lemma μέλλλω.",
+    "The merged Wiktionary data independently maps μέλλει to μέλλω and has no entry for μέλλλει."
    ]
   }
  ]
