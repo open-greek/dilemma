@@ -1667,7 +1667,7 @@ def select_list(
         twins, new_twins = dative_twins(
             {**(selection.datives or {}), **selection.entries}, generated, grc_words,
             set(lines) | MG_LETTERS_OF_ANOTHER_WORD, reviewed_rejects, report,
-            realizations=realizations)
+            realizations=realizations, written=selection.shared)
         generated.update(new_twins)
         report["generated"] = len(generated)
     buckets = None
@@ -2306,6 +2306,7 @@ def dative_twins(entries: dict[str, int], generated: dict[str, int],
                  grc_words: set[str], avoided: set[str],
                  reviewed_rejects: frozenset[str], report: Counter,
                  realizations: dict[str, frozenset] | None = None,
+                 written: Iterable[str] = (),
                  ) -> tuple[dict[str, int], dict[str, int]]:
     """The plain spelling (``plain_twin``) of each dative in -ᾳ or -ῃ the
     slice attests, with its monotonic count, where Wiktionary has its
@@ -2354,7 +2355,9 @@ def dative_twins(entries: dict[str, int], generated: dict[str, int],
     reviewed = {contextual_acute(f) for f in reviewed_rejects}
     lexicon = set(grc_words) | set(entries)
     spelled: dict[str, set[str]] = defaultdict(set)
-    for spelling in entries:
+    # Shared spellings are equally direct evidence of Modern writing. They
+    # constrain the twin's marks without becoming additional twin candidates.
+    for spelling in [*entries, *written]:
         if not final_subscript(spelling):
             spelled[paradigms.monotonic_key(spelling)].add(
                 contextual_acute(_lowercase(spelling)))

@@ -1181,9 +1181,39 @@ def test_plain_twin_keeps_a_real_contracted_modern_name(monkeypatch):
     monkeypatch.setattr(mg, "_VERB_INPUTS", {})
     monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset({"Θωμά"}))
     shared, generated = mg.dative_twins(
-        {nfc("Θωμᾷ"): 6}, {}, {nfc("Θωμᾶ")}, set(), frozenset(), Counter())
+        {nfc("Θωμᾷ"): 6}, {}, {nfc("Θωμᾶ")}, set(), frozenset(), Counter(),
+        written={nfc("Θωμᾶ")})
     assert shared == {nfc("Θωμᾶ"): 27}
     assert nfc("Θωμά") not in generated
+
+
+def test_shared_circumflex_does_not_block_its_own_plain_twin(monkeypatch):
+    par = {"γη": {"γη": _pos("noun", "nominative", "singular")}}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, {"γη": 27}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset({"γη"}))
+    shared, generated = mg.dative_twins(
+        {nfc("γῇ"): 6}, {}, {nfc("γῆ")}, set(), frozenset(), Counter(),
+        realizations={nfc("γῆ"): frozenset({("γη", "noun nominative singular")})},
+        written={nfc("γῆ")})
+    assert shared == {nfc("γῆ"): 27}
+    assert not generated
+
+
+@pytest.mark.parametrize("written", ["σκιά", "σκιὰ"])
+def test_shared_spelling_blocks_a_conflicting_dative_twin(monkeypatch, written):
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {
+        "σκια": 2_000, "πολύ": 100_000_000}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset({"σκια"}))
+    monkeypatch.setattr(mg, "_verb_form_keys", lambda: frozenset())
+    counts = _counts([("σκιᾷ", "lower", {0: 3, 1: 3}),
+                      (written, "lower", {0: 27, 1: 27})])
+    grc = {nfc(s) for s in ("σκιά", "σκιὰ", "σκιᾷ", "σκιᾶ")}
+    result = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert nfc("σκιᾶ") not in result.shared
+    assert nfc(written) in result.shared
+    assert result.report["dative_twin_written_otherwise"] == 1
 
 
 def test_inferred_nominals_do_not_demote_attested_accents():
