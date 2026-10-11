@@ -571,7 +571,7 @@ def test_owned_noun_uses_paradigm_support_before_own_page_penalty(tmp_path):
     frequencies = {"σκιά": 5853, "σκιάς": 557, "σκιές": 2734,
                    "σκιών": 941, "σκιάδες": 51}
     generated = P.generate(par, frequencies, P.Evidence({}, (), par))
-    shadow = [g for g in generated if g.mono == "σκιά"]
+    shadow = [g for g in generated if g.mono == "σκιά" and g.kind == "indicative"]
     assert {g.lemma for g in shadow} == {"σκιά"}
     assert {g.spelling for g in shadow} == {nfc("σκιά")}
     # The independent masculine table and its distinct plural survive.
@@ -581,6 +581,106 @@ def test_owned_noun_uses_paradigm_support_before_own_page_penalty(tmp_path):
     # A genuinely better-supported non-headword analysis can still win.
     totals = {"σκιά": 10085, "σκιάς": 20000}
     assert P._home_lemma("σκιά", ["σκιά", "σκιάς"], par, totals) == "σκιάς"
+
+
+def _noun_homonyms(tmp_path, head, other, *, reverse=False):
+    rows = [(head, head, "noun", [case, "singular"])
+            for case in ("nominative", "accusative", "vocative")]
+    rows += [(head + "ς", head, "noun", ["genitive", "singular"]),
+             (other, other, "noun", ["nominative", "singular"])]
+    if head in {"σκιά", "αλπακά"}:
+        rows.append(({"σκιά": "σκιές", "αλπακά": "αλπακές"}[head],
+                     head, "noun", ["nominative", "plural"]))
+    cases = ("nominative", "accusative", "vocative") if other == "χημείο" else (
+        "genitive", "accusative", "vocative")
+    number = "plural" if other == "χημείο" else "singular"
+    rows += [(head, other, "noun", [case, number]) for case in cases]
+    if reverse:
+        rows.reverse()
+    return P.load_paradigms(_write_pairs(tmp_path, rows))
+
+
+def _noun_homonym_frequencies(head, other):
+    support = {"σκιά": "σκιές", "αλπακά": "αλπακές",
+               "χημεία": "χημείας"}[head]
+    return {head: 20_000, support: 2_000, other: 5,
+            "πολύ": 100_000_000}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("head, other, alternate", [
+    ("χημεία", "χημείο", "χημεῖα"),
+    ("αλπακά", "αλπακάς", "ἀλπακᾶ"),
+    ("σκιά", "σκιάς", "σκιᾶ"),
+])
+def test_owned_noun_alternate_keeps_its_cell_without_shared_count(
+        tmp_path, reverse, head, other, alternate):
+    par = _noun_homonyms(tmp_path, head, other, reverse=reverse)
+    freq = _noun_homonym_frequencies(head, other)
+    out = P.generate(par, freq, P.Evidence({}, GRC, par))
+    alt = [g for g in out if g.spelling == nfc(alternate)]
+    assert alt and {g.lemma for g in alt} == {other}
+    assert all(g.kind == "noun-alternative" and g.vclass == "noun"
+               and g.tokens == g.weight == 0 for g in alt)
+    assert all(g.cell.startswith("noun ") for g in alt)
+    assert not any(g.kind == "subjunctive" for g in alt)
+    assert nfc(alternate) not in mg._realization_cells(out)
+    dominant = [g for g in out if g.mono == head and g.kind == "indicative"]
+    assert dominant and all(g.tokens == 20_000 for g in dominant)
+
+
+@pytest.mark.parametrize("damage", ["no_head_cell", "mixed_pos", "no_case"])
+def test_noun_alternate_requires_owned_head_and_explicit_cell(tmp_path, damage):
+    par = _noun_homonyms(tmp_path, "χημεία", "χημείο")
+    if damage == "no_head_cell":
+        del par["χημείο"]["χημείο"]
+    elif damage == "mixed_pos":
+        par["χημείο"]["άλλο"] = _pos("adj", "nominative", "singular")
+    else:
+        # A tag-only source row must not acquire a case from the homonym.
+        par = P.load_paradigms(_write_pairs(tmp_path, [
+            ("χημεία", "χημεία", "noun", ["nominative", "singular"]),
+            ("χημείας", "χημεία", "noun", ["genitive", "singular"]),
+            ("χημείο", "χημείο", "noun", ["nominative", "singular"]),
+            ("χημεία", "χημείο", "noun", [])]))
+    out = P.generate(par, {"χημεία": 20_000, "χημείας": 2_000, "χημείο": 5},
+                     P.Evidence({}, GRC, par))
+    assert not any(g.kind == "noun-alternative" for g in out)
+
+
+def test_owned_noun_alternate_is_r_and_cannot_promote_grc_homonym(
+        tmp_path, monkeypatch):
+    par = _noun_homonyms(tmp_path, "σκιά", "σκιάς")
+    freq = _noun_homonym_frequencies("σκιά", "σκιάς")
+    freq["σκια"] = 20_000
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    counts = _counts([("σκιά", "lower", {0: 27, 1: 27}),
+                      ("σκιᾶ", "lower", {0: 3, 1: 3})])
+    grc = set(GRC) | {nfc("σκιᾶ")}
+    result = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert nfc("σκιᾶ") not in result.shared
+    assert nfc("σκιᾶ") not in result.generated
+    assert result.buckets[nfc("σκιά")] == "C"
+
+
+@pytest.mark.parametrize("head, other, alternate", [
+    ("χημεία", "χημείο", "χημεῖα"),
+    ("αλπακά", "αλπακάς", "ἀλπακᾶ"),
+])
+def test_owned_noun_alternate_exports_at_r(tmp_path, monkeypatch, head, other,
+                                           alternate):
+    par = _noun_homonyms(tmp_path, head, other)
+    freq = _noun_homonym_frequencies(head, other)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    result = mg.select_list(_counts([]), {0, 1, 2}, set(GRC),
+                            generate_verbs=True)
+    assert nfc(alternate) in result.generated
+    assert result.buckets[nfc(alternate)] == "R"
+    assert result.buckets[nfc(head if head == "χημεία" else "ἀλπακά")] == "C"
 
 
 @pytest.mark.parametrize("other_pos, own_tags", [

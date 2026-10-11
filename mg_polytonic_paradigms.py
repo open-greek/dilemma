@@ -1186,7 +1186,7 @@ class Generated(NamedTuple):
     mono: str          # the monotonic form it spells (letters of the variant
     lemma: str         # differ for a subjunctive variant)
     tokens: int        # the monotonic form's count
-    kind: str          # "indicative" or "subjunctive"
+    kind: str          # "indicative", "subjunctive", or "noun-alternative"
     vclass: str
     cell: str
     # How often monotonic text writes the spelling's own letters and
@@ -1200,6 +1200,17 @@ class Generated(NamedTuple):
 def form_tokens(form: str, frequencies: dict[str, int]) -> int:
     """A form's monotonic count; the counts are of lowercased text."""
     return frequencies.get(form if form.islower() else form.lower(), 0)
+
+
+def _owned_noun(lemma: str,
+                paradigms: dict[str, dict[str, frozenset]]) -> bool:
+    """An exclusively nominal paradigm with an explicit self nominative."""
+    forms = paradigms[lemma]
+    return (lemma in forms
+            and all(parts_of_speech(tags) == {"noun"}
+                    for tags in forms.values())
+            and any({"nominative", "singular"} <= tags
+                    for tags in form_tag_rows(paradigms, lemma, lemma)))
 
 
 def _home_lemma(form: str, lemmas: list[str],
@@ -1231,15 +1242,7 @@ def _home_lemma(form: str, lemmas: list[str],
     # an owned noun paradigm from a page filed as a form of another word.
     # Keep the existing ordering for verbs, mixed parts of speech, and nouns
     # whose own headword has no explicit case evidence.
-    def owned_noun(lemma: str) -> bool:
-        forms = paradigms[lemma]
-        return (lemma in forms
-                and all(parts_of_speech(tags) == {"noun"}
-                        for tags in forms.values())
-                and any({"nominative", "singular"} <= tags
-                        for tags in form_tag_rows(paradigms, lemma, lemma)))
-
-    if all(owned_noun(lemma) for lemma in lemmas):
+    if all(_owned_noun(lemma, paradigms) for lemma in lemmas):
         return min(lemmas, key=lambda l: (-totals.get(l, 0),
                                           l == own_page, -common(l), l))
     return min(lemmas, key=lambda l: (not verb(l), l == own_page,
@@ -1266,7 +1269,11 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
     of πουλάω and πωλώ) gets one spelling: it reads the attested spellings
     of all of their forms, and takes its tags and class from the lemma it
     shares the most letters with (``_home_lemma``). Nominal case cells
-    keep their separate accent realizations. The
+    keep their separate accent realizations. When an owned noun's headword
+    wins over another owned noun's inflection, that other explicit cell may
+    retain a different spelling at R. Its zero token count does not borrow
+    the common homonym's frequency or contribute dominant spelling evidence.
+    The
     candidates come out with the commonest spelling of their letters first
     (``Generated.weight``),
     so that a caller keeping the first of a set of spellings with the same
@@ -1291,11 +1298,13 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
         if key not in pooled:
             pooled[key] = own[lemma] if len(lemmas) == 1 else _pool(
                 [own[l] for l in lemmas])
+        primary_spellings = set()
         for tags in form_tag_rows(paradigms, lemma, form):
             vclass = verb_class(lemma, paradigms[lemma])
             spelling = polytonic(form, tags, vclass, pooled[key], evidence, lemma)
             if spelling is None:
                 continue
+            primary_spellings.add(spelling)
             n = form_tokens(form, frequencies)
             out.append(Generated(spelling, form, lemma, n, "indicative",
                                  vclass, cell(tags), n))
@@ -1313,6 +1322,24 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
                     out.append(Generated(variant, form, lemma, n,
                                          "subjunctive", vclass, cell(tags),
                                          written))
+        # The dominant headword's frequency cannot erase another noun's
+        # explicitly sourced cell (χημεία versus χημεῖα, of χημείο). This
+        # does not broaden the verb, mixed-POS, or non-headword routes.
+        if (len(lemmas) > 1 and lemma == form.lower()
+                and all(_owned_noun(l, paradigms) for l in lemmas)):
+            for other in lemmas:
+                if other == lemma:
+                    continue
+                for tags in form_tag_rows(paradigms, other, form):
+                    if (not (tags & CASE_TAGS and tags & {"singular", "plural"})
+                            or pos_of(tags) != "noun"):
+                        continue
+                    spelling = polytonic(form, tags, "noun", own[other],
+                                         evidence, other)
+                    if spelling and spelling not in primary_spellings:
+                        out.append(Generated(spelling, form, other, 0,
+                                             "noun-alternative", "noun",
+                                             cell(tags), 0))
     out.sort(key=lambda g: (-g.weight, -g.tokens, g.mono, g.kind))
     return out
 

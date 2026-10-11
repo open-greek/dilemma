@@ -1659,11 +1659,12 @@ def select_list(
     shared_generated: dict[str, int] = {}
     twins: dict[str, int] = {}
     realizations: dict[str, frozenset] = {}
+    alternatives: set[str] = set()
     if generate_verbs:
         generated = generated_verb_forms(
             counts, sources, grc_words, set(selection.entries),
             reviewed_rejects, report, shared=shared_generated,
-            realizations=realizations)
+            realizations=realizations, alternatives=alternatives)
         twins, new_twins = dative_twins(
             {**(selection.datives or {}), **selection.entries}, generated, grc_words,
             set(lines) | MG_LETTERS_OF_ANOTHER_WORD, reviewed_rejects, report,
@@ -1682,8 +1683,9 @@ def select_list(
             if inputs is not None:
                 evidence = paradigms.Evidence(
                     attested_lowercase(counts, sources), grc_words, inputs[0])
-                realizations = _realization_cells(paradigms.generate(
-                    inputs[0], inputs[1], evidence))
+                candidates = paradigms.generate(inputs[0], inputs[1], evidence)
+                realizations = _realization_cells(candidates)
+                alternatives = _noun_alternatives(candidates)
         names = slice_names(counts, sources)
         spellings = slice_spelling_tokens(counts, sources)
         shared = shared_lines(selection.shared or {}, shared_generated,
@@ -1691,13 +1693,15 @@ def select_list(
                               avoided=set(lines) | MG_LETTERS_OF_ANOTHER_WORD,
                               slice_spellings=spellings,
                               written=selection.entries,
-                              realizations=realizations, twins=twins)
+                              realizations=realizations, twins=twins,
+                              alternatives=alternatives)
         report["shared_lines"] = len(shared)
         buckets = list_buckets(selection.entries, generated, frequencies,
                                report, names=names,
                                shared={s: b for s, b in shared.items()
                                        if b != "R"},
-                               slice_spellings=spellings)
+                               slice_spellings=spellings,
+                               alternatives=alternatives)
     ancient: set[str] = set()
     if ancient_corpora is not None:
         if buckets is None:
@@ -1796,12 +1800,26 @@ def _verb_inputs():
 
 
 def _realization_cells(candidates) -> dict[str, frozenset]:
-    """Polytonic spellings of the Modern cells, including contextual twins."""
+    """Dominant Modern realizations, including contextual twins.
+
+    An alternate noun cell is retained at R without claiming the shared
+    monotonic frequency or displacing the dominant written realization.
+    """
     realized: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for g in candidates:
+        if g.kind == "noun-alternative":
+            continue
         for spelling in (g.spelling, *oxytone_twins(g.spelling)):
             realized[contextual_acute(spelling)].add((g.lemma, g.cell))
     return {s: frozenset(cs) for s, cs in realized.items()}
+
+
+def _noun_alternatives(candidates) -> set[str]:
+    """Alternate-only spellings must not borrow a homonym's frequency."""
+    return ({contextual_acute(g.spelling) for g in candidates
+             if g.kind == "noun-alternative"}
+            - {contextual_acute(g.spelling) for g in candidates
+               if g.kind != "noun-alternative"})
 
 
 def generated_verb_forms(
@@ -1813,6 +1831,7 @@ def generated_verb_forms(
     report: Counter,
     shared: dict[str, int] | None = None,
     realizations: dict[str, frozenset] | None = None,
+    alternatives: set[str] | None = None,
 ) -> dict[str, int]:
     """Polytonic spellings of the frequent forms the list and grc lack
     (``mg_polytonic_paradigms``: verbs, nouns, adjectives and the other
@@ -1854,6 +1873,8 @@ def generated_verb_forms(
     realized = _realization_cells(candidates)
     if realizations is not None:
         realizations.update(realized)
+    if alternatives is not None:
+        alternatives.update(_noun_alternatives(candidates))
     wanted = {paradigms.bare(g.spelling) for g in candidates}
     cells = _paradigm_cells()
     covered: set[str] = set()
@@ -2450,7 +2471,8 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
                  slice_spellings: dict[str, int] | None = None,
                  written: Iterable[str] = (),
                  realizations: dict[str, frozenset] | None = None,
-                 twins: dict[str, int] | None = None) -> dict[str, str]:
+                 twins: dict[str, int] | None = None,
+                 alternatives: set[str] = frozenset()) -> dict[str, str]:
     """The Modern Greek rating of the frequent spellings grc has, written
     ``form<TAB>fr:B mg:shared``: the list leaves out what grc accepts, so
     the commonest Modern Greek words that keep their Ancient spelling (θέση,
@@ -2489,7 +2511,8 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
             bucket = max(bucket, monotonic_bucket(
                 subscript_count(spelling, frequencies, slice_spellings),
                 total), key="RMC".index)
-        elif not (final_subscript(spelling)
+        elif not (contextual_acute(spelling) in alternatives
+                  or final_subscript(spelling)
                   or paradigms.monotonic_key(spelling) in names
                   or nominal_final_circumflex_mismatch(
                       spelling, nominal_spellings.get(
@@ -2538,7 +2561,8 @@ def list_buckets(entries: dict[str, int], generated: dict[str, int],
                  frequencies: dict[str, int], report: Counter,
                  names: set[str] = frozenset(),
                  shared: dict[str, str] | None = None,
-                 slice_spellings: dict[str, int] | None = None
+                 slice_spellings: dict[str, int] | None = None,
+                 alternatives: set[str] = frozenset()
                  ) -> dict[str, str]:
     """The fr: bucket of every entry and generated form
     (``MONOTONIC_BUCKETS``), before the Ancient-word cap. The monotonic
@@ -2559,7 +2583,8 @@ def list_buckets(entries: dict[str, int], generated: dict[str, int],
     buckets: dict[str, str] = {}
     for spelling, n in entries.items():
         bucket = freq_bucket(n)
-        if MONOTONIC_BUCKETS == "all":
+        if (MONOTONIC_BUCKETS == "all"
+                and contextual_acute(spelling) not in alternatives):
             name = paradigms.monotonic_key(_lowercase(spelling)) in names
             if name == spelling[:1].islower():
                 report["bucket_name_kept"] += 1
