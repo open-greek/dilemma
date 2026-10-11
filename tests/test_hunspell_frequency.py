@@ -183,9 +183,9 @@ def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
 def test_whole_artifact_compatibility_fixture_is_reviewed_and_pinned():
     fixture = load_gzip_fixture(DEFAULT_COMPATIBILITY)
 
-    # The baseline is whatever Tonos ships now, not the April export it
-    # started from: it moves forward with each swap-in, and the contract is
-    # that the next export does not lose what the keyboard already has.
+    # This pins the reviewed 1.3.6 compatibility snapshot. Release coverage
+    # is also compared with the actual consumer dictionary; the fixture
+    # does not grandfather spellings rejected by the current source rules.
     assert fixture["baseline"]["version"] == "1.3.6"
     assert fixture["baseline"]["commit"] == (
         "2e633cc8d752343639d2cc49fa28eb40a4f6b27c"
