@@ -1478,6 +1478,24 @@ def _is_closed_class_inflection_gloss(gloss: str) -> bool:
         r"(?:γενική|αιτιατική|ονομαστική|κλητική|δοτική|αρσενικό|θηλυκό|ουδέτερο)\b|"
         r"(?:πολυτονική|εναλλακτική|παλαιότερη|παλιά) γραφή\b)", gloss.strip().lower()))
 
+def _declared_closed_class_form(entry: dict) -> bool:
+    """A structured English head template explicitly identifies a form page."""
+    return any(template.get("name") == "head"
+               and isinstance(template.get("args", {}), dict)
+               and template.get("args", {}).get("1") == "el"
+               and template.get("args", {}).get("2") in ("pronoun form", "determiner form")
+               for template in entry.get("head_templates") or []
+               if isinstance(template, dict))
+
+
+def _closed_class_person_case_gloss(gloss: str) -> bool:
+    """Translations followed by explicit grammatical person/case metadata."""
+    return bool(re.fullmatch(
+        r"[^()]*\(\s*[1-3](?:st|nd|rd)[ -]+person\b[^()]*"
+        r"\b(?:nominative|genitive|dative|accusative|vocative)\b[^()]*\)\s*[.;]?",
+        gloss.strip().lower()))
+
+
 def _validate_head_inventory(inventory: dict, pos: str) -> set:
     """Return positively supported heads, rejecting malformed or form evidence.
 
@@ -1513,8 +1531,9 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
             fail("missing independent evidence for " + lemma)
         for entry in evidence:
             if (not isinstance(entry, dict)
-                    or set(entry) != {"source", "headword", "pos", "tags", "senses",
-                                      "form_of", "alt_of"}):
+                    or set(entry) != ({"source", "headword", "pos", "tags", "senses",
+                                      "form_of", "alt_of"}
+                                     | ({"head_templates"} if pos in {"det", "pron"} else set()))):
                 fail("incomplete source entry for " + lemma)
             source, word = entry["source"], entry["headword"]
             if (source not in hashes or entry["pos"] != pos
@@ -1529,6 +1548,17 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
                     or not isinstance(entry["alt_of"], list)
                     or (source != "el" and (entry["form_of"] or entry["alt_of"]))):
                 fail("reference-only head for " + lemma)
+            declared_form = False
+            if pos in {"det", "pron"}:
+                templates = entry["head_templates"]
+                if (not isinstance(templates, list)
+                        or not all(isinstance(t, dict)
+                                   and isinstance(t.get("args", {}), dict)
+                                   and all(isinstance(k, str) and isinstance(v, str)
+                                           for k, v in t.get("args", {}).items())
+                                   for t in templates)):
+                    fail("malformed head templates for " + lemma)
+                declared_form = _declared_closed_class_form(entry)
             substantive = False
             for sense in senses:
                 if (not isinstance(sense, dict)
@@ -1542,7 +1572,9 @@ def _validate_head_inventory(inventory: dict, pos: str) -> set:
                     fail("form or malformed sense for " + lemma)
                 substantive |= bool("no-gloss" not in sense["tags"] and any(
                     (not _is_verb_inflection_gloss(gloss) if pos == "verb" else
-                     not _is_closed_class_inflection_gloss(gloss) if pos in {"det", "pron"} else True)
+                     not _is_closed_class_inflection_gloss(gloss)
+                     and not (declared_form and _closed_class_person_case_gloss(gloss))
+                     if pos in {"det", "pron"} else True)
                     for gloss in sense["glosses"]))
             first_gloss = (senses[0]["glosses"] or [""])[0].lower()
             has_ordinary_sense = any(s["glosses"] and "participle" not in s["tags"]
@@ -1640,6 +1672,7 @@ def training_pair_headword_errors(pairs: list, lookup: dict,
 def closed_class_head_evidence(entry: dict, source: str) -> dict:
     """Retain exact same-POS source evidence, without inferring a reading."""
     evidence = verb_head_evidence(entry, source)
+    evidence["head_templates"] = entry.get("head_templates") or []
     for sense in evidence["senses"]:
         del sense["related"]
     return evidence

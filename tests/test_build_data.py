@@ -142,6 +142,82 @@ def test_closed_class_positive_sense_gate_rejects_unstructured_forms(tmp_path, r
     assert heads == {}
 
 
+@pytest.mark.parametrize("pos,template", [("pron", "pronoun form"), ("det", "determiner form")])
+@pytest.mark.parametrize("gloss", [
+    "his (3rd person masculine singular, genitive)",
+    "its (3rd person neuter singular, genitive)",
+    "they (3rd person neuter plural, nominative)",
+    "them (3rd person feminine plural, accusative)",
+    "you (2nd person singular, accusative)",
+])
+def test_declared_closed_class_forms_do_not_become_independent_heads(tmp_path, pos, template, gloss):
+    entry = {"word": "αυτού", "pos": pos,
+             "head_templates": [{"name": "head", "args": {"1": "el", "2": template}}],
+             "senses": [{"glosses": [gloss]}]}
+    assert not is_independent_closed_class_entry(entry, "en")
+    heads = {}
+    extract_pairs(_write(tmp_path, [entry]), "el-en", closed_class_heads=heads)
+    assert heads == {}
+    proof = closed_class_head_inventory(
+        [{"lemma": "αυτού", **closed_class_head_evidence(entry, "en")}],
+        {"αυτού": ("αυτός", 1)}, {"en": "a" * 64})
+    with pytest.raises(ValueError, match="independent"):
+        validate_closed_class_head_inventory(proof, {"αυτού": {pos.upper(): "αυτού"}})
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("word,gloss", [("μας", "our (belonging to us)"),
+                                      ("σας", "your (belonging to you)")])
+def test_declared_form_keeps_a_separate_lexical_possessive_sense(tmp_path, reverse, word, gloss):
+    senses = [{"glosses": ["our (1st person plural, genitive)"]}, {"glosses": [gloss]}]
+    entry = {"word": word, "pos": "pron",
+             "head_templates": [{"name": "head", "args": {"1": "el", "2": "pronoun form"}}],
+             "senses": senses[::-1] if reverse else senses}
+    assert is_independent_closed_class_entry(entry, "en")
+    heads = {}
+    extract_pairs(_write(tmp_path, [entry]), "el-en", closed_class_heads=heads)
+    assert heads == {"pron": {word}}
+    evidence = closed_class_head_evidence(entry, "en")
+    assert evidence["head_templates"] == entry["head_templates"]
+    proof = closed_class_head_inventory([{ "lemma": word, **evidence}],
+                                       {word: ("εγώ", 1)}, {"en": "a" * 64})
+    assert validate_closed_class_head_inventory(proof, {word: {"PRON": word}})["pron"] == {word}
+
+
+@pytest.mark.parametrize("templates", [None, {}, [{"name": "head", "args": []}],
+                                      [{"name": "head", "args": {"1": 1}}]])
+def test_closed_class_proof_rejects_malformed_head_templates(templates):
+    proof = closed_class_head_inventory([{"lemma": "πας", **closed_class_head_evidence(
+        {"word": "πας", "pos": "det", "senses": [{"glosses": ["every, any"]}]}, "en")}],
+        {"πας": ("πηγαίνω", 1)}, {"en": "a" * 64})
+    proof["heads"][0]["evidence"][0]["head_templates"] = templates
+    with pytest.raises(ValueError, match="head templates"):
+        validate_closed_class_head_inventory(proof, {"πας": {"DET": "πας"}})
+
+
+def test_pronoun_form_proof_does_not_override_structured_parent_or_adverb(tmp_path):
+    entries = [
+        {"word": "αυτού", "pos": "pron",
+         "head_templates": [{"name": "head", "args": {"1": "el", "2": "pronoun form"}}],
+         "senses": [{"glosses": ["his (3rd person masculine singular, genitive)"]}]},
+        {"word": "αυτού", "pos": "pron", "senses": [{"glosses": ["γενική ενικού του αυτός"],
+            "form_of": [{"word": "αυτός"}], "tags": ["genitive", "singular"]}]},
+        {"word": "αυτού", "pos": "adv", "senses": [{"glosses": ["there"]}]},
+        {"word": "αυτός", "pos": "pron", "senses": [{"glosses": ["he, him"]}]},
+    ]
+    _, adverb_lookup, *_ = extract_pairs(_write(tmp_path, [entries[2]]), "el-en")
+    assert adverb_lookup["αυτού"][0] == "αυτού"  # Exact lexical source evidence remains.
+    for ordered in (entries, entries[::-1]):
+        heads = {}
+        pairs, _, _, typed, *_ = extract_pairs(_write(tmp_path, ordered), "el-en",
+                                             closed_class_heads=heads)
+        assert heads == {"pron": {"αυτός"}}
+        assert typed["αυτού"]["PRON"] == "αυτός"
+        cleaned = clean_training_pairs(pairs, {"αυτού": ("αυτός", 1), "αυτός": ("αυτός", 3)},
+            preserve_cells=True, pos_map=typed, closed_class_heads=heads)
+        assert {p["lemma"] for p in cleaned if p["pos"] == "pron"} == {"αυτός"}
+
+
 @pytest.mark.parametrize("change", ["nominal", "wrong_pos", "form_gloss", "form_ref", "alt_tag", "no_gloss", "hash"])
 def test_closed_class_inventory_rejects_forged_or_wrong_pos_proof(change):
     proof = closed_class_head_inventory([{"lemma": "πας", **closed_class_head_evidence(
