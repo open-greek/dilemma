@@ -1,6 +1,8 @@
 # Large pipeline outputs (stored on HuggingFace: hf.co/ciscoriordan/dilemma)
 data/ag_lookup.json
 data/ag_lookup_scored.json
+data/ag_noun_generation_audit.json
+data/ag_sophocles_noun_generation_audit.json
 data/ag_lsj_verb_pairs.json
 data/ag_pairs.json
 data/ag_verb_paradigms.json
@@ -25,6 +27,8 @@ data/med_lookup.json
 data/med_pairs.json
 data/mg_lookup.json
 data/mg_pairs.json
+data/el_participles.json
+data/el_noun_heads.json
 # PROIEL is CC BY-NC-SA; never ingested, kept out of the openly-licensed repo
 data/proiel_pairs.json
 data/spell_index.db

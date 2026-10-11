@@ -39,13 +39,21 @@ REPO = "ciscoriordan/dilemma"
 
 # Exactly the artifacts .github/workflows/test.yml downloads - the workflow
 # gets them from `hf_data.py files`, so this list is the single source of
-# truth. Add a file here when a test starts asserting on it.
+# truth, including provenance that accompanies the generated tables.
+# Add a file here when CI needs to receive the same version as the code.
 TRACKED = [
     "data/lookup.db",
     "data/spell_index.db",
     "data/lemma_attestation.json",
     # Exact-form attestation for the grc Hunspell export and its audit.
     "data/form_profile.db",
+    # Input-pinned provenance for the generated noun expansion layer.
+    "data/ag_noun_generation_audit.json",
+    "data/ag_sophocles_noun_generation_audit.json",
+    # Source-backed participial cells used by the Modern Greek exporter.
+    "data/el_participles.json",
+    # Independent noun heads retained beside flat-lookup homographs.
+    "data/el_noun_heads.json",
 ]
 
 _CHUNK = 1 << 20
