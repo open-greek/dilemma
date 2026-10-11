@@ -516,7 +516,11 @@ def test_ancient_nominal_reference_keeps_independent_verb_head(tmp_path, monkeyp
 
 
 @pytest.mark.parametrize("gloss", ["επικός τύπος του δύο", "δωρικός τύπος του δύο",
-                                   "εναλλακτικός τύπος του δύο", "τύπος του δύο"])
+                                   "εναλλακτικός τύπος του δύο", "τύπος του δύο",
+                                   "ιωνικός & επικός τύπος του παρθενία",
+                                   "ιωνικός και επικός τύπος του παρθενία",
+                                   "ιωνικός, επικός τύπος του παρθενία",
+                                   "ιωνικός/επικός τύπος του παρθενία"])
 def test_ancient_dialect_reference_is_not_an_independent_lexical_definition(gloss):
     from build_data import is_independent_lexical_entry
     entry = {"word": "δύω", "pos": "num", "senses": [{"glosses": [gloss]}]}
@@ -613,7 +617,8 @@ def test_independent_verb_and_same_pos_inflection_keep_both_readings(tmp_path, m
     assert build_data.training_pair_headword_errors(pairs, lookup, lexical_heads=heads)[0] == 0
 
 
-def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_path, monkeypatch):
+@pytest.mark.parametrize('flat_target', ['δείδω', None])
+def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_path, monkeypatch, flat_target):
     import build_data
     import hashlib
 
@@ -621,15 +626,16 @@ def test_ancient_reading_evidence_requires_exact_positive_part_of_speech(tmp_pat
                              'senses': [{'glosses': ['run away, flee']}]}])
     pairs = [{'form': 'δίεις', 'lemma': 'δίω', 'pos': 'verb'},
              {'form': 'δίω', 'lemma': 'δίω', 'pos': 'adj'}]
-    lookup = {'δίω': ('δείδω', 1)}
+    lookup = {'δίω': (flat_target, 1)} if flat_target else {}
     # Python 3.10 is supported and has no hashlib.file_digest.
     monkeypatch.delattr(hashlib, 'file_digest', raising=False)
     inventory = build_data.ancient_reading_head_inventory(pairs[:1], lookup, {'en': dump})
     assert inventory['source_sha256'] == {'en': hashlib.sha256(dump.read_bytes()).hexdigest()}
     heads = build_data.validate_ancient_reading_head_inventory(inventory)
     assert heads == {'verb': {'δίω'}}
-    flat = {'δίω': 'δείδω'}
-    assert build_data.training_pair_headword_errors(pairs, flat)[0] == 2
+    flat = {'δίω': flat_target} if flat_target else {}
+    assert build_data.training_pair_headword_errors(pairs, flat)[0] == (2 if flat_target else 0)
+    assert build_data.training_pair_headword_errors(pairs, flat, lexical_heads={})[0] == 2
     assert build_data.training_pair_headword_errors(pairs, flat, lexical_heads=heads)[0] == 1
     with pytest.raises(ValueError, match='Unproven Ancient'):
         build_data.ancient_reading_head_inventory(pairs, lookup, {'en': dump})

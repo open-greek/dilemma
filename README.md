@@ -325,8 +325,8 @@ does not replace an independently defined homograph: `δίω` keeps its own
 conjugation as well as its separate reading in the conjugation of `δείδω`.
 `data/grc_reading_heads.json` records the exact source definitions, parts of
 speech, and source hashes for surviving Ancient training heads that differ
-from their flat lookup target. The training-data integrity check requires
-this evidence; an unrelated definition under another part of speech cannot
+from their flat lookup target or are absent from the flat map. The training-data
+integrity check requires this evidence; an unrelated definition under another part of speech cannot
 authorize an exception.
 
 In the Modern Greek dumps a capitalized page (a name, an abbreviation, a

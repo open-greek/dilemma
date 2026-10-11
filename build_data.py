@@ -1680,6 +1680,18 @@ def is_independent_finite_entry(entry: dict, source: str) -> bool:
     return True
 
 
+_ANCIENT_REFERENCE_MODIFIER = (
+    r"(?:επικός|ποιητικός|ιωνικός|αττικός|δωρικός|αιολικός|"
+    r"εναλλακτικός|άλλος|παλαιότερος)"
+)
+_ANCIENT_REFERENCE_SEPARATOR = r"(?:\s+(?:και|&)\s+|\s*[,/]\s*)"
+_ANCIENT_REFERENCE_GLOSS = re.compile(
+    rf"^(?:{_ANCIENT_REFERENCE_MODIFIER}"
+    rf"(?:{_ANCIENT_REFERENCE_SEPARATOR}{_ANCIENT_REFERENCE_MODIFIER})*\s+)?"
+    r"τύπος\s+του\b"
+)
+
+
 def is_independent_lexical_entry(entry: dict, source: str) -> bool:
     """Require a definition of this word, excluding inflection-only pages.
 
@@ -1701,9 +1713,7 @@ def is_independent_lexical_entry(entry: dict, source: str) -> bool:
         return False
     return any("no-gloss" not in (s.get("tags") or [])
                and any(g.strip() and not _is_closed_class_inflection_gloss(g)
-                       and not (source == "el" and re.match(
-                           r"^(?:(?:επικός|ποιητικός|ιωνικός|αττικός|δωρικός|αιολικός|"
-                           r"εναλλακτικός|άλλος|παλαιότερος)\s+)?τύπος\s+του\b",
+                       and not (source == "el" and _ANCIENT_REFERENCE_GLOSS.match(
                            g.strip().lower()))
                        for g in s.get("glosses") or []) for s in senses)
 
@@ -1721,7 +1731,10 @@ def training_pair_headword_errors(pairs: list, lookup: dict,
     count, examples = 0, []
     for pair in pairs:
         lemma = pair["lemma"]
-        if (lemma in lookup and lookup[lemma] != lemma
+        needs_proof = lemma in lookup and lookup[lemma] != lemma
+        if lexical_heads is not None and lemma not in lookup:
+            needs_proof = True
+        if (needs_proof
                 and not (pair.get("pos") == "noun" and lemma in noun_heads)
                 and not (pair.get("pos") == "verb" and lemma in verb_heads)
                 and not (pair.get("pos") in {"det", "pron"}
@@ -1729,7 +1742,7 @@ def training_pair_headword_errors(pairs: list, lookup: dict,
                 and lemma not in (lexical_heads or {}).get(pair.get("pos"), set())):
             count += 1
             if len(examples) < 5:
-                examples.append(f"{pair['form']} -> {lemma} -> {lookup[lemma]}")
+                examples.append(f"{pair['form']} -> {lemma} -> {lookup.get(lemma, '<absent>')}")
     return count, examples
 
 
@@ -1738,7 +1751,7 @@ def ancient_reading_head_inventory(pairs: list, lookup: dict, sources: dict) -> 
     import hashlib
 
     wanted = {(p["lemma"], p.get("pos", "")) for p in pairs
-              if lookup.get(p["lemma"], (p["lemma"],))[0] != p["lemma"]}
+              if lookup.get(p["lemma"], (None,))[0] != p["lemma"]}
     evidence = {key: {} for key in wanted}
     hashes = {}
     for source, path in sorted(sources.items()):
