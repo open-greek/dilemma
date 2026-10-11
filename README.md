@@ -313,6 +313,10 @@ Ancient training pairs retain each source morphological reading. Their table
 owners and same-part-of-speech references resolve to independently defined
 heads before the flat lookup: `ἀλέομαι` (shun) keeps its own table, while the
 same spelling in the conjugation of `ἀλέω` (grind) still belongs to `ἀλέω`.
+An explicit reference belonging only to another part of speech cannot consume
+an independently defined head: the noun reading of `κρίνω` points to `κρίνον`
+(lily), while the verb `κρίνω` (judge) keeps its own conjugation. References
+to a supported head of the same part of speech still canonicalize normally.
 
 In the Modern Greek dumps a capitalized page (a name, an abbreviation, a
 heading in sentence case) reaches its lowercase keys only where no

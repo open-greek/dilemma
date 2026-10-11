@@ -501,6 +501,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   participle_cells: list = None, noun_heads: list = None,
                   closed_class_heads: dict = None, closed_head_records: list = None,
                   lexical_heads: dict = None,
+                  typed_references: dict = None,
                   closed_class_form_refs: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
@@ -940,6 +941,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     for key in (lemma, lemma.lower(),
                                 to_monotonic(lemma), to_monotonic(lemma).lower(),
                                 strip_accents(lemma.lower())):
+                        if key and typed_references is not None:
+                            typed_references.setdefault(key, {}).setdefault(pos, set()).add(ref_word)
                         if (key and key not in form_of_targets
                                 and not key == ref_word == spelling_of):
                             form_of_targets[key] = ref_word
@@ -1032,6 +1035,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     for key in (lemma, lemma.lower(),
                                 to_monotonic(lemma), to_monotonic(lemma).lower(),
                                 strip_accents(lemma.lower())):
+                        if key and typed_references is not None:
+                            typed_references.setdefault(key, {}).setdefault(pos, set()).add(ref_word)
                         if (key and key not in form_of_targets
                                 and not key == ref_word == spelling_of):
                             form_of_targets[key] = ref_word
@@ -2060,9 +2065,37 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
     return deduplicate_pairs(result, True) if preserve_readings else result
 
 
+def _cross_pos_alias_shadows_head(word: str, target: str,
+                                  lexical_heads: dict, typed_references: dict) -> bool:
+    """An explicit other-POS reference cannot consume an independent head.
+
+    Only protect an existing lexical self-map when its proposed alias is
+    positively identified as another part of speech. A same-POS reference
+    or a chain to another independently defined head retains the existing
+    canonicalization behavior.
+    """
+    head_pos = {pos for pos, heads in lexical_heads.items() if word in heads}
+    references = typed_references.get(word, {})
+    reference_pos = {pos for pos, targets in references.items() if target in targets}
+    if not head_pos or not reference_pos or head_pos & reference_pos:
+        return False
+    for pos in head_pos:
+        pending, seen = [target], {word}
+        while pending:
+            candidate = pending.pop()
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            if candidate in lexical_heads.get(pos, set()):
+                return False
+            pending.extend(typed_references.get(candidate, {}).get(pos, set()) - seen)
+    return True
+
+
 def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
                          el_form_of_targets: dict, en_headwords: set,
-                         skip: set = frozenset(), preserve_cycles=False) -> int:
+                         skip: set = frozenset(), preserve_cycles=False,
+                         lexical_heads: dict = None, typed_references: dict = None) -> int:
     """Point each self-mapped key of the merged lookup at the lemma EN's
     form-of reference gives it, else EL's where EN has no page for the key
     (see main), and return how many moved. A target that maps back to the
@@ -2084,6 +2117,10 @@ def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
             # also doesn't claim this key as a real lemma headword.
             target = el_form_of_targets.get(k)
         if target and target != k:
+            if (lexical_heads is not None and typed_references is not None
+                    and _cross_pos_alias_shadows_head(k, target, lexical_heads,
+                                                      typed_references)):
+                continue
             moves[k] = target
     cross_resolved = 0
     for k, target in moves.items():
@@ -2138,6 +2175,7 @@ def main():
         closed_class_heads = {}
         closed_head_records = []
         lexical_heads = {} if lang == "grc" else None
+        typed_references = {} if lang == "grc" else None
         closed_class_form_refs = {}
         participle_refs, verb_heads = {}, set()
         participle_heads = set()
@@ -2177,6 +2215,7 @@ def main():
                 closed_class_heads=closed_class_heads if lang == "el" else None,
                 closed_head_records=closed_head_records if lang == "el" else None,
                 lexical_heads=lexical_heads,
+                typed_references=typed_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
@@ -2214,6 +2253,7 @@ def main():
                 closed_class_heads=closed_class_heads if lang == "el" else None,
                 closed_head_records=closed_head_records if lang == "el" else None,
                 lexical_heads=lexical_heads,
+                typed_references=typed_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
@@ -2290,7 +2330,8 @@ def main():
         # processing order must not collapse one into the other.
         cross_resolved = resolve_cross_source(
             all_lookup, en_form_of_targets, el_form_of_targets,
-            en_headwords, _MG_ARTICLE_FORMS, preserve_cycles=True)
+            en_headwords, _MG_ARTICLE_FORMS, preserve_cycles=True,
+            lexical_heads=lexical_heads, typed_references=typed_references)
         if cross_resolved:
             print(f"Cross-source form-of resolutions: {cross_resolved:,}")
 

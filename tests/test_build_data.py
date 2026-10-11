@@ -430,6 +430,68 @@ def test_cross_source_reciprocal_synonyms_keep_both_paradigms():
 
 
 @pytest.mark.parametrize("reverse", [False, True])
+def test_ancient_nominal_reference_keeps_independent_verb_head(tmp_path, monkeypatch, reverse):
+    import build_data
+    entries = [
+        {"word": "κρίνω", "pos": "verb",
+         "senses": [{"glosses": ["to distinguish, judge"]}],
+         "forms": [{"form": "κρίνω", "tags": ["present", "first-person", "singular"]},
+                   {"form": "κρίνεις", "tags": ["present", "second-person", "singular"]}]},
+        {"word": "κρίνω", "pos": "noun",
+         "senses": [{"form_of": [{"word": "κρίνον"}]}]},
+        {"word": "κρίνον", "pos": "noun",
+         "senses": [{"glosses": ["lily"]}]},
+        {"word": "δύω", "pos": "verb",
+         "senses": [{"glosses": ["to plunge"]}],
+         "forms": [{"form": "δύω", "tags": ["present", "first-person", "singular"]},
+                   {"form": "δύεις", "tags": ["present", "second-person", "singular"]}]},
+        {"word": "δύω", "pos": "num",
+         "senses": [{"alt_of": [{"word": "δύο"}]}]},
+        {"word": "δύο", "pos": "num", "senses": [{"glosses": ["two"]}]},
+        {"word": "δύνω", "pos": "verb", "senses": [{"glosses": ["to sink"]}]},
+        {"word": "δύνω", "pos": "verb",
+         "senses": [{"alt_of": [{"word": "δύω"}]}]},
+    ]
+    dump = _write(tmp_path, entries[::-1] if reverse else entries)
+    output = tmp_path / "output"
+    monkeypatch.setattr(build_data, "DATA_DIR", output)
+    monkeypatch.setattr(build_data, "DUMPS", {"grc": {"en": dump.name}})
+    monkeypatch.setattr(build_data.sys, "argv", [
+        "build_data.py", "--lang", "grc", "--kaikki", str(tmp_path)])
+    build_data.main()
+    lookup = json.loads((output / "ag_lookup.json").read_text())
+    assert lookup["κρίνω"] == lookup["κρινω"] == "κρίνω"
+    assert lookup["δύω"] == lookup["δυω"] == "δύω"
+    assert lookup["δύνω"] == "δύω"  # A same-POS variant still canonicalizes.
+    pairs = json.loads((output / "ag_pairs.json").read_text())
+    assert any(r["form"] == "κρίνεις" and r["lemma"] == "κρίνω" for r in pairs)
+    assert any(r["form"] == "κρίνω" and r["lemma"] == "κρίνον"
+               and r["pos"] == "noun" for r in pairs)
+    assert any(r["form"] == "δύεις" and r["lemma"] == "δύω" for r in pairs)
+    assert any(r["form"] == "δύω" and r["lemma"] == "δύο"
+               and r["pos"] == "num" for r in pairs)
+    pos = json.loads((output / "ag_pos_lookup.json").read_text())
+    assert pos["κρίνω"] == {"NOUN": "κρίνον", "VERB": "κρίνω"}
+
+
+@pytest.mark.parametrize("kind", ["no_reference", "same_pos_endpoint", "same_pos_chain"])
+def test_cross_source_head_guard_requires_exclusive_other_pos_evidence(kind):
+    lookup = {word: (word, 3) for word in ("κρίνω", "κρίνον", "κρινέω")}
+    heads = {"verb": {"κρίνω"}, "noun": {"κρίνον"}}
+    references = {"κρίνω": {"noun": {"κρίνον"}}}
+    if kind == "no_reference":
+        references = {}
+    elif kind == "same_pos_endpoint":
+        heads["verb"].add("κρίνον")
+    else:
+        heads["verb"].add("κρινέω")
+        references["κρίνον"] = {"verb": {"κρινέω"}}
+    assert resolve_cross_source(lookup, {"κρίνω": "κρίνον"}, {}, set(),
+                                lexical_heads=heads, typed_references=references) == 1
+    assert lookup["κρίνω"][0] == "κρίνον"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
 def test_main_preserves_ancient_noun_and_verb_in_reference_cycle(tmp_path, monkeypatch, reverse):
     import build_data
     entries = [
