@@ -1435,6 +1435,19 @@ def test_source_split_word_junk_cannot_return_through_compatibility():
     assert kept == [("γία", "γία")]
 
 
+def test_builtin_spelling_rejects_override_compatibility_and_grave_twins():
+    bad = ["τής", "τὴς", "τού", "τοὺ", "ταίς", "ταὶς",
+           "στό", "στά", "θά", "γιά"]
+    good = ["τῆς", "τοῦ", "ταῖς", "στὸ", "στὰ", "θὰ", "γιὰ"]
+    pairs = [(form, form) for form in bad + good]
+    kept, report = finalize_grc_pairs(
+        pairs, evidence=_evidence({form: 5000 for form in bad + good}),
+        compatibility_forms=set(bad + good), textbook_forms=set(),
+        export_overrides={}, protected_forms=set(bad + good))
+    assert {form for form, _ in kept} == set(good)
+    assert report["reviewed"] >= len(bad)
+
+
 def test_postclassical_evidence_removes_heldout_and_requires_repetition():
     from export_hunspell import postclassical_admission_reason
     def reason(*args, **kwargs):

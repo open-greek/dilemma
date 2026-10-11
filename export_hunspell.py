@@ -315,6 +315,11 @@ GRC_REJECT_FORMS = frozenset({
     "γί", "ἐνέρ", "μεγί",
 })
 
+# These deliberate polytonic particles retain their contextual grave, while
+# their acute spellings remain rejected. Other reviewed rejects also reject
+# their grave twins (τής must not return as τὴς through compatibility).
+GRC_ACUTE_ONLY_REJECT_FORMS = frozenset({"στό", "στά", "θά", "γιά"})
+
 # lookup.db deliberately keeps these bare stems as tolerant lemmatizer
 # fallbacks for elided words. They are not standalone spellings. They must not
 # enter the word list or become accepted synthetic stems during affix
@@ -1263,14 +1268,18 @@ def load_grc_spelling_review(path: Path = GRC_SPELLING_REVIEW) -> frozenset[str]
 def filter_reviewed_rejects(
     form_lemma: list[tuple[str, str]],
     rejects: frozenset[str],
+    *,
+    exact_rejects: frozenset[str] = frozenset(),
 ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """Drop the forms a recorded review rejected, with their contextual
-    grave or acute twins."""
+    grave or acute twins. Exact-only rejections preserve deliberately
+    distinct grave particles."""
     keys = {contextual_acute(form) for form in rejects}
     kept: list[tuple[str, str]] = []
     rejected: list[tuple[str, str]] = []
     for pair in form_lemma:
-        (rejected if contextual_acute(pair[0]) in keys else kept).append(pair)
+        (rejected if pair[0] in exact_rejects
+         or contextual_acute(pair[0]) in keys else kept).append(pair)
     return kept, rejected
 
 
@@ -1696,7 +1705,9 @@ def finalize_grc_pairs(
     report["twin_dropped"] = before_twins + acute_twins - len(form_lemma)
     # A recorded review outranks every protection above.
     form_lemma, reviewed = filter_reviewed_rejects(
-        form_lemma, reviewed_rejects | frozenset({"γί", "ἐνέρ", "μεγί"}))
+        form_lemma,
+        reviewed_rejects | (GRC_REJECT_FORMS - GRC_ACUTE_ONLY_REJECT_FORMS),
+        exact_rejects=GRC_REJECT_FORMS)
     report["reviewed"] = len(reviewed)
     form_lemma, case_rejected = filter_case_artifacts(
         form_lemma, evidence, case_ownership or {})
