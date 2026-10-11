@@ -159,6 +159,9 @@ All notable changes to Dilemma are documented here. The format follows
   per 1,000 words on the sentences with little overlap with training.
 
 ### Fixed
+- Ancient Greek dialect, contracted-form and voice-only descriptions no longer count as
+  independent definitions merely because their entries are labeled as verbs.
+  Their source inflection tables resolve to the supported lexical parent.
 - `data/mg_pairs.json` has the paradigm of `γιος` again, and the words
   whose Greek Wiktionary page only gives their polytonic spelling are no
   longer filed under it (#28). Such a page (`γιός`, "πολυτονική γραφή του

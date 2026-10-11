@@ -23,7 +23,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from dilemma.form_sanitize import nonlexical_generated_lemma, sanitize_form
-from build_data import _is_verb_inflection_gloss
+from build_data import _is_verb_inflection_gloss, _is_ancient_reference_gloss
 
 KAIKKI_INPUTS = (
     ("wiktionary_en_grc", "en-el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
@@ -67,16 +67,17 @@ def normalize_headword(text: str) -> str | None:
     return text
 
 
-def is_reference_gloss(gloss: str) -> bool:
+def is_reference_gloss(gloss: str, pos: str | None = None) -> bool:
     """Reject grammatical/reference glosses without rejecting lexical 'of'."""
-    return _is_verb_inflection_gloss(gloss) or bool(re.match(
+    return (_is_verb_inflection_gloss(gloss)
+            or _is_ancient_reference_gloss(gloss, pos) or bool(re.match(
         r"^(?:(?:(?:nominative|accusative|genitive|dative|vocative|singular|plural|dual|"
         r"masculine|feminine|neuter|comparative|superlative|positive)\s+)+of\b|"
         r"(?:(?:alternative|alternate|obsolete|archaic|rare|variant|nonstandard)\s+)*"
         r"(?:form|spelling|misspelling|variant) of\b|"
         r"(?:ονομαστική|γενική|αιτιατική|κλητική|δοτική|αρσενικό|θηλυκό|ουδέτερο)\b|"
-        r"(?:εναλλακτική|άλλη|παλαιότερη|πολυτονική) (?:γραφή|μορφή)\b)",
-        gloss.strip().lower()))
+        r"(?:εναλλακτική|άλλη|παλαιότερη|πολυτονική) γραφή\b)",
+        gloss.strip().lower())))
 
 
 def has_definition(entry: dict, source: str = "en") -> bool:
@@ -90,7 +91,7 @@ def has_definition(entry: dict, source: str = "en") -> bool:
         if (sense.get("form_of") or sense.get("alt_of")
                 or tags & {"form-of", "alt-of", "inflection-of", "alternative", "misspelling", "no-gloss"}):
             continue
-        if any(gloss.strip() and not is_reference_gloss(gloss)
+        if any(gloss.strip() and not is_reference_gloss(gloss, entry.get("pos"))
                for gloss in sense.get("glosses", [])
                if isinstance(gloss, str)):
             return True

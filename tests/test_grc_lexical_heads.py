@@ -13,6 +13,10 @@ from build.build_grc_lexical_heads import (
     "genitive plural of λόγος", "feminine singular of ἀγαθός",
     "alternative form of λύω", "obsolete spelling of θεός",
     "γενική ενικού του λόγος", "πολυτονική γραφή του λύνω",
+    "ιωνικός & επικός τύπος του παρθενία", "συνηρημένη μορφή του τιμάω",
+    "Delphic form of θωάζω", "Doric and Pamphylian form of σημαίνω",
+    "Tragic form of ἀμφιέπω",
+    "μορφή του στενάχω", "μεσοπαθητική φωνή του ρήματος αἱρέω",
 ])
 def test_grammatical_reference_is_not_a_definition(gloss):
     assert not has_definition({"pos": "verb", "senses": [{"glosses": [gloss]}]})
@@ -24,6 +28,24 @@ def test_grammatical_reference_is_not_a_definition(gloss):
 ])
 def test_lexical_definition_can_include_ordinary_of(gloss):
     assert has_definition({"pos": "noun", "senses": [{"glosses": [gloss]}]})
+
+
+@pytest.mark.parametrize("pos,gloss", [
+    ("adj", "άλλη μορφή του φαίδιμος : λαμπερός, λαμπρός, ακτινοβόλος"),
+    ("noun", "συνηρημένη μορφή του ἀμυγδαλέα: η αμυγδαλιά"),
+    ("verb", "άλλη μορφή του χειμάζω (διαχειμάζω, περνάω το χειμώνα)"),
+    ("adj", "μεταγενέστερος τύπος του καθάρειος: καθαρός"),
+])
+def test_reference_prefix_preserves_inline_lexical_meaning(pos, gloss):
+    assert has_definition({"pos": pos, "senses": [{"glosses": [gloss]}]}, "el")
+
+
+@pytest.mark.parametrize("gloss", [
+    "άλλη μορφή του φαίδιμος", "παλαιότερη μορφή του φαίδιμος",
+    "πολυτονική μορφή του φαίδιμος",
+])
+def test_complete_form_reference_is_not_a_definition(gloss):
+    assert not has_definition({"pos": "adj", "senses": [{"glosses": [gloss]}]}, "el")
 
 
 def test_form_reference_does_not_hide_an_independent_sense():

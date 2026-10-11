@@ -1680,16 +1680,174 @@ def is_independent_finite_entry(entry: dict, source: str) -> bool:
     return True
 
 
+_ANCIENT_GREEK_WORD = r"[\u0370-\u03ff\u1f00-\u1fff\u0300-\u036f-]+"
+_ANCIENT_REFERENCE_TARGET_ITEM = (
+    r"(?:(?:του|των)\s+)?"
+    r"(?:(?:ρήματος|επιθέτου|επιρρήματος|αρχαίου|αρχαίας|ελληνιστικού|ελληνιστικής|μεταγενέστερου)\s+)*"
+    + r"\*?" + _ANCIENT_GREEK_WORD
+)
+_ANCIENT_REFERENCE_TARGET = (
+    _ANCIENT_REFERENCE_TARGET_ITEM +
+    r"(?:\s*(?:/|&|και|ή|ἤ|ἠ|-)\s*" + _ANCIENT_REFERENCE_TARGET_ITEM + r")*"
+    r"(?:\s+\((?:(?:και|αλλά\s+και\s+των\s+ομόρριζων)\s+" +
+    _ANCIENT_GREEK_WORD + r"(?:\s*,\s*" + _ANCIENT_GREEK_WORD + r")*|"
+    r"συνηρημένη\s+μορφή\s+του\s+" + _ANCIENT_GREEK_WORD + r")\))?"
+)
 _ANCIENT_REFERENCE_MODIFIER = (
-    r"(?:επικός|ποιητικός|ιωνικός|αττικός|δωρικός|αιολικός|"
-    r"εναλλακτικός|άλλος|παλαιότερος)"
+    r"(?:επικός|ποιητικός|ιωνικός|(?:παλαιός\s+)?αττικός|δωρικός|αιολικός|"
+    r"βοιωτικός|θεσσαλικός|αρκαδοκυπριακός|κρητικός|λακωνικός|"
+    r"εναλλακτικός|άλλος|παλαιότερος|μεταγενέστερος|σπανιότερος|συνηρημένος)"
 )
 _ANCIENT_REFERENCE_SEPARATOR = r"(?:\s+(?:και|&)\s+|\s*[,/]\s*)"
-_ANCIENT_REFERENCE_GLOSS = re.compile(
-    rf"^(?:{_ANCIENT_REFERENCE_MODIFIER}"
+_ANCIENT_REFERENCE_TYPE = (
+    rf"(?:{_ANCIENT_REFERENCE_MODIFIER}"
     rf"(?:{_ANCIENT_REFERENCE_SEPARATOR}{_ANCIENT_REFERENCE_MODIFIER})*\s+)?"
-    r"τύπος\s+του\b"
+    r"τύπος"
 )
+_ANCIENT_REFERENCE_GLOSS = re.compile(
+    rf"(?:{_ANCIENT_REFERENCE_TYPE}"
+    rf"(?:{_ANCIENT_REFERENCE_SEPARATOR}{_ANCIENT_REFERENCE_TYPE})*\s+(?:του|των)\b|"
+    r"(?:συνηρημένη|εναλλακτική|άλλη|παλαιότερη|πολυτονική)\s+μορφή\s+(?:του|των)\b)\s+"
+    + _ANCIENT_REFERENCE_TARGET + r"\s*[.,;]?"
+)
+_ANCIENT_GRAMMATICAL_FORM_GLOSS = re.compile(
+    rf"^(?:{_ANCIENT_REFERENCE_TYPE}\s*:\s*[αβγ][΄'ʹ]?\s+πρόσωπο\b|"
+    r"απαρέμφατο\b)"
+)
+_ANCIENT_COMPARATIVE_REFERENCE_GLOSS = re.compile(
+    _ANCIENT_REFERENCE_TYPE + r"\s+του\s+" + _ANCIENT_GREEK_WORD +
+    r"\s*\(" + _ANCIENT_GREEK_WORD + r"\)\s*[·;]\s*"
+    r"συγκριτικός\s+βαθμός\s+του\s+" + _ANCIENT_GREEK_WORD + r"\s*[.;]?"
+)
+_ANCIENT_EN_REFERENCE_MODIFIER = (
+    r"(?:Attic|Ionic|Doric|Aeolic|Homeric|Epic|Delphic|Pamphylian|"
+    r"post-Epic|poetic|Tragic|contracted|uncontracted|alternative|alternate|"
+    r"obsolete|archaic|rare|variant|nonstandard)"
+)
+_ANCIENT_EN_REFERENCE_GLOSS = re.compile(
+    rf"^(?:{_ANCIENT_EN_REFERENCE_MODIFIER}"
+    rf"(?:(?:\s*,?\s+(?:and|&)\s+|\s*[,/]\s*){_ANCIENT_EN_REFERENCE_MODIFIER})*\s+)?"
+    r"(?:form|spelling|variant) of\s+[\u0370-\u03ff\u1f00-\u1fff]",
+    re.IGNORECASE,
+)
+_ANCIENT_UNQUALIFIED_FORM_GLOSS = re.compile(
+    r"μορφή\s+του\s+" + _ANCIENT_GREEK_WORD +
+    r"(?:\s+\((?:και|αλλά\s+και\s+των\s+ομόρριζων)\s+" +
+    _ANCIENT_GREEK_WORD + r"(?:\s*,\s*" + _ANCIENT_GREEK_WORD + r")*\))?\s*[.;]?"
+)
+_ANCIENT_VOICE_REFERENCE_GLOSS = re.compile(
+    r"(?:(?:μεσοπαθητική|παθητική|μέση(?:\s*-\s*παθητική|\s+και\s+παθητική)?)\s+φωνή|"
+    r"(?:μέσος(?:\s+και\s+παθητικός)?|παθητικός)\s+τύπος)\s+του\s+(?:ρήματος\s+)?"
+    + _ANCIENT_GREEK_WORD +
+    r"(?:\s*\((?:συνηρημένη\s+μορφή\s+του\s+" + _ANCIENT_GREEK_WORD +
+    r"|παθητική\s+διάθεση)\)|\s*,\s*συνηρημένη\s+μορφή\s+του\s+" +
+    _ANCIENT_GREEK_WORD + r")?\s*[.;]?"
+)
+_ANCIENT_VOICE_NOTE = re.compile(
+    r"(?:η\s+μέση(?:\s+φωνή)?\s+εκφέρεται\s+και\s+αναλυτικά\s+με\s+την\s+"
+    r"ενεργητική\s+φωνή:\s*[\"«]" + _ANCIENT_GREEK_WORD +
+    r"(?:\s+" + _ANCIENT_GREEK_WORD + r")*[\"»]|"
+    r"ο\s+μέσος\s+μέλλων\s*\(" + _ANCIENT_GREEK_WORD +
+    r"\)\s+συνήθως\s+σύνθετος|"
+    r"ο\s+παθητικός\s+αόριστος\s*[\"«]" + _ANCIENT_GREEK_WORD +
+    r"[\"»]\s+είναι\s+και\s+μέσος)"
+)
+_ANCIENT_REFERENCE_NOTE = re.compile(
+    r"(?:χρειάζεται\s+επεξεργασία|στον\s+όμηρο|"
+    r"(?:συνηρημένος|ασυναίρετος)\s+τύπος|συνηρημένο|"
+    r"μέσω\s+κράσης\s+με\s+το\s+" + _ANCIENT_GREEK_WORD + r"|"
+    r"επίσης:\s*" + _ANCIENT_GREEK_WORD +
+    r"(?:\s*(?:,|και|ή|ἤ|ἠ|&)\s*" + _ANCIENT_GREEK_WORD + r")*|"
+    r"συχνά\s+σε\s+ελληνιστικά\s+κείμενα|ελληνιστική\s+κοινή|"
+    r"στην\s+κεντρική\s+κρήτη|στη\s+γόρτυνα|των\s+μεγαρέων|στους\s+σικελιώτες|"
+    r"α\s+στερ\.?\s*\+\s*" + _ANCIENT_GREEK_WORD + r"|"
+    r"εκ\s+του\s+" + _ANCIENT_GREEK_WORD + r"|"
+    r"από\s+τον\s+αόριστο\s+του\s+οποίου,\s*δηλ\.\s*το\s+" +
+    _ANCIENT_GREEK_WORD + r",\s*θεωρείται\s+ότι\s+προέκυψε\s+το\s+" +
+    _ANCIENT_GREEK_WORD + r"|"
+    r"κλίση\s+" + _ANCIENT_GREEK_WORD + r"\s*-\s*απαντούν\s+συνηρημένοι\s+τύποι|"
+    r"απαντούν\s+τύποι\s+από\s+την\s+κλίση\s+" + _ANCIENT_GREEK_WORD + r"|"
+    r"αποθετικού\s+ρήματος|κυρίως\s+" + _ANCIENT_REFERENCE_TYPE + r"|"
+    r"όπως\s+και\s+το\s+ποιητικό\s+" + _ANCIENT_GREEK_WORD + r"|"
+    r"μαρτυρείται\s+στο\s+απαρέμφατο\s+ενεστώτα\s+" + _ANCIENT_GREEK_WORD + r")"
+)
+# Bare target lists and parentheticals can also look like real translations.
+# These reviewed full source glosses are references; any added meaning remains
+# evidence, and no rule depends on the entry's headword or chosen endpoint.
+_ANCIENT_REVIEWED_REFERENCE_GLOSSES = frozenset({
+    "κρητικός τύπος του χαλκός, χαλκοῦς",
+    "δωρικός τύπος του γᾶ (γῆ)",
+    "αιολικός & δωρικός τύπος του ἐκεῖνος, κεῖνος",
+    "αιολικός τύπος του ἁμός, -ά, -όν (ἡμέτερος)",
+    "αιολικός τύπος του ἐν μέσῳ",
+    "επικός τύπος του ὁδός, μόνο στην οδύσσεια (σε αιτιατική): "
+    "※ 8ος αιώνας πκε ⌘ ὅμηρος, ὀδύσσεια, 17 "
+    "(ρ. τηλεμάχου καὶ ὀδυσσέως ἐπάνοδος εἰς ἰθάκην.), στίχ. 196 (195-196 )",
+})
+
+
+def _is_ancient_voice_reference(gloss: str) -> bool:
+    if _ANCIENT_VOICE_REFERENCE_GLOSS.fullmatch(gloss):
+        return True
+    first, separator, remainder = gloss.partition(".")
+    if not separator or not _ANCIENT_VOICE_REFERENCE_GLOSS.fullmatch(first):
+        return False
+    # A voice reference may append paradigm notes. Consume only complete
+    # grammatical clauses; any translation or other prose remains evidence.
+    remainder = remainder.strip()
+    if not remainder:
+        return False
+    while remainder:
+        note = _ANCIENT_VOICE_NOTE.match(remainder)
+        if not note:
+            return False
+        remainder = remainder[note.end():].lstrip(" .;")
+    return True
+
+
+def _is_ancient_reference_note(note: str) -> bool:
+    """Recognize explicit grammatical metadata, never arbitrary Greek prose."""
+    note = note.strip().rstrip(".;").strip()
+    # Some source pages omit the space after a person abbreviation.
+    note = re.sub(r"^([αβγ][΄'ʹ]?)\s*(?=πρόσωπο\b)", r"\1 ", note)
+    return bool(_is_verb_inflection_gloss(note)
+                or _ANCIENT_REFERENCE_NOTE.fullmatch(note)
+                or _ANCIENT_REFERENCE_GLOSS.fullmatch(note)
+                or _is_ancient_voice_reference(note))
+
+
+def _is_ancient_form_reference(text: str) -> bool:
+    """Allow complete references with bounded grammar or source notes."""
+    if _ANCIENT_REFERENCE_GLOSS.fullmatch(text):
+        return True
+    parenthetical = re.search(r"\s*\(([^()]*)\)\s*[.;]?$", text)
+    if parenthetical and _is_ancient_reference_note(parenthetical[1]):
+        return _is_ancient_form_reference(text[:parenthetical.start()].rstrip())
+    # A colon or comma may introduce either grammar or a real meaning. Only
+    # consume a recognized grammatical continuation after a complete reference.
+    for separator in re.finditer(r"\s*[:,]\s*|\s+-\s+", text):
+        if (_is_ancient_reference_note(text[separator.end():])
+                and _is_ancient_form_reference(text[:separator.start()].rstrip())):
+            return True
+    for suffix in (" των μεγαρέων", " στους σικελιώτες"):
+        if text.rstrip(".;").endswith(suffix):
+            return _is_ancient_form_reference(text.rstrip(".;")[:-len(suffix)].rstrip())
+    return False
+
+
+def _is_ancient_reference_gloss(gloss: str, pos: str | None = None) -> bool:
+    """Identify grammatical references without discarding lexical meanings."""
+    text = " ".join(gloss.split())
+    return bool(text.lower() in _ANCIENT_REVIEWED_REFERENCE_GLOSSES
+                or _is_ancient_form_reference(text.lower())
+                or _ANCIENT_COMPARATIVE_REFERENCE_GLOSS.fullmatch(text.lower())
+                or _ANCIENT_GRAMMATICAL_FORM_GLOSS.match(text.lower())
+                or _ANCIENT_EN_REFERENCE_GLOSS.match(text)
+                or _is_ancient_voice_reference(text.lower())
+                # A bare 'form of' can define a noun's physical shape. Only
+                # a complete verb/adjective reference is unambiguous here.
+                or (pos in {"verb", "adj"}
+                    and _ANCIENT_UNQUALIFIED_FORM_GLOSS.fullmatch(text.lower())))
 
 
 def is_independent_lexical_entry(entry: dict, source: str) -> bool:
@@ -1702,8 +1860,8 @@ def is_independent_lexical_entry(entry: dict, source: str) -> bool:
         # Letter names, symbols, and phrase headers do not establish a
         # lexical POS owner for an inflected word with the same spelling.
         return False
-    if entry.get("pos") == "verb":
-        return is_independent_finite_entry(entry, source)
+    if entry.get("pos") == "verb" and not is_independent_finite_entry(entry, source):
+        return False
     senses = entry.get("senses") or []
     reference_tags = _NOUN_REFERENCE_TAGS | {"alt-of"}
     if (reference_tags.intersection(entry.get("tags") or [])
@@ -1713,8 +1871,7 @@ def is_independent_lexical_entry(entry: dict, source: str) -> bool:
         return False
     return any("no-gloss" not in (s.get("tags") or [])
                and any(g.strip() and not _is_closed_class_inflection_gloss(g)
-                       and not (source == "el" and _ANCIENT_REFERENCE_GLOSS.match(
-                           g.strip().lower()))
+                       and not _is_ancient_reference_gloss(g, entry.get("pos"))
                        for g in s.get("glosses") or []) for s in senses)
 
 def validate_verb_head_inventory(inventory: dict) -> set:
