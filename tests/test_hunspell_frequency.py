@@ -47,6 +47,7 @@ from export_hunspell import (
     load_canonical_ag_sets,
     load_case_ownership,
     load_exact_rating_counts,
+    include_reviewed_name_ownership,
     load_form_profile_freq,
     load_grc_compatibility_forms,
     load_grc_spelling_review,
@@ -369,6 +370,7 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
         keep_forms=top_lemmas | textbook_forms,
     )
     pairs, reviewed_forms, _source_audit = add_reviewed_postclassical_paradigms(pairs, conn)
+    include_reviewed_name_ownership(case_ownership, _source_audit)
     pairs, _corpus_audit = add_postclassical_corpus_forms(pairs, conn, load_lm_dev_spellings())
     conn.close()
     compatibility_forms, _compatibility_meta = load_grc_compatibility_forms()

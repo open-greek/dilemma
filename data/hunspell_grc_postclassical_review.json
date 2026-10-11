@@ -553,6 +553,84 @@
       "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De administrando imperio, 37.42 (TLG tlg3023.008). Edition: Moravcsik, G, Dumbarton Oaks, 1967. Admit the attested form only.",
       "source_url": "https://stephanus.tlg.uci.edu/",
       "citation": "tlg3023.008 37.42"
+    },
+    {
+      "lemma": "βιοτικός",
+      "method": "source_forms",
+      "forms": [
+        "βιοτικήν"
+      ],
+      "evidence": "The Divine Liturgy of St. John Chrysostom, Cherubic Hymn, printed pages 14-15: βιοτικὴν before μέριμναν. Normalize the contextual grave to acute; admit only the attested accusative feminine singular.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/p/s/2026/10/24/li/gr-en/se.m10.d24.li.pdf"
+    },
+    {
+      "lemma": "ἀκάθεκτος",
+      "method": "source_forms",
+      "forms": [
+        "ἀκάθεκτα"
+      ],
+      "evidence": "Anna Comnena, Alexias, proem 1 (TLG tlg2703.001, 0.1). Edition: Leib, B., Les Belles Lettres, 1937. The source attests the adverbial neuter plural ἀκάθεκτα; admit this exact spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 0.1"
+    },
+    {
+      "lemma": "περιγραπτός",
+      "method": "source_forms",
+      "forms": [
+        "περιγραπτόν"
+      ],
+      "evidence": "Exact word verified in JOANNES DAMASCENUS, Expositio fidei, 1.6 (TLG tlg2934.004). Edition: Kotter, B, De Gruyter, 1973. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2934.004 1.6"
+    },
+    {
+      "lemma": "παρασύρω",
+      "method": "source_forms",
+      "forms": [
+        "παρασύρει"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 0.1.1 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 0.1.1"
+    },
+    {
+      "lemma": "Λογγιβαρδία",
+      "method": "source_forms",
+      "forms": [
+        "Λογγιβαρδίας"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 1.11.4 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 1.11.4"
+    },
+    {
+      "lemma": "Βούλγαρος",
+      "method": "source_forms",
+      "forms": [
+        "Βουλγάρων"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 2.6.2.3 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 2.6.2.3"
+    },
+    {
+      "lemma": "κατονομάζω",
+      "method": "source_forms",
+      "forms": [
+        "κατονομάζουσιν"
+      ],
+      "evidence": "Exact word verified in THEOPHYLACTUS SIMOCATTA, Historiae, 1.4.6.2 (TLG tlg3130.003). Edition: de Boor, C, Teubner, 1887. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3130.003 1.4.6.2"
+    },
+    {
+      "lemma": "εἰκονίζω",
+      "method": "source_forms",
+      "forms": [
+        "εἰκονίζοντες"
+      ],
+      "evidence": "The Divine Liturgy of St. John Chrysostom, Cherubic Hymn, printed pages 14-15, attests εἰκονίζοντες. Admit this exact active present participle only.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/p/s/2026/10/24/li/gr-en/se.m10.d24.li.pdf"
     }
   ]
 }

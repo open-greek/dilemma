@@ -1436,17 +1436,36 @@ def test_source_split_word_junk_cannot_return_through_compatibility():
 
 
 def test_postclassical_evidence_removes_heldout_and_requires_repetition():
-    from export_hunspell import postclassical_admission_reason as reason
-    assert reason(8, {"pg": 8, "first1k": 5}, 3) == "repeated_multiple_sources"
-    assert reason(8, {"pg": 8}, 3) is None
-    assert reason(5, {"pg": 5, "first1k": 1, "oga": 1}, 4) == "repeated_multiple_sources"
+    from export_hunspell import postclassical_admission_reason
+    def reason(*args, **kwargs):
+        return postclassical_admission_reason(*args, pos="noun", **kwargs)
+    assert reason(8, {"pg": 8, "pta": 5}, 3) == "repeated_multiple_sources"
+    assert reason(8, {"pg": 8, "first1k": 5}, 3) is None
+    assert reason(5, {"pg": 5, "first1k": 1, "oga": 1}, 4) is None
     assert reason(8, {"first1k": 8, "oga": 8}, 3) is None
-    assert reason(30, {"pg": 30}, 4) == "repeated_multiple_works"
-    assert reason(25, {"oga": 25}, 3, heldout_count=5) is None
-    assert reason(25, {"oga": 25}, 8, heldout_count=5) == "repeated_multiple_works"
+    assert reason(30, {"pg": 30}, 4) is None
+    assert reason(25, {"pta": 25}, 3, heldout_count=5) is None
+    assert reason(25, {"pta": 25}, 8, heldout_count=5) == "repeated_multiple_works"
+    assert reason(25, {"pta": 25, "pg": 4}, 6) is None
+    assert reason(25, {"pta": 25, "pg": 4}, 7) == "repeated_multiple_works"
     assert reason(1, {"pg": 1}, 1, lexical=True) == "attested_lexical_form"
     assert reason(1, {"pg": 1}, 1, lexical=True, heldout_count=1) is None
-    assert reason(8, {"pg": 8, "first1k": 5}, 3, heldout_count=5) is None
+    assert reason(8, {"pg": 8, "pta": 5}, 3, heldout_count=5) is None
+
+
+@pytest.mark.parametrize("form,count,sources,works", [
+    ("ΚΠερί", 20, {"pg": 20}, 9),
+    ("Κτόν", 45, {"pg": 45}, 23),
+    ("Στίχ", 327, {"first1k": 327, "oga": 327, "pg": 1}, 12),
+    ("κκλησίαν", 5, {"first1k": 5, "pg": 4}, 6),
+    ("τεῖται", 20, {"first1k": 11, "glaux": 1, "oga": 12, "pg": 10}, 15),
+    ("δικαιοσύ", 13, {"diorisis": 1, "first1k": 4, "oga": 5, "pg": 9, "pta": 1}, 16),
+    ("θρώπων", 91, {"diorisis": 3, "first1k": 57, "oga": 60, "pg": 71, "pta": 1}, 75),
+    ("Λὐξάνεσθε", 6, {"diorisis": 1, "first1k": 1, "oga": 1, "pg": 6}, 3),
+])
+def test_shared_transcription_errors_do_not_establish_unknown_words(form, count, sources, works):
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(count, sources, works, pos="noun") is None
 
 
 def test_reviewed_paradigms_derive_cells_instead_of_listing_words():
@@ -1489,24 +1508,36 @@ def test_postclassical_loader_uses_lexical_and_independent_corpus_evidence(tmp_p
     conn = sqlite3.connect(profile)
     conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
                        "CREATE TABLE form_profile(form_id INTEGER,total_count INTEGER,"
-                       "source_counts_json TEXT,n_works INTEGER);")
-    rows = [("πανάγιον", 8, {"pg": 8, "first1k": 1}, 4),
+                       "source_counts_json TEXT,n_works INTEGER,dominant_pos TEXT DEFAULT 'noun');")
+    rows = [("πανάγιον", 8, {"pg": 8, "pta": 5}, 4),
             ("σπανίως", 1, {"pg": 1}, 1),
             ("καθόλου", 1, {"pg": 1}, 1),
             ("σπίτι", 1, {"byzantine_vernacular": 1}, 1),
-            ("λόγους", 7, {"oga": 7, "first1k": 7}, 1)]
+            ("Παύλοα", 1, {"byzantine_vernacular": 1}, 1),
+            ("Σωκράτους", 1, {"byzantine_vernacular": 1}, 1),
+            ("λόγους", 7, {"oga": 7, "first1k": 7}, 1),
+            ("Ἰωάννς", 1, {"first1k": 1, "oga": 1}, 1),
+            ("Ἰσσάκ", 2, {"first1k": 1, "oga": 2, "pta": 1}, 2),
+            ("Νατθαῖος", 1, {"glaux": 1}, 1)]
+    unclassified = ["διάτοι", "διατοῦτο", "τρῶν", "Ἁλληλουιά", "δὔ"]
+    rows.extend((f, 100, {"pta": 100, "oga": 100}, 50) for f in unclassified)
     for i, (form, count, sources, works) in enumerate(rows):
         conn.execute("INSERT INTO forms VALUES(?,?)", (i, form))
-        conn.execute("INSERT INTO form_profile VALUES(?,?,?,?)",
+        conn.execute("INSERT INTO form_profile(form_id,total_count,source_counts_json,n_works) VALUES(?,?,?,?)",
                      (i, count, json.dumps(sources), works))
+    for form in unclassified:
+        conn.execute("UPDATE form_profile SET dominant_pos='other' WHERE form_id IN "
+                     "(SELECT form_id FROM forms WHERE form=?)", (form,))
     conn.commit(); conn.close()
-    lexical = tmp_path / "pairs.json"
-    lexical.write_text(json.dumps([{"form":"σπανίως","lemma":"σπάνιος"},
-                                   {"form":"καθόλου","lemma":"καθόλου"}]))
-    lookup = _lookup_db([("σπίτι", "σπίτι", "el")])
+    lookup = _lookup_db([("σπίτι", "σπίτι", "el"),
+                         ("Παύλοα", "Παύλοα", "el"),
+                         ("Σωκράτους", "Σωκράτης", "grc"),
+                         ("σπανίως", "σπάνιος", "grc"),
+                         ("καθόλου", "καθόλου", "grc"),
+                         *[(f, f, "grc") for f in ("Ἰωάννς", "Ἰσσάκ", "Νατθαῖος")]])
     out, audit = add_postclassical_corpus_forms([], lookup, Counter({"καθόλου":1}),
-                                                profile_path=profile, paradigm_path=lexical)
-    assert {form for form, _ in out} == {"πανάγιον", "σπανίως", "σπίτι"}
+                                                profile_path=profile)
+    assert {form for form, _ in out} == {"πανάγιον", "σπανίως", "σπίτι", "Σωκράτους"}
     assert {row["reason"] for row in audit} == {"repeated_multiple_sources", "attested_lexical_form"}
 
 
@@ -1551,3 +1582,106 @@ def test_source_review_normalizes_contextual_grave_to_acute():
     assert derive_reviewed_paradigm(
         {"method": "source_forms", "forms": ["κεντροβαρὲς", "ὑπερανεστηκὸς"]}, []
     ) == {"κεντροβαρές", "ὑπερανεστηκός"}
+
+
+@pytest.mark.parametrize("capital,lower,lemma", [
+    ("Σάρκα", "σάρκα", "σάρξ"), ("Σαφής", "σαφής", "σαφής"),
+    ("Τύπος", "τύπος", "τύπος"), ("Φράζε", "φράζε", "φράζω"),
+    ("Πάρα", "πάρα", "παρά"), ("Τίσι", "τίσι", "τίσις"),
+])
+def test_shared_modern_self_map_cannot_establish_ancient_name(capital, lower, lemma):
+    from export_hunspell import load_case_ownership, filter_case_artifacts
+    conn = _lookup_db([(capital, capital, "el"), (lower, lemma, "grc"),
+                       ("Σωκράτης", "Σωκράτης", "grc"),
+                       ("Ψυχή", "Ψυχή", "grc"), ("ψυχῇ", "ψυχή", "grc")])
+    pairs = [(capital, capital), (lower, lemma), ("Σωκράτης", "Σωκράτης"),
+             ("ψυχῇ", "ψυχή")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({}), load_case_ownership(conn))
+    assert rejected == [(capital, capital)]
+    assert kept == pairs[1:]
+
+
+@pytest.mark.parametrize("form,reason", [
+    ("σμγ᾽", "unreviewed_elision_or_numeral"),
+    ("εἰπεῖν᾽", "unreviewed_elision_or_numeral"),
+    ("ἧμάς", "unreviewed_contextual_accent"),
+    ("ἧμίν", "unreviewed_contextual_accent"),
+    ("δΰ", "unexplained_diaeresis"),
+    ("ἐυρραθάμιγγος", "diphthong_breathing_on_first_vowel"),
+    ("εὐρραθάμιγγος", None), ("ἄϋπνος", None),
+])
+def test_unknown_corpus_context_marks_need_lexical_review(form, reason):
+    from export_hunspell import postclassical_spelling_reason
+    assert postclassical_spelling_reason(form) == reason
+
+
+def test_exact_inflection_proof_uses_pinned_source_case_and_marks():
+    from export_hunspell import exact_inflection_lemma
+    conn = _lookup_db([("Σωκράτους", "Σωκράτης", "grc"),
+                       ("λόγους", "λόγος", "grc"),
+                       ("Ἰωάννς", "Ἰωάννς", "grc"),
+                       ("ψυχάς", "ψυχή", "el"),
+                       ("λογου", "λόγος", "grc"),
+                       ("Παύλοα", "Παῦλοα", "grc"),
+                       ("λόγος", "λογός", "grc")])
+    assert exact_inflection_lemma(conn, "λόγους", "λόγους") == "λόγος"
+    assert exact_inflection_lemma(conn, "Σωκράτους", "Σωκράτους") == "Σωκράτης"
+    for form in ("σωκράτους", "λογους", "λογου", "λόγούς", "Ἰωάννς", "ψυχάς", "Παύλοα", "λόγος"):
+        assert exact_inflection_lemma(conn, form, form) is None
+
+
+def test_verified_name_ownership_preserves_source_names_and_lower_homonyms():
+    from export_hunspell import include_reviewed_name_ownership, filter_case_artifacts
+    ownership = {exact_form_key("Σάξονας"): 2}
+    include_reviewed_name_ownership(ownership, [
+        {"form": "Σάξονας", "lemma": "Σάξων"},
+        {"form": "λόγους", "lemma": "λόγος"}])
+    pairs = [("Σάξονας", "Σάξων"), ("σάξονας", "σάξων")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({}), ownership)
+    assert kept == pairs
+    assert rejected == []
+    assert exact_form_key("λόγους") not in ownership
+
+
+def test_unclassified_corpus_tokens_require_lexical_review():
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(100, {"pta": 100, "oga": 100}, 50,
+                                         pos="other") is None
+
+
+def test_classified_unknown_still_needs_independent_source_evidence():
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(100, {"pg": 100}, 50, pos="verb") is None
+    assert postclassical_admission_reason(8, {"pta": 8, "oga": 6}, 5,
+                                         pos="verb") == "repeated_multiple_sources"
+
+
+def test_shared_name_only_owner_preserves_name_but_not_unattested_lowercase():
+    from export_hunspell import load_case_ownership, filter_case_artifacts
+    conn = _lookup_db([("Γερμανία", "Γερμανία", "el"),
+                       ("γερμανία", "Γερμανία", "el")])
+    pairs = [("Γερμανία", "Γερμανία"), ("γερμανία", "γερμανία")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({})._replace(cased={}), load_case_ownership(conn))
+    assert kept == [pairs[0]]
+    assert rejected == [pairs[1]]
+
+
+def test_ancient_name_and_common_homograph_preserve_both_owners():
+    from export_hunspell import load_case_ownership, filter_case_artifacts
+    conn = _lookup_db([("Ψυχή", "Ψυχή", "grc"),
+                       ("ψυχή", "ψυχή", "grc")])
+    pairs = [("Ψυχή", "Ψυχή"), ("ψυχή", "ψυχή")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({}), load_case_ownership(conn))
+    assert kept == pairs
+    assert rejected == []
+
+
+def test_joined_editorial_phrase_is_not_a_dictionary_word():
+    assert grc_orthography_reason("ἐπιτοπουλύ") is not None
+
+
+def test_heldout_trusted_token_cannot_restore_untrusted_works():
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(
+        21, {"pta": 21, "pg": 3, "oga": 3, "first1k": 3}, 10,
+        heldout_count=1, pos="noun") is None

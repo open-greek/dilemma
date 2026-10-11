@@ -312,6 +312,9 @@ GRC_REJECT_FORMS = frozenset({
     # them: GLAUx Galen splits γί νεται and ἐνέρ γειαν; Galen/Heron split
     # μεγί στων. The unrelated Hesychian headword γία does not validate γί.
     "γί", "ἐνέρ", "μεγί",
+    # Littré sometimes prints the phrase ἐπὶ τὸ πουλύ without spaces.
+    # A joined editorial phrase is not an independently supported word.
+    "ἐπιτοπουλύ",
 })
 
 # lookup.db deliberately keeps these bare stems as tolerant lemmatizer
@@ -1288,14 +1291,25 @@ def load_case_ownership(conn: sqlite3.Connection) -> dict[str, int]:
     common word. Conversely an attested lowercase homonym remains usable.
     """
     owners: dict[str, int] = {}
-    for form, lemma in conn.execute(
-        "SELECT k.form, l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
+    shared_names: set[str] = set()
+    for form, lemma, source in conn.execute(
+        "SELECT k.form, l.text, k.src FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
         "WHERE k.src='grc' OR k.lang='all'"
     ):
         if not has_any_diacritic(form):
             continue
         key = exact_form_key(form)
-        owners[key] = owners.get(key, 0) | (1 if lemma[:1].isupper() else 2)
+        # A shared Modern name can also be a sentence-capital self-map.
+        # Retain it only when no real lowercase lexical owner conflicts.
+        if lemma[:1].isupper() and source != "grc":
+            shared_names.add(key)
+            bit = 0
+        else:
+            bit = 1 if lemma[:1].isupper() else 2
+        owners[key] = owners.get(key, 0) | bit
+    for key in shared_names:
+        if not owners.get(key, 0) & 2:
+            owners[key] = owners.get(key, 0) | 1
     return owners
 
 
@@ -1403,7 +1417,7 @@ def add_reviewed_postclassical_paradigms(
 
 def postclassical_admission_reason(
     count: int, sources: dict[str, int], works: int, *,
-    heldout_count: int = 0, lexical: bool = False,
+    heldout_count: int = 0, lexical: bool = False, pos: str | None = None,
 ) -> str | None:
     """Require independent evidence for a spelling absent from the lookup.
 
@@ -1416,51 +1430,102 @@ def postclassical_admission_reason(
     source_counts = {k: max(0, v-heldout_count) for k, v in sources.items()}
     if lexical and count and (any(source_counts.values())):
         return "attested_lexical_form"
-    # OGA and First1K often carry the same transcription; count that pair
-    # as one witness, while retaining their separate counts in the audit.
-    witnesses = {("edited" if k in {"oga", "first1k"} else k)
-                 for k, v in source_counts.items() if v >= 1}
-    if count >= 5 and len(witnesses) >= 2:
+    if pos not in {"noun", "verb", "adjective", "adverb", "pronoun", "article",
+                   "preposition", "conjunction", "particle", "interjection", "numeral"}:
+        return None
+    # PG OCR and its OGA/First1K transcriptions share word-boundary errors.
+    # They can corroborate an edited witness, but cannot establish a new
+    # word independently, even when the same error recurs in several works.
+    transcription_sources = {"pg", "oga", "first1k"}
+    trusted = {k: v for k, v in source_counts.items()
+               if k not in transcription_sources}
+    trusted_count = max(trusted.values(), default=0)
+    witnesses = {k for k, v in trusted.items() if v >= 5}
+    if max((source_counts.get(k, 0) for k in transcription_sources), default=0) >= 5:
+        witnesses.add("pg_oga_first1k")
+    if trusted_count >= 5 and len(witnesses) >= 2:
         return "repeated_multiple_sources"
     # No held-out token may be the sole witness for one of the three works.
     # Without per-token work IDs, subtract one possible work per held-out token.
-    remaining_works_lower_bound = max(0, works - heldout_count)
-    if count >= 20 and remaining_works_lower_bound >= 3:
+    # Original untrusted counts are the upper bound on untrusted works:
+    # a held-out token may belong to a trusted work, so subtracting it from
+    # each untrusted source would incorrectly restore independent works.
+    untrusted_tokens = sum(sources.get(k, 0) for k in transcription_sources)
+    remaining_works_lower_bound = max(0, works - heldout_count - untrusted_tokens)
+    if trusted_count >= 20 and remaining_works_lower_bound >= 3:
         return "repeated_multiple_works"
     return None
+
+
+def postclassical_spelling_reason(form: str) -> str | None:
+    """Require lexical review for context marks in an unknown corpus token."""
+    if ord(form[-1]) in SPACING_DIACRITICS:
+        # Closing quotation marks and numeral signs share this encoding.
+        # Genuine elisions still enter through lexical or reviewed forms.
+        return "unreviewed_elision_or_numeral"
+    bases = _greek_bases(form)
+    if sum(len(marks & TONAL_MARKS) for _base, marks in bases) > 1:
+        return "unreviewed_contextual_accent"
+    for i, (base, marks) in enumerate(bases):
+        if 0x0308 in marks and (i == 0 or bases[i-1][0].lower() not in GREEK_VOWELS):
+            return "unexplained_diaeresis"
+    if len(bases) >= 2:
+        first, marks = bases[0]
+        second, following = bases[1]
+        if (first.lower() + second.lower() in GREEK_DIPHTHONGS
+                and marks & BREATHING_MARKS and 0x0308 not in following):
+            return "diphthong_breathing_on_first_vowel"
+    return None
+
+
+def exact_inflection_lemma(conn: sqlite3.Connection, form: str, raw: str) -> str | None:
+    """Find a marked, case-preserving inflection in the pinned lookup.
+
+    A spelling-only reference has the same letters as its lemma and does
+    not establish an inflection. Such forms need independent corpus or
+    source-review evidence instead of the one-token lexical exception.
+    """
+    key = cased_form_key(form)
+    for found, lemma in conn.execute(
+        "SELECT k.form, l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
+        "WHERE k.form IN (?, ?) AND k.src='grc'", (form, raw)
+    ):
+        if (has_any_diacritic(found) and cased_form_key(found) == key
+                and strip_accents(lemma) != strip_accents(form)):
+            return lemma
+    return None
+
+
+def include_reviewed_name_ownership(ownership: dict[str, int], review: list[dict]) -> None:
+    """A source-verified proper name is an independent lexical owner."""
+    for row in review:
+        if row["lemma"][:1].isupper():
+            key = exact_form_key(row["form"])
+            ownership[key] = ownership.get(key, 0) | 1
 
 
 def add_postclassical_corpus_forms(
     pairs: list[tuple[str, str]], conn: sqlite3.Connection,
     dev_spellings: Counter, *, profile_path: Path = FORM_PROFILE_DB,
-    paradigm_path: Path = DATA / "ag_pairs.json",
 ) -> tuple[list[tuple[str, str]], list[dict]]:
     """Admit exact, independently evidenced spellings outside the AG lookup.
 
-    Source paradigm membership validates a sparse form; a corpus-only form
+    Exact lookup inflection membership validates a sparse form; a corpus-only form
     must pass the stronger repeated-source/work rule. All additions still
     pass the final orthographic, competing-spelling, and name-case gates.
     """
     existing = {cased_form_key(f) for f, _ in pairs}
-    lexical: dict[str, str] = {}
-    if paradigm_path.exists():
-        with open(paradigm_path, encoding="utf-8") as fh:
-            paradigms = json.load(fh)
-        for row in paradigms:
-            for form in resolve_editorial_form(row["form"]):
-                if has_any_diacritic(form):
-                    lexical.setdefault(cased_form_key(form), row["lemma"])
     heldout_by_form: Counter = Counter()
     for spelling, count in dev_spellings.items():
         heldout_by_form[cased_form_key(spelling)] += count
     out, audit = list(pairs), []
     profile_conn = sqlite3.connect(str(profile_path))
     try:
-        for form, total, sources_json, works in profile_conn.execute(
-            "SELECT f.form,p.total_count,p.source_counts_json,p.n_works "
+        for raw, total, sources_json, works, pos in profile_conn.execute(
+            "SELECT f.form,p.total_count,p.source_counts_json,p.n_works,p.dominant_pos "
             "FROM forms f JOIN form_profile p USING(form_id)"
         ):
-            form = cased_form_key(form)
+            form = cased_form_key(raw)
             if form in existing or not has_any_diacritic(form):
                 continue
             if grc_orthography_reason(form) is not None:
@@ -1468,19 +1533,23 @@ def add_postclassical_corpus_forms(
             sources = json.loads(sources_json)
             count = max(total, max(sources.values(), default=0))
             heldout = heldout_by_form[form]
-            lemma = lexical.get(form)
+            lemma = exact_inflection_lemma(conn, form, raw)
             # The curated vernacular corpus is not OCR. Its dictionary-listed
-            # words remain usable even at one token (e.g. σπίτι, στέκομαι).
-            if lemma is None and sources.get("byzantine_vernacular", 0) > heldout:
+            # lowercase words remain usable at one token (e.g. σπίτι,
+            # στέκομαι); a capital self-map is not proof of a proper name.
+            if (lemma is None and not form[:1].isupper()
+                    and sources.get("byzantine_vernacular", 0) > heldout):
                 row = conn.execute(
                     "SELECT l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
                     "WHERE k.form=? AND k.lang='all' LIMIT 1", (form,)
                 ).fetchone()
-                if row:
+                if row and not row[0][:1].isupper():
                     lemma = row[0]
+            if lemma is None and postclassical_spelling_reason(form) is not None:
+                continue
             reason = postclassical_admission_reason(
                 count, sources, works, heldout_count=heldout,
-                lexical=lemma is not None)
+                lexical=lemma is not None, pos=pos)
             if reason is None:
                 continue
             # Do not infer a capital form from a lowercase spelling. Case is
@@ -1490,7 +1559,7 @@ def add_postclassical_corpus_forms(
             audit.append({"form": form, "lemma": lemma or form,
                           "reason": reason, "count": count,
                           "heldout_subtracted": heldout,
-                          "source_counts": sources, "works": works})
+                          "source_counts": sources, "works": works, "pos": pos})
     finally:
         profile_conn.close()
     return out, audit
@@ -2879,6 +2948,7 @@ def run_export(sanity: int | None, variants: list[str],
         if variant == "grc" and not sanity:
             form_lemma, reviewed_paradigm_forms, reviewed_paradigm_audit = (
                 add_reviewed_postclassical_paradigms(form_lemma, conn))
+            include_reviewed_name_ownership(case_ownership, reviewed_paradigm_audit)
             form_lemma, postclassical_audit = add_postclassical_corpus_forms(
                 form_lemma, conn, dev_spellings)
             print(f"  +{len(postclassical_audit):,} evidenced postclassical spellings")
