@@ -1370,6 +1370,28 @@ def _classify_verb(headword):
     return None, None
 
 
+def verb_entry_rejection(head_text: str) -> str:
+    """Keep prefixes and explicitly cross-referenced imperatives out of Lua.
+
+    A headword's ending alone does not make it a verb citation form. Keep
+    ordinary verb entries that begin by documenting a person or tense: an
+    imperative reference must explicitly identify another verb as its owner.
+    """
+    lead = head_text.lstrip(" ,*")
+    if re.match(r"(?:insep\.\s+)?prefix\b", lead, re.IGNORECASE):
+        return "prefix-headword"
+    if re.match(
+        r"(?:\[[^\]]*\][,\s]*)?"
+        r"(?:(?:late|earlier|epic)\s+form\s+(?:for|of)\s+[^,]+,\s*)?"
+        r"[123]\s*(?:sg|pl|du)\.\s*(?:(?:sg|pl|du)\.\s*)?"
+        r"imper(?:at)?\.\s*(?:(?:pf|pres|aor|pass)\.\s*)*"
+        r"(?:of|from)\s+",
+        lead, re.IGNORECASE,
+    ):
+        return "inflected-imperative-headword"
+    return ""
+
+
 def expand_verb(wtp, headword, head_text: str = ""):
     """Expand a verb using grc-conj template. Returns set of forms.
 
@@ -1383,6 +1405,9 @@ def expand_verb(wtp, headword, head_text: str = ""):
     Memoizes only identical present-system requests. Other verbs of the
     same conjugation still require their own marked paradigm from Lua.
     """
+    rejection = verb_entry_rejection(head_text)
+    if rejection:
+        return set(), rejection
     # Reject obviously corrupt OCR'd headwords up front: they would only
     # produce Lua errors and zero forms.
     if _is_corrupt_headword(headword):
@@ -1762,7 +1787,16 @@ def expand_verbs():
 
     for i, hw in enumerate(candidates):
         head_text = head_texts.get(hw, "")
-        forms, err = expand_verb(wtp, hw, head_text=head_text)
+        # Entry selection strips quantity marks, but its original spelling
+        # still identifies the source description (ἡμῐ is a prefix). Use
+        # that description for the eligibility check without changing the
+        # principal-part lookup or merging distinct lexical headwords.
+        description = head_texts.get(lsj_entries[hw].get("orth_orig"), head_text)
+        rejection = verb_entry_rejection(description)
+        if rejection:
+            forms, err = set(), rejection
+        else:
+            forms, err = expand_verb(wtp, hw, head_text=head_text)
 
         if err or not forms:
             stats["failed"] += 1
