@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-10-11
+
 ### Added
 - Independently defined Modern adjectives keep their source morphology through
   flat noun or verb homographs. `el_adjective_heads.json` records the exact
@@ -1250,6 +1252,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.7]: https://github.com/open-greek/dilemma/releases/tag/1.3.7
 [1.3.6]: https://github.com/open-greek/dilemma/releases/tag/1.3.6
 [1.3.5]: https://github.com/open-greek/dilemma/releases/tag/1.3.5
 [1.3.4]: https://github.com/open-greek/dilemma/releases/tag/1.3.4
