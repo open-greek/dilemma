@@ -704,63 +704,10 @@ def mark_alpha_length(word):
     return word
 
 
-# Cache: (gender, nom_ending, gen_ending) -> list of full forms from reference word
-# Nouns with the same declension pattern produce forms that differ only in the stem.
-# We store (ref_stem, ref_forms) and apply by swapping stems.
-_NOUN_CACHE = {}
-
-
-def _classify_noun(headword, gender, genitive):
-    """Classify a noun into declension type for caching.
-
-    Returns (cache_key, stem_len) where cache_key = (gender, nom_ending, gen_ending).
-    stem_len is how many chars of the headword form the invariant stem.
-    """
-    hw_plain = strip_diacritics(headword.lower())
-    gen_plain = strip_diacritics(genitive.lower()) if genitive else ""
-
-    # Find the longest common prefix = invariant stem
-    # Then trim back to exclude the thematic/connecting vowel, which
-    # is shared between nom and gen but changes in other cases
-    # (e.g. ανθρωπ-ος/ου share 'ο' but vocative is ανθρωπ-ε)
-    stem_len = 0
-    for i in range(min(len(hw_plain), len(gen_plain)) if gen_plain else 0):
-        if hw_plain[i] == gen_plain[i]:
-            stem_len = i + 1
-        else:
-            break
-
-    # Trim back thematic vowel: if the last shared char is a vowel
-    # and it's the first char of both endings, exclude it from stem
-    vowels = set("αεηιουω")
-    if stem_len > 1 and hw_plain[stem_len - 1] in vowels:
-        stem_len -= 1
-
-    # Ensure at least 1 char as ending
-    stem_len = min(stem_len, len(hw_plain) - 1)
-
-    nom_ending = hw_plain[stem_len:]
-    gen_ending = gen_plain[stem_len:] if gen_plain else ""
-
-    return (gender, nom_ending, gen_ending), stem_len
-
-
-def _apply_noun_cache(headword, stem_len, ref_stem_plain, ref_forms):
-    """Apply cached declension forms to a new headword by swapping the stem.
-
-    ref_forms are the full accented forms from the reference word.
-    We strip the reference stem prefix and replace it with the new stem.
-    """
-    new_stem = strip_diacritics(headword[:stem_len].lower())
-    forms = set()
-    for form in ref_forms:
-        form_plain = strip_diacritics(form.lower())
-        if form_plain.startswith(ref_stem_plain):
-            ending = form_plain[len(ref_stem_plain):]
-            new_form = new_stem + ending
-            if len(new_form) > 1:
-                forms.add(new_form)
-    return forms
+# Cache only identical lexical requests. Nouns with matching bare endings can
+# have different accent and breathing patterns; another noun's forms cannot
+# supply their marked spellings by replacing a stripped stem.
+_NOUN_CACHE: dict[tuple[str, str, str], frozenset[str]] = {}
 
 
 _GENITIVE_ARTICLES = {
@@ -789,11 +736,7 @@ def _genitive_is_junk(gen):
 
 
 def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
-    """Expand a noun using grc-decl template. Returns set of forms.
-
-    Uses a cache keyed by declension pattern: nouns with the same
-    (gender, nom_ending, gen_ending) produce the same inflection endings.
-    """
+    """Expand a noun using grc-decl, caching identical lexical requests."""
     # A junk LSJ genitive (article, dialect note, "**" markup, fragment) can't
     # match a declension, so discard it and infer from the nominative instead.
     if genitive and _genitive_is_junk(genitive):
@@ -801,14 +744,11 @@ def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
     if not genitive:
         genitive = infer_genitive(headword, gender, wikt_genitives)
 
-    # Check cache
-    if genitive:
-        cache_key, stem_len = _classify_noun(headword, gender, genitive)
-        if cache_key in _NOUN_CACHE:
-            ref_stem, ref_forms = _NOUN_CACHE[cache_key]
-            forms = _apply_noun_cache(headword, stem_len, ref_stem, ref_forms)
-            if forms:
-                return forms, ""
+    # Include the resolved genitive: explicit and inferred identical requests
+    # share a result, while differently marked lexical inputs remain distinct.
+    cache_key = (headword, gender, genitive)
+    if cache_key in _NOUN_CACHE:
+        return set(_NOUN_CACHE[cache_key]), ""
 
     # grc-decl gender codes
     gender_code = {"m": "M", "f": "F", "n": "N"}.get(gender, "")
@@ -834,12 +774,8 @@ def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
 
     forms = parse_html_forms(html, headword)
 
-    # Cache: store (ref_stem_plain, ref_forms) for this declension pattern
-    if forms and genitive:
-        cache_key, stem_len = _classify_noun(headword, gender, genitive)
-        if cache_key not in _NOUN_CACHE:
-            ref_stem = strip_diacritics(headword[:stem_len].lower())
-            _NOUN_CACHE[cache_key] = (ref_stem, forms)
+    if forms:
+        _NOUN_CACHE[cache_key] = frozenset(forms)
 
     return forms, ""
 
