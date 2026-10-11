@@ -9,6 +9,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Withhold bare nonpast endings when an Ancient aorist template explicitly
+  supplies only its indicative stem, preserving indicative-only tables,
+  complete competing templates, and independent grammatical readings.
 - Withhold ending-only passive aorist readings from incomplete source
   tables during extraction and canonical assembly, preserving complete
   forms, uncertain raw labels, and independently identified voice readings.

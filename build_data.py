@@ -40,6 +40,7 @@ from dilemma.verb_source import is_periphrastic_auxiliary
 from dilemma.nominal_header_forms import is_abbreviated_nominal_header
 from dilemma.verb_table_fragments import (
     retain_complete_passive_aorist_readings, stemless_passive_aorist_dialects,
+    retain_complete_aorist_nonpast_readings, stemless_aorist_nonpast_voices,
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -1286,6 +1287,9 @@ def extract_pairs(jsonl_path: Path, lang: str,
             stemless_passive_tables = (
                 stemless_passive_aorist_dialects(entry)
                 if lang.startswith("grc-") and pos == "verb" else frozenset())
+            stemless_nonpast_tables = (
+                stemless_aorist_nonpast_voices(entry)
+                if lang.startswith("grc-") and pos == "verb" else {})
 
             for f_entry in forms:
                 tags = f_entry.get("tags", [])
@@ -1404,6 +1408,11 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     morph_tags = retain_complete_passive_aorist_readings(
                         form, morph_tags,
                         stemless_table=current_dialect in stemless_passive_tables)
+                    if morph_tags is None:
+                        continue
+                    morph_tags = retain_complete_aorist_nonpast_readings(
+                        form, morph_tags,
+                        stemless_voices=stemless_nonpast_tables.get(current_dialect, frozenset()))
                     if morph_tags is None:
                         continue
 

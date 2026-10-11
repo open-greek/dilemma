@@ -3,6 +3,107 @@
 import unicodedata
 
 
+_DIALECT_NAMES = {"": "", "att": "Attic", "epi": "Epic", "ion": "Ionic",
+                  "koi": "Koine", "dor": "Doric", "aeo": "Aeolic"}
+
+# These are the empty-stem outputs of grc-conj aor-1. A missing argument
+# alone is not evidence: indicative-only and passive-only templates omit
+# the active/middle nonpast stem deliberately.
+_EMPTY_AORIST_NONPAST = {
+    "active": {
+        "subjunctive": {"ω", "ης", "η", "ητον", "ωμεν", "ητε", "ωσι", "ωσιν"},
+        "optative": {"αιμι", "ειας", "αις", "ειε", "ειεν", "αι", "αιτον",
+                     "αιτην", "αιμεν", "αιτε", "ειαν", "αιεν"},
+        "imperative": {"ον", "ατω", "ατον", "ατων", "ατε", "αντων"},
+        "infinitive": {"αι"},
+        "participle": {"masculine": {"ας"}, "feminine": {"ασα"}, "neuter": {"αν"}},
+    },
+    "middle": {
+        "subjunctive": {"ωμαι", "η", "ηται", "ησθον", "ωμεθα", "ησθε", "ωνται",
+                        "ομαι", "εαι", "εται", "ωμεσθα", "ομεθα", "ομεσθα"},
+        "optative": {"αιμην", "αιο", "αιτο", "αισθον", "αισθην", "αιμεθα",
+                     "αισθε", "αιντο", "αιμεσθα", "αιατο"},
+        "imperative": {"αι", "ασθω", "ασθον", "ασθων", "ασθε"},
+        "infinitive": {"ασθαι"},
+        "participle": {"masculine": {"αμενος"}, "feminine": {"αμενη"}, "neuter": {"αμενον"}},
+    },
+}
+
+
+def stemless_aorist_nonpast_voices(entry):
+    """Map dialects to voices positively missing their aor-1 nonpast stem.
+
+    Every competing aorist template for that dialect and voice must lack
+    stem 3, supply stem 2, and have no indicative-only declaration. A
+    complete template or unsupported template syntax prevents attribution.
+    """
+    voice_modes = {"": {"active", "middle"}, "am": {"active", "middle"},
+                   "act": {"active"}, "mid": {"middle"}, "ap": {"active"},
+                   "mp": {"middle"}, "pass": set()}
+    witnesses = {}
+    for template in entry.get("inflection_templates") or []:
+        args = template.get("args") or {}
+        if template.get("name") != "grc-conj" or not str(args.get("1", "")).startswith("aor-"):
+            continue
+        dialect = _DIALECT_NAMES.get(args.get("dial", ""))
+        if dialect is None:
+            continue
+        mode = args.get("form", "")
+        voices = voice_modes.get(mode, {"active", "middle"})
+        missing = (args.get("1") == "aor-1" and mode in voice_modes
+                   and bool(args.get("2")) and not args.get("3")
+                   and "indonly" not in args)
+        for voice in voices:
+            witnesses.setdefault((dialect, voice), []).append(missing)
+    result = {}
+    for (dialect, voice), claims in witnesses.items():
+        if all(claims):
+            result.setdefault(dialect, set()).add(voice)
+    return {dialect: frozenset(voices) for dialect, voices in result.items()}
+
+
+def retain_complete_aorist_nonpast_readings(form, tags, *, stemless_voices=frozenset()):
+    """Withhold ending-only readings from a positively incomplete source table.
+
+    The original indicative, other tense/mood, complete forms, and competing
+    voices remain. Missing or conflicting finite grammatical axes are not
+    resolved by guessing. Participle header forms use the supplied gender;
+    extraneous person/number labels do not supply the absent lexical stem.
+    """
+    claims = set(tags)
+    tenses = claims & {"present", "imperfect", "future", "aorist", "perfect",
+                       "pluperfect", "future-perfect"}
+    moods = claims & {"indicative", "subjunctive", "optative", "imperative",
+                      "infinitive", "participle"}
+    if not stemless_voices or tenses != {"aorist"} or len(moods) != 1:
+        return tags
+    mood, = moods
+    if mood == "indicative":
+        return tags
+    if mood not in {"infinitive", "participle"}:
+        if (len(claims & {"first-person", "second-person", "third-person"}) != 1
+                or len(claims & {"singular", "dual", "plural"}) != 1):
+            return tags
+    letters = "".join(c for c in unicodedata.normalize("NFD", form)
+                      if unicodedata.category(c) != "Mn").lower()
+    rejected = set()
+    for voice in claims & stemless_voices:
+        endings = _EMPTY_AORIST_NONPAST[voice][mood]
+        if mood == "participle":
+            genders = claims & {"masculine", "feminine", "neuter"}
+            if len(genders) != 1:
+                continue
+            gender, = genders
+            endings = endings[gender]
+        if letters in endings:
+            rejected.add(voice)
+    if not rejected:
+        return tags
+    if claims & {"active", "middle", "mediopassive", "passive"} - rejected:
+        return [tag for tag in tags if tag not in rejected]
+    return None
+
+
 # An empty passive stem in a source conjugation table produces these
 # endings as whole words. The Ionic aorist table of τύπτω demonstrates
 # the problem: its active stem exists, but its passive stem is missing.
@@ -54,14 +155,12 @@ def stemless_passive_aorist_dialects(entry):
     ambiguous. Unsupported template types or dialect labels do not prove
     a missing stem.
     """
-    dialect_names = {"": "", "att": "Attic", "epi": "Epic", "ion": "Ionic",
-                     "koi": "Koine", "dor": "Doric", "aeo": "Aeolic"}
     witnesses = {}
     for template in entry.get("inflection_templates") or []:
         args = template.get("args") or {}
         if template.get("name") != "grc-conj" or args.get("1") != "aor-1":
             continue
-        dialect = dialect_names.get(args.get("dial", ""))
+        dialect = _DIALECT_NAMES.get(args.get("dial", ""))
         if dialect is None:
             continue
         missing = (args.get("form") == "ap" and args.get("2") and args.get("3")

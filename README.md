@@ -2205,6 +2205,14 @@ passive stems and no complete competing template uses that dialect.
 Other missing or conflicting labels remain auditable source data. A
 separately identified active or middle reading survives when the same
 row's passive reading is invalid.
+For `grc-conj aor-1`, an augmented indicative stem without its nonpast
+stem can also produce bare active or middle endings. Extraction withholds
+only matching nonpast endings when every competing template for that
+voice and dialect proves the missing stem. Indicative-only declarations,
+complete competing templates, augmented indicative forms, uncertain labels,
+and independently supplied voice readings remain. This prevents incomplete
+οἰδάνω, δύπτω, and παρακελεύομαι tables from claiming forms such as `ῶ`
+and `αίμην`; it does not ban those spellings in other entries.
 
 Periphrastic forms contribute the main verb, not the separate auxiliary
 εἰμί. The filter also recognizes the source's monotonic `είμεν`, `είτε`,
