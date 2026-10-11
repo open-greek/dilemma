@@ -9,6 +9,7 @@ import pytest
 from build_data import (Abbreviations, _parse_verb_tense, apply_participle_references,
                         clean_training_pairs, deduplicate_pairs,
                         drop_abbreviation_targets, extract_pairs,
+                        include_participle_endpoints,
                         merge_pos_maps, merge_source_lookups, resolve_cross_source,
                         preserve_finite_verb_heads, resolve_pair_lemma,
                         spelling_target, vowel_groups)
@@ -645,6 +646,63 @@ def test_main_keeps_graph_verb_separate_from_finite_form_homograph(tmp_path, mon
     assert any(p["form"] == "φέροντα" and p["lemma"] == "φέρω" and p["pos"] == "verb" for p in pairs)
     pos = json.loads((out / "mg_pos_lookup.json").read_text())
     assert pos["φέρων"]["VERB"] == "φέρω"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_omits_unreferenced_participle_verb_but_keeps_nominal_cells(tmp_path, monkeypatch, reverse):
+    import build_data
+    entries = [
+        {"word": "κβαντοποιημένος", "pos": "verb", "tags": ["participle"],
+         "senses": [{"glosses": ["που έχει υποβληθεί σε κβαντοποίηση"]}],
+         "forms": [{"form": "κβαντοποιημένη", "tags": ["feminine", "singular"]}]},
+        {"word": "κβαντοποιημένος", "pos": "adj",
+         "senses": [{"glosses": ["quantized"]}],
+         "forms": [{"form": "κβαντοποιημένη", "tags": ["feminine", "singular"]}]},
+        {"word": "γραμμένος", "pos": "verb", "tags": ["participle"],
+         "senses": [{"form_of": [{"word": "γράφω"}]}],
+         "forms": [{"form": "γραμμένη", "tags": ["feminine", "singular"]}]},
+        {"word": "γράφω", "pos": "verb", "senses": [{"glosses": ["write"]}],
+         "forms": [{"form": "γράφεις", "tags": ["present", "singular", "second-person"]}]},
+    ]
+    dump = _write(tmp_path, list(reversed(entries)) if reverse else entries)
+    out = tmp_path / "out"
+    monkeypatch.setattr(build_data, "DATA_DIR", out)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"el": dump.name}})
+    monkeypatch.setattr("sys.argv", ["build_data.py", "--lang", "el", "--kaikki", str(tmp_path)])
+    build_data.main()
+    pairs = json.loads((out / "mg_pairs.json").read_text())
+    assert not any(p["pos"] == "verb" and p["lemma"] == "κβαντοποιημένος" for p in pairs)
+    assert any(p["form"] == "κβαντοποιημένη" and p["pos"] == "adj" for p in pairs)
+    assert any(p["form"] == "γραμμένη" and p["lemma"] == "γράφω" for p in pairs)
+    assert any(p["form"] == "γράφεις" and p["lemma"] == "γράφω" for p in pairs)
+
+
+def test_standalone_participle_uses_own_reference_before_omission():
+    pairs = [{"form": "γραμμένη", "lemma": "γραμμένος", "pos": "verb", "tags": []}]
+    lookup = {"γραμμένος": ("γραμμένος", 3), "γράφω": ("γράφω", 3)}
+    pos_map = {"γραμμένος": {"VERB": "γραμμένος"}}
+    refs = include_participle_endpoints(
+        pairs, lookup, pos_map, {"γραμμένος": {"verb"}, "γράφω": {"verb"}},
+        {}, {"γραμμένος"})
+    assert refs == {"γραμμένος": set()}
+    assert not apply_participle_references(
+        pos_map, refs, {"γράφω"}, {"γραμμένος"},
+        verb_refs={}, participle_verb_refs={"γραμμένος": {"γράφω"}})
+    assert pos_map["γραμμένος"]["VERB"] == "γράφω"
+
+
+def test_standalone_participle_does_not_remove_reverse_aliased_finite_head():
+    pairs = [{"form": "γράφεις", "lemma": "γράφω", "pos": "verb", "tags": []}]
+    lookup = {"γραμμένος": ("γραμμένος", 3), "γράφω": ("γραμμένος", 1)}
+    pos_map = {"γραμμένος": {"VERB": "γραμμένος"}, "γράφω": {"VERB": "γράφω"}}
+    refs = include_participle_endpoints(
+        pairs, lookup, pos_map, {"γραμμένος": {"verb"}, "γράφω": {"verb"}},
+        {}, {"γραμμένος"})
+    unresolved = apply_participle_references(
+        pos_map, refs, {"γράφω"}, {"γραμμένος"}, verb_refs={}, participle_verb_refs={})
+    roots = {}
+    preserve_finite_verb_heads(pos_map, lookup, {"γράφω"}, roots, unresolved)
+    assert clean_training_pairs(pairs, lookup, True, pos_map, {"γράφω": {"verb"}}, roots, unresolved) == pairs
 
 
 @pytest.mark.parametrize("reverse", [False, True])

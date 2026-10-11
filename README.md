@@ -338,15 +338,15 @@ entries takes priority over top-level pointers. A finite-form homograph's
 references do not replace that parent, and a sense labeled as a synonym is
 not a spelling alias. Other alias nodes use their explicit verb references;
 table evidence is used only when neither supplies a finite endpoint.
-Conflicting successful targets remain unresolved. Participles tagged on the
-entry or one of its senses
-remain intermediate forms, and an explicit-reference cycle must have one unambiguous exit to a
-finite verb. This check runs after both sources have been read, so entry
-order does not affect it. A resolved participle keeps that finite verb
-through POS-specific cleanup instead of inheriting a flat homograph's
-lemma; unresolved readings in this top-pointer graph are omitted while
-independent noun and adjective readings remain. Other participles' existing
-readings are unchanged, but they cannot act as finite endpoints for this graph.
+Conflicting successful targets remain unresolved. Participles tagged on an
+entry or one of its senses remain intermediate forms, and an explicit-reference
+cycle must have one unambiguous exit to a finite verb. A standalone participle
+that would otherwise remain a verb lemma also enters this check, even without
+a top-level pointer. Its actual references are followed before an unsupported
+verb reading is omitted. This check runs after both sources have been read,
+so entry order does not affect it. A resolved participle keeps that finite
+verb through POS-specific cleanup instead of inheriting a flat homograph's
+lemma; independent noun and adjective readings remain.
 Nominal labels in top-level references cannot supply verb endpoints through
 unrelated inflection tables. An unresolved participle also cannot remove an
 independently defined finite verb through a reverse table or lookup alias.

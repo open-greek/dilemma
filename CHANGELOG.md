@@ -205,15 +205,18 @@ All notable changes to Dilemma are documented here. The format follows
   All explicit targets from both dictionaries survive collection; a tagged
   participle uses its own entry's references before those of a finite-form
   homograph, and synonym labels do not count as spelling aliases. Conflicting
-  successful targets remain unresolved. Participles tagged on entries or senses remain intermediate forms;
-  cycles resolve only when their exits identify one finite verb.
+  successful targets remain unresolved. Participles tagged on entries or
+  senses remain intermediate forms; cycles resolve only when their exits
+  identify one finite verb. Standalone participles that would otherwise
+  remain verb lemmas enter the same reference check, even without a
+  top-level pointer, rather than supplying unsupported verb roots.
   A resolved participle retains that verb through POS-specific cleanup;
-  unresolved readings in the top-pointer graph are omitted without
-  removing nominal readings or changing other participles' existing analyses.
+  unresolved readings are omitted without removing independent nominal
+  readings.
   Nominal labels cannot supply verb endpoints through unrelated tables,
   and an unresolved participle cannot remove its independently defined
   finite verb through a reverse table or lookup alias.
-  The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
+  The pairs are regenerated from the 2026-10-03 Kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its
   template's name: those dumps carry it on EN's `τα` page under a generic

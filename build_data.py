@@ -1484,6 +1484,26 @@ def preserve_finite_verb_heads(pos_map: dict, lookup: dict, finite_heads: set,
         pos_map.setdefault(head, {})["VERB"] = head
 
 
+def include_participle_endpoints(pairs: list, lookup: dict, pos_map: dict,
+                                lemma_pos: dict, references: dict,
+                                participle_heads: set) -> dict:
+    """Check a surviving tagged participle through its own source references.
+
+    A standalone participle page may have no top-level pointer. If ordinary
+    pair cleanup would keep it as a verb lemma, it still needs a finite verb
+    endpoint. Do not turn every inflected participle page into a candidate.
+    """
+    candidates = {lemma for pair in pairs if pair.get("pos") == "verb"
+                  for lemma in (pair.get("via"), pair["lemma"]) if lemma}
+    endpoints = set()
+    for lemma in candidates:
+        target = resolve_pair_lemma(lemma, "verb", lookup, pos_map, lemma_pos)
+        if (target in participle_heads and target not in references
+                and lookup.get(target, (None,))[0] == target):
+            endpoints.add(target)
+    return {**references, **{word: set() for word in sorted(endpoints)}}
+
+
 def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
                          pos_map: dict = None, lemma_pos: dict = None,
                          participle_roots: dict = None,
@@ -1667,14 +1687,6 @@ def main():
             # Merge POS map
             merge_pos_maps(all_pos_map, pos_map, prefer_verb_refs=(lang == "el"))
 
-        if lang == "el":
-            unresolved_verbs = apply_participle_references(
-                all_pos_map, participle_refs, verb_heads, participle_heads,
-                all_lemma_pos, verb_refs, participle_verb_refs)
-            participle_roots = {word: all_pos_map[word]["VERB"]
-                                for word in participle_refs
-                                if word not in unresolved_verbs}
-
         # Collect headword sets by source for confidence scoring
         en_headwords = set()
         el_headwords = set()
@@ -1789,6 +1801,18 @@ def main():
         headwords = {k for k, (v, _) in all_lookup.items() if k == v}
 
         if lang == "el":
+            # Lookup cleanup does not alter POS/reference evidence. Resolve
+            # the original graph after identifying standalone participles
+            # that would otherwise remain verb lemmas in the final pairs.
+            participle_refs = include_participle_endpoints(
+                unique_pairs, all_lookup, all_pos_map, all_lemma_pos,
+                participle_refs, participle_heads)
+            unresolved_verbs = apply_participle_references(
+                all_pos_map, participle_refs, verb_heads, participle_heads,
+                all_lemma_pos, verb_refs, participle_verb_refs)
+            participle_roots = {word: all_pos_map[word]["VERB"]
+                                for word in participle_refs
+                                if word not in unresolved_verbs}
             preserve_finite_verb_heads(
                 all_pos_map, all_lookup,
                 verb_heads - participle_heads - participle_refs.keys(),
