@@ -52,6 +52,8 @@ if str(_BUILD_DIR) not in sys.path:
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from dilemma.verb_table_fragments import is_stemless_passive_aorist  # noqa: E402
+
 from dilemma.morph_diff import (  # noqa: E402
     _detect_syllabic_augment,
     _detect_temporal_augment,
@@ -1455,6 +1457,7 @@ def build_paradigms(only_lemmas=None):
     by_lemma_dialect_key = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     dropped_internal_capital = 0
     dropped_auxiliary = 0
+    dropped_stemless_passive = 0
     dropped_crasis = 0
     dropped_enclitic = 0
     dropped_iota_dropped = 0
@@ -1550,6 +1553,9 @@ def build_paradigms(only_lemmas=None):
             readings = p.get("_paradigm_readings", tuple(
                 (key, dialect) for key in keys for dialect in extract_dialects(tags)))
             for key, dialect in readings:
+                if is_stemless_passive_aorist(form, key):
+                    dropped_stemless_passive += 1
+                    continue
                 if not dialect:
                     if is_homeric_iterative_imperfect(form, lemma, key):
                         dialect = "epic"
@@ -1567,6 +1573,9 @@ def build_paradigms(only_lemmas=None):
     if dropped_auxiliary:
         print(f"  dropped (εἰμί auxiliary of a periphrastic cell): "
               f"{dropped_auxiliary:,}")
+    if dropped_stemless_passive:
+        print(f"  dropped (passive aorist ending without a stem): "
+              f"{dropped_stemless_passive:,}")
     if dropped_crasis:
         print(f"  dropped (crasis / sandhi): {dropped_crasis:,}")
     if dropped_enclitic:

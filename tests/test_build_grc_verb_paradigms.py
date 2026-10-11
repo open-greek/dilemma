@@ -1144,6 +1144,67 @@ class TestAuxiliaryForms:
         assert not any(key.startswith("middle_perfect_optative_") for key in forms)
 
 
+class TestStemlessPassiveAorist:
+    @pytest.mark.parametrize("form,key", [
+        ("ῆν", "passive_aorist_indicative_1sg"),
+        ("ῆσαν", "passive_aorist_indicative_3pl"),
+        ("ῇς", "passive_aorist_subjunctive_2sg"),
+        ("ῶσιν", "passive_aorist_subjunctive_3pl"),
+        ("εῖτε", "passive_aorist_optative_2pl"),
+        ("είτε", "passive_aorist_optative_2pl"),
+        ("ῆθι", "passive_aorist_imperative_2sg"),
+        ("ῆναι", "passive_aorist_infinitive"),
+        ("εἶσᾰ", "passive_aorist_participle_nom_f_sg"),
+    ])
+    def test_an_ending_cannot_supply_its_own_passive_stem(self, b, form, key):
+        assert b.is_stemless_passive_aorist(form, key)
+
+    @pytest.mark.parametrize("form,key", [
+        ("τυπῆναι", "passive_aorist_infinitive"),
+        ("τυπῆτε", "passive_aorist_optative_2pl"),
+        ("τυπεῖτε", "passive_aorist_optative_2pl"),
+        ("ἐτύπην", "passive_aorist_indicative_1sg"),
+        ("τύψαι", "active_aorist_infinitive"),
+        ("εἷτε", "active_aorist_optative_2pl"),
+        ("εἷναι", "active_aorist_infinitive"),
+        ("ἦν", "active_imperfect_indicative_3sg"),
+    ])
+    def test_complete_forms_and_independent_homographs_survive(self, b, form, key):
+        assert not b.is_stemless_passive_aorist(form, key)
+
+    @pytest.mark.parametrize("source", ["AG_PAIRS", "GLAUX_PAIRS"])
+    def test_bad_passive_table_does_not_consume_other_dialect_cells(self, b,
+                                                                  monkeypatch,
+                                                                  tmp_path,
+                                                                  source):
+        rows = [
+            {"form": "τύπτω", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["active", "present", "indicative", "first-person", "singular"]},
+            {"form": "τύψαι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["active", "aorist", "infinitive", "Ionic"]},
+            {"form": "τυπῆναι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "infinitive", "Attic"]},
+            {"form": "τυπήμεναι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "infinitive", "Epic"]},
+            {"form": "ῆναι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "infinitive", "Ionic"]},
+            {"form": "εῖτε", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "optative", "second-person", "plural", "Ionic"]},
+        ]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        source_path = getattr(b, source)
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == source_path else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["τύπτω"]
+        assert result["forms"]["passive_aorist_infinitive"] == "τυπῆναι"
+        assert result["dialects"]["epic"]["passive_aorist_infinitive"] == "τυπήμεναι"
+        assert result["dialects"]["ionic"]["active_aorist_infinitive"] == "τύψαι"
+        assert not any(k.startswith("passive_aorist_")
+                       for k in result["dialects"]["ionic"])
+
+
 class TestPolytonicPoolNoLongerDropsAtticForms:
     def test_circumflex_does_not_eliminate_an_acute_rival(self, b):
         # δίδως (Attic, 171 corpus tokens) against Ionic διδοῖς (16): the

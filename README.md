@@ -2191,6 +2191,20 @@ explicit tense. A missing tense imposes no extra restriction. An infinitive
 cannot reaccent a generated optative merely because the optative's
 own source row was filtered out. Untagged spellings retain the existing
 fallback because they make no conflicting grammatical claim.
+Passive aorist endings from a source table with an empty stem cannot
+supply a complete verb cell. For example, τύπτω's incomplete Ionic
+passive table lists `ῆν` and `εῖτε`; those readings are withheld while
+the complete active Ionic and passive Attic/Epic forms remain. This
+checks the specific grammatical cell and keeps independent homographs
+such as ἵημι's active aorist `εἷτε` and εἰμί's imperfect `ἦν`.
+The shared check also runs during Ancient source-table extraction, before
+creating lookup, POS, or training records. Raw filtering requires explicit,
+unambiguous grammatical axes. Gender-only participle headings are filtered
+only when the entry's matching `grc-conj` template explicitly lacks both
+passive stems and no complete competing template uses that dialect.
+Other missing or conflicting labels remain auditable source data. A
+separately identified active or middle reading survives when the same
+row's passive reading is invalid.
 
 Periphrastic forms contribute the main verb, not the separate auxiliary
 εἰμί. The filter also recognizes the source's monotonic `είμεν`, `είτε`,

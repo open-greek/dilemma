@@ -9,6 +9,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Withhold ending-only passive aorist readings from incomplete source
+  tables during extraction and canonical assembly, preserving complete
+  forms, uncertain raw labels, and independently identified voice readings.
 - Require matching grammatical evidence when a conjugation table corrects
   a verb cell's accent, so an infinitive cannot change an optative or
   imperative's distinct accent.

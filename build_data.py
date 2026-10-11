@@ -37,6 +37,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from dilemma.verb_source import is_periphrastic_auxiliary
+from dilemma.verb_table_fragments import (
+    retain_complete_passive_aorist_readings, stemless_passive_aorist_dialects,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
@@ -1279,6 +1282,9 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     break
             current_dialect = page_dialect
             current_tense = ""
+            stemless_passive_tables = (
+                stemless_passive_aorist_dialects(entry)
+                if lang.startswith("grc-") and pos == "verb" else frozenset())
 
             for f_entry in forms:
                 tags = f_entry.get("tags", [])
@@ -1387,6 +1393,14 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if (lang.startswith("grc-") and pos == "verb"
                         and is_periphrastic_auxiliary(form, form_lemma, morph_tags)):
                     continue
+                # Empty passive stems yield endings without a word. Retain any
+                # separately identified voice reading before lookup/training.
+                if lang.startswith("grc-") and pos == "verb":
+                    morph_tags = retain_complete_passive_aorist_readings(
+                        form, morph_tags,
+                        stemless_table=current_dialect in stemless_passive_tables)
+                    if morph_tags is None:
+                        continue
 
                 pair = {
                     "form": form,
