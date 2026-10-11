@@ -624,6 +624,30 @@
       "citation": "tlg3130.003 1.4.6.2"
     },
     {
+      "lemma": "πανάγιος",
+      "method": "source_forms",
+      "forms": ["πανάγιον"],
+      "evidence": "Clementina, Epitome altera, section 17, Dressel 1873: the neuter adjective πανάγιον modifies πνεῦμα. Preserve the exact attested form independently of corpus part-of-speech annotation.",
+      "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/4c9c843d80ee94b4371f52add5f7d68bbfe7ba4c/data/tlg1271/tlg012/tlg1271.tlg012.1st1K-grc1.xml",
+      "citation": "urn:cts:greekLit:tlg1271.tlg012.1st1K-grc1:17"
+    },
+    {
+      "lemma": "προκαθαίρω",
+      "method": "source_forms",
+      "forms": ["προκεκαθαρμένη"],
+      "evidence": "Clement of Alexandria, Stromata 7.5.29.7, attests the perfect passive feminine singular participle προκεκαθαρμένη. Preserve the exact surface without accepting the corrupt corpus annotation lemma.",
+      "source_url": "https://catholiclibrary.org/library/view?chunk.id=00000489&docId=Fathers-Synchronized-EN%2FClement_of_Alexandria__Stromata.en.html",
+      "citation": "Stromata 7.5.29.7"
+    },
+    {
+      "lemma": "συνεγκλείω",
+      "method": "source_forms",
+      "forms": ["συνεγκλειομένων"],
+      "evidence": "Athenaeus, Deipnosophistae 13.2 (555c), Kaibel 1887, attests συνεγκλειομένων. Preserve the exact participle independently of the malformed annotation lemma.",
+      "source_url": "https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/master/data/tlg0008/tlg001/tlg0008.tlg001.perseus-grc3.xml",
+      "citation": "Deipnosophistae 13.2 (555c)"
+    },
+    {
       "lemma": "εἰκονίζω",
       "method": "source_forms",
       "forms": [

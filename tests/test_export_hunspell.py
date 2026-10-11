@@ -1503,7 +1503,7 @@ def test_exact_rating_keeps_capital_and_lowercase_counts_separate():
 def test_postclassical_loader_uses_lexical_and_independent_corpus_evidence(tmp_path):
     import json
     from collections import Counter
-    from export_hunspell import add_postclassical_corpus_forms
+    from export_hunspell import add_postclassical_corpus_forms, lexical_head_key
     profile = tmp_path / "profile.db"
     conn = sqlite3.connect(profile)
     conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
@@ -1536,7 +1536,8 @@ def test_postclassical_loader_uses_lexical_and_independent_corpus_evidence(tmp_p
                          ("καθόλου", "καθόλου", "grc"),
                          *[(f, f, "grc") for f in ("Ἰωάννς", "Ἰσσάκ", "Νατθαῖος")]])
     out, audit = add_postclassical_corpus_forms([], lookup, Counter({"καθόλου":1}),
-                                                profile_path=profile)
+                                                profile_path=profile, lexical_heads=frozenset(map(lexical_head_key,
+                                                    ["σπίτι", "Σωκράτης", "σπάνιος", "καθόλου"])))
     assert {form for form, _ in out} == {"πανάγιον", "σπανίως", "σπίτι", "Σωκράτους"}
     assert {row["reason"] for row in audit} == {"repeated_multiple_sources", "attested_lexical_form"}
 
@@ -1616,7 +1617,8 @@ def test_unknown_corpus_context_marks_need_lexical_review(form, reason):
 
 
 def test_exact_inflection_proof_uses_pinned_source_case_and_marks():
-    from export_hunspell import exact_inflection_lemma
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    heads = frozenset(map(lexical_head_key, ["λόγος", "Σωκράτης", "Ἰωάννς", "Παῦλοα", "λογός"]))
     conn = _lookup_db([("Σωκράτους", "Σωκράτης", "grc"),
                        ("λόγους", "λόγος", "grc"),
                        ("Ἰωάννς", "Ἰωάννς", "grc"),
@@ -1624,10 +1626,86 @@ def test_exact_inflection_proof_uses_pinned_source_case_and_marks():
                        ("λογου", "λόγος", "grc"),
                        ("Παύλοα", "Παῦλοα", "grc"),
                        ("λόγος", "λογός", "grc")])
-    assert exact_inflection_lemma(conn, "λόγους", "λόγους") == "λόγος"
-    assert exact_inflection_lemma(conn, "Σωκράτους", "Σωκράτους") == "Σωκράτης"
+    assert exact_inflection_lemma(conn, "λόγους", "λόγους", lexical_heads=heads) == "λόγος"
+    assert exact_inflection_lemma(conn, "Σωκράτους", "Σωκράτους", lexical_heads=heads) == "Σωκράτης"
     for form in ("σωκράτους", "λογους", "λογου", "λόγούς", "Ἰωάννς", "ψυχάς", "Παύλοα", "λόγος"):
-        assert exact_inflection_lemma(conn, form, form) is None
+        assert exact_inflection_lemma(conn, form, form, lexical_heads=heads) is None
+
+
+_CORRUPT_CORPUS_INFLECTIONS = [
+    ("Μαρκελλλίνου", "Μαρκελλλῖνος"),
+    ("συννντρίμματι", "σύννντριμμα"),
+    ("συγγράμμματα", "συγγράμμμα"),
+    ("αἱμορρραγίην", "αἱμορρραγία"),
+    ("ἐλάσσσων", "ἔλασσσον"),
+    ("μελισσσάων", "μελίσσσος"),
+    ("ἀπορρρέοντα", "ἀπορρρέω"),
+    ("ΛΓτῇ", "ΛΓτός"),
+    ("ΧΙΙπροθυμίας", "ΧΙΙπροθυμία"),
+    ("ζϠκαπρός", "ζϠκαφρός"),
+    ("ἀπόΑΕ", "ἀποάω"),
+    ("ἐνΘήβαις", "ἐνΘήβης"),
+]
+
+
+@pytest.mark.parametrize("form,lemma", _CORRUPT_CORPUS_INFLECTIONS + [
+    ("συγγράμματα", "συγγράμμμα"),
+    ("συγγράμμματα", "σύγγραμμα"),
+    ("λόγους", "λό γος"),
+])
+def test_corrupt_lookup_row_is_not_lexical_inflection_evidence(form, lemma):
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    heads = frozenset({lexical_head_key(lemma)})
+    conn = _lookup_db([(form, lemma, "grc")])
+    assert exact_inflection_lemma(conn, form, form, lexical_heads=heads) is None
+
+
+def test_corpus_admission_rejects_notation_even_with_repeated_evidence(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import add_postclassical_corpus_forms, lexical_head_key
+    good = [("Μαρκελλίνου", "Μαρκελλῖνος"),
+            ("συντρίμματι", "σύντριμμα"),
+            ("συγγράμματα", "σύγγραμμα"),
+            ("αἱμορραγίην", "αἱμορραγία"),
+            ("ἐλάσσων", "ἐλάσσων"),
+            ("μελισσάων", "μέλισσα"),
+            ("ἀπορρέοντα", "ἀπορρέω"),
+            ("Βρισηίδος", "Βρισηίς"),
+            ("Σωκράτους", "Σωκράτης"),
+            ("γία", "γία")]
+    rows = _CORRUPT_CORPUS_INFLECTIONS + good
+    profile = tmp_path / "profile.db"
+    with sqlite3.connect(profile) as conn:
+        conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
+                           "CREATE TABLE form_profile(form_id INTEGER,total_count INTEGER,"
+                           "source_counts_json TEXT,n_works INTEGER,dominant_pos TEXT);")
+        for i, (form, _lemma) in enumerate(rows):
+            conn.execute("INSERT INTO forms VALUES(?,?)", (i, form))
+            conn.execute("INSERT INTO form_profile VALUES(?,?,?,?,?)",
+                         (i, 100, json.dumps({"glaux": 100, "pta": 100}), 50, "noun"))
+    lookup = _lookup_db([(form, lemma, "grc") for form, lemma in rows])
+    out, audit = add_postclassical_corpus_forms([], lookup, Counter(), profile_path=profile,
+        lexical_heads=frozenset(lexical_head_key(l) for _f, l in rows))
+    assert {form for form, _lemma in out} == {form for form, _lemma in good}
+    assert len(audit) == len(good)
+
+
+def test_sparse_inflection_requires_an_independently_defined_head():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    conn = _lookup_db([("βουλὴντοιάνδε", "βουλήντοιας", "grc"),
+                       ("ἀντειπεῖνκαὶ", "ἀντειπεῖνκῃ", "grc"),
+                       ("λόγους", "λόγος", "grc"),
+                       ("ἀνανήψεις", "ἀνανηψις", "grc")])
+    heads = frozenset(map(lexical_head_key, ["λόγος", "ἀνάνηψις"]))
+    assert exact_inflection_lemma(conn, "βουλήντοιάνδε", "βουλὴντοιάνδε", lexical_heads=heads) is None
+    assert exact_inflection_lemma(conn, "ἀντειπεῖνκαί", "ἀντειπεῖνκαὶ", lexical_heads=heads) is None
+    assert exact_inflection_lemma(conn, "λόγους", "λόγους", lexical_heads=heads) == "λόγος"
+    assert exact_inflection_lemma(conn, "ἀνανήψεις", "ἀνανήψεις", lexical_heads=heads) == "ἀνανηψις"
+    assert lexical_head_key("Λόγος") not in heads
+    assert lexical_head_key("λογος") in heads
+    assert lexical_head_key("ἀνανήψις") == lexical_head_key("ἀνάνηψις")
+    assert lexical_head_key("ἀνάνηψις") != lexical_head_key("ἁνάνηψις")
 
 
 def test_verified_name_ownership_preserves_source_names_and_lower_homonyms():

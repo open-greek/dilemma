@@ -28,7 +28,9 @@ import tempfile
 import unicodedata
 from pathlib import Path
 
-from dilemma.form_sanitize import has_editorial_sigla, resolve_editorial_form
+from dilemma.form_sanitize import (
+    has_editorial_sigla, nonlexical_generated_lemma, resolve_editorial_form,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -69,24 +71,6 @@ def superseded_verb_generation(lemma: str) -> bool:
     )
     return plain.endswith(("μαι", "φημι", "ννυμι"))
 
-
-def nonlexical_generated_lemma(lemma: str) -> bool:
-    """Reject historical paradigms derived from source notation or OCR junk.
-
-    This only gates missing historical expansion rows. It does not remove a
-    spelling supplied by the reference base or the current source layers.
-    Short lemmas remain eligible: length alone does not establish corruption.
-    The OCR tests match the current generator's explicit corruption classes.
-    """
-    if any(char.isspace() or char in ",;" for char in lemma):
-        return True
-    decomposed = unicodedata.normalize("NFD", lemma)
-    if any(ord(char) in {0x0323, 0x0324, 0x032E, 0x0325}
-           for char in decomposed):
-        return True
-    plain = "".join(char for char in decomposed
-                    if not unicodedata.combining(char)).lower()
-    return any(cluster in plain for cluster in ("ννν", "λλλ", "μμμ", "ρρρ", "σσσ"))
 
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()

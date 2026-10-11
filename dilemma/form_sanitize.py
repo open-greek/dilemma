@@ -51,6 +51,24 @@ def has_editorial_sigla(s: str) -> bool:
     return any(char in EDITORIAL_SIGLA for char in s)
 
 
+def nonlexical_generated_lemma(lemma: str) -> bool:
+    """Identify source notation and demonstrated OCR corruption in a paradigm.
+
+    Use this when inferring words from a generated family or sparse corpus
+    evidence, not to erase independently reviewed or source-backed spellings.
+    Short lemmas remain eligible: length alone does not establish corruption.
+    """
+    if any(char.isspace() or char in ",;" for char in lemma):
+        return True
+    decomposed = unicodedata.normalize("NFD", lemma)
+    if any(ord(char) in {0x0323, 0x0324, 0x032E, 0x0325}
+           for char in decomposed):
+        return True
+    plain = "".join(char for char in decomposed
+                    if not unicodedata.combining(char)).lower()
+    return any(cluster in plain for cluster in ("ννν", "λλλ", "μμμ", "ρρρ", "σσσ"))
+
+
 def canonicalize_final_elision(s: str) -> str:
     """Fold a word-final textual apostrophe onto the Greek koronis.
 

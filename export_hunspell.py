@@ -90,6 +90,7 @@ from dilemma.form_sanitize import (
     resolve_editorial_form,
     canonicalize_final_elision,
     has_editorial_sigla,
+    nonlexical_generated_lemma,
     sanitize_form,
 )
 
@@ -346,6 +347,7 @@ LSJ9_FREQUENCY = DATA / "lsj9_frequency.json"
 GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_shipped_compat.json.gz"
 # Spellings a recorded review rejected (see ``load_grc_spelling_review``).
 GRC_SPELLING_REVIEW = DATA / "hunspell_grc_spelling_review.json"
+GRC_LEXICAL_HEADS = DATA / "grc_lexical_heads.json"
 GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # Curated iconic AG polytonic surface forms and lemmas that are always
 # promoted to bucket C, regardless of raw corpus token count. See the
@@ -1479,19 +1481,56 @@ def postclassical_spelling_reason(form: str) -> str | None:
     return None
 
 
-def exact_inflection_lemma(conn: sqlite3.Connection, form: str, raw: str) -> str | None:
+def corpus_lexical_evidence_is_clean(text: str) -> bool:
+    """Do not let a malformed lookup row prove a new corpus spelling.
+
+    Internal capitals identify joined tokens in this admission path, as in
+    the treebank spelling gate. Explicit review and compatibility admission
+    remain independent of this automatic evidence check.
+    """
+    return (not nonlexical_generated_lemma(text)
+            and not any(char.isupper() for char in text[1:]))
+
+
+def lexical_head_key(text: str) -> str:
+    """Allow tonal lemma aliases while retaining case and lexical marks."""
+    return unicodedata.normalize("NFC", "".join(
+        char for char in unicodedata.normalize("NFD", sanitize_form(text))
+        if ord(char) not in TONAL_MARKS
+    ))
+
+
+def load_grc_lexical_heads(path: Path = GRC_LEXICAL_HEADS) -> frozenset[str]:
+    """Load the pinned positive definitions; missing evidence fails closed."""
+    with path.open(encoding="utf-8") as stream:
+        payload = json.load(stream)
+    if payload.get("schema_version") != 1 or not payload.get("heads"):
+        raise ValueError(f"invalid lexical-head evidence: {path}")
+    return frozenset(lexical_head_key(head) for head, sources in payload["heads"].items()
+                     if sources and corpus_lexical_evidence_is_clean(head))
+
+
+def exact_inflection_lemma(
+    conn: sqlite3.Connection, form: str, raw: str, *, lexical_heads: frozenset[str],
+) -> str | None:
     """Find a marked, case-preserving inflection in the pinned lookup.
 
     A spelling-only reference has the same letters as its lemma and does
     not establish an inflection. Such forms need independent corpus or
-    source-review evidence instead of the one-token lexical exception.
+    source-review evidence instead of the one-token lexical exception. A flat
+    lookup row alone cannot prove its lemma is a word: a separately defined
+    lexical head must support it as well.
     """
+    if not corpus_lexical_evidence_is_clean(form):
+        return None
     key = cased_form_key(form)
     for found, lemma in conn.execute(
         "SELECT k.form, l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
         "WHERE k.form IN (?, ?) AND k.src='grc'", (form, raw)
     ):
         if (has_any_diacritic(found) and cased_form_key(found) == key
+                and corpus_lexical_evidence_is_clean(lemma)
+                and lexical_head_key(lemma) in lexical_heads
                 and strip_accents(lemma) != strip_accents(form)):
             return lemma
     return None
@@ -1508,6 +1547,7 @@ def include_reviewed_name_ownership(ownership: dict[str, int], review: list[dict
 def add_postclassical_corpus_forms(
     pairs: list[tuple[str, str]], conn: sqlite3.Connection,
     dev_spellings: Counter, *, profile_path: Path = FORM_PROFILE_DB,
+    lexical_heads: frozenset[str] | None = None,
 ) -> tuple[list[tuple[str, str]], list[dict]]:
     """Admit exact, independently evidenced spellings outside the AG lookup.
 
@@ -1515,6 +1555,8 @@ def add_postclassical_corpus_forms(
     must pass the stronger repeated-source/work rule. All additions still
     pass the final orthographic, competing-spelling, and name-case gates.
     """
+    if lexical_heads is None:
+        lexical_heads = load_grc_lexical_heads()
     existing = {cased_form_key(f) for f, _ in pairs}
     heldout_by_form: Counter = Counter()
     for spelling, count in dev_spellings.items():
@@ -1529,12 +1571,14 @@ def add_postclassical_corpus_forms(
             form = cased_form_key(raw)
             if form in existing or not has_any_diacritic(form):
                 continue
+            if not corpus_lexical_evidence_is_clean(form):
+                continue
             if grc_orthography_reason(form) is not None:
                 continue
             sources = json.loads(sources_json)
             count = max(total, max(sources.values(), default=0))
             heldout = heldout_by_form[form]
-            lemma = exact_inflection_lemma(conn, form, raw)
+            lemma = exact_inflection_lemma(conn, form, raw, lexical_heads=lexical_heads)
             # The curated vernacular corpus is not OCR. Its dictionary-listed
             # lowercase words remain usable at one token (e.g. σπίτι,
             # στέκομαι); a capital self-map is not proof of a proper name.
@@ -1544,7 +1588,9 @@ def add_postclassical_corpus_forms(
                     "SELECT l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
                     "WHERE k.form=? AND k.lang='all' LIMIT 1", (form,)
                 ).fetchone()
-                if row and not row[0][:1].isupper():
+                if (row and not row[0][:1].isupper()
+                        and corpus_lexical_evidence_is_clean(row[0])
+                        and lexical_head_key(row[0]) in lexical_heads):
                     lemma = row[0]
             if lemma is None and postclassical_spelling_reason(form) is not None:
                 continue
