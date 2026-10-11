@@ -1173,3 +1173,14 @@ def test_nominal_coverage_and_shared_counts_follow_polytonic_cells(
     attested_only = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=False)
     assert nfc("ἁπλῆ") not in attested_only.shared
     assert nfc("ἁπλοῖ") not in attested_only.shared
+
+
+def test_plain_twin_keeps_a_real_contracted_modern_name(monkeypatch):
+    par = {"θωμάς": {"Θωμά": _pos("name", "accusative", "singular")}}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, {"θωμά": 27}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset({"Θωμά"}))
+    shared, generated = mg.dative_twins(
+        {nfc("Θωμᾷ"): 6}, {}, {nfc("Θωμᾶ")}, set(), frozenset(), Counter())
+    assert shared == {nfc("Θωμᾶ"): 27}
+    assert nfc("Θωμά") not in generated

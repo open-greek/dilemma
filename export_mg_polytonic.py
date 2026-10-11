@@ -1666,7 +1666,8 @@ def select_list(
             realizations=realizations)
         twins, new_twins = dative_twins(
             {**(selection.datives or {}), **selection.entries}, generated, grc_words,
-            set(lines) | MG_LETTERS_OF_ANOTHER_WORD, reviewed_rejects, report)
+            set(lines) | MG_LETTERS_OF_ANOTHER_WORD, reviewed_rejects, report,
+            realizations=realizations)
         generated.update(new_twins)
         report["generated"] = len(generated)
     buckets = None
@@ -2304,6 +2305,7 @@ def plain_twin(spelling: str, grc_words: set[str] | frozenset[str] = frozenset()
 def dative_twins(entries: dict[str, int], generated: dict[str, int],
                  grc_words: set[str], avoided: set[str],
                  reviewed_rejects: frozenset[str], report: Counter,
+                 realizations: dict[str, frozenset] | None = None,
                  ) -> tuple[dict[str, int], dict[str, int]]:
     """The plain spelling (``plain_twin``) of each dative in -ᾳ or -ῃ the
     slice attests, with its monotonic count, where Wiktionary has its
@@ -2332,6 +2334,23 @@ def dative_twins(entries: dict[str, int], generated: dict[str, int],
     frequencies = inputs[1]
     nominal = _nominal_forms()
     verb_forms = _verb_form_keys()
+    # Prefer the nominal paradigm's own realization to either a mechanical
+    # acute or an unrelated Ancient contraction. Include rare forms below
+    # the usual generation threshold, since this pass has source evidence.
+    known = dict(realizations or {})
+    wanted = {paradigms.monotonic_key(p) for s in entries
+              if (p := plain_twin(s, grc_words)) is not None}
+    missing = wanted - {paradigms.monotonic_key(s) for s in known}
+    if missing:
+        probe = {k: frequencies[k] for k in missing if frequencies.get(k, 0)}
+        if probe:
+            known.update(_realization_cells(paradigms.generate(
+                inputs[0], probe, paradigms.Evidence({}, grc_words, inputs[0]),
+                min_tokens=1)))
+    nominal_spellings: dict[str, set[str]] = defaultdict(set)
+    for spelling, cells in known.items():
+        if any(cell.split()[0] in DATIVE_TWIN_POS for _, cell in cells):
+            nominal_spellings[paradigms.monotonic_key(spelling)].add(spelling)
     reviewed = {contextual_acute(f) for f in reviewed_rejects}
     lexicon = set(grc_words) | set(entries)
     spelled: dict[str, set[str]] = defaultdict(set)
@@ -2346,6 +2365,13 @@ def dative_twins(entries: dict[str, int], generated: dict[str, int],
         if plain is None:
             continue
         key = paradigms.monotonic_key(plain)
+        options = {s for s in nominal_spellings.get(key, ())
+                   if s[:1].isupper() == plain[:1].isupper()}
+        if options and plain not in options:
+            if len(options) != 1:
+                report["dative_twin_ambiguous_realization"] += 1
+                continue
+            plain = next(iter(options))
         mono = key if plain[:1].islower() else key[:1].upper() + key[1:]
         # The monotonic spelling of a subjunctive of these letters (λάβει,
         # βοηθηθεί).
