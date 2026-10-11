@@ -923,10 +923,13 @@ Verb expansion rejects source entries explicitly identified as prefixes,
 imperative forms of another verb, or defective verbs whose entry explicitly
 limits the available persons. Those restrictions preserve source-attested
 forms without inventing an unrestricted paradigm. It checks the original
-headword spelling
-before quantity marks are removed, so the prefix ἡμῐ cannot receive a verb
-paradigm merely because its letters end in -μι. Ordinary verb entries that
+headword spelling before quantity marks are removed, so the prefix ἡμῐ cannot
+receive a verb paradigm merely because its letters end in -μι. Ordinary verb entries that
 describe their conjugation remain eligible.
+
+Synthesized uncontracted active imperatives receive recessive accent from
+the complete form, rather than inheriting the citation or future stem's
+accent. For example, `ἀκούω` and `ἀκούσω` give `ἄκουε` and `ἄκουσον`.
 
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)

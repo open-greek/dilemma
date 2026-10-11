@@ -38,13 +38,11 @@ Scope (v3):
       * present infinitive     (active / middle)
   - The function only produces forms; the caller decides which slots
     to write (and whether to overwrite or only fill empty cells).
-  - Accent: the synthesis preserves the lemma / fut-stem accent on stem
-    syllables, but does NOT compute fresh accent placement on
-    enclitic-final cells (3sg/3pl imperative). Those endings carry an
-    inherent acute, but the stem-accent in the synthesised form remains
-    where the input has it. Result: 3sg/3pl imperatives may be
-    accent-imperfect on multi-syllable stems, but the segmentation is
-    always correct so the caller's training pipeline still benefits.
+  - Accent follows the cell's formation: ordinary active imperatives
+    receive recessive accent on the complete form, while accented
+    endings replace the stem accent. Contract and second-aorist cells
+    use their own tables and accent rules. Other cells retain the
+    source stem's accent unless a specific rule applies below.
   - jtauber emits one ``middle_present_*`` column for the present
     mediopassive (middle and passive share the same form in the present
     system). We mirror that: this module emits ``middle_present_*`` keys
@@ -1260,6 +1258,11 @@ def synthesize_active_moods(
     def _emit(key: str, stem: str, ending: str) -> None:
         if key in end_accented_keys:
             out[key] = _strip_tonal_accents(stem) + ending
+        elif "_imperative_" in key:
+            # Uncontracted active imperatives have recessive accent
+            # (Smyth 423). A future stem's accent does not survive a
+            # short imperative ending: ἀκούσω -> ἄκουσον.
+            out[key] = _recessive_full_form(stem, ending)
         else:
             out[key] = stem + ending
 

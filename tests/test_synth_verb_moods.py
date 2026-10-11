@@ -132,6 +132,19 @@ class TestPresentSynthesis:
         assert "active_present_subjunctive_1sg" in out
         assert "active_aorist_subjunctive_1sg" not in out
 
+    @pytest.mark.parametrize("lemma,parts,present,aorist", [
+        ("ἀκούω", {"fut": "ἀκούσω"}, "ἄκουε", "ἄκουσον"),
+        ("πείθω", {"fut": "πείσω"}, "πεῖθε", "πεῖσον"),
+        ("κελεύω", {"fut": "κελεύσω"}, "κέλευε", "κέλευσον"),
+        ("παρακελεύω", {"fut": "παρακελεύσω"}, "παρακέλευε", "παρακέλευσον"),
+    ])
+    def test_active_imperative_recomputes_recessive_accent(
+        self, synth, lemma, parts, present, aorist
+    ):
+        out = synth.synthesize_active_moods(lemma, parts)
+        assert out["active_present_imperative_2sg"] == present
+        assert out["active_aorist_imperative_2sg"] == aorist
+
 
 # ---------------------------------------------------------------------------
 # Aorist synthesis from principal parts
@@ -163,7 +176,7 @@ class TestAoristSynthesisFromFut:
         )
         assert out["active_aorist_subjunctive_1sg"] == "παιδεύσω"
         assert out["active_aorist_optative_1sg"] == "παιδεύσαιμι"
-        assert out["active_aorist_imperative_2sg"] == "παιδεύσον"
+        assert out["active_aorist_imperative_2sg"] == "παίδευσον"
         assert out["active_aorist_imperative_3sg"] == "παιδευσάτω"
 
     def test_pempo_with_fut_psi_cluster(self, synth):
@@ -195,7 +208,7 @@ class TestAoristSynthesisFromAor:
         )
         assert out["active_aorist_subjunctive_1sg"] == "παιδεύσω"
         assert out["active_aorist_optative_1sg"] == "παιδεύσαιμι"
-        assert out["active_aorist_imperative_2sg"] == "παιδεύσον"
+        assert out["active_aorist_imperative_2sg"] == "παίδευσον"
 
 
 class TestAoristSkippedForIrregular:
@@ -305,12 +318,10 @@ class TestAccentHandling:
         n_acute = nfd.count("́")
         assert n_acute == 1, f"got {n_acute} acutes in {form!r}"
 
-    def test_2sg_2pl_keep_stem_accent(self, synth):
-        """2sg/2pl imperatives have un-accented endings; stem accent
-        should be preserved."""
+    def test_2sg_2pl_recessive_accent(self, synth):
+        """Different syllable counts can give different accent positions."""
         out = synth.synthesize_active_moods("παιδεύω", {"fut": "παιδεύσω"})
-        # παιδεύσον has acute on ευ (the diphthong)
-        assert out["active_aorist_imperative_2sg"] == "παιδεύσον"
+        assert out["active_aorist_imperative_2sg"] == "παίδευσον"
         assert out["active_aorist_imperative_2pl"] == "παιδεύσατε"
 
 
