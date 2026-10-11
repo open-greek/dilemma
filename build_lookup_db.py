@@ -479,7 +479,9 @@ def build():
         # Add self-map entries to AG lookup so these headwords are
         # recognized by Dilemma's spell-checker (form -> lemma = itself).
         vlg_lookup_added = 0
-        for h in vlg_raw:
+        # Set iteration changes with PYTHONHASHSEED. Keep every headword
+        # insertion ordered so unchanged inputs produce identical databases.
+        for h in sorted(vlg_raw):
             if h not in ag:
                 ag[h] = h
                 ag_source_overrides[h] = VLG_HEADWORDS_PATH.name
@@ -499,7 +501,7 @@ def build():
         ag_headwords |= {h.lower() for h in wip_raw}
         ag_headwords |= {strip_accents(h.lower()) for h in wip_raw}
         wip_lookup_added = 0
-        for h in wip_raw:
+        for h in sorted(wip_raw):
             if h not in ag:
                 ag[h] = h
                 ag_source_overrides[h] = WIP_HEADWORDS_PATH.name
@@ -519,7 +521,7 @@ def build():
         ag_headwords |= {h.lower() for h in lsj10_raw}
         ag_headwords |= {strip_accents(h.lower()) for h in lsj10_raw}
         lsj10_lookup_added = 0
-        for h in lsj10_raw:
+        for h in sorted(lsj10_raw):
             if h not in ag:
                 ag[h] = h
                 ag_source_overrides[h] = LSJ10_HEADWORDS_PATH.name
@@ -864,7 +866,7 @@ def build():
         with open(LBG_HEADWORDS_PATH, encoding="utf-8") as f:
             lbg_raw = {sanitize_form(e["lemma"]) for e in json.load(f)
                        if e.get("lemma") and " " not in e["lemma"]}
-        for h in lbg_raw:
+        for h in sorted(lbg_raw):
             if has_editorial_sigla(h):
                 lbg_artifact_dropped["editorial_siglum"] = (
                     lbg_artifact_dropped.get("editorial_siglum", 0) + 1)
