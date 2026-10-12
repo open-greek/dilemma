@@ -363,6 +363,7 @@ GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_shipped_compat.json.gz"
 GRC_SPELLING_REVIEW = DATA / "hunspell_grc_spelling_review.json"
 DIORISIS_TOKEN_AUDIT = DATA / "changes/diorisis_token_normalizations.json"
 GRC_LEXICAL_HEADS = DATA / "grc_lexical_heads.json"
+TREEBANK_POS_AUDIT = DATA / "treebank_pos_lookup.audit.json"
 GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # Curated iconic AG polytonic surface forms and lemmas that are always
 # promoted to bucket C, regardless of raw corpus token count. See the
@@ -1298,13 +1299,16 @@ def load_diorisis_quote_keys(
         for record in source["records"]:
             reason = record["reason"]
             if reason not in {"duplicated_closing_quote_with_same_source_cell",
+                              "terminal_quote_with_same_source_cell",
                               "unresolved_terminal_quote_or_elision"}:
                 raise ValueError(f"unknown Diorisis quotation decision: {reason}")
             original = betacode_to_unicode(record["original_beta"])
             normalized = betacode_to_unicode(record["normalized_beta"])
             if not original.endswith("᾽"):
                 continue
-            if reason == "duplicated_closing_quote_with_same_source_cell" and original == normalized:
+            if (reason in {"duplicated_closing_quote_with_same_source_cell",
+                           "terminal_quote_with_same_source_cell"}
+                    and original == normalized):
                 continue
             keys.add(cased_form_key(original))
             counts[reason] += 1
@@ -1414,6 +1418,75 @@ def filter_case_artifacts(
                      and evidence.cased.get(cased_form_key(form), 0) == 0)
         (rejected if bad_capital or bad_lower else kept).append(pair)
     return kept, rejected
+
+
+def load_capital_name_owners(
+    path: Path = TREEBANK_POS_AUDIT, *, lexical_path: Path = GRC_LEXICAL_HEADS,
+) -> dict[str, list[dict]]:
+    """Require the complete source-owned name audit, not the sparse POS table."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if (payload.get("schema_version") != 2 or payload.get("language") != "grc"
+            or not isinstance(payload.get("capital_name_owners"), dict)):
+        raise ValueError(f"rebuild the POS audit with complete capital name owners: {path}")
+    expected = {"size": lexical_path.stat().st_size,
+                "sha256": hashlib.sha256(lexical_path.read_bytes()).hexdigest()}
+    if payload.get("inputs", {}).get("grc_lexical_heads") != expected:
+        raise ValueError(f"POS name ownership has stale lexical-head evidence: {path}")
+    owners = payload["capital_name_owners"]
+    for form, rows in owners.items():
+        if not isinstance(form, str) or not isinstance(rows, list):
+            raise ValueError(f"invalid capital name ownership row: {form!r}")
+        for row in rows:
+            sources = row.get("source_votes", {}) if isinstance(row, dict) else {}
+            if (not isinstance(row, dict) or not isinstance(row.get("lemma"), str)
+                    or row.get("upos") not in {"NOUN", "PROPN", "ADJ"}
+                    or not isinstance(sources, dict) or not sources
+                    or any(not isinstance(n, int) or n <= 0 for n in sources.values())):
+                raise ValueError(f"invalid capital name source votes: {form!r}")
+    return owners
+
+
+def include_attested_name_ownership(
+    ownership: dict[str, int], evidence: FormProfileEvidence, *,
+    readings: dict[str, dict[str, str] | list[dict]] | None = None,
+    lexical_heads: frozenset[str] | None = None,
+) -> list[dict]:
+    """Preserve independently defined names hidden by a flat common owner.
+
+    The complete merged corpus audit preserves name and ethnic-adjective
+    readings independently of lookup.db's single lemma and the sparse POS
+    table. Require an exact cased corpus count as well.
+    Keep the lowercase owner bit: a name does not erase a common homograph.
+    """
+    if not evidence.cased:
+        return []
+    if readings is None:
+        readings = load_capital_name_owners()
+    if lexical_heads is None:
+        lexical_heads = load_grc_lexical_heads()
+    retained: dict[str, set[str]] = defaultdict(set)
+    for raw_form, pos_readings in readings.items():
+        form = cased_form_key(raw_form)
+        key = exact_form_key(form)
+        if (not form[:1].isupper() or ownership.get(key) != 2
+                or grc_orthography_reason(form) is not None
+                or evidence.cased.get(form, 0) <= 0):
+            continue
+        rows = (pos_readings.items() if isinstance(pos_readings, dict) else
+                ((row["upos"], row["lemma"]) for row in pos_readings))
+        for pos, lemma in rows:
+            if (pos in {"NOUN", "PROPN", "ADJ"} and lemma[:1].isupper()
+                    and corpus_lexical_evidence_is_clean(lemma)
+                    and lexical_head_key(lemma) in lexical_heads):
+                retained[form].add(lemma)
+    for form in retained:
+        key = exact_form_key(form)
+        ownership[key] |= 1
+    return [{"form": form, "lemmas": sorted(lemmas),
+             "cased_count": evidence.cased[form],
+             "source": "treebank_pos_lookup.audit.json",
+             "previous_owner_bits": 2, "owner_bits": 3}
+            for form, lemmas in sorted(retained.items())]
 
 
 
@@ -3136,6 +3209,10 @@ def run_export(sanity: int | None, variants: list[str],
     conn = sqlite3.connect(str(LOOKUP_DB))
     conn.execute("PRAGMA mmap_size=268435456")
     case_ownership = load_case_ownership(conn) if "grc" in variants else {}
+    attested_name_ownership = (
+        include_attested_name_ownership(case_ownership, profile)
+        if "grc" in variants else []
+    )
     bare_elision_keys = (load_unsupported_bare_elisions(conn)
                          if "grc" in variants else set())
     quote_keys, quote_audit_meta = (load_diorisis_quote_keys()
@@ -3335,6 +3412,7 @@ def run_export(sanity: int | None, variants: list[str],
                 "form_profile_content_hash": profile_meta.get("content_hash"),
                 "postclassical_admissions": postclassical_audit,
                 "reviewed_paradigms": reviewed_paradigm_audit,
+                "attested_name_ownership": attested_name_ownership,
                 "case_rejected": report["case_rejected"],
                 "bare_elision_rejected": report["bare_elision_rejected"],
                 "quote_rejected": report["quote_rejected"],

@@ -1127,6 +1127,9 @@ class Dilemma:
         self._canonical_hw: tuple[set, dict, set] | None = None
         self._trusted_grave_targets: set[str] | None = None
         self._elision_lexical_heads: set[str] | None = None
+        self._fallback_readings = None
+        self._fallback_exact_readings = None
+        self._fallback_verb_lemmas = None
 
         # Form-keyed corpus attestation (form_profile.db / form_citations.db),
         # for the "attested only" gate + form_attestation(). Lazy-opened.
@@ -2386,6 +2389,133 @@ class Dilemma:
 
     # ---- Byzantine normalization fallback ----
 
+    def _load_fallback_readings(self):
+        """Load compact grammatical evidence independently of POS selection.
+
+        ``skip_pos`` disables POS disambiguation, but must not turn a noun
+        lookup into evidence for an augmented verb. Keep all source readings
+        at a normalized form rather than choosing one homograph here. The
+        full pair files and expanded nominal POS table are not needed.
+        """
+        if getattr(self, "_fallback_readings", None) is not None:
+            return
+        readings = {}
+        exact_readings = {}
+        verb_lemmas = set()
+        paths = []
+        if self.lang in ("all", "grc"):
+            paths.extend((AG_POS_LOOKUP_PATH, GLAUX_POS_LOOKUP_PATH,
+                          TREEBANK_POS_LOOKUP_PATH))
+        if self.lang in ("all", "el"):
+            paths.append(MG_POS_LOOKUP_PATH)
+        for path in paths:
+            if not path.exists():
+                continue
+            with path.open(encoding="utf-8") as stream:
+                table = json.load(stream)
+            for form, by_pos in table.items():
+                key = strip_accents(form.lower())
+                entry = readings.setdefault(key, {})
+                exact = exact_readings.setdefault(grave_to_acute(form), {})
+                for pos, lemma in by_pos.items():
+                    lemma = self._normalize_grave_citation_lemma(lemma)
+                    if not lemma or _is_elided_junk_value(lemma):
+                        continue
+                    entry.setdefault(pos, set()).add(lemma)
+                    exact.setdefault(pos, set()).add(lemma)
+                    if pos in ("VERB", "AUX"):
+                        verb_lemmas.add(lemma)
+        self._fallback_readings = readings
+        self._fallback_exact_readings = exact_readings
+        self._fallback_verb_lemmas = verb_lemmas
+
+    def _grammatical_readings(self, word: str) -> dict[str, set[str]]:
+        """Prefer an exact accented reading to other accentual homographs."""
+        self._load_fallback_readings()
+        word = grave_to_acute(unicodedata.normalize("NFC", word))
+        for variant in (word, word.lower()):
+            if variant in self._fallback_exact_readings:
+                return self._fallback_exact_readings[variant]
+        return self._fallback_readings.get(strip_accents(word.lower()), {})
+
+    def _grammatical_targets(self, word: str, *, verb_only=False) -> set[str]:
+        """Return all retained grammatical targets for a form."""
+        by_pos = self._grammatical_readings(word)
+        if verb_only:
+            return by_pos.get("VERB", set()) | by_pos.get("AUX", set())
+        return set().union(*by_pos.values()) if by_pos else set()
+
+    def _lookup_grammatical_word(self, word: str, *, verb_only=False,
+                                 normalization=False,
+                                 source_word: str | None = None) -> str | None:
+        """Resolve a transformed form without promoting a noun to a verb."""
+        targets = self._grammatical_targets(word, verb_only=verb_only)
+        lemma = self._lookup_word(word)
+        if normalization:
+            return lemma if lemma and self._normalization_reading_supported(
+                word, lemma, targets=targets, source_word=source_word) else None
+        if lemma in targets:
+            return lemma
+        if verb_only and lemma in self._fallback_verb_lemmas:
+            # A known verb already resolves the transformed spelling. A
+            # conflicting corpus annotation must not replace that reading.
+            return lemma
+        if verb_only and lemma:
+            readings = self._grammatical_readings(word)
+            head_readings = self._grammatical_readings(lemma)
+            if (_is_self_map(word, lemma)
+                    or any(lemma in values for pos, values in readings.items()
+                           if pos not in ("VERB", "AUX"))
+                    or (lemma not in self._fallback_verb_lemmas
+                        and any(lemma in values for pos, values in head_readings.items()
+                                if pos not in ("VERB", "AUX")))):
+                # Stripping an apparent augment is not a POS tag. A genuine
+                # noun/adjective or identity reading must not be replaced by
+                # an unrelated verb merely sharing its unaccented letters.
+                return None
+        if len(targets) == 1:
+            return next(iter(targets))
+        if targets:
+            # The sources disagree and the ordinary lookup does not select
+            # any of their readings. Do not invent a tiebreak for a fallback.
+            return None
+        if verb_only:
+            # Ordinary verb forms are omitted from the compact POS tables
+            # when they need no disambiguation. Their lexical verb target
+            # still establishes the grammatical class of the lookup result.
+            if self._grammatical_readings(word):
+                return None
+            return lemma if lemma in self._fallback_verb_lemmas else None
+        return lemma
+
+    def _normalization_reading_supported(self, word: str, lemma: str,
+                                          *, targets=None,
+                                          source_word: str | None = None) -> bool:
+        """Keep ordinary normalization, rejecting contradictory homographs.
+
+        The compact tables omit unambiguous forms. Absence alone therefore
+        cannot invalidate an ordinary lookup. For a clearly verbal input,
+        it also cannot establish the nominal reading of a head that is
+        independently a verb inflection: φάσκον is both a noun and a form
+        of φάσκω, but does not justify normalizing φάσκονται to φάσκοντε.
+        """
+        if targets is None:
+            targets = self._grammatical_targets(word)
+        if lemma in targets:
+            return True
+        # These middle/passive endings are not ordinary nominal inflections.
+        # The ending alone never rejects a lookup: the target must also be a
+        # source-backed nominal/verbal homograph with no matching form reading.
+        if (not source_word or not strip_accents(source_word.lower()).endswith(
+                ("ονται", "ωνται", "ομεθα", "ωμεθα", "εσθε", "ησθε",
+                 "σθαι", "σθω", "σθων"))):
+            return True
+        head = self._grammatical_readings(lemma)
+        nominal = any(lemma in head.get(pos, ())
+                      for pos in ("NOUN", "PROPN", "ADJ"))
+        verbs = head.get("VERB", set()) | head.get("AUX", set())
+        return not (nominal and verbs and lemma not in self._fallback_verb_lemmas)
+
     # Iota adscript -> subscript mappings (Byzantine texts often write
     # the iota next to rather than under the vowel).
     _IOTA_ADSCRIPT_MAP = {
@@ -2526,7 +2656,8 @@ class Dilemma:
             start_idx = 1 if self._normalizer else 0
             for variant in forms_to_try[start_idx:]:
                 for candidate in norm.normalize(variant):
-                    lemma = self._lookup_word(candidate)
+                    lemma = self._lookup_grammatical_word(
+                        candidate, normalization=True, source_word=word)
                     if lemma:
                         lemma_s = strip_accents(lemma.lower())
                         cand_s = strip_accents(candidate.lower())
@@ -2558,7 +2689,7 @@ class Dilemma:
                 continue
 
             remainder = stripped[len(prefix_s):]
-            base_lemma = self._lookup_word(remainder)
+            base_lemma = self._lookup_grammatical_word(remainder)
             if not base_lemma:
                 continue
 
@@ -2620,7 +2751,7 @@ class Dilemma:
                 continue
 
             # Look up the base in the lookup table
-            base_lemma = self._lookup_word(base)
+            base_lemma = self._lookup_grammatical_word(base)
             if not base_lemma:
                 continue
 
@@ -2670,7 +2801,7 @@ class Dilemma:
             if len(base) < self._MIN_COMPOUND_BASE:
                 continue
 
-            base_lemma = self._lookup_word(base)
+            base_lemma = self._lookup_grammatical_word(base)
             if not base_lemma:
                 continue
 
@@ -2783,9 +2914,8 @@ class Dilemma:
         3. Reduplication (λε-λυ- type perfect forms): strip the reduplicated
            consonant+vowel prefix
 
-        Only returns a result if the transformed form matches a known lemma
-        in the lookup table. This is a conservative heuristic - it won't
-        catch everything but avoids false positives.
+        The transformed form must have a supported verbal reading or resolve
+        to a known verb lemma. A noun homograph is not evidence for a verb.
         """
         lower = word.lower()
         stripped = strip_accents(lower)
@@ -2813,7 +2943,7 @@ class Dilemma:
                     cut_point = i + 1
             remainder = unicodedata.normalize("NFC", nfd[cut_point:])
             if len(remainder) >= 3:
-                lemma = self._lookup_word(remainder)
+                lemma = self._lookup_grammatical_word(remainder, verb_only=True)
                 if lemma and not _is_self_map(remainder, lemma):
                     return lemma
 
@@ -2828,7 +2958,7 @@ class Dilemma:
                 continue
             for original in originals:
                 candidate = original + remainder_stripped
-                lemma = self._lookup_word(candidate)
+                lemma = self._lookup_grammatical_word(candidate, verb_only=True)
                 if lemma and not _is_self_map(candidate, lemma):
                     return lemma
 
@@ -2842,7 +2972,7 @@ class Dilemma:
                 rest = stripped[2:]
                 # The stem should start with the same consonant
                 if rest and rest[0] == first_char:
-                    lemma = self._lookup_word(rest)
+                    lemma = self._lookup_grammatical_word(rest, verb_only=True)
                     if lemma and not _is_self_map(rest, lemma):
                         return lemma
 
@@ -3026,7 +3156,8 @@ class Dilemma:
         # Normalizer: try orthographic variants against lookup
         if self._normalizer:
             for candidate in self._normalizer.normalize(word):
-                lemma = self._lookup_word(candidate)
+                lemma = self._lookup_grammatical_word(
+                    candidate, normalization=True, source_word=word)
                 if lemma and not _is_elided_junk_value(lemma):
                     return self._apply_convention(lemma)
 
@@ -3417,9 +3548,12 @@ class Dilemma:
                             word, upos, c.lemma, candidates,
                             extra=(pos_lemma_conv,))
                 # POS lemma not among candidates (e.g., single candidate from
-                # lookup maps to a different headword). Trust the POS table -
-                # it comes from curated sources (treebank, GLAUx, Wiktionary).
-                if len(candidates) == 1:
+                # lookup maps to a different headword). For an explicit verb
+                # tag, two case twins still represent one competing lexical
+                # reading, so they cannot block the supported verb target.
+                if (len(candidates) == 1
+                        or (upos == "VERB"
+                            and len({c.lemma.lower() for c in candidates}) == 1)):
                     return pos_lemma_conv
                 # Also trust the POS table when every candidate is just a
                 # case/accent variant of the input form (i.e. nothing in
@@ -3530,9 +3664,11 @@ class Dilemma:
                             results[i] = c.lemma
                             matched = True
                             break
-                if not matched and len(candidates) <= 1:
-                    # Single candidate doesn't match POS lemma - trust the
-                    # POS table (curated sources: treebank, GLAUx, Wiktionary)
+                if not matched and (len(candidates) <= 1
+                        or (upos == "VERB"
+                            and len({c.lemma.lower() for c in candidates}) == 1)):
+                    # A case-twin family is one competing reading when a
+                    # supported explicit verb tag selects a different lemma.
                     results[i] = pos_lemma_conv
                     matched = True
                 if not matched and all(
@@ -3865,6 +4001,9 @@ class Dilemma:
                                 continue
                             if _is_elided_junk_value(lemma):
                                 continue
+                            if not self._normalization_reading_supported(
+                                    norm_candidate, lemma, source_word=word):
+                                continue
                             _add(lemma, lang=lang, source="normalize", via=via)
                             break
 
@@ -4105,7 +4244,8 @@ class Dilemma:
             if self._normalizer:
                 norm_hit = None
                 for candidate in self._normalizer.normalize(word):
-                    norm_hit = self._lookup_word(candidate)
+                    norm_hit = self._lookup_grammatical_word(
+                        candidate, normalization=True, source_word=word)
                     if norm_hit and _is_elided_junk_value(norm_hit):
                         norm_hit = None
                         continue

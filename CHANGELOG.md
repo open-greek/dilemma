@@ -6,6 +6,22 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.8] - 2026-10-12
+
+### Fixed
+- Require merged lexical-head evidence for exact corpus POS targets; retain
+  rejected claims and tied owner votes in a deterministic companion audit.
+- Keep noun homographs from supplying unsupported verb stems during fallback
+  lemmatization, and honor explicit verb tags beside case variants of a name.
+- Count exact spellings separately from ranked words in the Hunspell frequency
+  audit summary, including acute and grave variants.
+- Preserve attested capitalized names and ethnic adjectives when a flat
+  lowercase lemma hides their independently supported source reading.
+- Correct malformed corpus name lemmas through a reversible source audit
+  shared by pair, lemma-attestation and tagger-data generation.
+- Distinguish terminal quotation punctuation from elision using complete
+  morphological witnesses in the same source document.
+
 ## [1.3.7] - 2026-10-12
 
 ### Fixed

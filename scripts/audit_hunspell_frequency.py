@@ -766,10 +766,13 @@ def main() -> int:
     heldout_metrics = measure_heldout_corpora(args.dictionary, args.heldout)
     heldout_failures = heldout_regressions(heldout_metrics)
     total = sum(row["count"] for row in generated["forms"])
-    required = args.top_n - len(exclusions)
-    print(f"top {args.top_n}: {required - len(missing)}/{required} required "
-          f"forms accepted; {len(exclusions) - len(accepted_exclusions)}/"
-          f"{len(exclusions)} reviewed nonwords rejected ({total:,} LM tokens)")
+    spelling_count = len(generated["forms"])
+    required = spelling_count - len(exclusions)
+    print(f"top {generated['top_n']} words ({spelling_count:,} spellings): "
+          f"{required - len(missing):,}/{required:,} required spellings accepted; "
+          f"{len(exclusions) - len(accepted_exclusions)}/"
+          f"{len(exclusions)} reviewed nonword spellings rejected "
+          f"({total:,} LM tokens)")
     citation_count = len(
         load_top_lsj9_lemmas(2000) - set(CITATION_HEADWORD_EXCLUSIONS)
     )

@@ -1051,6 +1051,11 @@ is simpler.
 present stem `μορμύρω` is there. Stripping the augment and tense markers
 recovers the connection. The transformer might learn this pattern, but an
 explicit rule is more reliable for rare verbs it has never trained on.
+Transformed readings also consult grammatical evidence. An augment or
+reduplication cannot use a noun homograph as a verb stem, and compound
+reconstruction retains the supported reading of its base. Orthographic
+normalization preserves ordinary unambiguous matches while withholding a
+reading contradicted by the source form's grammar.
 
 **Elision/crasis**: `δ'` needs to expand to `δέ`, `κἀγώ` needs to
 decompose to `καὶ ἐγώ`. These are mechanical text artifacts, not
@@ -1295,6 +1300,10 @@ d.lemmatize_pos("λευκόν", "ADJ")   # "λευκός" (adjective: white)
 Curated POS entries can select among regular lookup candidates or override
 a single candidate when the dictionaries and corpus evidence support a
 different lemma for that part of speech.
+An explicit verb tag also overrides a single competing reading represented
+by lowercase and capitalized candidates, such as `Λάμπε` selecting `λάμπω`
+instead of the independent name `Λάμπος`. Untagged name readings remain
+available.
 
 Batch POS calls apply the same overrides when all candidates are case or
 accent variants of the input. Agreement with a self-map still compares the
@@ -1322,6 +1331,17 @@ AG-first logic.
 
 Rebuild the corpus POS table after a source refresh with
 `python build/build_treebank_pos_lookup.py --kaikki PATH_TO_KAIKKI`.
+Corpus lemma targets must occur in the merged `grc_lexical_heads.json`
+inventory; membership in the generated flat lookup alone is insufficient.
+The builder requires that inventory before writing outputs and records
+rejected targets, source fingerprints and all tied owner votes in
+`data/treebank_pos_lookup.audit.json`. Use `--audit-output PATH` to choose
+another audit destination. A tied owner does not enter the scalar POS table,
+and rejected source claims still protect against conflicting projections.
+The audit also retains every source-supported capitalized name and ethnic
+adjective owner before the runtime table's ambiguity filter. The dictionary
+export combines those owners with exact cased corpus counts and lexical-head
+evidence, preserving attested names hidden by a flat lowercase owner.
 A corpus vote that agrees with the bare lookup can still be needed when a
 lower-priority POS table, a projected spelling, or a capitalized scalar query
 would select another lemma. A case variant already corrected by the effective
@@ -3598,6 +3618,10 @@ and normalized forms, witness locations, source hashes, and generator
 revision to `data/changes/diorisis_token_normalizations.json` by default;
 `--token-audit PATH` chooses another audit destination. Each recorded change
 can be reversed with `restore_source_beta`.
+The same-cell rule also resolves a final apostrophe before plain sentence
+punctuation when the next sentence begins with a consonant. A vowel-initial
+continuation preserves possible elision. This distinguishes complete
+`ἐπάιον` followed by punctuation from the genuine elision `ὤιετ᾽ εἶναι`.
 
 When normalization brings source cells together, the pair extractor retains
 their distinct part-of-speech and morphology readings. POS disambiguation
@@ -3626,6 +3650,17 @@ reached this loader, fall by that much on the next rebuild. The
 filter reads GLAUx's `metadata.txt`, which the loader expects next
 to the `--glaux` directory; `--glaux-metadata` points it elsewhere,
 and a run stops rather than proceed without it.
+
+The GLAUx pair builder also repairs malformed name lemmas when their source
+group contains one exact nominative singular independently defined as a name
+in the merged lexical evidence. It preserves ambiguous groups and competing
+readings. Run `python build/build_glaux_pairs.py` first; it writes corrected
+pairs and `data/changes/glaux_name_lemmas.json` with original rows, corrected
+rows, source fingerprints and the generator commit. The lemma-attestation
+and tagger-data builders validate and apply that same audit through
+`--name-corrections PATH` (the audit above by default). Use
+`--lexical-heads PATH` and `--name-pairs PATH` for alternate pinned inputs.
+The audit can reconstruct the original pairs with `unapply_name_corrections`.
 
 Output layout:
 

@@ -23,6 +23,14 @@ def inputs(tmp_path, monkeypatch):
         definitions = definitions if definitions is not None else [{
             "word": r["lemma"], "lang_code":"grc", "pos":r["pos"],
             "senses":[{"glosses":["A distinct lexical meaning."]}]} for r in rows]
+        # Exact corpus targets now require the merged lexical-head inventory
+        # independently of generated SQLite lemma membership.
+        from build.build_grc_lexical_heads import has_definition
+        (tmp_path/'grc_lexical_heads.json').write_text(json.dumps({
+            'schema_version': 2,
+            'heads': {entry['word']: ['wiktionary_en_grc']
+                      for entry in definitions if has_definition(entry)},
+        }, ensure_ascii=False))
         for directory in ["en-el", "el"]:
             path = build.KAIKKI_DIR/directory/"kaikki.org-dictionary-AncientGreek.jsonl"
             path.parent.mkdir(parents=True, exist_ok=True)

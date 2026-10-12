@@ -2,7 +2,7 @@
 """Extract form->lemma pairs with morphological tags from GLAUx corpus.
 
 GLAUx (Keersmaekers, 2021) is a 17M-token automatically annotated corpus
-of Ancient Greek (8th c. BC - 4th c. AD). Each token has AGDT-style
+of Ancient Greek (8th century BCE–4th century CE). Each token has AGDT-style
 9-position morphological tags.
 
 Extracts training pairs for Dilemma's multi-task learning heads:
@@ -18,6 +18,12 @@ more than one analysis, every analysis with its own count as ``analyses``
 the counts say which reading of an ambiguous spelling the texts mean (φέρε is
 an imperative 956 times and an unaugmented imperfect 45).
 
+The command-line build also recovers malformed foreign-style name lemmas
+only when the same source group supplies a unique singular nominative that
+is independently defined as a name. Merged lexical evidence and source name
+pairs are required. Original/corrected rows and source hashes are written to
+changes/glaux_name_lemmas.json beside the output for exact reversal.
+
 Usage:
     python build_glaux_pairs.py                    # extract all
     python build_glaux_pairs.py --stats            # show stats only
@@ -26,7 +32,10 @@ Usage:
 
 import argparse
 import csv
+import hashlib
 import json
+import re
+import subprocess
 import sys
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -166,7 +175,245 @@ def glaux_dialects(metadata_path) -> dict:
     return out
 
 
-def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
+def _name_key(text):
+    return "".join(c for c in unicodedata.normalize("NFD", text.casefold())
+                   if unicodedata.category(c) != "Mn")
+
+
+def _malformed_name_key(text, known_heads):
+    """Limit recovery to foreign-style corruption, not Greek dialect forms."""
+    if not text or _name_key(text) in known_heads:
+        return False
+    letters = [c for c in text if c.isalpha()]
+    foreign = any("GREEK" not in unicodedata.name(c, "") for c in letters)
+    unmarked_lower = (letters and text == text.lower()
+                      and not any(unicodedata.category(c) == "Mn"
+                                  for c in unicodedata.normalize("NFD", text)))
+    return bool(foreign or unmarked_lower)
+
+
+def _capital_greek(text):
+    return (bool(text) and text[0].isupper()
+            and not any(c.isupper() for c in text[1:])
+            and all(unicodedata.combining(c) or "GREEK" in unicodedata.name(c, "")
+                    for c in unicodedata.normalize("NFD", text)))
+
+
+def _pure_noun(row):
+    return row.get("pos") == "noun" and all(
+        analysis[0] == "noun" for analysis in row.get("analyses", []))
+
+
+def _fingerprint(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return {"size": Path(path).stat().st_size, "sha256": digest.hexdigest()}
+
+
+def load_name_evidence(lexical_path, name_pairs_path):
+    """Require merged lexical support AND an exact independent name reading."""
+    lexical_path, name_pairs_path = Path(lexical_path), Path(name_pairs_path)
+    payload = json.loads(lexical_path.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 2 or not isinstance(payload.get("heads"), dict):
+        raise ValueError("invalid merged lexical-head evidence")
+    heads = {head: sources for head, sources in payload["heads"].items() if sources}
+    names = {}
+    for row in json.loads(name_pairs_path.read_text(encoding="utf-8")):
+        head = row.get("lemma", "")
+        if (row.get("pos") == "name" and row.get("form") == head
+                and _capital_greek(head) and head in heads):
+            names[head] = sorted(heads[head])
+    return {"known_heads": {_name_key(head) for head in heads}, "names": names,
+            "inputs": {"grc_lexical_heads": _fingerprint(lexical_path),
+                       "ag_pairs": _fingerprint(name_pairs_path)}}
+
+
+def repair_name_lemmas(pairs, evidence, *, source_commit, sources_by_key=None,
+                       source_paths=None):
+    """Recover uniquely anchored malformed names without discarding readings.
+
+    The independent nominative must occur in the same raw lemma group. Only
+    capitalized noun rows move; mixed analyses, competing anchors, and rows
+    that would collide with an existing reading remain unchanged.
+    """
+    if re.fullmatch(r"[0-9a-f]{40}", source_commit or "") is None:
+        raise ValueError("name-correction audit requires a full source commit hash")
+    candidates = defaultdict(set)
+    anchors = defaultdict(list)
+    for row in pairs:
+        form, lemma = row["form"], row["lemma"]
+        if (not _pure_noun(row) or form not in evidence["names"]
+                or not _malformed_name_key(lemma, evidence["known_heads"])):
+            continue
+        analyses = [row.get("tags", [])] + [a[1] for a in row.get("analyses", [])]
+        if any({"nominative", "singular"} <= set(tags) for tags in analyses):
+            candidates[lemma].add(form)
+            anchors[lemma].append({"original": row, "source_xml": sorted(
+                (sources_by_key or {}).get((form, lemma), ()))})
+    owners = {lemma: next(iter(heads)) for lemma, heads in candidates.items()
+              if len(heads) == 1}
+    proposals = {}
+    for index, row in enumerate(pairs):
+        target = owners.get(row["lemma"])
+        if target and _pure_noun(row) and _capital_greek(row["form"]):
+            proposals[index] = target
+    existing = {(row["form"], row["lemma"]) for row in pairs}
+    proposed_keys = Counter((pairs[i]["form"], target) for i, target in proposals.items())
+    result, corrections = [], []
+    for index, row in enumerate(pairs):
+        target = proposals.get(index)
+        if (target is None or (row["form"], target) in existing
+                or proposed_keys[row["form"], target] != 1):
+            result.append(row)
+            continue
+        corrected = {**row, "lemma": target}
+        result.append(corrected)
+        sources = sorted((sources_by_key or {}).get((row["form"], row["lemma"]), ()))
+        corrections.append({"original": row, "corrected": corrected,
+                            "evidence": {"nominative": target,
+                                         "name_pos_source": "ag_pairs",
+                                         "lexical_sources": evidence["names"][target],
+                                         "anchor_rows": anchors[row["lemma"]]},
+                            "source_xml": sources})
+    # Every retained XML file establishes the absence of a competing anchor,
+    # including files with no corrected rows. Pin the complete input inventory.
+    source_paths = source_paths or {}
+    audit = {"schema_version": 2, "source_commit": source_commit,
+             "builder_sha256": _fingerprint(Path(__file__))["sha256"],
+             "inputs": evidence["inputs"],
+             "source_xml": {name: _fingerprint(path) for name, path in sorted(source_paths.items())},
+             "corpus_xml_inventory": sorted(source_paths),
+             "inferred_groups": {old: sorted(heads) for old, heads in sorted(candidates.items())},
+             "corrections": corrections}
+    return result, audit
+
+
+def unapply_name_corrections(pairs, audit):
+    """Restore the exact original pair rows, rejecting an unrelated artifact."""
+    pending = {json.dumps(r["corrected"], ensure_ascii=False, sort_keys=True): r["original"]
+               for r in audit["corrections"]}
+    result = []
+    for row in pairs:
+        key = json.dumps(row, ensure_ascii=False, sort_keys=True)
+        result.append(pending.pop(key, row))
+    if pending:
+        raise ValueError("corrected rows do not match the name-correction audit")
+    return result
+
+
+def _reading_tags(tags):
+    """Work-level dialect labels are not part of the token's AGDT analysis."""
+    return frozenset(tags) - frozenset(GLAUX_DIALECT_TAGS.values())
+
+
+def load_name_corrections(audit_path, glaux_dir, *, lexical_path=None,
+                          name_pairs_path=None, metadata_path=None):
+    """Validate a name audit and index its exact original source readings.
+
+    Raw-corpus consumers must use this same audit rather than independently
+    infer a replacement. Missing or stale evidence fails before extraction.
+    """
+    audit_path, glaux_dir = Path(audit_path), Path(glaux_dir)
+    audit = json.loads(audit_path.read_text(encoding="utf-8"))
+    if (audit.get("schema_version") != 2
+            or re.fullmatch(r"[0-9a-f]{40}", audit.get("source_commit", "")) is None
+            or audit.get("builder_sha256") != _fingerprint(Path(__file__))["sha256"]):
+        raise ValueError("invalid or stale GLAUx name-correction audit; rebuild the pairs and audit")
+    paths = {
+        "grc_lexical_heads": Path(lexical_path or DATA_DIR / "grc_lexical_heads.json"),
+        "ag_pairs": Path(name_pairs_path or DATA_DIR / "ag_pairs.json"),
+    }
+    if "glaux_metadata" in audit.get("inputs", {}):
+        paths["glaux_metadata"] = Path(metadata_path or glaux_dir.parent / "metadata.txt")
+    for source, path in paths.items():
+        if audit.get("inputs", {}).get(source) != _fingerprint(path):
+            raise ValueError(f"stale GLAUx name-correction evidence: {source}")
+    verified = load_name_evidence(paths["grc_lexical_heads"], paths["ag_pairs"])
+    try:
+        from .nc_filter import excluded_glaux_stems, gorman_glaux_stems
+    except ImportError:
+        from nc_filter import excluded_glaux_stems, gorman_glaux_stems
+    metadata = Path(metadata_path or glaux_dir.parent / "metadata.txt")
+    excluded = excluded_glaux_stems(metadata)
+    gorman = gorman_glaux_stems(metadata)
+    inventory = sorted(path.name for path in glaux_dir.glob("*.xml")
+                       if path.stem not in excluded)
+    if (audit.get("corpus_xml_inventory") != inventory
+            or set(audit.get("source_xml", {})) != set(inventory)):
+        raise ValueError("stale GLAUx name-correction XML inventory")
+    for source, expected in audit.get("source_xml", {}).items():
+        if Path(source).name != source or not source.endswith(".xml"):
+            raise ValueError("invalid source XML name in name-correction audit")
+        if _fingerprint(glaux_dir / source) != expected:
+            raise ValueError(f"stale GLAUx name-correction source: {source}")
+    by_source = defaultdict(dict)
+    anchor_cache = {}
+    for change in audit.get("corrections", []):
+        original, corrected = change["original"], change["corrected"]
+        target = corrected["lemma"]
+        evidence = change.get("evidence", {})
+        if (corrected != {**original, "lemma": target}
+                or not _pure_noun(original) or not _capital_greek(original["form"])
+                or not change.get("source_xml")
+                or target not in verified["names"]
+                or evidence.get("nominative") != target
+                or evidence.get("name_pos_source") != "ag_pairs"
+                or evidence.get("lexical_sources") != verified["names"][target]
+                or audit.get("inferred_groups", {}).get(original["lemma"]) != [target]
+                or not _malformed_name_key(original["lemma"], verified["known_heads"])):
+            raise ValueError("invalid original reading in GLAUx name-correction audit")
+        anchors = evidence.get("anchor_rows", [])
+        if not anchors:
+            raise ValueError("missing nominative anchor in GLAUx name-correction audit")
+        for anchor in anchors:
+            row = anchor["original"]
+            if (row["form"] != target or row["lemma"] != original["lemma"]
+                    or not _pure_noun(row) or not anchor.get("source_xml")):
+                raise ValueError("invalid nominative anchor in GLAUx name-correction audit")
+            for source in anchor["source_xml"]:
+                if source not in audit["source_xml"]:
+                    raise ValueError("unverified nominative anchor source")
+                if source not in anchor_cache:
+                    root = ET.parse(glaux_dir / source).getroot()
+                    observed = set()
+                    for sentence in root.iter("sentence"):
+                        if Path(source).stem in gorman and sentence.get("analysis") == "manual":
+                            continue
+                        for word in sentence.findall(".//word"):
+                            pos, tags = parse_postag(word.get("postag", ""))
+                            if pos == "noun" and {"nominative", "singular"} <= set(tags):
+                                observed.add((nfc(word.get("form", "")), nfc(word.get("lemma", ""))))
+                    anchor_cache[source] = observed
+                if (target, original["lemma"]) not in anchor_cache[source]:
+                    raise ValueError("nominative anchor does not match its GLAUx source")
+        readings = [(original.get("pos"), _reading_tags(original.get("tags", [])))]
+        readings.extend((pos, _reading_tags(tags))
+                        for pos, tags, _count in original.get("analyses", []))
+        for source in change["source_xml"]:
+            if source not in audit.get("source_xml", {}):
+                raise ValueError("unverified source XML in name-correction audit")
+            for pos, tags in readings:
+                key = (nfc(original["form"]), nfc(original["lemma"]), pos, tags)
+                previous = by_source[source].setdefault(key, target)
+                if previous != target:
+                    raise ValueError("conflicting targets in GLAUx name-correction audit")
+    return {"by_source": dict(by_source), "sha256": _fingerprint(audit_path)["sha256"],
+            "source_commit": audit["source_commit"]}
+
+
+def apply_name_correction(corrections, source_file, form, lemma, postag):
+    """Apply only an audited original form/lemma/POS/analysis in its source."""
+    entries = corrections["by_source"].get(Path(source_file).name)
+    if not entries:
+        return lemma
+    pos, tags = parse_postag(postag)
+    return entries.get((nfc(form), nfc(lemma), pos, _reading_tags(tags)), lemma)
+
+
+def extract_glaux(glaux_dir, stats_only=False, metadata_path=None, *,
+                  name_evidence=None, correction_audit=None, source_commit=None):
     """Extract form->lemma pairs from GLAUx XML files.
 
     NonCommercial GLAUx source texts are always dropped (the build is openly
@@ -196,6 +443,7 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     entry_by_key = {}
     analysis_counts = defaultdict(Counter)  # (form, lemma) -> (pos, tags) -> tokens
     dialect_votes = defaultdict(set)
+    sources_by_key = defaultdict(set)
     total_tokens = 0
     skipped_punct = 0
     skipped_no_lemma = 0
@@ -292,6 +540,10 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
                 # Parse morphological tag
                 pos, tags = parse_postag(postag)
 
+                if (name_evidence is not None and pos == "noun" and _capital_greek(form)
+                        and _malformed_name_key(lemma, name_evidence["known_heads"])):
+                    sources_by_key[form, lemma].add(xml_file.name)
+
                 # Dedup. A (form, lemma) pair is written once, but every
                 # work that attests it votes on its dialect below, and every
                 # token counts toward its analysis.
@@ -380,6 +632,16 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None):
     for t, c in tense_counts.most_common():
         print(f"  {t:15s}: {c:,} ({100*c/total_tense:.1f}%)")
 
+    if name_evidence is not None:
+        pairs, audit = repair_name_lemmas(
+            pairs, name_evidence, source_commit=source_commit,
+            sources_by_key=sources_by_key,
+            source_paths={path.name: path for path in xml_files})
+        if Path(meta).is_file():
+            audit["inputs"]["glaux_metadata"] = _fingerprint(meta)
+        if correction_audit is not None:
+            correction_audit.update(audit)
+        print(f"Recovered malformed name rows: {len(audit['corrections']):,}")
     return pairs
 
 
@@ -392,17 +654,38 @@ def main():
     parser.add_argument("--output", type=str,
                         default=str(DATA_DIR / "glaux_pairs.json"),
                         help="Output path (default: glaux_pairs.json)")
+    parser.add_argument("--lexical-heads", type=Path,
+                        default=DATA_DIR / "grc_lexical_heads.json",
+                        help="Required merged lexical evidence for name recovery")
+    parser.add_argument("--name-pairs", type=Path, default=DATA_DIR / "ag_pairs.json",
+                        help="Required independent source name readings")
+    parser.add_argument("--changes-output", type=Path,
+                        help="Reversible audit (default: OUTPUT_DIR/changes/glaux_name_lemmas.json)")
+    parser.add_argument("--source-commit", help="Full source commit for the audit (default: current HEAD)")
     args = parser.parse_args()
+
+    evidence = load_name_evidence(args.lexical_heads, args.name_pairs)
+    commit = args.source_commit or subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=SCRIPT_DIR, text=True).strip()
+    if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        parser.error("--source-commit must be a full Git commit hash")
+    audit = {}
 
     # Always drop the NonCommercial GLAUx source texts: glaux_pairs.json is a
     # openly licensed artifact (see build/nc_filter.py and NOTICE).
-    pairs = extract_glaux(args.glaux, stats_only=args.stats)
+    pairs = extract_glaux(args.glaux, stats_only=args.stats,
+                          name_evidence=evidence, correction_audit=audit,
+                          source_commit=commit)
 
     if not args.stats and pairs:
         out = Path(args.output)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "w", encoding="utf-8") as f:
             json.dump(pairs, f, ensure_ascii=False)
+        changes = args.changes_output or out.parent / "changes" / "glaux_name_lemmas.json"
+        changes.parent.mkdir(parents=True, exist_ok=True)
+        changes.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True,
+                                      indent=1) + "\n", encoding="utf-8")
         size_mb = out.stat().st_size / (1024 * 1024)
         print(f"\nSaved {len(pairs):,} pairs to {out} ({size_mb:.1f} MB)")
 
