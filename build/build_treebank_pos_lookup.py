@@ -164,6 +164,7 @@ def _lower_priority_pos_models():
     for lang in ("grc", "all"):
         model = Dilemma(lang=lang, scale=0, skip_pos=True)
         model._load_pos_lookups(include_treebank=False, data_dir=DATA_DIR)
+        model.preload()
         models.append(model)
     return models
 
