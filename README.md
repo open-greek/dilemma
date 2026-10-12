@@ -1338,6 +1338,17 @@ rejected targets, source fingerprints and all tied owner votes in
 `data/treebank_pos_lookup.audit.json`. Use `--audit-output PATH` to choose
 another audit destination. A tied owner does not enter the scalar POS table,
 and rejected source claims still protect against conflicting projections.
+Explicit Ancient Greek POS calls also reject those documented unsupported
+targets if an older POS table or the ordinary lookup offers them as a fallback.
+This applies equally to scalar and batch calls; it does not change untyped
+`lemmatize()` or Modern Greek behavior. The rejection audit must match the
+exact `grc_lexical_heads.json` bytes. Missing or mismatched evidence raises a
+data-mismatch error rather than trusting an unbound rejection list. Refresh
+both files with `python -m dilemma download --no-tagger` (use `--dir PATH`
+for a custom data directory), or rebuild the corpus POS table against the
+current merged lexical-head inventory. Validation is cached for each model.
+When a POS entry supplies a distinct supported citation spelling, it takes
+precedence over an accent-stripped lookup collision.
 The audit also retains every source-supported capitalized name and ethnic
 adjective owner before the runtime table's ambiguity filter. The dictionary
 export combines those owners with exact cased corpus counts and lexical-head
@@ -2160,11 +2171,12 @@ record the spelling, owner, citation, and source. They preserve forms such as
 `Πῶλε` and `Ὀνησίμῳ` without exempting unrelated capitalized common nouns from
 the case filter.
 
-An already reviewed compatibility spelling with positive exact-case corpus
-evidence also survives the case filter when its lexical owner is unresolved.
-This retains attested capitalized spellings and work titles without inventing
-a proper-name lemma. The audit records the retained spelling, its count, and
-the existing ownership decision. Unattested case variants remain filtered;
+An already reviewed compatibility spelling also survives the case filter when
+it has positive exact-case corpus evidence or no lowercase spelling survives.
+This retains inherited capitalized spellings and work titles without inventing
+a proper-name lemma. The audit distinguishes those two reasons and records the
+retained spelling, its count, and the existing ownership decision. Unattested
+lowercase name aliases and redundant sentence capitals remain filtered;
 explicit spelling, quotation, and bare-fragment rejections still take priority.
 
 Exact reviewed forms also retain Archimedes' Doric `ἀποχρὴ` under `ἀπόχρη`,

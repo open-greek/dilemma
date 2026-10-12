@@ -30,12 +30,14 @@ Usage:
 """
 
 import json
+import hashlib
 import math
 import os
 import re
 import sqlite3
 import unicodedata
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from .nonlexical import classify_nonlexical as _classify_nonlexical
@@ -116,8 +118,11 @@ MED_LOOKUP_PATH = DATA_DIR / "med_lookup.json"
 MG_POS_LOOKUP_PATH = DATA_DIR / "mg_pos_lookup.json"
 AG_POS_LOOKUP_PATH = DATA_DIR / "ag_pos_lookup.json"
 TREEBANK_POS_LOOKUP_PATH = DATA_DIR / "treebank_pos_lookup.json"
+TREEBANK_POS_AUDIT_PATH = DATA_DIR / "treebank_pos_lookup.audit.json"
 GLAUX_POS_LOOKUP_PATH = DATA_DIR / "glaux_pos_lookup.json"
 GRC_LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
+
+
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
@@ -150,6 +155,41 @@ _CONVENTION_HEADWORDS = {
 
 # Conventions that output monotonic Greek (apply to_monotonic to all results).
 _MONOTONIC_CONVENTIONS = {"triantafyllidis"}
+
+
+@lru_cache(maxsize=8)
+def _bound_pos_rejections(audit_path, audit_size, audit_mtime,
+                          heads_path, heads_size, heads_mtime):
+    """Read the generated negative evidence only with its exact lexical input."""
+    audit_file, heads_file = Path(audit_path), Path(heads_path)
+    try:
+        audit = json.loads(audit_file.read_text(encoding="utf-8"))
+        digest = hashlib.sha256()
+        with heads_file.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        current = {"size": heads_size, "sha256": digest.hexdigest()}
+        rejected = audit.get("rejected_corpus_targets")
+        if (audit.get("schema_version") != 2 or audit.get("language") != "grc"
+                or audit.get("inputs", {}).get("grc_lexical_heads") != current
+                or not isinstance(rejected, dict)
+                or any(not isinstance(lemma, str) or not lemma
+                       or not isinstance(sources, dict) or not sources
+                       or any(not isinstance(source, str) or not source
+                              or type(count) is not int or count <= 0
+                              for source, count in sources.items())
+                       for lemma, sources in rejected.items())
+                or (audit_file.stat().st_size, audit_file.stat().st_mtime_ns)
+                   != (audit_size, audit_mtime)
+                or (heads_file.stat().st_size, heads_file.stat().st_mtime_ns)
+                   != (heads_size, heads_mtime)):
+            raise ValueError("unbound or malformed POS rejection evidence")
+    except (OSError, ValueError, TypeError, AttributeError) as error:
+        raise ValueError("Ancient Greek POS data mismatch: refresh "
+                         "treebank_pos_lookup.audit.json and grc_lexical_heads.json "
+                         "together with python -m dilemma download --no-tagger") from error
+    return frozenset(grave_to_acute(unicodedata.normalize("NFC", lemma))
+                     for lemma in rejected)
 
 # Independent ancient/Byzantine lexicon inventories used to prove that a
 # grave-accented lookup value can be normalized to a real citation form. Do not
@@ -1130,6 +1170,7 @@ class Dilemma:
         self._fallback_readings = None
         self._fallback_exact_readings = None
         self._fallback_verb_lemmas = None
+        self._pos_rejected_targets = None
 
         # Form-keyed corpus attestation (form_profile.db / form_citations.db),
         # for the "attested only" gate + form_attestation(). Lazy-opened.
@@ -3285,6 +3326,71 @@ class Dilemma:
                         seen.add(v)
                         yield v
 
+    def _ancient_pos_context(self, word: str, upos: str | None) -> bool:
+        if (not upos or self.lang == "el"
+                or getattr(self, "_convention_name", None) == "triantafyllidis"):
+            return False
+        if not any(unicodedata.category(char).startswith("L")
+                   and (0x0370 <= ord(char) <= 0x03FF or 0x1F00 <= ord(char) <= 0x1FFF)
+                   for char in word):
+            return False
+        polytonic = any(ord(char) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+                        for char in unicodedata.normalize("NFD", word))
+        return self.lang == "grc" or (self.lang == "all" and polytonic)
+
+    def _pos_rejections(self, word: str, upos: str | None) -> frozenset[str]:
+        """Bind the source-target veto for explicit Ancient Greek POS calls."""
+        if not self._ancient_pos_context(word, upos):
+            return frozenset()
+        cached = getattr(self, "_pos_rejected_targets", None)
+        if cached is not None:
+            return cached
+        try:
+            audit_stat = TREEBANK_POS_AUDIT_PATH.stat()
+            heads_stat = GRC_LEXICAL_HEADS_PATH.stat()
+        except OSError as error:
+            raise ValueError("Ancient Greek POS data mismatch: refresh "
+                "treebank_pos_lookup.audit.json and grc_lexical_heads.json "
+                "together with python -m dilemma download --no-tagger") from error
+        rejected = _bound_pos_rejections(
+            str(TREEBANK_POS_AUDIT_PATH), audit_stat.st_size, audit_stat.st_mtime_ns,
+            str(GRC_LEXICAL_HEADS_PATH), heads_stat.st_size, heads_stat.st_mtime_ns)
+        self._pos_rejected_targets = rejected
+        return rejected
+
+    def _checked_pos_result(self, word: str, upos: str | None,
+                            lemma: str | None) -> str | None:
+        if lemma is not None and grave_to_acute(unicodedata.normalize("NFC", lemma)) \
+                in self._pos_rejections(word, upos):
+            return None
+        return lemma
+
+    def _checked_pos_candidates(self, word, upos, candidates):
+        rejected = self._pos_rejections(word, upos)
+        return [candidate for candidate in candidates
+                if grave_to_acute(unicodedata.normalize("NFC", candidate.lemma))
+                not in rejected]
+
+    def _checked_pos_table_lookup(self, word, upos):
+        lemma = self._pos_table_lookup(word, upos)
+        checked = self._checked_pos_result(word, upos, lemma)
+        if lemma is not None and checked is None:
+            # A rejected higher-priority entry cannot hide a unique retained
+            # reading from another exact grammatical source. Preserve ties.
+            targets = {candidate for candidate in self._grammatical_readings(word).get(upos, ())
+                       if self._checked_pos_result(word, upos, candidate) is not None}
+            if len(targets) == 1:
+                return next(iter(targets))
+        return checked
+
+    def _prefer_exact_pos_citation(self, word, upos, candidate, pos_lemma):
+        # A literal self-map still needs the ordinary citation normalization.
+        # Modern POS behavior is unchanged by the Ancient target safeguard.
+        if (self._ancient_pos_context(word, upos)
+                and grave_to_acute(word).lower() != grave_to_acute(pos_lemma).lower()):
+            return pos_lemma
+        return candidate
+
     def _pos_table_lookup(self, word: str, upos: str) -> str | None:
         """Look up POS-specific lemma from POS disambiguation tables.
 
@@ -3498,6 +3604,10 @@ class Dilemma:
             The lemma string, or None when gated out by ``attested_only``
             or unresolved with ``guess=False``.
         """
+        self._pos_rejections(word, upos)
+        def checked(lemma):
+            return self._checked_pos_result(word, upos, lemma)
+
         # Attested-only gate: drop forms that don't occur in the corpus.
         if attested_only and word and not word.isdigit() \
                 and self._resolve_attested_form(word) is None:
@@ -3505,23 +3615,24 @@ class Dilemma:
 
         article_lemma = self._article_pos_lemma(word, upos)
         if article_lemma is not None:
-            return self._apply_convention(article_lemma)
+            return checked(self._apply_convention(article_lemma))
 
         # Get all candidates from regular lookup
-        candidates = self._lemmatize_verbose_impl(word, guess=guess)
+        candidates = self._checked_pos_candidates(
+            word, upos, self._lemmatize_verbose_impl(word, guess=guess))
 
         if not candidates:
             # Reachable when guess=False suppressed the model/identity
             # candidates (with guess=True verbose always adds identity).
             # A curated POS-table entry is still evidence, so honor it.
-            pos_lemma = self._pos_table_lookup(word, upos)
+            pos_lemma = self._checked_pos_table_lookup(word, upos)
             if pos_lemma is not None:
-                return self._apply_convention(pos_lemma)
-            return self.lemmatize(word, attested_only=attested_only,
-                                  guess=guess)
+                return checked(self._apply_convention(pos_lemma))
+            return checked(self.lemmatize(word, attested_only=attested_only,
+                                          guess=guess))
 
         # Use POS tables to disambiguate or override
-        pos_lemma = self._pos_table_lookup(word, upos)
+        pos_lemma = self._checked_pos_table_lookup(word, upos)
         if pos_lemma is not None:
             pos_lemma_conv = self._apply_convention(pos_lemma)
             if pos_lemma_conv is None:
@@ -3533,9 +3644,9 @@ class Dilemma:
                 # vice versa for PROPN).
                 for c in candidates:
                     if c.lemma == pos_lemma_conv:
-                        return self._prefer_case_twin(
+                        return checked(self._prefer_case_twin(
                             word, upos, c.lemma, candidates,
-                            extra=(pos_lemma_conv,))
+                            extra=(pos_lemma_conv,)))
                 # Also check with accent-stripped comparison (POS tables and
                 # lookup tables may use slightly different accent conventions).
                 # Stripping also erases the case distinction, so the matched
@@ -3544,9 +3655,11 @@ class Dilemma:
                 pos_stripped = strip_accents(pos_lemma_conv.lower())
                 for c in candidates:
                     if strip_accents(c.lemma.lower()) == pos_stripped:
-                        return self._prefer_case_twin(
-                            word, upos, c.lemma, candidates,
-                            extra=(pos_lemma_conv,))
+                        preferred = self._prefer_exact_pos_citation(
+                            word, upos, c.lemma, pos_lemma_conv)
+                        return checked(self._prefer_case_twin(
+                            word, upos, preferred, candidates,
+                            extra=(pos_lemma_conv,)))
                 # POS lemma not among candidates (e.g., single candidate from
                 # lookup maps to a different headword). For an explicit verb
                 # tag, two case twins still represent one competing lexical
@@ -3554,7 +3667,7 @@ class Dilemma:
                 if (len(candidates) == 1
                         or (upos == "VERB"
                             and len({c.lemma.lower() for c in candidates}) == 1)):
-                    return pos_lemma_conv
+                    return checked(pos_lemma_conv)
                 # Also trust the POS table when every candidate is just a
                 # case/accent variant of the input form (i.e. nothing in
                 # the candidate list disagrees with the POS table). This
@@ -3565,22 +3678,22 @@ class Dilemma:
                 word_stripped = strip_accents(word.lower())
                 if all(strip_accents(c.lemma.lower()) == word_stripped
                        for c in candidates):
-                    return pos_lemma_conv
+                    return checked(pos_lemma_conv)
 
         if len(candidates) == 1:
-            return candidates[0].lemma
+            return checked(candidates[0].lemma)
 
         # MG self-map fix: when the top candidate is an MG self-map for
         # an ADJ/VERB inflection, prefer the citation form from combined/AG.
         mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
         if mg_fix is not None:
-            return mg_fix
+            return checked(mg_fix)
 
         # No POS match among candidates - return top candidate
         # (same result as regular lemmatize), re-ranked between case
         # twins so PROPN can still reach the capitalized headword.
-        return self._prefer_case_twin(word, upos, candidates[0].lemma,
-                                      candidates)
+        return checked(self._prefer_case_twin(word, upos, candidates[0].lemma,
+                                             candidates))
 
     def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str],
                             *, attested_only: bool = False,
@@ -3615,10 +3728,17 @@ class Dilemma:
         assert len(words) == len(upos_tags), (
             f"words and upos_tags must have same length: {len(words)} vs {len(upos_tags)}"
         )
+        for word, upos in zip(words, upos_tags):
+            self._pos_rejections(word, upos)
 
         # Step 1: Get baseline results from regular batch lemmatization
         results = self.lemmatize_batch(words, attested_only=attested_only,
                                        guess=guess)
+        rejected_baselines = [lemma is not None
+            and self._checked_pos_result(word, upos, lemma) is None
+            for word, upos, lemma in zip(words, upos_tags, results)]
+        results = [None if rejected else lemma
+                   for rejected, lemma in zip(rejected_baselines, results)]
 
         # Step 2: For each word, check if POS could improve the result
         for i, (word, upos) in enumerate(zip(words, upos_tags)):
@@ -3627,13 +3747,14 @@ class Dilemma:
             # evidence, so it MAY resurrect that - re-check the gate to tell
             # the two kinds of None apart, matching lemmatize_pos().)
             if attested_only and results[i] is None and (
-                    guess or self._resolve_attested_form(word) is None):
+                    self._resolve_attested_form(word) is None
+                    or (guess and not rejected_baselines[i])):
                 continue
             article_lemma = self._article_pos_lemma(word, upos)
             if article_lemma is not None:
                 results[i] = self._apply_convention(article_lemma)
                 continue
-            pos_lemma = self._pos_table_lookup(word, upos)
+            pos_lemma = self._checked_pos_table_lookup(word, upos)
             if pos_lemma is not None:
                 pos_lemma_conv = self._apply_convention(pos_lemma)
                 if pos_lemma_conv is None:
@@ -3647,7 +3768,8 @@ class Dilemma:
 
                 # POS suggests a different lemma than baseline. Check if
                 # the POS lemma is among the valid candidates.
-                candidates = self._lemmatize_verbose_impl(word, guess=guess)
+                candidates = self._checked_pos_candidates(
+                    word, upos, self._lemmatize_verbose_impl(word, guess=guess))
 
                 # Check if any candidate matches the POS-specific lemma
                 pos_stripped = strip_accents(pos_lemma_conv.lower())
@@ -3661,7 +3783,8 @@ class Dilemma:
                     # Try accent-stripped comparison
                     for c in candidates:
                         if strip_accents(c.lemma.lower()) == pos_stripped:
-                            results[i] = c.lemma
+                            results[i] = self._prefer_exact_pos_citation(
+                                word, upos, c.lemma, pos_lemma_conv)
                             matched = True
                             break
                 if not matched and (len(candidates) <= 1
@@ -3686,7 +3809,8 @@ class Dilemma:
             # Also handles ADJ feminine-to-masculine fix (not a self-map
             # but still a wrong lemma form).
             if results[i] is not None and upos in ("ADJ", "VERB"):
-                candidates = self._lemmatize_verbose_impl(word, guess=guess)
+                candidates = self._checked_pos_candidates(
+                    word, upos, self._lemmatize_verbose_impl(word, guess=guess))
                 if len(candidates) > 1:
                     mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
                     if mg_fix is not None:
@@ -3696,7 +3820,8 @@ class Dilemma:
             if pos_lemma is None:
                 # Compare structured readings even without a POS entry. Do
                 # not repeat model inference for unresolved batch words.
-                candidates = self._lemmatize_verbose_impl(word, guess=False)
+                candidates = self._checked_pos_candidates(
+                    word, upos, self._lemmatize_verbose_impl(word, guess=False))
                 if (len(candidates) == 1 and results[i] is not None
                         and strip_accents(candidates[0].lemma.lower())
                         == strip_accents(results[i].lower())):
@@ -3712,6 +3837,16 @@ class Dilemma:
                 results[i] = self._prefer_case_twin(
                     word, upos, candidates[0].lemma, candidates)
 
+        # A rejected batch baseline cannot hide a retained structured
+        # candidate. Do not run the model again to recover that reading.
+        for i, (word, upos) in enumerate(zip(words, upos_tags)):
+            if rejected_baselines[i] and results[i] is None:
+                candidates = self._checked_pos_candidates(
+                    word, upos, self._lemmatize_verbose_impl(word, guess=False))
+                if candidates:
+                    results[i] = self._prefer_case_twin(
+                        word, upos, candidates[0].lemma, candidates)
+
         # Step 3: capitalization-agreement tiebreak between case-twin
         # lemmas (θυμός vs Θυμός), mirroring lemmatize_pos(). Only
         # tokens whose result disagrees in case with the form/POS pay
@@ -3726,15 +3861,17 @@ class Dilemma:
                 need = word[:1].islower() and is_capitalized(res)
             if not need:
                 continue
-            candidates = self._lemmatize_verbose_impl(word, guess=guess)
-            pos_lemma = self._pos_table_lookup(word, upos)
+            candidates = self._checked_pos_candidates(
+                word, upos, self._lemmatize_verbose_impl(word, guess=guess))
+            pos_lemma = self._checked_pos_table_lookup(word, upos)
             extra_lemma = (self._apply_convention(pos_lemma)
                            if pos_lemma is not None else None)
             extra = (extra_lemma,) if extra_lemma is not None else ()
             results[i] = self._prefer_case_twin(word, upos, res,
                                                 candidates, extra=extra)
 
-        return results
+        return [self._checked_pos_result(word, upos, lemma)
+                for word, upos, lemma in zip(words, upos_tags, results)]
 
     @staticmethod
     def classify_nonlexical(token: str) -> str | None:

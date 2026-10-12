@@ -17,6 +17,12 @@ All notable changes to Dilemma are documented here. The format follows
   audit summary, including acute and grave variants.
 - Preserve attested capitalized names and ethnic adjectives when a flat
   lowercase lemma hides their independently supported source reading.
+- Recognize Greek titlecase letters with a written iota in lexical ownership,
+  corpus name handling, and runtime case matching. Retain reviewed capitalized
+  spellings with exact-case attestation or no surviving lowercase spelling,
+  without inventing a proper-name owner.
+- Retain the directly cited forms `Κορῆ` and `Ὦρα` without deriving additional
+  name spellings or treating ambiguous corpus counts as name frequencies.
 - Correct malformed corpus name lemmas through a reversible source audit
   shared by pair, lemma-attestation and tagger-data generation.
 - Distinguish terminal quotation punctuation from elision using complete

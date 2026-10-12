@@ -141,11 +141,32 @@ def test_attested_compatibility_spelling_is_retained_without_inventing_an_owner(
 ])
 def test_case_retention_requires_positive_cased_count_and_exact_compatibility(counts, compatibility):
     form = "Θεσμοφοριαζούσαις"
-    pairs = [(form, "θεσμοφοριάζω")]
+    pairs = [(form, "θεσμοφοριάζω"), (form.lower(), "θεσμοφοριάζω")]
     retained = []
     assert filter_case_artifacts(pairs, _evidence(counts),
-        {exact_form_key(form): 2}, compatibility, retained) == ([], pairs)
+        {exact_form_key(form): 2}, compatibility, retained) == (pairs[1:], pairs[:1])
     assert retained == []
+
+
+def test_inherited_capital_without_lowercase_remains_available_without_new_owner():
+    form = "Αὐξοῖ"
+    ownership = {exact_form_key(form): 2}
+    retained = []
+    pairs = [(form, form)]
+    assert filter_case_artifacts(pairs, _evidence({}), ownership,
+                                 {form}, retained) == (pairs, [])
+    assert ownership == {exact_form_key(form): 2}
+    assert retained == [{"form": form, "cased_count": 0, "owner_bits": 2,
+        "reason": "inherited_capital_without_lowercase; lexical_ownership_unresolved"}]
+
+
+@pytest.mark.parametrize("form,lemma", [("Πέμπτῃ", "πέμπτος"), ("Πόλῃ", "πόλις")])
+def test_inherited_sentence_capital_with_surviving_lowercase_remains_excluded(form, lemma):
+    pairs = [(form, lemma), (form.lower(), lemma)]
+    kept, rejected = filter_case_artifacts(
+        pairs, _evidence({form.lower(): 25}), {exact_form_key(form): 2}, {form})
+    assert kept == pairs[1:]
+    assert rejected == pairs[:1]
 
 
 def test_absent_cased_profile_does_not_preserve_inherited_capital():

@@ -1406,13 +1406,21 @@ def filter_case_artifacts(
 
     Corpus counts are case-sensitive here: lowercase ψυχῇ is a real word
     even if a lookup row happens to assign it to the name Ψυχή.
-    A previously reviewed spelling with positive exact-cased evidence may
-    retain its inherited acceptance without asserting a proper-name owner.
+    A previously reviewed spelling can retain inherited acceptance with
+    positive exact-cased evidence, or when no lowercase spelling survives.
+    Neither condition asserts a proper-name owner.
     The caller applies explicit spelling, quotation and fragment rejections
     before this final check. A compatibility self-map alone is not evidence.
     """
     kept, rejected = [], []
     spellings = {cased_form_key(form) for form, _ in pairs}
+    surviving_lowercase = {
+        cased_form_key(form) for form, _ in pairs
+        if not is_capitalized(form)
+        and not (ownership.get(exact_form_key(form), 0) == 1
+                 and evidence.cased is not None
+                 and evidence.cased.get(cased_form_key(form), 0) == 0)
+    }
     for pair in pairs:
         form, _lemma = pair
         owner = ownership.get(exact_form_key(form), 0)
@@ -1422,11 +1430,15 @@ def filter_case_artifacts(
         bad_lower = (not capital and owner == 1 and evidence.cased is not None
                      and evidence.cased.get(cased_form_key(form), 0) == 0)
         count = (evidence.cased or {}).get(cased_form_key(form), 0)
-        if bad_capital and form in compatibility_forms and count > 0:
+        inherited_without_lowercase = cased_form_key(form.lower()) not in surviving_lowercase
+        if (bad_capital and form in compatibility_forms and evidence.cased is not None
+                and (count > 0 or inherited_without_lowercase)):
             if retained_compatibility is not None:
                 retained_compatibility.append({
                     "form": form, "cased_count": count, "owner_bits": owner,
-                    "reason": "attested_inherited_spelling; lexical_ownership_unresolved",
+                    "reason": ("attested_inherited_spelling; lexical_ownership_unresolved"
+                               if count > 0 else
+                               "inherited_capital_without_lowercase; lexical_ownership_unresolved"),
                 })
             bad_capital = False
         (rejected if bad_capital or bad_lower else kept).append(pair)
@@ -1993,7 +2005,8 @@ def finalize_grc_pairs(
     one word, and the downstream oxytone check requires both. Twins are
     checked again for structure. Recorded rejections override compatibility
     at the end. Case artifacts do too, unless the exact reviewed spelling
-    has positive case-sensitive corpus evidence. Source-backed bare elision fragments
+    has positive case-sensitive corpus evidence or lacks a surviving
+    lowercase spelling. Source-backed bare elision fragments
     are checked after compatibility injection so a historical self-map cannot
     restore a stem whose apostrophe was lost.
     """

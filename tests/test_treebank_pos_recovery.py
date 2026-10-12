@@ -306,15 +306,17 @@ def test_article_pos_preserves_existing_canonical_target(article_model, monkeypa
 
 
 @pytest.mark.parametrize('form', ['ἤ', 'ὅ', 'οὗ', 'αὐτῶν', 'τίνων'])
-def test_article_pos_does_not_absorb_near_accents_or_pronouns(article_model, form):
-    assert article_model.lemmatize_pos(form, 'DET', guess=False) == 'τῷν'
-    assert article_model.lemmatize_batch_pos([form], ['DET'], guess=False) == ['τῷν']
+def test_article_pos_does_not_absorb_near_accents_or_pronouns(article_model, form, monkeypatch):
+    monkeypatch.setattr(article_model, '_pos_table_lookup', lambda word, upos: 'λόγος')
+    assert article_model.lemmatize_pos(form, 'DET', guess=False) == 'λόγος'
+    assert article_model.lemmatize_batch_pos([form], ['DET'], guess=False) == ['λόγος']
 
 
 @pytest.mark.parametrize('upos', ['PRON', 'NOUN', 'ADJ'])
-def test_article_pos_does_not_change_other_pos(article_model, upos):
-    assert article_model.lemmatize_pos('τών', upos, guess=False) == 'τῷν'
-    assert article_model.lemmatize_batch_pos(['τών'], [upos], guess=False) == ['τῷν']
+def test_article_pos_does_not_change_other_pos(article_model, upos, monkeypatch):
+    monkeypatch.setattr(article_model, '_pos_table_lookup', lambda word, upos: 'λόγος')
+    assert article_model.lemmatize_pos('τών', upos, guess=False) == 'λόγος'
+    assert article_model.lemmatize_batch_pos(['τών'], [upos], guess=False) == ['λόγος']
 
 
 def test_article_pos_does_not_create_a_missing_pos_entry(article_model, monkeypatch):
