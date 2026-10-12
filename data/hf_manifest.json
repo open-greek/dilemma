@@ -1,17 +1,17 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-10-11T11:59:20Z",
+  "generated": "2026-10-12T05:35:28Z",
   "files": {
     "data/lookup.db": {
-      "size": 1214103552,
-      "sha256": "f322dcfe53c9ae0b9a8698af3a02af50558dca121e15c7c1dff92d4f2aa79cd6",
-      "git_sha1": "81a4f3dbc1fb9352551c4b67bfd3f3da3901480f"
+      "size": 1214115840,
+      "sha256": "aadec7f80cdccff489424cb98383a4e6b438ee28644d98759ca85cedf6e7c7a0",
+      "git_sha1": "db34798b63419d735afa383c530b5c8f3f45f528"
     },
     "data/spell_index.db": {
-      "size": 602939392,
-      "sha256": "aa15c5bb89fa58e3e847bd38a82bc6086e946d0f33c633b447b618d8a856c331",
-      "git_sha1": "a50d303f63a68a5b32ae65c21c1a3b1d4539b72f"
+      "size": 602927104,
+      "sha256": "76785077a25fc808d07c366268246eccd92bb029cbf00890d104985ced043d1d",
+      "git_sha1": "c390c2b005e16f8134962e8efeff4742641b3a02"
     },
     "data/lemma_attestation.json": {
       "size": 48257790,
@@ -35,23 +35,23 @@
     },
     "data/ag_noun_generation_audit.json": {
       "size": 8939171,
-      "sha256": "408b26c3c753299486143b1773220b7e64a38f525a6c36fbcfc97f441ba93221",
-      "git_sha1": "f06e43e5eb13fef67b9eb1ed40bc69a229f033cb"
+      "sha256": "fcb47545704708d3b6d95a1fcf585e36cf943e96d4000f9af823a7ddf14f9cd6",
+      "git_sha1": "72c2558cd5a68ed0a907bbbc833e4b09a9e23082"
     },
     "data/ag_sophocles_noun_generation_audit.json": {
       "size": 199166,
-      "sha256": "acc8e499276f08f6f5f3cb2887fdf98503658330f97f1f09e6bcdbbc80c46af2",
-      "git_sha1": "b6b6a23a52588cc54b77c896a5acb65ebf03d39c"
+      "sha256": "db340299968dd8312d750a5d3ffd244f1dadb49c9ed8a09e2a7ea74876bbf653",
+      "git_sha1": "d25810ca53207af3bc0ef89cf77bca23338db25b"
     },
     "data/mg_pairs.json": {
-      "size": 527349110,
-      "sha256": "e852503ba46c42a9465c628dfbdd6fceb303e35ffed92d5a9b9054700bd70016",
-      "git_sha1": "6df58ac0587d8abedc0cbbce630c6e5bc6605fed"
+      "size": 527367582,
+      "sha256": "ff23eca67a748e4115de6cacc2d082ba3aa20eb13514950d1e6f8cf1a9c874f0",
+      "git_sha1": "bdeabcb6648ba9796f3e50895b4a7315ad5d2a85"
     },
     "data/mg_lookup.json": {
-      "size": 130388431,
-      "sha256": "8c7ca2856fc66dd212ceedaf845e2cedc5932ca6769ac2f299a9c6e5c7eac7ac",
-      "git_sha1": "a87a16b3be2f8204c7e54b213781abc5161a411e"
+      "size": 130387645,
+      "sha256": "35cac9d0b480e1ce83fe69014173c14ba27bfe5a869bb60b26188c621e9c3b7d",
+      "git_sha1": "7b5315ef91e42827bde23ed0132cc370e18f82f3"
     },
     "data/el_participles.json": {
       "size": 5832774,
@@ -62,6 +62,11 @@
       "size": 2029688,
       "sha256": "a07d322be5ae160de091b77092331ab8b3f6c72363435eac86e565bd4862c121",
       "git_sha1": "7386f20a9b146023d69547824b5b7e6aa9b669eb"
+    },
+    "data/el_adjective_heads.json": {
+      "size": 2168544,
+      "sha256": "53ad25ca361701882a6af8b1e64081721481c5ddd5cf3fa6b2b0f1c42ae57214",
+      "git_sha1": "d5ab66e0ac84f816e2827f2ab93a9d6b6ce9d217"
     },
     "data/el_verb_heads.json": {
       "size": 85962,
@@ -74,14 +79,19 @@
       "git_sha1": "68f741c959ed1990e1978e3820885aa7c2e7b3ff"
     },
     "data/grc_lexical_heads.json": {
-      "size": 40732221,
-      "sha256": "2d5abc1f06d2a882e557e72bdbcc72e8eb6667fd410b521ccd6279bce5fba4ff",
-      "git_sha1": "fd451b8cdcbce371d6d3cd7fb77a0d97651fa0fb"
+      "size": 43351348,
+      "sha256": "04e763665f4354c32f45a54a7f326d96a7d73dd31348b7e98e143298b243f2ff",
+      "git_sha1": "c2d87a269bf9d314b1bd0faf63269d9ba8469353"
     },
     "data/el_closed_class_heads.json": {
-      "size": 17247,
-      "sha256": "1ed815e8be3d148283f6a385121c79da675b4b24277688e15d90d1c053fdb8a3",
-      "git_sha1": "f629af4f3847a6ee63bcc29dc2ff16ae2d6af184"
+      "size": 16158,
+      "sha256": "3bfed49259859f429ec5276de58b82dcace36d84c3bfd6331c70197afe4ece12",
+      "git_sha1": "39e3f622fd38611078ed195114d177f5394f0779"
+    },
+    "data/grc_reading_heads.json": {
+      "size": 1583542,
+      "sha256": "4659b39ef0617806289c908b6585d6e27856b492d1d6f0d13c2b65d8b1295fb4",
+      "git_sha1": "0144c8533d5962e2e4fff07914a72f46b7a7c2a8"
     }
   }
 }
