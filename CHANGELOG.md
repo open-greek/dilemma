@@ -154,8 +154,9 @@ All notable changes to Dilemma are documented here. The format follows
   retaining unresolved analyses separately when no such parent is supported.
 - The polytonic Modern Greek list rates the frequent Modern Greek spellings
   grc has (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`), which it leaves out, with
-  lines of their own, `θέση<TAB>fr:C mg:shared`: 6,301 of them, `C` or `M`
-  by the slice and monotonic counts. They are no entries: a reader that
+  lines of their own, `θέση<TAB>fr:C mg:shared`: 6,650 rows, including
+  low-frequency alternatives at `R`, by the slice and monotonic counts.
+  They add no entries: a reader that
   merges the lists keeps grc's, and reads the field to rank Modern Greek
   readings by it.
 - The polytonic Modern Greek word list carries generated spellings for the
@@ -192,14 +193,14 @@ All notable changes to Dilemma are documented here. The format follows
   parts of speech (the noun `ἐνημέρωση` keeps out the subjunctive
   `ἐνημερώσῃ`). A loanword may end in a consonant (`μπάσκετ`), and a name
   is generated only with a mark monotonic writing drops (`Ἰούνιο`) or a
-  count that reaches `M` (`Λονδίνο`). So 46,942 spellings join the 17,175
-  attested ones. Held out from their own evidence, attested forms are
-  generated as the texts write them 97.6% of the time for verbs (their
-  subjunctive spellings 89.9%), 96.5% for nouns and 98.1% for adjectives,
-  and a hand-checked sample of 733 generated spellings (354 verb forms, 379
-  nouns and adjectives) is all right (`eval/eval_mg_paradigms.py`,
-  `eval/mg_generated_sample.tsv`); with each dev word's author held out the
-  list's coverage of the dev words rises from 90.9% to 92.3%.
+  count that reaches `M` (`Λονδίνο`). So 49,348 spellings join the 16,786
+  attested ones. Held out from their own evidence, source forms are
+  reconstructed at 98.1% for verbs (90.5% for subjunctives),
+  96.5% for nouns and 97.9% for adjectives. The existing manual
+  sample retains 723 generated spellings with correct prior judgments;
+  one additional sample now uses its contextual grave and 11 are no longer
+  generated. With each dev word's author held out, generated forms raise
+  coverage from 91.0% to 92.5%.
   `--no-generated-verbs` leaves them out. The `.version` counts `attested`
   and `generated` entries (`entries` is their sum) and records the sha256
   of the paradigms and the frequencies.
@@ -216,8 +217,8 @@ All notable changes to Dilemma are documented here. The format follows
   higher than an attested spelling of its letters (a spelling with an
   enclitic's second accent aside). A spelling the slice writes mostly as a
   name with 95% confidence, or a name it writes mostly in lowercase, keeps
-  its slice bucket. The slice's counts alone put 234 spellings above `R`;
-  now 3,371 attested and 5,137 generated ones are. A spelling whose
+  its slice bucket. The slice's counts alone put 189 spellings above `R`;
+  now 3,168 attested and 5,224 generated ones are. A spelling whose
   letters grc has under no lowercase spelling while the treebanks write
   them 20 times (`τάκ`, beside the crasis `τἀκ`) is capped at `R` like an
   Ancient word. The `.version` says where the buckets come from
@@ -235,7 +236,7 @@ All notable changes to Dilemma are documented here. The format follows
   keyboard to merge into the grc dictionary, which is unchanged. grc holds
   Ancient and Medieval Greek only, so a keyboard shipping it alone rewrote
   polytonic Modern Greek into Ancient neighbors (`τώρα` -> `τἄρα`,
-  `ἀκόμη` -> `ἀκμὴ`) and rejected `του`, `κι` and `μας`. The 17,184 words
+  `ἀκόμη` -> `ἀκμὴ`) and rejected `του`, `κι` and `μας`. The 16,786 words
   come from the training sentences of the language model's polytonic Modern
   Greek slice, from documents that are not monotonic or partly so, with at
   least 3 tokens by 2 authors in their own case, well-formed under the grc

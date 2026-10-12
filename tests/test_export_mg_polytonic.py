@@ -1564,12 +1564,58 @@ def _built_orthography_errors(entries, grc, noun_heads=frozenset(), lexical_head
     return invalid
 
 
+def _positive_capital_cells(pairs, lexical_heads):
+    """Independently observed case/number cells of a defined capitalized head."""
+    import mg_polytonic_paradigms as P
+    forms = {}
+    for row in pairs:
+        head, form = row.get("lemma", ""), row.get("form", "")
+        tags = set(row.get("tags", ()))
+        if (row.get("pos") not in {"noun", "name"}
+                or not head[:1].isupper() or not form[:1].isupper()
+                or head not in lexical_heads
+                or not tags & {"nominative", "genitive", "accusative", "vocative"}
+                or not tags & {"singular", "plural"}):
+            continue
+        forms.setdefault(head, set()).add(P.monotonic_key(form))
+    return {form for values in forms.values() if len(values) >= 2 for form in values}
+
+
+def _built_grc_overlap_errors(entries, grc, positive_capitals):
+    """Only an uncounted lowercase row may leave a source-backed capital gap."""
+    import mg_polytonic_paradigms as P
+    return [form for form, fields in entries.items()
+            if mg.grc_accepts(form, grc)
+            and not (form[:1].isupper() and "mg:generated" in fields
+                     and form not in grc
+                     and mg._lowercase(form) in grc.uncounted_lowercase
+                     and P.monotonic_key(form) in positive_capitals)]
+
+
 def test_built_orthography_check_uses_exact_positive_noun_head_evidence():
     entries = {"ῥόκ": "fr:M mg:generated"}
     assert _built_orthography_errors(entries, {"ῥόκα"}) == ["ῥόκ"]
     assert _built_orthography_errors(entries, {"ῥόκα"}, {"ροκ"}) == ["ῥόκ"]
     assert _built_orthography_errors(entries, {"ῥόκα"}, set(), {"ροκ"}) == ["ῥόκ"]
     assert _built_orthography_errors(entries, {"ῥόκα"}, {"ροκ"}, {"ροκ"}) == []
+    # A lowercase X entry cannot suppress an independently supported
+    # capital, but counted, literal, unattested and non-generated overlaps fail.
+    pairs = [{"lemma": "Σέρβος", "form": form, "pos": "noun",
+              "tags": [case, number]} for form, case, number in (
+                  ("Σέρβος", "nominative", "singular"),
+                  ("Σέρβοι", "nominative", "plural"))]
+    proof = _positive_capital_cells(pairs, {"Σέρβος"})
+    assert proof == {"σέρβος", "σέρβοι"}
+    assert not _positive_capital_cells(pairs[:1], {"Σέρβος"})
+    assert not _positive_capital_cells(pairs, set())
+    uncounted = mg.AncientDictionaryWords({"σέρβος"}, uncounted_lowercase={"σέρβος"})
+    capital = {"Σέρβος": "fr:R mg:generated"}
+    assert not _built_grc_overlap_errors(capital, uncounted, proof)
+    assert _built_grc_overlap_errors(capital, uncounted, set()) == ["Σέρβος"]
+    assert _built_grc_overlap_errors(capital, mg.AncientDictionaryWords({"σέρβος"}), proof) == ["Σέρβος"]
+    literal = mg.AncientDictionaryWords({"σέρβος", "Σέρβος"}, uncounted_lowercase={"σέρβος"})
+    assert _built_grc_overlap_errors(capital, literal, proof) == ["Σέρβος"]
+    assert _built_grc_overlap_errors({"Σέρβος": "fr:R"}, uncounted, proof) == ["Σέρβος"]
     # A non-head inflection and an attested fragment never use this path.
     assert _built_orthography_errors(entries, {"ῥόκα"}, {"ρόκα"}, {"ροκ"}) == ["ῥόκ"]
     assert _built_orthography_errors({"ῥόκ": "fr:M", "ῥόκα": "fr:R"}, set(),
@@ -1582,11 +1628,13 @@ def test_built_orthography_check_uses_exact_positive_noun_head_evidence():
 @pytest.mark.skipif(not MG_DIC.exists() or not GRC_DIC.exists(),
                     reason="grc_mg_polytonic.dic not built")
 def test_the_built_list_holds_its_invariants():
-    from export_lm import read_hunspell_words
+    import mg_polytonic_paradigms as P
     shared: dict[str, str] = {}
     entries, avoid = read_list(MG_DIC, shared)
-    grc = read_hunspell_words(GRC_DIC)
-    assert not [f for f in entries if mg.grc_accepts(f, grc)]
+    grc = mg.read_grc_words(GRC_DIC)
+    pairs = json.loads(P.VERB_PARADIGMS.read_text(encoding="utf-8"))
+    capital_cells = _positive_capital_cells(pairs, mg.load_modern_lexical_heads())
+    assert not _built_grc_overlap_errors(entries, grc, capital_cells)
     # The mg:shared lines rate grc spellings, including capitalized plain
     # nominal twins and rare ones. None is also marked to be avoided.
     assert set(shared) <= grc and not set(shared) & set(avoid)

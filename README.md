@@ -682,6 +682,11 @@ Greek text.
 
 ### Multi-period benchmarks
 
+The tables below retain the earlier full comparison across tools and
+conventions. The 1.3.7 artifact recheck with `bench_fast.py` scores
+99.7% on Classical Greek and 95.0% on Katharevousa with `all`/
+`wiktionary`, and 96.0% on Demotic with `el`/`triantafyllidis`.
+
 Equiv-adjusted accuracy across four periods of Greek. All tools
 evaluated with the same normalization (case-folded, accent-stripped)
 and lemma equivalence groups (see `data/benchmarks/bench_all.py`).
@@ -2617,18 +2622,20 @@ The release audit loads the expanded `.dic`/`.aff` pair with `spylls` and
 checks both the corpus head and the complete artifact. The LM fixture lists
 the 1,000 most frequent Greek-bearing words of the language model (ranked
 with a contextual grave read as the acute) in each of the 1,215 spellings the
-model writes them with, `καί` and `καὶ` apart (16,545,810 LM tokens). Each
+model writes them with, `καί` and `καὶ` apart (16,546,331 LM tokens). Each
 spelling is looked up as written: a keyboard writes a grave only where the
 dictionary has the grave spelling, so an acute twin does not stand in for it.
-All must be accepted except 32 reviewed Modern spellings (among them the
+All must be accepted except 30 reviewed Modern spellings (among them the
 graves `τὴ` and `στὴν`, which the polytonic Modern Greek list carries),
 fragments, numerals, bare stems and corpus misspellings (`ὃτι`, `ἢδη`),
-which must remain rejected; the exporter pins the 973 required words in their
-acute spelling. The whole-artifact gates additionally
-require every one of 1,363,275 reviewed forms of the dictionary Tonos ships
-(the export of commit `2e633cc`, as the keyboard compiled it, minus the forms
-Tonos's candidate gate classes as structural junk, must-reject, accepted
-losses, or respellings of common words), all 1,996 valid citation spellings
+which must remain rejected. The fixture checks all 1,185 remaining spellings,
+including their contextual grave variants. The whole-artifact gates additionally
+retain 1,317,810 of the 1,363,275 spellings in the reviewed
+baseline (the export of commit `2e633cc`, as the keyboard compiled it).
+The 45,465 documented exclusions comprise 45,222 unsupported case variants,
+121 bare elision fragments, 108 reviewed respellings and
+14 explicit source errors. The current export has 1,353,044 expanded
+spellings. The gates also require all 1,996 valid citation spellings
 among the top 2,000 LSJ9 lemmas, and all 2,154 pinned cells of the textbook
 paradigms for `λύω`, `παιδεύω`, `τίθημι`,
 `δίδωμι`, `ἵστημι`, `τιμάω`, `ποιέω`, and `δηλόω`. They also reject
@@ -2982,9 +2989,9 @@ grc's spellings get a line, with the contextual grave of an avoided acute.
 A Hunspell reader that does not know the field accepts the marked
 spellings, as grc does.
 
-The list has 17,175 attested words (830 in `C` and 2,504 in `M`; 21 and
-213 by the slice's counts alone), 47,806 generated spellings (below), 189
-`mg:avoid` lines and 6,301 `mg:shared` lines. The attested words include 976 capitalized, 155
+The list has 16,786 attested words (759 in `C` and 2,409 in `M`; 17 and
+172 by the slice's counts alone), 49,348 generated spellings (below), 189
+`mg:avoid` lines and 6,650 `mg:shared` lines. The attested words include 981 capitalized, 152
 elided and 197 aphaeresized spellings (`᾽ναι`,
 `᾽ς`), the six weak
 pronouns, `κι` and `κι᾽`, `στὴν`, `στὸν`, `στὴ`, `στοὺς`, `τὴ`, `γι᾽`, and
@@ -3213,12 +3220,13 @@ field accepts it like any entry. The `.version` counts the `attested` and
 paradigms and the frequencies (`verb_paradigms_sha256`,
 `form_frequencies_sha256`). Without those files the exporter says so and
 generates nothing, and `--no-generated-verbs` leaves the generated forms
-out. In the current list, 26,793 candidate spellings are covered by grc or
-the attested list, 1,818 go in beside a spelling of the same letters and
-502 give way to one; the 47,806 generated entries are 19,435 verb forms and
-2,286 subjunctive twins, 12,003 noun forms, 7,597 adjective forms, 615
-forms of names, 158 of the other parts of speech and 5,712 contextual
-twins, 250 of them in `C` and 4,791 in `M`.
+out. In the current export, 80,678 candidate analyses are covered by grc or
+the attested list, 2,219 remain beside a spelling of the same letters,
+and 1,234 give way to one. The 49,348 generated entries are
+18,297 verb forms, 2,484 subjunctive twins, 13,461 noun forms,
+7,771 adjective forms, 482 name forms, 86 standalone participle
+forms, 222 other forms, 6,531 contextual twins and 14 plain nominal
+twins. Of the generated entries, 274 are in `C` and 4,950 in `M`.
 
 The list leaves out what grc accepts, so the commonest Modern Greek words
 that keep their Ancient spelling (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`) had no
@@ -3228,11 +3236,12 @@ monotonic `θέσει`. The list now rates them with lines of their own, `θέσ
 fr:C mg:shared` (``shared_lines``): a grc spelling the slice attests takes
 the bucket an attested entry would, and a generated spelling grc has as
 written the bucket of its monotonic form's count, unless the slice writes
-that form otherwise (`ἐμᾶς`, not the generated `ἐμάς`). Only `C` and `M` are
-written; 6,301 such lines (1,345 `C`, 4,956 `M`) rate spellings of both
-languages, so they are no sign that a text is Modern Greek, and they are no
-entries: a reader that merges the two lists keeps grc's entry, and needs to
-read the field to use the rating.
+that form otherwise (`ἐμᾶς`, not the generated `ἐμάς`). The current list
+has 6,650 shared rows (1,422 `C`, 5,105 `M`, 123 `R`). Low-frequency alternatives
+remain at `R`. These rows rate spellings already in the Ancient dictionary;
+they are no sign that a text is Modern Greek and are not additional
+entries: a reader that merges the two lists keeps grc's entry and reads
+the field to use the rating.
 
 A spelling in `-ῃ` or `-ῃς` (`θέσῃ`, `ἔρθῃς`), a traditional subjunctive,
 is rated by its own use (``subscript_count``). Monotonic text writes it
@@ -3251,34 +3260,36 @@ below, that broke 12 dev words on the author folds in the Automatic
 register, against 1 now, and lost the traditional subjunctive in mixed text
 (`πρὶν σταματήσῃ`, `νὰ ἀποφασίσῃ` left bare).
 
-`eval/eval_mg_paradigms.py` measures precision. It holds out, in turn,
+`eval/eval_mg_paradigms.py` measures reconstruction of held-out source
+spellings. It holds out, in turn,
 every form the slice attests at least 3 times with one spelling taking more
 than half its tokens (a capitalized form's capitalized tokens inside a
 sentence), generates it with that form and its subjunctive spelling left out
 of its word's evidence, and compares the two, contextual grave and acute
-counted as one and a capital as its small letter. The 79 forms the generator
+counted as one and a capital as its small letter. The 81 forms the generator
 declines (an unaccented word of several syllables, a clitic of one) are left
 out:
 
 | Verb class or part of speech | Spelling | Of them, forms with 50 monotonic tokens (those generated) | Subjunctive spelling |
 |------------|--------------------:|---------------------:|---------------------:|
-| verbs in `-ω` (`γράφω`) | 98.8% of 4,678 | 99.2% of 3,268 | 90.6% of 968 |
-| `-άω` (`μιλάω`) | 95.1% of 963 | 95.4% of 722 | 93.8% of 145 |
-| `-ώ`, `-είς` (`μπορώ`) | 98.5% of 531 | 99.7% of 358 | 85.4% of 164 |
-| `-μαι` (`έρχομαι`) | 96.5% of 885 | 97.3% of 602 | 86.3% of 146 |
-| other verbs (`πρέπει`, `έλα`) | 95.8% of 1,437 | 96.0% of 745 | 90.5% of 42 |
-| all verbs | 97.6% of 8,494 | 98.1% of 5,695 | 89.9% of 1,465 |
-| nouns | 96.6% of 10,389 | 96.9% of 6,510 | |
-| adjectives | 98.3% of 5,565 | 98.3% of 3,310 | |
-| adverbs | 93.9% of 818 | 93.9% of 363 | |
-| pronouns | 92.0% of 162 | 92.0% of 125 | |
-| names | 90.3% of 1,203 | 84.7% of 346 | |
-| all other parts of speech | 96.4% of 18,327 | 96.5% of 10,803 | |
+| verbs in `-ω` (`γράφω`) | 99.0% of 5,027 | 99.2% of 3,416 | 91.1% of 1,058 |
+| `-άω` (`μιλάω`) | 95.5% of 1,034 | 95.8% of 781 | 93.6% of 157 |
+| `-ώ`, `-είς` (`μπορώ`) | 98.1% of 565 | 99.5% of 378 | 86.7% of 181 |
+| `-μαι` (`έρχομαι`) | 96.4% of 716 | 97.3% of 444 | 87.3% of 118 |
+| other verbs | 92.4% of 118 | 98.5% of 66 | 87.5% of 32 |
+| all verbs | 98.1% of 7,460 | 98.5% of 5,085 | 90.5% of 1,546 |
+| nouns | 96.5% of 11,871 | 96.7% of 7,444 |  |
+| adjectives | 97.9% of 5,967 | 97.8% of 3,603 |  |
+| adverbs | 93.5% of 864 | 92.9% of 396 |  |
+| pronouns | 90.1% of 152 | 90.4% of 114 |  |
+| names | 89.8% of 1,195 | 83.7% of 338 |  |
+| standalone participles | 89.1% of 119 | 81.8% of 44 |  |
+| all other parts of speech | 96.1% of 20,385 | 96.2% of 12,106 |  |
 
-By cell, the past is right 99.9% of the time, the imperfect 99.4%, the
-present 99.1%, the imperative 97.1%, participles 97.5% and dependent forms
-96.4%. Most misses are spellings the texts disagree on, or an attested
-spelling that is another word: the Katharevousa participle `γραφεὶς`
+By cell, the past is right 99.9% of the time, the imperfect 99.3%, the
+present 98.9%, the imperative 99.0%, participles 96.2% and dependent forms
+96.7%. Examples of competing spellings include the Katharevousa
+participle `γραφεὶς`
 beside the dependent `γραφεῖς`, `ζητῶντας` beside `ζητώντας`, `μιλᾶς`
 beside `μιλᾷς`, the nouns `γραφή`, `λάμψη` and `δύση` beside the
 subjunctives `γραφῇ`, `λάμψῃ` and `δύσῃ`, the relative `ὃν` beside the
@@ -3296,11 +3307,12 @@ hand-checked sample of them gives a second number:
 `eval/mg_generated_sample.tsv` holds 356 generated verb spellings,
 stratified by verb class and cell, and 379 generated noun and adjective
 spellings, stratified by part of speech, case and number and `fr:` bucket,
-each checked for its breathing, accent type and subscript. Of the 731 the
-list still generates, all are right (95% Wilson lower bound 99.5%); the
-noun check found one error, the pronoun genitive `δικιάς` for `δικιᾶς`,
-which the rules now get right. `eval/eval_mg_paradigms.py` reports the
-sample's verdicts on the spellings the built list still generates.
+each checked for its breathing, accent type and subscript.
+Of the historical sample, 723 spellings remain generated verbatim,
+all with a prior correct judgment. One other sample, `μαρή`, is supplied by grc; the
+Modern list supplies its contextual grave `μαρὴ`. The other 11 samples are
+no longer generated. `eval/eval_mg_paradigms.py` reports the sample's
+membership and prior judgments on the current list.
 
 The language model's dev split is per sentence, so a dev sentence's document
 and author also supply training sentences. `eval/eval_mg_polytonic.py`
@@ -3310,18 +3322,19 @@ forms read from its own sources:
 
 | Dictionary | Accepted, attested words only | Accepted, with generated forms | Out-of-dictionary words removed |
 |------------|------------------------------:|-------------------------------:|-------------------------------:|
-| grc alone | 79.6% | | |
-| grc + list from the training split | 92.2% | 93.2% | 67% |
-| grc + list without the documents holding a dev sentence (18% of the slice's tokens left) | 88.7% | 91.1% | 56% |
-| grc + list without each dev word's author (5 author folds) | 90.9% | 92.3% | 63% |
-| grc + list without another author fold (control) | 91.8% | 92.9% | 65% |
+| grc alone | 81.6% | | |
+| grc + list from the training split | 92.2% | 93.3% | 63% |
+| grc + list without the documents holding a dev sentence | 88.8% | 91.3% | 53% |
+| grc + list without each dev word's author (5 author folds) | 91.0% | 92.5% | 59% |
+| grc + list without another author fold (control) | 91.9% | 93.0% | 62% |
 
-The authors' own texts account for about 0.6 points of the 13.6 the list
-adds. The generated forms add 1.0 to 2.3 points, the most where the list
+The authors' own texts account for about 0.5 points of the 11.7 the list
+adds. The generated forms add 1.0 to 2.5 points, the most where the list
 has the fewest attested words. `--write-lists DIR` writes the author-fold
 lists, each with the `mg:avoid` lines and `fr:R` caps read from its own
 authors and the verb forms generated from their spellings, for a keyboard
-harness. One such measurement was made outside this repository, with a
+harness. The keyboard measurements below retain the earlier list and engine
+snapshots described in each comparison. One such measurement was made with a
 keyboard (not part of Dilemma) that has a Modern Greek register, offers the
 list's words only in Modern Greek text and reads the `mg:avoid` marks there.
 The dev sentences were typed as bare letters, with each author's fold held

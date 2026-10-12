@@ -46,6 +46,9 @@ from export_hunspell import (
     grc_pinned_forms,
     load_canonical_ag_sets,
     load_case_ownership,
+    load_unsupported_bare_elisions,
+    load_diorisis_quote_keys,
+    load_exact_elision_heads,
     load_exact_rating_counts,
     include_reviewed_name_ownership,
     load_form_profile_freq,
@@ -360,6 +363,9 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
         attestation_freq=profile.exact,
     )
     case_ownership = load_case_ownership(conn)
+    bare_elision_keys = load_unsupported_bare_elisions(conn)
+    quote_keys, _quote_meta = load_diorisis_quote_keys()
+    quote_heads, _head_meta = load_exact_elision_heads()
     textbook_forms, textbook_meta = load_grc_textbook_forms()
     pairs = filter_by_lemma_freq(
         pairs,
@@ -394,6 +400,9 @@ def test_expanded_export_accepts_frequency_head_and_reported_regressions(tmp_pat
         ) | reviewed_forms,
         reviewed_rejects=load_grc_spelling_review(),
         case_ownership=case_ownership,
+        bare_elision_keys=bare_elision_keys,
+        quote_keys=quote_keys,
+        quote_approved_forms=quote_heads | reviewed_forms,
     )
     assert report["invalid"]
     assert report["dominated"]

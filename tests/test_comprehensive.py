@@ -1017,11 +1017,14 @@ class TestProperNounCaseTwin:
             f"lemmatize_pos({form!r}, 'PROPN') -> {got!r}; expected the "
             f"capitalized twin {expected!r}")
 
-    def test_capitalized_input_keeps_twin_reachable(self, d_all):
-        """Sentence-initial capitalized input, non-PROPN POS: the tiebreak
-        must not force it down to the lowercase twin (ambiguous case)."""
-        assert d_all.lemmatize_pos("Θυμός", "NOUN") == "Θυμός"
+    def test_capitalized_input_follows_explicit_pos_owner(self, d_all):
+        """An initial capital does not override the supported common-noun
+        POS owner; the proper-noun tag still reaches the personification."""
+        assert d_all._pos_table_lookup("Θυμός", "NOUN") == "θυμός"
+        assert d_all.lemmatize_pos("Θυμός", "NOUN") == "θυμός"
         assert d_all.lemmatize_pos("Θυμός", "PROPN") == "Θυμός"
+        assert d_all.lemmatize_batch_pos(
+            ["Θυμός", "Θυμός"], ["NOUN", "PROPN"]) == ["θυμός", "Θυμός"]
 
     def test_allcaps_input_reaches_both_twins(self, d_all):
         """All-caps input has no case signal of its own; POS decides."""
