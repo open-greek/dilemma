@@ -92,7 +92,7 @@ class TestResult:
         return msg
 
 
-def test_onnx_vocab_match():
+def check_onnx_vocab_match():
     """ONNX decoder output dimension must match vocab.json size."""
     vocab_path = DEFAULT_MODEL / "vocab.json"
     decoder_path = DEFAULT_MODEL / "decoder_step.onnx"
@@ -127,7 +127,7 @@ def test_onnx_vocab_match():
     return TestResult("ONNX/vocab match", True, f"both = {vocab_size}")
 
 
-def test_onnx_produces_valid_output():
+def check_onnx_produces_valid_output():
     """Run a test word through ONNX and verify it produces a valid Greek lemma.
 
     Uses the cached Dilemma instance to avoid a separate ONNX cold start.
@@ -191,7 +191,7 @@ def test_onnx_produces_valid_output():
     return TestResult("ONNX valid output", True, f"'θεούς' -> '{decoded}'")
 
 
-def test_lookup_db_tables():
+def check_lookup_db_tables():
     """lookup.db must have the 'lookup' and 'lemmas' tables with lang='grc' rows."""
     if not LOOKUP_DB.exists():
         return TestResult("lookup.db tables", False,
@@ -222,7 +222,7 @@ def test_lookup_db_tables():
     return TestResult("lookup.db tables", True, f"lang='grc' rows: {ag_count:,}")
 
 
-def test_lookup_db_row_counts():
+def check_lookup_db_row_counts():
     """Combined table should have >12M rows, AG-only should have >10K rows."""
     if not LOOKUP_DB.exists():
         return TestResult("lookup.db row counts", False, "lookup.db not found")
@@ -249,7 +249,7 @@ def test_lookup_db_row_counts():
                       f"combined: {combined_count:,}, AG-only: {ag_count:,}")
 
 
-def test_model_loads_and_predicts():
+def check_model_loads_and_predicts():
     """Dilemma() should load without errors and lemmatize test words correctly."""
     try:
         d = _get_dilemma("all")
@@ -300,7 +300,7 @@ def test_model_loads_and_predicts():
                       f"{total}/{total} correct")
 
 
-def test_onnx_pytorch_parity():
+def check_onnx_pytorch_parity():
     """If both backends are available, they should produce the same lemma.
 
     Uses Dilemma's own model loading to avoid version compatibility issues
@@ -368,7 +368,7 @@ def test_onnx_pytorch_parity():
                       f"{len(test_words)} words match")
 
 
-def test_headword_list():
+def check_headword_list():
     """The deduplicated LSJ9 list must be complete, well-formed, and unique."""
     if not LSJ_HEADWORDS.exists():
         return TestResult("headword list", False,
@@ -405,7 +405,42 @@ def test_headword_contract_rejects_corruption(tmp_path, monkeypatch):
     monkeypatch.setattr(sys.modules[__name__], "LSJ_HEADWORDS", path)
     for candidate in candidates:
         path.write_text(json.dumps(candidate, ensure_ascii=False), encoding="utf-8")
-        assert not test_headword_list().passed
+        assert not check_headword_list().passed
+
+
+def _assert_integrity_result(result):
+    if result.message.startswith("skipped:"):
+        import pytest
+        pytest.skip(result.message)
+    assert result.passed, result.message
+
+
+def test_onnx_vocab_match():
+    _assert_integrity_result(check_onnx_vocab_match())
+
+
+def test_onnx_produces_valid_output():
+    _assert_integrity_result(check_onnx_produces_valid_output())
+
+
+def test_lookup_db_tables():
+    _assert_integrity_result(check_lookup_db_tables())
+
+
+def test_lookup_db_row_counts():
+    _assert_integrity_result(check_lookup_db_row_counts())
+
+
+def test_model_loads_and_predicts():
+    _assert_integrity_result(check_model_loads_and_predicts())
+
+
+def test_onnx_pytorch_parity():
+    _assert_integrity_result(check_onnx_pytorch_parity())
+
+
+def test_headword_list():
+    _assert_integrity_result(check_headword_list())
 
 
 def main():
@@ -413,14 +448,14 @@ def main():
     start = time.time()
 
     tests = [
-        ("ONNX/vocab dimension match", test_onnx_vocab_match),
-        ("lookup.db has required tables", test_lookup_db_tables),
-        ("lookup.db row counts are sane", test_lookup_db_row_counts),
-        ("Headword list loaded", test_headword_list),
+        ("ONNX/vocab dimension match", check_onnx_vocab_match),
+        ("lookup.db has required tables", check_lookup_db_tables),
+        ("lookup.db row counts are sane", check_lookup_db_row_counts),
+        ("Headword list loaded", check_headword_list),
         # Tests below trigger model inference (ONNX cold start ~10s first time)
-        ("ONNX produces valid output", test_onnx_produces_valid_output),
-        ("Model loads and predicts", test_model_loads_and_predicts),
-        ("ONNX/PyTorch parity", test_onnx_pytorch_parity),
+        ("ONNX produces valid output", check_onnx_produces_valid_output),
+        ("Model loads and predicts", check_model_loads_and_predicts),
+        ("ONNX/PyTorch parity", check_onnx_pytorch_parity),
     ]
 
     results = []
