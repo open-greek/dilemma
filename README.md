@@ -1322,10 +1322,12 @@ of speech with competing owners. Newly recovered entries also account for
 conflicting corpus claims that did not qualify for recovery. Exact spellings
 remain available. An exact entry overrides a projected reading only for its
 own part of speech; an exact noun does not suppress a projected adjective
-with a fresh independent adjective definition. Adding another POS beside an
-exact spelling requires that definition, so inherited corpus-tag errors do not
-introduce unsupported targets. Without the dumps, the existing exact POS scope
-is retained.
+with independent adjective evidence. Adding another POS beside an
+exact spelling requires independent lexical evidence for that POS, so inherited
+corpus-tag errors do not introduce unsupported targets. Fresh Wiktionary definitions
+qualify; `--lsj9-headwords PATH` also admits explicit LSJ noun/adjective grammar
+when the file matches the fingerprint and head membership in the merged lexical
+evidence. Without either source, the existing exact POS scope is retained.
 
 Explicit `DET` tags retain the established article lemma (`ὁ` or `ο`) when
 an auxiliary POS table instead returns a noncanonical form. This uses the

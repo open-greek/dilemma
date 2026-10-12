@@ -30,6 +30,7 @@ if str(ROOT) not in sys.path:
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
 OUTPUT_PATH = Path(__file__).parent.parent / "data" / "treebank_pos_lookup.json"
 KAIKKI_DIR = None
+LSJ9_HEADWORDS = None
 
 # Openly licensed sources only. UD_Ancient_Greek-Perseus and -PROIEL are
 # CC BY-NC-SA (NonCommercial) and are NOT used; the AGDT POS data comes from the
@@ -195,6 +196,31 @@ def _defined_pos_targets(wanted):
     return found
 
 
+
+def _defined_projection_targets(wanted):
+    """Use fresh definitions and fingerprint-matched merged LSJ evidence."""
+    found = _defined_pos_targets(wanted)
+    if not wanted or LSJ9_HEADWORDS is None:
+        return found
+    import hashlib
+    from build.build_grc_lexical_heads import normalize_headword
+
+    merged = json.loads((DATA_DIR / "grc_lexical_heads.json").read_text())
+    expected = merged["inputs"]["lsj9_headwords"]
+    raw = Path(LSJ9_HEADWORDS).read_bytes()
+    if (len(raw) != expected["size"]
+            or hashlib.sha256(raw).hexdigest() != expected["sha256"]):
+        raise ValueError("LSJ headwords do not match the merged lexical evidence")
+    grammar_pos = {"ὁ": "NOUN", "ἡ": "NOUN", "τό": "NOUN",
+                   "ον": "ADJ", "ές": "ADJ"}
+    for entry in json.loads(raw):
+        head = normalize_headword(entry.get("headword", ""))
+        pair = (head, grammar_pos.get(entry.get("grammar")))
+        if pair in wanted and "lsj9_headwords" in merged["heads"].get(head, []):
+            found.add(pair)
+    return found
+
+
 def _project_pos_entries(lookup, conflicts=None, *, defined_targets=None):
     """Project only unique POS owners; retain every distinct POS reading."""
     result = {form: dict(values) for form, values in lookup.items()}
@@ -206,12 +232,12 @@ def _project_pos_entries(lookup, conflicts=None, *, defined_targets=None):
                     continue
                 proposals[key][upos].add(lemma)
     # Adding a different POS beside an exact spelling broadens the prior
-    # table's scope. Require an independent definition for that new reading:
+    # table's scope. Require independent lexical POS evidence for that reading:
     # inherited corpus labels can otherwise turn e.g. πείραι into ἀπολάω.
     wanted = {(lemma, upos) for key, values in proposals.items() if key in lookup
               for upos, lemmas in values.items() for lemma in lemmas
               if len(lemmas) == 1}
-    defined = (_defined_pos_targets(wanted) if defined_targets is None and wanted
+    defined = (_defined_projection_targets(wanted) if defined_targets is None and wanted
                else set() if defined_targets is None else defined_targets)
     for key, values in proposals.items():
         unique = {upos: next(iter(lemmas)) for upos, lemmas in sorted(values.items())
@@ -491,7 +517,10 @@ if __name__ == "__main__":
     parser.add_argument("--kaikki", type=Path,
                         help="Fresh Kaikki directory for independent POS target definitions")
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    parser.add_argument("--lsj9-headwords", type=Path,
+                        help="Optional LSJ export matching the merged lexical-head fingerprint")
     args = parser.parse_args()
     KAIKKI_DIR = args.kaikki
+    LSJ9_HEADWORDS = args.lsj9_headwords
     OUTPUT_PATH = args.output
     build_lookup()

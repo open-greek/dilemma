@@ -202,6 +202,35 @@ def test_new_pos_beside_exact_form_accepts_fresh_definition(inputs):
     assert result["κενταύρειον"] == {"NOUN": "κενταύρειον", "ADJ": "Κενταύρειος"}
 
 
+
+@pytest.mark.parametrize("grammar,member,accepted", [
+    ("ον", True, True), ("ὁ", True, False), ("ον", False, False)])
+def test_projection_accepts_only_matching_merged_lsj_pos(inputs, monkeypatch, grammar, member, accepted):
+    import hashlib
+    inputs([], {}, {}, [])
+    raw = json.dumps([{"headword": "Κενταύρειος", "grammar": grammar}], ensure_ascii=False).encode()
+    path = build.DATA_DIR / "lsj9.json"
+    path.write_bytes(raw)
+    (build.DATA_DIR / "grc_lexical_heads.json").write_text(json.dumps({
+        "inputs": {"lsj9_headwords": {"size": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}},
+        "heads": {"Κενταύρειος": ["lsj9_headwords"]} if member else {}}))
+    monkeypatch.setattr(build, "LSJ9_HEADWORDS", path)
+    result = build._project_pos_entries({
+        "Κενταύρειον": {"ADJ": "Κενταύρειος"}, "κενταύρειον": {"NOUN": "κενταύρειον"}})
+    assert (result["κενταύρειον"].get("ADJ") == "Κενταύρειος") is accepted
+
+
+def test_projection_rejects_lsj_input_that_does_not_match_merged_manifest(inputs, monkeypatch):
+    inputs([], {}, {}, [])
+    path = build.DATA_DIR / "lsj9.json";path.write_text('[]')
+    (build.DATA_DIR / "grc_lexical_heads.json").write_text(json.dumps({
+        "inputs": {"lsj9_headwords": {"size": 2, "sha256": "0"*64}}, "heads": {}}))
+    monkeypatch.setattr(build, "LSJ9_HEADWORDS", path)
+    with pytest.raises(ValueError, match="merged lexical evidence"):
+        build._project_pos_entries({
+            "Κενταύρειον": {"ADJ": "Κενταύρειος"}, "κενταύρειον": {"NOUN": "κενταύρειον"}})
+
+
 def test_missing_dumps_do_not_broaden_existing_exact_pos(monkeypatch):
     monkeypatch.setattr(build, "KAIKKI_DIR", None)
     result = build._project_pos_entries({

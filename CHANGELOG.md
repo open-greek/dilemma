@@ -11,8 +11,9 @@ All notable changes to Dilemma are documented here. The format follows
 ### Fixed
 - Preserve independently defined projected readings for other parts of speech
   when a spelling gains an exact corpus POS entry, retaining exact owners for
-  their own tags. Require a fresh matching POS definition before broadening an
-  exact entry, preventing inherited corpus errors such as πείραι → ἀπολάω.
+  their own tags. Require matching lexical POS evidence from fresh definitions
+  or the fingerprint-matched merged LSJ source before broadening an exact entry,
+  preventing inherited corpus errors such as πείραι → ἀπολάω.
 - Match scalar POS selection in batch calls for input case/accent variants,
   self-map citation comparisons, and ordered case-twin fallbacks, including
   absent POS entries. Preserve batched inference for unresolved words.
