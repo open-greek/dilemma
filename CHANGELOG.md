@@ -21,6 +21,10 @@ All notable changes to Dilemma are documented here. The format follows
   shared by pair, lemma-attestation and tagger-data generation.
 - Distinguish terminal quotation punctuation from elision using complete
   morphological witnesses in the same source document.
+- Preserve the LSJ-listed old Attic dative plural `παῖσι` under `παῖς`,
+  independently of mistaken corpus accents.
+- Preserve the rare printed spelling `ὤοντο` from two cited passages, with
+  matching profile and citation provenance required for the export.
 
 ## [1.3.7] - 2026-10-12
 

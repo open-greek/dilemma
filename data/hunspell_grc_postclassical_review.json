@@ -1108,6 +1108,24 @@
       "evidence": "Colossians 4.9 uses the personal name Ὀνησίμῳ as the dative complement of σύν. The SBL Greek New Testament identifies its lemma as Ὀνήσιμος; the independent GLAUx reading agrees. Keep this exact name form despite the flattened lookup assigning it to the common adjective ὀνήσιμος.",
       "source_url": "https://github.com/morphgnt/sblgnt/blob/master/72-Col-morphgnt.txt",
       "citation": "Colossians 4.9"
+    },
+    {
+      "lemma": "παῖς",
+      "method": "source_forms",
+      "forms": [
+        "παῖσι"
+      ],
+      "evidence": "LSJ9 s.v. παῖσι explicitly records old Attic dative plural of παῖς. Retain only the dictionary-listed exact spelling under παῖς. The Basil OCR occurrences do not support its frequency; the separate Aeolic πᾶς interpretation is not used for this owner.",
+      "citation": "LSJ9 s.v. παῖσι; head id 90878; gloss id 128135: old Att. dat. pl. of παῖς, q.v.",
+      "source_url": "https://archive.org/details/Lsj--LiddellScott",
+      "source_sha256": "f7a70fee427c311e44d069f1eb9e1f7fc04051604e565988659273d6e9b9ee63",
+      "reviewed_on": "2026-10-12",
+      "source_file": "lsj9_glosses.jsonl",
+      "source_record": {
+        "gloss_id": 128135,
+        "headword": "παῖσι",
+        "text": "old Att. dat. pl. of *παῖς*, q.v."
+      }
     }
   ]
 }

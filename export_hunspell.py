@@ -1534,6 +1534,125 @@ def derive_reviewed_paradigm(spec: dict, source_forms: list[str]) -> set[str]:
     raise ValueError(f"unknown reviewed paradigm method: {method}")
 
 
+# These exact primary readings were checked in their cited editions. Their
+# grammatical owner is reviewed here: Diorisis itself labels both tokens unknown.
+CITED_CORPUS_FORMS = ({
+    "form": "ὤοντο",
+    "lemma": "οἴομαι",
+    "interpretation": "imperfect middle indicative, third-person plural",
+    "witnesses": (
+        {"work_id": "0540-012", "source": "diorisis", "locus": "93",
+         "locus_scheme": "diorisis-sentence",
+         "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/e37eed2e8a5fed710c3ab0d312249c3fb04d77e0/data/tlg0540/tlg012/tlg0540.tlg012.perseus-grc2.xml",
+         "source_sha256": "2d1036b3def2125b15625e1b7f9af422e7e2b716e93bf0b5ba431932c66072c2"},
+        {"work_id": "0010-017", "source": "diorisis", "locus": "47",
+         "locus_scheme": "diorisis-sentence",
+         "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/e37eed2e8a5fed710c3ab0d312249c3fb04d77e0/data/tlg0010/tlg017/tlg0010.tlg017.perseus-grc2.xml",
+         "source_sha256": "3fbc6acdc376dee413428e9b9280d80a2918abb2d7728bfd37a189fba3294177"},
+    ),
+},)
+
+
+def add_cited_corpus_forms(
+    pairs: list[tuple[str, str]], *,
+    profile_path: Path = FORM_PROFILE_DB,
+    citations_path: Path = DATA / "form_citations.db",
+    lexical_path: Path = GRC_LEXICAL_HEADS,
+) -> tuple[list[tuple[str, str]], set[str], list[dict]]:
+    """Keep exact reviewed readings only while their cited corpus proof survives.
+
+    This is a finite source-form review, not a spelling transformation. Require
+    every nominated source locus and the exact marked lexical head; frequencies
+    of a plain or differently marked homograph cannot authorize the exception.
+    """
+    for path in (profile_path, citations_path, lexical_path):
+        if not path.is_file():
+            raise FileNotFoundError(f"cited corpus-form evidence is required: {path}")
+    lexical = json.loads(lexical_path.read_text(encoding="utf-8"))
+    if lexical.get("schema_version") != 2 or not isinstance(lexical.get("heads"), dict):
+        raise ValueError("invalid cited corpus-form lexical-head evidence")
+    heads = lexical["heads"]
+    out, protected, audit = list(pairs), set(), []
+    existing = set(pairs)
+    with sqlite3.connect(profile_path.resolve().as_uri() + "?mode=ro", uri=True) as conn:
+        conn.execute("ATTACH DATABASE ? AS cited", (
+            citations_path.resolve().as_uri() + "?mode=ro",))
+        # IDs only identify forms within one build. An older citation file can
+        # reuse a current form_id for a different spelling, so bind the pair
+        # before joining it. The builder hashes both mappings and citations.
+        from dilemma._attest_db import SCHEMA_VERSION as ATTESTATION_SCHEMA_VERSION
+        try:
+            profile_meta = dict(conn.execute("SELECT key,value FROM main.meta"))
+            citation_meta = dict(conn.execute("SELECT key,value FROM cited.meta"))
+        except sqlite3.OperationalError as exc:
+            raise ValueError("missing profile/citation pair metadata; rebuild both databases") from exc
+        for metadata in (profile_meta, citation_meta):
+            if (metadata.get("schema_version") != str(ATTESTATION_SCHEMA_VERSION)
+                    or re.fullmatch(r"[0-9a-f]{64}", metadata.get("content_hash", "")) is None
+                    or not metadata.get("source_sha")):
+                raise ValueError("invalid profile/citation pair metadata; rebuild both databases")
+            try:
+                source_hashes = json.loads(metadata["source_sha"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError("invalid profile/citation source hashes") from exc
+            if (not isinstance(source_hashes, dict) or not source_hashes
+                    or any(not isinstance(value, str) or
+                           re.fullmatch(r"[0-9a-f]{64}", value) is None
+                           for value in source_hashes.values())):
+                raise ValueError("invalid profile/citation source hashes")
+        if any(profile_meta[key] != citation_meta[key]
+               for key in ("schema_version", "content_hash", "source_sha")):
+            raise ValueError("mismatched profile/citation databases; rebuild both databases")
+        for spec in CITED_CORPUS_FORMS:
+            form, lemma = spec["form"], spec["lemma"]
+            head_sources = heads.get(lemma)
+            if (not head_sources or not corpus_lexical_evidence_is_clean(lemma)
+                    or grc_orthography_reason(lemma) is not None
+                    or grc_orthography_reason(form) is not None):
+                continue
+            profiles = list(conn.execute(
+                "SELECT f.form_id, p.source_counts_json FROM forms f "
+                "JOIN form_profile p USING(form_id) WHERE f.form=? COLLATE BINARY",
+                (form,)))
+            required_counts = Counter(w["source"] for w in spec["witnesses"])
+            profiles = [(form_id, json.loads(counts or "{}"))
+                        for form_id, counts in profiles]
+            profiles = [(form_id, counts) for form_id, counts in profiles
+                        if all(int(counts.get(source, 0)) >= count
+                               for source, count in required_counts.items())]
+            if not profiles:
+                continue
+            witnesses = []
+            for witness in spec["witnesses"]:
+                counts = [row[0] for form_id, _ in profiles for row in conn.execute(
+                    "SELECT count FROM cited.citations WHERE form_id=? "
+                    "AND work_id=? AND source=? AND locus=? AND locus_scheme=?",
+                    (form_id, witness["work_id"], witness["source"],
+                     witness["locus"], witness["locus_scheme"]))]
+                count = max(counts, default=0)
+                if count <= 0:
+                    break
+                witnesses.append({**witness, "count": count})
+            if len(witnesses) != len(spec["witnesses"]):
+                continue
+            pair = (form, lemma)
+            if pair not in existing:
+                out.append(pair)
+                existing.add(pair)
+            protected.add(form)
+            audit.append({"form": form, "lemma": lemma,
+                          "method": "cited_corpus_form",
+                          "lemma_evidence": {"source": lexical_path.name,
+                                             "head": lemma,
+                                             "sources": head_sources},
+                          "interpretation": spec["interpretation"],
+                          "interpretation_source": "reviewed primary text; corpus lemma unknown",
+                          "profile_content_hash": profile_meta["content_hash"],
+                          "profile_source_counts": [counts for _, counts in profiles],
+                          "witnesses": witnesses})
+    return out, protected, audit
+
+
 def add_reviewed_postclassical_paradigms(
     pairs: list[tuple[str, str]], conn: sqlite3.Connection, *,
     review_path: Path = DATA / "hunspell_grc_postclassical_review.json",
@@ -1563,7 +1682,11 @@ def add_reviewed_postclassical_paradigms(
                     existing.add(pair)
                 protected.add(form)
                 audit.append({"form": form, "lemma": spec["lemma"],
-                              "method": spec["method"], "source_url": spec["source_url"]})
+                              "method": spec["method"], "source_url": spec["source_url"],
+                              **{key: spec[key] for key in
+                                 ("evidence", "citation", "source_sha256", "source_file",
+                                  "source_record", "reviewed_on")
+                                 if key in spec}})
     return out, protected, audit
 
 def postclassical_admission_reason(
@@ -3307,6 +3430,9 @@ def run_export(sanity: int | None, variants: list[str],
         if variant == "grc" and not sanity:
             form_lemma, reviewed_paradigm_forms, reviewed_paradigm_audit = (
                 add_reviewed_postclassical_paradigms(form_lemma, conn))
+            form_lemma, cited_forms, cited_audit = add_cited_corpus_forms(form_lemma)
+            reviewed_paradigm_forms.update(cited_forms)
+            reviewed_paradigm_audit.extend(cited_audit)
             include_reviewed_name_ownership(case_ownership, reviewed_paradigm_audit)
             lexical_heads = load_grc_lexical_heads()
             lemma_aliases, exact_pos_owners = load_grc_inflection_evidence(lexical_heads)

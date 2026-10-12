@@ -25,7 +25,8 @@ a composition century when the header (PTA) or manifest (byzantine) carries one.
 Two SQLite artifacts under ``data/``: ``form_profile.db`` (base: forms, the
 distribution, works, meta) and ``form_citations.db`` (opt-in: up to ``--cap``
 example loci per form). Reproducibility is asserted via a logical content hash
-(``meta.content_hash``) plus SHA-256 of every input.
+(``meta.content_hash`` in both files) plus SHA-256 of every input. Consumers
+joining citation form IDs must require the two metadata records to match.
 
 Usage:
     python build/build_form_attestation.py                 # full build
@@ -994,7 +995,12 @@ def write_dbs(forms, profiles, works, sink, cit_tmp, cap, source_sha,
                   "century_genre_json is the heatmap joint."),
     }
     pc.executemany("INSERT INTO meta VALUES (?,?)", sorted(meta.items()))
+    # The form_id keys in citations are local to this exact profile build.
+    # Copy the joint content hash so consumers can reject a stale mixed pair.
+    cc.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)")
+    cc.executemany("INSERT INTO meta VALUES (?,?)", sorted(meta.items()))
     pc.commit()
+    cc.commit()
     pc.execute("VACUUM")
     cc.execute("VACUUM")
     pc.close()
