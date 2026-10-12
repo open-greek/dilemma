@@ -10,6 +10,7 @@ Run with:
     python -m pytest tests/test_attestation.py -x -v
 """
 
+import hashlib
 import json
 import sys
 import unicodedata
@@ -56,7 +57,11 @@ def test_meta_schema(raw):
     assert "dedup" in m
     assert set(m["source_sha"]) == {
         "glaux_metadata", "glaux_xml", "diorisis_xml",
-        "oga_export", "oga_pin", "pedalion_export", "pedalion_pin"}
+        "oga_export", "oga_pin", "pedalion_export", "pedalion_pin",
+        "glaux_name_corrections"}
+    corrections = DATA_DIR / "changes" / "glaux_name_lemmas.json"
+    assert m["source_sha"]["glaux_name_corrections"] == hashlib.sha256(
+        corrections.read_bytes()).hexdigest()
     # dilemma pins cog's exports, not the upstream treebanks (cog pins those).
     assert m["source_sha"]["oga_pin"].startswith("cog export oga-")
     assert m["source_sha"]["pedalion_pin"].startswith("cog export pedalion-")

@@ -47,12 +47,16 @@ TRACKED = [
     "data/lemma_attestation.json",
     # Exact-form attestation for the grc Hunspell export and its audit.
     "data/form_profile.db",
+    # Exact source loci share the profile's form IDs and content hash.
+    "data/form_citations.db",
     # Merged corpus counts used by the Ancient export's admission filter.
     "data/corpus_freq.json",
     # Source cells preserve elision used by the Ancient alias recovery.
     "data/diorisis_pairs.json",
     # Reversible quotation evidence consumed by the Ancient export gate.
     "data/changes/diorisis_token_normalizations.json",
+    # Reversible corrections shared by GLAUx lemma consumers.
+    "data/changes/glaux_name_lemmas.json",
     # Input-pinned provenance for the generated noun expansion layer.
     "data/ag_noun_generation_audit.json",
     "data/ag_sophocles_noun_generation_audit.json",
@@ -77,6 +81,8 @@ TRACKED = [
     "data/el_closed_class_heads.json",
     # Exact POS-specific definitions for Ancient non-flat training readings.
     "data/grc_reading_heads.json",
+    # Source-merged capital name owners and exact corpus target audit.
+    "data/treebank_pos_lookup.audit.json",
     # Integrity checks exercise both exported and PyTorch model backends.
     "model/combined-s3/vocab.json",
     "model/combined-s3/encoder.onnx",

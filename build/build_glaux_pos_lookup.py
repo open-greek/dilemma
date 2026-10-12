@@ -12,11 +12,17 @@ ag_pos_lookup.json (Wiktionary, 28K entries) with corpus-derived evidence.
 """
 
 import json
+import sys
 import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from dilemma.form_sanitize import is_capitalized
+
 GLAUX_PAIRS = SCRIPT_DIR / "data" / "glaux_pairs.json"
 OUTPUT_PATH = SCRIPT_DIR / "data" / "glaux_pos_lookup.json"
 
@@ -89,7 +95,7 @@ def build_lookup():
             skipped += 1
             continue
         # Check if it's a proper noun (capitalized lemma, noun POS)
-        if upos == "NOUN" and lemma and lemma[0].isupper():
+        if upos == "NOUN" and is_capitalized(lemma):
             # Add both NOUN and PROPN entries
             form_upos_lemmas[form]["PROPN"][lemma] += 1
         form_upos_lemmas[form][upos][lemma] += 1

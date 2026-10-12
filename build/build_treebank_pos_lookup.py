@@ -9,12 +9,16 @@ treebanks are excluded as the project's held-out gold corpus.
 
 Output: data/treebank_pos_lookup.json
 Format: {form: {UPOS: lemma, ...}, ...}
+Companion audit: data/treebank_pos_lookup.audit.json (input hashes, rejected
+corpus targets, tied owner votes, and complete capital name/ethnic owner votes
+collected before the sparse runtime-table filter).
 
 Only forms that are genuinely ambiguous (2+ distinct UPOS->lemma mappings)
 are included. Monotonic and lowercase variants are added for lookup cascade.
 """
 
 import argparse
+import hashlib
 import json
 import sqlite3
 import sys
@@ -27,10 +31,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from dilemma.form_sanitize import is_capitalized
+
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
 OUTPUT_PATH = Path(__file__).parent.parent / "data" / "treebank_pos_lookup.json"
 KAIKKI_DIR = None
 LSJ9_HEADWORDS = None
+AUDIT_PATH = None
 
 # Openly licensed sources only. UD_Ancient_Greek-Perseus and -PROIEL are
 # CC BY-NC-SA (NonCommercial) and are NOT used; the AGDT POS data comes from the
@@ -155,6 +162,70 @@ def _clean_lemma(lemma: str) -> bool:
     if not lemma or lemma.endswith(_JUNK_LEMMA_FINALS):
         return False
     return "̅" not in unicodedata.normalize("NFD", lemma)
+
+
+def _lexical_target_key(lemma):
+    """Match tonal/quantity variants without merging distinct lexical marks."""
+    from build.build_grc_lexical_heads import normalize_headword
+
+    head = normalize_headword(lemma)
+    if head is None:
+        return None
+    return unicodedata.normalize("NFC", "".join(
+        char for char in unicodedata.normalize("NFD", head)
+        if ord(char) not in {0x0300, 0x0301, 0x0342}
+    ))
+
+
+def _input_fingerprint(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return {"size": path.stat().st_size, "sha256": digest.hexdigest()}
+
+
+def _load_lexical_targets():
+    """Generated lookup membership cannot establish a corpus lemma's status."""
+    path = DATA_DIR / "grc_lexical_heads.json"
+    with path.open(encoding="utf-8") as stream:
+        payload = json.load(stream)
+    if (payload.get("schema_version") != 2
+            or not isinstance(payload.get("heads"), dict)):
+        raise ValueError(f"invalid merged lexical-head evidence: {path}")
+    keys = {_lexical_target_key(head) for head, sources in payload["heads"].items()
+            if isinstance(sources, list) and sources}
+    keys.discard(None)
+    return keys, _input_fingerprint(path)
+
+
+def _unique_owner(counts):
+    """A tied annotation is evidence for every owner, not for its first row."""
+    highest = max(counts.values())
+    owners = [lemma for lemma, count in counts.items() if count == highest]
+    return owners[0] if len(owners) == 1 else None
+
+
+def _record_capital_owner(votes, form, lemma, upos, source, weight, lexical_targets):
+    """Keep defined name readings before the sparse POS-table selection."""
+    if (upos not in {"NOUN", "PROPN", "ADJ"} or not is_capitalized(form)
+            or not is_capitalized(lemma) or not _clean_lemma(lemma)
+            or _lexical_target_key(lemma) not in lexical_targets):
+        return
+    form = unicodedata.normalize("NFC", form)
+    lemma = unicodedata.normalize("NFC", lemma)
+    sources = votes.setdefault(form, {}).setdefault((upos, lemma), {})
+    sources[source] = sources.get(source, 0) + weight
+
+
+def _capital_owner_audit(votes):
+    """Serialize every supported owner, including tied and distinct readings."""
+    return {
+        form: [{"upos": upos, "lemma": lemma,
+                "source_votes": dict(sorted(sources.items()))}
+               for (upos, lemma), sources in sorted(owners.items())]
+        for form, owners in sorted(votes.items())
+    }
 
 
 def _lower_priority_pos_models():
@@ -286,7 +357,7 @@ def _scalar_query_conflict(model, form, upos, lemma):
     return False
 
 
-def _restore_shadowed_corpus_votes(lookup, candidates, corpus):
+def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_corpus=None):
     """Restore defined votes hidden by POS or case-sensitive scalar entries."""
     unambiguous = {}
     for form, (upos, lemma) in candidates.items():
@@ -334,14 +405,49 @@ def _restore_shadowed_corpus_votes(lookup, candidates, corpus):
         for form in corrections:
             protected.update({form.lower(), to_monotonic(form.lower())} - {form})
             del candidates[form]
-        conflicts = _projection_conflicts(corpus, protected)
+        conflicts = _projection_conflicts(
+            corpus if projection_corpus is None else projection_corpus, protected)
     return added, conflicts
 
 
 def build_lookup():
+    # Load required evidence before touching either output. A SQLite lemma can
+    # itself be an inferred or corrupt corpus target, so it is only a second
+    # gate after the merged independent lexical-head inventory.
+    lexical_targets, lexical_fingerprint = _load_lexical_targets()
+    audit = {
+        "schema_version": 2,
+        "language": "grc",
+        "inputs": {"grc_lexical_heads": lexical_fingerprint,
+                   "builder": _input_fingerprint(Path(__file__))},
+        "rejected_corpus_targets": {},
+        "tied_owners": {},
+        "capital_name_owners": {},
+    }
+    for relative in ("dilemma/core.py", "dilemma/form_sanitize.py",
+                     "build/build_grc_lexical_heads.py", "build_data.py"):
+        audit["inputs"][relative] = _input_fingerprint(ROOT / relative)
+    # The recovery pass compares corpus votes with the runtime's lower
+    # priority tables, so their exact input bytes belong in the audit too.
+    for name in ("lsj9_indeclinables.json", "glaux_pos_lookup.json",
+                 "mg_pos_lookup.json", "ag_pos_lookup.json", "lsj9_pos_lookup.json"):
+        path = DATA_DIR / name
+        if path.exists():
+            audit["inputs"][name] = _input_fingerprint(path)
+    if KAIKKI_DIR is not None:
+        for source, relative in (
+                ("wiktionary_en_grc", "en-el/kaikki.org-dictionary-AncientGreek.jsonl"),
+                ("wiktionary_el_grc", "el/kaikki.org-dictionary-AncientGreek.jsonl")):
+            path = Path(KAIKKI_DIR) / relative
+            if path.exists():
+                audit["inputs"][source] = _input_fingerprint(path)
+    if LSJ9_HEADWORDS is not None:
+        audit["inputs"]["lsj9_headwords"] = _input_fingerprint(Path(LSJ9_HEADWORDS))
+
     # Collect all (form, upos) -> {lemma: count} from treebanks
     # form_upos_lemmas[form][upos][lemma] = count
     form_upos_lemmas = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    capital_owner_votes = {}
     total_tokens = 0
 
     # CoNLL-U treebanks
@@ -351,11 +457,14 @@ def build_lookup():
             continue
         conllu_files = sorted(treebank_dir.glob("*.conllu"))
         for f in conllu_files:
+            audit["inputs"][f"treebank/{treebank_dir.name}/{f.name}"] = _input_fingerprint(f)
             count = 0
             for form, lemma, upos in parse_conllu(f):
                 if not _clean_lemma(lemma):
                     continue
                 form_upos_lemmas[form][upos][lemma] += 1
+                _record_capital_owner(capital_owner_votes, form, lemma, upos,
+                                      f"treebank/{treebank_dir.name}", 1, lexical_targets)
                 count += 1
             total_tokens += count
             print(f"  {f.name}: {count} tokens")
@@ -371,10 +480,13 @@ def build_lookup():
     if agdt_files:
         agdt_tokens = 0
         for f in agdt_files:
+            audit["inputs"][f"agdt/{f.relative_to(AGDT_DIR).as_posix()}"] = _input_fingerprint(f)
             for form, lemma, upos in parse_gorman_xml(f):
                 if not _clean_lemma(lemma):
                     continue
                 form_upos_lemmas[form][upos][lemma] += 1
+                _record_capital_owner(capital_owner_votes, form, lemma, upos,
+                                      "agdt", 1, lexical_targets)
                 agdt_tokens += 1
         total_tokens += agdt_tokens
         print(f"  AGDT (Perseus original): {len(agdt_files)} files, "
@@ -389,13 +501,18 @@ def build_lookup():
     print(f"\nTotal tokens: {total_tokens}")
     print(f"Unique forms (treebanks): {len(form_upos_lemmas)}")
 
-    # Openly-licensed corpus POS edges (GLAUx + Diorisis), validated against
-    # the built lemma set. Kept SEPARATE so they only fill UPOS gaps the gold
-    # treebanks don't cover - per UPOS, treebank votes always win.
+    # Openly licensed corpus POS edges must name an independent lexical head
+    # as well as a built lemma. Keep them separate so they only fill UPOS gaps
+    # the gold treebanks do not cover; per UPOS, treebank votes always win.
     corpus_upos_lemmas = defaultdict(
         lambda: defaultdict(lambda: defaultdict(int)))
+    # A rejected exact target still documents a competing source reading.
+    # Keep those claims to prevent a newly projected spelling from silently
+    # absorbing a different source form when its target lacks lexical support.
+    projection_corpus = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     lemma_set = set()
     if LOOKUP_DB_PATH.exists():
+        audit["inputs"]["lookup"] = _input_fingerprint(LOOKUP_DB_PATH)
         _c = sqlite3.connect(str(LOOKUP_DB_PATH))
         lemma_set = {r[0] for r in _c.execute("SELECT text FROM lemmas")}
         _c.close()
@@ -407,6 +524,7 @@ def build_lookup():
         if not path.exists():
             print(f"  Skipping {src} corpus ({path.name} not found)")
             continue
+        audit["inputs"][src] = _input_fingerprint(path)
         w = _CORPUS_WEIGHT[src]
         n = 0
         seen_edges = set()
@@ -414,8 +532,6 @@ def build_lookup():
             form, lemma = p.get("form"), p.get("lemma")
             upos = _CORPUS_POS_TO_UPOS.get(p.get("pos"))
             if not form or not lemma or not upos:
-                continue
-            if lemma_set and lemma not in lemma_set:
                 continue
             if not _clean_lemma(lemma):
                 continue
@@ -425,6 +541,15 @@ def build_lookup():
             if edge in seen_edges:
                 continue
             seen_edges.add(edge)
+            projection_corpus[form][upos][lemma] += w
+            if _lexical_target_key(lemma) not in lexical_targets:
+                counts = audit["rejected_corpus_targets"].setdefault(lemma, {})
+                counts[src] = counts.get(src, 0) + 1
+                continue
+            _record_capital_owner(capital_owner_votes, form, lemma, upos,
+                                  src, w, lexical_targets)
+            if lemma_set and lemma not in lemma_set:
+                continue
             corpus_upos_lemmas[form][upos][lemma] += w
             n += 1
         print(f"  {src} corpus: +{n:,} POS edges (weight {w})")
@@ -437,9 +562,14 @@ def build_lookup():
     # the attestation artifacts only.
 
     # Filter to genuinely ambiguous forms:
+    # This independent audit keeps unambiguous names too. The export needs
+    # lexical ownership even when a name does not need POS disambiguation.
+    audit["capital_name_owners"] = _capital_owner_audit(capital_owner_votes)
+
     # A form is ambiguous if it has multiple DISTINCT (upos -> lemma) mappings,
     # meaning different UPOS tags lead to different lemmas.
-    # For each UPOS, pick the most frequent lemma.
+    # For each UPOS, require a unique most frequent lemma. Retain all tied
+    # owners in the audit instead of making input order select one of them.
     lookup = {}
     for form in sorted(set(form_upos_lemmas) | set(corpus_upos_lemmas)):
         tb = form_upos_lemmas.get(form, {})
@@ -449,7 +579,14 @@ def build_lookup():
         resolved = {}
         for upos in sorted(set(tb) | set(co)):
             counts = tb[upos] if upos in tb else co[upos]
-            resolved[upos] = max(counts, key=counts.get)
+            owner = _unique_owner(counts)
+            if owner is not None:
+                resolved[upos] = owner
+            else:
+                audit["tied_owners"].setdefault(form, {})[upos] = {
+                    "source": "treebank" if upos in tb else "corpus",
+                    "votes": dict(sorted(counts.items())),
+                }
 
         # Only keep forms where different UPOS tags map to different lemmas
         if len(set(resolved.values())) < 2:
@@ -482,9 +619,16 @@ def build_lookup():
     for form, upos_dict in corpus_upos_lemmas.items():
         if form in lookup or form not in bare:
             continue
-        upos = max(upos_dict, key=lambda u: max(upos_dict[u].values()))
+        strongest = max(max(counts.values()) for counts in upos_dict.values())
+        strongest_pos = [upos for upos, counts in upos_dict.items()
+                         if max(counts.values()) == strongest]
+        if len(strongest_pos) != 1:
+            continue
+        upos = strongest_pos[0]
         counts = upos_dict[upos]
-        lemma = max(counts, key=counts.get)
+        lemma = _unique_owner(counts)
+        if lemma is None:
+            continue
         if counts[lemma] < 2:          # require GLAUx (w=2) or GLAUx+Diorisis
             continue
         cur = bare[form]
@@ -494,7 +638,8 @@ def build_lookup():
         else:
             fallback_candidates[form] = (upos, lemma)
     restored, conflicts = _restore_shadowed_corpus_votes(
-        lookup, fallback_candidates, corpus_upos_lemmas)
+        lookup, fallback_candidates, corpus_upos_lemmas,
+        projection_corpus=projection_corpus)
     print(f"Corpus-disagreement POS entries added: {disagree_added}; "
           f"defined votes retained against POS fallback: {restored}")
 
@@ -508,7 +653,13 @@ def build_lookup():
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(lookup, f, ensure_ascii=False, indent=1)
 
+    audit_path = AUDIT_PATH or OUTPUT_PATH.with_suffix(".audit.json")
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text(json.dumps(audit, ensure_ascii=False, sort_keys=True,
+                                    indent=1) + "\n", encoding="utf-8")
+
     print(f"\nSaved to {OUTPUT_PATH}")
+    print(f"Corpus target audit: {audit_path}")
     return lookup
 
 
@@ -517,10 +668,13 @@ if __name__ == "__main__":
     parser.add_argument("--kaikki", type=Path,
                         help="Fresh Kaikki directory for independent POS target definitions")
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    parser.add_argument("--audit-output", type=Path,
+                        help="Deterministic source/target audit (default: OUTPUT.audit.json)")
     parser.add_argument("--lsj9-headwords", type=Path,
                         help="Optional LSJ export matching the merged lexical-head fingerprint")
     args = parser.parse_args()
     KAIKKI_DIR = args.kaikki
     LSJ9_HEADWORDS = args.lsj9_headwords
     OUTPUT_PATH = args.output
+    AUDIT_PATH = args.audit_output
     build_lookup()

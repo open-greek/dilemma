@@ -23,6 +23,14 @@ def inputs(tmp_path, monkeypatch):
         definitions = definitions if definitions is not None else [{
             "word": r["lemma"], "lang_code":"grc", "pos":r["pos"],
             "senses":[{"glosses":["A distinct lexical meaning."]}]} for r in rows]
+        # Exact corpus targets now require the merged lexical-head inventory
+        # independently of generated SQLite lemma membership.
+        from build.build_grc_lexical_heads import has_definition
+        (tmp_path/'grc_lexical_heads.json').write_text(json.dumps({
+            'schema_version': 2,
+            'heads': {entry['word']: ['wiktionary_en_grc']
+                      for entry in definitions if has_definition(entry)},
+        }, ensure_ascii=False))
         for directory in ["en-el", "el"]:
             path = build.KAIKKI_DIR/directory/"kaikki.org-dictionary-AncientGreek.jsonl"
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -298,15 +306,17 @@ def test_article_pos_preserves_existing_canonical_target(article_model, monkeypa
 
 
 @pytest.mark.parametrize('form', ['ἤ', 'ὅ', 'οὗ', 'αὐτῶν', 'τίνων'])
-def test_article_pos_does_not_absorb_near_accents_or_pronouns(article_model, form):
-    assert article_model.lemmatize_pos(form, 'DET', guess=False) == 'τῷν'
-    assert article_model.lemmatize_batch_pos([form], ['DET'], guess=False) == ['τῷν']
+def test_article_pos_does_not_absorb_near_accents_or_pronouns(article_model, form, monkeypatch):
+    monkeypatch.setattr(article_model, '_pos_table_lookup', lambda word, upos: 'λόγος')
+    assert article_model.lemmatize_pos(form, 'DET', guess=False) == 'λόγος'
+    assert article_model.lemmatize_batch_pos([form], ['DET'], guess=False) == ['λόγος']
 
 
 @pytest.mark.parametrize('upos', ['PRON', 'NOUN', 'ADJ'])
-def test_article_pos_does_not_change_other_pos(article_model, upos):
-    assert article_model.lemmatize_pos('τών', upos, guess=False) == 'τῷν'
-    assert article_model.lemmatize_batch_pos(['τών'], [upos], guess=False) == ['τῷν']
+def test_article_pos_does_not_change_other_pos(article_model, upos, monkeypatch):
+    monkeypatch.setattr(article_model, '_pos_table_lookup', lambda word, upos: 'λόγος')
+    assert article_model.lemmatize_pos('τών', upos, guess=False) == 'λόγος'
+    assert article_model.lemmatize_batch_pos(['τών'], [upos], guess=False) == ['λόγος']
 
 
 def test_article_pos_does_not_create_a_missing_pos_entry(article_model, monkeypatch):

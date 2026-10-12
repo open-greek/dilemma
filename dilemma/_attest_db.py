@@ -12,10 +12,11 @@ Two artifacts live under the data dir:
     ``form_profile`` (the per-form usage distribution), ``works`` and ``meta``.
     This drives the gate, the totals, and the usage-by-year / heatmap data.
   * ``form_citations.db`` - opt-in download. Holds ``citations``: the capped
-    list of example loci (work + locus) per form.
+    list of example loci (work + locus) per form, and matching build metadata.
 
 ``form_attestation()`` returns the profile whenever ``form_profile.db`` is
-present and fills ``citations`` only when ``form_citations.db`` is too.
+present and fills ``citations`` only when both artifacts have matching build
+metadata. Missing or incompatible citations never suppress the profile.
 
 The three key functions below are the single source of truth for how a surface
 form is canonicalized; the builder (``build/build_form_attestation.py``) imports
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import unicodedata
 from pathlib import Path
@@ -35,6 +37,36 @@ PROFILE_DB = "form_profile.db"
 CITATIONS_DB = "form_citations.db"
 
 SCHEMA_VERSION = 1
+
+
+def validate_attestation_pair_metadata(profile_meta, citation_meta) -> None:
+    """Require a single versioned build before interpreting shared form IDs.
+
+    The builder hashes the ordered forms and citation rows together. Comparing
+    that identity prevents citations from an older build being joined to a
+    different current form that happens to reuse its integer ID. The runtime
+    degrades to profile-only results; source-validated export callers retain
+    the hard failure raised here.
+    """
+    for metadata in (profile_meta, citation_meta):
+        content_hash = metadata.get("content_hash")
+        if (metadata.get("schema_version") != str(SCHEMA_VERSION)
+                or not isinstance(content_hash, str)
+                or re.fullmatch(r"[0-9a-f]{64}", content_hash) is None
+                or not metadata.get("source_sha")):
+            raise ValueError("invalid profile/citation pair metadata; rebuild both databases")
+        try:
+            source_hashes = json.loads(metadata["source_sha"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError("invalid profile/citation source hashes") from exc
+        if (not isinstance(source_hashes, dict) or not source_hashes
+                or any(not isinstance(value, str)
+                       or re.fullmatch(r"[0-9a-f]{64}", value) is None
+                       for value in source_hashes.values())):
+            raise ValueError("invalid profile/citation source hashes")
+    if any(profile_meta[key] != citation_meta[key]
+           for key in ("schema_version", "content_hash", "source_sha")):
+        raise ValueError("mismatched profile/citation databases; rebuild both databases")
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +169,8 @@ class AttestDB:
         self._citations_path = _find(CITATIONS_DB, self._data_dir)
         self._profile_conn: sqlite3.Connection | None = None
         self._citations_conn: sqlite3.Connection | None = None
+        self._citations_pair_checked = False
+        self._citations_note: str | None = None
         self._exact_set: set[str] | None = None
         self._norm_set: set[str] | None = None
         self._works: dict[str, dict] | None = None
@@ -181,8 +215,24 @@ class AttestDB:
     def _citations(self) -> sqlite3.Connection | None:
         if not self.citations_available:
             return None
-        if self._citations_conn is None:
-            self._citations_conn = self._connect_ro(self._citations_path)
+        if not self._citations_pair_checked:
+            conn = None
+            try:
+                conn = self._connect_ro(self._citations_path)
+                profile_meta = dict(self._profile().execute("SELECT key,value FROM meta"))
+                citation_meta = dict(conn.execute("SELECT key,value FROM meta"))
+                validate_attestation_pair_metadata(profile_meta, citation_meta)
+            except (sqlite3.DatabaseError, ValueError):
+                if conn is not None:
+                    conn.close()
+                self._citations_note = (
+                    "form_citations.db and form_profile.db do not have compatible "
+                    "build metadata; redownload both together with "
+                    "`python -m dilemma download --with-citations` for example loci"
+                )
+            else:
+                self._citations_conn = conn
+            self._citations_pair_checked = True
         return self._citations_conn
 
     # -- gate (presence) ---------------------------------------------------
@@ -232,7 +282,8 @@ class AttestDB:
         ``max_citations`` bounds only the returned ``citations`` list
         (``None`` = all stored). ``total_count`` and the distributions always
         reflect the full evidence. ``citations`` is ``[]`` (with
-        ``citations_note``) when the opt-in citations DB is absent.
+        ``citations_note``) when the opt-in citations DB is absent or belongs
+        to an incompatible or unversioned build.
         """
         row = self._profile().execute(
             "SELECT form_id, form FROM forms WHERE form = ?", (nfc_key(form),),
@@ -291,7 +342,7 @@ class AttestDB:
             return out
         cconn = self._citations()
         if cconn is None:
-            out["citations_note"] = (
+            out["citations_note"] = self._citations_note or (
                 "form_citations.db not downloaded; run "
                 "`python -m dilemma download --with-citations` for example loci"
             )
@@ -334,3 +385,5 @@ class AttestDB:
             if conn is not None:
                 conn.close()
         self._profile_conn = self._citations_conn = None
+        self._citations_pair_checked = False
+        self._citations_note = None

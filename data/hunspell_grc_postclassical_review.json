@@ -1108,6 +1108,183 @@
       "evidence": "Colossians 4.9 uses the personal name Ὀνησίμῳ as the dative complement of σύν. The SBL Greek New Testament identifies its lemma as Ὀνήσιμος; the independent GLAUx reading agrees. Keep this exact name form despite the flattened lookup assigning it to the common adjective ὀνήσιμος.",
       "source_url": "https://github.com/morphgnt/sblgnt/blob/master/72-Col-morphgnt.txt",
       "citation": "Colossians 4.9"
+    },
+    {
+      "lemma": "παῖς",
+      "method": "source_forms",
+      "forms": [
+        "παῖσι"
+      ],
+      "evidence": "LSJ9 s.v. παῖσι explicitly records old Attic dative plural of παῖς. Retain only the dictionary-listed exact spelling under παῖς. The Basil OCR occurrences do not support its frequency; the separate Aeolic πᾶς interpretation is not used for this owner.",
+      "citation": "LSJ9 s.v. παῖσι; head id 90878; gloss id 128135: old Att. dat. pl. of παῖς, q.v.",
+      "source_url": "https://archive.org/details/Lsj--LiddellScott",
+      "source_sha256": "f7a70fee427c311e44d069f1eb9e1f7fc04051604e565988659273d6e9b9ee63",
+      "reviewed_on": "2026-10-12",
+      "source_file": "lsj9_glosses.jsonl",
+      "source_record": {
+        "gloss_id": 128135,
+        "headword": "παῖσι",
+        "text": "old Att. dat. pl. of *παῖς*, q.v."
+      }
+    },
+    {
+      "lemma": "Κορῆς",
+      "method": "source_forms",
+      "forms": [
+        "Κορῆ"
+      ],
+      "evidence": "Josephus explicitly names Κορῆς in Antiquities 4.14 and 4.20 and addresses him as Κορῆ in 4.25 and 4.33. Retain only the exact source form. The corpus owner Κορσεύς is not the name in this passage; nearby inventory spelling Κόρης is not substituted for the source nominative.",
+      "citation": "Josephus, Antiquities 4.14, 4.20, 4.25, 4.33; exact vocative Κορῆ.",
+      "source_url": "https://biblical.ie/page.php?fl=josephus/Antiquities/AJGk04",
+      "source_sha256": "456a8defb4f655bed15216f5ba61940d20efcd90954106e2335e5d5ae9912fb0",
+      "source_file": "josephus-antiquities-book4.html",
+      "reviewed_on": "2026-10-12",
+      "source_record": {
+        "author": "Josephus",
+        "work": "Antiquities",
+        "nominative": {
+          "reference": "4.14",
+          "text": "Κορῆς τις Ἑβραίων"
+        },
+        "vocative": {
+          "reference": "4.25",
+          "text": "ὦ Κορῆ"
+        },
+        "second_vocative": {
+          "reference": "4.33",
+          "text": "καὶ σὺ δέ, Κορῆ"
+        },
+        "existing_corpus_owner": "Κορσεύς",
+        "exact_merged_lexical_head_present": false
+      }
+    },
+    {
+      "lemma": "Ὦρα",
+      "method": "source_forms",
+      "forms": [
+        "Ὦρα"
+      ],
+      "evidence": "Arrian explicitly identifies Ὦρα as a city in Anabasis 4.27.5 and writes τὰ Ὦρα in 4.27.7 and 4.28.4, with genitive τῶν Ὤρων in 4.27.9. Retain only this exact plural place-name spelling. Four GLAUx tokens in this work support the name; the aggregate profile also includes 140 PG tokens whose interpretation is not established here, so that aggregate is not cited as city frequency. Do not substitute common-word ὤρα or goddess Ὥρα, or infer a paradigm.",
+      "citation": "Arrian, Anabasis 4.27.5, 4.27.7, 4.27.9, 4.28.4; exact place-name Ὦρα.",
+      "source_url": "https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/master/data/tlg0074/tlg001/tlg0074.tlg001.perseus-grc2.xml",
+      "source_sha256": "d2c38397168edb4c65b43feb6a3004922ed99d0112ec180a0f31b8e1e3d49d7b",
+      "source_file": "arrian-anabasis-perseus-grc2.xml",
+      "reviewed_on": "2026-10-12",
+      "source_record": {
+        "author": "Arrian",
+        "work": "Anabasis",
+        "place_name": {
+          "reference": "4.27.5",
+          "text": "ἐπὶ Ὦρα στέλλει, ἄλλην πόλιν"
+        },
+        "plural": {
+          "reference": "4.27.7",
+          "text": "ἐς τὰ Ὦρα τὴν πόλιν"
+        },
+        "genitive": {
+          "reference": "4.27.9",
+          "text": "τῶν Ὤρων ἡ πολιορκία"
+        },
+        "secure_glaux_work": "0074-001",
+        "secure_glaux_tokens": 4,
+        "unclassified_pg_tokens": 140,
+        "existing_corpus_owner": "Ὤρα",
+        "exact_merged_lexical_head_present": false
+      }
+    },
+    {
+      "lemma": "καλέω",
+      "method": "source_forms",
+      "forms": [
+        "καλέσασ᾽"
+      ],
+      "evidence": "Homer, Iliad 1.402 preserves this exact elision. Feminine nominative singular aorist active participle καλέσασα before ἐς; source form retains apostrophe. Retain only this source form; punctuation-artifact readings of the same spelling do not support its frequency.",
+      "source_url": "https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/e37eed2e8a5fed710c3ab0d312249c3fb04d77e0/data/tlg0012/tlg001/tlg0012.tlg001.perseus-grc2.xml",
+      "source_sha256": "ebbdfdd7b6ebd52c4ecdfdb92c17cef4447ccbb5114f7fb00cd34f434dd8521b",
+      "source_file": "tlg0012.tlg001.perseus-grc2.xml",
+      "citation": "Homer, Iliad 1.402",
+      "reviewed_on": "2026-10-12",
+      "source_record": {
+        "text": "ὦχʼ ἑκατόγχειρον καλέσασʼ ἐς μακρὸν Ὄλυμπον,",
+        "element_path": [
+          {
+            "element": "text",
+            "attributes": {
+              "{http://www.w3.org/XML/1998/namespace}lang": "grc"
+            }
+          },
+          {
+            "element": "div",
+            "attributes": {
+              "type": "edition",
+              "n": "urn:cts:greekLit:tlg0012.tlg001.perseus-grc2",
+              "{http://www.w3.org/XML/1998/namespace}lang": "grc"
+            }
+          },
+          {
+            "element": "div",
+            "attributes": {
+              "type": "textpart",
+              "subtype": "Book",
+              "n": "1"
+            }
+          },
+          {
+            "element": "l",
+            "attributes": {
+              "n": "402"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "lemma": "πλείων",
+      "method": "source_forms",
+      "forms": [
+        "πλέον᾽"
+      ],
+      "evidence": "Pindar, Nemean 7.20–21 preserves this exact elision. Accusative singular comparative πλέονα agreeing with λόγον, with final alpha elided before ἔλπομαι. Retain only this source form; punctuation-artifact readings of the same spelling do not support its frequency.",
+      "source_url": "https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/e37eed2e8a5fed710c3ab0d312249c3fb04d77e0/data/tlg0033/tlg003/tlg0033.tlg003.perseus-grc2.xml",
+      "source_sha256": "8cf2e1732f14d12296ffbadd326c0f7682e44e2f2412a73f7566df5242f77662",
+      "source_file": "tlg0033.tlg003.perseus-grc2.xml",
+      "citation": "Pindar, Nemean 7.20–21",
+      "reviewed_on": "2026-10-12",
+      "source_record": {
+        "text": " ἅμα νέονται. ἐγὼ δὲ πλέονʼ ἔλπομαι ",
+        "element_path": [
+          {
+            "element": "text",
+            "attributes": {
+              "{http://www.w3.org/XML/1998/namespace}lang": "grc"
+            }
+          },
+          {
+            "element": "div",
+            "attributes": {
+              "n": "urn:cts:greekLit:tlg0033.tlg003.perseus-grc2",
+              "type": "edition",
+              "{http://www.w3.org/XML/1998/namespace}lang": "grc"
+            }
+          },
+          {
+            "element": "div",
+            "attributes": {
+              "type": "textpart",
+              "subtype": "poem",
+              "{http://www.w3.org/XML/1998/namespace}base": "urn:cts:greekLit:tlg0033.tlg003.perseus-grc2",
+              "n": "7"
+            }
+          },
+          {
+            "element": "l",
+            "attributes": {
+              "{http://www.w3.org/XML/1998/namespace}base": "urn:cts:greekLit:tlg0033.tlg003.perseus-grc2:7",
+              "n": "20"
+            }
+          }
+        ]
+      }
     }
   ]
 }

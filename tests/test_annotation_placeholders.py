@@ -47,7 +47,10 @@ def _glaux_xml(tmp_path, words):
 
 def _extract(tmp_path, words):
     _glaux_xml(tmp_path, words)
-    pairs = G.extract_glaux(str(tmp_path))
+    metadata = tmp_path / "metadata.txt"
+    metadata.write_text("TLG\tDIALECT\tSOURCE_LICENSE\tTREEBANK_ANNOTATIONS\n"
+                        "0001-001\tAttic\tCC BY-SA\t\n")
+    pairs = G.extract_glaux(str(tmp_path), metadata_path=metadata)
     if isinstance(pairs, tuple):       # (pairs, stats) in some versions
         pairs = pairs[0]
     return {(p["form"], p["lemma"]) for p in pairs}

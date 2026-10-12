@@ -90,6 +90,7 @@ from dilemma.form_sanitize import (
     resolve_editorial_form,
     canonicalize_final_elision,
     has_editorial_sigla,
+    is_capitalized,
     nonlexical_generated_lemma,
     sanitize_form,
 )
@@ -363,6 +364,7 @@ GRC_COMPATIBILITY_FORMS = DATA / "hunspell_grc_shipped_compat.json.gz"
 GRC_SPELLING_REVIEW = DATA / "hunspell_grc_spelling_review.json"
 DIORISIS_TOKEN_AUDIT = DATA / "changes/diorisis_token_normalizations.json"
 GRC_LEXICAL_HEADS = DATA / "grc_lexical_heads.json"
+TREEBANK_POS_AUDIT = DATA / "treebank_pos_lookup.audit.json"
 GRC_TEXTBOOK_FORMS = DATA / "hunspell_grc_textbook.json.gz"
 # Curated iconic AG polytonic surface forms and lemmas that are always
 # promoted to bucket C, regardless of raw corpus token count. See the
@@ -1186,7 +1188,7 @@ def new_form_structural_reason(form: str) -> str | None:
     # An elided word legitimately ends in a consonant plus ᾽ (γ᾽, παρ᾽).
     if ord(form[-1]) not in SPACING_DIACRITICS:
         final = bases[-1][0].lower()
-        if (not form[0].isupper()
+        if (not is_capitalized(form)
                 and final not in GREEK_VOWELS | frozenset("νρςξψ")
                 and form.lower() not in AG_FUNCTION_WORDS
                 and form not in HOMERIC_SHORT_PREPOSITIONS
@@ -1298,13 +1300,16 @@ def load_diorisis_quote_keys(
         for record in source["records"]:
             reason = record["reason"]
             if reason not in {"duplicated_closing_quote_with_same_source_cell",
+                              "terminal_quote_with_same_source_cell",
                               "unresolved_terminal_quote_or_elision"}:
                 raise ValueError(f"unknown Diorisis quotation decision: {reason}")
             original = betacode_to_unicode(record["original_beta"])
             normalized = betacode_to_unicode(record["normalized_beta"])
             if not original.endswith("᾽"):
                 continue
-            if reason == "duplicated_closing_quote_with_same_source_cell" and original == normalized:
+            if (reason in {"duplicated_closing_quote_with_same_source_cell",
+                           "terminal_quote_with_same_source_cell"}
+                    and original == normalized):
                 continue
             keys.add(cased_form_key(original))
             counts[reason] += 1
@@ -1379,11 +1384,11 @@ def load_case_ownership(conn: sqlite3.Connection) -> dict[str, int]:
         key = exact_form_key(form)
         # A shared Modern name can also be a sentence-capital self-map.
         # Retain it only when no real lowercase lexical owner conflicts.
-        if lemma[:1].isupper() and source != "grc":
+        if is_capitalized(lemma) and source != "grc":
             shared_names.add(key)
             bit = 0
         else:
-            bit = 1 if lemma[:1].isupper() else 2
+            bit = 1 if is_capitalized(lemma) else 2
         owners[key] = owners.get(key, 0) | bit
     for key in shared_names:
         if not owners.get(key, 0) & 2:
@@ -1394,26 +1399,128 @@ def load_case_ownership(conn: sqlite3.Connection) -> dict[str, int]:
 def filter_case_artifacts(
     pairs: list[tuple[str, str]], evidence: FormProfileEvidence,
     ownership: dict[str, int],
+    compatibility_forms: set[str] | frozenset[str] = frozenset(),
+    retained_compatibility: list[dict] | None = None,
 ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """Drop sentence capitals and unattested lowercase proper-name keys.
 
     Corpus counts are case-sensitive here: lowercase ψυχῇ is a real word
-    even if a lookup row happens to assign it to the name Ψυχή. This gate
-    also applies to the compatibility fixture, whose self-maps are not
-    lexical evidence.
+    even if a lookup row happens to assign it to the name Ψυχή.
+    A previously reviewed spelling can retain inherited acceptance with
+    positive exact-cased evidence, or when no lowercase spelling survives.
+    Neither condition asserts a proper-name owner.
+    The caller applies explicit spelling, quotation and fragment rejections
+    before this final check. A compatibility self-map alone is not evidence.
     """
     kept, rejected = [], []
     spellings = {cased_form_key(form) for form, _ in pairs}
+    surviving_lowercase = {
+        cased_form_key(form) for form, _ in pairs
+        if not is_capitalized(form)
+        and not (ownership.get(exact_form_key(form), 0) == 1
+                 and evidence.cased is not None
+                 and evidence.cased.get(cased_form_key(form), 0) == 0)
+    }
     for pair in pairs:
         form, _lemma = pair
         owner = ownership.get(exact_form_key(form), 0)
-        capital = form[:1].isupper()
+        capital = is_capitalized(form)
         bad_capital = capital and (owner == 2 or (not owner & 1
                       and cased_form_key(form.lower()) in spellings))
         bad_lower = (not capital and owner == 1 and evidence.cased is not None
                      and evidence.cased.get(cased_form_key(form), 0) == 0)
+        count = (evidence.cased or {}).get(cased_form_key(form), 0)
+        inherited_without_lowercase = cased_form_key(form.lower()) not in surviving_lowercase
+        if (bad_capital and form in compatibility_forms and evidence.cased is not None
+                and (count > 0 or inherited_without_lowercase)):
+            # Restoring unresolved capital ownership cannot waive spelling
+            # checks. Corpus counts alone also occur on OCR respellings.
+            supported, _ = filter_dominated_spelling_variants(
+                [pair], evidence.exact, evidence.dominant, evidence.treebank,
+                set(), treebank_confirmed=evidence.treebank_confirmed,
+            )
+            if grc_orthography_reason(form) is not None or not supported:
+                rejected.append(pair)
+                continue
+            if retained_compatibility is not None:
+                retained_compatibility.append({
+                    "form": form, "cased_count": count, "owner_bits": owner,
+                    "reason": ("attested_inherited_spelling; lexical_ownership_unresolved"
+                               if count > 0 else
+                               "inherited_capital_without_lowercase; lexical_ownership_unresolved"),
+                })
+            bad_capital = False
         (rejected if bad_capital or bad_lower else kept).append(pair)
     return kept, rejected
+
+
+def load_capital_name_owners(
+    path: Path = TREEBANK_POS_AUDIT, *, lexical_path: Path = GRC_LEXICAL_HEADS,
+) -> dict[str, list[dict]]:
+    """Require the complete source-owned name audit, not the sparse POS table."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if (payload.get("schema_version") != 2 or payload.get("language") != "grc"
+            or not isinstance(payload.get("capital_name_owners"), dict)):
+        raise ValueError(f"rebuild the POS audit with complete capital name owners: {path}")
+    expected = {"size": lexical_path.stat().st_size,
+                "sha256": hashlib.sha256(lexical_path.read_bytes()).hexdigest()}
+    if payload.get("inputs", {}).get("grc_lexical_heads") != expected:
+        raise ValueError(f"POS name ownership has stale lexical-head evidence: {path}")
+    owners = payload["capital_name_owners"]
+    for form, rows in owners.items():
+        if not isinstance(form, str) or not isinstance(rows, list):
+            raise ValueError(f"invalid capital name ownership row: {form!r}")
+        for row in rows:
+            sources = row.get("source_votes", {}) if isinstance(row, dict) else {}
+            if (not isinstance(row, dict) or not isinstance(row.get("lemma"), str)
+                    or row.get("upos") not in {"NOUN", "PROPN", "ADJ"}
+                    or not isinstance(sources, dict) or not sources
+                    or any(not isinstance(n, int) or n <= 0 for n in sources.values())):
+                raise ValueError(f"invalid capital name source votes: {form!r}")
+    return owners
+
+
+def include_attested_name_ownership(
+    ownership: dict[str, int], evidence: FormProfileEvidence, *,
+    readings: dict[str, dict[str, str] | list[dict]] | None = None,
+    lexical_heads: frozenset[str] | None = None,
+) -> list[dict]:
+    """Preserve independently defined names hidden by a flat common owner.
+
+    The complete merged corpus audit preserves name and ethnic-adjective
+    readings independently of lookup.db's single lemma and the sparse POS
+    table. Require an exact cased corpus count as well.
+    Keep the lowercase owner bit: a name does not erase a common homograph.
+    """
+    if not evidence.cased:
+        return []
+    if readings is None:
+        readings = load_capital_name_owners()
+    if lexical_heads is None:
+        lexical_heads = load_grc_lexical_heads()
+    retained: dict[str, set[str]] = defaultdict(set)
+    for raw_form, pos_readings in readings.items():
+        form = cased_form_key(raw_form)
+        key = exact_form_key(form)
+        if (not is_capitalized(form) or ownership.get(key) != 2
+                or grc_orthography_reason(form) is not None
+                or evidence.cased.get(form, 0) <= 0):
+            continue
+        rows = (pos_readings.items() if isinstance(pos_readings, dict) else
+                ((row["upos"], row["lemma"]) for row in pos_readings))
+        for pos, lemma in rows:
+            if (pos in {"NOUN", "PROPN", "ADJ"} and is_capitalized(lemma)
+                    and corpus_lexical_evidence_is_clean(lemma)
+                    and lexical_head_key(lemma) in lexical_heads):
+                retained[form].add(lemma)
+    for form in retained:
+        key = exact_form_key(form)
+        ownership[key] |= 1
+    return [{"form": form, "lemmas": sorted(lemmas),
+             "cased_count": evidence.cased[form],
+             "source": "treebank_pos_lookup.audit.json",
+             "previous_owner_bits": 2, "owner_bits": 3}
+            for form, lemmas in sorted(retained.items())]
 
 
 
@@ -1428,7 +1535,7 @@ def derive_reviewed_paradigm(spec: dict, source_forms: list[str]) -> set[str]:
     if method in {"lookup_paradigm", "verb_paradigm"}:
         forms = set()
         for form in source_forms:
-            if not has_any_diacritic(form) or form[:1].isupper():
+            if not has_any_diacritic(form) or is_capitalized(form):
                 continue
             if spec.get("remove_initial_breathing"):
                 chars = list(unicodedata.normalize("NFD", form))
@@ -1461,6 +1568,109 @@ def derive_reviewed_paradigm(spec: dict, source_forms: list[str]) -> set[str]:
     raise ValueError(f"unknown reviewed paradigm method: {method}")
 
 
+# These exact primary readings were checked in their cited editions. Their
+# grammatical owner is reviewed here: Diorisis itself labels both tokens unknown.
+CITED_CORPUS_FORMS = ({
+    "form": "ὤοντο",
+    "lemma": "οἴομαι",
+    "interpretation": "imperfect middle indicative, third-person plural",
+    "witnesses": (
+        {"work_id": "0540-012", "source": "diorisis", "locus": "93",
+         "locus_scheme": "diorisis-sentence",
+         "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/e37eed2e8a5fed710c3ab0d312249c3fb04d77e0/data/tlg0540/tlg012/tlg0540.tlg012.perseus-grc2.xml",
+         "source_sha256": "2d1036b3def2125b15625e1b7f9af422e7e2b716e93bf0b5ba431932c66072c2"},
+        {"work_id": "0010-017", "source": "diorisis", "locus": "47",
+         "locus_scheme": "diorisis-sentence",
+         "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/e37eed2e8a5fed710c3ab0d312249c3fb04d77e0/data/tlg0010/tlg017/tlg0010.tlg017.perseus-grc2.xml",
+         "source_sha256": "3fbc6acdc376dee413428e9b9280d80a2918abb2d7728bfd37a189fba3294177"},
+    ),
+},)
+
+
+def add_cited_corpus_forms(
+    pairs: list[tuple[str, str]], *,
+    profile_path: Path = FORM_PROFILE_DB,
+    citations_path: Path = DATA / "form_citations.db",
+    lexical_path: Path = GRC_LEXICAL_HEADS,
+) -> tuple[list[tuple[str, str]], set[str], list[dict]]:
+    """Keep exact reviewed readings only while their cited corpus proof survives.
+
+    This is a finite source-form review, not a spelling transformation. Require
+    every nominated source locus and the exact marked lexical head; frequencies
+    of a plain or differently marked homograph cannot authorize the exception.
+    """
+    for path in (profile_path, citations_path, lexical_path):
+        if not path.is_file():
+            raise FileNotFoundError(f"cited corpus-form evidence is required: {path}")
+    lexical = json.loads(lexical_path.read_text(encoding="utf-8"))
+    if lexical.get("schema_version") != 2 or not isinstance(lexical.get("heads"), dict):
+        raise ValueError("invalid cited corpus-form lexical-head evidence")
+    heads = lexical["heads"]
+    out, protected, audit = list(pairs), set(), []
+    existing = set(pairs)
+    with sqlite3.connect(profile_path.resolve().as_uri() + "?mode=ro", uri=True) as conn:
+        conn.execute("ATTACH DATABASE ? AS cited", (
+            citations_path.resolve().as_uri() + "?mode=ro",))
+        # IDs only identify forms within one build. An older citation file can
+        # reuse a current form_id for a different spelling, so bind the pair
+        # before joining it. The builder hashes both mappings and citations.
+        from dilemma._attest_db import validate_attestation_pair_metadata
+        try:
+            profile_meta = dict(conn.execute("SELECT key,value FROM main.meta"))
+            citation_meta = dict(conn.execute("SELECT key,value FROM cited.meta"))
+        except sqlite3.OperationalError as exc:
+            raise ValueError("missing profile/citation pair metadata; rebuild both databases") from exc
+        validate_attestation_pair_metadata(profile_meta, citation_meta)
+        for spec in CITED_CORPUS_FORMS:
+            form, lemma = spec["form"], spec["lemma"]
+            head_sources = heads.get(lemma)
+            if (not head_sources or not corpus_lexical_evidence_is_clean(lemma)
+                    or grc_orthography_reason(lemma) is not None
+                    or grc_orthography_reason(form) is not None):
+                continue
+            profiles = list(conn.execute(
+                "SELECT f.form_id, p.source_counts_json FROM forms f "
+                "JOIN form_profile p USING(form_id) WHERE f.form=? COLLATE BINARY",
+                (form,)))
+            required_counts = Counter(w["source"] for w in spec["witnesses"])
+            profiles = [(form_id, json.loads(counts or "{}"))
+                        for form_id, counts in profiles]
+            profiles = [(form_id, counts) for form_id, counts in profiles
+                        if all(int(counts.get(source, 0)) >= count
+                               for source, count in required_counts.items())]
+            if not profiles:
+                continue
+            witnesses = []
+            for witness in spec["witnesses"]:
+                counts = [row[0] for form_id, _ in profiles for row in conn.execute(
+                    "SELECT count FROM cited.citations WHERE form_id=? "
+                    "AND work_id=? AND source=? AND locus=? AND locus_scheme=?",
+                    (form_id, witness["work_id"], witness["source"],
+                     witness["locus"], witness["locus_scheme"]))]
+                count = max(counts, default=0)
+                if count <= 0:
+                    break
+                witnesses.append({**witness, "count": count})
+            if len(witnesses) != len(spec["witnesses"]):
+                continue
+            pair = (form, lemma)
+            if pair not in existing:
+                out.append(pair)
+                existing.add(pair)
+            protected.add(form)
+            audit.append({"form": form, "lemma": lemma,
+                          "method": "cited_corpus_form",
+                          "lemma_evidence": {"source": lexical_path.name,
+                                             "head": lemma,
+                                             "sources": head_sources},
+                          "interpretation": spec["interpretation"],
+                          "interpretation_source": "reviewed primary text; corpus lemma unknown",
+                          "profile_content_hash": profile_meta["content_hash"],
+                          "profile_source_counts": [counts for _, counts in profiles],
+                          "witnesses": witnesses})
+    return out, protected, audit
+
+
 def add_reviewed_postclassical_paradigms(
     pairs: list[tuple[str, str]], conn: sqlite3.Connection, *,
     review_path: Path = DATA / "hunspell_grc_postclassical_review.json",
@@ -1490,7 +1700,11 @@ def add_reviewed_postclassical_paradigms(
                     existing.add(pair)
                 protected.add(form)
                 audit.append({"form": form, "lemma": spec["lemma"],
-                              "method": spec["method"], "source_url": spec["source_url"]})
+                              "method": spec["method"], "source_url": spec["source_url"],
+                              **{key: spec[key] for key in
+                                 ("evidence", "citation", "source_sha256", "source_file",
+                                  "source_record", "reviewed_on")
+                                 if key in spec}})
     return out, protected, audit
 
 def postclassical_admission_reason(
@@ -1568,7 +1782,7 @@ def corpus_lexical_evidence_is_clean(text: str) -> bool:
     remain independent of this automatic evidence check.
     """
     return (not nonlexical_generated_lemma(text)
-            and not any(char.isupper() for char in text[1:]))
+            and not any(is_capitalized(char) for char in text[1:]))
 
 
 def lexical_head_key(text: str) -> str:
@@ -1672,7 +1886,7 @@ def exact_inflection_lemma(
 def include_reviewed_name_ownership(ownership: dict[str, int], review: list[dict]) -> None:
     """A source-verified proper name is an independent lexical owner."""
     for row in review:
-        if row["lemma"][:1].isupper():
+        if is_capitalized(row["lemma"]):
             key = exact_form_key(row["form"])
             ownership[key] = ownership.get(key, 0) | 1
 
@@ -1724,19 +1938,19 @@ def add_postclassical_corpus_forms(
             # lowercase words remain usable at one token (e.g. σπίτι,
             # στέκομαι), including independently defined Modern heads. That
             # evidence is scoped here; a capital self-map is not proof of a name.
-            if (lemma is None and not form[:1].isupper()
+            if (lemma is None and not is_capitalized(form)
                     and sources.get("byzantine_vernacular", 0) > heldout):
                 row = conn.execute(
                     "SELECT l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
                     "WHERE k.form=? AND k.lang='all' LIMIT 1", (form,)
                 ).fetchone()
-                if (row and not row[0][:1].isupper()
+                if (row and not is_capitalized(row[0])
                         and corpus_lexical_evidence_is_clean(row[0])
                         and lexical_head_key(row[0]) in supported_vernacular_heads):
                     lemma = row[0]
                 elif row:
                     targets = (lemma_aliases or {}).get(cased_form_key(row[0]), ())
-                    if (len(targets) == 1 and not targets[0][:1].isupper()
+                    if (len(targets) == 1 and not is_capitalized(targets[0])
                             and lexical_head_key(targets[0]) in lexical_heads):
                         lemma = targets[0]
             if lemma is None and postclassical_spelling_reason(form) is not None:
@@ -1798,8 +2012,10 @@ def finalize_grc_pairs(
     grave's exact-form key and so its corpus evidence, and the twin of a
     reviewed baseline grave inherits that review: the grave and the acute are
     one word, and the downstream oxytone check requires both. Twins are
-    checked again for structure. Recorded rejections and case artifacts
-    override compatibility at the end. Source-backed bare elision fragments
+    checked again for structure. Recorded rejections override compatibility
+    at the end. Case artifacts do too, unless the exact reviewed spelling
+    has positive case-sensitive corpus evidence or lacks a surviving
+    lowercase spelling. Source-backed bare elision fragments
     are checked after compatibility injection so a historical self-map cannot
     restore a stem whose apostrophe was lost.
     """
@@ -1864,10 +2080,15 @@ def finalize_grc_pairs(
                   or cased_form_key(pair[0]) in quote_allowed]
     report["quote_evidence"] = len(quote_rejected)
     report["quote_rejected"] = sorted(set(quote_rejected))
+    retained_compatibility: list[dict] = []
     form_lemma, case_rejected = filter_case_artifacts(
-        form_lemma, evidence, case_ownership or {})
+        form_lemma, evidence, case_ownership or {}, compatibility_forms,
+        retained_compatibility)
     report["case_artifacts"] = len(case_rejected)
     report["case_rejected"] = sorted(set(case_rejected))
+    report["attested_compatibility_cases"] = sorted(
+        {row["form"]: row for row in retained_compatibility}.values(),
+        key=lambda row: row["form"])
     return form_lemma, report
 
 
@@ -2242,7 +2463,7 @@ def treebank_spelling_reason(form: str) -> str | None:
         return "bare_elision"
     if ord(form[-1]) in SPACING_DIACRITICS:
         return "elided"
-    if any(char.isupper() for char in form[1:]):
+    if any(is_capitalized(char) for char in form[1:]):
         return "inner_capital"
     nfd = unicodedata.normalize("NFD", form)
     if _IOTA_ADSCRIPT.search(nfd):
@@ -2353,12 +2574,18 @@ def load_grc_compatibility_forms() -> tuple[set[str], dict]:
     """Load the structurally reviewed acceptance baseline Tonos ships."""
     if not GRC_COMPATIBILITY_FORMS.exists():
         return set(), {}
-    with gzip.open(GRC_COMPATIBILITY_FORMS, "rt", encoding="utf-8") as stream:
-        payload = json.load(stream)
+    raw = GRC_COMPATIBILITY_FORMS.read_bytes()
+    payload = json.loads(gzip.decompress(raw).decode("utf-8"))
     if payload.get("schema_version") != 1:
         raise ValueError(
             f"unsupported compatibility fixture: {GRC_COMPATIBILITY_FORMS}"
         )
+    payload["input"] = {
+        "path": (str(GRC_COMPATIBILITY_FORMS.relative_to(ROOT))
+                 if GRC_COMPATIBILITY_FORMS.is_relative_to(ROOT)
+                 else GRC_COMPATIBILITY_FORMS.name),
+        "size": len(raw), "sha256": hashlib.sha256(raw).hexdigest(),
+    }
     return set(payload.get("forms", [])), payload
 
 
@@ -2661,7 +2888,7 @@ def select_forms(
             for form, lemma in rows:
                 if (form in selected or form in BARE_ELISION_STEMS
                         or form in GRC_CLOSED_LIST_FORMS
-                        or form[:1].isupper()
+                        or is_capitalized(form)
                         or not has_any_diacritic(form)
                         or treebank_counts.get(
                             treebank_spelling_key(form), 0)
@@ -3136,6 +3363,10 @@ def run_export(sanity: int | None, variants: list[str],
     conn = sqlite3.connect(str(LOOKUP_DB))
     conn.execute("PRAGMA mmap_size=268435456")
     case_ownership = load_case_ownership(conn) if "grc" in variants else {}
+    attested_name_ownership = (
+        include_attested_name_ownership(case_ownership, profile)
+        if "grc" in variants else []
+    )
     bare_elision_keys = (load_unsupported_bare_elisions(conn)
                          if "grc" in variants else set())
     quote_keys, quote_audit_meta = (load_diorisis_quote_keys()
@@ -3230,6 +3461,9 @@ def run_export(sanity: int | None, variants: list[str],
         if variant == "grc" and not sanity:
             form_lemma, reviewed_paradigm_forms, reviewed_paradigm_audit = (
                 add_reviewed_postclassical_paradigms(form_lemma, conn))
+            form_lemma, cited_forms, cited_audit = add_cited_corpus_forms(form_lemma)
+            reviewed_paradigm_forms.update(cited_forms)
+            reviewed_paradigm_audit.extend(cited_audit)
             include_reviewed_name_ownership(case_ownership, reviewed_paradigm_audit)
             lexical_heads = load_grc_lexical_heads()
             lemma_aliases, exact_pos_owners = load_grc_inflection_evidence(lexical_heads)
@@ -3335,6 +3569,10 @@ def run_export(sanity: int | None, variants: list[str],
                 "form_profile_content_hash": profile_meta.get("content_hash"),
                 "postclassical_admissions": postclassical_audit,
                 "reviewed_paradigms": reviewed_paradigm_audit,
+                "attested_name_ownership": attested_name_ownership,
+                "attested_compatibility_cases": report["attested_compatibility_cases"],
+                "compatibility_input": compatibility_meta.get("input"),
+                "compatibility_baseline": compatibility_meta.get("baseline"),
                 "case_rejected": report["case_rejected"],
                 "bare_elision_rejected": report["bare_elision_rejected"],
                 "quote_rejected": report["quote_rejected"],

@@ -37,6 +37,11 @@ import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
 
+try:
+    from .build_glaux_pairs import load_name_corrections, apply_name_correction
+except ImportError:
+    from build_glaux_pairs import load_name_corrections, apply_name_correction
+
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_GLAUX_DIR = Path.home() / "Documents" / "glaux" / "xml"
@@ -313,7 +318,7 @@ def diorisis_work_id(root, filename):
 
 
 def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset(),
-                  gorman_stems=frozenset()):
+                  gorman_stems=frozenset(), name_corrections=None):
     glaux_hash = hashlib.sha256()
     work_ids = set()  # GLAUx file stems = TLG work ids, for the Diorisis dedup
     files = sorted(glaux_dir.glob("*.xml"))
@@ -351,6 +356,9 @@ def process_glaux(glaux_dir, meta, profiles, limit, stats, nc_stems=frozenset(),
                     stats["glaux_unlemmatized"] += 1
                     continue
                 lemma = unicodedata.normalize("NFC", lemma)
+                if name_corrections is not None:
+                    lemma = apply_name_correction(
+                        name_corrections, xf.name, w.get("form", ""), lemma, postag)
                 if not is_lexical_greek(lemma):
                     stats["glaux_nonlexical_lemma"] += 1
                     continue
@@ -709,12 +717,20 @@ def main():
     p.add_argument("--metadata", type=Path, default=DEFAULT_METADATA)
     p.add_argument("--diorisis", type=Path, default=DEFAULT_DIORISIS_DIR)
     p.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    p.add_argument("--name-corrections", type=Path,
+                   default=DATA_DIR / "changes" / "glaux_name_lemmas.json",
+                   help="Required audited GLAUx name corrections from the pair build")
+    p.add_argument("--lexical-heads", type=Path, default=DATA_DIR / "grc_lexical_heads.json")
+    p.add_argument("--name-pairs", type=Path, default=DATA_DIR / "ag_pairs.json")
     p.add_argument("--stats", action="store_true",
                    help="Report only, do not write the JSON.")
     p.add_argument("--limit", type=int, default=0,
                    help="Process only the first N files of each corpus "
                         "(smoke test; gives partial counts).")
     args = p.parse_args()
+    name_corrections = load_name_corrections(
+        args.name_corrections, args.glaux, lexical_path=args.lexical_heads,
+        name_pairs_path=args.name_pairs, metadata_path=args.metadata)
 
     # Openly licensed by default: always drop the NonCommercial GLAUx texts
     # (this pass uses only GLAUx + Diorisis, both otherwise permissive).
@@ -725,6 +741,7 @@ def main():
     t0 = time.time()
     stats = Counter()
     source_sha = {}
+    source_sha["glaux_name_corrections"] = name_corrections["sha256"]
     profiles = defaultdict(LemmaProfile)
 
     print("Loading GLAUx metadata...", flush=True)
@@ -734,7 +751,7 @@ def main():
 
     source_sha["glaux_xml"], glaux_work_ids = process_glaux(
         args.glaux, glaux_meta, profiles, args.limit, stats, nc_stems,
-        gorman_stems)
+        gorman_stems, name_corrections=name_corrections)
     source_sha["diorisis_xml"], diorisis_wids = process_diorisis(
         args.diorisis, profiles, args.limit, stats, glaux_work_ids)
     oga_sha, oga_pin = process_oga(

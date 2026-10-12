@@ -46,6 +46,16 @@ EDITORIAL_SIGLA = frozenset("[]()")
 FINAL_ELISION_APOSTROPHES = frozenset("'`\u02BC\u1FBD\u1FBF\u2019")
 
 
+def is_capitalized(text: str) -> bool:
+    """Recognize an initial capital, including Greek titlecase characters.
+
+    Capitals with prosgegrammeni, such as ``ᾍ``, have Unicode category Lt
+    rather than Lu. Do not change their spelling or lowercase subscript
+    counterparts when checking lexical ownership.
+    """
+    return bool(text) and unicodedata.category(text[0]) in {"Lu", "Lt"}
+
+
 def has_editorial_sigla(s: str) -> bool:
     """Return whether *s* still carries bracket/parenthesis notation."""
     return any(char in EDITORIAL_SIGLA for char in s)

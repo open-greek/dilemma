@@ -30,6 +30,11 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 
+try:
+    from .build_glaux_pairs import load_name_corrections, apply_name_correction
+except ImportError:
+    from build_glaux_pairs import load_name_corrections, apply_name_correction
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root
 import convert_treebank as CT   # convert_postag(postag, lemma) -> (upos, feats)
 
@@ -38,6 +43,7 @@ GLAUX = Path(os.environ.get("DILEMMA_GLAUX_DIR",
 GLAUX_XML = GLAUX / "xml"
 GLAUX_META = GLAUX / "metadata.txt"
 OUT = Path(__file__).resolve().parent.parent / "data" / "tagger"
+DATA_DIR = OUT.parent
 
 HELD_OUT_TEST = {"0012-001"}   # Homer, Iliad
 # Dev was Herodotus 0016-001, whose manual trees are PROIEL-derived and now
@@ -49,7 +55,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # build/ (nc_filter)
 from nc_filter import excluded_glaux_stems, gorman_glaux_stems
 
 
-def extract(limit: int = 0):
+def extract(limit: int = 0, *, name_corrections=None):
     nc = excluded_glaux_stems(GLAUX_META)
     gorman = gorman_glaux_stems(GLAUX_META)
     files = sorted(GLAUX_XML.glob("*.xml"))
@@ -90,6 +96,9 @@ def extract(limit: int = 0):
             for w in kept:
                 form = unicodedata.normalize("NFC", w.get("form") or "")
                 lemma = unicodedata.normalize("NFC", w.get("lemma") or "")
+                if name_corrections is not None:
+                    lemma = apply_name_correction(
+                        name_corrections, xf.name, form, lemma, w.get("postag") or "")
                 upos, feats = CT.convert_postag(w.get("postag") or "", lemma)
                 # head: 1-based position of the head word, or 0 if it is the
                 # sentence root or attaches above a dropped (elided) node.
@@ -106,10 +115,18 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--limit", type=int, default=0,
                     help="process only the first N GLAUx files (smoke test)")
+    ap.add_argument("--name-corrections", type=Path,
+                    default=DATA_DIR / "changes" / "glaux_name_lemmas.json",
+                    help="Required audited GLAUx name corrections from the pair build")
+    ap.add_argument("--lexical-heads", type=Path, default=DATA_DIR / "grc_lexical_heads.json")
+    ap.add_argument("--name-pairs", type=Path, default=DATA_DIR / "ag_pairs.json")
     args = ap.parse_args()
+    name_corrections = load_name_corrections(
+        args.name_corrections, GLAUX_XML, lexical_path=args.lexical_heads,
+        name_pairs_path=args.name_pairs, metadata_path=GLAUX_META)
     OUT.mkdir(parents=True, exist_ok=True)
     print(f"Reading GLAUx from {GLAUX_XML} (openly licensed)...", flush=True)
-    sents, n_nc = extract(args.limit)
+    sents, n_nc = extract(args.limit, name_corrections=name_corrections)
     n_tok = sum(len(s["tokens"]) for s in sents)
     sp = Counter(s["split"] for s in sents)
     rel = Counter(t["deprel"] for s in sents for t in s["tokens"])
@@ -120,6 +137,10 @@ def main():
     with (OUT / "sentences.jsonl").open("w", encoding="utf-8") as f:
         for s in sents:
             f.write(json.dumps(s, ensure_ascii=False, separators=(",", ":")) + "\n")
+    (OUT / "sentences.meta.json").write_text(json.dumps({
+        "glaux_name_corrections_sha256": name_corrections["sha256"],
+        "glaux_name_corrections_source_commit": name_corrections["source_commit"],
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"  wrote {OUT / 'sentences.jsonl'}")
 
 

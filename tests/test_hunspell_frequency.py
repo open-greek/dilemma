@@ -114,7 +114,7 @@ def test_frequency_fixture_is_well_formed():
     assert next(row for row in rows if row["form"] == "γε")["count"] == 43_743
     forms = {row["form"] for row in rows}
     assert {"καί", "καὶ", "τό", "τὸ", "ἣ", "οἳ", "αἳ"} <= forms
-    assert sum(row["count"] for row in rows) == 16_546_331
+    assert sum(row["count"] for row in rows) == 16_546_390
 
 
 def test_frequency_exclusions_are_explicit_and_within_fixture():
@@ -153,9 +153,9 @@ def test_full_form_profile_is_pinned_and_preserves_polytonic_marks():
     metadata, confirmed = profile.metadata, profile.treebank_confirmed
 
     assert metadata["content_hash"] == (
-        "17ae6850b590ee5ac58aef27404e7d505e3c10468cc59434fcf810a8b2dfc134"
+        "876c338e5a8d33a8e24292781c36e23b286884e12b3e4c6f5d9c2d52eb402056"
     )
-    assert len(forms) == 1_772_603
+    assert len(forms) == 1_772_563
     # The larger of the work-deduplicated total and any single source's own
     # count: a spelling found only in a lower-priority copy of a work still
     # counts as attested.

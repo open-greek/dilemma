@@ -6,6 +6,42 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.8] - 2026-10-12
+
+### Fixed
+- Require merged lexical-head evidence for exact corpus POS targets; retain
+  rejected claims and tied owner votes in a deterministic companion audit.
+- Keep noun homographs from supplying unsupported verb stems during fallback
+  lemmatization, and honor explicit verb tags beside case variants of a name.
+- Preserve an independent exact lookup spelling beside a differently accented
+  POS homograph, including `οὖ` beside `οὐ`.
+- Count exact spellings separately from ranked words in the Hunspell frequency
+  audit summary, including acute and grave variants.
+- Preserve attested capitalized names and ethnic adjectives when a flat
+  lowercase lemma hides their independently supported source reading.
+- Recognize Greek titlecase letters with a written iota in lexical ownership,
+  corpus name handling, and runtime case matching. Retain reviewed capitalized
+  spellings with exact-case attestation or no surviving lowercase spelling,
+  without inventing a proper-name owner.
+- Keep structural and corpus respelling checks in force when restoring an
+  inherited capitalized spelling with unresolved lexical ownership.
+- Retain the directly cited forms `Κορῆ` and `Ὦρα` without deriving additional
+  name spellings or treating ambiguous corpus counts as name frequencies.
+- Correct malformed corpus name lemmas through a reversible source audit
+  shared by pair, lemma-attestation and tagger-data generation.
+- Distinguish terminal quotation punctuation from elision using complete
+  morphological witnesses in the same source document.
+- Preserve the LSJ-listed old Attic dative plural `παῖσι` under `παῖς`,
+  independently of mistaken corpus accents.
+- Preserve the rare printed spelling `ὤοντο` from two cited passages, with
+  matching profile and citation provenance required for the export.
+- Reapply supported historical pronoun repairs when regenerating source
+  aliases from a reversed audit, preserving independent and intervening owners.
+- Require GLAUx exclusion metadata during pair extraction and name-audit
+  loading, rejecting missing or changed metadata before accepting a rebuild.
+- Reject mismatched citation caches at runtime while retaining the usage
+  profile, preventing form IDs from another build from returning wrong loci.
+
 ## [1.3.7] - 2026-10-12
 
 ### Fixed
