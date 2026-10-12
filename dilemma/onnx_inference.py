@@ -228,53 +228,66 @@ class OnnxLemmaModel:
             src_key_padding_mask = (src == 0)
         if isinstance(src_key_padding_mask, list):
             src_key_padding_mask = np.array(src_key_padding_mask, dtype=bool)
+        if len(src) > 128:
+            results = []
+            for begin in range(0, len(src), 128):
+                results.extend(self.generate(
+                    src[begin:begin + 128], src_key_padding_mask[begin:begin + 128],
+                    max_len=max_len, bos_id=bos_id, eos_id=eos_id, num_beams=num_beams))
+            return results
 
         memory = self._encode(src, src_key_padding_mask)
         batch_size = src.shape[0]
 
-        all_results = []
-        for i in range(batch_size):
-            mem_i = memory[i:i+1]
-            mask_i = src_key_padding_mask[i:i+1]
-
-            beams = [([bos_id], 0.0)]
-            complete = []
-
-            for _ in range(max_len):
-                candidates = []
-                for ids, score in beams:
+        beams = [[([bos_id], 0.0)] for _ in range(batch_size)]
+        complete = [[] for _ in range(batch_size)]
+        active = list(range(batch_size))
+        # Bound decoder activations independently of the caller's word count.
+        # Each word keeps its own beam ranking and stopping condition.
+        decoder_batch_size = 128
+        for _ in range(max_len):
+            candidates = {i: [] for i in active}
+            jobs = []
+            for i in active:
+                for ids, score in beams[i]:
                     if ids[-1] == eos_id:
-                        complete.append((ids, score))
-                        continue
-
-                    logits = self._decode_step(ids, mem_i, mask_i)
-
-                    # Log softmax
-                    max_val = logits.max()
-                    log_probs = logits - max_val - np.log(
-                        np.exp(logits - max_val).sum())
-
-                    # Top-k
-                    top_indices = np.argpartition(log_probs, -num_beams)[-num_beams:]
-                    top_indices = top_indices[np.argsort(log_probs[top_indices])[::-1]]
-
-                    for idx in top_indices:
-                        token = int(idx)
-                        new_score = score + float(log_probs[idx])
-                        candidates.append((ids + [token], new_score))
-
-                if not candidates:
-                    break
-
-                candidates.sort(key=lambda x: x[1], reverse=True)
-                beams = candidates[:num_beams]
-
-                if all(ids[-1] == eos_id for ids, _ in beams):
-                    complete.extend(beams)
-                    break
-
-            complete.extend(b for b in beams if b[0][-1] != eos_id)
-            complete.sort(key=lambda x: x[1], reverse=True)
-            all_results.append(complete[:num_beams])
-
-        return all_results
+                        complete[i].append((ids, score))
+                    else:
+                        jobs.append((i, ids, score))
+            for begin in range(0, len(jobs), decoder_batch_size):
+                chunk = jobs[begin:begin + decoder_batch_size]
+                indexes = [job[0] for job in chunk]
+                lengths = [len(job[1]) for job in chunk]
+                tgt = np.zeros((len(chunk), self.ONNX_MAX_OUT), dtype=np.int64)
+                for row, (_, ids, _) in enumerate(chunk):
+                    tgt[row, :len(ids)] = ids
+                logits = self.decoder.run(None, {
+                    "tgt": tgt, "memory": memory[indexes],
+                    "memory_key_padding_mask": src_key_padding_mask[indexes],
+                })[0]
+                for row, (i, ids, score) in enumerate(chunk):
+                    last = logits[row, lengths[row] - 1, :]
+                    max_val = last.max()
+                    log_probs = last - max_val - np.log(np.exp(last - max_val).sum())
+                    top = np.argpartition(log_probs, -num_beams)[-num_beams:]
+                    top = top[np.argsort(log_probs[top])[::-1]]
+                    for index in top:
+                        candidates[i].append((ids + [int(index)],
+                                              score + float(log_probs[index])))
+            remaining = []
+            for i in active:
+                if not candidates[i]:
+                    continue
+                candidates[i].sort(key=lambda x: x[1], reverse=True)
+                beams[i] = candidates[i][:num_beams]
+                if all(ids[-1] == eos_id for ids, _ in beams[i]):
+                    complete[i].extend(beams[i])
+                else:
+                    remaining.append(i)
+            active = remaining
+            if not active:
+                break
+        for i in range(batch_size):
+            complete[i].extend(b for b in beams[i] if b[0][-1] != eos_id)
+            complete[i].sort(key=lambda x: x[1], reverse=True)
+        return [rows[:num_beams] for rows in complete]

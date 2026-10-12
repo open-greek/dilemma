@@ -4747,6 +4747,30 @@ class Dilemma:
         return None
 
     def _predict(self, words: list[str], num_beams=4) -> list[str]:
+        """Reuse context-independent model guesses across lemma and tier calls."""
+        from collections import OrderedDict
+        cache = getattr(self, "_prediction_cache", None)
+        if cache is None:
+            cache = self._prediction_cache = OrderedDict()
+        answers = {word: cache[(word, num_beams)] for word in words
+                   if (word, num_beams) in cache}
+        missing = list(dict.fromkeys(word for word in words if word not in answers))
+        if missing:
+            predictions = self._predict_uncached(missing, num_beams=num_beams)
+            if len(predictions) != len(missing):
+                raise RuntimeError("Model changed the number of predictions")
+            for word, prediction in zip(missing, predictions):
+                answers[word] = prediction
+                cache[(word, num_beams)] = prediction
+        for word in words:
+            key = (word, num_beams)
+            if key in cache:
+                cache.move_to_end(key)
+        while len(cache) > 65536:
+            cache.popitem(last=False)
+        return [answers[word] for word in words]
+
+    def _predict_uncached(self, words: list[str], num_beams=4) -> list[str]:
         """Run model inference with beam search + headword filtering.
 
         Generates multiple candidates via beam search. Picks the
