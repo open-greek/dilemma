@@ -228,6 +228,13 @@ class OnnxLemmaModel:
             src_key_padding_mask = (src == 0)
         if isinstance(src_key_padding_mask, list):
             src_key_padding_mask = np.array(src_key_padding_mask, dtype=bool)
+        if len(src) > 128:
+            results = []
+            for begin in range(0, len(src), 128):
+                results.extend(self.generate(
+                    src[begin:begin + 128], src_key_padding_mask[begin:begin + 128],
+                    max_len=max_len, bos_id=bos_id, eos_id=eos_id, num_beams=num_beams))
+            return results
 
         memory = self._encode(src, src_key_padding_mask)
         batch_size = src.shape[0]

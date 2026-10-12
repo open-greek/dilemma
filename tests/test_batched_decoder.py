@@ -81,6 +81,21 @@ def test_empty_batch():
     assert fake_model().generate(empty, empty.astype(bool)) == []
 
 
+def test_encoder_batches_are_bounded_without_reordering_words():
+    src = np.arange(300, dtype=np.int64).reshape(-1, 1)
+    mask = np.zeros_like(src, dtype=bool)
+    expected = serial_generate(fake_model(), src, mask, max_len=4, num_beams=4)
+    model = fake_model()
+    encode = model._encode
+    sizes = []
+    def bounded(values, padding):
+        sizes.append(len(values))
+        return encode(values, padding)
+    model._encode = bounded
+    assert model.generate(src, mask, max_len=4, num_beams=4) == expected
+    assert sizes == [128, 128, 44]
+
+
 def test_prediction_cache_keeps_beam_width_separate_and_is_bounded():
     from dilemma import Dilemma
     instance = object.__new__(Dilemma)

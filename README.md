@@ -115,7 +115,8 @@ you already have. The lookup handles 95%+ of words and needs neither.
 
 For unseen forms, ONNX decoding batches active beams from different words in
 groups of at most 128. Each word retains its own beam ranking and stopping
-condition. This reduces repeated decoder calls without changing model weights
+condition. Encoder batches are also capped at 128 words to bound memory on
+large input lists. This reduces repeated decoder calls without changing model weights
 or search width. `tests/test_batched_decoder.py` compares the ranked results with
 the previous serial search, including a real-model check under `--run-slow`.
 An instance also retains up to 65,536 context-independent model guesses so
