@@ -297,3 +297,98 @@ def test_nominal_form_reference_cannot_authorize_new_pos_override(inputs,form,le
     # These are English source records; the Greek source has no separate head.
     (build.KAIKKI_DIR/"el/kaikki.org-dictionary-AncientGreek.jsonl").write_text("")
     assert form not in build.build_lookup()
+
+
+def scalar_models(monkeypatch, bare):
+    original = build._lower_priority_pos_models
+    def models():
+        result = original()
+        for model in result:
+            model._lookup = bare
+        return result
+    monkeypatch.setattr(build, '_lower_priority_pos_models', models)
+
+
+@pytest.mark.parametrize(('form', 'capital'), [('παρούσῃ', 'Παρούση'),
+                                             ('παρούσης', 'Παρούσης')])
+def test_scalar_case_shadow_keeps_source_verb_vote(inputs, monkeypatch, form, capital):
+    bare = {form: 'πάρειμι', capital: capital}
+    inputs([{'form': form, 'lemma': 'πάρειμι', 'pos': 'verb'}], bare, {})
+    scalar_models(monkeypatch, bare)
+    result = build.build_lookup()
+    assert result[form] == {'VERB': 'πάρειμι'}
+    assert result[build.to_monotonic(form)] == {'VERB': 'πάρειμι'}
+
+
+@pytest.mark.parametrize('query', ['Παρούση', 'ΠΑΡΟΎΣΗ', 'Παρούσῃ'])
+def test_all_supported_case_queries_find_scalar_conflict(inputs, monkeypatch, query):
+    bare = {'παρούσῃ': 'πάρειμι', query: query}
+    inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'}], bare, {})
+    scalar_models(monkeypatch, bare)
+    assert build.build_lookup()['παρούσῃ'] == {'VERB': 'πάρειμι'}
+
+
+@pytest.mark.parametrize('query', ['Παρούση', 'ΠΑΡΟΎΣΗ', 'Παρούσῃ'])
+def test_same_owner_case_query_is_still_redundant(inputs, monkeypatch, query):
+    bare = {'παρούσῃ': 'πάρειμι', query: 'πάρειμι'}
+    inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'}], bare, {})
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
+
+
+def test_unaccented_other_word_does_not_supply_scalar_conflict(inputs, monkeypatch):
+    bare = {'παρούσῃ': 'πάρειμι', 'Παρουση': 'ἄλλος'}
+    inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'}], bare, {})
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
+
+
+def test_scalar_case_shadow_with_correct_pos_fallback_is_redundant(inputs, monkeypatch):
+    bare = {'παρούσῃ': 'πάρειμι', 'Παρούση': 'Παρούση'}
+    inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'}], bare,
+           {'lsj9_pos_lookup.json': {'παρούση': {'VERB': 'πάρειμι'}}})
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
+
+
+def test_scalar_case_shadow_does_not_break_tied_vote_guard(inputs, monkeypatch):
+    bare = {'παρούσῃ': 'πάρειμι', 'Παρούση': 'Παρούση'}
+    inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'},
+            {'form': 'παρούσῃ', 'lemma': 'παρόω', 'pos': 'verb'}], bare, {})
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
+
+
+def test_scalar_case_shadow_requires_independent_matching_pos(inputs, monkeypatch):
+    bare = {'παρούσῃ': 'πάρειμι', 'Παρούση': 'Παρούση'}
+    inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'}], bare, {},
+           [{'word': 'πάρειμι', 'lang_code': 'grc', 'pos': 'noun',
+             'senses': [{'glosses': ['An independent noun.']}]}])
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
+
+
+@pytest.mark.parametrize('batch', [False, True])
+def test_retained_vote_repairs_pos_api_without_changing_proper_noun(inputs, monkeypatch, batch):
+    from types import SimpleNamespace
+    bare = {'παρούσῃ': 'πάρειμι', 'Παρούση': 'Παρούση'}
+    inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'}], bare, {})
+    scalar_models(monkeypatch, bare)
+    table = build.build_lookup()
+    model = object.__new__(core.Dilemma)
+    model.lang = 'grc'
+    model._convention_name = 'wiktionary'
+    model._resolve_articles = False
+    model._pos_lookup = table
+    model._pos_ag_lookup = table
+    monkeypatch.setattr(model, '_apply_convention', lambda lemma: lemma)
+    monkeypatch.setattr(model, '_lemmatize_verbose_impl',
+                        lambda word, **kw: [SimpleNamespace(lemma='Παρούση')])
+    monkeypatch.setattr(model, 'lemmatize_batch', lambda words, **kw: ['Παρούση'] * len(words))
+    if batch:
+        assert model.lemmatize_batch_pos(['Παρούση'], ['VERB'], guess=False) == ['πάρειμι']
+        assert model.lemmatize_batch_pos(['Παρούση'], ['PROPN'], guess=False) == ['Παρούση']
+    else:
+        assert model.lemmatize_pos('Παρούση', 'VERB', guess=False) == 'πάρειμι'
+        assert model.lemmatize_pos('Παρούση', 'PROPN', guess=False) == 'Παρούση'
+

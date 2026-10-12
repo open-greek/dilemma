@@ -43,6 +43,7 @@ from .nonlexical import is_lexical as _is_lexical
 from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
+from .form_sanitize import sanitize_form
 
 
 def _newest_marker_mtime(d: Path, markers):
@@ -116,6 +117,7 @@ MG_POS_LOOKUP_PATH = DATA_DIR / "mg_pos_lookup.json"
 AG_POS_LOOKUP_PATH = DATA_DIR / "ag_pos_lookup.json"
 TREEBANK_POS_LOOKUP_PATH = DATA_DIR / "treebank_pos_lookup.json"
 GLAUX_POS_LOOKUP_PATH = DATA_DIR / "glaux_pos_lookup.json"
+GRC_LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
@@ -1124,6 +1126,7 @@ class Dilemma:
         # (all_headwords, stripped_index, lsj_only). Lazy-loaded.
         self._canonical_hw: tuple[set, dict, set] | None = None
         self._trusted_grave_targets: set[str] | None = None
+        self._elision_lexical_heads: set[str] | None = None
 
         # Form-keyed corpus attestation (form_profile.db / form_citations.db),
         # for the "attested only" gate + form_attestation(). Lazy-opened.
@@ -2082,6 +2085,21 @@ class Dilemma:
             if hit and not (len(variant) <= 2 and hit == variant):
                 return hit
         return None
+
+    def _positive_elision_target(self, lemma: str) -> bool:
+        """Whether merged lexical definitions support an exact elision target."""
+        if self._elision_lexical_heads is None:
+            heads = set()
+            if GRC_LEXICAL_HEADS_PATH.exists():
+                with GRC_LEXICAL_HEADS_PATH.open(encoding="utf-8") as stream:
+                    evidence = json.load(stream)
+                if self.lang in ("all", "grc"):
+                    heads.update(evidence["heads"])
+                if self.lang in ("all", "el"):
+                    heads.update(evidence.get("vernacular_heads", {}))
+            self._elision_lexical_heads = heads
+        normalized = _without_quantity_marks(sanitize_form(lemma)).replace("-", "")
+        return normalized in self._elision_lexical_heads
 
     def _lookup_elided(self, word: str) -> str | None:
         """Exact corpus-derived entry for an elided form (ὅτ᾽->ὅτε, κ᾽->ἄν, μ᾽->ἐγώ).
@@ -3639,8 +3657,11 @@ class Dilemma:
         """Build the candidate list (no attestation gate); see lemmatize_verbose."""
         candidates = []
         seen = set()  # track (lemma_lower, lang) to avoid exact dupes
+        supported_elisions = set()
 
         def _add(lemma, lang="", source="", via="", score=1.0, tag=""):
+            supported_elision = (via == "elision-exact"
+                                  and self._positive_elision_target(lemma))
             check = self._apply_convention_check(
                 lemma, lang=lang, source=source)
             if check.lemma is None:
@@ -3659,6 +3680,8 @@ class Dilemma:
                     tag=tag,
                     citation=check.reason,
                 ))
+                if supported_elision:
+                    supported_elisions.add(id(candidates[-1]))
 
         # 0. Digit-only passthrough
         if word.isdigit():
@@ -3926,8 +3949,10 @@ class Dilemma:
                         # No corpus data: slight penalty vs attested forms
                         c.score = 0.55
 
-        # Sort: non-proper before proper, then by score descending
-        candidates.sort(key=lambda c: (c.proper, -c.score))
+        # Independently supported exact elisions precede reconstructed
+        # expansions, including names. Other candidates retain their order.
+        candidates.sort(key=lambda c: (id(c) not in supported_elisions,
+                                       c.proper, -c.score))
 
         # Dedupe after convention/citation normalization. _add() already applies
         # this, but the pass is cheap and keeps older in-place mutations honest.

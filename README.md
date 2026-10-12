@@ -1301,9 +1301,12 @@ AG-first logic.
 Rebuild the corpus POS table after a source refresh with
 `python build/build_treebank_pos_lookup.py --kaikki PATH_TO_KAIKKI`.
 A corpus vote that agrees with the bare lookup can still be needed when a
-lower-priority POS table or a projected spelling would select another lemma.
-These additional entries require a unique highest-weight corpus owner and an
-independent definition of the exact lemma and part of speech in the English
+lower-priority POS table, a projected spelling, or a capitalized scalar query
+would select another lemma. A case variant already corrected by the effective
+POS lookup does not authorize a redundant recovery.
+These additional entries require at least two weighted corpus votes, a unique
+highest-weight corpus owner, and an independent definition of the exact lemma
+and part of speech in the English
 or Greek Ancient Greek extracts. Tied corpus owners remain in the source
 evidence and cannot authorize an additional scalar override.
 Without `--kaikki`, this additional recovery is disabled. Lowercase and
@@ -1438,6 +1441,13 @@ homograph ὅτι, which never elides in Homer), `μ᾽` -> `ἐγώ`, `σ᾽` -
 `κ᾽` -> `ἄν`, `θ᾽` -> `τε`, `ποτ᾽` -> `ποτέ`, `αὖτ᾽` -> `αὖτε`. One
 residual static-lookup limit: a few Homeric `ὅθ᾽` tokens are the locative
 ὅθι rather than temporal ὅτε, which only syntactic context can settle.
+
+Verbose and POS-aware calls prioritize an exact entry over reconstructed
+expansions when its original lemma is supported by the merged lexical
+inventory for the requested language. This checks the original citation
+before convention remapping, including proper names. Unsupported exact
+targets retain their former ordering, and every alternative remains
+available. A matching POS reading can still select another candidate.
 
 Forms without an exact entry fall through to the expander, which strips
 the elision mark and tries each Greek vowel against the lookup table:

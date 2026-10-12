@@ -232,8 +232,26 @@ def _projection_conflicts(corpus, protected):
             for key, values in claims.items()}
 
 
+def _scalar_query_forms(form):
+    """Case variants of the literal and projected source form."""
+    forms = {form, form.lower(), to_monotonic(form.lower())}
+    return tuple(sorted(forms | {value[:1].upper() + value[1:] for value in forms}
+                        | {value.upper() for value in forms}))
+
+
+def _scalar_query_conflict(model, form, upos, lemma):
+    """A matching lower-case owner may hide a different capital owner."""
+    for query in _scalar_query_forms(form):
+        if not _different_owner(lemma, model._lookup_word(query)):
+            continue
+        pos_lemma = model._pos_table_lookup(query, upos)
+        if not pos_lemma or _different_owner(lemma, pos_lemma):
+            return True
+    return False
+
+
 def _restore_shadowed_corpus_votes(lookup, candidates, corpus):
-    """Restore defined exact votes hidden by lower or projected POS entries."""
+    """Restore defined votes hidden by POS or case-sensitive scalar entries."""
     unambiguous = {}
     for form, (upos, lemma) in candidates.items():
         counts = corpus[form][upos]
@@ -268,6 +286,7 @@ def _restore_shadowed_corpus_votes(lookup, candidates, corpus):
         corrections = {}
         for form, (upos, lemma) in candidates.items():
             if any(_different_owner(lemma, model._pos_table_lookup(form, upos))
+                   or _scalar_query_conflict(model, form, upos, lemma)
                    for model in models):
                 corrections[form] = {upos: lemma}
         if not corrections:
