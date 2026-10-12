@@ -137,4 +137,7 @@ def test_real_model_preserves_ranked_readings():
     for before, after in zip(expected, actual):
         assert np.allclose([score for ids, score in before],
                            [score for ids, score in after], atol=1e-4)
+    many = model.generate(np.tile(src, (17, 1)), np.tile(mask, (17, 1)), num_beams=4)
+    assert [[ids for ids, score in rows] for rows in many] == [
+        [ids for ids, score in rows] for rows in expected] * 17
     print(f"serial_seconds={serial_seconds:.3f} batch_seconds={batch_seconds:.3f}")
