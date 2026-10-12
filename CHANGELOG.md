@@ -6,11 +6,161 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-10-12
+
+### Fixed
+- Create the Hunspell output directory before writing audit files on a clean
+  checkout, and include merged corpus frequencies in the CI export inputs.
+- Download checksum-pinned model files and install ONNX Runtime in CI, with
+  an early integrity check before the full dictionary tests.
+- Preserve tonal marks when matching explicit contracted-verb references,
+  preventing an acute spelling from borrowing a circumflex form's evidence.
+- Exclude five monotonic noun lookup aliases from the polytonic export while
+  preserving their source-table circumflex forms and the distinct acute dual.
+- Preserve attested sparse inflections when a flat self-map or contracted
+  verb citation hides an independently defined owner. Keep explicit contracted
+  references separate from lexical definitions and require a unique target.
+- Preserve independently defined projected readings for other parts of speech
+  when a spelling gains an exact corpus POS entry, retaining exact owners for
+  their own tags. Require matching lexical POS evidence from fresh definitions
+  or the fingerprint-matched merged LSJ source before broadening an exact entry,
+  preventing inherited corpus errors such as πείραι → ἀπολάω.
+- Match scalar POS selection in batch calls for input case/accent variants,
+  self-map citation comparisons, and ordered case-twin fallbacks, including
+  absent POS entries. Preserve batched inference for unresolved words.
+- Repair historical-only closed-class elisions only from unique current
+  source readings and explicit literal-completion cells in fresh same-POS
+  definitions. Preserve competing and complete-word readings, and record
+  reversible changes with the matching dump and source hashes.
+- Keep explicitly tagged articles from returning a noncanonical POS-table
+  target in scalar and batch calls, while preserving the existing Ancient
+  and Modern article lemmas.
+- Retain independently defined corpus POS votes when a lower-priority table
+  or normalized spelling would select another lemma despite a matching bare
+  lookup. Require a unique highest-weight owner and fresh same-POS dictionary
+  evidence for this recovery; preserve tied claims without selecting one.
+- Recognize nominal case descriptions with multiple cases and grammatical
+  qualifiers as inflections. Explicit spelling references and broken inflection
+  templates no longer establish lexical heads; genuine meanings on form pages
+  remain eligible. Apply the same checks to the lexical-head inventory.
+- Treat explicitly qualified verb-form descriptions as grammatical
+  references while preserving separately defined lexical senses.
+- Preserve name-reference ambiguity when following typed form chains,
+  preventing Athena's oblique forms from acquiring the adjective's lemma.
+- Recognize monotonic projections of polytonic articles in the opt-in
+  article-resolution mode, including `τών` from `τῶν`.
+- Follow unambiguous, explicitly typed form references through intermediate
+  noun homographs, so `παρόντος` reaches `πάρειμι` while the separate noun
+  `παρών` and its own declension remain intact.
+- Resolve ordinary forms of `αὐτός`, `τις`, and `τίς` to their canonical
+  pronouns in the opt-in article-resolution mode, preserving the distinction
+  between indefinite and interrogative accents and accepting capitals and graves.
+- Retain explicit source vowel lengths through verb synthesis, preserving
+  forms such as `θῦνε` and `πρᾶξαι` without borrowing another cell's accent.
+- Withhold aorists inferred from the distinct future stems of `ἁνδάνω`
+  and `ἐνίπτω`, preserving observed aorists and future participles.
+- Apply recessive accent to synthesized uncontracted active imperatives
+  instead of retaining their citation or future stem's accent.
+- Withhold unrestricted LSJ verb expansion when the entry explicitly limits
+  its available persons, preserving attested forms of defective verbs.
+- Require an accented source form when parsing LSJ principal parts, skipping
+  unaccented OCR tokens without inventing their missing accent.
+- Retain observed cells for corpus-only Ancient verb lemmas without expanding
+  unsupported annotations into inferred citations and conjugations. Synthesis
+  requires a surviving Wiktionary owner or an independently attested headword.
+- Treat Ancient comparative and superlative descriptions as grammatical
+  references when they supply no independent adjective meaning.
+- Follow explicit Ancient spelling-reference chains to their unique defined
+  head before competing inflection-table mappings, preserving the pitch
+  readings of `πίτα` alongside the independent pie homograph. Keep the
+  existing scalar part-of-speech choice when it lacks source-entry context.
+- Preserve the long-penult circumflex in synthesized first-aorist active
+  infinitives and present or future neuter participles, without moving
+  persistent accents or changing finite optatives.
+  Count a vowel after a complete diphthong as a separate syllable, avoiding
+  a circumflex on the antepenult of three-vowel sequences.
+- Keep independent Ancient homographs under their own headword when an
+  alternative spelling belongs to a different numbered etymology. The
+  binding and needing senses of `δέω` no longer acquire the lemma `δήω`.
+- Withhold bare nonpast endings when an Ancient aorist template explicitly
+  supplies only its indicative stem, preserving indicative-only tables,
+  complete competing templates, and independent grammatical readings.
+- Withhold ending-only passive aorist readings from incomplete source
+  tables during extraction and canonical assembly, preserving complete
+  forms, uncertain raw labels, and independently identified voice readings.
+- Require matching grammatical evidence when a conjugation table corrects
+  a verb cell's accent, so an infinitive cannot change an optative or
+  imperative's distinct accent.
+  Explicit tense also keeps an aorist participle from deciding a future
+  participle's accent; sources that omit tense can still match.
+  Tagless form references cannot change a generated cell's accent; an
+  infinitive spelling no longer supplies the accent of a default optative.
+- Exclude monotonic copies of perfect-optative auxiliaries from other
+  verbs' conjugations while retaining independent aorist homographs.
+  Apply the shared auxiliary check during Ancient Wiktionary extraction
+  so isolated auxiliaries cannot become training examples for the main verb.
+  Match the auxiliary's mood so the distinct indicative `ἔστω` survives.
+- Count Ancient verb table variants within each dialect when detecting lost
+  person and number labels. Valid Attic, Epic, Doric, and Koine readings no
+  longer combine into a false damaged cell, and filtering one dialect keeps
+  the other source readings.
+
 ### Added
+- Independently defined Modern adjectives keep their source morphology through
+  flat noun or verb homographs. `el_adjective_heads.json` records the exact
+  source definitions, adjective morphology, and input hashes; typed ADJ lookup retains these owners
+  without changing scalar lookup. The adjective `κρατών` owns `κρατούν`,
+  `κρατούσα`, and `κρατούσες`; the noun reference still names `κράτος`.
+  Certification requires explicit adjective morphology, so mislabeled noun or
+  adverb entries and definition-only headers cannot supply a new ownership exception.
+  Newly published ADJ overrides preserve the previous non-adjective fields
+  and scalar fallbacks instead of exposing unrelated internal table mappings.
+- Canonical Ancient verb citations can recover a missing breathing from a
+  unique matching source cell. Explicitly defective verbs retain supplied cells
+  while synthesized forms stay within source-supported tense and voice families.
+- Ancient English form senses with nested translations retain their source
+  readings under the defined parent verb instead of creating a separate head.
+- Exclude the reviewed transcription `ἐπεῖ` without rejecting its valid
+  verb, conjunction, and locative counterparts or rewriting source text.
+- Exclude the independently reviewed fragment `ἐνεί` from dictionary and
+  source-alias admission, retaining complete words and the distinct `ἔνει`.
+- Retain the directly cited Archimedes spelling `ἀποχρὴ` and its contextual
+  acute twin through the reviewed exact-form route, without changing the
+  accent boundary for other source citation heads.
+- Ancient source aliases preserve existing citation accents instead of
+  matching a different headword after removing them. Missing accents may
+  still be supplied from a uniquely supported head. Structurally impossible
+  citation accents may use the same unique-head correction while retaining
+  breathing, subscript, case, and original source metadata; valid accents
+  and ambiguous heads remain protected.
+- Modern noun form pages retain their exact grammatical references but do
+  not authorize full tables whose own-head cells contradict those references.
+  Independent homographs, spelling variants, and separate lexical meanings
+  retain their tables.
+- Determiner and pronoun sense references resolve through explicit same-POS
+  chains to positively defined heads before table claims. Ambiguous normalized
+  projections retain the previous mapping instead of choosing entry order.
+- Uncounted lowercase Ancient coverage (`fr:X`) no longer suppresses a counted
+  capital noun or name with an independent Modern definition and two explicit
+  declined forms. Literal capital and counted lowercase coverage remain guards.
+- Modern reference rows preserve per-sense grammatical tags and distinct cells.
+  Independent determiner and pronoun morphology retains its source POS owner
+  even when a flat homograph belongs to a verb. `el_closed_class_heads.json`
+  supplies exact same-POS source evidence for the integrity check; scalar
+  lookup and VERB resolution are unchanged.
+- `el_noun_heads.json` records independent noun senses and source hashes for
+  morphology owners that differ from the flat lookup. `el_verb_heads.json`,
+  built by `build/build_el_verb_heads.py`, records the corresponding finite
+  verb evidence. Data integrity checks require positive source evidence for
+  every such noun or verb exception; runtime lookup behavior is unchanged.
+- Participle references no longer stop at a bare no-gloss verb header. They
+  follow explicit source references to a positively defined finite parent,
+  retaining unresolved analyses separately when no such parent is supported.
 - The polytonic Modern Greek list rates the frequent Modern Greek spellings
   grc has (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`), which it leaves out, with
-  lines of their own, `θέση<TAB>fr:C mg:shared`: 6,301 of them, `C` or `M`
-  by the slice and monotonic counts. They are no entries: a reader that
+  lines of their own, `θέση<TAB>fr:C mg:shared`: 6,650 rows, including
+  low-frequency alternatives at `R`, by the slice and monotonic counts.
+  They add no entries: a reader that
   merges the lists keeps grc's, and reads the field to rank Modern Greek
   readings by it.
 - The polytonic Modern Greek word list carries generated spellings for the
@@ -47,14 +197,14 @@ All notable changes to Dilemma are documented here. The format follows
   parts of speech (the noun `ἐνημέρωση` keeps out the subjunctive
   `ἐνημερώσῃ`). A loanword may end in a consonant (`μπάσκετ`), and a name
   is generated only with a mark monotonic writing drops (`Ἰούνιο`) or a
-  count that reaches `M` (`Λονδίνο`). So 46,942 spellings join the 17,175
-  attested ones. Held out from their own evidence, attested forms are
-  generated as the texts write them 97.6% of the time for verbs (their
-  subjunctive spellings 89.9%), 96.5% for nouns and 98.1% for adjectives,
-  and a hand-checked sample of 733 generated spellings (354 verb forms, 379
-  nouns and adjectives) is all right (`eval/eval_mg_paradigms.py`,
-  `eval/mg_generated_sample.tsv`); with each dev word's author held out the
-  list's coverage of the dev words rises from 90.9% to 92.3%.
+  count that reaches `M` (`Λονδίνο`). So 49,348 spellings join the 16,786
+  attested ones. Held out from their own evidence, source forms are
+  reconstructed at 98.1% for verbs (90.5% for subjunctives),
+  96.5% for nouns and 97.9% for adjectives. The existing manual
+  sample retains 723 generated spellings with correct prior judgments;
+  one additional sample now uses its contextual grave and 11 are no longer
+  generated. With each dev word's author held out, generated forms raise
+  coverage from 91.0% to 92.5%.
   `--no-generated-verbs` leaves them out. The `.version` counts `attested`
   and `generated` entries (`entries` is their sum) and records the sha256
   of the paradigms and the frequencies.
@@ -71,8 +221,8 @@ All notable changes to Dilemma are documented here. The format follows
   higher than an attested spelling of its letters (a spelling with an
   enclitic's second accent aside). A spelling the slice writes mostly as a
   name with 95% confidence, or a name it writes mostly in lowercase, keeps
-  its slice bucket. The slice's counts alone put 234 spellings above `R`;
-  now 3,371 attested and 5,137 generated ones are. A spelling whose
+  its slice bucket. The slice's counts alone put 189 spellings above `R`;
+  now 3,168 attested and 5,224 generated ones are. A spelling whose
   letters grc has under no lowercase spelling while the treebanks write
   them 20 times (`τάκ`, beside the crasis `τἀκ`) is capped at `R` like an
   Ancient word. The `.version` says where the buckets come from
@@ -90,7 +240,7 @@ All notable changes to Dilemma are documented here. The format follows
   keyboard to merge into the grc dictionary, which is unchanged. grc holds
   Ancient and Medieval Greek only, so a keyboard shipping it alone rewrote
   polytonic Modern Greek into Ancient neighbors (`τώρα` -> `τἄρα`,
-  `ἀκόμη` -> `ἀκμὴ`) and rejected `του`, `κι` and `μας`. The 17,184 words
+  `ἀκόμη` -> `ἀκμὴ`) and rejected `του`, `κι` and `μας`. The 16,786 words
   come from the training sentences of the language model's polytonic Modern
   Greek slice, from documents that are not monotonic or partly so, with at
   least 3 tokens by 2 authors in their own case, well-formed under the grc
@@ -146,6 +296,39 @@ All notable changes to Dilemma are documented here. The format follows
   per 1,000 words on the sentences with little overlap with training.
 
 ### Fixed
+- Ancient Greek dialect, contracted-form and voice-only descriptions no longer count as
+  independent definitions merely because their entries are labeled as verbs.
+  Their source inflection tables resolve to the supported lexical parent.
+  Spelling references also recognize explicit word labels and a colon before
+  the target, while retaining any appended lexical meaning.
+- `data/mg_pairs.json` has the paradigm of `γιος` again, and the words
+  whose Greek Wiktionary page only gives their polytonic spelling are no
+  longer filed under it (#28). Such a page (`γιός`, "πολυτονική γραφή του
+  γιος"; `μιλῶ`, `ἀγχωτικός`, `μουστακᾶτος`) made itself a lemma under its
+  word's monotonic and accentless keys, so `γιος` became a form of `γιός`,
+  a cycle that the chain-breaking deleted with the whole paradigm, and
+  `μιλώ`'s and `αγχωτικός`'s forms went under `μιλῶ` and `ἀγχωτικός`. In
+  the Modern Greek dumps a page whose every sense names its own monotonic
+  spelling (for a monosyllable, also without its accent), by an `alt_of`
+  or `form_of` reference or by that gloss, now maps to that word and makes
+  no lemma of its own; a `form_of` reference of a sense tagged with a case
+  (`σοφίᾳ`, "dative singular of σοφία") is read as before. Two pages that
+  name each other (`αγχωτικός` and `αγχώδης`, each "συνώνυμο του" the
+  other, which kaikki reads as `alt_of`; `δεσποινίς` and `δεσποινίδα`) are
+  no longer followed into a cycle that deleted both paradigms, and the weak
+  pronouns on `μόνος`'s headword line (`μόνος μου`, `μας`, `σας`) are no
+  forms of it, so `μας` and `σας` are forms of `εγώ` and `εσύ` again. An
+  abbreviation's reference no longer moves the key of a lowercase word
+  with a sense of its own: once `δεσποινίς` kept its paradigm, the English
+  Wiktionary's abbreviation pages `δις` and `δ` would have made the adverb
+  `δις` ("twice", "billion") and the letter `δ` its forms, and `α`, `β`,
+  `ν` and `κ` were forms of `άντε`, `βόρειος`, `νότος` and `κυρία`; `κα`
+  still goes to `κυρία` and the contraction `στο` to `σε`. The other
+  abbreviations such a page lists as alternatives are forms of the word it
+  abbreviates (`δ`'s `δις`, of `δεσποινίς`), not of the page's headword.
+  Reciprocal synonym references are checked together before the merged
+  lookup is changed, so `νησοπυριτικός` and `ορθοπυριτικός` each keep their
+  paradigm. `lookup.db` takes the corrected data up when it is rebuilt.
 - `data/mg_pairs.json` has the conjugation of `ρωτάω` and the other verbs
   whose forms went under a capitalized page. In the Modern Greek dumps a
   capitalized page (the female name `Ερωτώ`, the abbreviation `ΔΕΣ`, a
@@ -156,13 +339,73 @@ All notable changes to Dilemma are documented here. The format follows
   that pointed a lemma back at a word the other files under it (EN's
   `ρωτώ`, a form of `ρωτάω`; EL's `ρωτώ` table, which lists `ρωτάω`) made a
   cycle that the chain-breaking deleted with both conjugations; it is no
-  longer followed. 168 capitalized verb lemmas come down to 9, and the
-  polytonic Modern Greek list generates `ῥωτήσω`, `ῥώτησε` and `ῥωτᾷς`.
-  The pairs are regenerated from the 2026-09-16 kaikki dumps; `lookup.db`
+  longer followed. This priority also applies across dictionaries, where
+  the surnames `Λεν` and `Τρων` previously overrode `λεν` and `τρων` from
+  the other source. Form pages resolve verb rows through their explicit
+  reference, preserving `ερωτήσεις` under `ερωτώ` and the participle forms
+  of `αντιπαθών` under `αντιπαθώ`, instead of a noun or adjective homograph.
+  POS-specific resolution also follows intermediate spelling pages;
+  source-mislabeled verb rows whose targets are only nominal are omitted.
+  Existing noun, adjective and ethnonym paradigms are preserved, and a
+  missing reference can use another source's attested verb.
+  Inflection senses whose gloss names their explicit reference preserve
+  that verb's forms despite a mislabeled head page (`δηώ`). Descriptive
+  glosses do not redirect passive heads or create new verb lemmas, and
+  broken references leave independently attested head forms in place.
+  A participle's top-level reference is used only when the target has an
+  explicit reference chain to an independent lexical verb entry, after
+  both dictionaries have supplied their POS. An existing sense-level
+  reference chain to such a verb takes priority over top-level inflection
+  or spelling pointers, with inflection-table evidence used only as a fallback.
+  All explicit targets from both dictionaries survive collection; a tagged
+  participle uses its own entry's references before those of a finite-form
+  homograph, and synonym labels do not count as spelling aliases. Conflicting
+  successful targets remain unresolved. Participles tagged on entries or
+  senses remain intermediate forms; cycles resolve only when their exits
+  identify one finite verb. Standalone participles that would otherwise
+  remain verb lemmas enter the same reference check, even without a
+  top-level pointer, rather than supplying unsupported verb roots.
+  A resolved participle retains that verb through POS-specific cleanup;
+  unresolved readings are omitted without removing independent nominal
+  readings. A table whose own participle head has a supported verb keeps
+  that endpoint even when a spelling alias names an unresolved participle,
+  preserving `καθούμενα` under `κάθομαι`.
+  Nominal labels cannot supply verb endpoints through unrelated tables,
+  and an unresolved participle cannot remove its independently defined
+  finite verb through a reverse table or lookup alias.
+  Separately, `el_participles.json` preserves explicitly recorded participle
+  headwords and nominal table cells whose finite parent remains unresolved.
+  Exporters can retain that morphology without adding unsupported verb
+  roots or inventing adjective readings. The versioned schema keeps exact
+  source spellings, distinct grammatical cells, and all source editions;
+  headwords without a table add no inferred inflections.
+  The pairs are regenerated from the 2026-10-03 Kaikki dumps; `lookup.db`
   takes the fix up when it is next rebuilt. A pronoun table that spans
   several persons, the shared personal-pronoun grid, is skipped whatever its
   template's name: those dumps carry it on EN's `τα` page under a generic
   template, which made `εγώ`, `εσύ`, `αυτός` and `μου` forms of `τα`.
+- Modern Greek pair deduplication preserves each part of speech and
+  grammatical tag set (#31). The genitive, accusative and vocative rows of
+  `καθηγητή` survive separately, allowing the exporter to produce the
+  circumflex genitive and acute accusative and vocative. Exact duplicate
+  rows are still removed; the JSON fields are unchanged.
+- An independently defined Modern Greek noun's table keeps its source
+  lemma when the same headword is also another noun's inflected form.
+  The masculine `σκιάς` and feminine `σκιά` retain separate cells instead
+  of pooling the masculine genitive under the feminine noun. Explicit
+  form-of and alternative-spelling entries still follow their references;
+  flat lookup arbitration and verb resolution are unchanged.
+- Distinct noun case-and-number cells select their primary owner by
+  whole-paradigm frequency, while nouns supplying the same cells retain
+  the closest lexical stem. Independent noun heads remain eligible when
+  an inflected form also has an adjective or adverb reading. Alternative
+  explicit cells retain a rare spelling without borrowing the primary
+  homonym's count (`σκατά` and masculine `σκατᾶ`). Diminutives and synonyms
+  in another noun's table cannot acquire that noun's declension.
+  A separate adjective or adverb head sharing the spelling no longer
+  disables arbitration between independently owned noun cells; the
+  neuter plural `σκατά` retains its counts and masculine `σκατᾶ` remains
+  a distinct rare reading with zero pooled frequency.
 - In the polytonic Modern Greek list, two paradigm cells of the same
   letters both go in, whatever their counts: the present `περπατᾷ`,
   `προχωρᾷ` and `τηλεφωνᾷ` are back beside the imperatives `περπάτα`,
@@ -1117,6 +1360,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.7]: https://github.com/open-greek/dilemma/releases/tag/1.3.7
 [1.3.6]: https://github.com/open-greek/dilemma/releases/tag/1.3.6
 [1.3.5]: https://github.com/open-greek/dilemma/releases/tag/1.3.5
 [1.3.4]: https://github.com/open-greek/dilemma/releases/tag/1.3.4

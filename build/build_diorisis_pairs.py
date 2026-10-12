@@ -2,7 +2,7 @@
 """Extract form->lemma pairs from Diorisis Ancient Greek corpus.
 
 Diorisis (Vatri & McGillivray, 2018) is a 10M-token lemmatized corpus
-of Ancient Greek (Homer through 5th c. AD). Lemma accuracy is ~91.4%
+of Ancient Greek (Homer through the 5th century CE). Lemma accuracy is ~91.4%
 (vs GLAUx's 98.8%), so pairs from this corpus should be treated as
 lower-confidence and only used when they don't conflict with existing
 entries from Wiktionary, LSJ, or GLAUx.
@@ -23,7 +23,10 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
+import subprocess
+import sys
 import unicodedata
 import time
 import xml.etree.ElementTree as ET
@@ -31,12 +34,27 @@ from collections import Counter
 from pathlib import Path
 
 from beta_code import beta_code_to_greek
-from corpus_freq_key import beta_trailing_paren_is_elision
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SCRIPT_DIR))
+from dilemma.form_sanitize import canonicalize_final_elision  # noqa: E402
+from build.corpus_freq_key import beta_trailing_paren_is_elision  # noqa: E402
+from build.diorisis_source import DiorisisSourceContext  # noqa: E402
+
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"
 OUTPUT_PATH = DATA_DIR / "diorisis_pairs.json"
+
+
+def source_revision():
+    """Retain code hashes when an exported source archive has no Git metadata."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=SCRIPT_DIR, text=True,
+            stderr=subprocess.DEVNULL).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
 
 # Map Diorisis POS labels to Wiktionary-style POS (matching GLAUx pairs format)
 DIORISIS_POS_MAP = {
@@ -88,18 +106,22 @@ def strip_non_greek(s):
 def betacode_to_unicode(bc):
     """Convert Beta Code form to NFC-normalized Unicode Greek.
 
-    Strips any non-Greek residue (apostrophes from elision, quotes). A final
-    ``)`` that Diorisis writes for elision (``di)``, ``par)``) is dropped
-    before conversion; converted, it would be a breathing on the last vowel
-    or consonant (``δἰ`` for δι’).
+    Preserve a final apostrophe or Diorisis's elision ``)`` as Greek koronis.
+    Remove that marker before conversion so it cannot become a final-vowel
+    breathing, and keep medial σ before elision. Other non-Greek residue is
+    stripped; a real final breathing on a short vowel word remains unchanged.
     """
     try:
-        if beta_trailing_paren_is_elision(bc):
+        elided = bc.endswith("'") or beta_trailing_paren_is_elision(bc)
+        if elided:
             bc = bc[:-1]
         uni = beta_code_to_greek(bc)
         uni = nfc(uni)
-        # Strip non-Greek characters (apostrophes, quotes from elision)
         cleaned = strip_non_greek(uni)
+        if cleaned and elided:
+            if cleaned.endswith("ς"):
+                cleaned = cleaned[:-1] + "σ"
+            cleaned = canonicalize_final_elision(cleaned + "’")
         return cleaned if cleaned else ""
     except Exception:
         return ""
@@ -207,8 +229,8 @@ def parse_morph(morph_str, pos):
     return tags
 
 
-def extract_diorisis(diorisis_dir, stats_only=False):
-    """Extract form->lemma pairs from Diorisis XML files."""
+def extract_diorisis(diorisis_dir, stats_only=False, *, token_audit=None):
+    """Extract pairs, retaining distinct readings of quote-normalized cells."""
     xml_files = sorted(Path(diorisis_dir).glob("*.xml"))
     if not xml_files:
         print(f"No XML files found in {diorisis_dir}")
@@ -220,16 +242,12 @@ def extract_diorisis(diorisis_dir, stats_only=False):
 
     t0 = time.time()
     pairs = []
-    seen = set()  # (form, lemma) dedup
+    readings = _PairReadings(pairs)
     total_tokens = 0
     skipped_no_lemma = 0
     skipped_non_greek = 0
     skipped_convert = 0
     skipped_dup = 0
-
-    pos_counts = Counter()
-    has_nominal = 0
-    has_verbal = 0
 
     for i, xml_file in enumerate(xml_files):
         try:
@@ -237,20 +255,24 @@ def extract_diorisis(diorisis_dir, stats_only=False):
         except ET.ParseError:
             continue
 
+        source_context = DiorisisSourceContext(tree.getroot())
+        if token_audit is not None and source_context.audit:
+            token_audit.append({"source": xml_file.name,
+                                "source_sha256": hashlib.sha256(xml_file.read_bytes()).hexdigest(),
+                                "records": source_context.audit})
+        normalized_keys = set()
+        for record in source_context.audit:
+            if record["normalized_beta"] == record["original_beta"]:
+                continue
+            form = betacode_to_unicode(record["normalized_beta"])
+            for reading in record["readings"]:
+                normalized_keys.add((form, nfc(reading["lemma"])))
+        readings.touch(normalized_keys)
         for word in tree.findall(".//word"):
             total_tokens += 1
 
-            bc_form = word.get("form", "")
-            lemma_el = word.find("lemma")
-
-            if lemma_el is None:
-                skipped_no_lemma += 1
-                continue
-
-            entry = lemma_el.get("entry", "")
-            raw_pos = lemma_el.get("POS", "")
-
-            if not bc_form or not entry:
+            bc_form = source_context.beta(word)
+            if not bc_form:
                 skipped_no_lemma += 1
                 continue
 
@@ -260,46 +282,15 @@ def extract_diorisis(diorisis_dir, stats_only=False):
                 skipped_convert += 1
                 continue
 
-            # NFC normalize lemma
-            lemma = nfc(entry)
-
-            if not is_greek(form) or not is_greek(lemma):
+            if not is_greek(form):
                 skipped_non_greek += 1
                 continue
-
-            # Map POS
-            pos = DIORISIS_POS_MAP.get(raw_pos)
-
-            # Dedup by (form, lemma)
-            key = (form, lemma)
-            if key in seen:
+            variants, primary = _word_pair_readings(word, form)
+            added = readings.observe(variants, primary)
+            if primary is None:
+                skipped_no_lemma += 1
+            elif not added:
                 skipped_dup += 1
-                continue
-            seen.add(key)
-
-            # Parse morphological tags from first analysis
-            tags = []
-            analyses = lemma_el.findall("analysis")
-            if analyses:
-                morph_str = analyses[0].get("morph", "")
-                tags = parse_morph(morph_str, pos)
-
-            pair = {"form": form, "lemma": lemma}
-            if pos:
-                pair["pos"] = pos
-                pos_counts[pos] += 1
-            if tags:
-                pair["tags"] = tags
-
-                # Count morphological coverage
-                tag_set = set(tags)
-                if tag_set & {"masculine", "feminine", "neuter"}:
-                    has_nominal += 1
-                if tag_set & {"present", "imperfect", "aorist", "future",
-                              "perfect", "pluperfect"}:
-                    has_verbal += 1
-
-            pairs.append(pair)
 
         if (i + 1) % 100 == 0:
             print(f"  {i+1}/{len(xml_files)} files, "
@@ -311,8 +302,14 @@ def extract_diorisis(diorisis_dir, stats_only=False):
           f"{skipped_convert:,} conversion failures, "
           f"{skipped_non_greek:,} non-Greek, "
           f"{skipped_dup:,} duplicates")
-    print(f"Unique pairs: {len(pairs):,}")
+    print(f"Distinct exported readings: {len(pairs):,}")
 
+    pos_counts = Counter(pair.get("pos") for pair in pairs if pair.get("pos"))
+    has_nominal = sum(bool(set(pair.get("tags", ())) &
+                           {"masculine", "feminine", "neuter"}) for pair in pairs)
+    has_verbal = sum(bool(set(pair.get("tags", ())) &
+                          {"present", "imperfect", "aorist", "future",
+                           "perfect", "pluperfect"}) for pair in pairs)
     print(f"\nPOS distribution:")
     for pos, count in pos_counts.most_common():
         print(f"  {pos:10s}: {count:,}")
@@ -322,6 +319,82 @@ def extract_diorisis(diorisis_dir, stats_only=False):
     print(f"  With verbal features (T+M+V):  {has_verbal:,}")
 
     return pairs
+
+
+def _word_pair_readings(word, form):
+    """Keep every source analysis; identify the legacy first reading separately."""
+    variants = []
+    primary = None
+    for lemma_index, lemma_el in enumerate(word.findall("lemma")):
+        lemma = nfc(lemma_el.get("entry", ""))
+        if not lemma or not is_greek(lemma):
+            continue
+        pos = DIORISIS_POS_MAP.get(lemma_el.get("POS", ""))
+        analyses = lemma_el.findall("analysis")
+        for analysis_index, analysis in enumerate(analyses or [None]):
+            tags = parse_morph(analysis.get("morph", ""), pos) if analysis is not None else []
+            pair = {"form": form, "lemma": lemma}
+            if pos:
+                pair["pos"] = pos
+            if tags:
+                pair["tags"] = tags
+            variants.append(pair)
+            if lemma_index == 0 and analysis_index == 0:
+                primary = pair
+    return variants, primary
+
+
+class _PairReadings:
+    """Preserve all analyses only for keys touched by an audited normalization.
+
+    Earlier alternatives are buffered so discovering a normalized cell in a
+    later document cannot erase an earlier ordinary reading. Untouched keys
+    keep their existing first-lemma/first-analysis selection and ordering.
+    """
+
+    def __init__(self, pairs):
+        self.pairs = pairs
+        self.variants = {}
+        self.emitted = {}
+        self.normalized = set()
+
+    @staticmethod
+    def signature(pair):
+        return pair.get("pos"), tuple(pair.get("tags", ()))
+
+    def emit(self, key, signature, pair):
+        emitted = self.emitted.setdefault(key, set())
+        if signature in emitted:
+            return 0
+        emitted.add(signature)
+        self.pairs.append(pair)
+        return 1
+
+    def touch(self, keys):
+        # Dictionary insertion order is source order; never order source
+        # readings by the arbitrary iteration order of the incoming key set.
+        newly_normalized = keys - self.normalized
+        self.normalized.update(keys)
+        if not newly_normalized:
+            return
+        for key, variants in self.variants.items():
+            if key in newly_normalized:
+                for signature, pair in variants.items():
+                    self.emit(key, signature, pair)
+
+    def observe(self, variants, primary):
+        added = 0
+        for pair in variants:
+            key = pair["form"], pair["lemma"]
+            signature = self.signature(pair)
+            self.variants.setdefault(key, {}).setdefault(signature, pair)
+            if key in self.normalized:
+                added += self.emit(key, signature, pair)
+        if primary is not None:
+            key = primary["form"], primary["lemma"]
+            if key not in self.normalized and key not in self.emitted:
+                added += self.emit(key, self.signature(primary), primary)
+        return added
 
 
 def main():
@@ -335,9 +408,12 @@ def main():
     parser.add_argument("--output", type=str,
                         default=str(OUTPUT_PATH),
                         help="Output path")
+    parser.add_argument("--token-audit", type=Path,
+                        help="Reversible source-token audit (default: changes beside the output)")
     args = parser.parse_args()
 
-    pairs = extract_diorisis(args.diorisis, stats_only=args.stats)
+    token_audit = []
+    pairs = extract_diorisis(args.diorisis, stats_only=args.stats, token_audit=token_audit)
 
     if not args.stats and pairs:
         out = Path(args.output)
@@ -346,6 +422,16 @@ def main():
             json.dump(pairs, f, ensure_ascii=False)
         size_mb = out.stat().st_size / (1024 * 1024)
         print(f"\nSaved {len(pairs):,} pairs to {out} ({size_mb:.1f} MB)")
+        audit_path = args.token_audit or out.parent / "changes" / "diorisis_token_normalizations.json"
+        audit_path.parent.mkdir(parents=True, exist_ok=True)
+        source_files = ["build/build_diorisis_pairs.py", "build/diorisis_source.py"]
+        payload = {"schema_version": 1,
+                   "source_commit": source_revision(),
+                   "source_sha256": {name: hashlib.sha256((SCRIPT_DIR / name).read_bytes()).hexdigest()
+                                     for name in source_files},
+                   "sources": token_audit}
+        audit_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+        print(f"Saved source-token audit to {audit_path}")
 
 
 if __name__ == "__main__":

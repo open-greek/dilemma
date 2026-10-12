@@ -86,6 +86,24 @@ class TestPresentActive:
     """λύω → λύων / λύουσα / λῦον. We don't synthesise the circumflex
     on neuter sg cells, so ignore quantity marks for those compares."""
 
+    @pytest.mark.parametrize("lemma,expected", [
+        ("δήω", "δῆον"),
+        ("παιδεύω", "παιδεῦον"),
+        ("ἀΐσσω", "ἀΐσσον"),
+        ("γράφω", "γράφον"),
+        ("ἀπολύω", "ἀπολύον"),
+    ])
+    def test_neuter_long_penult_keeps_accent_position(self, synth, lemma, expected):
+        out = synth.synthesize_participles(lemma, {})
+        for case in ("nom", "acc", "voc"):
+            assert out[f"active_present_participle_{case}_n_sg"] == expected
+
+    def test_future_neuter_long_penult(self, synth):
+        out = synth.synthesize_participles("εὕω", {"fut": "εὕσω"})
+        for case in ("nom", "acc", "voc"):
+            assert out[f"active_future_participle_{case}_n_sg"] == "εὗσον"
+        assert out["active_future_participle_nom_m_sg"] == "εὕσων"
+
     def test_lyo_present_active_masculine(self, synth):
         out = synth.synthesize_participles("λύω", {})
         assert out["active_present_participle_nom_m_sg"] == "λύων"
@@ -702,6 +720,31 @@ class TestAor2ParticipleSynthesis:
     def test_skips_sigmatic_aor(self, synth):
         out = synth.synthesize_aor2_participles("λύω", {"aor": "ἔλυσα"})
         assert out == {}
+
+    def test_explicit_second_aorist_supplies_active_template(self, synth):
+        out = synth.synthesize_aor2_participles(
+            "βλάπτω", {"aor": "ἔβλαψα", "aor2": "ἔβλαβον"}
+        )
+        assert out["active_aorist_participle_nom_m_sg"] == "βλαβών"
+        assert all("ψ" not in form for form in out.values())
+
+    def test_middle_principal_part_does_not_mask_active(self, synth):
+        generic = {"aor": "κέκᾰδον"}
+        assert synth.synthesize_aor2_participles("χάζω", generic)
+        assert synth.synthesize_aor2_participles("χάζω", generic) == (
+            synth.synthesize_aor2_participles(
+                "χάζω", {**generic, "aor2": "κεκαδόμην"}
+            )
+        )
+
+    def test_alternate_second_aorist_does_not_replace_selected_one(self, synth):
+        generic = {"aor": "ἔτροπον"}
+        assert synth.synthesize_aor2_participles("τρέπω", generic)
+        assert synth.synthesize_aor2_participles("τρέπω", generic) == (
+            synth.synthesize_aor2_participles(
+                "τρέπω", {**generic, "aor2": "ἔτρᾰπον"}
+            )
+        )
 
 
 class TestAor2ParticipleSchemaAlignment:

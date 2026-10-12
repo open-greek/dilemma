@@ -34,7 +34,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v7
@@ -45,7 +45,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -q --upgrade pip
-          pip install -q pytest spylls huggingface_hub betacode pygtrie lxml
+          pip install -q pytest spylls huggingface_hub betacode beta-code pygtrie lxml onnxruntime
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q transformers
 
@@ -56,7 +56,7 @@ jobs:
       - name: Wait for the HuggingFace artifacts in data/hf_manifest.json
         run: python3 scripts/hf_data.py wait --timeout 900
 
-      - name: Download lookup data from HuggingFace Hub
+      - name: Download data and models from HuggingFace Hub
         run: |
           read -r -a files <<< "$(python3 scripts/hf_data.py files)"
           hf download ciscoriordan/dilemma "${files[@]}" --local-dir .
@@ -64,13 +64,16 @@ jobs:
       - name: Verify the downloaded artifacts against the manifest
         run: python3 scripts/hf_data.py verify
 
-      - name: Run all tests
-        run: python3 -m pytest tests/ -x -v
+      - name: Check model and data integrity before the full suite
+        run: python3 -m pytest tests/test_integrity.py tests/test_batched_decoder.py tests/test_export_hunspell.py::test_export_creates_output_directory_before_audit --run-slow -q
 
       - name: Build and audit Ancient Greek Hunspell coverage
         run: |
           python3 export_hunspell.py --variant grc
           python3 scripts/audit_hunspell_frequency.py --source fixture
+
+      - name: Run all tests
+        run: python3 -m pytest tests/ -x -v
 
       - name: Check deterministic benchmark baselines
         run: python3 scripts/check_benchmark_regressions.py

@@ -1,0 +1,1113 @@
+{
+  "schema_version": 1,
+  "kind": "reviewed_paradigm_specifications",
+  "reviewed_on": "2026-10-11",
+  "note": "These are reviewed source specifications, not generated dictionary rows. The exporter retains checked exact spellings and derives only the explicitly documented grammatical classes; its audit records every resulting form.",
+  "paradigms": [
+    {
+      "lemma": "ἀειμακάριστος",
+      "method": "lookup_paradigm",
+      "source_lemma": "ἀειμακάριστος",
+      "evidence": "The Divine Liturgy, Axion estin: feminine accusative singular ἀειμακάριστον confirms the two-termination adjective; retain its regular lookup paradigm.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/h/s/2026/10/07/li3/gr-en/index.html"
+    },
+    {
+      "lemma": "παναμώμητος",
+      "method": "lookup_paradigm",
+      "source_lemma": "ἀμώμητος",
+      "prefix": "παν",
+      "remove_initial_breathing": true,
+      "evidence": "The Divine Liturgy, Axion estin: παναμώμητον is the feminine accusative of the two-termination compound παν- + ἀμώμητος. The suffix and accent class remain those of ἀμώμητος.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/h/s/2026/10/07/li3/gr-en/index.html"
+    },
+    {
+      "lemma": "πινακοθήκη",
+      "method": "eta_noun",
+      "stem": "πινακοθήκ",
+      "evidence": "Strabo, Geography 14.1.14, attests πινακοθήκη and nominative plural πινακοθῆκαι. Derive the regular first-declension eta paradigm, including dative singular -ῃ and genitive plural -ῶν; the attested plural confirms the circumflex before short final -αι.",
+      "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/master/data/tlg0099/tlg001/tlg0099.tlg001.perseus-grc2.xml"
+    },
+    {
+      "lemma": "κατατίθημι",
+      "method": "passive_aorist_indicative",
+      "stem": "κατετέθ",
+      "evidence": "The funeral service, second stasis, attests κατετέθης in the hymn beginning Ὁ θάνατός σου Κύριε. Derive the passive aorist indicative from the attested accented stem with endings -ην, -ης, -η, -ημεν, -ητε, -ησαν.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/h/b/eu/funeral/gr-en/index.html"
+    },
+    {
+      "lemma": "λαμπρύνω",
+      "method": "passive_aorist_subjunctive",
+      "stem": "λαμπρυνθ",
+      "evidence": "Paschal canon, Ode 1: Ἀναστάσεως ἡμέρα λαμπρυνθῶμεν λαοί. The attested passive aorist stem takes the contracted subjunctive endings.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/p/s/2026/05/10/ma/gr-en/se.m05.d10.ma.pdf"
+    },
+    {
+      "lemma": "ἀνθοπλίζω",
+      "method": "active_aorist_participle",
+      "evidence": "Menaion, March 20, Ode 7, attests ἀνθοπλίσαντες in the hymn beginning Ὅλον πρὸς σὲ μεταθέντες. Derive the regular active aorist participle from ἀνθοπλίσ-; long endings move the acute from the antepenult to the penult.",
+      "source_url": "https://inagiastriados.gr/files/leitourgika/texts/Mar/20.uni.htm",
+      "stem": "ἀνθοπλίσ"
+    },
+    {
+      "lemma": "ἀπόχρη",
+      "method": "source_forms",
+      "forms": [
+        "ἀποχρὴ"
+      ],
+      "evidence": "Archimedes, Arenarius 1, Mugler volume 2 (1971), page 137 line 22: ἀποχρὴ δέ μοι ἐς τὰν ἀπόδειξιν τοῦ προκειμένου γωνίαν λαβεῖν. The edited First1KGreek witness prints the contextual grave. Retain this exact Doric third-person singular present spelling under the independently defined impersonal head ἀπόχρη; the exporter supplies its citation acute without changing valid source citation accents globally.",
+      "source_url": "https://raw.githubusercontent.com/OpenGreekAndLatin/First1KGreek/master/data/tlg0552/tlg006/tlg0552.tlg006.1st1K-grc1.xml",
+      "citation": "Archimedes, Arenarius 1; Charles Mugler, Archimède volume 2 (1971), page 137 line 22",
+      "source_sha256": "187306650d6a58db0309e915f8472a997c15e8079efd83847c0cf06953706622"
+    },
+    {
+      "lemma": "κάρτος",
+      "method": "source_forms",
+      "forms": [
+        "κάρτευς"
+      ],
+      "evidence": "Exact word verified in HESIODUS, Theogonia, 647, 710 (TLG tlg0020.001). Edition: West, M.L, Clarendon Press, 1966. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg0020.001 647, 710"
+    },
+    {
+      "lemma": "ἐπιστοναχίζω",
+      "method": "source_forms",
+      "forms": [
+        "ἐπεστονάχιζε"
+      ],
+      "evidence": "Exact word verified in HESIODUS, Theogonia, 843 (TLG tlg0020.001). Edition: West, M.L, Clarendon Press, 1966. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg0020.001 843"
+    },
+    {
+      "lemma": "τρυφάω",
+      "method": "source_forms",
+      "forms": [
+        "τρυφήσατε"
+      ],
+      "evidence": "Exact word verified in JOANNES CHRYSOSTOMUS, Sermo catecheticus in pascha [Sp.], 59.722.56 (TLG tlg2062.259). Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2062.259 59.722.56"
+    },
+    {
+      "lemma": "καθομιλέω",
+      "method": "source_forms",
+      "forms": [
+        "καθωμιληκώς"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 6.35 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only. The witness has contextual grave in καθωμιληκὼς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 6.35"
+    },
+    {
+      "lemma": "ξυγγραφεύς",
+      "method": "source_forms",
+      "forms": [
+        "ξυγγραφεῖ"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 7.51.2 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 7.51.2"
+    },
+    {
+      "lemma": "ἀγλαΐζω",
+      "method": "source_forms",
+      "forms": [
+        "ἀγλαΐζοιτο"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 8.4.1 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 8.4.1"
+    },
+    {
+      "lemma": "στρατεύω",
+      "method": "source_forms",
+      "forms": [
+        "στρατευθεῖσαι"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 4.36.23 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 4.36.23"
+    },
+    {
+      "lemma": "εἰσφέρω",
+      "method": "source_forms",
+      "forms": [
+        "εἰσενεχθείς"
+      ],
+      "evidence": "Exact word verified in JOANNES MALALAS, Chronographia, 458.5 (TLG tlg2871.001). Edition: Dindorf, L, Weber, 1831. Admit the attested form only. The witness has contextual grave in εἰσενεχθεὶς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2871.001 458.5"
+    },
+    {
+      "lemma": "φλάμμουλον",
+      "method": "source_forms",
+      "forms": [
+        "φλάμμουλον"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De administrando imperio, 46.114, 49.21, 49.22, 49.25, 49.27 (TLG tlg3023.008). Edition: Moravcsik, G, Dumbarton Oaks, 1967. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.008 46.114, 49.21, 49.22, 49.25, 49.27"
+    },
+    {
+      "lemma": "μικροπανίτης",
+      "method": "source_forms",
+      "forms": [
+        "μικροπανίται"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 2.140.13-2.140.14 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only. Rejoin the word across the printed line-end hyphen.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 2.140.13-2.140.14"
+    },
+    {
+      "lemma": "χαμαιρριφής",
+      "method": "source_forms",
+      "forms": [
+        "χαμαιρριφής"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.10 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.10"
+    },
+    {
+      "lemma": "πειράω",
+      "method": "source_forms",
+      "forms": [
+        "πειραθησόμενον"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.140.7 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.140.7"
+    },
+    {
+      "lemma": "ἐκδιδράσκω",
+      "method": "source_forms",
+      "forms": [
+        "ἐκδιδράσκουσαι"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 0.335.5 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 0.335.5"
+    },
+    {
+      "lemma": "καταφάσκω",
+      "method": "source_forms",
+      "forms": [
+        "κατέφασκον"
+      ],
+      "evidence": "Exact word verified in THEOPHYLACTUS SIMOCATTA, Historiae, 2.6.5.4 (TLG tlg3130.003). Edition: de Boor, C, Teubner, 1887. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3130.003 2.6.5.4"
+    },
+    {
+      "lemma": "ἀπεκδημέω",
+      "method": "source_forms",
+      "forms": [
+        "ἀπεκδημήσας"
+      ],
+      "evidence": "Exact word verified in THEOPHYLACTUS SIMOCATTA, Historiae, 1.11.5.4 (TLG tlg3130.003). Edition: de Boor, C, Teubner, 1887. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3130.003 1.11.5.4"
+    },
+    {
+      "lemma": "κλειδοῦχος",
+      "method": "source_forms",
+      "forms": [
+        "κλειδούχων"
+      ],
+      "evidence": "Exact word verified in LEO Diaconus, Historia, 1.4.3-1.4.4 (TLG tlg3069.001). Edition: Hase, K.B, Weber, 1828. Admit the attested form only. Rejoin the word across the printed line-end hyphen.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3069.001 1.4.3-1.4.4"
+    },
+    {
+      "lemma": "ὑποποιέω",
+      "method": "source_forms",
+      "forms": [
+        "ὑποποιησάμενοι"
+      ],
+      "evidence": "Exact word verified in LEO Diaconus, Historia, 1.4.4 (TLG tlg3069.001). Edition: Hase, K.B, Weber, 1828. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3069.001 1.4.4"
+    },
+    {
+      "lemma": "ἐκτυπόω",
+      "method": "source_forms",
+      "forms": [
+        "ἐκτυπωθεῖσαν"
+      ],
+      "evidence": "Exact word verified in LEO Diaconus, Historia, 70.16 (TLG tlg3069.001). Edition: Hase, K.B, Weber, 1828. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3069.001 70.16"
+    },
+    {
+      "lemma": "ἐκλείπω",
+      "method": "source_forms",
+      "forms": [
+        "ἐκλίποισαν"
+      ],
+      "evidence": "Exact word verified in SEPTUAGINTA, Psalmi, 103.34 (TLG tlg0527.027). Edition: Rahlfs, A, Württembergische Bibelanstalt, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg0527.027 103.34"
+    },
+    {
+      "lemma": "φιλοπάτωρ",
+      "method": "source_forms",
+      "forms": [
+        "φιλοπάτορας"
+      ],
+      "evidence": "Exact word verified in BASILIUS, Homiliae in hexaemeron, 8.5.26 (TLG tlg2040.001). Edition: Giet, S, Cerf, 1968. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2040.001 8.5.26"
+    },
+    {
+      "lemma": "προκαθέζομαι",
+      "method": "source_forms",
+      "forms": [
+        "προκαθεζόμεθα"
+      ],
+      "evidence": "Exact word verified in GREGORIUS NAZIANZENUS, In theophania (orat. 38), 36.321.30-36.321.31 (TLG tlg2022.046). Admit the attested form only. Rejoin the word across the printed line-end hyphen.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2022.046 36.321.30-36.321.31"
+    },
+    {
+      "lemma": "ἀγνώμων",
+      "method": "source_forms",
+      "forms": [
+        "ἀγνωμονέστερε"
+      ],
+      "evidence": "Exact word verified in GREGORIUS NAZIANZENUS, In theophania (orat. 38), 36.329.12 (TLG tlg2022.046). Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2022.046 36.329.12"
+    },
+    {
+      "lemma": "χριστέμπορος",
+      "method": "source_forms",
+      "forms": [
+        "χριστέμπορος"
+      ],
+      "evidence": "Exact word verified in DIDACHE XII APOSTOLORUM, Didache, 12.4.1 (TLG tlg1311.001). Edition: Audet, J.P, Lecoffre, 1958. Admit the attested form only. Remove the contextual second accent before an enclitic.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg1311.001 12.4.1"
+    },
+    {
+      "lemma": "πονηρόφρων",
+      "method": "source_forms",
+      "forms": [
+        "πονηρόφρων"
+      ],
+      "evidence": "Exact word verified in DIDACHE XII APOSTOLORUM, Didache, 3.5.2 (TLG tlg1311.001). Edition: Audet, J.P, Lecoffre, 1958. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg1311.001 3.5.2"
+    },
+    {
+      "lemma": "ὑπερανίστημι",
+      "method": "source_forms",
+      "forms": [
+        "ὑπερανεστηκός"
+      ],
+      "evidence": "Exact word verified in PROCOPIUS, De aedificiis, 1.4.15.2, 4.10.6 (TLG tlg4029.003). Edition: Wirth, G. (post J. Haury), Teubner, 1964. Admit the attested form only. The witness has contextual grave in ὑπερανεστηκὸς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4029.003 1.4.15.2, 4.10.6"
+    },
+    {
+      "lemma": "ταινιόω",
+      "method": "source_forms",
+      "forms": [
+        "ἐταινίου"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 1.13.7.15 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 1.13.7.15"
+    },
+    {
+      "lemma": "Σάξων",
+      "method": "source_forms",
+      "forms": [
+        "Σάξονας"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 1.13.7.8, 1.13.7.15 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 1.13.7.8, 1.13.7.15"
+    },
+    {
+      "lemma": "διυπνίζω",
+      "method": "source_forms",
+      "forms": [
+        "διυπνίσῃ"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 2.5.1.7, 15.1.6 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 2.5.1.7, 15.1.6"
+    },
+    {
+      "lemma": "ἐξοικίζω",
+      "method": "source_forms",
+      "forms": [
+        "ἐξοικίζει"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 15.4.5.21 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 15.4.5.21"
+    },
+    {
+      "lemma": "ἐλλόγιμος",
+      "method": "source_forms",
+      "forms": [
+        "ἐλλογιμωτέρους"
+      ],
+      "evidence": "Exact word verified in Michael PSELLUS, Chronographia, 6.35.2 (TLG tlg2702.001). Edition: Renauld, É, Les Belles Lettres, 1926. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2702.001 6.35.2"
+    },
+    {
+      "lemma": "ἀρειανίζω",
+      "method": "source_forms",
+      "forms": [
+        "ἀρειανίζοντας"
+      ],
+      "evidence": "Exact word verified in THEOPHANES CONFESSOR, Chronographia, 66.21 (TLG tlg4046.001). Edition: de Boor, C, Teubner, 1883. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4046.001 66.21"
+    },
+    {
+      "lemma": "ἀμοιρέω",
+      "method": "source_forms",
+      "forms": [
+        "ἀμοιρήσαντες"
+      ],
+      "evidence": "Exact word verified in THEOPHANES CONFESSOR, Chronographia, 263.12 (TLG tlg4046.001). Edition: de Boor, C, Teubner, 1883. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4046.001 263.12"
+    },
+    {
+      "lemma": "ἀποτυφλόω",
+      "method": "source_forms",
+      "forms": [
+        "ἀπετύφλωσαν"
+      ],
+      "evidence": "Exact word verified in THEOPHANES CONTINUATUS, Chronographia, 397 (TLG tlg4153.001). Edition: Bekker, I, Weber, 1838. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg4153.001 397"
+    },
+    {
+      "lemma": "φακτιονάριος",
+      "method": "source_forms",
+      "forms": [
+        "φακτιονάριοι"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 2.140.13 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 2.140.13"
+    },
+    {
+      "lemma": "βηγάριος",
+      "method": "source_forms",
+      "forms": [
+        "βηγάριοι"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 2.119.20, 2.119.29, 2.140.14, 2.154.12, 2.154.19 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 2.119.20, 2.119.29, 2.140.14, 2.154.12, 2.154.19"
+    },
+    {
+      "lemma": "αὐγούστα",
+      "method": "source_forms",
+      "forms": [
+        "αὐγούστας"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De cerimoniis aulae Byzantinae, 1.41.23, 1.42.27, 2.7.1, 2.25.8, 2.92.14, 2.122.2, 2.122.17, 2.178.13, 2.181.7 (TLG tlg3023.011). Edition: Vogt, A, Les Belles Lettres, 1935. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.011 1.41.23, 1.42.27, 2.7.1, 2.25.8, 2.92.14, 2.122.2, 2.122.17, 2.178.13, 2.181.7"
+    },
+    {
+      "lemma": "μαρκέσιος",
+      "method": "source_forms",
+      "forms": [
+        "μαρκεσίου"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.171.2, 0.599.25, 0.609.9, 0.619.9 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.171.2, 0.599.25, 0.609.9, 0.619.9"
+    },
+    {
+      "lemma": "οὐρανοδρόμος",
+      "method": "source_forms",
+      "forms": [
+        "οὐρανοδρόμος"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.9 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.9"
+    },
+    {
+      "lemma": "κεντροβαρής",
+      "method": "source_forms",
+      "forms": [
+        "κεντροβαρές"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.10 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only. The witness has contextual grave in κεντροβαρὲς; dictionary spelling uses acute.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.10"
+    },
+    {
+      "lemma": "γαστροκνημίς",
+      "method": "source_forms",
+      "forms": [
+        "γαστροκνημῖδας"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.11, 2.14452.439 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.11, 2.14452.439"
+    },
+    {
+      "lemma": "διαθρύπτω",
+      "method": "source_forms",
+      "forms": [
+        "διαθρυβείς"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.120.12 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.120.12"
+    },
+    {
+      "lemma": "Καλαμάνος",
+      "method": "source_forms",
+      "forms": [
+        "Καλαμάνον"
+      ],
+      "evidence": "Exact word verified in NICETAS CHONIATES, Historia, 1.14452.140.5, 1.14452.140.12 (TLG tlg3094.001). Edition: van Dieten, J, De Gruyter, 1975. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3094.001 1.14452.140.5, 1.14452.140.12"
+    },
+    {
+      "lemma": "ἀποσαλεύω",
+      "method": "source_forms",
+      "forms": [
+        "ἀποσαλεῦον"
+      ],
+      "evidence": "Exact word verified in Joannes CINNAMUS, Epitome rerum ab Joanne et Alexio Comnenis gestarum, 167.15, 234.17 (TLG tlg3020.001). Edition: Meineke, A, Weber, 1836. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3020.001 167.15, 234.17"
+    },
+    {
+      "lemma": "μεγαλόκρατες",
+      "method": "source_forms",
+      "forms": [
+        "μεγαλόκρατες"
+      ],
+      "evidence": "Exact word verified in Joannes ZONARAS, Epitome historiarum, 175 (TLG tlg3135.002). Edition: Büttner-Wobst, T, Weber, 1897. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3135.002 175"
+    },
+    {
+      "lemma": "Δελεάνος",
+      "method": "source_forms",
+      "forms": [
+        "Δελεάνος"
+      ],
+      "evidence": "Exact word verified in JOANNES SCYLITZES, Synopsis historiarum, 4.23.2, 4.23.33, 4.23.35, 4.25, 4.27.12, 4.29 (TLG tlg3063.001). Edition: Thurn, J, De Gruyter, 1973. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3063.001 4.23.2, 4.23.33, 4.23.35, 4.25, 4.27.12, 4.29"
+    },
+    {
+      "lemma": "τιθήνημα",
+      "method": "source_forms",
+      "forms": [
+        "τιθήνημα"
+      ],
+      "evidence": "Anna Comnena, Alexias, proem 1.1.2; TLG 2703.001, 0.1.1.2. Admit the documented spelling only.",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/02/CSHB02_corpusscriptorum02niebuoft.pdf"
+    },
+    {
+      "lemma": "παχυμουλαράτος",
+      "method": "source_forms",
+      "forms": [
+        "παχυμουλαράτος"
+      ],
+      "evidence": "Ptochoprodromica III.59; LBG s.v. παχυμουλαράτος. Admit the documented spelling only.",
+      "source_url": "https://austriaca.at/0xc1aa5572_0x00149a11.pdf"
+    },
+    {
+      "lemma": "δίβουλος",
+      "method": "source_forms",
+      "forms": [
+        "δίβουλος"
+      ],
+      "evidence": "Triantafyllidis, Λεξικό της κοινής νεοελληνικής, s.v. δίβουλος; etymology explicitly identifies medieval δίβουλος. Admit the documented spelling only.",
+      "source_url": "https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/triantafyllides/search.html?lq=%25βούλ%25&page=5"
+    },
+    {
+      "lemma": "μπροστά",
+      "method": "source_forms",
+      "forms": [
+        "μπροστά"
+      ],
+      "evidence": "Center for the Greek Language, Online Lexica, μπροστά; etymology explicitly lists medieval μπροστά < ἐμπροστά < ἐμπρός. Admit the documented spelling only.",
+      "source_url": "https://dictionaries.greeklanguage.gr/index.php?chronoform=ShowLima&limaID=9848&option=com_chronoforms5"
+    },
+    {
+      "lemma": "συναινέω",
+      "method": "source_forms",
+      "forms": [
+        "συναινοῦντα"
+      ],
+      "evidence": "Exact word verified in JOANNES CHRYSOSTOMUS, Homilies on Genesis, 54.474.38 (TLG tlg2062.112). Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2062.112 54.474.38"
+    },
+    {
+      "lemma": "Τουρκία",
+      "method": "source_forms",
+      "forms": [
+        "Τουρκίᾳ"
+      ],
+      "evidence": "Exact word verified in CONSTANTINUS VII PORPHYROGENITUS Imperator, De administrando imperio, 37.42 (TLG tlg3023.008). Edition: Moravcsik, G, Dumbarton Oaks, 1967. Admit the attested form only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3023.008 37.42"
+    },
+    {
+      "lemma": "βιοτικός",
+      "method": "source_forms",
+      "forms": [
+        "βιοτικήν"
+      ],
+      "evidence": "The Divine Liturgy of St. John Chrysostom, Cherubic Hymn, printed pages 14-15: βιοτικὴν before μέριμναν. Normalize the contextual grave to acute; admit only the attested accusative feminine singular.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/p/s/2026/10/24/li/gr-en/se.m10.d24.li.pdf"
+    },
+    {
+      "lemma": "ἀκάθεκτος",
+      "method": "source_forms",
+      "forms": [
+        "ἀκάθεκτα"
+      ],
+      "evidence": "Anna Comnena, Alexias, proem 1 (TLG tlg2703.001, 0.1). Edition: Leib, B., Les Belles Lettres, 1937. The source attests the adverbial neuter plural ἀκάθεκτα; admit this exact spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 0.1"
+    },
+    {
+      "lemma": "περιγραπτός",
+      "method": "source_forms",
+      "forms": [
+        "περιγραπτόν"
+      ],
+      "evidence": "Exact word verified in JOANNES DAMASCENUS, Expositio fidei, 1.6 (TLG tlg2934.004). Edition: Kotter, B, De Gruyter, 1973. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2934.004 1.6"
+    },
+    {
+      "lemma": "παρασύρω",
+      "method": "source_forms",
+      "forms": [
+        "παρασύρει"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 0.1.1 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 0.1.1"
+    },
+    {
+      "lemma": "Λογγιβαρδία",
+      "method": "source_forms",
+      "forms": [
+        "Λογγιβαρδίας"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 1.11.4 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 1.11.4"
+    },
+    {
+      "lemma": "Βούλγαρος",
+      "method": "source_forms",
+      "forms": [
+        "Βουλγάρων"
+      ],
+      "evidence": "Exact word verified in ANNA COMNENA, Alexias, 2.6.2.3 (TLG tlg2703.001). Edition: Leib, B, Les Belles Lettres, 1937. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg2703.001 2.6.2.3"
+    },
+    {
+      "lemma": "κατονομάζω",
+      "method": "source_forms",
+      "forms": [
+        "κατονομάζουσιν"
+      ],
+      "evidence": "Exact word verified in THEOPHYLACTUS SIMOCATTA, Historiae, 1.4.6.2 (TLG tlg3130.003). Edition: de Boor, C, Teubner, 1887. Admit the attested spelling only.",
+      "source_url": "https://stephanus.tlg.uci.edu/",
+      "citation": "tlg3130.003 1.4.6.2"
+    },
+    {
+      "lemma": "ἀναθαρρύνω",
+      "method": "source_forms",
+      "forms": ["ἀναθαρρυνόμενοι"],
+      "evidence": "Dionysius of Halicarnassus, Roman Antiquities 2.43.2, attests ἀναθαρρυνόμενοι. Preserve this exact participle while rejecting the triple-rho corruption inherited from the historical expansion.",
+      "source_url": "https://eulogikon.org/works/dionysius-halicarnassus-roman-antiquities-ndy-al",
+      "citation": "Roman Antiquities 2.43.2"
+    },
+    {
+      "lemma": "πανάγιος",
+      "method": "source_forms",
+      "forms": ["πανάγιον"],
+      "evidence": "Clementina, Epitome altera, section 17, Dressel 1873: the neuter adjective πανάγιον modifies πνεῦμα. Preserve the exact attested form independently of corpus part-of-speech annotation.",
+      "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/4c9c843d80ee94b4371f52add5f7d68bbfe7ba4c/data/tlg1271/tlg012/tlg1271.tlg012.1st1K-grc1.xml",
+      "citation": "urn:cts:greekLit:tlg1271.tlg012.1st1K-grc1:17"
+    },
+    {
+      "lemma": "προκαθαίρω",
+      "method": "source_forms",
+      "forms": ["προκεκαθαρμένη"],
+      "evidence": "Clement of Alexandria, Stromata 7.5.29.7, attests the perfect passive feminine singular participle προκεκαθαρμένη. Preserve the exact surface without accepting the corrupt corpus annotation lemma.",
+      "source_url": "https://catholiclibrary.org/library/view?chunk.id=00000489&docId=Fathers-Synchronized-EN%2FClement_of_Alexandria__Stromata.en.html",
+      "citation": "Stromata 7.5.29.7"
+    },
+    {
+      "lemma": "συνεγκλείω",
+      "method": "source_forms",
+      "forms": ["συνεγκλειομένων"],
+      "evidence": "Athenaeus, Deipnosophistae 13.2 (555c), Kaibel 1887, attests συνεγκλειομένων. Preserve the exact participle independently of the malformed annotation lemma.",
+      "source_url": "https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/master/data/tlg0008/tlg001/tlg0008.tlg001.perseus-grc3.xml",
+      "citation": "Deipnosophistae 13.2 (555c)"
+    },
+    {
+      "lemma": "κλώστρα",
+      "method": "source_forms",
+      "forms": [
+        "κλώστρας"
+      ],
+      "evidence": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 515 attests κλώστρας. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Διήγησις_παιδιόφραστος_των_τετραπόδων_ζώων",
+      "citation": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 515"
+    },
+    {
+      "lemma": "μαγαρίζω",
+      "method": "source_forms",
+      "forms": [
+        "μαγαρισμένε"
+      ],
+      "evidence": "Tale of the Donkey, Wolf, and Fox, verse 366 attests μαγαρισμένε. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Γαδάρου,_λύκου_κι_αλουπούς_διήγησις_ωραία",
+      "citation": "Tale of the Donkey, Wolf, and Fox, verse 366"
+    },
+    {
+      "lemma": "μαγαρίζω",
+      "method": "source_forms",
+      "forms": [
+        "μαγαρισμένη"
+      ],
+      "evidence": "Peri Gerontos (About the Old Man Marrying a Girl), verse 126 attests μαγαρισμένη. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Περί_γέροντος_να_μην_πάρη_κορίτσι",
+      "citation": "Peri Gerontos (About the Old Man Marrying a Girl), verse 126"
+    },
+    {
+      "lemma": "μαζώνω",
+      "method": "source_forms",
+      "forms": [
+        "μαζωμένα"
+      ],
+      "evidence": "Tale of the Donkey, Wolf, and Fox, verse 217 attests μαζωμένα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Γαδάρου,_λύκου_κι_αλουπούς_διήγησις_ωραία",
+      "citation": "Tale of the Donkey, Wolf, and Fox, verse 217"
+    },
+    {
+      "lemma": "μαραίνω",
+      "method": "source_forms",
+      "forms": [
+        "μαραμένη"
+      ],
+      "evidence": "Peri Gerontos (About the Old Man Marrying a Girl), verse 42 attests μαραμένη. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Περί_γέροντος_να_μην_πάρη_κορίτσι",
+      "citation": "Peri Gerontos (About the Old Man Marrying a Girl), verse 42"
+    },
+    {
+      "lemma": "μαυλίστρα",
+      "method": "source_forms",
+      "forms": [
+        "μαυλίστρα"
+      ],
+      "evidence": "Tale of the Donkey, Wolf, and Fox, verse 510 attests μαυλίστρα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Γαδάρου,_λύκου_κι_αλουπούς_διήγησις_ωραία",
+      "citation": "Tale of the Donkey, Wolf, and Fox, verse 510"
+    },
+    {
+      "lemma": "μυρίζω",
+      "method": "source_forms",
+      "forms": [
+        "μυρισμένα"
+      ],
+      "evidence": "Apokopos (Legrand 1870 edition), verse 26 attests μυρισμένα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος",
+      "citation": "Apokopos (Legrand 1870 edition), verse 26"
+    },
+    {
+      "lemma": "πανίτσιν",
+      "method": "source_forms",
+      "forms": [
+        "πανίτσιν"
+      ],
+      "evidence": "Poulologos (Bird Parliament), verses 176, 180 attests πανίτσιν. Preserve this exact surface as its own owner without inferring an unattested normalized lemma.",
+      "source_url": "https://el.wikisource.org/wiki/Πουλολόγος",
+      "citation": "Poulologos (Bird Parliament), verses 176, 180"
+    },
+    {
+      "lemma": "σπήλιο",
+      "method": "source_forms",
+      "forms": [
+        "σπήλιο"
+      ],
+      "evidence": "Death of Digenes (folk ballads), part A, verse 6 attests σπήλιο. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Ο_θάνατος_του_Διγενή",
+      "citation": "Death of Digenes (folk ballads), part A, verse 6"
+    },
+    {
+      "lemma": "σπίτι",
+      "method": "source_forms",
+      "forms": [
+        "σπήτι"
+      ],
+      "evidence": "Poulologos (Bird Parliament), verse 521 attests σπήτι. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Πουλολόγος",
+      "citation": "Poulologos (Bird Parliament), verse 521"
+    },
+    {
+      "lemma": "τιμώ",
+      "method": "source_forms",
+      "forms": [
+        "τιμημένος"
+      ],
+      "evidence": "Poulologos (Bird Parliament), verse 519 attests τιμημένος. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Πουλολόγος",
+      "citation": "Poulologos (Bird Parliament), verse 519"
+    },
+    {
+      "lemma": "τορνεύω",
+      "method": "source_forms",
+      "forms": [
+        "τορνεμένα"
+      ],
+      "evidence": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 921 attests τορνεμένα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Διήγησις_παιδιόφραστος_των_τετραπόδων_ζώων",
+      "citation": "Paidiophrastos Diegesis (Tale of the Quadrupeds), verse 921"
+    },
+    {
+      "lemma": "φηκάρι",
+      "method": "source_forms",
+      "forms": [
+        "φηκάρια"
+      ],
+      "evidence": "Apokopos (Legrand 1870 edition), verse 468 attests φηκάρια. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος",
+      "citation": "Apokopos (Legrand 1870 edition), verse 468"
+    },
+    {
+      "lemma": "ποιέω",
+      "method": "source_forms",
+      "forms": [
+        "ἔποικα"
+      ],
+      "evidence": "Apokopos (Legrand 1881 edition), verse 525 attests ἔποικα. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος_του_Μπεργαδή",
+      "citation": "Apokopos (Legrand 1881 edition), verse 525"
+    },
+    {
+      "lemma": "ποιέω",
+      "method": "source_forms",
+      "forms": [
+        "ἔποικεν"
+      ],
+      "evidence": "Apokopos (Legrand 1881 edition), verse 358 attests ἔποικεν. Preserve this exact spelling from the edited vernacular text without using a general lookup-based lexical exception.",
+      "source_url": "https://el.wikisource.org/wiki/Απόκοπος_του_Μπεργαδή",
+      "citation": "Apokopos (Legrand 1881 edition), verse 358"
+    },
+    {
+      "lemma": "μεταλαμπαδεύω",
+      "method": "source_forms",
+      "forms": [
+        "μεταλαμπαδευομένην"
+      ],
+      "evidence": "Clement of Alexandria, Stromata 2.23.138.2, attests μεταλαμπαδευομένην in the discussion of marriage and the succession of generations. Preserve the exact participle independently of the inflected corpus lemma.",
+      "source_url": "https://eulogikon.org/works/clement-alexandria-stromata-qya-ah",
+      "citation": "Stromata 2.23.138.2"
+    },
+    {
+      "lemma": "χράομαι",
+      "method": "source_forms",
+      "forms": [
+        "ἔχρητο"
+      ],
+      "evidence": "Aesop, Fables 135.2 and 135.3, Chambry edition, attests ἔχρητο. Preserve the exact textual variant without restoring its unrelated historical generated lemma.",
+      "source_url": "https://obtic.huma-num.fr/obvil-web/corpus/fabula-numerica/anonymes_chambry",
+      "citation": "Aesop, Fables 135.2 and 135.3 (Chambry)"
+    },
+    {
+      "lemma": "τάχος",
+      "method": "source_forms",
+      "forms": [
+        "τάχεϊ"
+      ],
+      "evidence": "Herodian, On the Declension of Nouns, book 2, page 291, explicitly cites τάχεϊ beside τάχεσι as a singular and plural dative pair. Preserve the exact diaeretic spelling.",
+      "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/4c9c843d80ee94b4371f52add5f7d68bbfe7ba4c/data/tlg0087/tlg013/tlg0087.tlg013.1st1K-grc1.xml",
+      "citation": "Herodian, On the Declension of Nouns 2.291"
+    },
+    {
+      "lemma": "συμπερίειμι",
+      "method": "source_forms",
+      "forms": [
+        "συμπεριόντα"
+      ],
+      "evidence": "Choricius, Tyrannicida, in Choricii Gazaei Orationes declamationes fragmenta, edited by J. F. Boissonade (Paris, 1846), printed page 54, attests συμπεριόντα. Preserve this exact participle under the independently defined lexical head συμπερίειμι without restoring the approximate generated compound paradigm.",
+      "source_url": "https://storage.lib.uchicago.edu/pres/2006/pres2006-0875.pdf",
+      "citation": "Choricius, Tyrannicida, Boissonade 1846, page 54"
+    },
+    {
+      "lemma": "συνάνειμι",
+      "method": "source_forms",
+      "forms": [
+        "συνανιόντε"
+      ],
+      "evidence": "Aelian, On the Nature of Animals 6.63, attests συνανιόντε. LSJ defines συνάνειμι as grow up with and cites the same construction. Preserve the exact dual participle under that compound owner instead of the shorter annotation ἄνειμι.",
+      "source_url": "https://el.wikisource.org/wiki/Περί_ζώων_ιδιότητος/στ#63",
+      "citation": "Aelian, On the Nature of Animals 6.63; LSJ, συνάνειμι"
+    },
+    {
+      "lemma": "προσυπέχω",
+      "method": "source_forms",
+      "forms": [
+        "προσυποσχεῖν"
+      ],
+      "evidence": "Aelius Aristides, Oration 52, attests προσυποσχεῖν in a construction about paying the penalty for an outrage. LSJ cites this construction at Aristid.2.429 J. under προσυπέχω. The same infinitive and sense occur in the reproduced Demosthenes Prooemia text. Preserve this exact aorist infinitive under προσυπέχω rather than the defective εἶμι compound annotation προσύπειμι.",
+      "source_url": "https://www.ens.psl.eu/IMG/file/concours/2003/AL/grec_epreuve_commune_ecrit.pdf",
+      "citation": "Aelius Aristides, Oration 52 (Aristid.2.429 J. in LSJ); LSJ, προσυπέχω; Demosthenes, Prooemia"
+    },
+    {
+      "lemma": "ἄπειμι",
+      "method": "source_forms",
+      "forms": [
+        "ἀπῆσθ᾽"
+      ],
+      "evidence": "Sophocles, Philoctetes 379, attests the elided ἀπῆσθ᾽ in singular address. LSJ cites the complete second-person singular ἀπῆσθα at this locus under ἄπειμι. Preserve this exact source cell and its elision, without relying on the conflicting automatic plural annotations or generating a compound paradigm.",
+      "source_url": "https://www.cambridgeinternational.org/Images/501641-2020-specimen-paper-1.pdf",
+      "citation": "Sophocles, Philoctetes 379; LSJ, ἄπειμι"
+    },
+    {
+      "lemma": "Πλάτων",
+      "method": "source_forms",
+      "forms": ["Πλάτων᾽"],
+      "evidence": "Diogenes Laertius, Lives of Eminent Philosophers 3.1.28, attests Πλάτων’ before οὐκ. The accusative Πλάτωνα is genuinely elided; retain this exact reading independently of complete nominatives followed by a quotation mark.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0004-001.xml",
+      "source_sha256": "2a9a8dded392c838987a357bdc739818e63b3e23dbac80199eb93f590324c9c1",
+      "citation": "Diogenes Laertius, Lives of Eminent Philosophers 3.1.28"
+    },
+    {
+      "lemma": "δέω",
+      "method": "source_forms",
+      "forms": ["δέοι᾽"],
+      "evidence": "Plato, Philebus 21b, attests δέοι’ before ἄν. This is elided second-person singular middle optative δέοιο; preserve the exact printed spelling rather than treating its apostrophe as a quotation mark.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0059-010.xml",
+      "source_sha256": "eeae6aefa9af2d14fbec398a9f68ad9eef170655f4e7928dff70923577ce1add",
+      "citation": "Plato, Philebus 21b"
+    },
+    {
+      "lemma": "ἵζω",
+      "method": "source_forms",
+      "forms": ["εἷσ᾽"],
+      "evidence": "Homer, Iliad 3.382, attests εἷσ’ before ἐν in the account of Aphrodite placing Paris in his chamber. Preserve this exact elided aorist reading independently of quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0012-001.xml",
+      "source_sha256": "d1fd7bea5d97c6ceaeb318b1a76aa281d301b2c3d2cae6ed3a2a7d55547fe9d9",
+      "citation": "Homer, Iliad 3.382"
+    },
+    {
+      "lemma": "θεός",
+      "method": "source_forms",
+      "forms": ["θεοῖσ᾽"],
+      "evidence": "Xenophanes, the fragment beginning Πάντα θεοῖσ’ ἀνέθηκαν, attests elided dative plural θεοῖσι before ἀνέθηκαν. Preserve the exact elision from this independent verse.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0267-002.xml",
+      "source_sha256": "9153c02f72238e82e1beef4f79fd5e462455cd39eb4689e26c9e972d3ad50f0f",
+      "citation": "Xenophanes, Fragmenta, GLAUx fragment 10, line 1"
+    },
+    {
+      "lemma": "νικάω",
+      "method": "source_forms",
+      "forms": ["νίκησ᾽"],
+      "evidence": "Hesiod, fragment 204.90, attests νίκησ’ before οὐδέ in the account of Helen's suitors. Preserve this genuine elided aorist spelling independently of punctuation-bearing Diorisis readings.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0020-004.xml",
+      "source_sha256": "8b3cd67b060788a80f410a379b788d2d9135a3c9864aacea6785cd3257e8c061",
+      "citation": "Hesiod, fragment 204.90"
+    },
+    {
+      "lemma": "πανταχοῦ",
+      "method": "source_forms",
+      "forms": ["πανταχοῦ᾽"],
+      "evidence": "Menander, Sentences 290, prints πανταχοῦ’ στι. The apostrophe records prodelision of following ἐστί, not removal of a vowel from πανταχοῦ. Preserve the independently printed token spelling without generating other prodelision forms.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0541-042a.xml",
+      "source_sha256": "c026bc0323ea22f5514d30cc0c8e1d38b6c570dfec913422b5ff361801c876bc",
+      "citation": "Menander, Sentences 290"
+    },
+    {
+      "lemma": "παίω",
+      "method": "source_forms",
+      "forms": ["παῖ᾽"],
+      "evidence": "Athenaeus, Deipnosophistae 3.85, page 117b, attests παῖ’ before ἐκεῖνον. Preserve the genuine elided imperative παῖε; an independently complete noun παῖ followed by a quote is a separate reading.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0008-001.xml",
+      "source_sha256": "ec47f2474c56d2ef3c501cba44120c57d41ea1189f6deade93a10f7852a0ea15",
+      "citation": "Athenaeus, Deipnosophistae 3.85, 117b"
+    },
+    {
+      "lemma": "ποῦ",
+      "method": "source_forms",
+      "forms": ["ποῦ᾽"],
+      "evidence": "Aristophanes, Lysistrata 1086, prints ποῦ’ στιν. The apostrophe represents prodelision of following ἐστίν, not elision of the interrogative's vowel. Preserve this exact printed token spelling only.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0019-007.xml",
+      "source_sha256": "c44efca7588e760222efad9fb22b7c375cad64cceeaf00b501c6dbe2ded8c10c",
+      "citation": "Aristophanes, Lysistrata 1086"
+    },
+    {
+      "lemma": "χείρ",
+      "method": "source_forms",
+      "forms": ["χείρ᾽"],
+      "evidence": "Homer, Odyssey 9.302, attests χείρ’ before ἐπιμασσάμενος. Preserve this genuine elided dative χειρί independently of complete nominatives accompanied by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0012-002.xml",
+      "source_sha256": "6015f5811a49828346d6cd5a312955c250413e563421f7284c603ce0578b14ba",
+      "citation": "Homer, Odyssey 9.302"
+    },
+    {
+      "lemma": "ἀνδρών",
+      "method": "source_forms",
+      "forms": ["ἀνδρῶν᾽"],
+      "evidence": "Euripides, Heracles 954, attests ἐς ἀνδρῶν’ ἐσπεσών. This is genuine elision of accusative ἀνδρῶνα, the men's hall; it is distinct from a complete genitive plural ἀνδρῶν followed by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0006-009.xml",
+      "source_sha256": "0698fb57293eb0fd366e0b70e1bd39f2b7972465fc4a083c72e55ff5ec5b7db8",
+      "citation": "Euripides, Heracles 954"
+    },
+    {
+      "lemma": "ἀνά",
+      "method": "source_forms",
+      "forms": ["ἄν᾽"],
+      "evidence": "Homeric Hymn to Apollo 223, attests βῆς ἄν’ ὄρος. Preserve the genuine elided preposition ἀνά, with its elision accent, independently of a complete particle ἄν followed by quotation punctuation. The corpus noun/dative annotation does not determine this owner.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0013-003.xml",
+      "source_sha256": "97c659b049b49cc3869773a7eaef837a25fda72aaad6019002795c3df6a7de9c",
+      "citation": "Homeric Hymn to Apollo 223"
+    },
+    {
+      "lemma": "Ἀγάθων",
+      "method": "source_forms",
+      "forms": ["Ἀγάθων᾽"],
+      "evidence": "Plato, Symposium 174b, attests Ἀγάθων’ before ἐπί. Preserve the exact elision of accusative Ἀγάθωνα in the proverb, independently of complete nominatives followed by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0059-011.xml",
+      "source_sha256": "1a63764f5e030be178c51dc5493bee1cc44f85a7996bfa32cdd2122cb7c0501f",
+      "citation": "Plato, Symposium 174b"
+    },
+    {
+      "lemma": "Ἀπόλλων",
+      "method": "source_forms",
+      "forms": ["Ἀπόλλων᾽"],
+      "evidence": "Euripides, Orestes 591, attests Ἀπόλλων’ before ὅς as the object of ὁρᾷς. Preserve the genuine elision of accusative Ἀπόλλωνα, independently of complete nominatives followed by quotation punctuation.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0006-016.xml",
+      "source_sha256": "e82bbe1bb78cf1d99d42d16233684d3009c0e2663a430e135affad204cca5c58",
+      "citation": "Euripides, Orestes 591"
+    },
+    {
+      "lemma": "ἔνιοι",
+      "method": "source_forms",
+      "forms": ["ἔνι᾽"],
+      "evidence": "Plutarch, Moralia 1010e, quotes ἔνι’ before οὐδέ. Preserve the genuine elision of neuter plural ἔνια independently of quotation punctuation attached to a complete ἔνι.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0007-133.xml",
+      "source_sha256": "f1f4e086eb5043474d9ba08d5d7e3ed0967ef6d7e5dd1cd0b4e0e445e5890ced",
+      "citation": "Plutarch, Moralia 1010e"
+    },
+    {
+      "lemma": "ὥρασι",
+      "method": "source_forms",
+      "forms": ["ὥρασ᾽"],
+      "evidence": "Aristophanes, Lysistrata 1037, attests ὥρασ’ before ἵκοισθ’. Herodian, Prosodia Catholica 1.501, explicitly discusses this quotation under the adverb ὥρασι. Preserve its exact genuine elision.",
+      "source_url": "https://prosodia-catholica.symmachus.org/passages/1.501.html",
+      "source_sha256": "c44efca7588e760222efad9fb22b7c375cad64cceeaf00b501c6dbe2ded8c10c",
+      "source_file": "GLAUx 0019-007.xml",
+      "citation": "Aristophanes, Lysistrata 1037; Herodian, Prosodia Catholica 1.501"
+    },
+    {
+      "lemma": "εἶα",
+      "method": "source_forms",
+      "forms": ["εἶ᾽"],
+      "evidence": "Euripides, Medea 1242, attests εἶ’ before ὁπλίζου. Ten independent edited corpus loci support this genuine elision of the interjection εἶα; preserve the exact spelling separately from audited quotation readings.",
+      "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0006-003.xml",
+      "source_sha256": "bd114ae9ec68de1d1cc9ec59bebf88b6ae1d43712d3b669b59e3684070e4c146",
+      "citation": "Euripides, Medea 1242"
+    },
+    {
+      "lemma": "ἀνίημι",
+      "method": "source_forms",
+      "forms": ["ἀνίησ᾽"],
+      "evidence": "Euripides, Fragmenta 781.2, Nauck 1889, attests ἀνίησ’ before ἀτμόν. Preserve the genuine elision of ἀνίησι independently of punctuation-bearing Diorisis readings.",
+      "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/master/data/tlg0006/tlg020/tlg0006.tlg020.1st1K-grc1.xml",
+      "source_sha256": "faa891dd7d4c5b6a73786c30925bff4a47ed61049a229fd667855a464fab0a3c",
+      "citation": "Euripides, Fragmenta 781.2, Nauck 1889"
+    },
+    {
+      "lemma": "εἰκονίζω",
+      "method": "source_forms",
+      "forms": [
+        "εἰκονίζοντες"
+      ],
+      "evidence": "The Divine Liturgy of St. John Chrysostom, Cherubic Hymn, printed pages 14-15, attests εἰκονίζοντες. Admit this exact active present participle only.",
+      "source_url": "https://digitalchantstand.goarch.org/goa/dcs/p/s/2026/10/24/li/gr-en/se.m10.d24.li.pdf"
+    },
+    {
+      "lemma": "Πάριος",
+      "method": "source_forms",
+      "forms": [
+        "Παρίους"
+      ],
+      "evidence": "Herodotus, Histories 6.133.2, uses the accusative plural ethnic name as the object of ἐπολιόρκεε. Preserve this exact proper-name form independently of the common-word lookup assignment.",
+      "source_url": "https://cts.perseids.org/read/greekLit/tlg0016/tlg001/perseus-grc2/6.133.1-6.133.3",
+      "citation": "Herodotus, Histories 6.133.2"
+    },
+    {
+      "lemma": "Πῶλος",
+      "method": "source_forms",
+      "forms": [
+        "Πῶλε"
+      ],
+      "evidence": "Plato, Gorgias 467b, addresses Polus with the vocative Πῶλε. Preserve the attested name form rather than assigning its ownership only to the common noun πῶλος.",
+      "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/master/data/tlg0059/tlg023/tlg0059.tlg023.perseus-grc2.xml",
+      "citation": "Plato, Gorgias 467b"
+    },
+    {
+      "lemma": "Τύχικος",
+      "method": "source_forms",
+      "forms": [
+        "Τύχικον"
+      ],
+      "evidence": "Titus 3.12 in the Westcott-Hort text spells the personal name Τύχικον. Other editions use Τυχικόν; retain both accent traditions instead of treating either as a common adjective.",
+      "source_url": "https://greekdoc.com/DOCUMENTS/nt-poly/tit03.html",
+      "citation": "Titus 3.12, Westcott-Hort"
+    },
+    {
+      "lemma": "Κορέ",
+      "method": "source_forms",
+      "forms": [
+        "Κορέ"
+      ],
+      "evidence": "Jude 1.11 in the received-text tradition has the indeclinable name Κορὲ after τοῦ. Other editions have Κόρε. The contextual grave is normalized to acute in the source specification and the exporter supplies its grave twin.",
+      "source_url": "https://greeknewtestament.net/jd1-11",
+      "citation": "Jude 1.11, Elzevir 1624"
+    },
+    {
+      "lemma": "Ἰωαδά",
+      "method": "source_forms",
+      "forms": [
+        "Ἰωαδά"
+      ],
+      "evidence": "Nehemiah 13.28 spells the indeclinable personal name Ἰωαδὰ after υἱῶν. Keep the complete name rather than substituting the unrelated shorter name Ἰώδα. The contextual grave is normalized to acute and regenerated by the exporter.",
+      "source_url": "https://www.inagiastriados.gr/files/leitourgika/p.d.-k.d/%CE%A0%CE%94/17.Neemias.html",
+      "citation": "Nehemiah 13.28 (2 Esdras 23.28)"
+    },
+    {
+      "lemma": "Ὀνήσιμος",
+      "method": "source_forms",
+      "forms": [
+        "Ὀνησίμῳ"
+      ],
+      "evidence": "Colossians 4.9 uses the personal name Ὀνησίμῳ as the dative complement of σύν. The SBL Greek New Testament identifies its lemma as Ὀνήσιμος; the independent GLAUx reading agrees. Keep this exact name form despite the flattened lookup assigning it to the common adjective ὀνήσιμος.",
+      "source_url": "https://github.com/morphgnt/sblgnt/blob/master/72-Col-morphgnt.txt",
+      "citation": "Colossians 4.9"
+    }
+  ]
+}

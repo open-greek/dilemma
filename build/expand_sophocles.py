@@ -12,18 +12,23 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import re
 import sys
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
+from collections import Counter
 from pathlib import Path
 
 # Import shared infrastructure from expand_lsj
 from expand_lsj import (
     get_wtp, expand_noun, expand_verb, strip_length_marks, strip_diacritics,
     mark_alpha_length, AG_LOOKUP, DATA_DIR, ARTICLES,
+    load_wiktionary_genitives, resolve_noun_genitive, _genitive_is_junk,
+    noun_generation_input_hashes,
+    noun_expansion_error,
 )
 from dilemma.form_sanitize import (  # noqa: E402
     has_editorial_sigla,
@@ -186,23 +191,9 @@ def parse_sophocles_entries():
                 gender = GENDER_MAP.get(article, "")
 
                 if gender and gen_ending:
-                    # Build full genitive from headword + ending
-                    gen_ending_plain = strip_diacritics(gen_ending)
-                    hw_plain = strip_diacritics(hw)
-
-                    # If the ending is a full word (contains the stem), use as-is
-                    if len(gen_ending) > 3:
-                        genitive = gen_ending
-                    else:
-                        # It's a suffix - figure out how much of hw to keep
-                        # Try matching the ending overlap
-                        for strip_n in range(1, min(4, len(hw_plain))):
-                            test_stem = hw_plain[:-strip_n]
-                            if gen_ending_plain.startswith(test_stem[-1:]):
-                                genitive = hw[:-strip_n] + gen_ending
-                                break
-                        if not genitive:
-                            genitive = hw[:-1] + gen_ending
+                    # Preserve the exact source field. The shared resolver
+                    # distinguishes a complete form from a supported suffix.
+                    genitive = gen_ending
             else:
                 # Check for just an article without genitive
                 article_m = re.search(r'[,\s]+(ὁ|ἡ|τό|τὸ|τά)[,\s.]', after_hw[:30])
@@ -221,6 +212,7 @@ def parse_sophocles_entries():
                     "headword": hw,
                     "gender": gender,
                     "genitive": genitive,
+                    "supplied_genitive": genitive,
                     "is_adj": is_adj,
                     "is_xref": is_xref,
                     "is_indecl": is_indecl,
@@ -334,6 +326,7 @@ def analyze():
 
 def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
+    input_hashes = sophocles_noun_input_hashes()
     entries, expandable, adverb_list = analyze()
 
     print(f"\nLoading lookup...")
@@ -342,8 +335,26 @@ def expand_all():
     original_size = len(lookup)
 
     wtp = get_wtp()
+    wikt_genitives = load_wiktionary_genitives()
+    superseded = set()
+    resolutions = {}
+    for hw, entry in entries.items():
+        supplied = entry.get("supplied_genitive", "")
+        if not entry["gender"]:
+            continue
+        resolved, error = resolve_noun_genitive(hw, entry["gender"], entry["genitive"],
+                                               wikt_genitives)
+        error = error or noun_expansion_error(hw, resolved)
+        if not supplied and error != "unsupported-irregular-noun":
+            continue
+        if error or resolved != supplied:
+            resolutions[hw] = {"supplied": supplied, "resolved": resolved,
+                               "reason": error or "completed-genitive"}
+            if error == "unsupported-irregular-noun" or not _genitive_is_junk(supplied):
+                superseded.add(hw)
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0}
+    failures = Counter()
     t0 = time.time()
 
     for i, hw in enumerate(expandable):
@@ -351,15 +362,16 @@ def expand_all():
         gender = entry["gender"]
         genitive = entry["genitive"]
 
-        forms, err = expand_noun(wtp, hw, gender, genitive)
+        forms, err = expand_noun(wtp, hw, gender, genitive, wikt_genitives)
 
         if err or not forms:
             stats["failed"] += 1
+            failures[err or "empty-noun-paradigm"] += 1
             continue
 
         stats["expanded"] += 1
 
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
                     lookup[form] = hw
@@ -388,6 +400,7 @@ def expand_all():
     print(f"\nDone in {elapsed:.0f}s")
     print(f"  Expanded: {stats['expanded']:,} / {len(expandable):,}")
     print(f"  Failed: {stats['failed']:,}")
+    print(f"  Noun failure reasons: {dict(sorted(failures.items()))}")
     print(f"  New forms added: {stats['new_forms']:,}")
     print(f"  Collisions (kept existing): {stats['collisions']:,}")
     print(f"  Lookup size: {original_size:,} -> {len(lookup):,}")
@@ -411,6 +424,28 @@ def expand_all():
         json.dump(lookup, f, ensure_ascii=False)
     size_mb = AG_LOOKUP.stat().st_size / (1024 * 1024)
     print(f"  {size_mb:.1f} MB written")
+    AG_LOOKUP.with_name("ag_sophocles_noun_generation_audit.json").write_text(
+        json.dumps({
+            "schema_version": 1,
+            "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "shared_generator_sha256": hashlib.sha256(
+                Path(__file__).with_name("expand_lsj.py").read_bytes()).hexdigest(),
+            "input_sha256": input_hashes,
+            "superseded_lemmas": sorted(superseded),
+            "failures": dict(sorted(failures.items())),
+            "resolutions": dict(sorted(resolutions.items())),
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def sophocles_noun_input_hashes():
+    hashes = noun_generation_input_hashes(include_lsj=False)
+    for path in sorted(SOPH_DIR.glob("*.xml")):
+        with path.open("rb") as stream:
+            digest = hashlib.sha256()
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+            hashes["sophocles/" + path.name] = digest.hexdigest()
+    return hashes
 
 
 def find_verb_candidates(entries, lookup):
@@ -466,7 +501,7 @@ def expand_verbs():
 
         stats["expanded"] += 1
 
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
                     lookup[form] = hw

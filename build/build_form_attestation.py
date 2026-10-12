@@ -59,6 +59,7 @@ from build_lemma_attestation import (  # noqa: E402
     fold_file_hash,
 )
 from extract_diorisis_lm import beta_to_nfc  # noqa: E402
+from build.diorisis_source import DiorisisSourceContext  # noqa: E402
 import tei_locus  # noqa: E402
 from dilemma._attest_db import nfc_key, norm_key, SCHEMA_VERSION  # noqa: E402
 
@@ -405,10 +406,11 @@ def process_diorisis(diorisis_dir, forms, form_ids, profiles, works,
             claimed.add(wid)
         cite_work = wid or xf.stem
         file_cites = Counter()
+        source_context = DiorisisSourceContext(root)
         for sent in root.iter("sentence"):
             locus = sent.get("location") or None
             for w in sent.findall("word"):
-                form = beta_to_nfc(w.get("form") or "")
+                form = beta_to_nfc(source_context.beta(w))
                 if not _is_lexical_form(form):
                     stats["diorisis_nonlexical"] += 1
                     continue

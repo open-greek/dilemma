@@ -8,7 +8,8 @@ are the words of everyday life: the list has ἔρθει and ἔρθουν but n
 ἔρθεις, no μιλήσεις or πιεῖς, and no τηλέφωνο or κινητό. This module writes
 those forms, of verbs, nouns, adjectives and the other inflected parts of
 speech, from the monotonic paradigms Dilemma already has
-(``data/mg_pairs.json``, Wiktionary's tagged Modern Greek inflection tables),
+(``data/mg_pairs.json``, Wiktionary's tagged Modern Greek inflection tables,
+and ``data/el_participles.json``, standalone participial headwords and cells),
 for the forms frequent in monotonic text (``data/mg_freq.txt``). The rules
 below are given for verbs; a noun's, adjective's or name's differ in the
 length of its last syllable and the circumflex on it
@@ -59,6 +60,9 @@ ROOT = Path(__file__).parent
 DATA = ROOT / "data"
 # Wiktionary's Modern Greek inflection tables, monotonic, with tags.
 VERB_PARADIGMS = DATA / "mg_pairs.json"
+# Source-attested participles whose finite parent could not be resolved.
+# They retain their own nominal cells without entering finite-verb data.
+PARTICIPLE_PARADIGMS = DATA / "el_participles.json"
 # Monotonic Modern Greek word frequencies (FrequencyWords, OpenSubtitles).
 MG_FORM_FREQ = DATA / "mg_freq.txt"
 
@@ -744,6 +748,7 @@ def _long_final(tags: frozenset, word: list[Letter], vclass: str) -> bool:
     of the majority is kept by ``GERUND_ACUTE``."""
     if word[-1].base == "α" and ("imperative" in tags or (
             vclass == "B1" and FINITE not in tags
+            and not _is_participle(tags)
             and not {"past", "imperfect", "aorist"} & tags)):
         return True
     return False
@@ -858,9 +863,17 @@ def is_subjunctive_cell(tags: frozenset, form: str = "") -> bool:
     if (cell(tags) in SUBJUNCTIVE_CELLS and "singular" in tags
             and ({"second-person", "third-person"} & tags)):
         return True
-    if not form or tags & NOT_SUBJUNCTIVE_TAGS:
+    if not form:
         return False
     letters_ = bare(form)
+    if "infinitive" in tags:
+        # The Modern απαρέμφατο in -ει also supplies the dependent third
+        # singular. It supplies no second-person or older -ειν form.
+        conflicts = (NOT_SUBJUNCTIVE_TAGS - {"infinitive"}) | PERSON_TAGS | {"dual"}
+        return (not tags & conflicts and letters_.endswith("ει")
+                and len(letters_) > 3)
+    if tags & NOT_SUBJUNCTIVE_TAGS:
+        return False
     return letters_.endswith(("ει", "εισ")) and len(letters_) > 3
 
 
@@ -868,14 +881,121 @@ def is_subjunctive_cell(tags: frozenset, form: str = "") -> bool:
 # Loading
 # --------------------------------------------------------------------------
 
+class Paradigms(dict):
+    """The union view used for evidence, with original source analyses."""
+
+    def __init__(self, forms, cell_rows):
+        super().__init__(forms)
+        self.cell_rows = cell_rows
+
+
+def form_tag_rows(paradigms, lemma: str, form: str) -> tuple[frozenset, ...]:
+    """Separate source analyses for generation while evidence keeps a union.
+
+    A participle or infinitive analysis must not suppress a finite verb
+    analysis of the same spelling. Mixed parts of speech keep their existing
+    union behavior. A single nominal
+    row can itself describe several syncretic cases or numbers; those are
+    separate cells as well, since their polytonic accents can differ.
+    """
+    tags = paradigms[lemma][form]
+    rows = getattr(paradigms, "cell_rows", {}).get((lemma, form), (tags,))
+    if is_verb(tags):
+        if any(not is_verb(row) for row in rows):
+            return (tags,)
+        # A reference marker supplies no additional grammatical analysis.
+        # Sparse rows defer to source rows that specify the same morphology
+        # more fully; they must not lose a perfective tag and invent a second
+        # imperative accent. Conflicting explicit cells remain separate.
+        morphology = set()
+        for row in rows:
+            row = row - {"form-of", "alt-of", "alternative"}
+            # Aorist supplies perfective aspect. It supplies past tense only
+            # to a past cell: an aorist infinitive also supplies the Modern
+            # dependent third singular and must not become a past reading.
+            if "aorist" in row and "imperfective" not in row:
+                past = (cell(row) == "past" and "infinitive" not in row
+                        and not _is_participle(row))
+                row = row - {"aorist"} | {"perfective"}
+                if past:
+                    row = row | {"past"}
+            morphology.add(row)
+        return tuple(sorted((row for row in morphology
+                             if not any(row < other and (
+                                 cell(row) == "other" or cell(row) == cell(other))
+                                 for other in morphology)),
+                            key=lambda row: tuple(sorted(row))))
+    out = set()
+    for row in rows:
+        row = row | (tags & {S_STEM})
+        cases = row & CASE_TAGS
+        numbers = row & {"singular", "plural"}
+        for case_ in cases or {None}:
+            for number in numbers or {None}:
+                separate = row - CASE_TAGS - {"singular", "plural"}
+                out.add(separate | ({case_} if case_ else set())
+                        | ({number} if number else set()))
+    return tuple(sorted(out, key=lambda row: tuple(sorted(row))))
+
+
 def load_verb_paradigms(path: Path = VERB_PARADIGMS
                         ) -> dict[str, dict[str, frozenset]]:
     """``load_paradigms`` for the verbs alone."""
     return load_paradigms(path, frozenset({"verb"}))
 
 
+def load_participle_cells(path: Path = PARTICIPLE_PARADIGMS) -> list[dict]:
+    """Read source-owned standalone participles as a separate part of speech.
+
+    The artifact keeps Wiktionary's original ``verb`` label and explicit
+    participle annotation. Internally ``pos:participle`` distinguishes these
+    nominal cells from a finite verb and from an adjective analysis that the
+    source did not provide. A headword has no inferred descendants.
+    """
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    if (not isinstance(data, dict) or data.get("schema_version") != 1
+            or data.get("language") != "el"
+            or not isinstance(data.get("cells"), list)):
+        raise ValueError(f"Invalid standalone participle inventory: {path}")
+    forbidden = PERSON_TAGS | {
+        "indicative", "subjunctive", "imperative", "optative", "infinitive",
+        "finite", "dependent"}
+    cases = {"nominative", "genitive", "accusative", "vocative", "dative"}
+    numbers = {"singular", "plural", "dual"}
+    out = []
+    for index, row in enumerate(data["cells"]):
+        valid = isinstance(row, dict)
+        if valid:
+            tags = row.get("tags")
+            sources = row.get("sources")
+            valid = (all(isinstance(row.get(k), str) and row[k]
+                         for k in ("form", "lemma", "source_form", "source_lemma"))
+                     and row.get("pos") == "verb"
+                     and isinstance(row.get("kind"), str)
+                     and row["kind"] in {"headword", "inflection"}
+                     and isinstance(tags, list)
+                     and all(isinstance(t, str) for t in tags)
+                     and isinstance(sources, list) and bool(sources)
+                     and all(isinstance(s, str) and s in {"en", "el"}
+                             for s in sources))
+        if valid:
+            tags = frozenset(tags)
+            valid = ("participle" in tags and not tags & forbidden
+                     and not any(t.startswith(POS_PREFIX) for t in tags)
+                     and (row["form"] == row["lemma"]
+                          if row["kind"] == "headword"
+                          else bool(tags & cases) and bool(tags & numbers)))
+        if not valid:
+            raise ValueError(f"Invalid standalone participle cell {index}: {path}")
+        out.append({"form": row["form"], "lemma": row["lemma"],
+                    "pos": "participle", "tags": sorted(tags)})
+    return out
+
+
 def load_paradigms(path: Path = VERB_PARADIGMS,
                    pos_filter: frozenset[str] | None = None,
+                   *, legacy_without_participles: bool = False,
                    ) -> dict[str, dict[str, frozenset]]:
     """lemma -> {monotonic form: union of its tags} for Wiktionary's Modern
     Greek inflection tables, of the parts of speech in ``pos_filter`` (all
@@ -896,11 +1016,31 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
     with no ``NOMINAL_CELL_TAGS`` where another row of its part of speech
     places the form, a name's form with the letters of another word, and
     one with no case cell. The forms of an s-stem adjective carry
-    ``S_STEM``."""
+    ``S_STEM``. The result also retains separate nominal rows for
+    ``form_tag_rows``; their case tags must not collapse when generating
+    spellings (καθηγητῆ, genitive; καθηγητή, accusative or vocative).
+
+    The default dataset requires its ``el_participles.json`` companion.
+    Custom datasets include a companion when present; the explicit
+    ``legacy_without_participles`` option omits that coverage for historical
+    comparisons. The verb-only loader excludes the standalone cells.
+    """
+    path = Path(path)
     with open(path, encoding="utf-8") as fh:
         pairs = json.load(fh)
+    if not legacy_without_participles and (
+            pos_filter is None or "participle" in pos_filter):
+        companion = path.with_name(PARTICIPLE_PARADIGMS.name)
+        if companion.exists():
+            pairs.extend(load_participle_cells(companion))
+        elif path.resolve() == VERB_PARADIGMS.resolve():
+            raise FileNotFoundError(
+                f"{companion} is required for standalone participle coverage; "
+                "run build_data.py before exporting the Modern Greek list")
     out: dict[str, dict[str, frozenset]] = defaultdict(dict)
     rare: dict[str, dict[str, frozenset]] = defaultdict(dict)
+    rows: dict[tuple[str, str], set[frozenset]] = defaultdict(set)
+    rare_rows: dict[tuple[str, str], set[frozenset]] = defaultdict(set)
     pos_of_form: dict[str, set[str]] = defaultdict(set)
     placed: set[tuple[str, str]] = set()
     for p in pairs:
@@ -945,12 +1085,15 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
             tags |= {FINITE}
         target = rare if tags & RARE_CELL_TAGS else out
         target[lemma][form] = target[lemma].get(form, frozenset()) | tags
+        (rare_rows if target is rare else rows)[lemma, form].add(tags)
     for lemma, forms in rare.items():
         for form, tags in forms.items():
             if form in out.get(lemma, {}):
                 out[lemma][form] |= tags
+                rows[lemma, form].update(rare_rows[lemma, form])
             elif not pos_of_form[form.lower()] - parts_of_speech(tags):
                 out[lemma][form] = tags
+                rows[lemma, form].update(rare_rows[lemma, form])
     for lemma in list(out):
         # A name none of whose forms has a case cell is a foreign name in
         # transliteration (Τέσα, Τζέιμς, Γουίλιαμς), which Greek writes in
@@ -975,7 +1118,10 @@ def load_paradigms(path: Path = VERB_PARADIGMS,
             for f, t in forms.items():
                 if "adj" in parts_of_speech(t):
                     forms[f] = t | {S_STEM}
-    return drop_table_fragments(dict(out))
+    kept = drop_table_fragments(dict(out))
+    return Paradigms(kept, {(lemma, form): tuple(rows[lemma, form])
+                           for lemma, forms in kept.items() for form in forms
+                           if (lemma, form) in rows})
 
 
 # The tags that place a form in its paradigm, for comparing a form with the
@@ -1071,7 +1217,7 @@ class Generated(NamedTuple):
     mono: str          # the monotonic form it spells (letters of the variant
     lemma: str         # differ for a subjunctive variant)
     tokens: int        # the monotonic form's count
-    kind: str          # "indicative" or "subjunctive"
+    kind: str          # "indicative", "subjunctive", or "noun-alternative"
     vclass: str
     cell: str
     # How often monotonic text writes the spelling's own letters and
@@ -1087,6 +1233,80 @@ def form_tokens(form: str, frequencies: dict[str, int]) -> int:
     return frequencies.get(form if form.islower() else form.lower(), 0)
 
 
+def _owned_noun(lemma: str,
+                paradigms: dict[str, dict[str, frozenset]]) -> bool:
+    """A noun head with an explicit self nominative and no finite/name owner.
+
+    An inflected homograph's adjective or adverb reading does not change
+    the ownership of the independently defined noun.
+    """
+    forms = paradigms[lemma]
+    return (lemma in forms
+            and parts_of_speech(forms[lemma]) == {"noun"}
+            and all(parts_of_speech(tags) <= {"noun", "adj", "adv"}
+                    for tags in forms.values())
+            and any({"nominative", "singular"} <= tags
+                    and parts_of_speech(tags) == {"noun"}
+                    for tags in form_tag_rows(paradigms, lemma, lemma)))
+
+
+def _noun_cells(form: str, lemma: str, paradigms) -> frozenset:
+    """Only the case and number positively supplied by a noun's source rows."""
+    return frozenset((case_, number)
+                     for tags in form_tag_rows(paradigms, lemma, form)
+                     if parts_of_speech(tags) == {"noun"}
+                     for case_ in CASES if case_ in tags
+                     for number in NUMBERS if number in tags)
+
+
+def _different_noun_cells(form: str, lemmas: list[str], paradigms) -> bool:
+    cells = [_noun_cells(form, lemma, paradigms) for lemma in lemmas]
+    return all(cells) and len(set(cells)) > 1
+
+
+def _noun_cell_representatives(form: str, lemmas: list[str], paradigms,
+                               totals: dict[str, int]) -> list[str]:
+    """Keep the closest stem within each identical explicit noun cell set."""
+    letters = bare(form)
+    groups: dict[frozenset, list[str]] = defaultdict(list)
+    for lemma in lemmas:
+        groups[_noun_cells(form, lemma, paradigms)].append(lemma)
+
+    def overlap(lemma):
+        other = bare(lemma)
+        n = 0
+        while n < min(len(letters), len(other)) and letters[n] == other[n]:
+            n += 1
+        return n
+
+    return sorted(min(group, key=lambda l: (-overlap(l), l == form.lower(),
+                                            -totals.get(l, 0), l))
+                  for group in groups.values())
+
+
+def _noun_home_candidates(lemmas: list[str], paradigms,
+                          default_home: str) -> list[str]:
+    """Keep noun arbitration when an unrelated adjective/adverb is present.
+
+    This only refines an existing noun choice. A finite/name owner, an
+    unsupported noun head, or a preferred adjective keeps the usual ordering.
+    """
+    owned = [lemma for lemma in lemmas if _owned_noun(lemma, paradigms)]
+    if len(owned) == len(lemmas):
+        return owned
+    if len(owned) < 2 or default_home not in owned:
+        return []
+    for lemma in set(lemmas) - set(owned):
+        forms = paradigms[lemma]
+        head_pos = parts_of_speech(forms.get(lemma, frozenset()))
+        if (not head_pos or not head_pos <= {"adj", "adv"}
+                or any(not parts_of_speech(tags)
+                       or not parts_of_speech(tags) <= {"adj", "adv"}
+                       for tags in forms.values())):
+            return []
+    return owned
+
+
 def _home_lemma(form: str, lemmas: list[str],
                 paradigms: dict[str, dict[str, frozenset]],
                 totals: dict[str, int]) -> str:
@@ -1096,7 +1316,11 @@ def _home_lemma(form: str, lemmas: list[str],
     (αστυνομικού is αστυνομικός's genitive), then the one whose letters it
     shares the longest beginning with
     (πουλάμε is πουλάω's, not πωλώ's), then the one monotonic text uses
-    most, then the first in alphabetical order."""
+    most, then the first in alphabetical order. Independently inflected
+    nouns instead use their whole paradigm's support when their explicit
+    source cells differ: the common feminine σκιά is not the rare masculine
+    σκιάς's genitive merely because its spelling is also a headword. Shared
+    cells retain the closest lexical stem, including a diminutive's."""
     letters_ = bare(form)
 
     def verb(lemma: str) -> bool:
@@ -1109,8 +1333,23 @@ def _home_lemma(form: str, lemmas: list[str],
             n += 1
         return n
     own_page = form.lower()
-    return min(lemmas, key=lambda l: (not verb(l), l == own_page,
-                                      -common(l), -totals.get(l, 0), l))
+    # A self nominative singular with exclusively noun head analyses
+    # distinguishes an owned noun from a page filed as another word's form.
+    # Keep the existing ordering for finite/name collisions, mixed heads,
+    # and nouns whose own headword has no explicit case evidence.
+    default_home = min(lemmas, key=lambda l: (not verb(l), l == own_page,
+                                            -common(l), -totals.get(l, 0), l))
+    noun_lemmas = _noun_home_candidates(lemmas, paradigms, default_home)
+    if noun_lemmas:
+        if _different_noun_cells(form, noun_lemmas, paradigms):
+            representatives = _noun_cell_representatives(form, noun_lemmas, paradigms, totals)
+            return min(representatives, key=lambda l: (-totals.get(l, 0),
+                                              l == own_page, -common(l), l))
+        # A table also containing a diminutive's plural is not its lexical
+        # owner: same-cell forms retain the closer independently defined stem.
+        return min(noun_lemmas, key=lambda l: (-common(l), l == own_page,
+                                          -totals.get(l, 0), l))
+    return default_home
 
 
 # The endings of a verb's dictionary form (γράφω, μιλώ, μιλῶ, έρχομαι,
@@ -1132,8 +1371,14 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
     A form several lemmas share (επόμενες, of επόμενος and έπομαι; πουλάμε,
     of πουλάω and πωλώ) gets one spelling: it reads the attested spellings
     of all of their forms, and takes its tags and class from the lemma it
-    shares the most letters with (``_home_lemma``). The candidates come out
-    with the commonest spelling of their letters first (``Generated.weight``),
+    shares the most letters with (``_home_lemma``). Nominal case cells
+    keep their separate accent realizations. When two owned nouns supply
+    different cells of the same form, the other explicit cell may
+    retain a different spelling at R. Its zero token count does not borrow
+    the common homonym's frequency or contribute dominant spelling evidence.
+    The
+    candidates come out with the commonest spelling of their letters first
+    (``Generated.weight``),
     so that a caller keeping the first of a set of spellings with the same
     letters keeps the commonest."""
     lemmas_of: dict[str, list[str]] = defaultdict(list)
@@ -1156,28 +1401,49 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
         if key not in pooled:
             pooled[key] = own[lemma] if len(lemmas) == 1 else _pool(
                 [own[l] for l in lemmas])
-        tags = paradigms[lemma][form]
-        vclass = verb_class(lemma, paradigms[lemma])
-        spelling = polytonic(form, tags, vclass, pooled[key], evidence, lemma)
-        if spelling is None:
-            continue
-        n = form_tokens(form, frequencies)
-        out.append(Generated(spelling, form, lemma, n, "indicative",
-                             vclass, cell(tags), n))
-        if is_subjunctive_cell(tags, form):
-            variant = subjunctive_variant(spelling)
-            # Monotonic writing spells the subjunctive -ει(ς), and writes it
-            # -η(ς) only by mistake, a few times in a hundred (σταματήσης,
-            # 80, beside σταματήσεις). Where it has the variant's letters
-            # and accent GENERATED_MIN_TOKENS times and at least a tenth as
-            # often as the form, they are another word's: the nouns
-            # υπολογιστή (12,664) beside υπολογιστεί, θέσης beside θέσεις.
-            written = frequencies.get(monotonic_key(variant), 0) \
-                if variant else 0
-            if variant and (written < min_tokens or written * 10 < n):
-                out.append(Generated(variant, form, lemma, n,
-                                     "subjunctive", vclass, cell(tags),
-                                     written))
+        primary_spellings = set()
+        for tags in form_tag_rows(paradigms, lemma, form):
+            vclass = verb_class(lemma, paradigms[lemma])
+            spelling = polytonic(form, tags, vclass, pooled[key], evidence, lemma)
+            if spelling is None:
+                continue
+            primary_spellings.add(spelling)
+            n = form_tokens(form, frequencies)
+            out.append(Generated(spelling, form, lemma, n, "indicative",
+                                 vclass, cell(tags), n))
+            if is_subjunctive_cell(tags, form):
+                variant = subjunctive_variant(spelling)
+                # Monotonic writing spells the subjunctive -ει(ς), and writes it
+                # -η(ς) only by mistake, a few times in a hundred (σταματήσης,
+                # 80, beside σταματήσεις). Where it has the variant's letters
+                # and accent GENERATED_MIN_TOKENS times and at least a tenth as
+                # often as the form, they are another word's: the nouns
+                # υπολογιστή (12,664) beside υπολογιστεί, θέσης beside θέσεις.
+                written = frequencies.get(monotonic_key(variant), 0) \
+                    if variant else 0
+                if variant and (written < min_tokens or written * 10 < n):
+                    out.append(Generated(variant, form, lemma, n,
+                                         "subjunctive", vclass, cell(tags),
+                                         written))
+        # A dominant noun's frequency cannot erase another noun's explicitly
+        # sourced cell (χημεία versus χημεῖα; σκατά versus σκατᾶ). Only
+        # independently owned noun paradigms enter this alternate route.
+        noun_lemmas = _noun_home_candidates(lemmas, paradigms, lemma)
+        if (len(noun_lemmas) > 1
+                and _different_noun_cells(form, noun_lemmas, paradigms)):
+            for other in _noun_cell_representatives(form, noun_lemmas, paradigms, totals):
+                if other == lemma:
+                    continue
+                for tags in form_tag_rows(paradigms, other, form):
+                    if (not (tags & CASE_TAGS and tags & {"singular", "plural"})
+                            or pos_of(tags) != "noun"):
+                        continue
+                    spelling = polytonic(form, tags, "noun", own[other],
+                                         evidence, other)
+                    if spelling and spelling not in primary_spellings:
+                        out.append(Generated(spelling, form, other, 0,
+                                             "noun-alternative", "noun",
+                                             cell(tags), 0))
     out.sort(key=lambda g: (-g.weight, -g.tokens, g.mono, g.kind))
     return out
 

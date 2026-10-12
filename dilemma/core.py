@@ -43,6 +43,7 @@ from .nonlexical import is_lexical as _is_lexical
 from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
+from .form_sanitize import sanitize_form
 
 
 def _newest_marker_mtime(d: Path, markers):
@@ -116,6 +117,7 @@ MG_POS_LOOKUP_PATH = DATA_DIR / "mg_pos_lookup.json"
 AG_POS_LOOKUP_PATH = DATA_DIR / "ag_pos_lookup.json"
 TREEBANK_POS_LOOKUP_PATH = DATA_DIR / "treebank_pos_lookup.json"
 GLAUX_POS_LOOKUP_PATH = DATA_DIR / "glaux_pos_lookup.json"
+GRC_LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
@@ -283,6 +285,21 @@ _PRONOUN_LEMMAS = {
     "σοι": "σύ", "σοί": "σύ", "σου": "σύ", "σε": "σύ",
     "σοῦ": "σύ",
     "ὑμεῖς": "σύ", "ὑμῶν": "σύ", "ὑμῖν": "σύ", "ὑμᾶς": "σύ",
+    # Personal/intensive pronoun, including the ordinary dual forms.
+    **dict.fromkeys((
+        "αὐτός", "αὐτή", "αὐτό", "αὐτοῦ", "αὐτῆς", "αὐτῷ", "αὐτῇ",
+        "αὐτόν", "αὐτήν", "αὐτοί", "αὐταί", "αὐτά", "αὐτῶν",
+        "αὐτοῖς", "αὐταῖς", "αὐτούς", "αὐτάς", "αὐτώ", "αὐτοῖν", "αὐταῖν",
+    ), "αὐτός"),
+    # Accent distinguishes the indefinite from the interrogative pronoun.
+    **dict.fromkeys((
+        "τις", "τι", "τινός", "τινί", "τινά", "τινές", "τινῶν",
+        "τισί", "τισίν", "τινάς", "τινέ", "τινοῖν",
+    ), "τις"),
+    **dict.fromkeys((
+        "τίς", "τί", "τίνος", "τίνι", "τίνα", "τίνες", "τίνων",
+        "τίσι", "τίσιν", "τίνας", "τίνε", "τίνοιν",
+    ), "τίς"),
 }
 
 # Modern Greek closed-class resolution (monotonic).
@@ -432,6 +449,13 @@ def grave_to_acute(s: str) -> str:
         else:
             out.append(ch)
     return unicodedata.normalize("NFC", "".join(out))
+
+
+# Preserve accent placement when accepting monotonic closed-class spellings.
+_MONOTONIC_ARTICLE_FORMS = {to_monotonic(form) for form in _ARTICLE_FORMS}
+_MONOTONIC_PRONOUN_LEMMAS = {
+    to_monotonic(form): lemma for form, lemma in _PRONOUN_LEMMAS.items()
+}
 
 
 def strip_accents(s: str) -> str:
@@ -1102,6 +1126,7 @@ class Dilemma:
         # (all_headwords, stripped_index, lsj_only). Lazy-loaded.
         self._canonical_hw: tuple[set, dict, set] | None = None
         self._trusted_grave_targets: set[str] | None = None
+        self._elision_lexical_heads: set[str] | None = None
 
         # Form-keyed corpus attestation (form_profile.db / form_citations.db),
         # for the "attested only" gate + form_attestation(). Lazy-opened.
@@ -1253,7 +1278,7 @@ class Dilemma:
         elif self.lang == "grc":
             self._lookup = dict(self._ag_lookup)
 
-    def _load_pos_lookups(self):
+    def _load_pos_lookups(self, *, include_treebank=True, data_dir=None):
         """Load POS disambiguation tables from JSON.
 
         Builds two tables:
@@ -1264,10 +1289,16 @@ class Dilemma:
         lemmatize_batch_pos() check _pos_ag_lookup first before the combined
         table, mirroring the AG-first logic in the main lookup.
 
+        Builders may omit the treebank overlay and read another data directory
+        to compare corpus votes with this same lower-priority lookup cascade.
+
         Priority within each table: treebank (gold) > LSJ9 indeclinables
         (unambiguous POS) > GLAUx (corpus) > MG Wiktionary (combined only) >
         AG Wiktionary > LSJ9 grammar.
         """
+        def _path(default):
+            return Path(data_dir) / default.name if data_dir is not None else default
+
         def _add_to(target, source_data, overwrite=False):
             """Merge source_data into target POS dict."""
             for form, upos_lemmas in source_data.items():
@@ -1281,45 +1312,46 @@ class Dilemma:
                             target[form][upos] = lemma
 
         # 1. Treebank POS lookup (gold-annotated, highest priority for AG)
-        if self.lang in ("all", "grc") and TREEBANK_POS_LOOKUP_PATH.exists():
-            with open(TREEBANK_POS_LOOKUP_PATH, encoding="utf-8") as f:
+        if (include_treebank and self.lang in ("all", "grc")
+                and _path(TREEBANK_POS_LOOKUP_PATH).exists()):
+            with open(_path(TREEBANK_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 tb_pos = json.load(f)
             _add_to(self._pos_ag_lookup, tb_pos, overwrite=True)
             _add_to(self._pos_lookup, tb_pos, overwrite=True)
 
         # 1b. LSJ9 indeclinables (adverbs, prepositions, conjunctions,
         #     particles, interjections) - POS is unambiguous for these
-        if self.lang in ("all", "grc") and LSJ9_INDECLINABLES_PATH.exists():
-            with open(LSJ9_INDECLINABLES_PATH, encoding="utf-8") as f:
+        if self.lang in ("all", "grc") and _path(LSJ9_INDECLINABLES_PATH).exists():
+            with open(_path(LSJ9_INDECLINABLES_PATH), encoding="utf-8") as f:
                 indecl_raw = json.load(f)
             indecl_pos = _indeclinables_to_pos(indecl_raw)
             _add_to(self._pos_ag_lookup, indecl_pos)
             _add_to(self._pos_lookup, indecl_pos)
 
         # 2. GLAUx POS lookup (corpus-derived, 8.7K entries)
-        if self.lang in ("all", "grc") and GLAUX_POS_LOOKUP_PATH.exists():
-            with open(GLAUX_POS_LOOKUP_PATH, encoding="utf-8") as f:
+        if self.lang in ("all", "grc") and _path(GLAUX_POS_LOOKUP_PATH).exists():
+            with open(_path(GLAUX_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 glaux_pos = json.load(f)
             _add_to(self._pos_ag_lookup, glaux_pos)
             _add_to(self._pos_lookup, glaux_pos)
 
         # 3. MG POS lookup (Wiktionary-derived, combined table only)
-        if self.lang in ("all", "el") and MG_POS_LOOKUP_PATH.exists():
-            with open(MG_POS_LOOKUP_PATH, encoding="utf-8") as f:
+        if self.lang in ("all", "el") and _path(MG_POS_LOOKUP_PATH).exists():
+            with open(_path(MG_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 mg_pos = json.load(f)
             _add_to(self._pos_lookup, mg_pos)  # combined only, not AG
 
         # 4. AG Wiktionary POS lookup (fills remaining gaps)
-        if self.lang in ("all", "grc") and AG_POS_LOOKUP_PATH.exists():
-            with open(AG_POS_LOOKUP_PATH, encoding="utf-8") as f:
+        if self.lang in ("all", "grc") and _path(AG_POS_LOOKUP_PATH).exists():
+            with open(_path(AG_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 ag_pos = json.load(f)
             _add_to(self._pos_ag_lookup, ag_pos)
             _add_to(self._pos_lookup, ag_pos)
 
         # 5. LSJ9 grammar-derived POS (407K forms with NOUN/ADJ from
         #    the grammar field: ὁ/ἡ/τό -> NOUN, ον/ές -> ADJ)
-        if self.lang in ("all", "grc") and LSJ9_POS_LOOKUP_PATH.exists():
-            with open(LSJ9_POS_LOOKUP_PATH, encoding="utf-8") as f:
+        if self.lang in ("all", "grc") and _path(LSJ9_POS_LOOKUP_PATH).exists():
+            with open(_path(LSJ9_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 lsj9_pos = json.load(f)
             _add_to(self._pos_ag_lookup, lsj9_pos)
             _add_to(self._pos_lookup, lsj9_pos)
@@ -1909,6 +1941,27 @@ class Dilemma:
                 i: _POS_FALLBACK.get(i, f"tag{i}") for i in range(num_pos)
             }
 
+    @staticmethod
+    def _is_ancient_article_form(word: str) -> bool:
+        # Accent stripping would confuse ἤ "or" with the article ἡ.
+        lower = word.lower()
+        return (word in _ARTICLE_FORMS
+                or lower in _ARTICLE_FORMS
+                or to_monotonic(word) in _MONOTONIC_ARTICLE_FORMS
+                or to_monotonic(lower) in _MONOTONIC_ARTICLE_FORMS)
+
+    def _article_pos_lemma(self, word: str, upos: str) -> str | None:
+        """Correct only a known tagged article with a noncanonical target."""
+        if upos != "DET" or not self._is_ancient_article_form(word):
+            return None
+        lemma = self._pos_table_lookup(word, upos)
+        if lemma in (None, _ARTICLE_LEMMA, _MG_ARTICLE_LEMMA):
+            return None
+        if (self._convention_name == "triantafyllidis"
+                and word.lower() in _MG_ARTICLE_FORMS):
+            return _MG_ARTICLE_LEMMA
+        return _ARTICLE_LEMMA
+
     def _resolve_closed_class(self, word: str) -> str | None:
         """Resolve articles/pronouns to canonical lemma if enabled.
 
@@ -1936,24 +1989,17 @@ class Dilemma:
             # resolution only for polytonic article forms.
 
         lower = word.lower()
-        if (word in _ARTICLE_FORMS
-                or lower in _ARTICLE_FORMS
-                or to_monotonic(word) in _ARTICLE_FORMS
-                or to_monotonic(lower) in _ARTICLE_FORMS):
-            # Don't use strip_accents here - it's too aggressive for short
-            # words (e.g. ἤ "or" becomes η which matches the article)
+        if self._is_ancient_article_form(word):
             return _ARTICLE_LEMMA
 
         # Skip AG pronoun resolution when triantafyllidis is active
         if self._convention_name == "triantafyllidis":
             return None
 
-        if word in _PRONOUN_LEMMAS:
-            return _PRONOUN_LEMMAS[word]
-        mono = to_monotonic(word)
-        if mono in _PRONOUN_LEMMAS:
-            return _PRONOUN_LEMMAS[mono]
-        return None
+        normalized = grave_to_acute(lower)
+        if normalized in _PRONOUN_LEMMAS:
+            return _PRONOUN_LEMMAS[normalized]
+        return _MONOTONIC_PRONOUN_LEMMAS.get(to_monotonic(normalized))
 
     def _lookup_word(self, word: str) -> str | None:
         """Try lookup cascade: exact -> lowercase -> grave_to_acute -> monotonic -> stripped.
@@ -2039,6 +2085,21 @@ class Dilemma:
             if hit and not (len(variant) <= 2 and hit == variant):
                 return hit
         return None
+
+    def _positive_elision_target(self, lemma: str) -> bool:
+        """Whether merged lexical definitions support an exact elision target."""
+        if self._elision_lexical_heads is None:
+            heads = set()
+            if GRC_LEXICAL_HEADS_PATH.exists():
+                with GRC_LEXICAL_HEADS_PATH.open(encoding="utf-8") as stream:
+                    evidence = json.load(stream)
+                if self.lang in ("all", "grc"):
+                    heads.update(evidence["heads"])
+                if self.lang in ("all", "el"):
+                    heads.update(evidence.get("vernacular_heads", {}))
+            self._elision_lexical_heads = heads
+        normalized = _without_quantity_marks(sanitize_form(lemma)).replace("-", "")
+        return normalized in self._elision_lexical_heads
 
     def _lookup_elided(self, word: str) -> str | None:
         """Exact corpus-derived entry for an elided form (ὅτ᾽->ὅτε, κ᾽->ἄν, μ᾽->ἐγώ).
@@ -3311,6 +3372,10 @@ class Dilemma:
                 and self._resolve_attested_form(word) is None:
             return None
 
+        article_lemma = self._article_pos_lemma(word, upos)
+        if article_lemma is not None:
+            return self._apply_convention(article_lemma)
+
         # Get all candidates from regular lookup
         candidates = self._lemmatize_verbose_impl(word, guess=guess)
 
@@ -3430,13 +3495,20 @@ class Dilemma:
             if attested_only and results[i] is None and (
                     guess or self._resolve_attested_form(word) is None):
                 continue
+            article_lemma = self._article_pos_lemma(word, upos)
+            if article_lemma is not None:
+                results[i] = self._apply_convention(article_lemma)
+                continue
             pos_lemma = self._pos_table_lookup(word, upos)
             if pos_lemma is not None:
                 pos_lemma_conv = self._apply_convention(pos_lemma)
                 if pos_lemma_conv is None:
                     continue
-                if pos_lemma_conv == results[i]:
-                    # POS agrees with baseline - no change needed
+                if (pos_lemma_conv == results[i]
+                        and strip_accents(pos_lemma_conv.lower())
+                        != strip_accents(word.lower())):
+                    # A non-self result already agrees. Self-maps still need
+                    # the scalar API's candidate and citation comparison.
                     continue
 
                 # POS suggests a different lemma than baseline. Check if
@@ -3463,6 +3535,13 @@ class Dilemma:
                     # POS table (curated sources: treebank, GLAUx, Wiktionary)
                     results[i] = pos_lemma_conv
                     matched = True
+                if not matched and all(
+                        strip_accents(c.lemma.lower()) == strip_accents(word.lower())
+                        for c in candidates):
+                    # Match the scalar POS override when the candidates only
+                    # repeat the input with case or accent variations.
+                    results[i] = pos_lemma_conv
+                    matched = True
                 if matched:
                     continue
 
@@ -3476,6 +3555,26 @@ class Dilemma:
                     mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
                     if mg_fix is not None:
                         results[i] = mg_fix
+                        continue
+
+            if pos_lemma is None:
+                # Compare structured readings even without a POS entry. Do
+                # not repeat model inference for unresolved batch words.
+                candidates = self._lemmatize_verbose_impl(word, guess=False)
+                if (len(candidates) == 1 and results[i] is not None
+                        and strip_accents(candidates[0].lemma.lower())
+                        == strip_accents(results[i].lower())):
+                    results[i] = candidates[0].lemma
+                    continue
+
+            if (len(candidates) > 1
+                    and all(c.lemma.lower() == candidates[0].lemma.lower()
+                            for c in candidates)):
+                # An unmatched or absent POS entry does not disambiguate
+                # case twins. Preserve the scalar API's candidate order and
+                # existing PROPN/capitalization tiebreak.
+                results[i] = self._prefer_case_twin(
+                    word, upos, candidates[0].lemma, candidates)
 
         # Step 3: capitalization-agreement tiebreak between case-twin
         # lemmas (θυμός vs Θυμός), mirroring lemmatize_pos(). Only
@@ -3588,8 +3687,11 @@ class Dilemma:
         """Build the candidate list (no attestation gate); see lemmatize_verbose."""
         candidates = []
         seen = set()  # track (lemma_lower, lang) to avoid exact dupes
+        supported_elisions = set()
 
         def _add(lemma, lang="", source="", via="", score=1.0, tag=""):
+            supported_elision = (via == "elision-exact"
+                                  and self._positive_elision_target(lemma))
             check = self._apply_convention_check(
                 lemma, lang=lang, source=source)
             if check.lemma is None:
@@ -3608,6 +3710,8 @@ class Dilemma:
                     tag=tag,
                     citation=check.reason,
                 ))
+                if supported_elision:
+                    supported_elisions.add(id(candidates[-1]))
 
         # 0. Digit-only passthrough
         if word.isdigit():
@@ -3875,8 +3979,10 @@ class Dilemma:
                         # No corpus data: slight penalty vs attested forms
                         c.score = 0.55
 
-        # Sort: non-proper before proper, then by score descending
-        candidates.sort(key=lambda c: (c.proper, -c.score))
+        # Independently supported exact elisions precede reconstructed
+        # expansions, including names. Other candidates retain their order.
+        candidates.sort(key=lambda c: (id(c) not in supported_elisions,
+                                       c.proper, -c.score))
 
         # Dedupe after convention/citation normalization. _add() already applies
         # this, but the pass is cheap and keeps older in-place mutations honest.

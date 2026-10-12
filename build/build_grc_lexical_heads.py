@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+"""Build positive lexical-head evidence for sparse Ancient corpus admission.
+
+Run with ``--kaikki DIR --lsj9-headwords FILE`` after refreshing the source
+extracts. Pure inflection/alternative-form entries and generated headword
+unions are not independent definitions. The output records only headwords,
+portable source identifiers, and hashes, never dictionary definitions.
+Modern Greek definitions are stored separately for the existing edited
+vernacular fallback; they do not authorize sparse Ancient corpus inflections.
+"""
+from __future__ import annotations
+
+import argparse
+from collections import Counter, defaultdict
+import hashlib
+import json
+from pathlib import Path
+import re
+import sys
+import unicodedata
+import xml.etree.ElementTree as ET
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from dilemma.form_sanitize import nonlexical_generated_lemma, sanitize_form
+from build_data import (
+    _is_verb_inflection_gloss, _is_ancient_reference_gloss,
+    _is_closed_class_inflection_gloss, _declared_ancient_nominal_form,
+    is_independent_finite_entry,
+)
+
+KAIKKI_INPUTS = (
+    ("wiktionary_en_grc", "en-el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
+    ("wiktionary_el_grc", "el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
+    ("wiktionary_el_medieval", "el/kaikki.org-dictionary-MedievalGreek.jsonl", "gkm"),
+)
+VERNACULAR_INPUTS = (
+    ("wiktionary_en_el", "en-el/kaikki.org-dictionary-Greek-words.jsonl", "el"),
+    ("wiktionary_el_el", "el/kaikki.org-dictionary-Greek.jsonl", "el"),
+)
+EDITED_INPUTS = (
+    "dge_headwords.json", "cunliffe_headwords.json", "lgpn_names.json",
+    "pd_headwords.json", "vlg_headwords.json", "wip_headwords.json",
+    "lbg_headwords.json",
+)
+
+
+def sha256(path: Path) -> str:
+    with path.open("rb") as stream:
+        digest = hashlib.sha256()
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+        return digest.hexdigest()
+
+
+def normalize_headword(text: str) -> str | None:
+    text = sanitize_form(text).strip()
+    # Lexicon syllable boundaries and quantity marks are notation. Retain
+    # case, breathing, diaeresis, subscript, and every tonal mark.
+    text = unicodedata.normalize("NFC", "".join(
+        char for char in unicodedata.normalize("NFD", text)
+        if char not in {"-", "\u0304", "\u0306"}
+    ))
+    if (not text or nonlexical_generated_lemma(text)
+            or any(char.isupper() for char in text[1:])):
+        return None
+    if not all(unicodedata.combining(char)
+               or "GREEK" in unicodedata.name(char, "")
+               for char in unicodedata.normalize("NFD", text)):
+        return None
+    return text
+
+
+def is_reference_gloss(gloss: str, pos: str | None = None) -> bool:
+    """Reject grammatical/reference glosses without rejecting lexical 'of'."""
+    return (_is_closed_class_inflection_gloss(gloss)
+            or _is_ancient_reference_gloss(gloss, pos) or bool(re.match(
+        r"^(?:(?:(?:nominative|accusative|genitive|dative|vocative|singular|plural|dual|"
+        r"masculine|feminine|neuter|comparative|superlative|positive)\s+)+of\b|"
+        r"(?:(?:alternative|alternate|obsolete|archaic|rare|variant|nonstandard)\s+)*"
+        r"(?:form|spelling|misspelling|variant) of\b|"
+        r"(?:ονομαστική|γενική|αιτιατική|κλητική|δοτική|αρσενικό|θηλυκό|ουδέτερο)\b|"
+        r"(?:εναλλακτική|άλλη|παλαιότερη|πολυτονική) γραφή\b)",
+        gloss.strip().lower())))
+
+
+def has_definition(entry: dict, source: str = "en") -> bool:
+    """Require at least one actual lexical sense, not a form-of redirect."""
+    if entry.get("pos") in {"prefix", "suffix", "infix", "character", "symbol"}:
+        return False
+    if source == "en" and (entry.get("form_of") or entry.get("alt_of")):
+        return False
+    for sense in entry.get("senses", []):
+        tags = set(entry.get("tags", [])) | set(sense.get("tags", []))
+        if (sense.get("form_of") or sense.get("alt_of")
+                or tags & {"form-of", "alt-of", "inflection-of", "alternative", "misspelling", "no-gloss"}):
+            continue
+        if any(gloss.strip() and not is_reference_gloss(gloss, entry.get("pos"))
+               and not (source == "en" and entry.get("pos") in {"noun", "adj"}
+                        and gloss.strip() == "Template:infl of"
+                        and _declared_ancient_nominal_form(entry))
+               for gloss in sense.get("glosses", [])
+               if isinstance(gloss, str)):
+            return True
+    return False
+
+
+def has_lexical_form_page_sense(entry: dict) -> bool:
+    """A declared verb-form page needs a separate lexical definition.
+
+    Source labels and dialect qualifiers do not turn a grammatical cell
+    description into a definition. Keep genuine senses on mislabeled pages.
+    """
+    for sense in entry.get("senses", []):
+        if (sense.get("form_of") or sense.get("alt_of")
+                or set(sense.get("tags", [])) & {"form-of", "alt-of", "inflection-of"}):
+            continue
+        for gloss in sense.get("glosses", []):
+            text = gloss.strip().lower()
+            while True:
+                stripped = re.sub(
+                    r"^(?:/\s*|\([^()]*\)\s*|(?:late|uncontracted|contracted|"
+                    r"paroxytone|unaugmented|prevocalic/clause-final)\s+)", "", text)
+                if stripped == text:
+                    break
+                text = stripped
+            grammatical = re.match(
+                r"^(?:(?:first|second|third)(?:/(?:first|second|third))*[ -]person\b|"
+                r"(?:(?:present|past|aorist|perfect|imperfect|pluperfect|future|"
+                r"active|middle|passive|mediopassive|uncontracted|contracted)\s+)+"
+                r"(?:infinitive|participle|indicative|subjunctive|optative|imperative)\b)", text)
+            if text and not grammatical and not is_reference_gloss(text, "verb"):
+                return True
+    return False
+
+
+def principal_quantity_rows(entry: dict, source: str) -> list[dict]:
+    """Retain explicit lengths in an independent verb's citation/1sg forms.
+
+    Keep source variants separate, including contradictory quantities.
+    Neither an unmarked vowel nor another cell's accent supplies a length.
+    """
+    language = "en" if source.startswith("wiktionary_en_") else "el"
+    if not is_independent_finite_entry(entry, language):
+        return []
+    templates = entry.get("head_templates") or []
+    if (any(template.get("name") == "grc-verb form"
+            or (template.get("name") == "head"
+                and template.get("args", {}).get("1") == "grc"
+                and template.get("args", {}).get("2") == "verb form")
+            for template in templates)
+            and not has_lexical_form_page_sense(entry)):
+        return []
+    nominal_headers = {"grc-noun", "grc-proper noun", "grc-adj", "grc-adjective"}
+    if any(template.get("name") in nominal_headers
+           or (template.get("name") == "head"
+               and template.get("args", {}).get("1") == "grc"
+               and template.get("args", {}).get("2") in {"noun", "proper noun", "adjective"})
+           for template in templates):
+        return []
+    head = normalize_headword(entry.get("word", ""))
+    rows = []
+    for item in entry.get("forms", []):
+        form = unicodedata.normalize("NFC", item.get("form", ""))
+        tags = set(item.get("tags", []))
+        if any(len(tags & category) > 1 for category in (
+                {"indicative", "optative", "subjunctive", "imperative"},
+                {"first-person", "second-person", "third-person"},
+                {"singular", "dual", "plural"})):
+            continue
+        if tags & {"masculine", "feminine", "neuter", "nominative", "genitive",
+                   "dative", "accusative", "vocative", "participle", "infinitive"}:
+            continue
+        citation = "canonical" in tags and normalize_headword(form) == head
+        indicative = ({"first-person", "singular", "indicative"} <= tags
+                      and not tags & {"second-person", "third-person", "dual", "plural",
+                                      "optative", "subjunctive", "imperative"})
+        if not (citation or indicative):
+            continue
+        if not any(mark in unicodedata.normalize("NFD", form)
+                   for mark in ("\u0304", "\u0306")):
+            continue
+        if not form or not all(unicodedata.combining(char)
+                               or "GREEK" in unicodedata.name(char, "")
+                               for char in unicodedata.normalize("NFD", form)):
+            continue
+        rows.append({"form": form, "source": source, "tags": sorted(tags)})
+    return rows
+
+
+def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
+    heads: dict[str, set[str]] = defaultdict(set)
+    vernacular_heads: dict[str, set[str]] = defaultdict(set)
+    quantities: dict[str, dict[str, dict]] = defaultdict(dict)
+    inputs, counts = {}, Counter()
+
+    def pin(source: str, path: Path) -> None:
+        if not path.is_file():
+            raise FileNotFoundError(f"required lexical source missing: {source}")
+        inputs[source] = {"sha256": sha256(path), "size": path.stat().st_size}
+
+    def add(text: str, source: str, target: dict[str, set[str]] = heads) -> None:
+        word = normalize_headword(text)
+        if word:
+            target[word].add(source)
+            counts[source] += 1
+
+    for source, relative, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
+        path = kaikki / relative
+        pin(source, path)
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                entry = json.loads(line)
+                if (entry.get("lang_code") == language
+                        and has_definition(entry, "en" if source.startswith("wiktionary_en_") else "el")):
+                    add(entry["word"], source,
+                        vernacular_heads if language == "el" else heads)
+                    if language == "grc" and (head := normalize_headword(entry["word"])):
+                        for row in principal_quantity_rows(entry, source):
+                            quantities[head][json.dumps(row, ensure_ascii=False, sort_keys=True)] = row
+
+    for name in EDITED_INPUTS:
+        source = name.removesuffix(".json")
+        path = data / name
+        pin(source, path)
+        for entry in json.loads(path.read_text(encoding="utf-8")):
+            add(entry if isinstance(entry, str) else entry["lemma"], source)
+
+    pin("lsj9_headwords", lsj9_headwords)
+    for entry in json.loads(lsj9_headwords.read_text(encoding="utf-8")):
+        add(entry["headword"], "lsj9_headwords")
+
+    chunks = sorted((data / "sophocles" / "chunks").glob("*.xml"))
+    if not chunks:
+        raise FileNotFoundError("required lexical source missing: sophocles/chunks")
+    for path in chunks:
+        source = f"sophocles/{path.name}"
+        pin(source, path)
+        text = path.read_text(encoding="utf-8")
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError:
+            root = ET.fromstring("<wrap>" + text + "</wrap>")
+        for entry in root.findall(".//entry"):
+            orth = entry.find("orth")
+            if orth is not None and orth.text:
+                add(orth.text, source)
+
+    return {"schema_version": 2, "builder_sha256": sha256(Path(__file__)),
+            "source_sha256": {name: sha256(ROOT / name) for name in
+                              ("build_data.py", "dilemma/form_sanitize.py")},
+            "inputs": dict(sorted(inputs.items())),
+            "source_head_counts": dict(sorted(counts.items())),
+            "heads": {word: sorted(heads[word]) for word in sorted(heads)},
+            "vernacular_heads": {word: sorted(vernacular_heads[word])
+                                 for word in sorted(vernacular_heads)},
+            "verb_principal_quantities": {
+                word: [quantities[word][key] for key in sorted(quantities[word])]
+                for word in sorted(quantities)}}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--kaikki", type=Path, required=True)
+    parser.add_argument("--data", type=Path, default=ROOT / "data")
+    parser.add_argument("--lsj9-headwords", type=Path,
+                        default=Path.home() / "Documents" / "lsj9" / "lsj9_headwords.json")
+    parser.add_argument("--output", type=Path,
+                        default=ROOT / "data" / "grc_lexical_heads.json")
+    args = parser.parse_args()
+    result = build_heads(args.kaikki, args.data, args.lsj9_headwords)
+    args.output.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True,
+                                      separators=(",", ":")) + "\n", encoding="utf-8")
+    print(f"Lexical heads: {len(result['heads']):,}; "
+          f"vernacular heads: {len(result['vernacular_heads']):,}; "
+          f"inputs: {len(result['inputs'])}")
+    print(f"Output SHA-256: {sha256(args.output)}")
+
+
+if __name__ == "__main__":
+    main()

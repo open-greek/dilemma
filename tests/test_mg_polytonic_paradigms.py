@@ -27,8 +27,160 @@ GRC = ["ἀνάγκη", "ἀναβαίνω", "ἀναλύω", "ἀνήρ", "ἀ�
 EVIDENCE = P.Evidence({}, GRC)
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_three_noun_heads_keep_the_closest_stem_inside_identical_cells(reverse):
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    par = {
+        "μηχανάκι": {"μηχανάκι": noun("nominative", "singular"),
+                     "μηχανάκια": noun("nominative", "plural")},
+        "μοτοσικλέτα": {"μοτοσικλέτα": noun("nominative", "singular"),
+                       "μηχανάκια": noun("nominative", "plural")},
+        "μηχανάκιας": {"μηχανάκιας": noun("nominative", "singular"),
+                      "μηχανάκια": noun("genitive", "singular")},
+    }
+    totals = {"μηχανάκι": 200, "μοτοσικλέτα": 50000, "μηχανάκιας": 100}
+    lemmas = list(par)
+    if reverse:
+        lemmas.reverse()
+        par = dict(reversed(list(par.items())))
+    assert P._home_lemma("μηχανάκια", lemmas, par, totals) == "μηχανάκι"
+    representatives = P._noun_cell_representatives("μηχανάκια", lemmas, par, totals)
+    assert set(representatives) == {"μηχανάκι", "μηχανάκιας"}
+    candidates = P.generate(par, {"μηχανάκια": 100, "μηχανάκι": 200,
+                                 "μοτοσικλέτα": 50000}, P.Evidence({}, set(), par))
+    assert not any(g.mono == "μηχανάκια" and g.lemma == "μοτοσικλέτα"
+                   for g in candidates)
+    assert {g.lemma for g in candidates if g.mono == "μηχανάκια"} == {"μηχανάκι"}
+
+
+@pytest.mark.parametrize("bucket,capital,proof,expected", [
+    ("X", False, True, True), ("R", False, True, False),
+    ("M", False, True, False), ("C", False, True, False),
+    ("X", True, True, False), ("X", False, False, False),
+])
+def test_uncounted_lowercase_does_not_cover_a_source_defined_declined_capital(
+        tmp_path, monkeypatch, bucket, capital, proof, expected):
+    path = tmp_path / "grc.dic"
+    path.write_text("2\nσέρβοι\tfr:" + bucket + "\n"
+                    + ("Σέρβοι\tfr:X\n" if capital else "σέρβων\tfr:" + bucket + "\n"))
+    words = mg.read_grc_words(path)
+    candidates = [P.Generated("Σέρβοι", "Σέρβοι", "σέρβος", 255,
+                             "indicative", "noun", "noun nominative plural", 255),
+                  P.Generated("Σέρβων", "Σέρβων", "σέρβος", 56,
+                             "indicative", "noun", "noun genitive plural", 56)]
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {"σέρβοι": 255, "σέρβων": 56}))
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: candidates)
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(mg, "attested_lowercase", lambda *args: {})
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"Σέρβος"} if proof else set())
+    generated = mg.generated_verb_forms(None, set(), words, set(), frozenset(), Counter())
+    assert ("Σέρβοι" in generated) is expected
+    if expected:
+        assert generated["Σέρβοι"] == 255
+        assert generated["Σέρβων"] == 56
+
+
+def test_uncounted_capital_requires_two_positively_identified_forms(monkeypatch):
+    words = mg.AncientDictionaryWords({"σέρβοι", "σέρβων"},
+                                     uncounted_lowercase={"σέρβοι", "σέρβων"})
+    candidates = [P.Generated("Σέρβοι", "Σέρβοι", "σέρβος", 255,
+                             "indicative", "noun", "noun nominative plural", 255),
+                  P.Generated("Σέρβων", "Σέρβων", "σέρβος", 56,
+                             "indicative", "noun", "noun", 56)]
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {"σέρβοι": 255, "σέρβων": 56}))
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: candidates)
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(mg, "attested_lowercase", lambda *args: {})
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"Σέρβος"})
+    generated = mg.generated_verb_forms(None, set(), words, set(), frozenset(), Counter())
+    assert "Σέρβοι" not in generated
+    assert "Σέρβων" not in generated
+
+
+def test_uncounted_metadata_expands_suffixes_and_keeps_counted_duplicates(tmp_path):
+    path = tmp_path / "grc.dic"
+    path.write_text("3\nσέρβ/1000\tfr:X\nσέρβοι\tfr:R\nἄλλος\tfr:R\n")
+    path.with_suffix(".aff").write_text("SET UTF-8\nFLAG num\nSFX 1000 Y 2\n"
+                                      "SFX 1000 0 οι .\nSFX 1000 0 ων .\n")
+    words = mg.read_grc_words(path)
+    assert {"σέρβ", "σέρβοι", "σέρβων", "ἄλλος"} <= words
+    assert "σέρβων" in words.uncounted_lowercase
+    assert "σέρβοι" not in words.uncounted_lowercase
+
+
+@pytest.fixture(autouse=True)
+def nominal_forms_from_test_paradigms(monkeypatch):
+    # Unit fixtures are self-contained; do not read the on-disk corpus.
+    def forms():
+        inputs = mg._verb_inputs()
+        return frozenset(f for rows in (inputs[0] if inputs else {}).values()
+                         for f, tags in rows.items() if not P.is_verb(tags))
+    monkeypatch.setattr(mg, "_nominal_forms", forms)
+
+
 def nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
+
+
+@pytest.mark.parametrize("grc, listed, rejected, expected", [
+    ({"διακοσμητικά"}, set(), set(), {"διακοσμητικὰ": 100}),
+    ({"διακοσμητικά", "διακοσμητικὰ"}, set(), set(), {}),
+    ({"διακοσμητικά"}, {"διακοσμητικὰ"}, set(), {}),
+    ({"διακοσμητικά"}, set(), {"διακοσμητικὰ"}, {}),
+])
+def test_exact_grc_acute_does_not_cover_a_missing_grave(
+        monkeypatch, grc, listed, rejected, expected):
+    candidate = P.Generated("διακοσμητικά", "διακοσμητικά",
+                            "διακοσμητικός", 100, "indicative", "adj",
+                            "adj nominative plural", 100)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (
+        {}, {"διακοσμητικά": 100}))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: [candidate])
+    report, shared = Counter(), {}
+    generated = mg.generated_verb_forms(
+        CorpusCounts(), set(), grc, listed, frozenset(rejected), report,
+        shared=shared)
+    assert generated == expected
+    assert shared == {"διακοσμητικά": 100, **(
+        {"διακοσμητικὰ": 100} if "διακοσμητικὰ" in grc else {})}
+    assert report["generated_covered_twins"] == len(expected)
+
+
+def test_covered_grave_keeps_the_orthography_guard(monkeypatch):
+    candidate = P.Generated("διακοσμητικά", "διακοσμητικά",
+                            "διακοσμητικός", 100, "indicative", "adj",
+                            "adj nominative plural", 100)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {}))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: [candidate])
+    monkeypatch.setattr(mg, "mg_orthography_reason",
+                        lambda spelling, lexicon: "rejected")
+    assert mg.generated_verb_forms(
+        CorpusCounts(), set(), {"διακοσμητικά"}, set(), frozenset(),
+        Counter()) == {}
+
+
+@pytest.mark.parametrize("spelling, grc, tokens, kind, expected", [
+    # A diaeresis-equivalent spelling does not open this exact-word route.
+    ("ζωικά", {"ζωϊκά"}, 100, "indicative", {}),
+    # An alternate noun cell still carries no pooled homonym count.
+    ("διακοσμητικά", {"διακοσμητικά"}, 0, "noun-alternative",
+     {"διακοσμητικὰ": 0}),
+])
+def test_covered_grave_preserves_exact_spelling_and_count(
+        monkeypatch, spelling, grc, tokens, kind, expected):
+    candidate = P.Generated(spelling, spelling, "fixture", tokens, kind,
+                            "noun", "noun nominative plural", tokens)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {}))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: [candidate])
+    shared = {}
+    got = mg.generated_verb_forms(
+        CorpusCounts(), set(), grc, set(), frozenset(), Counter(),
+        shared=shared)
+    assert got == expected
+    assert shared == {}
 
 
 def gen(mono: str, tags=(), vclass: str = "A", siblings=(), lemma: str = "",
@@ -541,6 +693,270 @@ def _write_pairs(tmp_path, rows):
     return path
 
 
+def test_owned_noun_uses_paradigm_support_before_own_page_penalty(tmp_path):
+    # Two independent source tables: feminine "shadow", and the dated
+    # masculine "robber". The latter's genitive is not the common word.
+    rows = [(form, "σκιά", "noun", tags) for form, tags in [
+        ("σκιά", ["nominative", "singular"]),
+        ("σκιά", ["accusative", "singular"]),
+        ("σκιά", ["vocative", "singular"]),
+        ("σκιάς", ["genitive", "singular"]),
+        ("σκιές", ["nominative", "plural"]),
+        ("σκιών", ["genitive", "plural"])]]
+    rows += [(form, "σκιάς", "noun", tags) for form, tags in [
+        ("σκιάς", ["nominative", "singular"]),
+        ("σκιά", ["genitive", "singular"]),
+        ("σκιά", ["accusative", "singular"]),
+        ("σκιά", ["vocative", "singular"]),
+        ("σκιάδες", ["nominative", "plural"])]]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    frequencies = {"σκιά": 5853, "σκιάς": 557, "σκιές": 2734,
+                   "σκιών": 941, "σκιάδες": 51}
+    generated = P.generate(par, frequencies, P.Evidence({}, (), par))
+    shadow = [g for g in generated if g.mono == "σκιά" and g.kind == "indicative"]
+    assert {g.lemma for g in shadow} == {"σκιά"}
+    assert {g.spelling for g in shadow} == {nfc("σκιά")}
+    # The independent masculine table and its distinct plural survive.
+    assert "genitive" in par["σκιάς"]["σκιά"]
+    assert any(g.mono == "σκιάδες" and g.lemma == "σκιάς"
+               for g in generated)
+    # A genuinely better-supported non-headword analysis can still win.
+    totals = {"σκιά": 10085, "σκιάς": 20000}
+    assert P._home_lemma("σκιά", ["σκιά", "σκιάς"], par, totals) == "σκιάς"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_noun_plural_homograph_does_not_invalidate_independent_head(tmp_path, reverse):
+    rows = [("σκατό", "σκατό", "noun", ["nominative", "singular"]),
+            ("σκατάς", "σκατάς", "noun", ["nominative", "singular"]),
+            ("σκατού", "σκατό", "noun", ["genitive", "singular"]),
+            ("σκατά", "σκατό", "noun", ["nominative", "plural"]),
+            ("σκατά", "σκατό", "noun", ["accusative", "plural"]),
+            ("σκατά", "σκατό", "adv", ["adverb"]),
+            ("σκατά", "σκατό", "adj", ["invariable"]),
+            ("σκατά", "σκατάς", "noun", ["genitive", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows[::-1] if reverse else rows))
+    out = P.generate(par, {"σκατά": 50_000, "σκατό": 2_000, "σκατάς": 5},
+                     P.Evidence({}, GRC, par))
+    common = [g for g in out if g.spelling == nfc("σκατά")]
+    alternate = [g for g in out if g.spelling == nfc("σκατᾶ")]
+    assert common and all(g.lemma == "σκατό" and g.tokens == 50_000 for g in common)
+    assert alternate and all(g.lemma == "σκατάς" and g.kind == "noun-alternative"
+                             and g.tokens == g.weight == 0 for g in alternate)
+    assert nfc("σκατᾶ") not in mg._realization_cells(out)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("other_pos", ["adj", "adv"])
+def test_independent_adjective_does_not_reset_a_chosen_noun_cell(
+        tmp_path, reverse, other_pos):
+    rows = [("σκατό", "σκατό", "noun", ["nominative", "singular"]),
+            ("σκατάς", "σκατάς", "noun", ["nominative", "singular"]),
+            ("σκατά", "σκατό", "noun", ["nominative", "plural"]),
+            ("σκατά", "σκατό", "noun", ["accusative", "plural"]),
+            ("σκατά", "σκατάς", "noun", ["genitive", "singular"]),
+            ("σκατά", "σκατά", other_pos, ["invariable"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows[::-1] if reverse else rows))
+    out = P.generate(par, {"σκατά": 50_000, "σκατό": 2_000, "σκατάς": 5},
+                     P.Evidence({}, GRC, par))
+    common = [g for g in out if g.spelling == nfc("σκατά")]
+    alternate = [g for g in out if g.spelling == nfc("σκατᾶ")]
+    assert common and {g.lemma for g in common} == {"σκατό"}
+    assert all(g.tokens == g.weight == 50_000 for g in common)
+    assert alternate and {g.lemma for g in alternate} == {"σκατάς"}
+    assert all(g.kind == "noun-alternative" and g.tokens == g.weight == 0
+               for g in alternate)
+    assert nfc("σκατᾶ") not in mg._realization_cells(out)
+
+
+@pytest.mark.parametrize("other_pos", ["verb", "name", "noun", ""])
+def test_noun_subset_does_not_absorb_another_grammatical_owner(other_pos):
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    third = frozenset({"pos:" + other_pos}) if other_pos else frozenset()
+    par = {"σκιά": {"σκιά": noun("nominative", "singular")},
+           "σκιάς": {"σκιάς": noun("nominative", "singular"),
+                     "σκιά": noun("genitive", "singular")},
+           "σκιάζω": {"σκιάζω": third, "σκιά": third}}
+    assert P._noun_home_candidates(list(par), par, "σκιάς") == []
+
+
+def test_noun_subset_keeps_a_preferred_adjective_and_requires_its_head():
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    adj = frozenset({"pos:adj"})
+    par = {"σκιά": {"σκιά": noun("nominative", "singular")},
+           "σκιάς": {"σκιάς": noun("nominative", "singular"),
+                     "σκιά": noun("genitive", "singular")},
+           "σκιάτος": {"σκιάτος": adj, "σκιά": adj}}
+    totals = {"σκιά": 10000, "σκιάς": 10, "σκιάτος": 100000}
+    assert P._home_lemma("σκιά", list(par), par, totals) == "σκιάτος"
+    del par["σκιάτος"]["σκιάτος"]
+    assert P._noun_home_candidates(list(par), par, "σκιάς") == []
+
+
+def test_same_noun_plural_cell_keeps_diminutive_owner(tmp_path):
+    rows = [("σκατό", "σκατό", "noun", ["nominative", "singular"]),
+            ("σκατά", "σκατό", "adv", ["adverb"]),
+            ("σκατουλάκι", "σκατουλάκι", "noun", ["nominative", "singular"]),
+            ("σκατουλάκια", "σκατό", "noun", ["nominative", "plural"]),
+            ("σκατουλάκια", "σκατουλάκι", "noun", ["nominative", "plural"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    assert P._home_lemma("σκατουλάκια", ["σκατό", "σκατουλάκι"], par,
+                         {"σκατό": 50_000, "σκατουλάκι": 50}) == "σκατουλάκι"
+    assert P._home_lemma("σκατουλάκι", ["σκατό", "σκατουλάκι"],
+                         {**par, "σκατό": {**par["σκατό"], "σκατουλάκι":
+                             _pos("noun", "nominative", "singular")}},
+                         {"σκατό": 50_000, "σκατουλάκι": 50}) == "σκατουλάκι"
+
+
+@pytest.mark.parametrize("head, borrowed, incorrect", [
+    ("σκατούλα", "σκατό", "σκατοῦλα"),
+    ("σκούπα", "σκουπόχορτο", "σκοῦπα"),
+])
+def test_same_cell_table_collision_does_not_create_alternate_accent(tmp_path, head, borrowed, incorrect):
+    rows = [(borrowed, borrowed, "noun", ["nominative", "singular"])]
+    rows += [(head, owner, "noun", [case, "singular"])
+             for owner in (head, borrowed)
+             for case in ("nominative", "accusative", "vocative")]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    out = P.generate(par, {head: 2_000, borrowed: 50_000}, P.Evidence({}, GRC, par))
+    own = [g for g in out if g.mono == head]
+    assert own and {g.lemma for g in own} == {head}
+    assert {g.spelling for g in own} == {nfc(head)}
+    assert not any(g.spelling == nfc(incorrect) or g.kind == "noun-alternative" for g in own)
+
+
+@pytest.mark.parametrize("collision", ["verb", "name"])
+def test_noun_owner_rule_does_not_absorb_finite_or_name_head(tmp_path, collision):
+    rows = [("σκιά", "σκιά", "noun", ["nominative", "singular"]),
+            ("σκιάς", "σκιάς", "noun", ["nominative", "singular"]),
+            ("σκιά", "σκιάς", "noun", ["genitive", "singular"]),
+            ("Σκιάς" if collision == "name" else "σκιάς", "σκιάς", collision,
+             ["nominative", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    if collision == "name":
+        # The loader drops an overlapping capitalization; an explicitly
+        # mixed head in a custom paradigm still cannot pass ownership proof.
+        par["σκιάς"]["σκιάς"] |= _pos("name", "nominative", "singular")
+    assert not P._owned_noun("σκιάς", par)
+
+
+def _noun_homonyms(tmp_path, head, other, *, reverse=False):
+    rows = [(head, head, "noun", [case, "singular"])
+            for case in ("nominative", "accusative", "vocative")]
+    rows += [(head + "ς", head, "noun", ["genitive", "singular"]),
+             (other, other, "noun", ["nominative", "singular"])]
+    if head in {"σκιά", "αλπακά"}:
+        rows.append(({"σκιά": "σκιές", "αλπακά": "αλπακές"}[head],
+                     head, "noun", ["nominative", "plural"]))
+    cases = ("nominative", "accusative", "vocative") if other == "χημείο" else (
+        "genitive", "accusative", "vocative")
+    number = "plural" if other == "χημείο" else "singular"
+    rows += [(head, other, "noun", [case, number]) for case in cases]
+    if reverse:
+        rows.reverse()
+    return P.load_paradigms(_write_pairs(tmp_path, rows))
+
+
+def _noun_homonym_frequencies(head, other):
+    support = {"σκιά": "σκιές", "αλπακά": "αλπακές",
+               "χημεία": "χημείας"}[head]
+    return {head: 20_000, support: 2_000, other: 5,
+            "πολύ": 100_000_000}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("head, other, alternate", [
+    ("χημεία", "χημείο", "χημεῖα"),
+    ("αλπακά", "αλπακάς", "ἀλπακᾶ"),
+    ("σκιά", "σκιάς", "σκιᾶ"),
+])
+def test_owned_noun_alternate_keeps_its_cell_without_shared_count(
+        tmp_path, reverse, head, other, alternate):
+    par = _noun_homonyms(tmp_path, head, other, reverse=reverse)
+    freq = _noun_homonym_frequencies(head, other)
+    out = P.generate(par, freq, P.Evidence({}, GRC, par))
+    alt = [g for g in out if g.spelling == nfc(alternate)]
+    assert alt and {g.lemma for g in alt} == {other}
+    assert all(g.kind == "noun-alternative" and g.vclass == "noun"
+               and g.tokens == g.weight == 0 for g in alt)
+    assert all(g.cell.startswith("noun ") for g in alt)
+    assert not any(g.kind == "subjunctive" for g in alt)
+    assert nfc(alternate) not in mg._realization_cells(out)
+    dominant = [g for g in out if g.mono == head and g.kind == "indicative"]
+    assert dominant and all(g.tokens == 20_000 for g in dominant)
+
+
+@pytest.mark.parametrize("damage", ["no_head_cell", "mixed_pos", "no_case"])
+def test_noun_alternate_requires_owned_head_and_explicit_cell(tmp_path, damage):
+    par = _noun_homonyms(tmp_path, "χημεία", "χημείο")
+    if damage == "no_head_cell":
+        del par["χημείο"]["χημείο"]
+    elif damage == "mixed_pos":
+        par["χημείο"]["άλλο"] = _pos("verb", "present", "third-person", "singular")
+    else:
+        # A tag-only source row must not acquire a case from the homonym.
+        par = P.load_paradigms(_write_pairs(tmp_path, [
+            ("χημεία", "χημεία", "noun", ["nominative", "singular"]),
+            ("χημείας", "χημεία", "noun", ["genitive", "singular"]),
+            ("χημείο", "χημείο", "noun", ["nominative", "singular"]),
+            ("χημεία", "χημείο", "noun", [])]))
+    out = P.generate(par, {"χημεία": 20_000, "χημείας": 2_000, "χημείο": 5},
+                     P.Evidence({}, GRC, par))
+    assert not any(g.kind == "noun-alternative" for g in out)
+
+
+def test_owned_noun_alternate_is_r_and_cannot_promote_grc_homonym(
+        tmp_path, monkeypatch):
+    par = _noun_homonyms(tmp_path, "σκιά", "σκιάς")
+    freq = _noun_homonym_frequencies("σκιά", "σκιάς")
+    freq["σκια"] = 20_000
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    counts = _counts([("σκιά", "lower", {0: 27, 1: 27}),
+                      ("σκιᾶ", "lower", {0: 3, 1: 3})])
+    grc = set(GRC) | {nfc("σκιᾶ")}
+    result = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert nfc("σκιᾶ") not in result.shared
+    assert nfc("σκιᾶ") not in result.generated
+    assert result.buckets[nfc("σκιά")] == "C"
+
+
+@pytest.mark.parametrize("head, other, alternate", [
+    ("χημεία", "χημείο", "χημεῖα"),
+    ("αλπακά", "αλπακάς", "ἀλπακᾶ"),
+])
+def test_owned_noun_alternate_exports_at_r(tmp_path, monkeypatch, head, other,
+                                           alternate):
+    par = _noun_homonyms(tmp_path, head, other)
+    freq = _noun_homonym_frequencies(head, other)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    result = mg.select_list(_counts([]), {0, 1, 2}, set(GRC),
+                            generate_verbs=True)
+    assert nfc(alternate) in result.generated
+    assert result.buckets[nfc(alternate)] == "R"
+    assert result.buckets[nfc(head if head == "χημεία" else "ἀλπακά")] == "C"
+
+
+@pytest.mark.parametrize("other_pos, own_tags", [
+    ("adj", ["nominative", "singular"]),
+    ("noun", ["form-of"]),
+    ("verb", ["nominative", "singular"]),
+])
+def test_noun_support_order_requires_independent_noun_heads(
+        tmp_path, other_pos, own_tags):
+    rows = [("σκιά", "σκιά", "noun", ["nominative", "singular"]),
+            ("σκιάς", "σκιάς", other_pos, own_tags),
+            ("σκιά", "σκιάς", other_pos, ["genitive", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    # Mixed parts of speech or an unsupported self head retain the old
+    # preference for the analysis beyond a word's own page.
+    assert P._home_lemma("σκιά", ["σκιά", "σκιάς"], par,
+                         {"σκιά": 10000, "σκιάς": 1}) == "σκιάς"
+
+
 def test_pseudo_lemmas_rare_cells_and_table_fragments(tmp_path, monkeypatch):
     monkeypatch.setattr(P, "FRAGMENT_SHARE", 0.3)
     rows = []
@@ -1020,3 +1436,593 @@ def test_a_name_whose_only_reading_is_a_dative(monkeypatch):
     # is generated though its count stays under M.
     assert {nfc("Ῥωσία"), nfc("Ῥωσίας"), nfc("Δανία"),
             nfc("Δανίας")} <= lst.generated
+
+
+@pytest.mark.parametrize("dative_in_grc", [False, True])
+def test_the_plain_spelling_beside_a_listed_dative(tmp_path, monkeypatch,
+                                                  dative_in_grc):
+    total = 100_000_000
+    paradigms = {"λαμβάνω": {"λάβει": frozenset({
+        "dependent", "third-person", "singular", "finite", P.VERB})}}
+    freq = {"μόσχα": 1_000, "πινακοθήκη": 139, "ζυρίχη": 592,
+            "βυζαντινή": 32, "λάβη": 10, "σιγηλή": 0,
+            "πολύ": total - 1_773}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset(
+        {"Μόσχα", "πινακοθήκη", "Ζυρίχη", "βυζαντινή", "λαβή", "σιγηλή"}))
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    grc = set(GRC) | {nfc(w) for w in ("Μόσχα", "πινακοθήκη", "λάβη",
+                                       "σιγηλή")}
+    if dative_in_grc:
+        grc |= {nfc("πινακοθήκῃ"), nfc("Μόσχᾳ")}
+    counts = _counts([("Μόσχᾳ", "cap", {0: 3, 1: 3}),
+                      ("πινακοθήκῃ", "lower", {0: 3, 1: 3}),
+                      ("Ζυρίχῃ", "cap", {0: 3, 1: 3}),
+                      ("βυζαντινῇ", "lower", {0: 3, 1: 3}),
+                      ("σιγηλῇ", "lower", {0: 3, 1: 3}),
+                      ("λάβῃ", "lower", {0: 3, 1: 3})])
+    lst = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    # The list attests the datives; the nominative and accusative of the
+    # same letters, which grc has, get a Modern Greek rating, R as well,
+    # and a name's capitalized (Μόσχα: 10 per million, M).
+    assert lst.shared[nfc("Μόσχα")] == "M"
+    assert lst.shared[nfc("πινακοθήκη")] == "R"
+    # Those neither list has are generated, with their oxytone twins.
+    assert {nfc("Ζυρίχη"), nfc("βυζαντινή"), nfc("βυζαντινὴ")} \
+        <= lst.generated
+    # Not the letters of a subjunctive (λάβει), nor where monotonic text
+    # never writes the plain letters.
+    assert nfc("λάβη") not in lst.shared
+    assert nfc("σιγηλή") not in lst.shared
+    mg.write_selection(lst, tmp_path, variant="grc-mg", source="test")
+    lines = (tmp_path / "grc_mg_polytonic.dic").read_text("utf-8")
+    assert nfc("πινακοθήκη\tfr:R mg:shared\n") in lines
+    assert nfc("Ζυρίχη\tfr:R mg:generated\n") in lines
+    version = (tmp_path / "grc_mg_polytonic.version").read_text("utf-8")
+    assert "shared_buckets: C=0 M=1 R=1\n" in version
+
+
+@pytest.mark.parametrize("dative, plain", [
+    ("πινακοθήκῃ", "πινακοθήκη"),
+    ("Μόσχᾳ", "Μόσχα"),
+    ("βυζαντινῇ", "βυζαντινή"),
+    ("καρδιᾷ", "καρδιά"),
+    ("γῇ", "γῆ"),           # grc writes the plain letters with it
+    ("ἁπλῇ", "ἁπλή"),      # Ancient contracted ἁπλῆ is another spelling
+    ("τριπλῇ", "τριπλή"),
+    ("λόγῳ", None),         # the second declension's dative
+    ("πινακοθήκη", None),
+])
+def test_plain_twin(dative, plain):
+    assert mg.plain_twin(nfc(dative), {nfc("γῆ"), nfc("ἁπλῆ"), nfc("τριπλῆ")}) == (
+        nfc(plain) if plain else None)
+
+
+def test_a_real_nominal_dative_twin_is_not_a_verbs_subjunctive(monkeypatch):
+    paradigms = {
+        "κλίνω": {"κλίσει": _pos("verb", "dependent", "third-person", "singular")},
+        "λύνω": {"λύσει": _pos("verb", "dependent", "third-person", "singular")},
+        "κατακλίνω": {"κατακλίσει": _pos("verb", "dependent", "third-person", "singular")},
+    }
+    freq = {"κλίση": 27, "λύση": 14532, "κατάκλιση": 27,
+            "πολύ": 100_000_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (paradigms, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset(
+        {"κλίση", "λύση", "κατάκλιση"}))
+    shared, generated = mg.dative_twins(
+        {nfc(s): 6 for s in ("κλίσῃ", "λύσῃ", "κατάκλισῃ", "κατακλίσῃ")}, {},
+        {nfc("λύση")}, set(), frozenset(), Counter())
+    assert shared == {nfc("λύση"): 14532}
+    assert generated[nfc("κλίση")] == 27
+    assert generated[nfc("κατάκλιση")] == 27
+    assert nfc("κατακλίση") not in generated
+
+
+def test_nominal_rows_preserve_genitive_accusative_and_vocative(tmp_path):
+    rows = [("καθηγητή", "καθηγητής", "noun", [case, "singular"])
+            for case in ("genitive", "accusative", "vocative")]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    freq = {"καθηγητή": 2_000}
+    generated = P.generate(par, freq, P.Evidence({}, set(), par))
+    assert {(g.spelling, g.cell) for g in generated} == {
+        (nfc("καθηγητῆ"), "noun genitive singular"),
+        (nfc("καθηγητή"), "noun accusative singular"),
+        (nfc("καθηγητή"), "noun vocative singular"),
+    }
+
+
+def test_nominal_syncretic_row_preserves_each_accent(tmp_path):
+    rows = [("μαθητή", "μαθητής", "noun",
+             ["genitive", "accusative", "vocative", "singular"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    generated = P.generate(par, {"μαθητή": 1_000}, P.Evidence({}, set(), par))
+    assert {g.spelling for g in generated} == {nfc("μαθητῆ"), nfc("μαθητή")}
+
+
+@pytest.mark.parametrize("noun_grc, noun_new", [
+    ("καθηγητῆ", "καθηγητή"), ("καθηγητή", "καθηγητῆ")])
+@pytest.mark.parametrize("modern_in_grc", [False, True])
+def test_nominal_coverage_and_shared_counts_follow_polytonic_cells(
+        tmp_path, monkeypatch, noun_grc, noun_new, modern_in_grc):
+    rows = [("καθηγητή", "καθηγητής", "noun", [case, "singular"])
+            for case in ("genitive", "accusative", "vocative")]
+    rows += [("απλή", "απλός", "adj", ["nominative", "singular", "feminine"]),
+             ("απλοί", "απλός", "adj", ["nominative", "plural", "masculine"]),
+             ("διεθνή", "διεθνής", "adj", ["accusative", "singular"]),
+             ("διεθνές", "διεθνής", "adj", ["nominative", "singular", "neuter"])]
+    par = P.load_paradigms(_write_pairs(tmp_path, rows))
+    freq = {"καθηγητή": 20_000, "απλή": 10_641, "απλοί": 1_407,
+            "διεθνή": 10_000, "πολύ": 100_000_000}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, freq))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset())
+    monkeypatch.setattr(mg, "MONOTONIC_BUCKETS", "all")
+    grc = set(GRC) | {nfc(s) for s in (noun_grc, "ἁπλῆ", "ἁπλοῖ", "διεθνῆ")}
+    if modern_in_grc:
+        grc |= {nfc("ἁπλή"), nfc("ἁπλοί")}
+    counts = _counts([("ἁπλῆ", "lower", {0: 3, 1: 3}),
+                      ("ἁπλοῖ", "lower", {0: 3, 1: 3})])
+    lst = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert nfc(noun_new) in lst.generated
+    if modern_in_grc:
+        assert lst.shared[nfc("ἁπλή")] == "C"
+        assert lst.shared[nfc("ἁπλοί")] == "M"
+    else:
+        assert {nfc("ἁπλή"), nfc("ἁπλοί")} <= lst.generated
+    assert nfc("διεθνή") not in lst.generated
+    assert lst.shared[nfc(noun_grc)] == "C"
+    assert lst.shared[nfc("διεθνῆ")] == "C"
+    assert nfc("ἁπλῆ") not in lst.shared
+    assert nfc("ἁπλοῖ") not in lst.shared
+    attested_only = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=False)
+    assert nfc("ἁπλῆ") not in attested_only.shared
+    assert nfc("ἁπλοῖ") not in attested_only.shared
+
+
+def test_plain_twin_keeps_a_real_contracted_modern_name(monkeypatch):
+    par = {"θωμάς": {"Θωμά": _pos("name", "accusative", "singular")}}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, {"θωμά": 27}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset({"Θωμά"}))
+    shared, generated = mg.dative_twins(
+        {nfc("Θωμᾷ"): 6}, {}, {nfc("Θωμᾶ")}, set(), frozenset(), Counter(),
+        written={nfc("Θωμᾶ")})
+    assert shared == {nfc("Θωμᾶ"): 27}
+    assert nfc("Θωμά") not in generated
+
+
+def test_shared_circumflex_does_not_block_its_own_plain_twin(monkeypatch):
+    par = {"γη": {"γη": _pos("noun", "nominative", "singular")}}
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, {"γη": 27}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset({"γη"}))
+    shared, generated = mg.dative_twins(
+        {nfc("γῇ"): 6}, {}, {nfc("γῆ")}, set(), frozenset(), Counter(),
+        realizations={nfc("γῆ"): frozenset({("γη", "noun nominative singular")})},
+        written={nfc("γῆ")})
+    assert shared == {nfc("γῆ"): 27}
+    assert not generated
+
+
+@pytest.mark.parametrize("written", ["σκιά", "σκιὰ"])
+def test_shared_spelling_blocks_a_conflicting_dative_twin(monkeypatch, written):
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, {
+        "σκια": 2_000, "πολύ": 100_000_000}))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "_nominal_forms", lambda: frozenset({"σκια"}))
+    monkeypatch.setattr(mg, "_verb_form_keys", lambda: frozenset())
+    counts = _counts([("σκιᾷ", "lower", {0: 3, 1: 3}),
+                      (written, "lower", {0: 27, 1: 27})])
+    grc = {nfc(s) for s in ("σκιά", "σκιὰ", "σκιᾷ", "σκιᾶ")}
+    result = mg.select_list(counts, {0, 1, 2}, grc, generate_verbs=True)
+    assert nfc("σκιᾶ") not in result.shared
+    assert nfc(written) in result.shared
+    assert result.report["dative_twin_written_otherwise"] == 1
+
+
+def test_inferred_nominals_do_not_demote_attested_accents():
+    # These are the real shared-rating regressions: the generator's vowel
+    # length, stress or nominal homograph is no reason to demote an
+    # attested Modern spelling. The final Ancient contraction is distinct.
+    alternatives = {
+        "γυναῖκα": "γυναίκα", "ἔρωτα": "ἐρωτά", "ναί": "ναῖ",
+        "ναὶ": "ναῖ", "μαχητής": "μαχητῆς",
+        "χορευτής": "χορευτῆς", "ἁπλῆ": "ἁπλή",
+    }
+    frequencies = {P.monotonic_key(nfc(s)): 20_000 for s in alternatives}
+    frequencies["πολύ"] = 100_000_000
+    realizations = {nfc(s): frozenset({("word", "noun nominative singular")})
+                    for s in alternatives.values()}
+    got = mg.shared_lines(
+        {nfc(s): 6 for s in alternatives}, {}, frequencies, set(),
+        realizations=realizations)
+    assert {nfc(s): got[nfc(s)] for s in alternatives if s != "ἁπλῆ"} == {
+        nfc(s): "C" for s in alternatives if s != "ἁπλῆ"}
+    assert nfc("ἁπλῆ") not in got
+
+
+def test_a_final_circumflex_cell_keeps_its_own_rating():
+    realizations = {nfc(s): frozenset({("καθηγητής", cell)}) for s, cell in (
+        ("καθηγητῆ", "noun genitive singular"),
+        ("καθηγητή", "noun accusative singular"))}
+    got = mg.shared_lines({nfc("καθηγητῆ"): 6}, {},
+                          {"καθηγητή": 20_000, "πολύ": 100_000_000}, set(),
+                          realizations=realizations)
+    assert got[nfc("καθηγητῆ")] == "C"
+
+
+def _verb_source_rows(tmp_path, form, lemma, analyses):
+    import json
+
+    path = tmp_path / "pairs.json"
+    path.write_text(json.dumps([
+        {"form": form, "lemma": lemma, "pos": "verb", "tags": tags}
+        for tags in analyses], ensure_ascii=False))
+    return P.load_paradigms(path)
+
+
+def _source_row_candidates(par, form):
+    return P.generate(par, {form: 1000}, P.Evidence({}, (), par))
+
+
+def test_finite_and_participle_are_independent(tmp_path):
+    par = _verb_source_rows(tmp_path, "βολεύει", "βολεύω", [
+        ["present", "third-person", "singular"], ["passive", "participle"]])
+    # Broad evidence still retains every source tag.
+    assert {"participle", P.FINITE} <= par["βολεύω"]["βολεύει"]
+    got = _source_row_candidates(par, "βολεύει")
+    assert any(g.spelling == "βολεύῃ" and g.kind == "subjunctive"
+               and g.cell == "present" for g in got)
+    assert {g.cell for g in got if g.kind == "indicative"} == {
+        "present", "participle"}
+
+
+@pytest.mark.parametrize("form, lemma, expected", [
+    ("ξαναδεί", "ξαναβλέπω", "ξαναδῇ"),
+    ("εντάξει", "εντάσσω", "ἐντάξῃ"),
+    ("γδύσει", "γδύνω", "γδύσῃ"),
+    ("ζορίσει", "ζορίζω", "ζορίσῃ"),
+])
+def test_modern_infinitive_also_supplies_dependent_third(
+        tmp_path, form, lemma, expected):
+    par = _verb_source_rows(tmp_path, form, lemma, [["infinitive"]])
+    assert any(g.spelling == expected and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, form))
+
+
+@pytest.mark.parametrize("form, tags", [
+    ("βολεύει", ["participle"]),
+    ("λύειν", ["infinitive"]),
+    ("λύεις", ["infinitive"]),
+    ("λύσει", ["infinitive", "past"]),
+    ("λύσει", ["infinitive", "imperative"]),
+    ("λύσει", ["infinitive", "second-person"]),
+])
+def test_nonfinite_or_conflicting_reading_has_no_subjunctive(
+        tmp_path, form, tags):
+    par = _verb_source_rows(tmp_path, form, "λύω", [tags])
+    assert not any(g.kind == "subjunctive"
+                   for g in _source_row_candidates(par, form))
+
+
+def test_distinct_finite_cells_and_duplicate_order(tmp_path):
+    rows = [["present", "third-person", "singular"],
+            ["past", "third-person", "singular"]]
+    first = _verb_source_rows(tmp_path, "λύει", "λύω", rows + rows)
+    second = _verb_source_rows(tmp_path, "λύει", "λύω", list(reversed(rows)))
+    assert _source_row_candidates(first, "λύει") == _source_row_candidates(
+        second, "λύει")
+    assert len(P.form_tag_rows(first, "λύω", "λύει")) == 2
+    got = _source_row_candidates(first, "λύει")
+    assert {g.cell for g in got if g.kind == "indicative"} == {"present", "past"}
+    assert [g.cell for g in got if g.kind == "subjunctive"] == ["present"]
+
+
+@pytest.mark.parametrize("tags", [
+    {"feminine", "nominative", "singular"},
+    {"participle", "feminine", "singular"},
+])
+def test_contracted_participle_is_not_an_untagged_imperative(tags):
+    assert gen("κυκλοφορούσα", tags, "B1") == "κυκλοφοροῦσα"
+
+
+@pytest.mark.parametrize("form, tags", [
+    ("ζήτα", {"imperative"}), ("ζήτα", {"form-of"}),
+    ("βοήθα", {"imperative"}), ("βοήθα", set()),
+])
+def test_explicit_and_untagged_contracted_imperatives_keep_long_alpha(
+        form, tags):
+    assert gen(form, tags, "B1") == form
+
+
+@pytest.mark.parametrize("form, lemma, plural", [
+    ("πάρε", "παίρνω", False), ("πάρτε", "παίρνω", True),
+    ("φύγε", "φεύγω", False), ("κοιτάξτε", "κοιτάζω", True),
+    ("πετάξτε", "πετάω", True), ("σπάσε", "σπάω", False),
+    ("σπάστε", "σπάω", True), ("χαμογελάστε", "χαμογελάω", True),
+    ("κρεμάστε", "κρεμάω", True), ("φυλάξτε", "φυλάω", True),
+    ("γελάστε", "γελάω", True),
+])
+def test_sparse_imperative_rows_defer_to_perfective_cell(
+        tmp_path, form, lemma, plural):
+    number = "plural" if plural else "singular"
+    sparse = ["imperative", "second-person", number]
+    full = sparse + ["active", "perfective"]
+    rows = [full, sparse, ["form-of"], ["alt-of"], ["alternative"], []]
+    par = _verb_source_rows(tmp_path, form, lemma, rows + rows)
+    reverse = _verb_source_rows(tmp_path, form, lemma, list(reversed(rows)))
+    # The sparse row must not independently borrow a long stem vowel.
+    assert len(P.form_tag_rows(par, lemma, form)) == 1
+    assert "perfective" in P.form_tag_rows(par, lemma, form)[0]
+    assert P.form_tag_rows(par, lemma, form) == P.form_tag_rows(reverse, lemma, form)
+
+
+def test_aorist_row_defers_to_explicit_perfective_past(tmp_path):
+    par = _verb_source_rows(tmp_path, "σπάσαν", "σπάω", [
+        ["active", "indicative", "past", "perfective", "third-person", "plural"],
+        ["aorist", "third-person", "plural"]])
+    rows = P.form_tag_rows(par, "σπάω", "σπάσαν")
+    assert len(rows) == 1
+    assert {"past", "perfective"} <= rows[0]
+
+
+def test_standalone_aorist_keeps_its_perfective_stem_length(tmp_path):
+    par = _verb_source_rows(tmp_path, "σπάσαν", "σπάω", [
+        ["aorist", "third-person", "plural"]])
+    row, = P.form_tag_rows(par, "σπάω", "σπάσαν")
+    siblings = [P.Sibling("σπᾶμε", 1000, frozenset({"present", "imperfective"}))]
+    assert gen("σπάσαν", row, "B1", siblings) == "σπάσαν"
+    # A contradictory aspect annotation is retained rather than normalized.
+    par = _verb_source_rows(tmp_path, "σπάσαν", "σπάω", [
+        ["aorist", "imperfective", "third-person", "plural"]])
+    row, = P.form_tag_rows(par, "σπάω", "σπάσαν")
+    assert "aorist" in row and "perfective" not in row
+
+
+def test_generic_reference_does_not_erase_distinct_explicit_cells(tmp_path):
+    par = _verb_source_rows(tmp_path, "βολεύει", "βολεύω", [
+        ["present", "third-person", "singular"],
+        ["participle", "passive"], ["form-of"], []])
+    rows = P.form_tag_rows(par, "βολεύω", "βολεύει")
+    assert len(rows) == 2
+    assert {P.cell(row) for row in rows} == {"present", "participle"}
+    assert any(g.spelling == "βολεύῃ" and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, "βολεύει"))
+
+
+def test_sparse_present_is_not_subsumed_by_conflicting_imperfect_row(tmp_path):
+    par = _verb_source_rows(tmp_path, "θλίβει", "θλίβω", [
+        ["present", "third-person", "singular"],
+        ["present", "imperfect", "active", "third-person", "singular"]])
+    rows = P.form_tag_rows(par, "θλίβω", "θλίβει")
+    assert {P.cell(row) for row in rows} == {"present", "imperfect"}
+    assert any(g.spelling == "θλίβῃ" and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, "θλίβει"))
+
+
+def test_aorist_infinitive_retains_dependent_third_without_past(tmp_path):
+    par = _verb_source_rows(tmp_path, "συμμαχήσει", "συμμαχώ", [
+        ["aorist", "impersonal", "infinitive"]])
+    row, = P.form_tag_rows(par, "συμμαχώ", "συμμαχήσει")
+    assert {"perfective", "infinitive"} <= row
+    assert "past" not in row
+    assert any(g.spelling == "συμμαχήσῃ" and g.kind == "subjunctive"
+               for g in _source_row_candidates(par, "συμμαχήσει"))
+
+
+def test_verb_source_rows_do_not_change_mixed_pos_behavior(tmp_path):
+    import json
+
+    path = tmp_path / "pairs.json"
+    path.write_text(json.dumps([
+        {"form": "test", "lemma": "test", "pos": "verb", "tags": ["form-of"]},
+        {"form": "test", "lemma": "test", "pos": "noun", "tags": ["nominative"]},
+    ]))
+    par = P.load_paradigms(path)
+    assert P.form_tag_rows(par, "test", "test") == (par["test"]["test"],)
+
+
+def _dative_rival_generation(monkeypatch, candidates, frequencies, grc,
+                            listed=(), cells=None):
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: ({}, frequencies))
+    monkeypatch.setattr(mg, "_paradigm_cells", lambda: cells or {})
+    monkeypatch.setattr(P, "generate", lambda *args, **kwargs: candidates)
+    return mg.generated_verb_forms(
+        CorpusCounts(), set(), set(grc), set(listed), frozenset(), Counter())
+
+
+@pytest.mark.parametrize("candidate, realized, ancient", [
+    (P.Generated("κυνήγα", "κυνήγα", "κυνηγάω", 226, "indicative", "B1", "imperative", 226),
+     P.Generated("κυνηγᾶ", "κυνηγά", "κυνηγάω", 1647, "indicative", "B1", "present", 1647), "κυνηγά"),
+    (P.Generated("ἔγγραφη", "έγγραφη", "έγγραφος", 151, "indicative", "adj", "adj nominative singular", 151),
+     P.Generated("ἐγγραφή", "εγγραφή", "εγγραφή", 1339, "indicative", "noun", "noun nominative singular", 1339), "ἐγγραφῆ"),
+    (P.Generated("ὀντᾶ", "οντά", "οντάς", 73, "indicative", "noun", "noun genitive singular", 73),
+     P.Generated("ὅντα", "όντα", "ων", 2502, "indicative", "adj", "adj accusative plural", 2502), "ὄντα"),
+    (P.Generated("ὁρός", "ορός", "ορός", 656, "indicative", "noun", "noun nominative singular", 656),
+     P.Generated("ὄρος", "όρος", "όρος", 3839, "indicative", "noun", "noun nominative singular", 3839), "ὅρος"),
+])
+def test_unknown_ancient_rival_count_belongs_to_exact_realized_modern_cells(
+        monkeypatch, candidate, realized, ancient):
+    got = _dative_rival_generation(monkeypatch, [realized, candidate],
+                                  {realized.mono: realized.tokens,
+                                   candidate.mono: candidate.tokens}, {ancient})
+    assert candidate.spelling in got
+
+
+def test_unknown_ancient_rival_with_same_realized_cell_still_blocks(monkeypatch):
+    candidate = P.Generated("φάκελους", "φάκελους", "φάκελος", 59,
+                            "indicative", "noun", "noun accusative plural", 59)
+    realized = P.Generated("φακέλους", "φακέλους", "φάκελος", 2712,
+                           "indicative", "noun", "noun accusative plural", 2712)
+    got = _dative_rival_generation(monkeypatch, [realized, candidate],
+                                  {"φακέλους": 2712, "φάκελους": 59}, {"φακελοῦς"})
+    assert candidate.spelling not in got
+
+
+def test_unknown_ancient_rival_without_positive_realization_keeps_guard(monkeypatch):
+    candidate = P.Generated("κυνήγα", "κυνήγα", "κυνηγάω", 226,
+                            "indicative", "B1", "imperative", 226)
+    got = _dative_rival_generation(monkeypatch, [candidate],
+                                  {"κυνηγά": 1647, "κυνήγα": 226}, {"κυνηγά"})
+    assert candidate.spelling not in got
+
+
+@pytest.mark.parametrize("plain, dative, lemma", [
+    ("εἰδοποιῶ", "εἰδοποιῷ", "ειδοποιώ"),
+    ("θεραπευτῶ", "θεραπευτῷ", "θεραπεύω"),
+])
+def test_unrepresented_dative_cannot_reject_its_counted_plain_realization(
+        monkeypatch, plain, dative, lemma):
+    mono = P.monotonic_key(plain)
+    candidate = P.Generated(plain, mono, lemma, 1000, "indicative", "B2", "present", 1000)
+    got = _dative_rival_generation(monkeypatch, [candidate], {mono: 1000}, {dative})
+    assert plain in got
+
+
+def test_independently_inflected_name_survives_distinct_lowercase_coverage_at_zero_count(
+        monkeypatch):
+    candidate = P.Generated("Νανᾶ", "Νανά", "νανάς", 1000000, "indicative",
+                            "name", "name genitive singular", 1000000)
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"Νανάς"})
+    got = _dative_rival_generation(monkeypatch, [candidate], {"νανά": 1000000}, {"νανά"})
+    assert got["Νανᾶ"] == 0
+
+
+@pytest.mark.parametrize("candidate, proof, covered", [
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "noun", "noun genitive singular", 1000), {"Νανάς"}, "νανά"),
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "name", "name genitive singular", 1000), set(), "νανά"),
+    (P.Generated("Νανᾶ", "Νανά", "νανά", 1000, "indicative", "name", "name nominative singular", 1000), {"Νανά"}, "νανά"),
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "name", "name genitive singular", 1000), {"Νανάς"}, "νανᾶ"),
+    (P.Generated("Νανᾶ", "Νανά", "νανάς", 1000, "indicative", "name", "name genitive singular", 1000), {"Νανάς"}, "Νανά"),
+    (P.Generated("Γράψη", "Γράψη", "γράψης", 1000, "indicative", "name", "name genitive singular", 1000), {"Γράψης"}, "γράψῃ"),
+])
+def test_name_coverage_controls_remain_closed(monkeypatch, candidate, proof, covered):
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: proof)
+    got = _dative_rival_generation(monkeypatch, [candidate],
+                                  {P.monotonic_key(candidate.spelling): 1000}, {covered})
+    assert candidate.spelling not in got
+
+
+def test_ancient_dative_count_belongs_to_realized_plain_cell(monkeypatch):
+    candidates = [
+        P.Generated("κοίτα", "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "imperative", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    got = _dative_rival_generation(
+        monkeypatch, candidates, {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτα", "κοίτᾳ"})
+    assert got == {"κοιτᾶ": 100}
+
+
+def test_plain_noun_cells_do_not_block_a_distinct_verb(monkeypatch):
+    candidates = [
+        P.Generated("χώρα", "χώρα", "χώρα", 1000, "indicative", "noun",
+                    "noun nominative singular", 1000),
+        P.Generated("χωρᾶ", "χωρά", "χωρώ", 100, "indicative", "B1",
+                    "present", 100),
+    ]
+    got = _dative_rival_generation(
+        monkeypatch, candidates, {"χώρα": 1000, "χωρά": 100},
+        {"χώρα", "χώρᾳ"})
+    assert got == {"χωρᾶ": 100}
+
+
+def test_unrepresented_dative_without_plain_evidence_is_unchanged(monkeypatch):
+    candidate = P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100,
+                            "indicative", "A", "present", 100)
+    assert _dative_rival_generation(
+        monkeypatch, [candidate], {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτᾳ"}) == {}
+
+
+def test_exact_traditional_finite_rival_keeps_its_cells(monkeypatch):
+    candidates = [
+        P.Generated("κοιτᾷ", "κοιτά", "κοιτάζω", 1000, "indicative", "A",
+                    "present", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    assert _dative_rival_generation(
+        monkeypatch, candidates, {"κοιτά": 1000}, {"κοιτᾷ"}) == {}
+
+
+def test_listed_subscript_rival_keeps_existing_cell_evidence(monkeypatch):
+    candidate = P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100,
+                            "indicative", "A", "present", 100)
+    assert _dative_rival_generation(
+        monkeypatch, [candidate], {"κοίτα": 1000, "κοιτά": 100}, set(),
+        listed={"κοίτᾳ"},
+        cells={"κοίτα": frozenset({("κοιτάζω", "present")})}) == {}
+
+
+def test_plain_multi_cell_evidence_preserves_same_cell_rejection(monkeypatch):
+    candidates = [
+        P.Generated("κοίτα", "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "imperative", 1000),
+        P.Generated("κοίτα", "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "present", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    assert _dative_rival_generation(
+        monkeypatch, candidates, {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτα", "κοίτᾳ"}) == {}
+
+
+@pytest.mark.parametrize("plain", ["κοῖτα", "κόϊτα", "Κοίτα"])
+def test_dative_plain_lookup_preserves_other_marks_and_case(monkeypatch, plain):
+    candidates = [
+        P.Generated(plain, "κοίτα", "κοιτάζω", 1000, "indicative", "A",
+                    "imperative", 1000),
+        P.Generated("κοιτᾶ", "κοιτά", "κοιτάζω", 100, "indicative", "A",
+                    "present", 100),
+    ]
+    got = _dative_rival_generation(
+        monkeypatch, candidates, {"κοίτα": 1000, "κοιτά": 100},
+        {"κοίτᾳ"})
+    assert "κοιτᾶ" not in got
+
+
+@pytest.mark.parametrize("modern, traditional, lemma, own, other", [
+    ("κάηκαν", "καῆκαν", "καίω", 796, 16),
+    ("σώθηκαν", "σωθῆκαν", "σώζω", 316, 7),
+])
+def test_dominant_explicit_stress_variant_retains_its_own_count(
+        monkeypatch, modern, traditional, lemma, own, other):
+    candidate = P.Generated(modern, modern, lemma, own, "indicative",
+                            "A", "past", own)
+    got = _dative_rival_generation(
+        monkeypatch, [candidate],
+        {modern: own, P.monotonic_key(traditional): other}, set(),
+        listed={traditional},
+        cells={P.monotonic_key(traditional): frozenset({(lemma, "past")})})
+    assert got[modern] == own
+
+
+@pytest.mark.parametrize("kind, cell, own, tokens", [
+    ("indicative", "past", 16, 16),
+    ("indicative", "past", 7, 7),
+    ("indicative", "past", 32, 32),
+    ("indicative", "other", 796, 796),
+    ("indicative", "noun", 796, 796),
+    ("subjunctive", "dependent", 796, 100000),
+    ("noun-alternative", "noun genitive singular", 0, 0),
+    ("indicative", "past", 7, 100000),
+])
+def test_literal_list_rival_retains_unspecific_weak_or_borrowed_boundaries(
+        kind, cell, own, tokens):
+    candidate = P.Generated("κάηκαν", "κάηκαν", "καίω", tokens, kind,
+                            "A", cell, own)
+    rival = mg.Rival(frozenset({("καίω", cell)}), 16, "list")
+    assert mg._stops(candidate, rival)
+
+
+def test_identified_nominal_stress_variant_uses_its_own_count():
+    candidate = P.Generated("φάκελους", "φάκελους", "φάκελος", 1000,
+                            "indicative", "noun", "noun accusative plural", 1000)
+    rival = mg.Rival(frozenset({("φάκελος", "noun accusative plural")}), 10, "list")
+    assert not mg._stops(candidate, rival)

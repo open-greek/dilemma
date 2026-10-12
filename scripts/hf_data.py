@@ -39,13 +39,51 @@ REPO = "ciscoriordan/dilemma"
 
 # Exactly the artifacts .github/workflows/test.yml downloads - the workflow
 # gets them from `hf_data.py files`, so this list is the single source of
-# truth. Add a file here when a test starts asserting on it.
+# truth, including provenance that accompanies the generated tables.
+# Add a file here when CI needs to receive the same version as the code.
 TRACKED = [
     "data/lookup.db",
     "data/spell_index.db",
     "data/lemma_attestation.json",
     # Exact-form attestation for the grc Hunspell export and its audit.
     "data/form_profile.db",
+    # Merged corpus counts used by the Ancient export's admission filter.
+    "data/corpus_freq.json",
+    # Source cells preserve elision used by the Ancient alias recovery.
+    "data/diorisis_pairs.json",
+    # Reversible quotation evidence consumed by the Ancient export gate.
+    "data/changes/diorisis_token_normalizations.json",
+    # Input-pinned provenance for the generated noun expansion layer.
+    "data/ag_noun_generation_audit.json",
+    "data/ag_sophocles_noun_generation_audit.json",
+    # Base tables checked by the real Modern Greek training-evidence test.
+    "data/mg_pairs.json",
+    "data/mg_lookup.json",
+    # Source-backed participial cells used by the Modern Greek exporter.
+    "data/el_participles.json",
+    # Independent noun heads retained beside flat-lookup homographs.
+    "data/el_noun_heads.json",
+    # Defined adjectives retained beside noun/verb flat homographs.
+    "data/el_adjective_heads.json",
+    # Independent finite verb heads selected by the source reference graph.
+    "data/el_verb_heads.json",
+    # Expanded lexical POS coverage exceeds GitHub's regular-file size limit.
+    "data/lsj9_pos_lookup.json",
+    # Independent lexical heads for sparse Ancient corpus admission.
+    "data/grc_lexical_heads.json",
+    # Explicit citation references consumed by sparse-form export admission.
+    "data/grc_contracted_verb_aliases.json",
+    # Exact POS-specific source evidence for non-flat Modern morphology.
+    "data/el_closed_class_heads.json",
+    # Exact POS-specific definitions for Ancient non-flat training readings.
+    "data/grc_reading_heads.json",
+    # Integrity checks exercise both exported and PyTorch model backends.
+    "model/combined-s3/vocab.json",
+    "model/combined-s3/encoder.onnx",
+    "model/combined-s3/decoder_step.onnx",
+    "model/combined-s3/model.pt",
+    "model/combined-s3/head_labels.json",
+    "model/combined-s3/heads.npz",
 ]
 
 _CHUNK = 1 << 20

@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -48,6 +49,10 @@ KAIKKI_DIR = Path(os.environ.get(
 _KAIKKI_AG_NESTED = KAIKKI_DIR / "en-el" / "kaikki.org-dictionary-AncientGreek.jsonl"
 _KAIKKI_AG_FLAT = KAIKKI_DIR / "kaikki.org-en-dictionary-AncientGreek.jsonl"
 KAIKKI_AG = _KAIKKI_AG_NESTED if _KAIKKI_AG_NESTED.exists() else _KAIKKI_AG_FLAT
+_KAIKKI_AG_EL_NESTED = KAIKKI_DIR / "el" / "kaikki.org-dictionary-AncientGreek.jsonl"
+_KAIKKI_AG_EL_FLAT = KAIKKI_DIR / "kaikki.org-el-dictionary-AncientGreek.jsonl"
+KAIKKI_AG_EL = (_KAIKKI_AG_EL_NESTED if _KAIKKI_AG_EL_NESTED.exists()
+                else _KAIKKI_AG_EL_FLAT)
 WTP_DB = DATA_DIR / "wtp.db"
 
 # --- Lua runtime compatibility for running Wiktionary's grc modules via wtp ---
@@ -273,61 +278,86 @@ def strip_diacritics(s: str) -> str:
     return ''.join(c for c in nfd if not unicodedata.combining(c))
 
 
+# Explicit LSJ abbreviation contracts: (nominative ending, supplied genitive
+# suffix, number of nominative letters replaced). Never guess the replacement
+# length from an accidental overlap. More specific endings precede shorter ones.
+_GENITIVE_SUFFIX_RULES = (
+    ("ευς", "εως", 3), ("ευς", "ηος", 3),
+    ("πους", "ποδος", 4), ("πους", "οδος", 3),
+    ("οδους", "οδοντος", 5), ("δους", "οντος", 3),
+    ("θριξ", "τριχος", 4), ("παις", "παιδος", 4),
+    ("χειρ", "χειρος", 4), ("κυων", "κυνος", 4),
+    ("φρων", "φρονος", 4), ("ανηρ", "ανδρος", 4),
+    ("ιγξ", "ιγγος", 3), ("υγξ", "υγγος", 3),
+    ("μα", "ατος", 1),
+    ("ος", "ου", 2), ("ον", "ου", 2),
+    ("ης", "ου", 2), ("ας", "ου", 2),
+    ("η", "ης", 1), ("α", "ας", 1), ("α", "ης", 1),
+    ("ις", "εως", 2), ("υς", "εως", 2),
+    ("ης", "ους", 2), ("ης", "ητος", 2),
+    ("ως", "ωος", 2), ("ως", "ωτος", 2),
+    ("ων", "ωνος", 2), ("ων", "ονος", 2), ("ων", "οντος", 2),
+    ("ηρ", "ηρος", 2), ("ηρ", "ερος", 2),
+    ("ωρ", "ορος", 2), ("ωρ", "ωρος", 2),
+    ("ην", "ενος", 2), ("ην", "ηνος", 2),
+    ("ις", "ιδος", 2), ("ις", "ιος", 2), ("ις", "ινος", 2),
+    ("ις", "ιθος", 2), ("ις", "ιτος", 2),
+    ("υς", "υος", 2), ("υς", "υδος", 2), ("υς", "υθος", 2),
+    ("ας", "αδος", 2), ("ας", "αντος", 2), ("ας", "ατος", 2),
+    ("αξ", "ακος", 2), ("αξ", "αγος", 2), ("αξ", "ακτος", 2),
+    ("ιξ", "ικος", 2), ("ιξ", "ιγος", 2), ("ιξ", "ιχος", 2),
+    ("υξ", "υγος", 2), ("υξ", "υκος", 2), ("υξ", "υχος", 2),
+    ("ηξ", "ηγος", 2), ("ηξ", "ηκος", 2),
+    ("ωξ", "ωγος", 2), ("ωξ", "ωκος", 2),
+    ("ωψ", "ωπος", 2), ("οψ", "οπος", 2),
+    ("ιψ", "ιβος", 2), ("αψ", "απος", 2),
+    ("λι", "ιτος", 1), ("αν", "ανος", 2),
+    ("αρ", "αρος", 2), ("αρ", "ατος", 2),
+    ("ος", "εος", 2), ("ος", "ους", 2), ("ες", "εος", 2),
+    ("ω", "ους", 1),
+)
+
+
+def _letter_clusters(word):
+    clusters = []
+    for char in unicodedata.normalize("NFD", word):
+        if unicodedata.combining(char) and clusters:
+            clusters[-1] += char
+        else:
+            clusters.append(char)
+    return clusters
+
+
+def _drop_letters(word, count):
+    """Drop whole final Greek letters, retaining marks on the lexical prefix."""
+    return unicodedata.normalize("NFC", "".join(_letter_clusters(word)[:-count]))
+
+
 def build_genitive_from_itype(headword, itype):
-    """Build genitive form from headword + LSJ itype (genitive suffix).
-
-    The itype replaces a portion of the headword's ending. The number of
-    characters to strip depends on the nominative ending pattern.
-    """
-    if not itype:
-        return ""
-
-    hw_plain = strip_diacritics(headword)
-    it_plain = strip_diacritics(itype)
-
-    # (nominative ending, itype ending) → chars to strip from headword
-    # Ordered so more specific patterns match first
-    STRIP_RULES = [
-        # -ευς / -εως: strip 3 (the ε is shared between stem and itype)
-        ("ευς", "εως", 3),
-        # 1st/2nd declension
-        ("ος", "ου", 2),
-        ("ον", "ου", 2),
-        ("ης", "ου", 2),
-        ("ας", "ου", 2),
-        ("η", "ης", 1),
-        # 3rd declension -ις/-εως (biggest: 4451 entries, πόλις-type)
-        ("ις", "εως", 2),
-        # 3rd declension -υς/-εως (πῆχυς-type, NOT -ευς which is above)
-        ("υς", "εως", 2),
-        # 3rd declension -ης/-ους (Attic, e.g. Σωκράτης)
-        ("ης", "ους", 2),
-        # 3rd declension -ης/-ητος
-        ("ης", "ητος", 2),
-        # 3rd declension -ως/-ω (Attic, e.g. ἥρως)
-        ("ως", "ωος", 2),
-    ]
-
-    for nom_end, gen_itype, strip_n in STRIP_RULES:
-        if hw_plain.endswith(nom_end) and it_plain == strip_diacritics(gen_itype):
-            return headword[:-strip_n] + itype
-
-    # Default: strip 1 char (the final case marker) and append itype.
-    # Works for most 3rd declension patterns where itype starts from
-    # the oblique stem consonant:
-    #   -μα + ατος → -ματος (strip α, append ατος)
-    #   -ίς + ίδος → -ίδος (strip ς, append... wait, ίδος)
-    #   -ήρ + ῆρος → -ῆρος (strip ρ... hmm)
-    #
-    # Actually for consonant stems, strip 1 often leaves extra chars.
-    # Try strip 2 if itype starts with a char that matches the second-to-last
-    # char of the headword (accent-free).
-    if len(hw_plain) >= 2 and len(it_plain) >= 1:
-        if hw_plain[-2] == it_plain[0]:
-            # The itype "restarts" from a character that's already in the headword
-            # e.g. ἐλπίς + ίδος: ί matches → strip 2, append ίδος
-            return headword[:-2] + itype
-    return headword[:-1] + itype
+    """Complete only explicit, supported LSJ genitive abbreviations."""
+    hw_plain, it_plain = strip_diacritics(headword), strip_diacritics(itype)
+    for nom_end, gen_suffix, count in _GENITIVE_SUFFIX_RULES:
+        if hw_plain.endswith(nom_end) and it_plain == gen_suffix:
+            prefix = _drop_letters(headword, count)
+            if prefix and any(c in "\u0313\u0314" for c in unicodedata.normalize("NFD", itype)):
+                # A breathing on an abbreviated suffix would become medial.
+                # Preserve the source field for review; do not correct it here.
+                return ""
+            # Repeated letters retain their lexical diaeresis, breathing,
+            # subscript, and length. Tone placement belongs to the module.
+            ending = _letter_clusters(itype)
+            for index, (old, new) in enumerate(zip(_letter_clusters(headword)[-count:], ending)):
+                if old[0] != new[0]:
+                    break
+                ending[index] += "".join(c for c in old[1:]
+                    if c not in "\u0300\u0301\u0342" and c not in new)
+            itype = unicodedata.normalize("NFC", "".join(ending))
+            # A supplied accent takes precedence over the nominative accent.
+            # Lua then adjusts it for the generated case and syllable length.
+            if any(c in "\u0300\u0301\u0342" for c in unicodedata.normalize("NFD", itype)):
+                prefix = _unaccented_verb_stem(prefix)
+            return unicodedata.normalize("NFC", prefix + itype)
+    return ""
 
 
 def parse_lsj_entries():
@@ -503,35 +533,51 @@ def load_wiktionary_forms():
 
 
 def load_wiktionary_genitives():
-    """Load genitive forms from Wiktionary for cross-referencing with LSJ.
+    """Merge every exact genitive variant from both Wiktionary editions.
 
-    Returns {headword: genitive_form} for nouns/adjectives that have
-    genitive singular forms tagged in Wiktionary.
+    Read the original extracts: training pairs also contain synthetic monotonic
+    spellings. An omitted number is singular in these noun table exports;
+    explicitly plural and dual cells are excluded. No variant wins by order.
     """
     genitives = {}
-    if not KAIKKI_AG.exists():
-        return genitives
-    with open(KAIKKI_AG, encoding="utf-8") as f:
-        for line in f:
-            try:
+    for path in (KAIKKI_AG, KAIKKI_AG_EL):
+        if not path.exists():
+            raise FileNotFoundError(f"both Wiktionary genitive sources are required: {path}")
+        with path.open(encoding="utf-8") as f:
+            for line in f:
                 e = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            word = e.get("word", "")
-            pos = e.get("pos", "")
-            if pos not in ("noun", "adj"):
-                continue
-            forms = e.get("forms", [])
-            for fe in forms:
-                tags = fe.get("tags", [])
-                form = strip_length_marks(fe.get("form", ""))
-                if "genitive" in tags and "singular" in tags and form:
-                    # Strip article prefix if present (e.g. "τῆς κυνός" -> "κυνός")
-                    if " " in form:
-                        form = form.split()[-1]
-                    genitives[strip_length_marks(word)] = form
-                    break
-    return genitives
+                if e.get("pos") not in ("noun", "adj", "name"):
+                    continue
+                word = strip_length_marks(e.get("word", ""))
+                for fe in e.get("forms", []):
+                    tags = set(fe.get("tags", []))
+                    form = strip_length_marks(fe.get("form", ""))
+                    if ("genitive" not in tags or tags & {"plural", "dual"}
+                            or not form or _genitive_is_junk(form)):
+                        continue
+                    genitives.setdefault(word, set()).add(form)
+    return {word: tuple(sorted(forms)) for word, forms in genitives.items()}
+
+
+def noun_generation_input_hashes(include_lsj=True):
+    """Pin the exact extraction and Lua inputs needed by a noun audit."""
+    paths = {"wiktionary_en": KAIKKI_AG, "wiktionary_el": KAIKKI_AG_EL,
+             "wtp": WTP_DB, "wtp_pickle": WTP_DB.with_suffix(".db.pickle")}
+    if include_lsj:
+        paths.update(lsj9_forms=LSJ9_FORMS, lsj9_headwords=LSJ9_HEADWORDS)
+    hashes = {}
+    for key, path in paths.items():
+        with path.open("rb") as stream:
+            digest = hashlib.sha256()
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+            hashes[key] = digest.hexdigest()
+    return hashes
+
+
+def _genitive_variants(headword, genitives):
+    value = (genitives or {}).get(strip_length_marks(headword), ())
+    return (value,) if isinstance(value, str) else tuple(value)
 
 
 def infer_genitive(headword, gender, wikt_genitives=None):
@@ -543,10 +589,10 @@ def infer_genitive(headword, gender, wikt_genitives=None):
     3. 3rd declension heuristics (lower confidence)
     """
     # Check Wiktionary cross-reference first
-    if wikt_genitives:
-        hw_clean = strip_length_marks(headword)
-        if hw_clean in wikt_genitives:
-            return wikt_genitives[hw_clean]
+    headword = unicodedata.normalize("NFC", headword)
+    variants = _genitive_variants(headword, wikt_genitives)
+    if variants:
+        return variants[0] if len(variants) == 1 else ""
 
     hw_plain = strip_diacritics(headword)
 
@@ -704,63 +750,10 @@ def mark_alpha_length(word):
     return word
 
 
-# Cache: (gender, nom_ending, gen_ending) -> list of full forms from reference word
-# Nouns with the same declension pattern produce forms that differ only in the stem.
-# We store (ref_stem, ref_forms) and apply by swapping stems.
-_NOUN_CACHE = {}
-
-
-def _classify_noun(headword, gender, genitive):
-    """Classify a noun into declension type for caching.
-
-    Returns (cache_key, stem_len) where cache_key = (gender, nom_ending, gen_ending).
-    stem_len is how many chars of the headword form the invariant stem.
-    """
-    hw_plain = strip_diacritics(headword.lower())
-    gen_plain = strip_diacritics(genitive.lower()) if genitive else ""
-
-    # Find the longest common prefix = invariant stem
-    # Then trim back to exclude the thematic/connecting vowel, which
-    # is shared between nom and gen but changes in other cases
-    # (e.g. ανθρωπ-ος/ου share 'ο' but vocative is ανθρωπ-ε)
-    stem_len = 0
-    for i in range(min(len(hw_plain), len(gen_plain)) if gen_plain else 0):
-        if hw_plain[i] == gen_plain[i]:
-            stem_len = i + 1
-        else:
-            break
-
-    # Trim back thematic vowel: if the last shared char is a vowel
-    # and it's the first char of both endings, exclude it from stem
-    vowels = set("αεηιουω")
-    if stem_len > 1 and hw_plain[stem_len - 1] in vowels:
-        stem_len -= 1
-
-    # Ensure at least 1 char as ending
-    stem_len = min(stem_len, len(hw_plain) - 1)
-
-    nom_ending = hw_plain[stem_len:]
-    gen_ending = gen_plain[stem_len:] if gen_plain else ""
-
-    return (gender, nom_ending, gen_ending), stem_len
-
-
-def _apply_noun_cache(headword, stem_len, ref_stem_plain, ref_forms):
-    """Apply cached declension forms to a new headword by swapping the stem.
-
-    ref_forms are the full accented forms from the reference word.
-    We strip the reference stem prefix and replace it with the new stem.
-    """
-    new_stem = strip_diacritics(headword[:stem_len].lower())
-    forms = set()
-    for form in ref_forms:
-        form_plain = strip_diacritics(form.lower())
-        if form_plain.startswith(ref_stem_plain):
-            ending = form_plain[len(ref_stem_plain):]
-            new_form = new_stem + ending
-            if len(new_form) > 1:
-                forms.add(new_form)
-    return forms
+# Cache only identical lexical requests. Nouns with matching bare endings can
+# have different accent and breathing patterns; another noun's forms cannot
+# supply their marked spellings by replacing a stripped stem.
+_NOUN_CACHE: dict[tuple[str, str, str], frozenset[str]] = {}
 
 
 _GENITIVE_ARTICLES = {
@@ -788,27 +781,85 @@ def _genitive_is_junk(gen):
     return not _GREEK_GENITIVE.match(g)
 
 
-def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
-    """Expand a noun using grc-decl template. Returns set of forms.
+def resolve_noun_genitive(headword, gender, supplied="", wikt_genitives=None):
+    """Resolve a full genitive without silently choosing a dialect/homograph.
 
-    Uses a cache keyed by declension pattern: nouns with the same
-    (gender, nom_ending, gen_ending) produce the same inflection endings.
+    LSJ supplies both complete forms and abbreviated endings. The Lua module
+    requires a complete form; its generic consonant declension otherwise
+    mistakes an abbreviation for the entire stem.
     """
-    # A junk LSJ genitive (article, dialect note, "**" markup, fragment) can't
-    # match a declension, so discard it and infer from the nominative instead.
-    if genitive and _genitive_is_junk(genitive):
-        genitive = ""
-    if not genitive:
-        genitive = infer_genitive(headword, gender, wikt_genitives)
+    headword = unicodedata.normalize("NFC", headword)
+    supplied = unicodedata.normalize("NFC", supplied.strip())
+    if any(c.isspace() or c in ",;" for c in headword):
+        return "", "nonlexical-noun-headword"
+    variants = _genitive_variants(headword, wikt_genitives)
+    if not supplied or _genitive_is_junk(supplied):
+        if len(variants) > 1:
+            return "", "ambiguous-wiktionary-genitive"
+        inferred = infer_genitive(headword, gender, wikt_genitives)
+        return (inferred, "") if inferred else ("", "missing-genitive")
 
-    # Check cache
-    if genitive:
-        cache_key, stem_len = _classify_noun(headword, gender, genitive)
-        if cache_key in _NOUN_CACHE:
-            ref_stem, ref_forms = _NOUN_CACHE[cache_key]
-            forms = _apply_noun_cache(headword, stem_len, ref_stem, ref_forms)
-            if forms:
-                return forms, ""
+    # Independent exact agreement also proves irregular complete forms whose
+    # oblique stem has no simple correspondence (for example Ζεύς / Διός).
+    if supplied in variants:
+        return supplied, ""
+    hw_plain, gen_plain = strip_diacritics(headword), strip_diacritics(supplied)
+    reconstructed = build_genitive_from_itype(headword, supplied)
+    full_regular = any(
+        hw_plain.endswith(nom_end) and gen_plain.endswith(gen_suffix)
+        and hw_plain[:-count] + gen_suffix == gen_plain
+        for nom_end, gen_suffix, count in _GENITIVE_SUFFIX_RULES
+    )
+    full_ending = (
+        hw_plain.endswith(("ς", "ν", "ρ", "ξ", "ψ")) and gen_plain.endswith("ος")
+        and not (hw_plain.endswith("ος") and not gen_plain.endswith("εος"))
+    ) or (hw_plain.endswith("ω") and gender == "f" and gen_plain.endswith("ους"))
+    if (not reconstructed and (full_regular or full_ending) and len(gen_plain) > 2
+            and len(gen_plain) >= len(hw_plain) - 1
+            and hw_plain[:2] == gen_plain[:2]
+            and hw_plain.replace("-", "") != gen_plain.replace("-", "")):
+        return supplied, ""
+
+    if not reconstructed:
+        return "", "unsupported-genitive-abbreviation"
+    if variants:
+        compatible = tuple(form for form in variants
+                           if strip_diacritics(form).endswith(gen_plain)
+                           and (not any(c in "\u0300\u0301\u0342" for c in unicodedata.normalize("NFD", supplied))
+                                or strip_length_marks(form).endswith(strip_length_marks(supplied))))
+        if len(compatible) != 1:
+            return "", "conflicting-wiktionary-genitive"
+        return compatible[0], ""
+    return reconstructed, ""
+
+
+def noun_expansion_error(headword, genitive):
+    """Withhold evidenced irregular families unsupported by the generic route.
+
+    A complete source genitive does not repair the module's irregular vocative
+    and dative cells. This applies equally to full, inferred and completed input.
+    """
+    nom, gen = strip_diacritics(headword).lower(), strip_diacritics(genitive).lower()
+    if ((nom.endswith("κυων") and gen.endswith(("κυνος", "κυονος")))
+            or (nom.endswith("ανηρ") and gen.endswith(("ανδρος", "ανηρος")))
+            or (nom.endswith("πατηρ") and gen.endswith("πατρος"))):
+        return "unsupported-irregular-noun"
+    return ""
+
+
+def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
+    """Expand a noun using grc-decl, caching identical lexical requests."""
+    headword = unicodedata.normalize("NFC", headword)
+    genitive, error = resolve_noun_genitive(headword, gender, genitive, wikt_genitives)
+    error = error or noun_expansion_error(headword, genitive)
+    if error:
+        return set(), error
+
+    # Include the resolved genitive: explicit and inferred identical requests
+    # share a result, while differently marked lexical inputs remain distinct.
+    cache_key = (headword, gender, genitive)
+    if cache_key in _NOUN_CACHE:
+        return set(_NOUN_CACHE[cache_key]), ""
 
     # grc-decl gender codes
     gender_code = {"m": "M", "f": "F", "n": "N"}.get(gender, "")
@@ -832,21 +883,27 @@ def expand_noun(wtp, headword, gender, genitive="", wikt_genitives=None):
     except Exception as e:
         return set(), str(e)
 
-    forms = parse_html_forms(html, headword)
+    # The table's notes describe historical clusters such as *-δς. They are
+    # not paradigm cells and must never become dictionary forms.
+    lines = []
+    in_notes = False
+    for line in html.splitlines(keepends=True):
+        if line.startswith(('! class="notes-header"', '| class="notes"')):
+            in_notes = True
+        if in_notes and line.startswith(("|-", "|}")):
+            in_notes = False
+        if not in_notes:
+            lines.append(line)
+    forms = parse_html_forms("".join(lines), headword)
 
-    # Cache: store (ref_stem_plain, ref_forms) for this declension pattern
-    if forms and genitive:
-        cache_key, stem_len = _classify_noun(headword, gender, genitive)
-        if cache_key not in _NOUN_CACHE:
-            ref_stem = strip_diacritics(headword[:stem_len].lower())
-            _NOUN_CACHE[cache_key] = (ref_stem, forms)
+    if forms:
+        _NOUN_CACHE[cache_key] = frozenset(forms)
 
-    return forms, ""
+    return forms, "" if forms else "empty-noun-paradigm"
 
 
-# Cache: (conj_type, stem_len) -> list of suffix offsets extracted from a reference expansion
-# Each cached entry is [(suffix, strip_n), ...] where form = stem[:-strip_n] + suffix
-_VERB_CACHE = {}
+# Present-system cache for identical lexical requests, with all marks intact.
+_VERB_CACHE: dict[tuple[str, str, str, str], frozenset[str]] = {}
 
 
 # Cache: principal-parts grc-conj-args tuple -> set of forms.
@@ -891,6 +948,37 @@ def load_lsj_head_texts() -> dict[str, str]:
     return heads
 
 
+def _perfect_participle_cells(table: str) -> str:
+    """Keep the participle token from the pinned Lua periphrastic cells.
+
+    In the perfect middle subjunctive/optative, the module incorrectly
+    prefixes the lexical stem to the auxiliary. The first token in each
+    affected table cell is the correctly generated participle. Retain it
+    without inferring another form, and omit the malformed auxiliary and
+    its alternatives. Other table cells and arbitrary Greek text are intact.
+    """
+    middle = False
+    periphrastic = False
+    output = []
+    for line in table.splitlines(keepends=True):
+        if line.startswith('! rowspan="4" | '):
+            middle = "middle/" in line
+            periphrastic = False
+        elif line.startswith("! ") and not line.startswith("! rowspan"):
+            periphrastic = middle and line.strip() in {"! subjunctive", "! optative"}
+        prefix = '| class="grc-conj-finite-form" | '
+        if periphrastic and line.startswith(prefix):
+            content = line[len(prefix):]
+            first_token = content.split()[0] if content.split() else ""
+            # These are the actual cell tokens, not generated inflections.
+            # Fail closed if the pinned table no longer supplies one.
+            plain = strip_diacritics(first_token)
+            participle = first_token if plain.endswith(("μενος", "μενοι", "μενω")) else ""
+            line = prefix + participle + ("\n" if line.endswith("\n") else "")
+        output.append(line)
+    return "".join(output)
+
+
 def _expand_principal_part(wtp, headword: str, tense_args: list[str]
                             ) -> set[str]:
     """Expand a single ``{{grc-conj|...}}`` invocation derived from
@@ -911,6 +999,8 @@ def _expand_principal_part(wtp, headword: str, tense_args: list[str]
     except Exception:
         _PP_CACHE[cache_key] = set()
         return set()
+    if tense_args[0] == "perf":
+        html = _perfect_participle_cells(html)
     forms = parse_html_forms(html, headword)
     _PP_CACHE[cache_key] = forms
     return forms
@@ -1036,8 +1126,9 @@ def _is_valid_preverb(preverb_plain):
 # A handful of irregular AG verbs whose paradigms cannot be generated by the
 # Wiktionary `Module:grc-conj` rule-based dispatch (they map to
 # `pres-irreg` on Wiktionary, with every form filled in by hand). We list a
-# minimal but useful Attic core paradigm here so compound forms (πάρειμι,
-# σύνειμι, εἴσειμι, ...) can be expanded by stem-prepending.
+# minimal but useful Attic core paradigm for each exact literal base. Compound
+# accent, augment, and lexical-family rules need independent evidence and are
+# deliberately not generated by prepending a stem.
 #
 # Each value is a set of bare Attic forms (without preverb prefix). We
 # deliberately keep this list small: only the forms that show up in real
@@ -1124,9 +1215,9 @@ _IRREGULAR_BASE_FORMS = {
         "χρή", "χρῇ", "χρῆν", "χρῆναι", "χρεών", "χρῆται",
         "χρῷη", "χρείη",
     },
-    # φημί 'say' — the existing dispatcher routes φημί to pres-emi, but
-    # Wiktionary uses pres-ami for it (stem 'φ'). We keep the explicit
-    # paradigm here as a robust fallback.
+    # φημί 'say' requires this explicit paradigm. The regular -ημι
+    # template produces φῆμι, and compound accent/augment rules are not
+    # supported by the preverb joiner.
     "φημί": {
         # Indicative
         "φημί", "φῄς", "φησί", "φησίν", "φαμέν", "φατέ", "φᾱσί",
@@ -1145,115 +1236,19 @@ _IRREGULAR_BASE_FORMS = {
 }
 
 
-def _join_preverb(preverb, base_form):
-    """Prepend `preverb` to `base_form` for an AG compound verb.
-
-    Strategy: we generate two surface candidates - one with the
-    diacritics stripped from the base form (so the natural-accent
-    placement falls out from downstream NFC + accent rules) and one
-    that keeps the base's diacritics. We add both to the set the
-    caller will store: the lookup table indexes both accented and
-    diacritic-stripped keys, so a slightly imperfect accent on the
-    accented version is acceptable as long as the stripped key is
-    correct.
-
-    The preverb's trailing vowel elides before a vowel-initial base
-    form; the base's leading breathing is dropped in the joined form.
-    Aspirate-mutation (κατά + ἵστημι -> καθίστημι) is approximated
-    by mapping τ/π/κ -> θ/φ/χ when the base had a rough breathing.
-    """
-    if not preverb:
-        return base_form
-    nfd_base = unicodedata.normalize("NFD", base_form)
-    base_first = None
-    base_had_rough = False
-    base_first_idx = None
-    for i, ch in enumerate(nfd_base):
-        if not unicodedata.combining(ch):
-            base_first = ch
-            base_first_idx = i
-            break
-    # Detect rough breathing on first base char
-    if base_first_idx is not None:
-        for ch in nfd_base[base_first_idx + 1:]:
-            if not unicodedata.combining(ch):
-                break
-            if ord(ch) == 0x0314:
-                base_had_rough = True
-
-    # Strip ALL combining marks from the first base char (breathing + accent)
-    # so the preverb's accent or syllable structure dictates the surface.
-    if base_first_idx is not None:
-        out = []
-        i = 0
-        # Keep chars before the first base char (none usually)
-        out.extend(nfd_base[:base_first_idx + 1])
-        i = base_first_idx + 1
-        # Drop combining marks immediately after the first base char
-        while i < len(nfd_base) and unicodedata.combining(nfd_base[i]):
-            i += 1
-        out.extend(nfd_base[i:])
-        base_clean = unicodedata.normalize("NFC", "".join(out))
-    else:
-        base_clean = base_form
-
-    base_starts_vowel = base_first is not None and base_first in "αεηιουωΑΕΗΙΟΥΩ"
-
-    pv_nfd = unicodedata.normalize("NFD", preverb)
-    pv_chars = list(pv_nfd)
-
-    if base_starts_vowel:
-        # Find last base char of preverb
-        last_base_idx = None
-        for i in range(len(pv_chars) - 1, -1, -1):
-            if not unicodedata.combining(pv_chars[i]):
-                last_base_idx = i
-                break
-        if last_base_idx is not None:
-            last = pv_chars[last_base_idx]
-            if last in "αεηιουωΑΕΗΙΟΥΩ":
-                # Elide trailing vowel + its combining marks
-                end = last_base_idx
-                while end + 1 < len(pv_chars) and unicodedata.combining(
-                        pv_chars[end + 1]):
-                    end += 1
-                pv_chars = pv_chars[:last_base_idx] + pv_chars[end + 1:]
-            elif base_had_rough:
-                aspirate_map = {"τ": "θ", "π": "φ", "κ": "χ"}
-                if last in aspirate_map:
-                    pv_chars[last_base_idx] = aspirate_map[last]
-    pv_str = unicodedata.normalize("NFC", "".join(pv_chars))
-    return pv_str + base_clean
-
-
 def _expand_irregular_compound(headword):
-    """Try to expand an irregular -μι compound (e.g. πάρειμι, εἴσειμι).
+    """Return only a reviewed literal irregular base paradigm.
 
-    Strategy: identify a known preverb prefix and a recognised
-    irregular base (εἰμί, εἶμι, οἶδα, χρή, φημί). If it matches,
-    generate forms by joining each base form with the preverb.
-    Returns the set of accented forms (and their stripped variants)
-    or empty set if no base matches.
+    The former prefix joiner lost iota subscripts, misplaced accents, and
+    combined the distinct εἰμί and εἶμι paradigms. A compound needs its own
+    accent, augment, and lexical-family evidence; it must not inherit an
+    approximate union. Independent source mappings remain available.
     """
-    preverb, base = _split_preverb(headword)
-    base_plain = _strip_diacritics_lower(base)
-    base_aliases = {
-        "ειμι": ["εἰμί", "εἶμι"],   # ambiguous: emit forms for both
-        "οιδα": ["οἶδα"],
-        "χρη": ["χρή"],
-        "φημι": ["φημί"],
-    }
-    bases = base_aliases.get(base_plain, [])
-    if not bases:
+    headword = unicodedata.normalize("NFC", headword)
+    base_forms = _IRREGULAR_BASE_FORMS.get(headword)
+    if base_forms is None:
         return set()
-    forms = set()
-    for canon in bases:
-        for f in _IRREGULAR_BASE_FORMS.get(canon, ()):
-            joined = _join_preverb(preverb, f)
-            forms.add(joined)
-            # Also emit the stripped form; lookup keys are stripped too
-            forms.add(strip_diacritics(joined))
-    return forms
+    return set(base_forms) | {strip_diacritics(form) for form in base_forms}
 
 
 # Trivial OCR-corruption guard. Drop any headword that contains a combining
@@ -1284,58 +1279,86 @@ def _is_corrupt_headword(headword):
     return False
 
 
+def _unaccented_verb_stem(stem):
+    """Remove tone accents while retaining lexical and vowel-length marks.
+
+    The conjugation module places the accent, but still needs breathings,
+    diaeresis, iota subscript, macrons, and breves from the lexical stem.
+    """
+    return unicodedata.normalize("NFC", "".join(
+        char for char in unicodedata.normalize("NFD", stem)
+        if char not in {"\u0300", "\u0301", "\u0342"}
+    ))
+
+
 def _classify_verb(headword):
     """Classify a verb into conjugation type and stem. Returns (conj_type, stem) or (None, None).
 
     The returned ``conj_type`` is the parameter-1 string that
-    ``Module:grc-conj`` understands. We support all rule-based
+    ``Module:grc-conj`` understands. We support identifiable rule-based
     dispatches the Lua module exposes (pres-con-{a,e,o},
     pres-{ami,emi,omi,numi,lumi}, plain pres). For genuinely
     irregular athematic verbs whose Wiktionary entries use
     ``pres-irreg`` (εἰμί, εἶμι, οἶδα, χρή, and their compounds),
     we return the sentinel ``conj_type='irreg'`` so the caller can
-    dispatch to ``_expand_irregular_compound`` instead of Lua.
+    dispatch to ``_expand_irregular_compound`` instead of Lua. Only exact
+    reviewed base paradigms are supported; compounds are withheld.
     """
+    # Slice endings only after canonical composition: in NFD an accented
+    # final vowel occupies more than one code point.
+    headword = unicodedata.normalize("NFC", headword)
     hw_plain = strip_diacritics(headword)
 
-    if hw_plain.endswith("εω"):
-        return "pres-con-e", strip_diacritics(headword[:-2])
+    if headword in _IRREGULAR_BASE_FORMS:
+        return "irreg", ""
+    elif hw_plain.endswith("φημι"):
+        # Surface -φημι is not enough to identify a φημί compound, and
+        # the preverb joiner does not preserve its accent or augment.
+        return None, None
+    elif hw_plain.endswith("εομαι"):
+        return "pres-con-e", _unaccented_verb_stem(headword[:-5])
+    elif hw_plain.endswith("αομαι"):
+        return "pres-con-a", _unaccented_verb_stem(headword[:-5])
+    elif hw_plain.endswith("οομαι"):
+        return "pres-con-o", _unaccented_verb_stem(headword[:-5])
+    elif hw_plain.endswith("ουμαι"):
+        # The contracted ending does not distinguish ε- and ο-contracts.
+        return None, None
+    elif hw_plain.endswith("ομαι"):
+        return "pres", _unaccented_verb_stem(headword[:-4])
+    elif hw_plain.endswith("μαι"):
+        # Athematic, perfect, and contracted middles need more evidence
+        # than this ending supplies. Keep their independent base entries.
+        return None, None
+    elif hw_plain.endswith("εω"):
+        return "pres-con-e", _unaccented_verb_stem(headword[:-2])
     elif hw_plain.endswith("αω"):
-        return "pres-con-a", strip_diacritics(headword[:-2])
+        return "pres-con-a", _unaccented_verb_stem(headword[:-2])
     elif hw_plain.endswith("οω"):
-        return "pres-con-o", strip_diacritics(headword[:-2])
+        return "pres-con-o", _unaccented_verb_stem(headword[:-2])
     # -όλλυμι (ὄλλυμι and compounds) uses pres-lumi, NOT pres-numi.
     # The Wiktionary stem strips back to '-ολ' (e.g. ἀπόλλυμι -> ἀπολ).
     # Detect *before* the more general -ννυμι rule which would otherwise
     # mis-route these to pres-numi.
     elif hw_plain.endswith("ολλυμι"):
-        return "pres-lumi", strip_diacritics(headword[:-4])
+        return "pres-lumi", _unaccented_verb_stem(headword[:-4])
     elif hw_plain.endswith("ννυμι"):
-        return "pres-numi", strip_diacritics(headword[:-5])
+        # Lua appends νυμι, so the first ν belongs to the lexical stem.
+        return "pres-numi", _unaccented_verb_stem(headword[:-4])
     elif hw_plain.endswith("νυμι"):
-        return "pres-numi", strip_diacritics(headword[:-4])
+        return "pres-numi", _unaccented_verb_stem(headword[:-4])
     # Irregular -ειμι compounds (εἰμί 'to be' / εἶμι 'to go' families).
     # These need pres-irreg with hand-coded forms; we route to the
     # irregular dispatcher rather than failing into a Lua error.
-    elif hw_plain.endswith("ειμι"):
+    elif hw_plain.endswith(("ειμι", "οιδα", "χρη")):
         return "irreg", ""
-    # -ημι: most are pres-emi (τίθημι, ἵημι, ἵστημι), but φημί is pres-ami
-    # with stem 'φ'. The single-consonant-stem case is the tell.
+    # φημί has already been handled by its explicit paradigm above.
     elif hw_plain.endswith("ημι"):
-        if len(hw_plain) == 3:
-            # φ + ημι would be 4 chars; this is only ημι itself
-            return "pres-emi", strip_diacritics(headword[:-3])
-        return "pres-emi", strip_diacritics(headword[:-3])
+        return "pres-emi", _unaccented_verb_stem(headword[:-3])
     elif hw_plain.endswith("ωμι"):
-        return "pres-omi", strip_diacritics(headword[:-3])
+        return "pres-omi", _unaccented_verb_stem(headword[:-3])
     elif hw_plain.endswith("αμι"):
-        return "pres-ami", strip_diacritics(headword[:-3])
-    elif hw_plain == "φημι" or hw_plain.endswith("φημι"):
-        # φημί and compounds (συμφημι, σύμφημι, πρόφημι) use pres-ami
-        # with consonant stem 'φ'. Only routes here if we didn't match
-        # the longer -ημι suffix above (we did, so this branch is mostly
-        # safety; the explicit irregular base for φημί covers it too).
-        return "irreg", ""
+        return "pres-ami", _unaccented_verb_stem(headword[:-3])
     elif hw_plain.endswith("μι"):
         # No remaining rule-based dispatch handles a generic '-μι'
         # ending. Most surviving cases are mis-OCR'd or unusual; route
@@ -1343,43 +1366,39 @@ def _classify_verb(headword):
         # known base matches.
         return "irreg", ""
     elif hw_plain.endswith("ω"):
-        return "pres", strip_diacritics(headword[:-1])
-    elif hw_plain.endswith("μαι"):
-        return "pres", strip_diacritics(headword[:-3])
+        return "pres", _unaccented_verb_stem(headword[:-1])
     return None, None
 
 
-def _build_suffix_cache(forms, stem):
-    """Extract suffix patterns from expanded forms relative to the stem.
+def verb_entry_rejection(head_text: str) -> str:
+    """Keep nonparadigmatic entries out of unrestricted Lua expansion.
 
-    Returns list of suffixes where each form = stem_prefix + suffix.
-    The stem_prefix is the longest common prefix between stem and form.
+    A headword's ending alone does not make it a verb citation form. Keep
+    ordinary verb entries that begin by documenting a person or tense: an
+    imperative reference must explicitly identify another verb as its owner.
     """
-    stem_plain = strip_diacritics(stem.lower())
-    suffixes = []
-    for form in forms:
-        form_plain = strip_diacritics(form.lower())
-        # Find how much of the stem matches the beginning of the form
-        match_len = 0
-        for i in range(min(len(stem_plain), len(form_plain))):
-            if stem_plain[i] == form_plain[i]:
-                match_len = i + 1
-            else:
-                break
-        if match_len > 0:
-            suffixes.append(form_plain[match_len:])
-    return suffixes
-
-
-def _apply_suffix_cache(stem, suffixes, headword):
-    """Apply cached suffix patterns to a new stem. Returns set of forms."""
-    stem_plain = strip_diacritics(stem.lower())
-    forms = set()
-    for suffix in suffixes:
-        form = stem_plain + suffix
-        if len(form) > 1:
-            forms.add(form)
-    return forms
+    lead = head_text.lstrip(" ,*")
+    if re.match(r"(?:insep\.\s+)?prefix\b", lead, re.IGNORECASE):
+        return "prefix-headword"
+    if re.match(
+        r"(?:\[[^\]]*\][,\s]*)?"
+        r"(?:(?:late|earlier|epic)\s+form\s+(?:for|of)\s+[^,]+,\s*)?"
+        r"[123]\s*(?:sg|pl|du)\.\s*(?:(?:sg|pl|du)\.\s*)?"
+        r"imper(?:at)?\.\s*(?:(?:pf|pres|aor|pass)\.\s*)*"
+        r"(?:of|from)\s+",
+        lead, re.IGNORECASE,
+    ):
+        return "inflected-imperative-headword"
+    # Some defective verbs explicitly license only particular persons.
+    # A regular template would invent the rest of their paradigm; retain
+    # source-attested forms through extraction instead. Ignore Markdown
+    # emphasis in the dictionary text when recognizing this restriction.
+    if re.search(
+        r"\botherwise\s+only\s+in\s+[123]\s*(?:sg|pl|du)\.",
+        head_text.replace("*", ""), re.IGNORECASE,
+    ):
+        return "person-limited-verb-entry"
+    return ""
 
 
 def expand_verb(wtp, headword, head_text: str = ""):
@@ -1392,66 +1411,60 @@ def expand_verb(wtp, headword, head_text: str = ""):
     their paradigms are unioned in. Without ``head_text`` the function
     behaves exactly as before (present-system only).
 
-    Uses a cache keyed by conjugation type: if we've already expanded a
-    verb with the same conj_type, apply the suffix pattern instead of
-    calling Lua.
+    Memoizes only identical present-system requests. Other verbs of the
+    same conjugation still require their own marked paradigm from Lua.
     """
+    rejection = verb_entry_rejection(head_text)
+    if rejection:
+        return set(), rejection
     # Reject obviously corrupt OCR'd headwords up front: they would only
     # produce Lua errors and zero forms.
     if _is_corrupt_headword(headword):
         return set(), "corrupt-headword"
 
+    headword = unicodedata.normalize("NFC", headword)
     conj_type, stem = _classify_verb(headword)
     if conj_type is None:
+        plain = strip_diacritics(headword)
+        if plain.endswith("φημι"):
+            return set(), "unsupported-phemi-family"
+        if plain.endswith("μαι"):
+            return set(), "unsupported-middle-ending"
         return set(), f"unknown-ending:{headword[-3:]}"
 
-    # Irregular verbs (εἰμί / εἶμι / οἶδα / χρή / φημί and compounds): use
-    # the hand-coded paradigm + preverb-prepending rather than Lua.
-    # Principal-parts expansion is skipped for these because the
-    # hand-coded paradigm already covers all attested tenses.
+    # Literal irregular bases use their explicit paradigms. A compound
+    # requires independently supported accent, augment, and family rules;
+    # keep its source mappings instead of inventing a marked paradigm.
     if conj_type == "irreg":
         forms = _expand_irregular_compound(headword)
         if forms:
             return forms, ""
+        preverb, base = _split_preverb(headword)
+        if preverb and _strip_diacritics_lower(base) in _IRREGULAR_BASE_STEMS:
+            return set(), "unsupported-irregular-compound"
         return set(), "irregular-no-base-match"
 
     # Present-system expansion (with cache).
     forms: set[str] = set()
     err = ""
-    if conj_type in _VERB_CACHE:
-        forms = _apply_suffix_cache(stem, _VERB_CACHE[conj_type], headword)
+    # A middle headword supports only its middle/passive present system;
+    # the default template would also invent an active paradigm.
+    voice = "mp" if headword.endswith("μαι") else ""
+    cache_key = (headword, conj_type, stem, voice)
+    if cache_key in _VERB_CACHE:
+        forms = set(_VERB_CACHE[cache_key])
     if not forms:
         # Cache miss or empty cached result - call Lua.
-        template = "{{grc-conj|" + conj_type + "|" + stem + "}}"
+        template = ("{{grc-conj|" + conj_type + "|" + stem
+                    + ("|form=" + voice if voice else "") + "}}")
         try:
             wtp.start_page(headword)
             html = wtp.expand(template)
             forms = parse_html_forms(html, headword)
         except Exception as e:
             err = str(e)
-            # For -μι verbs that fail Lua dispatch, fall back to
-            # pres-emi (a real conjugation type), then plain 'pres'
-            # for thematic.
-            if conj_type.startswith("pres-") and conj_type != "pres":
-                for fallback in ["pres-emi", "pres"]:
-                    if fallback == conj_type:
-                        continue
-                    try:
-                        template = ("{{grc-conj|" + fallback + "|"
-                                    + stem + "}}")
-                        wtp.start_page(headword)
-                        html = wtp.expand(template)
-                        fallback_forms = parse_html_forms(html, headword)
-                        if fallback_forms:
-                            _VERB_CACHE[conj_type] = _build_suffix_cache(
-                                fallback_forms, stem)
-                            forms = fallback_forms
-                            err = ""
-                            break
-                    except Exception:
-                        continue
-        if forms and conj_type not in _VERB_CACHE:
-            _VERB_CACHE[conj_type] = _build_suffix_cache(forms, stem)
+        if forms:
+            _VERB_CACHE[cache_key] = frozenset(forms)
 
     if err and not forms:
         return set(), err
@@ -1618,6 +1631,7 @@ def expand_all():
     """Expand LSJ-only nouns and merge into ag_lookup.json."""
     import time
 
+    input_hashes = noun_generation_input_hashes()
     print("Loading data...")
     lsj_entries = parse_lsj_entries()
     wikt = load_wiktionary_forms()
@@ -1634,6 +1648,9 @@ def expand_all():
 
     # Find LSJ-only nouns with gender
     candidates = []
+    genitive_audit = {}
+    withheld = Counter()
+    superseded = set()
     for hw, entry in lsj_entries.items():
         if has_editorial_sigla(hw):
             continue
@@ -1641,8 +1658,19 @@ def expand_all():
             continue  # already covered by Wiktionary
         if not entry["gender"]:
             continue  # no gender = can't decline
-        if not entry["genitive"] and not infer_genitive(hw, entry["gender"], wikt_genitives):
-            continue  # no genitive info at all
+        supplied = entry["genitive"]
+        resolved, error = resolve_noun_genitive(hw, entry["gender"], supplied,
+                                               wikt_genitives)
+        error = error or noun_expansion_error(hw, resolved)
+        if (error == "unsupported-irregular-noun" or
+                (supplied and not _genitive_is_junk(supplied) and (error or resolved != supplied))):
+            superseded.add(sanitize_form(hw))
+        if error or resolved != supplied:
+            genitive_audit[hw] = {"supplied": supplied, "resolved": resolved,
+                                  "reason": error or "completed-genitive"}
+        if error:
+            withheld[error] += 1
+            continue
         candidates.append(hw)
 
     print(f"LSJ-only nouns to expand: {len(candidates):,}")
@@ -1650,6 +1678,7 @@ def expand_all():
     wtp = get_wtp()
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0}
+    failures = Counter()
     t0 = time.time()
 
     for i, hw in enumerate(candidates):
@@ -1659,6 +1688,7 @@ def expand_all():
 
         if err or not forms:
             stats["failed"] += 1
+            failures[err or "empty-noun-paradigm"] += 1
             continue
 
         stats["expanded"] += 1
@@ -1668,7 +1698,7 @@ def expand_all():
         # lemmas whose citation form starts with U+1FBF. sanitize_form()
         # reattaches the breathing to the base letter and NFC-composes.
         hw_clean = sanitize_form(hw)
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 # Accented version
                 if form not in lookup:
@@ -1699,6 +1729,8 @@ def expand_all():
     print(f"\nDone in {elapsed:.0f}s")
     print(f"  Expanded: {stats['expanded']:,} / {len(candidates):,} nouns")
     print(f"  Failed: {stats['failed']:,}")
+    print(f"  Withheld before Lua: {dict(sorted(withheld.items()))}")
+    print(f"  Lua failures: {dict(sorted(failures.items()))}")
     print(f"  New forms added: {stats['new_forms']:,}")
     print(f"  Collisions (kept existing): {stats['collisions']:,}")
     print(f"  Lookup size: {original_size:,} -> {len(lookup):,}")
@@ -1710,6 +1742,16 @@ def expand_all():
         json.dump(lookup, f, ensure_ascii=False)
     size_mb = out_path.stat().st_size / (1024 * 1024)
     print(f"  {size_mb:.1f} MB written")
+    audit_path = out_path.with_name("ag_noun_generation_audit.json")
+    audit_path.write_text(json.dumps({
+        "schema_version": 1,
+        "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "input_sha256": input_hashes,
+        "superseded_lemmas": sorted(superseded),
+        "withheld": dict(sorted(withheld.items())),
+        "failures": dict(sorted(failures.items())),
+        "resolutions": dict(sorted(genitive_audit.items())),
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def expand_verbs():
@@ -1748,14 +1790,30 @@ def expand_verbs():
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0,
              "with_pp": 0}
+    failure_reasons = Counter()
+    failure_examples = {}
     t0 = time.time()
 
     for i, hw in enumerate(candidates):
         head_text = head_texts.get(hw, "")
-        forms, err = expand_verb(wtp, hw, head_text=head_text)
+        # Entry selection strips quantity marks, but its original spelling
+        # still identifies the source description (ἡμῐ is a prefix). Use
+        # that description for the eligibility check without changing the
+        # principal-part lookup or merging distinct lexical headwords.
+        description = head_texts.get(lsj_entries[hw].get("orth_orig"), head_text)
+        rejection = verb_entry_rejection(description)
+        if rejection:
+            forms, err = set(), rejection
+        else:
+            forms, err = expand_verb(wtp, hw, head_text=head_text)
 
         if err or not forms:
             stats["failed"] += 1
+            reason = err.splitlines()[0][:160] if err else "empty-paradigm"
+            failure_reasons[reason] += 1
+            examples = failure_examples.setdefault(reason, [])
+            if len(examples) < 3:
+                examples.append(hw)
             continue
 
         stats["expanded"] += 1
@@ -1769,7 +1827,7 @@ def expand_verbs():
 
         # See sanitize_form() rationale in expand_all() above.
         hw_clean = sanitize_form(hw)
-        for raw_form in forms:
+        for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
                     lookup[form] = hw_clean
@@ -1799,6 +1857,8 @@ def expand_verbs():
     print(f"  Expanded: {stats['expanded']:,} / {len(candidates):,} verbs")
     print(f"  With LSJ principal parts: {stats['with_pp']:,}")
     print(f"  Failed: {stats['failed']:,}")
+    for reason, count in failure_reasons.most_common():
+        print(f"    {reason}: {count:,} ({', '.join(failure_examples[reason])})")
     print(f"  New forms added: {stats['new_forms']:,}")
     print(f"  Collisions (kept existing): {stats['collisions']:,}")
     print(f"  Lookup size: {original_size:,} -> {len(lookup):,}")

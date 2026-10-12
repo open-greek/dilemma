@@ -17,6 +17,7 @@ Run with:
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,88 @@ def b():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+class TestCorpusOnlySynthesisEvidence:
+    @staticmethod
+    def build(b, monkeypatch, tmp_path, *, corpus, wiki=(), heads=()):
+        lexical = tmp_path / "grc_lexical_heads.json"
+        lexical.write_text(json.dumps({"heads": {
+            head: ["independent_lexicon"] for head in heads}}))
+        monkeypatch.setattr(b, "LEXICAL_HEADS_PATH", lexical)
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: (
+            list(wiki) if path == b.AG_PAIRS else list(corpus)))
+        monkeypatch.setattr(b, "load_lsj_head_texts", lambda: {})
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        return b.build_paradigms()
+
+    @staticmethod
+    def row(lemma, form, *tags):
+        return {"lemma": lemma, "form": form, "pos": "verb", "tags": list(tags)}
+
+    @pytest.mark.parametrize("lemma,form,voice", [
+        ("τείνοιυνω", "τείνουσης", "active"),
+        ("λύομαι", "λύεται", "middle"),
+    ])
+    def test_unsupported_head_keeps_observation_without_inferred_cells(
+            self, b, monkeypatch, tmp_path, lemma, form, voice):
+        row = self.row(lemma, form, voice, "present", "indicative",
+                       "third-person", "singular")
+        result = self.build(b, monkeypatch, tmp_path, corpus=[row])[lemma]
+        assert result["forms"] == {f"{voice}_present_indicative_3sg": form}
+        assert result["form_count"] == 1
+
+    def test_unsupported_dialect_only_head_preserves_default_and_dialect(
+            self, b, monkeypatch, tmp_path):
+        row = self.row("τείνοιυνω", "τείνουσης", "active", "present",
+                       "participle", "genitive", "feminine", "singular", "Epic")
+        result = self.build(b, monkeypatch, tmp_path, corpus=[row])["τείνοιυνω"]
+        observed = {"active_present_participle_gen_f_sg": "τείνουσης"}
+        assert result["forms"] == observed
+        assert result["dialects"] == {"epic": observed}
+        assert result["form_count"] == 1
+
+    @pytest.mark.parametrize("head", ["λύω", "Λύω", "λύ̆ω"])
+    def test_exact_independent_head_authorizes_citation_and_both_synthesis_passes(
+            self, b, monkeypatch, tmp_path, head):
+        row = self.row("λύω", "λύει", "active", "present", "indicative",
+                       "third-person", "singular")
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[row],
+                           heads=[head])["λύω"]["forms"]
+        assert forms["active_present_indicative_1sg"] == "λύω"
+        assert forms["active_present_optative_1sg"] == "λύοιμι"
+        assert forms["active_present_participle_nom_m_sg"] == "λύων"
+
+    def test_different_accent_does_not_authorize_synthesis(
+            self, b, monkeypatch, tmp_path):
+        row = self.row("λύω", "λύει", "active", "present", "indicative",
+                       "third-person", "singular")
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[row],
+                           heads=["λυῶ"])["λύω"]["forms"]
+        assert forms == {"active_present_indicative_3sg": "λύει"}
+
+    def test_surviving_wiktionary_owner_preserves_existing_synthesis(
+            self, b, monkeypatch, tmp_path):
+        corpus = self.row("λύω", "λύει", "active", "present", "indicative",
+                          "third-person", "singular")
+        wiki = self.row("λύω", "λύει", "form-of")
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[corpus],
+                           wiki=[wiki])["λύω"]["forms"]
+        assert forms["active_present_indicative_1sg"] == "λύω"
+        assert forms["active_present_optative_1sg"] == "λύοιμι"
+        assert forms["active_present_participle_nom_m_sg"] == "λύων"
+
+    def test_only_collapsed_wiktionary_rows_do_not_authorize_synthesis(
+            self, b, monkeypatch, tmp_path):
+        corpus = self.row("τιμάω", "τιμᾷ", "active", "present", "indicative",
+                          "third-person", "singular")
+        wiki = [self.row("τιμάω", form, "active", "present", "indicative",
+                         "first-person", "singular")
+                for form in ("τιμῶ", "τιμᾷς", "τιμᾷ", "τιμῶμεν", "τιμᾶτε", "τιμῶσι")]
+        forms = self.build(b, monkeypatch, tmp_path, corpus=[corpus],
+                           wiki=wiki)["τιμάω"]["forms"]
+        assert forms == {"active_present_indicative_3sg": "τιμᾷ"}
 
 
 # ---------------------------------------------------------------------------
@@ -1099,6 +1182,111 @@ class TestAuxiliaryForms:
         assert "εἴην" in b.EIMI_AUXILIARY_FORMS
         assert "ὦ" in b.EIMI_AUXILIARY_FORMS
 
+    @pytest.mark.parametrize("form", ["είμεν", "είτε", "είεν"])
+    def test_monotonic_perfect_optative_auxiliary_is_excluded(self, b, form):
+        assert b.is_periphrastic_auxiliary(
+            form, "τύπτω", ["middle", "perfect", "optative", "plural"])
+
+    @pytest.mark.parametrize("form,lemma,tags", [
+        ("εἷμεν", "ἵημι", ["active", "aorist", "optative"]),
+        ("εἷτε", "ἵημι", ["active", "aorist", "optative"]),
+        ("είμεν", "ἵημι", ["active", "aorist", "optative"]),
+        ("είτε", "ἵημι", ["active", "aorist", "optative"]),
+        ("ἑστῶ", "ἵστημι", ["active", "perfect", "imperative"]),
+        ("ἔστω", "ἵστημι", ["middle", "aorist", "indicative"]),
+        ("ἔστω", "ἵστημι", ["middle", "indicative", "imperative"]),
+        ("είτε", "ἵημι", ["active", "aorist", "perfect", "optative"]),
+        ("είτε", "ἵημι", ["active", "perfect", "optative", "indicative"]),
+        ("είτε", "τύπτω", ["middle", "perfect"]),
+        ("είτε", "τύπτω", ["middle", "optative"]),
+        ("είτε", "εἰμί", ["active", "perfect", "optative"]),
+        ("είτε", "εἶμι", ["active", "perfect", "optative"]),
+    ])
+    def test_independent_homographs_and_partial_context_survive(self, b, form,
+                                                               lemma, tags):
+        assert not b.is_periphrastic_auxiliary(form, lemma, tags)
+
+    @pytest.mark.parametrize("source", ["AG_PAIRS", "GLAUX_PAIRS"])
+    def test_auxiliary_copies_never_enter_a_paradigm(self, b, monkeypatch,
+                                                    tmp_path, source):
+        rows = [{"form": "τύπτω", "lemma": "τύπτω", "pos": "verb",
+                 "tags": ["active", "present", "indicative", "first-person",
+                          "singular"]}]
+        rows += [{"form": form, "lemma": "τύπτω", "pos": "verb",
+                  "tags": ["middle", "perfect", "optative", person, "plural"]}
+                 for form, person in (("είμεν", "first-person"),
+                                      ("είτε", "second-person"),
+                                      ("είεν", "third-person"))]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        source_path = getattr(b, source)
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == source_path else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        forms = b.build_paradigms()["τύπτω"]["forms"]
+        assert not any(key.startswith("middle_perfect_optative_") for key in forms)
+
+
+class TestStemlessPassiveAorist:
+    @pytest.mark.parametrize("form,key", [
+        ("ῆν", "passive_aorist_indicative_1sg"),
+        ("ῆσαν", "passive_aorist_indicative_3pl"),
+        ("ῇς", "passive_aorist_subjunctive_2sg"),
+        ("ῶσιν", "passive_aorist_subjunctive_3pl"),
+        ("εῖτε", "passive_aorist_optative_2pl"),
+        ("είτε", "passive_aorist_optative_2pl"),
+        ("ῆθι", "passive_aorist_imperative_2sg"),
+        ("ῆναι", "passive_aorist_infinitive"),
+        ("εἶσᾰ", "passive_aorist_participle_nom_f_sg"),
+    ])
+    def test_an_ending_cannot_supply_its_own_passive_stem(self, b, form, key):
+        assert b.is_stemless_passive_aorist(form, key)
+
+    @pytest.mark.parametrize("form,key", [
+        ("τυπῆναι", "passive_aorist_infinitive"),
+        ("τυπῆτε", "passive_aorist_optative_2pl"),
+        ("τυπεῖτε", "passive_aorist_optative_2pl"),
+        ("ἐτύπην", "passive_aorist_indicative_1sg"),
+        ("τύψαι", "active_aorist_infinitive"),
+        ("εἷτε", "active_aorist_optative_2pl"),
+        ("εἷναι", "active_aorist_infinitive"),
+        ("ἦν", "active_imperfect_indicative_3sg"),
+    ])
+    def test_complete_forms_and_independent_homographs_survive(self, b, form, key):
+        assert not b.is_stemless_passive_aorist(form, key)
+
+    @pytest.mark.parametrize("source", ["AG_PAIRS", "GLAUX_PAIRS"])
+    def test_bad_passive_table_does_not_consume_other_dialect_cells(self, b,
+                                                                  monkeypatch,
+                                                                  tmp_path,
+                                                                  source):
+        rows = [
+            {"form": "τύπτω", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["active", "present", "indicative", "first-person", "singular"]},
+            {"form": "τύψαι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["active", "aorist", "infinitive", "Ionic"]},
+            {"form": "τυπῆναι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "infinitive", "Attic"]},
+            {"form": "τυπήμεναι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "infinitive", "Epic"]},
+            {"form": "ῆναι", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "infinitive", "Ionic"]},
+            {"form": "εῖτε", "lemma": "τύπτω", "pos": "verb",
+             "tags": ["passive", "aorist", "optative", "second-person", "plural", "Ionic"]},
+        ]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        source_path = getattr(b, source)
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == source_path else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["τύπτω"]
+        assert result["forms"]["passive_aorist_infinitive"] == "τυπῆναι"
+        assert result["dialects"]["epic"]["passive_aorist_infinitive"] == "τυπήμεναι"
+        assert result["dialects"]["ionic"]["active_aorist_infinitive"] == "τύψαι"
+        assert not any(k.startswith("passive_aorist_")
+                       for k in result["dialects"]["ionic"])
+
 
 class TestPolytonicPoolNoLongerDropsAtticForms:
     def test_circumflex_does_not_eliminate_an_acute_rival(self, b):
@@ -1179,14 +1367,14 @@ class TestStripTonalAccents:
 class TestKeyCellTags:
     def test_finite_participle_and_infinitive_keys(self, b):
         assert b.key_cell_tags("active_aorist_optative_3sg") == frozenset(
-            {"active", "optative", "third-person", "singular"})
+            {"active", "aorist", "optative", "third-person", "singular"})
         assert b.key_cell_tags("middle_aorist_imperative_2sg") == frozenset(
-            {"middle", "imperative", "second-person", "singular"})
+            {"middle", "aorist", "imperative", "second-person", "singular"})
         assert b.key_cell_tags("active_present_participle_nom_n_sg") == (
-            frozenset({"active", "participle", "nominative", "neuter",
+            frozenset({"active", "present", "participle", "nominative", "neuter",
                        "singular"}))
         assert b.key_cell_tags("active_aorist_infinitive") == frozenset(
-            {"active", "infinitive"})
+            {"active", "aorist", "infinitive"})
 
 
 class TestWiktionaryCells:
@@ -1231,6 +1419,145 @@ class TestWiktionaryCells:
             {"form": "λῦσᾰν", "lemma": "λύω", "pos": "verb",
              "tags": ["active", "neuter", "participle"]}])
         assert ("λύω", "λῦσαν") in cells
+
+    def test_partially_collapsed_row_cannot_restore_a_removed_dialect(self, b):
+        tags = ["active", "aorist", "infinitive", "Attic"]
+        rows = [{"form": form, "lemma": "κυλίνδω", "tags": tags}
+                for form in ("κυλίσειν", "κυλισάμεν", "κυλισάμεναι")]
+        rows.append({"form": "κυλίσαι", "lemma": "κυλίνδω",
+                     "tags": [*tags, "Epic"]})
+        kept, _, _ = b.drop_collapsed_cells(rows)
+        assert len(kept) == 1
+        assert kept[0]["_paradigm_readings"] == (("active_aorist_infinitive", "epic"),)
+        assert b.wiktionary_cells(kept, dialect="") == ({}, {})
+        assert b.wiktionary_spellings(kept, dialect="") == ({}, set())
+        cells, letters = b.wiktionary_cells(kept, dialect="epic")
+        assert ("κυλίνδω", "κυλίσαι") in cells
+        spellings, _ = b.wiktionary_spellings(kept, dialect="epic")
+        assert b.spelling_for_cell("κυλίνδω", "active_aorist_infinitive",
+                                   "κυλῖσαι", spellings, cells, letters) == "κυλίσαι"
+
+    def test_removed_cells_cannot_decide_another_cells_accent(self, b):
+        rows = [{"form": "κυλίσαι", "lemma": "κυλίνδω",
+                 "tags": ["active", "aorist", "infinitive", "optative"],
+                 "_paradigm_keys": ("active_aorist_optative_3sg",)}]
+        cells, letters = b.wiktionary_cells(rows, dialect="")
+        spellings, _ = b.wiktionary_spellings(rows, dialect="")
+        assert b.spelling_for_cell("κυλίνδω", "active_aorist_infinitive",
+                                   "κυλῖσαι", spellings, cells, letters) == "κυλῖσαι"
+
+
+class TestCellSpellingBoundary:
+    @pytest.mark.parametrize("lemma,key,selected,other,tags", [
+        ("ἰαύω", "active_aorist_optative_3sg", "ἰαύσαι", "ἰαῦσαι",
+         ["active", "aorist", "infinitive"]),
+        ("ἀλέξω", "active_aorist_optative_3sg", "ἀλεξήσαι", "ἀλεξῆσαι",
+         ["active", "aorist", "infinitive"]),
+        ("ὄζω", "middle_aorist_imperative_2sg", "ὄζησαι", "ὀζήσαι",
+         ["active", "aorist", "optative", "third-person", "singular"]),
+        ("ἐκτέμνω", "active_future_participle_nom_m_sg", "ἐκτεμῶν", "ἐκτεμών",
+         ["active", "aorist", "participle", "masculine"]),
+    ])
+    def test_another_cell_cannot_reaccent_a_selected_form(self, b, lemma, key,
+                                                       selected, other, tags):
+        rows = [{"form": other, "lemma": lemma, "tags": tags}]
+        cells, by_letters = b.wiktionary_cells(rows)
+        spellings, _ = b.wiktionary_spellings(rows)
+        assert b.spelling_for_cell(lemma, key, selected, spellings,
+                                   cells, by_letters) == selected
+
+    def test_same_cell_can_still_correct_an_accent(self, b):
+        cells, by_letters = b.wiktionary_cells([
+            {"form": "βαῖνον", "lemma": "βαίνω",
+             "tags": ["active", "participle", "neuter"]}])
+        spellings = {("βαίνω", b.accent_type_skeleton("βαίνον")): "βαῖνον"}
+        assert b.spelling_for_cell("βαίνω", "active_present_participle_acc_n_sg",
+                                   "βαίνον", spellings, cells, by_letters) == "βαῖνον"
+
+    def test_unique_cell_evidence_wins_when_global_choice_matches_input(self, b):
+        rows = [
+            {"form": "κυλῖσαι", "lemma": "κυλίνδω",
+             "tags": ["active", "aorist", "infinitive"]},
+            {"form": "κυλίσαι", "lemma": "κυλίνδω",
+             "tags": ["active", "aorist", "optative", "third-person", "singular"]},
+        ]
+        cells, letters = b.wiktionary_cells(rows)
+        spellings = {("κυλίνδω", b.accent_type_skeleton("κυλίσαι")): "κυλίσαι"}
+        assert b.spelling_for_cell("κυλίνδω", "active_aorist_infinitive",
+                                   "κυλίσαι", spellings, cells, letters) == "κυλῖσαι"
+
+    @pytest.mark.parametrize("only_dialect", [False, True])
+    def test_final_build_uses_its_own_dialect_evidence(self, b, monkeypatch,
+                                                     tmp_path, only_dialect):
+        lemma = "ἐκμολεῖν" if only_dialect else "κυλίνδω"
+        rows = [{"form": "κυλίσαι", "lemma": lemma, "pos": "verb",
+                 "tags": ["active", "aorist", "infinitive", "Epic"]}]
+        if not only_dialect:
+            rows.append({"form": "κυλῖσαι", "lemma": lemma, "pos": "verb",
+                         "tags": ["active", "aorist", "infinitive"]})
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "corpus_count", lambda form: 10 if form == "κυλίσαι" else 1)
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()[lemma]
+        assert result["forms"]["active_aorist_infinitive"] == (
+            "κυλίσαι" if only_dialect else "κυλῖσαι")
+        assert result["dialects"]["epic"]["active_aorist_infinitive"] == "κυλίσαι"
+
+    def test_tagless_spelling_cannot_reaccent_a_cell(self, b):
+        spellings = {("βαίνω", b.accent_type_skeleton("βαίνον")): "βαῖνον"}
+        assert b.spelling_for_cell("βαίνω", "active_present_participle_acc_n_sg",
+                                   "βαίνον", spellings, {}, {}) == "βαίνον"
+
+    @pytest.mark.parametrize("lemma,optative,infinitive", [
+        ("πείθω", "πείσαι", "πεῖσαι"),
+        ("ἀγαθοποιέω", "ἀγαθοποιήσαι", "ἀγαθοποιῆσαι"),
+        ("ἀπιστέω", "ἀπιστήσαι", "ἀπιστῆσαι"),
+    ])
+    def test_tagless_infinitive_preserves_generated_default_optative(
+            self, b, monkeypatch, tmp_path, lemma, optative, infinitive):
+        rows = [
+            {"form": lemma, "lemma": lemma, "pos": "verb",
+             "tags": ["active", "present", "indicative", "first-person", "singular"]},
+            {"form": infinitive, "lemma": lemma, "pos": "verb",
+             "tags": ["form-of"]},
+            {"form": optative, "lemma": lemma, "pos": "verb",
+             "tags": ["active", "aorist", "optative", "third-person", "singular", "Epic"]},
+        ]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        def synthesize(results, *args):
+            forms = results[lemma]["forms"]
+            forms["active_aorist_optative_3sg"] = optative
+            forms["active_aorist_infinitive"] = infinitive
+            results[lemma]["form_count"] = len(forms)
+        monkeypatch.setattr(b, "synthesize_missing_moods", synthesize)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()[lemma]
+        assert result["forms"]["active_aorist_optative_3sg"] == optative
+        assert result["forms"]["active_aorist_infinitive"] == infinitive
+        assert result["dialects"]["epic"]["active_aorist_optative_3sg"] == optative
+
+    def test_final_build_keeps_generated_optative_distinct_from_infinitive(self, b,
+                                                                         monkeypatch,
+                                                                         tmp_path):
+        rows = [{"form": "ἰαῦσαι", "lemma": "ἰαύω", "pos": "verb",
+                 "tags": ["active", "aorist", "infinitive"]}]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        def synthesize(results, *args):
+            forms = results["ἰαύω"]["forms"]
+            forms["active_aorist_optative_3sg"] = "ἰαύσαι"
+            results["ἰαύω"]["form_count"] = len(forms)
+        monkeypatch.setattr(b, "synthesize_missing_moods", synthesize)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["ἰαύω"]["forms"]
+        assert result["active_aorist_optative_3sg"] == "ἰαύσαι"
+        assert result["active_aorist_infinitive"] == "ἰαῦσαι"
 
 
 class TestDropCollapsedCells:
@@ -1281,3 +1608,152 @@ class TestDropCollapsedCells:
         pairs = [{"form": "τιμῶ", "lemma": "τιμάω", "pos": "verb",
                   "tags": ["active", "indicative"]}]
         assert b.drop_collapsed_cells(pairs)[0] == pairs
+
+    @pytest.mark.parametrize("lemma,forms", [
+        ("αἰσχόω", ("αἰσχόω", "αισχόω", "αἰσχῶ", "αισχώ")),
+        ("ἀκριτομυθέω", ("ἀκριτομυθέω", "ακριτομυθέω",
+                          "ἀκριτομυθῶ", "ακριτομυθώ")),
+        ("ἀπιχθυόομαι", ("ἀπιχθυόομαι", "απιχθυόομαι",
+                         "ἀπιχθυοῦμαι", "απιχθυούμαι")),
+        ("ἐκλιστράω", ("ἐκλιστράω", "εκλιστράω",
+                        "ἐκλιστρῶ", "εκλιστρώ")),
+    ])
+    def test_contract_variants_with_simplified_copies_survive(self, b, lemma, forms):
+        # All four entries are source variants of the same explicit cell.
+        voice = "passive" if lemma.endswith("μαι") else "active"
+        pairs = [{"form": form, "lemma": lemma, "pos": "verb",
+                  "tags": [voice, "present", "indicative", "first-person",
+                           "singular"]} for form in forms]
+        kept, cells, dropped = b.drop_collapsed_cells(pairs)
+        assert kept == pairs
+        assert (cells, dropped) == (0, 0)
+
+    @pytest.mark.parametrize("forms", [
+        ("τιμᾷς", "τιμάς", "τιμᾶς", "τιμᾱς"),
+        ("προΐῃ", "προίη", "προΐη", "προῑη"),
+    ])
+    def test_diacritics_and_quantity_do_not_inflate_letter_count(self, b, forms):
+        pairs = [{"form": form, "lemma": "τιμάω", "pos": "verb",
+                  "tags": ["active", "present", "subjunctive", "second-person",
+                           "singular"]} for form in forms]
+        assert b.drop_collapsed_cells(pairs) == (pairs, 0, 0)
+
+    def test_simplified_copies_do_not_hide_a_true_person_number_collapse(self, b):
+        pairs = self.COLLAPSED + [
+            {**row, "form": b.strip_accents(row["form"])}
+            for row in self.COLLAPSED]
+        kept, cells, dropped = b.drop_collapsed_cells(pairs)
+        assert kept == []
+        assert (cells, dropped) == (1, len(pairs))
+
+    def test_collapsed_middle_reading_keeps_independent_passive_reading(self, b):
+        pairs = [{"form": f, "lemma": "λύω", "pos": "verb",
+                  "tags": ["middle", "present", "indicative", "first-person", "singular"]}
+                 for f in ("λύομαι", "λύει", "λύεται", "λυόμεθα")]
+        pairs[0]["tags"].append("passive")
+        kept, cells, dropped = b.drop_collapsed_cells(pairs)
+        assert (cells, dropped) == (1, 3)
+        assert len(kept) == 1 and kept[0]["form"] == "λύομαι"
+        assert kept[0]["_paradigm_keys"] == ("passive_present_indicative_1sg",)
+
+    def test_independent_dialect_variants_do_not_form_a_collapsed_cell(self, b):
+        rows = [
+            {"form": form, "lemma": "ἔρχομαι", "pos": "verb",
+             "tags": ["active", "aorist", "indicative", "first-person", "singular", dialect]}
+            for form, dialect in (("ἦλθον", "Attic"), ("ἤλυθον", "Epic"),
+                                  ("ἦνθον", "Doric"), ("ἦλθα", "Koine"))
+        ]
+        assert b.drop_collapsed_cells(rows) == (rows, 0, 0)
+
+    def test_collapsed_attic_cell_keeps_independent_doric_reading(self, b):
+        rows = [{**row, "tags": row["tags"] + ["Attic"]} for row in self.COLLAPSED]
+        rows[0]["tags"].append("Doric")
+        kept, cells, dropped = b.drop_collapsed_cells(rows)
+        assert (cells, dropped) == (1, len(rows) - 1)
+        assert len(kept) == 1 and kept[0]["form"] == "τιμῶ"
+        assert kept[0]["_paradigm_readings"] == (
+            ("active_present_indicative_1sg", "doric"),)
+
+    def test_default_and_explicit_attic_share_the_same_collapse_guard(self, b):
+        rows = [{**row, "tags": row["tags"] + (["Attic"] if i % 2 else [])}
+                for i, row in enumerate(self.COLLAPSED)]
+        assert b.drop_collapsed_cells(rows) == ([], 1, len(rows))
+
+    def test_filtered_dialect_cannot_leak_back_during_paradigm_build(self, b, monkeypatch, tmp_path):
+        rows = [{**row, "tags": row["tags"] + ["Attic"]} for row in self.COLLAPSED]
+        rows[0]["tags"].append("Doric")
+        rows.append({"form": "τιμᾷς", "lemma": "τιμάω", "pos": "verb",
+                     "tags": ["active", "present", "indicative", "second-person", "singular"]})
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["τιμάω"]
+        assert result["forms"]["active_present_indicative_1sg"] == "τιμάω"
+        assert result["dialects"]["doric"]["active_present_indicative_1sg"] == "τιμῶ"
+
+    def test_distinct_dialect_stems_keep_their_own_paradigm_cells(self, b, monkeypatch, tmp_path):
+        forms = {"Attic": "ἦλθον", "Epic": "ἤλυθον", "Doric": "ἦνθον", "Koine": "ἦλθα"}
+        rows = [{"form": form, "lemma": "ἔρχομαι", "pos": "verb",
+                 "tags": ["active", "aorist", "indicative", "first-person", "singular", dialect]}
+                for dialect, form in forms.items()]
+        monkeypatch.setattr(b, "LSJ_HEADWORDS_PATH", tmp_path / "absent")
+        monkeypatch.setattr(b, "load_pairs", lambda path: rows if path == b.AG_PAIRS else [])
+        monkeypatch.setattr(b, "corpus_counts", lambda: {})
+        monkeypatch.setattr(b, "synthesize_missing_moods", lambda *args: None)
+        monkeypatch.setattr(b, "synthesize_missing_participles", lambda *args: None)
+        result = b.build_paradigms()["ἔρχομαι"]
+        key = "active_aorist_indicative_1sg"
+        assert result["forms"][key] == forms["Attic"]
+        for dialect in ("Epic", "Doric", "Koine"):
+            assert result["dialects"][dialect.lower()][key] == forms[dialect]
+
+
+class TestAmbiguousSourceCells:
+    def test_same_form_has_both_voice_readings(self, b):
+        assert b.verb_keys_from_tags({"middle", "passive", "present", "indicative",
+                                     "third-person", "singular"}) == (
+            "middle_present_indicative_3sg", "passive_present_indicative_3sg")
+
+    def test_dual_second_and_third_person_are_both_preserved(self, b):
+        assert b.verb_keys_from_tags({"active", "present", "indicative", "dual",
+                                     "second-person", "third-person"}) == (
+            "active_present_indicative_2du", "active_present_indicative_3du")
+
+    def test_infinitive_ignores_irrelevant_person_number_tags(self, b):
+        assert b.verb_keys_from_tags({"middle", "aorist", "infinitive", "dual",
+                                     "second-person", "third-person"}) == (
+            "middle_aorist_infinitive",)
+
+    def test_uncorrelated_person_number_labels_do_not_invent_four_cells(self, b):
+        assert b.verb_keys_from_tags({"active", "imperfect", "indicative",
+                                     "first-person", "third-person", "singular", "plural"}) == ()
+
+    def test_one_ambiguous_finite_mood_preserves_both_readings(self, b):
+        assert b.verb_keys_from_tags({"active", "present", "indicative", "subjunctive",
+                                     "second-person", "plural"}) == (
+            "active_present_indicative_2pl", "active_present_subjunctive_2pl")
+
+    def test_dialect_alternatives_are_preserved_and_aliases_deduplicated(self, b):
+        assert b.extract_dialects({"Ionic", "Attic", "Homeric", "Epic"}) == (
+            "", "epic", "ionic")
+
+    def test_cell_filter_and_dialects_do_not_depend_on_hash_seed(self):
+        import os
+        import subprocess
+        import sys
+        script = '''
+import json
+from build.build_grc_verb_paradigms import drop_collapsed_cells, extract_dialects
+rows = [{"form": f, "lemma": "λύω", "pos": "verb", "tags": [
+    "middle", "present", "indicative", "first-person", "singular"]}
+    for f in ("λύομαι", "λύει", "λύεται", "λυόμεθα")]
+rows[0]["tags"].append("passive")
+print(json.dumps([drop_collapsed_cells(rows),
+    extract_dialects({"Ionic", "Attic", "Homeric", "Epic"})], sort_keys=True))
+'''
+        outputs = [subprocess.check_output(
+            [sys.executable, "-c", script], cwd=REPO_ROOT,
+            env={**os.environ, "PYTHONHASHSEED": seed}) for seed in ("0", "73", "999")]
+        assert outputs[0] == outputs[1] == outputs[2]

@@ -11,6 +11,7 @@ builder can consume the file as a drop-in alternative or supplement.
 Inputs (from data/):
   - ag_pairs.json     Wiktionary kaikki form-lemma pairs (now tense-tagged)
   - glaux_pairs.json  GLAUx corpus, fully morph-tagged
+  - grc_lexical_heads.json  Independent headwords for corpus-only synthesis
   - verb_extra_pairs.json (optional) pairs from LSJ expansion
 
 Output:
@@ -52,17 +53,22 @@ if str(_BUILD_DIR) not in sys.path:
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from dilemma.verb_table_fragments import is_stemless_passive_aorist  # noqa: E402
+
 from dilemma.morph_diff import (  # noqa: E402
     _detect_syllabic_augment,
     _detect_temporal_augment,
     _strip_diacritics,
 )
 
+from dilemma.verb_source import EIMI_AUXILIARY_FORMS, is_periphrastic_auxiliary
+
 AG_PAIRS = DATA_DIR / "ag_pairs.json"
 GLAUX_PAIRS = DATA_DIR / "glaux_pairs.json"
 VERB_EXTRA_PAIRS = DATA_DIR / "verb_extra_pairs.json"
 LSJ_VERB_PAIRS = DATA_DIR / "ag_lsj_verb_pairs.json"  # produced by expand_lsj
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
+LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
 LSJ9_GLOSSES = Path.home() / "Documents" / "lsj9" / "lsj9_glosses.jsonl"
 OUT_PATH = DATA_DIR / "ag_verb_paradigms.json"
 
@@ -364,56 +370,56 @@ def pick_best_form(forms, key: str | None = None, lemma: str | None = None,
     ))
 
 
-def verb_key_from_tags(tags):
-    """Convert a tag set to a paradigm key.
+def verb_keys_from_tags(tags):
+    """Return the fully specified readings of one source tag set.
 
-    Returns None if the tags are not a fully-specified finite verb /
-    infinitive / participle cell.
+    One ambiguous axis (such as middle/passive voice) names alternatives.
+    Multiple ambiguous axes do not identify their pairings: first/third
+    person plus singular/plural cannot safely become four invented cells.
+    Those rows remain in the raw data but do not select canonical cells.
     """
+    from itertools import product
+
     tags = set(tags)
-    voice = next(iter(tags & VOICE_TAGS), None)
-    tense = next(iter(tags & TENSE_TAGS), None)
-    mood = next(iter(tags & MOOD_TAGS), None)
-    if not voice or not tense or not mood:
-        return None
-    if "mediopassive" in tags:
-        voice = "middle"
+    voices = {"middle" if t == "mediopassive" else t for t in tags & VOICE_TAGS}
+    tenses, moods = tags & TENSE_TAGS, tags & MOOD_TAGS
+    if not voices or not tenses or not moods:
+        return ()
+    if moods == {"infinitive"}:
+        axes = (voices, tenses, moods)
+    elif moods == {"participle"}:
+        genders = tags & GENDER_TAGS
+        cases = tags & CASE_TAGS or ({"nominative"} if genders else set())
+        numbers = tags & NUMBER_TAGS or ({"singular"} if genders else set())
+        axes = (voices, tenses, moods, cases, genders, numbers)
+    elif moods & {"infinitive", "participle"}:
+        return ()
+    else:
+        axes = (voices, tenses, moods, tags & PERSON_TAGS, tags & NUMBER_TAGS)
+    if any(not axis for axis in axes) or sum(len(axis) > 1 for axis in axes) > 1:
+        return ()
+    keys = []
+    for values in product(*(sorted(axis) for axis in axes)):
+        voice, tense, mood, *rest = values
+        if mood == "infinitive":
+            key = f"{voice}_{tense}_infinitive"
+        elif mood == "participle":
+            case, gender, number = rest
+            key = (f"{voice}_{tense}_participle_"
+                   f"{CASE_SHORT[case]}_{GENDER_SHORT[gender]}_{NUMBER_SHORT[number]}")
+        else:
+            person, number = rest
+            if mood == "imperative" and person == "first-person":
+                continue
+            key = f"{voice}_{tense}_{mood}_{PERSON_SHORT[person]}{NUMBER_SHORT[number]}"
+        keys.append(key)
+    return tuple(keys)
 
-    if mood == "infinitive":
-        return f"{voice}_{tense}_infinitive"
 
-    if mood == "participle":
-        case = next(iter(tags & CASE_TAGS), None)
-        gender = next(iter(tags & GENDER_TAGS), None)
-        number = next(iter(tags & NUMBER_TAGS), None)
-        # Wiktionary tables usually give only the nom-sg of each gender;
-        # corpus data (GLAUx) carries full case+number on participle forms.
-        # Default to nom-sg when only gender is present (Wiktionary case).
-        if gender and not case:
-            case = "nominative"
-        if gender and not number:
-            number = "singular"
-        if not (case and gender and number):
-            return None
-        return (
-            f"{voice}_{tense}_participle_"
-            f"{CASE_SHORT[case]}_{GENDER_SHORT[gender]}_{NUMBER_SHORT[number]}"
-        )
-
-    person = next(iter(tags & PERSON_TAGS), None)
-    number = next(iter(tags & NUMBER_TAGS), None)
-    if not person or not number:
-        return None
-    # Imperative has no first person. kaikki sometimes mistags Koine
-    # alternatives like λυσάτωσαν as 1sg (Wiktionary's 'type-a/type-b'
-    # appendix rows leak into the 1sg slot). Drop these to avoid
-    # corrupting the paradigm.
-    if mood == "imperative" and person == "first-person":
-        return None
-    return (
-        f"{voice}_{tense}_{mood}_"
-        f"{PERSON_SHORT[person]}{NUMBER_SHORT[number]}"
-    )
+def verb_key_from_tags(tags):
+    """Return a key only when the source identifies one canonical cell."""
+    keys = verb_keys_from_tags(tags)
+    return keys[0] if len(keys) == 1 else None
 
 
 # A real paradigm cell holds one form, sometimes two or three spellings of
@@ -427,35 +433,51 @@ COLLAPSED_CELL_FORMS = 4
 
 
 def drop_collapsed_cells(verb_pairs) -> tuple:
-    """Drop Wiktionary cells that hold too many forms to be one cell."""
+    """Drop collapsed source cells within one dialect and retain other readings."""
     by_cell = defaultdict(set)
+    row_keys = []
     for p in verb_pairs:
-        key = verb_key_from_tags(set(p.get("tags") or []))
+        keys = verb_keys_from_tags(p.get("tags") or [])
+        readings = tuple((key, dialect) for key in keys
+                         for dialect in extract_dialects(p.get("tags") or []))
+        row_keys.append((keys, readings))
         form = (p.get("form") or "").strip()
-        if not key or not form or not p.get("lemma"):
+        if not form or not p.get("lemma"):
             continue
-        letters = accent_type_skeleton(form)
-        # ἐστί and ἐστίν are one form, not two.
-        by_cell[(p["lemma"], key)].add(letters.rstrip("ν") or letters)
+        # Polytonic and simplified copies, quantity marks, and an accent's
+        # position do not create distinct letter sequences. A contracted
+        # and uncontracted form with both copies is still two candidates.
+        letters = strip_accents(form).lower()
+        # Attic, Epic, Doric, and Koine may supply different stems for
+        # one person-number cell. Their union is not a damaged table row.
+        for key, dialect in readings:
+            by_cell[(p["lemma"], key, dialect)].add(letters.rstrip("ν") or letters)
     collapsed = {cell for cell, forms in by_cell.items()
                  if len(forms) >= COLLAPSED_CELL_FORMS}
-    kept = [p for p in verb_pairs
-            if (p.get("lemma"),
-                verb_key_from_tags(set(p.get("tags") or []))) not in collapsed]
-    return kept, len(collapsed), len(verb_pairs) - len(kept)
+    kept = []
+    dropped = 0
+    for p, (keys, readings) in zip(verb_pairs, row_keys):
+        surviving = tuple((key, dialect) for key, dialect in readings
+                          if (p.get("lemma"), key, dialect) not in collapsed)
+        if readings and not surviving:
+            dropped += 1
+        elif surviving != readings:
+            surviving_keys = tuple(key for key in keys
+                                   if any(k == key for k, _ in surviving))
+            row = {**p, "_paradigm_keys": surviving_keys}
+            if surviving != tuple((key, dialect) for key in surviving_keys
+                                  for dialect in extract_dialects(p.get("tags") or [])):
+                row["_paradigm_readings"] = surviving
+            kept.append(row)
+        else:
+            kept.append(p)
+    return kept, len(collapsed), dropped
 
 
-def extract_dialect(tags):
-    """Return the (single) dialect this form belongs to, or '' for Attic/default."""
-    tags = set(tags)
-    for d in DIALECT_TAGS:
-        if d in tags:
-            if d in ("Attic", "Homeric"):
-                # Treat Attic as the default slice. Homeric is alias for Epic
-                # and we fold it in.
-                return "" if d == "Attic" else "epic"
-            return d.lower()
-    return ""
+def extract_dialects(tags):
+    """Keep each explicitly named dialect; no set-order choice."""
+    return tuple(sorted({"" if tag == "Attic" else "epic" if tag == "Homeric"
+                         else tag.lower() for tag in set(tags) & DIALECT_TAGS})) or ("",)
 
 
 # ---------------------------------------------------------------------------
@@ -923,16 +945,6 @@ def is_homeric_root_aorist_passive(
     return any(fb.endswith(ending) for ending in _ROOT_AORIST_MIDDLE_ENDINGS)
 
 
-# Forms of εἰμί that Wiktionary's periphrastic cells contribute to the verb
-# they conjugate: "τετιμηκότες εἶτε" leaves εἶτε tagged as a perfect optative
-# of τιμάω. Every one is a subjunctive, optative, imperative or infinitive of
-# εἰμί, so under any other lemma the pair is the auxiliary, not a cell.
-EIMI_AUXILIARY_FORMS = {
-    "ὦ", "ᾖς", "ᾖ", "ὦμεν", "ἦτε", "ὦσι", "ὦσιν",
-    "εἴην", "εἴης", "εἴη", "εἶμεν", "εἴημεν", "εἶτε", "εἴητε",
-    "εἶεν", "εἴησαν", "εἶναι", "ἔστω", "ἔστων", "ὄντων",
-}
-
 _LENGTH_MARKS = ("̄", "̆")  # combining macron, breve
 _ACUTE_OR_CIRCUMFLEX = ("́", "͂")
 
@@ -957,11 +969,10 @@ def strip_vowel_length(s: str) -> str:
     return unicodedata.normalize("NFC", nfd)
 
 
-# Everything in a Wiktionary tag set that names a cell. Tense is left out
-# on purpose: the tables often omit it (λύσαι is tagged only "active,
-# optative, singular, third-person"), and what matters here is whether two
-# spellings sit in the same cell, not which tense that cell is.
-_CELL_TAGS = (VOICE_TAGS | MOOD_TAGS | PERSON_TAGS | NUMBER_TAGS
+# Everything in a Wiktionary tag set that names a cell. Missing tags impose
+# no constraint in the subset check; explicit tense must still match, so an
+# aorist participle cannot decide the accent of a future participle.
+_CELL_TAGS = (VOICE_TAGS | TENSE_TAGS | MOOD_TAGS | PERSON_TAGS | NUMBER_TAGS
               | CASE_TAGS | GENDER_TAGS)
 
 
@@ -973,11 +984,12 @@ _SHORT_TO_TAG = {v: k for short in
 def key_cell_tags(key: str) -> frozenset:
     """The cell tags a paradigm key names, in Wiktionary's vocabulary.
 
-    ``active_aorist_optative_3sg`` -> {active, optative, third-person,
-    singular}. Tense is left out to match ``wiktionary_cells``.
+    ``active_aorist_optative_3sg`` -> {active, aorist, optative,
+    third-person, singular}. A source may omit tense, but its explicit
+    tense must match this one.
     """
     parts = key.split("_")
-    tags = {parts[0]}
+    tags = {parts[0], parts[1]}
     if "_participle_" in key:
         tags.add("participle")
         tags.update(_SHORT_TO_TAG.get(p, p) for p in parts[-3:])
@@ -990,7 +1002,23 @@ def key_cell_tags(key: str) -> frozenset:
     return frozenset(tags)
 
 
-def wiktionary_cells(verb_pairs) -> tuple:
+def spelling_readings(pair):
+    """Surviving cell/dialect claims, including partially collapsed rows."""
+    if "_paradigm_readings" in pair:
+        return tuple((key_cell_tags(key), dialect)
+                     for key, dialect in pair["_paradigm_readings"])
+    tags = set(pair.get("tags") or [])
+    dialects = extract_dialects(tags)
+    if "_paradigm_keys" in pair:
+        return tuple((key_cell_tags(key), dialect)
+                     for key in pair["_paradigm_keys"] for dialect in dialects)
+    if "mediopassive" in tags:
+        tags = (tags - {"mediopassive"}) | {"middle"}
+    cell = frozenset(tags & _CELL_TAGS)
+    return tuple((cell, dialect) for dialect in dialects)
+
+
+def wiktionary_cells(verb_pairs, *, dialect=None) -> tuple:
     """Where Wiktionary puts each spelling, and which spellings share letters.
 
     Returns ``(cells, by_letters)``: ``cells`` maps (lemma, spelling) to the
@@ -998,7 +1026,8 @@ def wiktionary_cells(verb_pairs) -> tuple:
     (lemma, accent skeleton) to the spellings sharing those letters. Quantity
     marks are dropped from every spelling, so λῦσᾰν and λύσαν are one key, and
     entries carrying no cell tags are skipped, because an empty cell would
-    match every other spelling's.
+    match every other spelling's. When ``dialect`` is supplied, only rows
+    assigned to that slice contribute evidence; ``""`` is the Attic default.
     """
     cells = defaultdict(set)
     by_letters = defaultdict(set)
@@ -1006,19 +1035,17 @@ def wiktionary_cells(verb_pairs) -> tuple:
         lemma, form = p.get("lemma"), (p.get("form") or "").strip()
         if not lemma or not form:
             continue
-        tags = set(p.get("tags") or [])
-        if "mediopassive" in tags:
-            tags = (tags - {"mediopassive"}) | {"middle"}
-        cell = frozenset(tags & _CELL_TAGS)
-        if not cell:
+        claims = {cell for cell, source_dialect in spelling_readings(p)
+                  if cell and (dialect is None or source_dialect == dialect)}
+        if not claims:
             continue
         unmarked = strip_vowel_length(form)
-        cells[(lemma, unmarked)].add(cell)
+        cells[(lemma, unmarked)].update(claims)
         by_letters[(lemma, accent_type_skeleton(form))].add(unmarked)
     return dict(cells), dict(by_letters)
 
 
-def wiktionary_spellings(verb_pairs) -> tuple:
+def wiktionary_spellings(verb_pairs, *, dialect=None) -> tuple:
     """Map (lemma, letters) to Wiktionary's spelling of those letters.
 
     Wiktionary's conjugation tables mark vowel quantity (``λῦσᾰν``), and the
@@ -1026,9 +1053,15 @@ def wiktionary_spellings(verb_pairs) -> tuple:
     the table cell, so it decides the accent; the quantity marks themselves
     are dropped. Used to correct cells that a corpus token or the synthesis
     pass spelled with a different accent.
+
+    When ``dialect`` is supplied, a spelling in another dialect cannot
+    decide the default slice's accent.
     """
     by_letters = defaultdict(set)
     for p in verb_pairs:
+        if not any(dialect is None or source_dialect == dialect
+                   for _, source_dialect in spelling_readings(p)):
+            continue
         lemma, form = p.get("lemma"), (p.get("form") or "").strip()
         if not lemma or not form or not is_pure_greek(form):
             continue
@@ -1050,6 +1083,23 @@ def wiktionary_spellings(verb_pairs) -> tuple:
         if len(ranked) > 1 and corpus_count(ranked[0]) > corpus_count(ranked[1]):
             out[key] = ranked[0]
     return out, set(by_letters)
+
+
+def spelling_for_cell(lemma, key, form, spellings, cells, by_letters):
+    """Keep another grammatical cell from deciding this cell's accent."""
+    skeleton = accent_type_skeleton(form)
+    canonical = spellings.get((lemma, skeleton))
+    attested = by_letters.get((lemma, skeleton), ())
+    if not attested:
+        # A tagless spelling cannot establish which cell uses its accent.
+        # In particular, an infinitive may share letters with an optative.
+        return form
+    want = key_cell_tags(key)
+    fitting = {spelling for spelling in attested
+               if any(tags <= want for tags in cells.get((lemma, spelling), ()))}
+    if len(fitting) == 1:
+        return next(iter(fitting))
+    return canonical if canonical in fitting else form
 
 
 def load_pairs(path: Path):
@@ -1093,7 +1143,108 @@ def load_lsj_head_texts() -> dict:
     return heads
 
 
-def synthesize_missing_moods(results: dict) -> tuple[int, int]:
+def restrict_synthesis_family(forms: dict, families: set | None) -> dict:
+    """Keep an explicitly defective verb within its supported tense and voice."""
+    if families is None:
+        return forms
+    return {key: form for key, form in forms.items()
+            if tuple(key.split("_")[:2]) in families}
+
+
+def recover_citation_breathings(pairs: list) -> dict:
+    """Use a unique matching present citation cell to fill a missing breathing."""
+    from export_hunspell import grc_orthography_reason
+
+    candidates = defaultdict(set)
+    citation_keys = {"active_present_indicative_1sg",
+                     "middle_present_indicative_1sg",
+                     "passive_present_indicative_1sg"}
+    for pair in pairs:
+        lemma = pair.get("lemma") or ""
+        if any(char in "\u0313\u0314" for char in unicodedata.normalize("NFD", lemma)):
+            continue
+        form = strip_vowel_length(pair.get("form") or "")
+        if form == lemma or not citation_keys.intersection(
+                pair.get("_paradigm_keys", verb_keys_from_tags(pair.get("tags", [])))):
+            continue
+        if grc_orthography_reason(form) is not None:
+            continue
+        without_breathing = unicodedata.normalize("NFC", "".join(
+            char for char in unicodedata.normalize("NFD", form)
+            if char not in "\u0313\u0314"))
+        if without_breathing == lemma:
+            candidates[lemma].add(form)
+    return {lemma: next(iter(forms)) for lemma, forms in candidates.items()
+            if len(forms) == 1}
+
+
+# LSJ s.v. ἁνδάνω gives aorist ἕαδον/ἅδον and later ἧσα, distinct
+# from future ἁδήσω. LSJ s.v. ἐνίπτω gives ἠνίπαπε/ἐνένιπε, distinct
+# from future ἐνίψω. Neither future licenses an inferred sigmatic aorist.
+_FUTURES_WITH_DISTINCT_AORISTS = frozenset({"ανδανω", "ενιπτω"})
+
+
+def has_distinct_aorist_stem(lemma: str) -> bool:
+    plain = "".join(c for c in unicodedata.normalize("NFD", lemma)
+                    if not unicodedata.combining(c)).lower()
+    return plain in _FUTURES_WITH_DISTINCT_AORISTS
+
+
+def parts_for_aorist_synthesis(lemma: str, parts: dict) -> dict:
+    """Withhold a future whose known aorist uses a different stem.
+
+    Keep explicit aorist principal parts available to their own templates.
+    This restriction applies to inference only, never to observed cells or
+    to generation of the independently attested future tense.
+    """
+    if has_distinct_aorist_stem(lemma) and "fut" in parts:
+        return {key: value for key, value in parts.items() if key != "fut"}
+    return parts
+
+
+def restore_source_quantity(form: str, evidence: list[dict]) -> str:
+    """Copy only concordant explicit lengths from this exact source spelling."""
+    def letters(value):
+        result = []
+        for char in unicodedata.normalize("NFD", value):
+            if unicodedata.combining(char) and result:
+                result[-1].append(char)
+            else:
+                result.append([char])
+        return result
+
+    def key(groups):
+        return "".join(char for group in groups for char in group
+                       if char not in _LENGTH_MARKS)
+
+    target = letters(form)
+    matched = [groups for row in evidence
+               if key(groups := letters(row["form"])) == key(target)]
+    if not matched:
+        return form
+    for index, group in enumerate(target):
+        if group[0].lower() not in "αιυ" or any(mark in group for mark in _LENGTH_MARKS):
+            continue
+        marks = {mark for groups in matched for mark in groups[index]
+                 if mark in _LENGTH_MARKS}
+        if len(marks) == 1:
+            mark = next(iter(marks))
+            if mark == "\u0306" and "\u0342" in group:
+                continue
+            # Length marks precede breathing and accent in source notation.
+            # All have combining class 230, so NFC will not reorder them.
+            group.insert(1, mark)
+    return unicodedata.normalize("NFC", "".join(char for group in target for char in group))
+
+
+def synthesis_quantities(lemma: str, parts: dict, quantities: dict | None) -> tuple[str, dict]:
+    evidence = (quantities or {}).get(lemma, [])
+    return restore_source_quantity(lemma, evidence), {
+        key: restore_source_quantity(value, evidence) for key, value in parts.items()}
+
+
+def synthesize_missing_moods(results: dict, synthesis_families: dict = None,
+                             principal_quantities: dict = None) -> tuple[int, int]:
     """Fill in missing finite-mood cells via principal-parts templating.
 
     For each verb in ``results``, parse its LSJ head text into
@@ -1133,26 +1284,34 @@ def synthesize_missing_moods(results: dict) -> tuple[int, int]:
             parts = parse_principal_parts(head_text, lemma) if head_text else {}
         except Exception:
             parts = {}
+        inference_lemma, parts = synthesis_quantities(lemma, parts, principal_quantities)
+        parts = parts_for_aorist_synthesis(lemma, parts)
         try:
-            templated = synthesize_active_moods(lemma, parts)
+            templated = synthesize_active_moods(inference_lemma, parts)
         except Exception:
             templated = {}
         try:
-            templated_mp = synthesize_mp_moods(lemma, parts)
+            templated_mp = synthesize_mp_moods(inference_lemma, parts)
         except Exception:
             templated_mp = {}
         try:
-            templated_aor2 = synthesize_aor2_moods(lemma, parts)
+            templated_aor2 = synthesize_aor2_moods(inference_lemma, parts)
         except Exception:
             templated_aor2 = {}
         try:
-            templated_contract = synthesize_contract_moods(lemma, parts)
+            templated_contract = synthesize_contract_moods(inference_lemma, parts)
         except Exception:
             templated_contract = {}
         try:
-            templated_past = synthesize_past_indicatives(lemma, parts)
+            templated_past = synthesize_past_indicatives(inference_lemma, parts)
         except Exception:
             templated_past = {}
+        families = (synthesis_families or {}).get(lemma)
+        templated = restrict_synthesis_family(templated, families)
+        templated_mp = restrict_synthesis_family(templated_mp, families)
+        templated_aor2 = restrict_synthesis_family(templated_aor2, families)
+        templated_contract = restrict_synthesis_family(templated_contract, families)
+        templated_past = restrict_synthesis_family(templated_past, families)
         # Track per-voice to report stats; merge for the actual write.
         if not (templated or templated_mp or templated_aor2
                 or templated_contract or templated_past):
@@ -1167,31 +1326,31 @@ def synthesize_missing_moods(results: dict) -> tuple[int, int]:
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added += 1
         for key, val in templated_mp.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_mp += 1
         for key, val in templated_aor2.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_aor2 += 1
         for key, val in templated_contract.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_contract += 1
         for key, val in templated_past.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_past += 1
         if (added or added_mp or added_aor2 or added_contract
                 or added_past):
@@ -1215,7 +1374,8 @@ def synthesize_missing_moods(results: dict) -> tuple[int, int]:
     )
 
 
-def synthesize_missing_participles(results: dict) -> tuple[int, int]:
+def synthesize_missing_participles(results: dict, synthesis_families: dict = None,
+                                   principal_quantities: dict = None) -> tuple[int, int]:
     """Fill in missing participle cells via principal-parts templating.
 
     For each verb in ``results``, parse its LSJ head text into principal
@@ -1252,18 +1412,29 @@ def synthesize_missing_participles(results: dict) -> tuple[int, int]:
             parts = parse_principal_parts(head_text, lemma) if head_text else {}
         except Exception:
             parts = {}
+        inference_lemma, parts = synthesis_quantities(lemma, parts, principal_quantities)
         try:
-            templated = synthesize_participles(lemma, parts)
+            templated = synthesize_participles(inference_lemma, parts)
+            if has_distinct_aorist_stem(lemma):
+                # Neither the future nor a suppletive aorist licenses this
+                # regular sigmatic template. Keep future participles and
+                # the independently handled second-aorist forms below.
+                templated = {key: value for key, value in templated.items()
+                             if "_aorist_" not in key}
         except Exception:
             templated = {}
         try:
-            templated_aor2 = synthesize_aor2_participles(lemma, parts)
+            templated_aor2 = synthesize_aor2_participles(inference_lemma, parts)
         except Exception:
             templated_aor2 = {}
         try:
-            templated_contract = synthesize_contract_participles(lemma, parts)
+            templated_contract = synthesize_contract_participles(inference_lemma, parts)
         except Exception:
             templated_contract = {}
+        families = (synthesis_families or {}).get(lemma)
+        templated = restrict_synthesis_family(templated, families)
+        templated_aor2 = restrict_synthesis_family(templated_aor2, families)
+        templated_contract = restrict_synthesis_family(templated_contract, families)
         if not (templated or templated_aor2 or templated_contract):
             continue
         forms = paradigm.setdefault("forms", {})
@@ -1274,19 +1445,19 @@ def synthesize_missing_participles(results: dict) -> tuple[int, int]:
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added += 1
         for key, val in templated_aor2.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_aor2 += 1
         for key, val in templated_contract.items():
             if key in forms:
                 cells_skipped_overlap += 1
                 continue
-            forms[key] = val
+            forms[key] = strip_vowel_length(val)
             added_contract += 1
         if added or added_aor2 or added_contract:
             verbs_touched += 1
@@ -1351,6 +1522,8 @@ def build_paradigms(only_lemmas=None):
             if stripped:
                 lsj_by_stripped[stripped].append(hw)
     print(f"  LSJ headwords loaded: {len(lsj_headwords):,}")
+    citation_breathings = recover_citation_breathings(
+        next(pairs for name, pairs in sources if name == "ag_pairs.json"))
 
     def canonicalize_lemma(lemma: str) -> str | None:
         """Apply lemma normalization. Returns None if the lemma should
@@ -1368,6 +1541,7 @@ def build_paradigms(only_lemmas=None):
             candidates = lsj_by_stripped.get(stripped, [])
             if len(candidates) == 1:
                 lemma = candidates[0]
+        lemma = citation_breathings.get(lemma, lemma)
         # Then force lowercase: verbs aren't proper nouns, and LSJ /
         # kaikki occasionally preserve a capital from a denominal
         # (Αἰγυπτιάζω, Βακχεύω, Δημοσθενίζω - "to act like X" verbs
@@ -1377,10 +1551,32 @@ def build_paradigms(only_lemmas=None):
             lemma = lowercase_initial(lemma)
         return lemma
 
+    # Corpus annotations can invent a lemma by treating a noun, adjective,
+    # or inflected verb as a citation. Keep their observed cells, but do not
+    # extrapolate a conjugation without independent headword evidence.
+    # Existing Wiktionary owners retain their behavior after collapsed-cell
+    # filtering; this gate applies only to corpus-only lemmas.
+    from build_grc_lexical_heads import normalize_headword
+    with open(LEXICAL_HEADS_PATH, encoding="utf-8") as f:
+        lexical_data = json.load(f)
+    lexical_heads = lexical_data["heads"]
+    principal_quantities = lexical_data.get("verb_principal_quantities", {})
+    synthesis_heads = {
+        lowercase_initial(head)
+        for word in lexical_heads
+        if (head := normalize_headword(word)) is not None
+    }
+    synthesis_heads.update(
+        lemma for name, pairs in sources if name == "ag_pairs.json"
+        for pair in pairs
+        if (lemma := canonicalize_lemma(pair.get("lemma"))) is not None
+    )
+
     # Group by lemma, then by dialect, then by paradigm key
     by_lemma_dialect_key = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     dropped_internal_capital = 0
     dropped_auxiliary = 0
+    dropped_stemless_passive = 0
     dropped_crasis = 0
     dropped_enclitic = 0
     dropped_iota_dropped = 0
@@ -1389,6 +1585,7 @@ def build_paradigms(only_lemmas=None):
     rerouted_root_aorist_passive = 0
     canonicalized = 0
     lowercased = 0
+    defective_lemmas = set()
     for src_name, verb_pairs in sources:
         for p in verb_pairs:
             lemma_raw = p.get("lemma")
@@ -1421,15 +1618,18 @@ def build_paradigms(only_lemmas=None):
                     canonicalized += 1
             if only_lemmas is not None and lemma not in only_lemmas:
                 continue
+            if ("defective" in tags
+                    and strip_accents(form) == strip_accents(lemma_raw)):
+                defective_lemmas.add(lemma)
             if "form-of" in tags or "alt-of" in tags or "alternative" in tags:
                 continue
             # Periphrastic cells ("τετιμηκότες εἶτε") leave the auxiliary
             # tagged as a cell of the verb it conjugates.
-            if form in EIMI_AUXILIARY_FORMS and lemma not in ("εἰμί", "εἶμι"):
+            if is_periphrastic_auxiliary(form, lemma, tags):
                 dropped_auxiliary += 1
                 continue
-            key = verb_key_from_tags(tags)
-            if not key:
+            keys = p.get("_paradigm_keys", verb_keys_from_tags(tags))
+            if not keys:
                 continue
             # Crasis / sandhi forms (κἄβλεψας from καί + ἔβλεψας) are
             # textual artifacts, not canonical paradigm cells. Drop
@@ -1461,7 +1661,6 @@ def build_paradigms(only_lemmas=None):
             if is_iota_dropped_contract_form(form, lemma):
                 dropped_iota_dropped += 1
                 continue
-            dialect = extract_dialect(tags)
             # Glaux has no dialect axis, so Homeric / Epic forms come
             # in tagged identically to their Attic counterparts. The
             # detectors below recover dialect status from the surface
@@ -1470,23 +1669,32 @@ def build_paradigms(only_lemmas=None):
             # paradigm. Attic slots stay clean; the Homeric / Epic
             # forms are still preserved for downstream consumers that
             # want them.
-            if not dialect:
-                if is_homeric_iterative_imperfect(form, lemma, key):
-                    dialect = "epic"
-                    rerouted_iterative += 1
-                elif is_homeric_root_aorist_passive(form, lemma, key):
-                    dialect = "epic"
-                    rerouted_root_aorist_passive += 1
-                elif is_homeric_unaugmented_past_indicative(form, lemma, key):
-                    dialect = "epic"
-                    rerouted_unaugmented += 1
-            by_lemma_dialect_key[lemma][dialect][key].append(form)
+            readings = p.get("_paradigm_readings", tuple(
+                (key, dialect) for key in keys for dialect in extract_dialects(tags)))
+            for key, dialect in readings:
+                if is_stemless_passive_aorist(form, key):
+                    dropped_stemless_passive += 1
+                    continue
+                if not dialect:
+                    if is_homeric_iterative_imperfect(form, lemma, key):
+                        dialect = "epic"
+                        rerouted_iterative += 1
+                    elif is_homeric_root_aorist_passive(form, lemma, key):
+                        dialect = "epic"
+                        rerouted_root_aorist_passive += 1
+                    elif is_homeric_unaugmented_past_indicative(form, lemma, key):
+                        dialect = "epic"
+                        rerouted_unaugmented += 1
+                by_lemma_dialect_key[lemma][dialect][key].append(form)
     if dropped_internal_capital:
         print(f"  dropped (internal capitals / mojibake): "
               f"{dropped_internal_capital:,}")
     if dropped_auxiliary:
         print(f"  dropped (εἰμί auxiliary of a periphrastic cell): "
               f"{dropped_auxiliary:,}")
+    if dropped_stemless_passive:
+        print(f"  dropped (passive aorist ending without a stem): "
+              f"{dropped_stemless_passive:,}")
     if dropped_crasis:
         print(f"  dropped (crasis / sandhi): {dropped_crasis:,}")
     if dropped_enclitic:
@@ -1517,12 +1725,14 @@ def build_paradigms(only_lemmas=None):
     # letters: everything Wiktionary lists (used to rank candidates).
     wiki_pairs = [p for name, pairs in sources
                   if name == "ag_pairs.json" for p in pairs]
-    wiki_spellings, wiki_letters = wiktionary_spellings(wiki_pairs)
-    wiki_cells, wiki_letters_spellings = wiktionary_cells(wiki_pairs)
+    _, wiki_letters = wiktionary_spellings(wiki_pairs)
+    wiki_cells, _ = wiktionary_cells(wiki_pairs)
     print(f"  Wiktionary spellings: {len(wiki_letters):,}"
           f" ({len(wiki_cells):,} with a cell)")
 
     results = {}
+    synthesis_families = {}
+    default_dialects = {}
     for lemma in sorted(by_lemma_dialect_key.keys()):
         by_dialect = by_lemma_dialect_key[lemma]
         attic_forms_raw = by_dialect.get("", {})
@@ -1534,11 +1744,18 @@ def build_paradigms(only_lemmas=None):
             if best:
                 attic_forms[key] = grave_to_acute(best)
 
+        if lemma in defective_lemmas:
+            # A citation inserted below does not attest a complete present
+            # system. Only accepted source cells authorize synthesis.
+            synthesis_families[lemma] = {
+                tuple(key.split("_")[:2]) for key in attic_forms
+            }
+
         # Default convention: the lemma is the active present indicative 1sg
         # if it ends in -ω, or middle present indicative 1sg if it ends in
         # -μαι (deponent). For -μι verbs we leave the slot blank since the
         # paradigm itself should attest the 1sg form.
-        if attic_forms or any(by_dialect.values()):
+        if lemma in synthesis_heads and (attic_forms or any(by_dialect.values())):
             if lemma.endswith("ω"):  # ω
                 attic_forms.setdefault(
                     "active_present_indicative_1sg", lemma)
@@ -1557,6 +1774,7 @@ def build_paradigms(only_lemmas=None):
             if not by_size:
                 continue
             dialect, kv = by_size[0]
+            default_dialects[lemma] = dialect
             for key, variants in kv.items():
                 best = pick_best_form(variants, key=key,
                                       wiktionary_letters=wiki_letters)
@@ -1587,6 +1805,10 @@ def build_paradigms(only_lemmas=None):
                     picked[key] = grave_to_acute(best)
             if picked:
                 paradigm.setdefault("dialects", {})[dialect] = picked
+                if lemma in synthesis_families:
+                    synthesis_families[lemma].update(
+                        tuple(key.split("_")[:2]) for key in picked
+                    )
 
         results[lemma] = paradigm
 
@@ -1601,8 +1823,12 @@ def build_paradigms(only_lemmas=None):
     # (subjunctive / optative / imperative / aorist infinitive) for
     # thematic -ω verbs from LSJ-extracted principal parts. Only writes
     # into empty slots, never overwrites corpus-derived forms.
+    synthesis_results = {lemma: paradigm for lemma, paradigm in results.items()
+                         if lemma in synthesis_heads}
+    print(f"  corpus-only lemmas retained without synthesis: "
+          f"{len(results) - len(synthesis_results):,}")
     print("  synthesising missing moods from principal parts ...")
-    synthesize_missing_moods(results)
+    synthesize_missing_moods(synthesis_results, synthesis_families, principal_quantities)
     if results:
         counts = sorted(v["form_count"] for v in results.values())
         n = len(counts)
@@ -1613,7 +1839,7 @@ def build_paradigms(only_lemmas=None):
     # Second synthesis pass: full case×gender×number participle
     # declension. Like the mood pass, only fills empty cells.
     print("  synthesising missing participles from principal parts ...")
-    synthesize_missing_participles(results)
+    synthesize_missing_participles(synthesis_results, synthesis_families, principal_quantities)
 
     # Wiktionary's conjugation tables decide the accent wherever a corpus
     # token or a synthesised cell spelled the same letters differently
@@ -1627,27 +1853,22 @@ def build_paradigms(only_lemmas=None):
     # spellings the same cell (βαίνον beside βαῖνον, the neuter present
     # participle), the marked one is the table's and the other is the
     # variant it also lists, so the rewrite is exactly what is wanted.
-    wiki = wiki_spellings
     renormalized = 0
+    spelling_indexes = {}
     for lemma, paradigm in results.items():
+        dialect = default_dialects.get(lemma, "")
+        if dialect not in spelling_indexes:
+            spellings, _ = wiktionary_spellings(wiki_pairs, dialect=dialect)
+            cells, letters = wiktionary_cells(wiki_pairs, dialect=dialect)
+            spelling_indexes[dialect] = spellings, cells, letters
+        spellings, cells, letters = spelling_indexes[dialect]
         forms = paradigm.get("forms", {})
         for key, form in list(forms.items()):
-            canonical = wiki.get((lemma, accent_type_skeleton(form)))
-            if not canonical or canonical == form:
-                continue
-            # Where two spellings share the letters, prefer the one
-            # Wiktionary files under this very cell.
-            want = key_cell_tags(key)
-            fitting = {sp for sp
-                       in wiki_letters_spellings.get(
-                           (lemma, accent_type_skeleton(form)), ())
-                       if any(c <= want for c in wiki_cells.get((lemma, sp), ()))}
-            if len(fitting) == 1:
-                canonical = fitting.pop()
-                if canonical == form:
-                    continue
-            forms[key] = canonical
-            renormalized += 1
+            canonical = spelling_for_cell(
+                lemma, key, form, spellings, cells, letters)
+            if canonical != form:
+                forms[key] = canonical
+                renormalized += 1
     print(f"  re-accented from Wiktionary spellings: {renormalized:,} cells")
     if results:
         counts = sorted(v["form_count"] for v in results.values())

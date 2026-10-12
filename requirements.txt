@@ -6,5 +6,6 @@
 #
 # Without either, unknown words return themselves unchanged.
 #
-# Polytonic next-word LM (train_lm.py + Diorisis loader):
+# Greek corpus builders and polytonic next-word LM:
 # betacode          # TLG beta-code to Unicode conversion
+# beta-code         # Diorisis pair and quotation-evidence conversion

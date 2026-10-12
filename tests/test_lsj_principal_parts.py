@@ -116,6 +116,29 @@ def _nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
 
+def test_unaccented_token_does_not_hide_a_complete_principal_part():
+    fragment = "fut. ἰᾰλῶ (ἐπ-) Ar.Nu.1299: aor. ὑλα ἴηλα Il.15.19"
+    parts = parse_principal_parts(fragment, "ἰάλλω")
+    assert parts["aor"] == "ἴηλα"
+    assert parts["fut"] == "ἰᾰλῶ"
+
+
+@pytest.mark.parametrize("fragment,key", [
+    ("fut. λυσω", "fut"),
+    ("aor. ὑλα", "aor"),
+    ("pf. λελυκα", "pf"),
+    ("aor. p. ἐλυθην", "aor_p"),
+    ("aor. ὑλα, ἴηλα Il.15.19", "aor"),
+])
+def test_unaccented_principal_part_is_withheld(fragment, key):
+    assert key not in parse_principal_parts(fragment, "λύω")
+
+
+def test_chained_passive_also_requires_its_own_accent():
+    fragment = ":—Med. and Pass., aor. ἐλυσάμην; ἐλυθην, ἐλύθην"
+    assert parse_principal_parts(fragment, "λύω")["aor_p"] == "ἐλύθην"
+
+
 def test_lyo_parser_handles_truncated_head():
     """λύω's LSJ head is OCR-truncated; the parser should still pick
     up at least the future even when it's the only well-formed
@@ -286,7 +309,7 @@ def test_derive_grc_conj_args_strips_accents_keeps_length():
     args = derive_grc_conj_args(parts, "λύω")
     # aor-1: ["aor-1", augmented, non-augmented]
     assert args["aor-1"][0] == "aor-1"
-    assert args["aor-1"][1] == "ελυσ"
+    assert args["aor-1"][1] == "ἐλυσ"
     assert args["aor-1"][2] == "λυσ"
     # perf: ["perf", active stem, mp stem (empty when missing)]
     assert args["perf"][0] == "perf"
@@ -298,7 +321,7 @@ def test_derive_aor2_uses_thematic_ending():
     parts = {"aor2": "ἔλιπον"}
     args = derive_grc_conj_args(parts, "λείπω")
     assert args["aor-2"][0] == "aor-2"
-    assert args["aor-2"][1] == "ελιπ"
+    assert args["aor-2"][1] == "ἐλιπ"
     assert args["aor-2"][2] == "λιπ"
 
 

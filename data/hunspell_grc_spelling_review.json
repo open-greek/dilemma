@@ -1,12 +1,85 @@
 {
  "schema_version": 1,
- "description": "Spellings the corpus evidence admitted but a recorded review rejected. respelling: a common word written with the wrong diacritics in OCR text (στρατηγού for στρατηγοῦ), among the entries the gate reports as respellings of frequent words. structural: a reviewed-baseline entry that fails the orthography rules and is not a word a writer types (editorial underdots, synizesis ties, spurious extra accents).",
- "method": "Two independent reviewers labelled every candidate from its attestation by source and up to three corpus sentences; a form is listed only where both rejected it. αὗθις and ἄπαντα, which both rejected, are kept: GLAUx attests them in held-out text, and a breathing variant may be an edition's own spelling.",
+ "description": "Spellings the corpus evidence admitted but a recorded review rejected. respelling: a common word written with the wrong diacritics in OCR text (στρατηγού for στρατηγοῦ), among the entries the gate reports as respellings of frequent words. structural: a reviewed-baseline entry that fails the orthography rules and is not a word a writer types (editorial underdots, synizesis ties, spurious extra accents). historical_ocr: exact spellings inherited from duplicated consonants in historical expansion lemmas, checked against their cited corpus loci and independent lexical evidence.",
+ "method": "Two independent reviewers labelled every candidate from its attestation by source and up to three corpus sentences; a form is listed only where both rejected it. αὗθις and ἄπαντα, which both rejected, are kept: GLAUx attests them in held-out text, and a breathing variant may be an edition's own spelling. The historical_ocr additions were independently checked against the merged lexical data and the cited passages; this review does not reject valid forms merely because their historical lemma was damaged.",
  "reviewed": {
-  "respelling": 399,
-  "structural": 182
+  "respelling": 400,
+  "structural": 182,
+  "historical_ocr": 4,
+  "corpus_quote": 1,
+  "corpus_fragment": 1
  },
  "reviews": [
+  {
+   "form": "ἐπεῖ",
+   "decision": "reject",
+   "class": "respelling",
+   "locus": "Herodotus, Histories 1.141.2, Godley volume I, printed page 180; reviewed indexed conjunction, locative, and word-fragment contexts",
+   "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/master/data/tlg0016/tlg001/tlg0016.tlg001.perseus-grc2.xml",
+   "source_sha256": "03836a4c33ad93a72391bac4bb945137752fefd2a3ae2e954b631f1ee1f39ada",
+   "original_source_form": "ἐπεῖ",
+   "corrected_source_readings": [
+    {
+     "locus": "Herodotus, Histories 1.141.2, Godley volume I, printed page 180",
+     "original": "ὀρχεόμενοι, ἐπεῖ οὐδ’ ἐμέο",
+     "corrected": "ὀρχεόμενοι, ἐπεὶ οὐδ’ ἐμέο",
+     "source_url": "https://archive.org/download/historiesvolumei00hero_249/historiesvolumei00hero_249.pdf",
+     "source_sha256": "132c1fa50b19df67d2c5ccdd4b5108c3bb86ec9018e3e88c4a40b085378f065f"
+    }
+   ],
+   "reviewed_on": "2026-10-11",
+   "reasons": [
+    "Direct inspection of Godley's printed Herodotus text shows the conjunction ἐπεὶ; its digital transcription incorrectly has ἐπεῖ. The reviewed GLAUx and Diorisis second-person ἔπειμι annotations occur in conjunction or locative contexts, not in genuine second-person verb uses.",
+    "Independent review of all indexed witnesses found misaccented conjunctions, locative ἐκεῖ transcriptions, split longer words, and other damaged text; it found no complete lexical homograph with this exact spelling. The refreshed lexical entries and their verb tables supply ἔπει for the second person, not ἐπεῖ.",
+    "Reject only this exact spelling and the new aliases it licenses. Preserve ἔπει, ἐπεί, ἐπεὶ, ἐκεῖ, and complete source words. No single replacement is asserted for the heterogeneous damaged contexts, and their original source text and annotations remain unchanged. Removing this authored review row reverses the rejection."
+   ]
+  },
+  {
+   "form": "ἐνεί",
+   "decision": "reject",
+   "class": "corpus_fragment",
+   "locus": "Hippocrates, De articulis 70; Eusebius, Praeparatio evangelica 9.14.2; PG 21.538, 81.288, 124.395, 126.412, 146.306",
+   "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0627-010.xml",
+   "source_sha256": "f2338e56868e67f8fb3df91121958cbe0de4009efeadab155f07fb0d40aabcd4",
+   "original_source_form": "ἐνεί",
+   "corrected_source_readings": [
+    {
+     "locus": "Hippocrates, De articulis 70",
+     "original": "ἐνεί · ραντα τὸν πῆχυν",
+     "corrected": "ἐνείραντα τὸν πῆχυν",
+     "source_url": "https://github.com/PerseusDL/canonical-greekLit/blob/master/data/tlg0627/tlg010/tlg0627.tlg010.perseus-grc2.xml",
+     "source_sha256": "b15ded7c0fd96cc75f51d9eef191b7b3ae2b1e1e11ea53ac1434d5ae71b413bf"
+    },
+    {
+     "locus": "Eusebius, Praeparatio evangelica 9.14.2",
+     "original": "ἐνεί- κασθαι",
+     "corrected": "ἐνείκασθαι",
+     "source_url": "https://github.com/OpenGreekAndLatin/First1KGreek/blob/master/data/tlg2018/tlg001/tlg2018.tlg001.1st1K-grc1.xml",
+     "source_sha256": "c90fcf7562fccc3cb34b853df777885135e8beae4002ab56cefe91a9378bbd26"
+    }
+   ],
+   "reviewed_on": "2026-10-11",
+   "reasons": [
+    "The Hippocratic source splits the complete participle ἐνείραντα into ἐνεί and ραντα. The Eusebius witness breaks ἐνείκασθαι across a line; neither licenses an independent ἐνεί token.",
+    "The remaining indexed witnesses are OCR or tokenization artifacts: ἐκεῖ at PG 81.288, split ἐκείνην at PG 124.395, mixed-script debris at PG 126.412, and split ἐκείνοις at PG 146.306. Independent review of all seven indexed works and the merged lexical inventory found no complete homograph with this exact spelling.",
+    "Reject the exact fragment and its contextual grave after compatibility injection and during source-alias recovery. Preserve the independently defined ἔνει and the complete source words. Raw source text and annotations remain unchanged; removing this authored review row reverses the rejection."
+   ]
+  },
+  {
+   "form": "ἄφεσ᾽",
+   "decision": "reject",
+   "class": "corpus_quote",
+   "correct": "ἄφες",
+   "locus": "Aristophanes, Clouds 1139",
+   "source_url": "https://github.com/alekkeersmaekers/glaux/blob/master/xml/0019-003.xml",
+   "source_sha256": "8a0f3f00cca66dd410efa8127a62d20baa1d8d20c9916239ef0f7a3e1a975596",
+   "original_source_form": "ἄφεσ’",
+   "reviewed_on": "2026-10-11",
+   "reasons": [
+    "The quoted request ends with the complete second-person singular active imperative ἄφες. The source apostrophe is a closing quotation mark, not elision; the automatic middle annotation does not establish another word.",
+    "Independent review of the merged exact source readings found no genuine elided homograph. Reject this spelling after compatibility injection, leaving complete ἄφες and separately verified elisions unchanged. This decision is reversed by removing this authored review row."
+   ]
+  },
   {
    "form": "Βρούτος",
    "decision": "reject",
@@ -2805,6 +2878,194 @@
    "reasons": [
     "ῥᾳθυμίας with a spurious acute on the first syllable",
     "spurious extra accent on a non-enclitic word; correct form is ῥᾳθυμίας, no accent rule produces two accents here"
+   ]
+  },
+  {
+   "form": "τέσσσαρας",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "τέσσαρας",
+   "locus": "Plutarch, Lucullus 27.2",
+   "reasons": [
+    "The single copied corpus token has three sigmas; the lexical accusative of τέσσαρες is τέσσαρας. The historical expansion also copied the corrupted form as its lemma.",
+    "The merged Wiktionary data independently maps τέσσαρας to τέσσαρες and has no entry for τέσσσαρας."
+   ]
+  },
+  {
+   "form": "ἀναθαρρρυνόμενοι",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "ἀναθαρρυνόμενοι",
+   "locus": "Dionysius of Halicarnassus, Roman Antiquities 2.43.2",
+   "reasons": [
+    "The historical lemma ἀναθαρρρέω contains a duplicated rho, and the generated form copied a third rho. The cited passage uses the participle of ἀναθαρρύνω.",
+    "The Greek text at Roman Antiquities 2.43.2 reads ἀναθαρρυνόμενοι; the merged lexical data retains ἀναθαρρύνω."
+   ],
+   "source_url": "https://eulogikon.org/works/dionysius-halicarnassus-roman-antiquities-ndy-al"
+  },
+  {
+   "form": "συμμμαχίας",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "συμμαχίας",
+   "locus": "Appian, Mithridatic Wars 17.114",
+   "reasons": [
+    "The single copied corpus token has three mus; this inflection of συμμαχία has two. The historical expansion uses the corrupted lemma συμμμαχία.",
+    "The merged Wiktionary data independently maps συμμαχίας to συμμαχία and has no entry for συμμμαχίας."
+   ]
+  },
+  {
+   "form": "μέλλλει",
+   "decision": "reject",
+   "class": "historical_ocr",
+   "correct": "μέλλει",
+   "locus": "Hippocratic corpus, Diseases of Women 1.64",
+   "reasons": [
+    "The single copied corpus token has three lambdas; the third-person singular of μέλλω is μέλλει. The historical expansion uses the corrupted lemma μέλλλω.",
+    "The merged Wiktionary data independently maps μέλλει to μέλλω and has no entry for μέλλλει."
+   ]
+  },
+  {
+   "form": "δεἰσί",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "δέ εἰσί",
+   "locus": "LSJ δίειμι",
+   "reasons": [
+    "Raw PG9 p353 prints a token join of δέ and εἰσί; the internal smooth breathing comes from the independent second word. It is not an inflection of δίειμι.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἄνεσει",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀνέσει",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The PG62 p280 occurrence is the dative of ἄνεσις (living in leisure), not ἄνειμι. Long final -ει prevents the supplied antepenultimate accent; the independent fresh head ἀνέσει and source lemma ἄνεσις support the correction.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "εἴσιών",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "εἰσιών",
+   "locus": "LSJ εἴσειμι",
+   "reasons": [
+    "The compound participle has final long -ών; the obsolete generated form retains an antepenultimate accent from the infinitive/verb head and adds the participial accent. No exact source record or count supports this marked spelling.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἄνιόντι",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀνιόντι",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The first accent lies four syllables from the end, beyond the Greek lexical accent limit; the source participle is ἀνιόντι. No exact source/count supports this marked form.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἄνιών",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀνιών",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The long final -ών prohibits the generated antepenultimate accent. LSJ ἄνειμι explicitly quotes ἀνιών; no exact source/count supports the extra headword accent.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "ἀντάνιόν",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "ἀντανιόν",
+   "locus": "LSJ ἀντάνειμι",
+   "reasons": [
+    "An unsupported extra preverb/headword accent precedes the participial -ιόν. No exact source/count supports this spelling; the source family is ἀντάνειμι, not a separately defined double-accent host.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάροντες",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρόντες",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "The PG33 p379 transfiguration context is present participial συμπαρόντες, confirmed independently in the published Greek Cyril Catecheses 12.16. The shifted accent was supplied by approximate headword-prefix joining.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ],
+   "source_url": "https://www.matia.gr/pisth/pdf/pg_migne/Cyrillus_Hierosolymitanus_PG_33/Catecheses_ad_illuminandos.pdf"
+  },
+  {
+   "form": "συμπάροντι",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρόντι",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "The PG52 p425 parallel παρὼν/συνανίων context is a participle; source family συμπάρειμι has συμπαρών, retaining the participial suffix accent. The approximate route moved it into the preverb.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάροντων",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρόντων",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "PG33 p507 discusses those present with Cornelius. The long final -ων makes the generated antepenultimate accent impossible; this is participial συμπαρόντων.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάρων",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρών",
+   "locus": "LSJ συμπάρειμι",
+   "reasons": [
+    "Both recovered OCR contexts describe a person being present. The source family συμπάρειμι has oxytone present participle συμπαρών; no independently defined homograph supports the generated spelling.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ]
+  },
+  {
+   "form": "συμπάρησαν",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "correct": "συμπαρῆσαν",
+   "locus": "Letter of the churches of Lyon and Vienne 1.11",
+   "reasons": [
+    "PG5 p719 is the Lyon/Vienne martyr letter 1.11; independent Greek text explicitly has συμπαρῆσαν τοῖς μάρτυσι. The shifted acute is OCR/approximate-family output.",
+    "Independent merged lexical definitions and both fresh Greek Wiktionary extracts have no separate lexical owner for this spelling; the reviewed source family does not support the generated accent or word boundary."
+   ],
+   "source_url": "https://catholiclibrary.org/library/view?chunk.id=00000005&docId=/Fathers-Synchronized-EN/Epistle_to_Diognetus__Epistula_ecclesiarum_apud_Lugdunum_et_Viennam.en.html"
+  },
+  {
+   "form": "ἄνεστί",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The independent lexical article defines go up and go back from the εἶμι family, quoting ἀνιόντι, ἀνιόντα, ἀνιών and ἄνεισι. The historical generator also prepended the same head to the unrelated εἰμί be paradigm, producing this unsupported mixed form.",
+    "Both fresh Greek Wiktionary extracts, merged lexical definitions and exact corpus evidence supply no independent owner or attestation for this spelling. The separately attested ὕπειμι forms ὕπεστί and ὕπεστίν remain allowed."
+   ]
+  },
+  {
+   "form": "ἄνεστίν",
+   "decision": "reject",
+   "class": "historical_irregular_compound",
+   "locus": "LSJ ἄνειμι",
+   "reasons": [
+    "The independent lexical article defines go up and go back from the εἶμι family, quoting ἀνιόντι, ἀνιόντα, ἀνιών and ἄνεισι. The historical generator also prepended the same head to the unrelated εἰμί be paradigm, producing this unsupported mixed form with movable nu.",
+    "Both fresh Greek Wiktionary extracts, merged lexical definitions and exact corpus evidence supply no independent owner or attestation for this spelling. The separately attested ὕπειμι forms ὕπεστί and ὕπεστίν remain allowed."
    ]
   }
  ]

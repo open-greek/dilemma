@@ -37,10 +37,8 @@ def el():
 @pytest.fixture(autouse=True)
 def _reset_verb_cache(el):
     """Reset the module-level _VERB_CACHE before each test so cache
-    state from one test doesn't leak into another (the cache stores
-    diacritic-stripped suffix patterns whereas a fresh Lua call
-    returns accented forms; mixing the two yields inconsistent
-    output and breaks tests that expect baseline-superset semantics).
+    state from one test does not leak into another. Cached paradigms
+    preserve their lexical marks and exact request identity.
     """
     el._VERB_CACHE.clear()
     if hasattr(el, "_PP_CACHE"):
@@ -125,50 +123,26 @@ class TestClassifier:
 
 
 class TestIrregularExpansion:
-    """The hand-coded paradigms for εἰμί / εἶμι / οἶδα / χρή / φημί."""
+    """Literal irregular bases are separate; compounds need their own evidence."""
 
-    @pytest.mark.parametrize("hw,expected_substr", [
-        ("πάρειμι", "παρειμι"),
-        ("σύνειμι", "συνειμι"),
-        ("εἴσειμι", "εισειμι"),
-        ("ὑπερειμι", "υπερειμι"),
-    ])
-    def test_compound_lemma_form_recoverable(self, el, hw, expected_substr):
-        forms = el._expand_irregular_compound(hw)
-        # The lemma form itself (1sg present indicative active) should
-        # appear in the stripped output.
-        plain = {strip_diacritics(f).lower() for f in forms}
-        assert expected_substr in plain, \
-            f"{expected_substr!r} not in stripped forms of {hw}"
+    @pytest.mark.parametrize("headword", ["εἰμί", "εἶμι", "οἶδα", "χρή", "φημί"])
+    def test_literal_base_is_retained(self, el, headword):
+        assert headword in el._expand_irregular_compound(headword)
 
-    def test_compound_imperfect(self, el):
-        forms = el._expand_irregular_compound("πάρειμι")
-        # imperfect 3sg of εἰμί is ἦν; compound becomes παρῆν
-        plain = {strip_diacritics(f).lower() for f in forms}
-        assert "παρην" in plain
+    def test_be_and_go_do_not_share_paradigms(self, el):
+        be = el._expand_irregular_compound("εἰμί")
+        go = el._expand_irregular_compound("εἶμι")
+        assert {"εἶναι", "ἦν", "ὤν"} <= be
+        assert {"ἰέναι", "ᾔει", "ἰών"} <= go
+        assert not {"ἰέναι", "ᾔει", "ἰών"} & be
+        assert not {"εἶναι", "ἦν", "ὤν"} & go
 
-    def test_compound_infinitive(self, el):
-        forms = el._expand_irregular_compound("σύνειμι")
-        plain = {strip_diacritics(f).lower() for f in forms}
-        # Infinitive of εἰμί is εἶναι; compound becomes συνειναι
-        assert "συνειναι" in plain
-
-    def test_compound_participle(self, el):
-        forms = el._expand_irregular_compound("πάρειμι")
-        plain = {strip_diacritics(f).lower() for f in forms}
-        # Participle of εἰμί is ὤν / οὖσα / ὄν -> compound
-        # παρών / παροῦσα / παρόν. After elision of the prefix vowel
-        # before vowel-initial base, we expect at least 'παρων'.
-        assert "παρων" in plain
+    @pytest.mark.parametrize("headword", ["πάρειμι", "σύνειμι", "εἴσειμι", "ὑπερειμι"])
+    def test_compound_does_not_inherit_an_approximate_base(self, el, headword):
+        assert el._expand_irregular_compound(headword) == set()
 
     def test_unknown_base_returns_empty(self, el):
-        # An -ειμι word whose preverb doesn't decompose into known atoms
-        # should return empty (we don't fabricate paradigms for unknown
-        # bases).
-        forms = el._expand_irregular_compound("παραΐεμι")
-        # paraïemi: prefix would be 'παραι' which is not a valid atom
-        # decomposition under our backtracking matcher.
-        assert forms == set()
+        assert el._expand_irregular_compound("παραΐεμι") == set()
 
 
 class TestPreverbSplit:
@@ -234,7 +208,6 @@ class TestExpandVerbIntegration:
         return el.get_wtp()
 
     @pytest.mark.parametrize("hw", [
-        "πάρειμι", "σύνειμι", "εἴσειμι",  # εἰμί compounds
         "διόλλυμι", "παραπόλλυμι",         # -όλλυμι compounds
         "τίθημι", "δίδωμι",                # standard athematic
     ])
@@ -242,6 +215,12 @@ class TestExpandVerbIntegration:
         forms, err = el.expand_verb(wtp, hw)
         assert not err, f"{hw}: err={err!r}"
         assert len(forms) > 0, f"{hw}: no forms generated"
+
+    @pytest.mark.parametrize("headword", ["πάρειμι", "σύνειμι", "εἴσειμι"])
+    def test_unsupported_compound_is_reported_without_lua(self, el, headword):
+        forms, error = el.expand_verb(None, headword)
+        assert forms == set()
+        assert error == "unsupported-irregular-compound"
 
     def test_corrupt_headword_short_circuits(self, el, wtp):
         forms, err = el.expand_verb(wtp, "ὑπ̣ε̣ρ̣εε̣ν̣μ̣ι̣")

@@ -76,6 +76,7 @@ from export_hunspell import (
     is_productive_second_accent,
     is_proparoxytone_or_properispomenon,
     load_lm_head_required_forms,
+    load_unsupported_bare_elisions,
     mark_skeleton,
     sanitize_export_pairs,
     select_forms,
@@ -85,6 +86,50 @@ KORONIS = "᾽"
 SPACING_PSILI = "᾿"
 SPACING_DASIA = "῾"
 COMBINING_PSILI = "̓"
+
+
+def test_export_creates_output_directory_before_audit(tmp_path, monkeypatch):
+    """A clean checkout must write the audit and dictionary on its first run."""
+    import json
+    import export_hunspell as exporter
+    import export_lm
+
+    lookup = tmp_path / "lookup.db"
+    sqlite3.connect(lookup).close()
+    output = tmp_path / "new" / "hunspell"
+    monkeypatch.setattr(exporter, "LOOKUP_DB", lookup)
+    monkeypatch.setattr(exporter, "OUT", output)
+    monkeypatch.setattr(exporter, "GRC_CLOSED_LIST_FORMS", {"λόγος": "λόγος"})
+    evidence = FormProfileEvidence({"λόγος": 5}, {"λογος": 5}, {}, {})
+    helpers = {
+        "load_freq_maps": ({}, {"λόγος": 5}),
+        "load_form_profile_freq": evidence,
+        "load_exact_rating_counts": {"λόγος": 5},
+        "load_canonical_ag_sets": (set(), set()),
+        "load_top_lsj9_lemmas": set(),
+        "load_grc_compatibility_forms": ({"λόγος"}, {}),
+        "load_grc_textbook_forms": ({"λόγος"}, {"paradigms": {}}),
+        "load_lm_head_required_forms": set(),
+        "load_case_ownership": {},
+        "load_unsupported_bare_elisions": set(),
+        "load_diorisis_quote_keys": (frozenset(), {}),
+        "load_exact_elision_heads": (frozenset(), {}),
+        "load_grc_spelling_review": frozenset(),
+        "select_forms": [("λόγος", "λόγος")],
+    }
+    for name, value in helpers.items():
+        monkeypatch.setattr(exporter, name, lambda *args, _value=value, **kwargs: _value)
+    monkeypatch.setattr(export_lm, "dictionary_drift", lambda **kwargs: None)
+
+    assert not output.exists()
+    exporter.run_export(1, ["grc"], treebank_spelling_min_count=0)
+    files = {p.name: p.read_bytes() for p in output.iterdir()}
+    assert {"grc_polytonic.audit.json", "grc_polytonic.dic",
+            "grc_polytonic.aff", "grc_polytonic.version"} <= files.keys()
+    assert json.loads(files["grc_polytonic.audit.json"])["schema_version"] == 1
+    assert "λόγος" in files["grc_polytonic.dic"].decode("utf-8")
+    exporter.run_export(1, ["grc"], treebank_spelling_min_count=0)
+    assert {p.name: p.read_bytes() for p in output.iterdir()} == files
 
 
 def test_editorial_forms_resolve_only_optional_final_nu():
@@ -645,8 +690,8 @@ def test_unaccented_ag_exceptions_are_a_closed_function_word_list():
         AG_FUNCTION_WORDS
     )
     assert {"οὐκ", "οὐχ"} <= set(AG_FUNCTION_WORDS)
-    assert "του" not in AG_FUNCTION_WORDS
-    assert "τῳ" not in AG_FUNCTION_WORDS
+    assert AG_FUNCTION_WORDS["του"] == "τις"
+    assert AG_FUNCTION_WORDS["τῳ"] == "τις"
 
 
 def test_export_overrides_are_narrow_runtime_resolved_forms():
@@ -790,7 +835,8 @@ def test_consonant_final_complete_words_are_kept(form, lemma):
 
 def test_reviewed_lm_head_is_pinned():
     forms = load_lm_head_required_forms()
-    assert len(forms) == 973
+    assert len(forms) == 975
+    assert {"του", "τώρα"} <= forms
     # The polytonic Modern article and the anastrophe accent of ἐκ are
     # required. The Diorisis macron artifact δῑ is gone from the LM since
     # its retraining, and the Modern Greek στὴν, which the LM writes only
@@ -822,9 +868,9 @@ def test_grc_orthography_filter_reports_rejected_pairs():
     ])
 
     assert kept == [("αὐτός", "αὐτός"), ("ῥήτωρ", "ῥήτωρ"),
-                    ("λόγος", "λόγος")]
+                    ("λόγος", "λόγος"), ("τῳ", "τις")]
     assert rejected == [
-        ("αυτός", "αὐτός"), ("ρητωρ", "ῥήτωρ"), ("τῳ", "τις")
+        ("αυτός", "αὐτός"), ("ρητωρ", "ῥήτωρ")
     ]
 
 
@@ -925,6 +971,19 @@ def test_polytonic_modern_greek_particles_are_accepted():
     assert added == 0 and len(pairs) == 2
     for form in ("θά", "γιά"):
         assert grc_orthography_reason(form) == "explicit_reject"
+
+
+def test_monotonic_noun_keys_do_not_become_polytonic_export_spellings():
+    from export_hunspell import GRC_MONOTONIC_NOUN_ALIASES
+    bad = set(GRC_MONOTONIC_NOUN_ALIASES)
+    bad.update(form[:1].upper() + form[1:] for form in list(bad))
+    good = set(GRC_MONOTONIC_NOUN_ALIASES.values()) | {"περσικώ"}
+    pairs = [(form, "περσικόν") for form in sorted(bad | good)]
+    kept, _ = finalize_grc_pairs(
+        pairs, evidence=_evidence(exact={}),
+        compatibility_forms=bad | good, textbook_forms=set(),
+        export_overrides={}, protected_forms=bad | good)
+    assert {form for form, _ in kept} == good
 
 
 def test_relative_pronoun_graves_come_in_with_their_acute_twins():
@@ -1056,6 +1115,57 @@ def test_data_driven_bare_elision_filter_keeps_independent_headword():
     assert not is_bare_elision_fallback(
         "ἄν", "ἄν", elided_pairs, {exact_form_key("ἄν")}
     )
+
+
+def test_bare_elision_guard_checks_compatibility_after_injection():
+    conn = _lookup_db([
+        ("Γλαῦκ᾽", "Γλαῦκος", "grc"),
+        ("Τληπόλεμ᾽", "Τληπόλεμος", "grc"),
+        ("Τληπόλεμ", "Τληπόλεμος", "grc"),
+        # These complete homographs have independent lexical owners.
+        ("Βηθλέεμ᾽", "Βηθλέεμα", "grc"),
+        ("Βηθλέεμ", "Βηθλέεμ", "grc"),
+        ("Χάροπ᾽", "Χάροψ", "grc"),
+        ("Χάροπ", "Χάροπ", "el"),
+        ("Ναΐδ᾽", "Ναίς", "grc"),
+        ("Ναῒδ", "Ναΐδ", "grc"),
+        ("κάτ᾽", "κατά", "grc"),
+        ("κάτ", "κατά", "grc"),
+        ("ἄν᾽", "ἀνά", "grc"),
+        ("ἄν", "ἄν", "grc"),
+        ("Ἰακώβ᾽", "Ἰακώβ", "grc"),
+    ])
+    keys = load_unsupported_bare_elisions(
+        conn, {exact_form_key("Ἰακώβ")})
+    assert keys == {"Γλαῦκ", "Τληπόλεμ"}
+    # Compatibility injects self-maps even when lookup has no bare row.
+    bare = [(form, form) for form in
+            ("Γλαῦκ", "Τληπόλεμ", "Βηθλέεμ", "Χάροπ", "Ναΐδ", "κάτ", "ἄν", "Ἰακώβ")]
+    marked = [("Γλαῦκ᾽", "Γλαῦκος"), ("Τληπόλεμ᾽", "Τληπόλεμος")]
+    kept, report = finalize_grc_pairs(
+        bare + marked, evidence=_evidence(exact={"Γλαῦκ": 1}),
+        compatibility_forms={form for form, _ in bare + marked},
+        textbook_forms=set(), export_overrides={}, protected_forms=set(),
+        bare_elision_keys=keys,
+    )
+    assert {form for form, _ in kept} == {
+        "Βηθλέεμ", "Χάροπ", "Ναΐδ", "κάτ", "ἄν", "Ἰακώβ", "Γλαῦκ᾽", "Τληπόλεμ᾽"}
+    assert report["bare_elision_rejected"] == [
+        ("Γλαῦκ", "Γλαῦκ"), ("Τληπόλεμ", "Τληπόλεμ")]
+    _aff, lines = build_sfx_rules(kept, {})
+    emitted = {line.split("\t", 1)[0].split("/", 1)[0] for line in lines}
+    assert not (emitted & {"Γλαῦκ", "Τληπόλεμ"})
+
+
+def test_bare_elision_guard_preserves_case_and_contextual_accents():
+    conn = _lookup_db([
+        ("Θύνοντ᾽", "θύω", "grc"),
+        ("Λαμβάνοιτ’", "λαμβάνω", "grc"),
+        ("Τοὺτ᾽", "οὗτος", "grc"),
+    ])
+    keys = load_unsupported_bare_elisions(conn, set())
+    assert keys == {"Θύνοντ", "Λαμβάνοιτ", "Τούτ"}
+    assert "θύνοντ" not in keys
 
 
 def test_affix_compression_uses_only_real_forms_as_flagged_bases():
@@ -1389,3 +1499,758 @@ def test_select_forms_takes_modern_greek_rows_the_treebanks_attest():
     # rule; ἑκατέρως keeps the lemma the closed list gives it.
     assert taken == {("λόγος", "λόγος"), ("σπανίως", "σπανίως"),
                      ("κτήσεις", "κτήσεις")}
+
+
+def test_real_enclitics_and_postclassical_conjunction_are_closed_forms():
+    assert {"του": "τις", "τῳ": "τις", "ἐνῷ": "ἐνῷ"}.items() <= GRC_CLOSED_LIST_FORMS.items()
+    assert grc_orthography_reason("τῳ") is None
+
+
+def test_exact_rating_does_not_borrow_from_letters_or_lemma_or_affix():
+    pairs = [("χρυσός", "χρυσός"), ("χρῦσος", "χρυσός"),
+             ("λόγος", "λόγος"), ("λόγοςα", "λόγος"),
+             ("τύπος", "τύπος"), ("τύποςα", "τύπος")]
+    aff, lines = build_sfx_rules(
+        pairs, {"χρυσος": 200_000, "χρυσός": 2_000, "λόγος": 2000},
+        canonical_lemmas={"χρυσός"}, exact_frequency=True)
+    assert not aff
+    assert "χρῦσος\tfr:X" in lines
+    assert "χρυσός\tfr:C" in lines
+    assert "λόγοςα\tfr:X" in lines
+
+
+def test_case_filter_uses_real_ownership_and_exact_case_evidence():
+    from export_hunspell import cased_form_key, filter_case_artifacts
+    evidence = _evidence({"Σωκράτης": 9000, "ψυχῇ": 2000})
+    evidence = evidence._replace(cased={cased_form_key("Σωκράτης"): 9000,
+                                        cased_form_key("ψυχῇ"): 2000})
+    pairs = [("Πόλῃ", "Πόλῃ"), ("πόλῃ", "πόλις"),
+             ("Σωκράτης", "Σωκράτης"), ("σωκράτης", "σωκράτης"),
+             ("ψυχῇ", "Ψυχή")]
+    kept, rejected = filter_case_artifacts(
+        pairs, evidence, {exact_form_key("Πόλῃ"): 2,
+                          exact_form_key("Σωκράτης"): 1,
+                          exact_form_key("ψυχῇ"): 1})
+    assert rejected == [pairs[0], pairs[3]]
+    assert kept == [pairs[1], pairs[2], pairs[4]]
+
+
+def test_source_split_word_junk_cannot_return_through_compatibility():
+    pairs = [("γί", "γία"), ("ἐνέρ", "ἐνέρ"), ("μεγί", "μέγας"), ("γία", "γία")]
+    kept, _ = finalize_grc_pairs(
+        pairs, evidence=_evidence({f: 5000 for f, _ in pairs}),
+        compatibility_forms={f for f, _ in pairs}, textbook_forms=set(),
+        export_overrides={}, protected_forms=set())
+    assert kept == [("γία", "γία")]
+
+
+def test_builtin_spelling_rejects_override_compatibility_and_grave_twins():
+    bad = ["τής", "τὴς", "τού", "τοὺ", "ταίς", "ταὶς",
+           "στό", "στά", "θά", "γιά"]
+    good = ["τῆς", "τοῦ", "ταῖς", "στὸ", "στὰ", "θὰ", "γιὰ"]
+    pairs = [(form, form) for form in bad + good]
+    kept, report = finalize_grc_pairs(
+        pairs, evidence=_evidence({form: 5000 for form in bad + good}),
+        compatibility_forms=set(bad + good), textbook_forms=set(),
+        export_overrides={}, protected_forms=set(bad + good))
+    assert {form for form, _ in kept} == set(good)
+    assert report["reviewed"] >= len(bad)
+
+
+def test_postclassical_evidence_removes_heldout_and_requires_repetition():
+    from export_hunspell import postclassical_admission_reason
+    def reason(*args, **kwargs):
+        return postclassical_admission_reason(*args, pos="noun", **kwargs)
+    assert reason(8, {"pg": 8, "pta": 5}, 3) == "repeated_multiple_sources"
+    assert reason(8, {"pg": 8, "first1k": 5}, 3) is None
+    assert reason(5, {"pg": 5, "first1k": 1, "oga": 1}, 4) is None
+    assert reason(8, {"first1k": 8, "oga": 8}, 3) is None
+    assert reason(30, {"pg": 30}, 4) is None
+    assert reason(25, {"pta": 25}, 3, heldout_count=5) is None
+    assert reason(25, {"pta": 25}, 8, heldout_count=5) == "repeated_multiple_works"
+    assert reason(25, {"pta": 25, "pg": 4}, 6) is None
+    assert reason(25, {"pta": 25, "pg": 4}, 7) == "repeated_multiple_works"
+    assert reason(1, {"pg": 1}, 1, lexical=True) == "attested_lexical_form"
+    assert reason(1, {"pg": 1}, 1, lexical=True, heldout_count=1) is None
+    assert reason(8, {"pg": 8, "pta": 5}, 3, heldout_count=5) is None
+
+
+@pytest.mark.parametrize("form,count,sources,works", [
+    ("ΚΠερί", 20, {"pg": 20}, 9),
+    ("Κτόν", 45, {"pg": 45}, 23),
+    ("Στίχ", 327, {"first1k": 327, "oga": 327, "pg": 1}, 12),
+    ("κκλησίαν", 5, {"first1k": 5, "pg": 4}, 6),
+    ("τεῖται", 20, {"first1k": 11, "glaux": 1, "oga": 12, "pg": 10}, 15),
+    ("δικαιοσύ", 13, {"diorisis": 1, "first1k": 4, "oga": 5, "pg": 9, "pta": 1}, 16),
+    ("θρώπων", 91, {"diorisis": 3, "first1k": 57, "oga": 60, "pg": 71, "pta": 1}, 75),
+    ("Λὐξάνεσθε", 6, {"diorisis": 1, "first1k": 1, "oga": 1, "pg": 6}, 3),
+])
+def test_shared_transcription_errors_do_not_establish_unknown_words(form, count, sources, works):
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(count, sources, works, pos="noun") is None
+
+
+def test_reviewed_paradigms_derive_cells_instead_of_listing_words():
+    from export_hunspell import derive_reviewed_paradigm as derive
+    forms = derive({"method": "lookup_paradigm", "prefix": "παν",
+                    "remove_initial_breathing": True}, ["ἀμώμητον", "ἀμωμήτῳ"])
+    assert forms == {"παναμώμητον", "παναμωμήτῳ"}
+    forms = derive({"method": "verb_paradigm", "prefix": "ἀνθ",
+                    "remove_initial_breathing": True}, ["ὁπλίσαντες"])
+    assert forms == {"ἀνθοπλίσαντες"}
+    assert "κατετέθης" in derive({"method": "passive_aorist_indicative", "stem": "κατετέθ"}, [])
+    assert "λαμπρυνθῶμεν" in derive({"method": "passive_aorist_subjunctive", "stem": "λαμπρυνθ"}, [])
+    forms = derive({"method": "eta_noun", "stem": "πινακοθήκ"}, [])
+    assert {"πινακοθήκῃ", "πινακοθηκῶν", "πινακοθῆκαι"} <= forms
+
+
+def test_exact_rating_compresses_only_equal_bucket_cells():
+    pairs = [("βα", "lemma1"), ("βαν", "lemma1"), ("βας", "lemma1"),
+             ("γα", "lemma2"), ("γαν", "lemma2"), ("γας", "lemma2")]
+    aff, lines = build_sfx_rules(pairs, {"βα": 2000, "βαν": 2000,
+                                       "γα": 2000, "γαν": 2000}, exact_frequency=True)
+    assert aff
+    assert any(line.startswith("βα/") and line.endswith("fr:C") for line in lines)
+    assert "βας\tfr:X" in lines
+    assert "γας\tfr:X" in lines
+
+
+def test_exact_rating_keeps_capital_and_lowercase_counts_separate():
+    _aff, lines = build_sfx_rules([("Κοίνος", "Κοίνος"), ("κοίνος", "κοίνος")],
+                                  {"κοίνος": 2000}, exact_frequency=True)
+    assert "Κοίνος\tfr:X" in lines
+    assert "κοίνος\tfr:C" in lines
+
+
+def test_postclassical_loader_uses_lexical_and_independent_corpus_evidence(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import add_postclassical_corpus_forms, lexical_head_key
+    profile = tmp_path / "profile.db"
+    conn = sqlite3.connect(profile)
+    conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
+                       "CREATE TABLE form_profile(form_id INTEGER,total_count INTEGER,"
+                       "source_counts_json TEXT,n_works INTEGER,dominant_pos TEXT DEFAULT 'noun');")
+    rows = [("πανάγιον", 8, {"pg": 8, "pta": 5}, 4),
+            ("σπανίως", 1, {"pg": 1}, 1),
+            ("καθόλου", 1, {"pg": 1}, 1),
+            ("σπίτι", 1, {"byzantine_vernacular": 1}, 1),
+            ("Παύλοα", 1, {"byzantine_vernacular": 1}, 1),
+            ("Σωκράτους", 1, {"byzantine_vernacular": 1}, 1),
+            ("λόγους", 7, {"oga": 7, "first1k": 7}, 1),
+            ("Ἰωάννς", 1, {"first1k": 1, "oga": 1}, 1),
+            ("Ἰσσάκ", 2, {"first1k": 1, "oga": 2, "pta": 1}, 2),
+            ("Νατθαῖος", 1, {"glaux": 1}, 1)]
+    unclassified = ["διάτοι", "διατοῦτο", "τρῶν", "Ἁλληλουιά", "δὔ"]
+    rows.extend((f, 100, {"pta": 100, "oga": 100}, 50) for f in unclassified)
+    for i, (form, count, sources, works) in enumerate(rows):
+        conn.execute("INSERT INTO forms VALUES(?,?)", (i, form))
+        conn.execute("INSERT INTO form_profile(form_id,total_count,source_counts_json,n_works) VALUES(?,?,?,?)",
+                     (i, count, json.dumps(sources), works))
+    for form in unclassified:
+        conn.execute("UPDATE form_profile SET dominant_pos='other' WHERE form_id IN "
+                     "(SELECT form_id FROM forms WHERE form=?)", (form,))
+    conn.commit(); conn.close()
+    lookup = _lookup_db([("σπίτι", "σπίτι", "el"),
+                         ("Παύλοα", "Παύλοα", "el"),
+                         ("Σωκράτους", "Σωκράτης", "grc"),
+                         ("σπανίως", "σπάνιος", "grc"),
+                         ("καθόλου", "καθόλου", "grc"),
+                         *[(f, f, "grc") for f in ("Ἰωάννς", "Ἰσσάκ", "Νατθαῖος")]])
+    out, audit = add_postclassical_corpus_forms([], lookup, Counter({"καθόλου":1}),
+                                                profile_path=profile, lexical_heads=frozenset(map(lexical_head_key,
+                                                    ["Σωκράτης", "σπάνιος", "καθόλου"])),
+                                                vernacular_heads=frozenset({lexical_head_key("σπίτι")}))
+    assert {form for form, _ in out} == {"πανάγιον", "σπανίως", "σπίτι", "Σωκράτους"}
+    assert {row["reason"] for row in audit} == {"repeated_multiple_sources", "attested_lexical_form"}
+
+
+def test_new_corpus_capital_without_lexical_owner_cannot_duplicate_lower_word():
+    from export_hunspell import cased_form_key, filter_case_artifacts
+    evidence = _evidence({"Νέον": 100})
+    evidence = evidence._replace(cased={cased_form_key("Νέον"): 100})
+    pairs = [("νέον", "νέος"), ("Νέον", "Νέον")]
+    kept, rejected = filter_case_artifacts(pairs, evidence, {})
+    assert kept == [pairs[0]]
+    assert rejected == [pairs[1]]
+
+
+def test_exact_rating_canonical_admission_does_not_claim_frequency():
+    _aff, lines = build_sfx_rules([("ἄγνωστον", "ἄγνωστος")], {},
+                                  canonical_forms={"ἄγνωστον"},
+                                  canonical_lemmas={"ἄγνωστος"}, exact_frequency=True)
+    assert lines == ["ἄγνωστον\tfr:X"]
+
+
+def test_exact_rating_loader_never_uses_legacy_lowercased_counts(tmp_path, monkeypatch):
+    import gzip
+    import json
+    import export_hunspell as exporter
+    monkeypatch.setattr(exporter, "DATA", tmp_path)
+    with gzip.open(tmp_path / "hunspell_grc_form_freq.json.gz", "wt") as stream:
+        json.dump({"forms": {"λόγος": 1000},
+                   "cased_forms": {"Λόγος": 1000, "λόγος": 2}}, stream)
+    evidence = _evidence({"λόγος": 5000})._replace(cased={"λόγος": 3})
+    assert exporter.load_exact_rating_counts(evidence) == {"Λόγος": 1000, "λόγος": 3}
+
+
+def test_source_review_admits_only_the_documented_forms():
+    from export_hunspell import derive_reviewed_paradigm
+    assert derive_reviewed_paradigm(
+        {"method": "source_forms", "forms": ["κάρτευς", "ἐπεστονάχιζε"]}, []
+    ) == {"κάρτευς", "ἐπεστονάχιζε"}
+
+
+def test_source_review_normalizes_contextual_grave_to_acute():
+    from export_hunspell import derive_reviewed_paradigm
+    assert derive_reviewed_paradigm(
+        {"method": "source_forms", "forms": ["κεντροβαρὲς", "ὑπερανεστηκὸς"]}, []
+    ) == {"κεντροβαρές", "ὑπερανεστηκός"}
+
+
+def test_reviewed_archimedes_grave_and_acute_survive_export_filters():
+    import json
+    from export_hunspell import DATA, derive_reviewed_paradigm, finalize_grc_pairs
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    spec = next(row for row in specs if row["lemma"] == "ἀπόχρη")
+    assert spec["forms"] == ["ἀποχρὴ"]
+    acute = derive_reviewed_paradigm(spec, [])
+    assert acute == {"ἀποχρή"}
+    pairs, report = finalize_grc_pairs(
+        [("ἀποχρὴ", "ἀπόχρη")], evidence=_evidence({"ἀποχρή": 1}),
+        compatibility_forms=set(), textbook_forms=acute,
+        export_overrides={}, protected_forms=acute)
+    assert set(pairs) == {("ἀποχρὴ", "ἀπόχρη"), ("ἀποχρή", "ἀπόχρη")}
+    assert report["acute_twins"] == 1
+
+
+@pytest.mark.parametrize("capital,lower,lemma", [
+    ("Σάρκα", "σάρκα", "σάρξ"), ("Σαφής", "σαφής", "σαφής"),
+    ("Τύπος", "τύπος", "τύπος"), ("Φράζε", "φράζε", "φράζω"),
+    ("Πάρα", "πάρα", "παρά"), ("Τίσι", "τίσι", "τίσις"),
+])
+def test_shared_modern_self_map_cannot_establish_ancient_name(capital, lower, lemma):
+    from export_hunspell import load_case_ownership, filter_case_artifacts
+    conn = _lookup_db([(capital, capital, "el"), (lower, lemma, "grc"),
+                       ("Σωκράτης", "Σωκράτης", "grc"),
+                       ("Ψυχή", "Ψυχή", "grc"), ("ψυχῇ", "ψυχή", "grc")])
+    pairs = [(capital, capital), (lower, lemma), ("Σωκράτης", "Σωκράτης"),
+             ("ψυχῇ", "ψυχή")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({}), load_case_ownership(conn))
+    assert rejected == [(capital, capital)]
+    assert kept == pairs[1:]
+
+
+@pytest.mark.parametrize("form,reason", [
+    ("σμγ᾽", "unreviewed_elision_or_numeral"),
+    ("εἰπεῖν᾽", "unreviewed_elision_or_numeral"),
+    ("ἧμάς", "unreviewed_contextual_accent"),
+    ("ἧμίν", "unreviewed_contextual_accent"),
+    ("δΰ", "unexplained_diaeresis"),
+    ("ἐυρραθάμιγγος", "diphthong_breathing_on_first_vowel"),
+    ("εὐρραθάμιγγος", None), ("ἄϋπνος", None),
+])
+def test_unknown_corpus_context_marks_need_lexical_review(form, reason):
+    from export_hunspell import postclassical_spelling_reason
+    assert postclassical_spelling_reason(form) == reason
+
+
+def test_exact_inflection_proof_uses_pinned_source_case_and_marks():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    heads = frozenset(map(lexical_head_key, ["λόγος", "Σωκράτης", "Ἰωάννς", "Παῦλοα", "λογός"]))
+    conn = _lookup_db([("Σωκράτους", "Σωκράτης", "grc"),
+                       ("λόγους", "λόγος", "grc"),
+                       ("Ἰωάννς", "Ἰωάννς", "grc"),
+                       ("ψυχάς", "ψυχή", "el"),
+                       ("λογου", "λόγος", "grc"),
+                       ("Παύλοα", "Παῦλοα", "grc"),
+                       ("λόγος", "λογός", "grc")])
+    assert exact_inflection_lemma(conn, "λόγους", "λόγους", lexical_heads=heads) == "λόγος"
+    assert exact_inflection_lemma(conn, "Σωκράτους", "Σωκράτους", lexical_heads=heads) == "Σωκράτης"
+    for form in ("σωκράτους", "λογους", "λογου", "λόγούς", "Ἰωάννς", "ψυχάς", "Παύλοα", "λόγος"):
+        assert exact_inflection_lemma(conn, form, form, lexical_heads=heads) is None
+
+
+_CORRUPT_CORPUS_INFLECTIONS = [
+    ("Μαρκελλλίνου", "Μαρκελλλῖνος"),
+    ("συννντρίμματι", "σύννντριμμα"),
+    ("συγγράμμματα", "συγγράμμμα"),
+    ("αἱμορρραγίην", "αἱμορρραγία"),
+    ("ἐλάσσσων", "ἔλασσσον"),
+    ("μελισσσάων", "μελίσσσος"),
+    ("ἀπορρρέοντα", "ἀπορρρέω"),
+    ("ΛΓτῇ", "ΛΓτός"),
+    ("ΧΙΙπροθυμίας", "ΧΙΙπροθυμία"),
+    ("ζϠκαπρός", "ζϠκαφρός"),
+    ("ἀπόΑΕ", "ἀποάω"),
+    ("ἐνΘήβαις", "ἐνΘήβης"),
+]
+
+
+@pytest.mark.parametrize("form,lemma", _CORRUPT_CORPUS_INFLECTIONS + [
+    ("συγγράμματα", "συγγράμμμα"),
+    ("συγγράμμματα", "σύγγραμμα"),
+    ("λόγους", "λό γος"),
+])
+def test_corrupt_lookup_row_is_not_lexical_inflection_evidence(form, lemma):
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    heads = frozenset({lexical_head_key(lemma)})
+    conn = _lookup_db([(form, lemma, "grc")])
+    assert exact_inflection_lemma(conn, form, form, lexical_heads=heads) is None
+
+
+def test_corpus_admission_rejects_notation_even_with_repeated_evidence(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import add_postclassical_corpus_forms, lexical_head_key
+    good = [("Μαρκελλίνου", "Μαρκελλῖνος"),
+            ("συντρίμματι", "σύντριμμα"),
+            ("συγγράμματα", "σύγγραμμα"),
+            ("αἱμορραγίην", "αἱμορραγία"),
+            ("ἐλάσσων", "ἐλάσσων"),
+            ("μελισσάων", "μέλισσα"),
+            ("ἀπορρέοντα", "ἀπορρέω"),
+            ("Βρισηίδος", "Βρισηίς"),
+            ("Σωκράτους", "Σωκράτης"),
+            ("γία", "γία")]
+    rows = _CORRUPT_CORPUS_INFLECTIONS + good
+    profile = tmp_path / "profile.db"
+    with sqlite3.connect(profile) as conn:
+        conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
+                           "CREATE TABLE form_profile(form_id INTEGER,total_count INTEGER,"
+                           "source_counts_json TEXT,n_works INTEGER,dominant_pos TEXT);")
+        for i, (form, _lemma) in enumerate(rows):
+            conn.execute("INSERT INTO forms VALUES(?,?)", (i, form))
+            conn.execute("INSERT INTO form_profile VALUES(?,?,?,?,?)",
+                         (i, 100, json.dumps({"glaux": 100, "pta": 100}), 50, "noun"))
+    lookup = _lookup_db([(form, lemma, "grc") for form, lemma in rows])
+    out, audit = add_postclassical_corpus_forms([], lookup, Counter(), profile_path=profile,
+        lexical_heads=frozenset(lexical_head_key(l) for _f, l in rows),
+        vernacular_heads=frozenset())
+    assert {form for form, _lemma in out} == {form for form, _lemma in good}
+    assert len(audit) == len(good)
+
+
+def test_sparse_inflection_requires_an_independently_defined_head():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    conn = _lookup_db([("βουλὴντοιάνδε", "βουλήντοιας", "grc"),
+                       ("ἀντειπεῖνκαὶ", "ἀντειπεῖνκῃ", "grc"),
+                       ("λόγους", "λόγος", "grc"),
+                       ("ἀνανήψεις", "ἀνανηψις", "grc")])
+    heads = frozenset(map(lexical_head_key, ["λόγος", "ἀνάνηψις"]))
+    assert exact_inflection_lemma(conn, "βουλήντοιάνδε", "βουλὴντοιάνδε", lexical_heads=heads) is None
+    assert exact_inflection_lemma(conn, "ἀντειπεῖνκαί", "ἀντειπεῖνκαὶ", lexical_heads=heads) is None
+    assert exact_inflection_lemma(conn, "λόγους", "λόγους", lexical_heads=heads) == "λόγος"
+    assert exact_inflection_lemma(conn, "ἀνανήψεις", "ἀνανήψεις", lexical_heads=heads) == "ἀνανηψις"
+    assert lexical_head_key("Λόγος") not in heads
+    assert lexical_head_key("λογος") in heads
+    assert lexical_head_key("ἀνανήψις") == lexical_head_key("ἀνάνηψις")
+    assert lexical_head_key("ἀνάνηψις") != lexical_head_key("ἁνάνηψις")
+
+
+def test_sparse_inflection_can_follow_an_explicit_contracted_citation():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key, cased_form_key
+    conn = _lookup_db([("καταμετρηθείσης", "καταμετρῶ", "grc")])
+    heads = frozenset(map(lexical_head_key, ["καταμετρέω", "καταμετράω"]))
+    aliases = {cased_form_key("καταμετρῶ"): ("καταμετρέω",)}
+    assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
+        lexical_heads=heads, lemma_aliases=aliases) == "καταμετρέω"
+    assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
+        lexical_heads=frozenset(), lemma_aliases=aliases) is None
+    aliases[cased_form_key("καταμετρῶ")] += ("καταμετράω",)
+    assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
+        lexical_heads=heads, lemma_aliases=aliases) is None
+
+
+def test_sparse_inflection_preserves_a_defined_exact_pos_alternative():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    conn = _lookup_db([("νευροειδές", "νευροειδές", "grc")])
+    heads = frozenset({lexical_head_key("νευροειδής")})
+    owners = {"νευροειδές": ("νευροειδής",)}
+    assert exact_inflection_lemma(conn, "νευροειδές", "νευροειδές",
+        lexical_heads=heads, exact_pos_owners=owners) == "νευροειδής"
+    assert exact_inflection_lemma(conn, "νευροειδές", "νευροειδές",
+        lexical_heads=frozenset(), exact_pos_owners=owners) is None
+    assert exact_inflection_lemma(conn, "νευροειδές", "νευροειδές",
+        lexical_heads=heads) is None
+    assert exact_inflection_lemma(conn, "Νευροειδές", "Νευροειδές",
+        lexical_heads=heads, exact_pos_owners=owners) is None
+
+
+def test_sparse_evidence_merges_normalized_alias_and_form_conflicts(tmp_path):
+    import json
+    import hashlib
+    from export_hunspell import load_grc_inflection_evidence, lexical_head_key
+    lexical = tmp_path / "lexical.json"
+    lexical.write_text("{}")
+    alias_file = tmp_path / "aliases.json"
+    alias_file.write_text(json.dumps({"schema_version": 1, "language": "grc",
+        "lexical_heads": {"size": lexical.stat().st_size,
+                          "sha256": hashlib.sha256(lexical.read_bytes()).hexdigest()}, "aliases": {
+        "τιμώ": [{"lemma": "τιμάω", "sources": ["one"]}],
+        "τιμὼ": [{"lemma": "τιμέω", "sources": ["two"]}],
+        "τιμῶ": [{"lemma": "τιμάω", "sources": ["three"]}]}}))
+    pos = tmp_path / "pos.json"
+    pos.write_text(json.dumps({"τιμά": {"NOUN": "τιμή"},
+                               "τιμὰ": {"VERB": "τιμάω"}}))
+    heads = frozenset(map(lexical_head_key, ["τιμάω", "τιμέω", "τιμή"]))
+    aliases, owners = load_grc_inflection_evidence(heads, lexical_path=lexical,
+                                                  aliases_path=alias_file, pos_path=pos)
+    assert aliases["τιμώ"] == ("τιμάω", "τιμέω")
+    assert aliases["τιμῶ"] == ("τιμάω",)
+    assert set(owners["τιμά"]) == {"τιμάω", "τιμή"}
+
+
+def test_sparse_alias_evidence_does_not_lend_another_accents_spelling():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    rows = [("γαυρούμαι", "γαυροῦμαι", "grc"),
+            ("γαυροῦμαι", "γαυροῦμαι", "grc"),
+            ("διαμορφώ", "διαμορφῶ", "grc"),
+            ("διαμορφῶ", "διαμορφῶ", "grc")]
+    conn = _lookup_db(rows)
+    heads = frozenset(map(lexical_head_key, ["γαυρόομαι", "διαμορφόω"]))
+    aliases = {"γαυροῦμαι": ("γαυρόομαι",), "διαμορφῶ": ("διαμορφόω",)}
+    for form in ("γαυρούμαι", "διαμορφώ"):
+        assert exact_inflection_lemma(conn, form, form, lexical_heads=heads,
+                                      lemma_aliases=aliases) is None
+    for form, expected in (("γαυροῦμαι", "γαυρόομαι"), ("διαμορφῶ", "διαμορφόω")):
+        assert exact_inflection_lemma(conn, form, form, lexical_heads=heads,
+                                      lemma_aliases=aliases) == expected
+
+
+def test_modern_head_evidence_is_scoped_to_edited_vernacular(tmp_path):
+    import json
+    from collections import Counter
+    from export_hunspell import add_postclassical_corpus_forms, lexical_head_key
+    rows = [("παλάτια", "παλάτι", {"byzantine_vernacular": 1}),
+            ("παλατιών", "παλάτι", {"pg": 1}),
+            ("Παλάτια", "παλάτι", {"byzantine_vernacular": 1}),
+            ("παλάττια", "ἀδήλωτο", {"byzantine_vernacular": 1}),
+            ("συγγράμμματα", "σύγγραμμα", {"byzantine_vernacular": 1}),
+            ("σπίτι", "σπίτι", {"byzantine_vernacular": 1})]
+    profile = tmp_path / "profile.db"
+    with sqlite3.connect(profile) as conn:
+        conn.executescript("CREATE TABLE forms(form_id INTEGER, form TEXT);"
+                           "CREATE TABLE form_profile(form_id INTEGER,total_count INTEGER,"
+                           "source_counts_json TEXT,n_works INTEGER,dominant_pos TEXT);")
+        for i, (form, _lemma, sources) in enumerate(rows):
+            conn.execute("INSERT INTO forms VALUES(?,?)", (i, form))
+            conn.execute("INSERT INTO form_profile VALUES(?,?,?,?,?)",
+                         (i, 1, json.dumps(sources), 1, "noun"))
+    lookup = _lookup_db([(form, lemma, "grc") for form, lemma, _sources in rows])
+    heads = frozenset(map(lexical_head_key, ["παλάτι", "σύγγραμμα", "σπίτι"]))
+    out, audit = add_postclassical_corpus_forms(
+        [], lookup, Counter({"σπίτι": 1}), profile_path=profile,
+        lexical_heads=frozenset(), vernacular_heads=heads)
+    assert out == [("παλάτια", "παλάτι")]
+    assert audit[0]["reason"] == "attested_lexical_form"
+
+
+def test_reviewed_source_forms_preserve_valid_surfaces_with_corrupt_annotations():
+    import json
+    from export_hunspell import DATA, derive_reviewed_paradigm
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    forms = {form for spec in specs if spec["method"] == "source_forms"
+             for form in derive_reviewed_paradigm(spec, [])}
+    assert {"πανάγιον", "προκεκαθαρμένη", "συνεγκλειομένων", "ἀναθαρρυνόμενοι"} <= forms
+    assert "ἀναθαρρρυνόμενοι" not in forms
+
+
+def test_reviewed_sparse_textual_forms_keep_their_exact_spelling():
+    import json
+    from export_hunspell import DATA, derive_reviewed_paradigm
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    forms = {form: spec["lemma"] for spec in specs if spec["method"] == "source_forms"
+             for form in derive_reviewed_paradigm(spec, [])}
+    expected = {"κλώστρας": "κλώστρα", "μαγαρισμένε": "μαγαρίζω",
+                "μαγαρισμένη": "μαγαρίζω", "μαζωμένα": "μαζώνω",
+                "μαραμένη": "μαραίνω", "μαυλίστρα": "μαυλίστρα",
+                "μεταλαμπαδευομένην": "μεταλαμπαδεύω", "μυρισμένα": "μυρίζω",
+                "πανίτσιν": "πανίτσιν", "σπήλιο": "σπήλιο", "σπήτι": "σπίτι",
+                "τιμημένος": "τιμώ", "τορνεμένα": "τορνεύω", "φηκάρια": "φηκάρι",
+                "ἔποικα": "ποιέω", "ἔποικεν": "ποιέω", "ἔχρητο": "χράομαι",
+                "τάχεϊ": "τάχος", "συμπεριόντα": "συμπερίειμι",
+                "συνανιόντε": "συνάνειμι", "προσυποσχεῖν": "προσυπέχω",
+                "ἀπῆσθ᾽": "ἄπειμι"}
+    assert {form: forms.get(form) for form in expected} == expected
+    assert "ὤοντο" not in forms
+
+
+def test_verified_name_ownership_preserves_source_names_and_lower_homonyms():
+    from export_hunspell import include_reviewed_name_ownership, filter_case_artifacts
+    ownership = {exact_form_key("Σάξονας"): 2}
+    include_reviewed_name_ownership(ownership, [
+        {"form": "Σάξονας", "lemma": "Σάξων"},
+        {"form": "λόγους", "lemma": "λόγος"}])
+    pairs = [("Σάξονας", "Σάξων"), ("σάξονας", "σάξων")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({}), ownership)
+    assert kept == pairs
+    assert rejected == []
+    assert exact_form_key("λόγους") not in ownership
+
+
+
+
+def test_reviewed_name_cells_survive_flat_common_word_ownership():
+    from export_hunspell import (
+        add_reviewed_postclassical_paradigms, filter_case_artifacts,
+        include_reviewed_name_ownership, load_case_ownership,
+    )
+    expected = {
+        "Παρίους": "Πάριος", "Πῶλε": "Πῶλος", "Τύχικον": "Τύχικος",
+        "Κορέ": "Κορέ", "Ἰωαδά": "Ἰωαδά", "Ὀνησίμῳ": "Ὀνήσιμος",
+    }
+    conn = _lookup_db([(form, lemma.lower(), "grc")
+                       for form, lemma in expected.items()]
+                      + [("Πόλῃ", "πόλις", "grc"),
+                         ("Στρατιώτῃ", "στρατιώτης", "grc")])
+    pairs, protected, source_audit = add_reviewed_postclassical_paradigms([], conn)
+    reviewed = {form: lemma for form, lemma in pairs if form in expected}
+    assert reviewed == expected
+    assert expected.keys() <= protected
+    ownership = load_case_ownership(conn)
+    include_reviewed_name_ownership(ownership, source_audit)
+    name_pairs = list(expected.items())
+    negatives = [("Πόλῃ", "πόλις"), ("Στρατιώτῃ", "στρατιώτης")]
+    kept, rejected = filter_case_artifacts(name_pairs + negatives,
+                                           _evidence({}), ownership)
+    assert kept == name_pairs
+    assert rejected == negatives
+
+
+def test_unclassified_corpus_tokens_require_lexical_review():
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(100, {"pta": 100, "oga": 100}, 50,
+                                         pos="other") is None
+
+
+def test_classified_unknown_still_needs_independent_source_evidence():
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(100, {"pg": 100}, 50, pos="verb") is None
+    assert postclassical_admission_reason(8, {"pta": 8, "oga": 6}, 5,
+                                         pos="verb") == "repeated_multiple_sources"
+
+
+def test_shared_name_only_owner_preserves_name_but_not_unattested_lowercase():
+    from export_hunspell import load_case_ownership, filter_case_artifacts
+    conn = _lookup_db([("Γερμανία", "Γερμανία", "el"),
+                       ("γερμανία", "Γερμανία", "el")])
+    pairs = [("Γερμανία", "Γερμανία"), ("γερμανία", "γερμανία")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({})._replace(cased={}), load_case_ownership(conn))
+    assert kept == [pairs[0]]
+    assert rejected == [pairs[1]]
+
+
+def test_ancient_name_and_common_homograph_preserve_both_owners():
+    from export_hunspell import load_case_ownership, filter_case_artifacts
+    conn = _lookup_db([("Ψυχή", "Ψυχή", "grc"),
+                       ("ψυχή", "ψυχή", "grc")])
+    pairs = [("Ψυχή", "Ψυχή"), ("ψυχή", "ψυχή")]
+    kept, rejected = filter_case_artifacts(pairs, _evidence({}), load_case_ownership(conn))
+    assert kept == pairs
+    assert rejected == []
+
+
+def test_joined_editorial_phrase_needs_review_without_rejecting_compatibility():
+    from export_hunspell import postclassical_spelling_reason
+    assert postclassical_spelling_reason("ἐπιτοπουλύ") == "joined_editorial_phrase"
+    assert grc_orthography_reason("ἐπιτοπουλύ") is None
+
+
+def test_heldout_trusted_token_cannot_restore_untrusted_works():
+    from export_hunspell import postclassical_admission_reason
+    assert postclassical_admission_reason(
+        21, {"pta": 21, "pg": 3, "oga": 3, "first1k": 3}, 10,
+        heldout_count=1, pos="noun") is None
+
+
+@pytest.mark.parametrize("bad,correct", [
+    ("τέσσσαρας", "τέσσαρας"),
+    ("ἀναθαρρρυνόμενοι", "ἀναθαρρυνόμενοι"),
+    ("συμμμαχίας", "συμμαχίας"),
+    ("μέλλλει", "μέλλει"),
+])
+def test_reviewed_historical_ocr_errors_do_not_survive_compatibility(bad, correct):
+    from export_hunspell import load_grc_spelling_review
+    rejects = load_grc_spelling_review()
+    assert bad in rejects
+    assert correct not in rejects
+    control = "Βρισηίδος"  # A damaged historical lemma does not invalidate its form.
+    kept, report = finalize_grc_pairs(
+        [(bad, bad), (correct, correct), (control, control)],
+        evidence=_evidence(exact={bad: 1, correct: 1, control: 1}),
+        compatibility_forms={bad, correct, control},
+        textbook_forms=set(),
+        export_overrides={},
+        protected_forms=set(),
+        reviewed_rejects=rejects,
+    )
+    assert {form for form, _lemma in kept} == {correct, control}
+    assert report["reviewed"] == 1
+
+
+def test_reviewed_irregular_compound_errors_do_not_reject_independent_homographs():
+    from export_hunspell import load_grc_spelling_review
+    bad = {"δεἰσί", "ἄνεσει", "εἴσιών", "ἄνιόντι", "ἄνιών", "ἀντάνιόν",
+           "συμπάροντες", "συμπάροντι", "συμπάροντων", "συμπάρων", "συμπάρησαν",
+           "ἄνεστί", "ἄνεστίν"}
+    good = {"ἄνιόν", "ἐπείσιόν", "ὕπεστί", "ὕπεστίν", "εἴσω", "ὑποκάτω",
+            "παρέξω", "ἄνων", "ἄνοντος", "προσάνων", "ἄνιοι",
+            "ἀνέσει", "εἰσιών", "ἀνιόντι", "ἀνιών", "συμπαρόντες",
+            "συμπαρόντι", "συμπαρόντων", "συμπαρών", "συμπαρῆσαν"}
+    rejects = load_grc_spelling_review()
+    assert bad <= rejects
+    assert not good & rejects
+    forms = sorted(bad | good)
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in forms],
+        evidence=_evidence(exact={form: 1 for form in forms}),
+        compatibility_forms=set(forms),
+        textbook_forms=set(),
+        export_overrides={},
+        protected_forms=set(),
+        reviewed_rejects=rejects,
+    )
+    assert {form for form, _lemma in kept} == good
+    assert report["reviewed"] == len(bad)
+
+
+def test_diorisis_quote_index_keeps_case_and_distinguishes_existing_elision(tmp_path):
+    import json
+    from export_hunspell import cased_form_key, load_diorisis_quote_keys
+    resolved = 'duplicated_closing_quote_with_same_source_cell'
+    unresolved = 'unresolved_terminal_quote_or_elision'
+    records = [
+        {'original_beta': "*pu=r'", 'normalized_beta': '*pu=r', 'reason': resolved},
+        {'original_beta': "u(/dwr'", 'normalized_beta': "u(/dwr'", 'reason': unresolved},
+        {'original_beta': "a)ll''", 'normalized_beta': "a)ll'", 'reason': resolved},
+    ]
+    path = tmp_path/'audit.json'
+    path.write_text(json.dumps({'schema_version': 1, 'sources': [{'records': records}]}))
+    keys, meta = load_diorisis_quote_keys(path)
+    assert keys == {cased_form_key('Πῦρ᾽'), cased_form_key('ὕδωρ᾽')}
+    assert cased_form_key('πῦρ᾽') not in keys
+    assert meta['keys'] == 2 and len(meta['sha256']) == 64
+
+
+def test_quote_counts_and_generated_ownership_cannot_prove_elision():
+    from export_hunspell import cased_form_key
+    form = 'ὕδωρ᾽'
+    kept, report = finalize_grc_pairs(
+        [(form, 'ὕδωρ')], evidence=_evidence(exact={form: 1000}),
+        compatibility_forms=set(), textbook_forms=set(), export_overrides={},
+        protected_forms={form}, quote_keys=frozenset({cased_form_key(form)}))
+    assert kept == []
+    assert report['quote_rejected'] == [(form, 'ὕδωρ')]
+
+
+def test_independently_reviewed_elision_and_shipped_elision_survive_quote_gate():
+    from export_hunspell import cased_form_key
+    forms = {'εἶ᾽', 'ἀνίησ᾽'}
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)],
+        evidence=_evidence(exact={form: 5 for form in forms}),
+        compatibility_forms={'εἶ᾽'}, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, quote_keys=frozenset(map(cased_form_key, forms)),
+        quote_approved_forms={'ἀνίησ᾽'})
+    assert {form for form, _ in kept} == forms
+    assert not report['quote_rejected']
+
+
+def test_quote_exceptions_preserve_case_and_do_not_override_spelling_review():
+    from export_hunspell import cased_form_key
+    form = 'Πῦρ᾽'
+    kept, report = finalize_grc_pairs(
+        [(form, 'πῦρ')], evidence=_evidence(exact={form: 10}),
+        compatibility_forms=set(), textbook_forms=set(), export_overrides={},
+        protected_forms={form}, quote_keys=frozenset({cased_form_key(form)}),
+        quote_approved_forms={'πῦρ᾽'})
+    assert kept == [] and report['quote_evidence'] == 1
+    kept, report = finalize_grc_pairs(
+        [(form, 'πῦρ')], evidence=_evidence(exact={form: 10}),
+        compatibility_forms={form}, textbook_forms=set(), export_overrides={},
+        protected_forms={form}, quote_keys=frozenset({cased_form_key(form)}),
+        quote_approved_forms={form}, reviewed_rejects=frozenset({form}))
+    assert kept == [] and report['reviewed'] == 1
+
+
+def test_exact_elision_heads_do_not_infer_inflections_or_fold_case(tmp_path):
+    import json
+    from export_hunspell import cased_form_key, load_exact_elision_heads
+    (tmp_path/'dge_headwords.json').write_text(json.dumps(['εἶ’', 'ἀνίημι']))
+    (tmp_path/'cunliffe_headwords.json').write_text(json.dumps(['Ἀπόλλων’']))
+    (tmp_path/'grc_lexical_heads.json').write_text(json.dumps({
+        'schema_version': 2, 'heads': {'ἀλλ᾽': ['source'], 'ἀνίησ᾽': []}}))
+    heads, inputs = load_exact_elision_heads(tmp_path)
+    assert heads == set(map(cased_form_key, ('εἶ᾽', 'Ἀπόλλων᾽', 'ἀλλ᾽')))
+    assert cased_form_key('ἀνίησ᾽') not in heads
+    assert cased_form_key('ἀπόλλων᾽') not in heads
+    assert len(inputs) == 3
+
+
+def test_cited_elision_homographs_survive_without_compatibility_or_corpus_proof():
+    import json
+    from export_hunspell import DATA, cased_form_key, derive_reviewed_paradigm
+    expected = {"Πλάτων᾽": "Πλάτων", "δέοι᾽": "δέω", "εἷσ᾽": "ἵζω",
+                "θεοῖσ᾽": "θεός", "νίκησ᾽": "νικάω", "πανταχοῦ᾽": "πανταχοῦ",
+                "παῖ᾽": "παίω", "ποῦ᾽": "ποῦ", "χείρ᾽": "χείρ",
+                "ἀνδρῶν᾽": "ἀνδρών", "ἄν᾽": "ἀνά", "Ἀγάθων᾽": "Ἀγάθων",
+                "Ἀπόλλων᾽": "Ἀπόλλων", "ἔνι᾽": "ἔνιοι", "ὥρασ᾽": "ὥρασι",
+                "εἶ᾽": "εἶα", "ἀνίησ᾽": "ἀνίημι"}
+    specs = json.loads((DATA / "hunspell_grc_postclassical_review.json").read_text())["paradigms"]
+    forms = {form: spec["lemma"] for spec in specs if spec["method"] == "source_forms"
+             for form in derive_reviewed_paradigm(spec, [])}
+    assert {form: forms.get(form) for form in expected} == expected
+    # These are exact cited exceptions; raw quotation counts or an arbitrary
+    # historical dictionary entry are not their admission evidence.
+    kept, report = finalize_grc_pairs(
+        sorted(expected.items()), evidence=_evidence(exact={}),
+        compatibility_forms=set(), textbook_forms=set(), export_overrides={},
+        protected_forms=set(expected), quote_keys=frozenset(map(cased_form_key, expected)),
+        quote_approved_forms=set(expected))
+    assert set(kept) == set(expected.items())
+    assert not report["quote_rejected"]
+
+
+def test_confirmed_closing_quote_rejection_overrides_compatibility_and_elision_approval():
+    from export_hunspell import cased_form_key, load_grc_spelling_review
+    forms = {"ἄφεσ᾽", "παῖ᾽", "Ἀπόλλων᾽", "ἀνίησ᾽"}
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)], evidence=_evidence(exact={}),
+        compatibility_forms=forms, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, quote_keys=frozenset(map(cased_form_key, forms)),
+        quote_approved_forms=forms, reviewed_rejects=load_grc_spelling_review())
+    assert {form for form, _ in kept} == forms - {"ἄφεσ᾽"}
+    assert report["reviewed"] == 1
+
+
+def test_reviewed_split_word_fragment_does_not_override_complete_homographs():
+    from export_hunspell import load_grc_spelling_review
+    rejects = load_grc_spelling_review()
+    bad = {"ἐνεί", "ἐνεὶ"}
+    good = {"ἔνει", "ἐνείραντα", "ἐνείκασθαι", "ἐκεῖ", "ἐκείνην", "ἐκείνοις"}
+    assert "ἐνεί" in rejects
+    assert not good & rejects
+    forms = bad | good
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)], evidence=_evidence(exact={}),
+        compatibility_forms=forms, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, reviewed_rejects=rejects)
+    assert {form for form, _ in kept} == good
+    assert report["reviewed"] >= len(bad)
+
+
+def test_reviewed_circumflex_transcription_preserves_real_verb_and_connectives():
+    from export_hunspell import load_grc_spelling_review
+    rejects = load_grc_spelling_review()
+    bad = "ἐπεῖ"
+    good = {"ἔπει", "ἐπεί", "ἐπεὶ", "ἐκεῖ", "ἐπεῖδεν"}
+    assert bad in rejects
+    assert not good & rejects
+    forms = good | {bad}
+    kept, report = finalize_grc_pairs(
+        [(form, form) for form in sorted(forms)], evidence=_evidence(exact={}),
+        compatibility_forms=forms, textbook_forms=set(), export_overrides={},
+        protected_forms=forms, reviewed_rejects=rejects)
+    assert {form for form, _ in kept} == good
+    assert report["reviewed"] == 1

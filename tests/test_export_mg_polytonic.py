@@ -1240,16 +1240,24 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     lookup.write_bytes(b"lookup")
     monkeypatch.setattr(mg, "LOOKUP_DB", lookup)
     monkeypatch.setattr(mg, "FORM_PROFILE", tmp_path / "missing.db")
+    heads = tmp_path / "grc_lexical_heads.json"
+    heads.write_bytes(b"heads")
+    monkeypatch.setattr(mg, "MODERN_LEXICAL_HEADS", heads)
     import hashlib
     import mg_polytonic_paradigms as paradigms
     freq = tmp_path / "mg_freq.txt"
     freq.write_bytes(b"freq")
     monkeypatch.setattr(paradigms, "VERB_PARADIGMS", tmp_path / "none.json")
+    participles = tmp_path / "el_participles.json"
+    participles.write_bytes(b"participles")
+    monkeypatch.setattr(paradigms, "PARTICIPLE_PARADIGMS", participles)
     monkeypatch.setattr(paradigms, "MG_FORM_FREQ", freq)
     assert mg.input_digests() == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None, "verb_paradigms": None,
-        "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
+        "participle_paradigms": hashlib.sha256(b"participles").hexdigest(),
+        "form_frequencies": hashlib.sha256(b"freq").hexdigest(),
+        "modern_lexical_heads": hashlib.sha256(b"heads").hexdigest()}
     assert mg.input_digests(generate_verbs=False) == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None}
@@ -1257,7 +1265,62 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     assert mg.input_digests(generate_verbs=False) == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None,
+        "verb_paradigms": None,
+        "participle_paradigms": hashlib.sha256(b"participles").hexdigest(),
         "form_frequencies": hashlib.sha256(b"freq").hexdigest()}
+
+
+def test_generated_independent_loan_head_is_not_a_truncated_other_word():
+    import mg_polytonic_paradigms as P
+
+    rock = P.Generated("ῥόκ", "ροκ", "ροκ", 5573, "indicative", "noun",
+                       "noun", 5573)
+    assert mg.mg_orthography_reason("ῥόκ", {"ῥόκα"}) == "truncated_word"
+    assert mg._generated_orthography_reason(rock, {"ῥόκα"}, {"ροκ"}) is None
+    assert mg._generated_orthography_reason(rock, {"ῥόκα"}, set()) == "truncated_word"
+
+
+def test_loan_head_proof_does_not_cover_inflections_or_other_parts_of_speech():
+    import mg_polytonic_paradigms as P
+
+    candidate = P.Generated("ῥόκ", "ροκ", "ροκ", 100, "indicative", "noun",
+                            "noun", 100)
+    assert mg._generated_orthography_reason(
+        candidate._replace(lemma="ρόκα", cell="noun genitive singular"),
+        {"ῥόκα"}, {"ροκ", "ρόκα"}) == "truncated_word"
+    assert mg._generated_orthography_reason(
+        candidate._replace(vclass="adj", cell="adj"),
+        {"ῥόκα"}, {"ροκ"}) == "truncated_word"
+
+
+def test_positive_loan_head_proof_preserves_other_structural_rejects():
+    import mg_polytonic_paradigms as P
+
+    candidate = P.Generated("ρόκ", "ροκ", "ροκ", 100, "indicative", "noun",
+                            "noun", 100)
+    reason = mg.mg_orthography_reason(candidate.spelling, {"ρόκα"})
+    assert reason is not None and reason != "truncated_word"
+    assert mg._generated_orthography_reason(candidate, {"ρόκα"}, {"ροκ"}) == reason
+
+
+def test_modern_head_proof_does_not_use_ancient_or_empty_self_headers(tmp_path):
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({"schema_version": 2,
+                               "heads": {"ροκ": ["wiktionary_en_grc"]},
+                               "vernacular_heads": {
+                                   "ροκ": ["wiktionary_en_el", "wiktionary_el_el"],
+                                   "τύπος": [], "άλλο": ["wiktionary_en_grc"]}},
+                              ensure_ascii=False))
+    assert mg.load_modern_lexical_heads(path) == {"ροκ"}
+    # Memoization is keyed by content, not only a reused artifact path.
+    path.write_text(json.dumps({"schema_version": 2,
+                               "vernacular_heads": {"ροκ": []}}))
+    assert mg.load_modern_lexical_heads(path) == set()
+    assert mg.load_modern_lexical_heads(tmp_path / "missing.json") == set()
+    path = tmp_path / "malformed.json"
+    path.write_text(json.dumps({"schema_version": 1, "heads": {"ροκ": []}}))
+    with pytest.raises(ValueError, match="Modern lexical-head"):
+        mg.load_modern_lexical_heads(path)
 
 
 # --------------------------------------------------------------------------
@@ -1473,7 +1536,7 @@ def read_list(path: Path, shared: dict[str, str] | None = None
             avoid.append(form)
             continue
         if field.endswith(" mg:shared"):
-            assert re.fullmatch(r"fr:[CM] mg:shared", field), line
+            assert re.fullmatch(r"fr:[CMR] mg:shared", field), line
             rated[form] = field
             continue
         assert re.fullmatch(r"fr:[CMR]( mg:generated)?", field), line
@@ -1483,17 +1546,98 @@ def read_list(path: Path, shared: dict[str, str] | None = None
     return out, avoid
 
 
+def _built_orthography_errors(entries, grc, noun_heads=frozenset(), lexical_heads=frozenset()):
+    """Check the production guards, including exact source-backed noun heads."""
+    import mg_polytonic_paradigms as P
+    attested = {f for f, field in entries.items() if "mg:generated" not in field}
+    wide = attested | grc
+    invalid = []
+    for spelling in entries:
+        reason = mg_orthography_reason(spelling, attested if spelling in attested else wide)
+        if reason and spelling not in attested:
+            mono = P.monotonic_key(spelling)
+            if mono in noun_heads:
+                head = P.Generated(spelling, mono, mono, 0, "indicative", "noun", "noun", 0)
+                reason = mg._generated_orthography_reason(head, wide, lexical_heads)
+        if reason:
+            invalid.append(spelling)
+    return invalid
+
+
+def _positive_capital_cells(pairs, lexical_heads):
+    """Independently observed case/number cells of a defined capitalized head."""
+    import mg_polytonic_paradigms as P
+    forms = {}
+    for row in pairs:
+        head, form = row.get("lemma", ""), row.get("form", "")
+        tags = set(row.get("tags", ()))
+        if (row.get("pos") not in {"noun", "name"}
+                or not head[:1].isupper() or not form[:1].isupper()
+                or head not in lexical_heads
+                or not tags & {"nominative", "genitive", "accusative", "vocative"}
+                or not tags & {"singular", "plural"}):
+            continue
+        forms.setdefault(head, set()).add(P.monotonic_key(form))
+    return {form for values in forms.values() if len(values) >= 2 for form in values}
+
+
+def _built_grc_overlap_errors(entries, grc, positive_capitals):
+    """Only an uncounted lowercase row may leave a source-backed capital gap."""
+    import mg_polytonic_paradigms as P
+    return [form for form, fields in entries.items()
+            if mg.grc_accepts(form, grc)
+            and not (form[:1].isupper() and "mg:generated" in fields
+                     and form not in grc
+                     and mg._lowercase(form) in grc.uncounted_lowercase
+                     and P.monotonic_key(form) in positive_capitals)]
+
+
+def test_built_orthography_check_uses_exact_positive_noun_head_evidence():
+    entries = {"ῥόκ": "fr:M mg:generated"}
+    assert _built_orthography_errors(entries, {"ῥόκα"}) == ["ῥόκ"]
+    assert _built_orthography_errors(entries, {"ῥόκα"}, {"ροκ"}) == ["ῥόκ"]
+    assert _built_orthography_errors(entries, {"ῥόκα"}, set(), {"ροκ"}) == ["ῥόκ"]
+    assert _built_orthography_errors(entries, {"ῥόκα"}, {"ροκ"}, {"ροκ"}) == []
+    # A lowercase X entry cannot suppress an independently supported
+    # capital, but counted, literal, unattested and non-generated overlaps fail.
+    pairs = [{"lemma": "Σέρβος", "form": form, "pos": "noun",
+              "tags": [case, number]} for form, case, number in (
+                  ("Σέρβος", "nominative", "singular"),
+                  ("Σέρβοι", "nominative", "plural"))]
+    proof = _positive_capital_cells(pairs, {"Σέρβος"})
+    assert proof == {"σέρβος", "σέρβοι"}
+    assert not _positive_capital_cells(pairs[:1], {"Σέρβος"})
+    assert not _positive_capital_cells(pairs, set())
+    uncounted = mg.AncientDictionaryWords({"σέρβος"}, uncounted_lowercase={"σέρβος"})
+    capital = {"Σέρβος": "fr:R mg:generated"}
+    assert not _built_grc_overlap_errors(capital, uncounted, proof)
+    assert _built_grc_overlap_errors(capital, uncounted, set()) == ["Σέρβος"]
+    assert _built_grc_overlap_errors(capital, mg.AncientDictionaryWords({"σέρβος"}), proof) == ["Σέρβος"]
+    literal = mg.AncientDictionaryWords({"σέρβος", "Σέρβος"}, uncounted_lowercase={"σέρβος"})
+    assert _built_grc_overlap_errors(capital, literal, proof) == ["Σέρβος"]
+    assert _built_grc_overlap_errors({"Σέρβος": "fr:R"}, uncounted, proof) == ["Σέρβος"]
+    # A non-head inflection and an attested fragment never use this path.
+    assert _built_orthography_errors(entries, {"ῥόκα"}, {"ρόκα"}, {"ροκ"}) == ["ῥόκ"]
+    assert _built_orthography_errors({"ῥόκ": "fr:M", "ῥόκα": "fr:R"}, set(),
+                                    {"ροκ"}, {"ροκ"}) == ["ῥόκ"]
+    # Positive head proof cannot excuse another structural rejection.
+    assert _built_orthography_errors({"ρόκ": "fr:R mg:generated"}, {"ρόκα"},
+                                    {"ροκ"}, {"ροκ"}) == ["ρόκ"]
+
+
 @pytest.mark.skipif(not MG_DIC.exists() or not GRC_DIC.exists(),
                     reason="grc_mg_polytonic.dic not built")
 def test_the_built_list_holds_its_invariants():
-    from export_lm import read_hunspell_words
+    import mg_polytonic_paradigms as P
     shared: dict[str, str] = {}
     entries, avoid = read_list(MG_DIC, shared)
-    grc = read_hunspell_words(GRC_DIC)
-    assert not [f for f in entries if mg.grc_accepts(f, grc)]
-    # The mg:shared lines rate lowercase grc spellings, none of them avoided.
+    grc = mg.read_grc_words(GRC_DIC)
+    pairs = json.loads(P.VERB_PARADIGMS.read_text(encoding="utf-8"))
+    capital_cells = _positive_capital_cells(pairs, mg.load_modern_lexical_heads())
+    assert not _built_grc_overlap_errors(entries, grc, capital_cells)
+    # The mg:shared lines rate grc spellings, including capitalized plain
+    # nominal twins and rare ones. None is also marked to be avoided.
     assert set(shared) <= grc and not set(shared) & set(avoid)
-    assert all(f[:1].islower() for f in shared)
     # The mg:avoid lines name grc spellings: με and που, which Modern Greek
     # writes μὲ and ποὺ or ποῦ, but not μὲ or ποὺ themselves, nor another
     # word (ὅ, as in ὅ,τι; the numeral ἕν), nor an enclitic-accent form.
@@ -1506,14 +1650,17 @@ def test_the_built_list_holds_its_invariants():
     listed = {contextual_acute(f) for f in entries}
     assert not [f for f in avoid if contextual_acute(f) in listed]
     # No attested spelling is a fragment of another (τόμ for τόμο), nor a
-    # generated one of an attested one or of grc's: a loanword of
-    # Wiktionary's may be the other's letters without a vowel (καρτέλ,
-    # καρτέλα).
-    attested = {f for f, field in entries.items() if "mg:generated" not in field}
-    wide = attested | grc
-    invalid = [f for f in entries
-               if mg_orthography_reason(f, attested if f in attested
-                                        else wide)]
+    # generated one of an attested one or of grc's unless the exact noun
+    # head is independently defined in a Modern source (ροκ beside ῥόκα).
+    # The shared companion supplies positive Modern proof, not Ancient
+    # membership; the source pair must independently place this noun head.
+    import mg_polytonic_paradigms as paradigms
+    source_noun_heads = {
+        paradigms.monotonic_key(p["lemma"])
+        for p in json.loads(paradigms.VERB_PARADIGMS.read_text(encoding="utf-8"))
+        if p.get("pos") == "noun" and p.get("form") == p.get("lemma")}
+    invalid = _built_orthography_errors(entries, grc, source_noun_heads,
+                                        mg.load_modern_lexical_heads())
     assert not invalid, invalid[:20]
     # The core function words of polytonic Modern Greek are accepted:
     # by the list, or already by grc.
@@ -1542,13 +1689,17 @@ def test_the_built_list_holds_its_invariants():
     import hashlib
     grc_sha = hashlib.sha256(GRC_DIC.read_bytes()).hexdigest()
     assert f"grc_dictionary_sha256: {grc_sha}\n" in version
-    # του is the Ancient enclitic genitive too: no sign of Modern Greek.
-    assert entries["του"] == "fr:R" and entries["τώρα"] == "fr:C"
+    # του is the Ancient enclitic genitive too: if grc accepts it, a
+    # shared rating is no Modern-only entry. Otherwise it stays capped.
+    assert "του" in grc or entries["του"] == "fr:R"
+    assert entries.get("τώρα", shared.get("τώρα")) in {
+        "fr:C", "fr:C mg:shared"}
     # Every input that decides the list is recorded, as it is on disk now.
     import mg_polytonic_paradigms as paradigms
     for name, path in (("lookup_db", mg.LOOKUP_DB),
                        ("form_profile", mg.FORM_PROFILE),
                        ("verb_paradigms", paradigms.VERB_PARADIGMS),
+                       ("participle_paradigms", paradigms.PARTICIPLE_PARADIGMS),
                        ("form_frequencies", paradigms.MG_FORM_FREQ)):
         digest = mg.sha256_file(path) if path.exists() else "not read"
         assert f"{name}_sha256: {digest}\n" in version, name

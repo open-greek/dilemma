@@ -42,12 +42,17 @@ def test_sanity_checks_pass():
 
 
 @pytest.mark.parametrize("beta,expected", [
-    ("di)", "δι"),      # Diorisis's elision paren: not a breathing on ι
-    ("par)", "παρ"),
-    ("a)ll)", "ἀλλ"),
+    ("di)", "δι᾽"),      # Diorisis's elision paren: not a breathing on ι
+    ("par)", "παρ᾽"),
+    ("a)ll)", "ἀλλ᾽"),
+    ("a)niou=s'", "ἀνιοῦσ᾽"),  # elided -ουσα, not an unelided -οῦς
+    ("di'", "δι᾽"),
+    ("*di'", "Δι᾽"),
+    ("tw=nd'", "τῶνδ᾽"),
     ("ou)", "οὐ"),      # a real breathing on a short vowel word
+    ("a)niou=s", "ἀνιοῦς"),  # a genuine complete input is distinct
 ])
-def test_pairs_builder_drops_the_elision_paren(beta, expected):
+def test_pairs_builder_preserves_elision_and_distinguishes_real_breathing(beta, expected):
     pytest.importorskip("beta_code")
     import sys
     from pathlib import Path
@@ -56,3 +61,18 @@ def test_pairs_builder_drops_the_elision_paren(beta, expected):
     import build_diorisis_pairs
 
     assert build_diorisis_pairs.betacode_to_unicode(beta) == expected
+
+
+def test_pairs_extraction_does_not_create_a_complete_form_from_elision(tmp_path):
+    pytest.importorskip("beta_code")
+    from build.build_diorisis_pairs import extract_diorisis
+
+    (tmp_path / "sample.xml").write_text('''<text>
+        <word form="a)niou=s'"><lemma entry="ἄνειμι" POS="verb">
+        <analysis morph="fem nom sg pres part act"/></lemma></word>
+        <word form="a)/nion"><lemma entry="ἄνειμι" POS="verb">
+        <analysis morph="neut nom sg pres part act"/></lemma></word>
+        </text>''')
+    rows = extract_diorisis(tmp_path)
+    assert {row["form"] for row in rows} == {"ἀνιοῦσ᾽", "ἄνιον"}
+    assert all(row["lemma"] == "ἄνειμι" for row in rows)

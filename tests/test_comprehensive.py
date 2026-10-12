@@ -629,7 +629,6 @@ class TestElidedJunkValues:
     @pytest.mark.parametrize("stem,expected,pos", [
         ("ἀλλ", "ἀλλά", "CCONJ"),
         ("οὐδ", "οὐδέ", "CCONJ"),
-        ("μηδ", "μηδέ", "CCONJ"),
         ("μήτ", "μήτε", "CCONJ"),
         ("ἡνίκ", "ἡνίκα", "ADV"),
     ])
@@ -638,6 +637,15 @@ class TestElidedJunkValues:
         assert d_all.lemmatize(stem, guess=False) == expected
         assert d_all.lemmatize_batch([stem]) == [expected]
         assert d_all.lemmatize_pos(stem, pos) == expected
+
+    @pytest.mark.parametrize("form", ["μηδ᾽", "μηδ’", "μηδ'"])
+    def test_source_elision_keeps_its_apostrophe(self, d_all, form):
+        # Diorisis writes an elided μηδέ. The corrected reader preserves
+        # its apostrophe instead of creating the unmarked fragment μηδ.
+        assert d_all.lemmatize(form) == "μηδέ"
+        assert d_all.lemmatize(form, guess=False) == "μηδέ"
+        assert d_all.lemmatize_batch([form]) == ["μηδέ"]
+        assert d_all.lemmatize_pos(form, "CCONJ") == "μηδέ"
 
     def test_junk_value_never_returned(self, d_all):
         """No path may RESOLVE a word to a lemma ending in a spacing
@@ -1009,11 +1017,14 @@ class TestProperNounCaseTwin:
             f"lemmatize_pos({form!r}, 'PROPN') -> {got!r}; expected the "
             f"capitalized twin {expected!r}")
 
-    def test_capitalized_input_keeps_twin_reachable(self, d_all):
-        """Sentence-initial capitalized input, non-PROPN POS: the tiebreak
-        must not force it down to the lowercase twin (ambiguous case)."""
-        assert d_all.lemmatize_pos("Θυμός", "NOUN") == "Θυμός"
+    def test_capitalized_input_follows_explicit_pos_owner(self, d_all):
+        """An initial capital does not override the supported common-noun
+        POS owner; the proper-noun tag still reaches the personification."""
+        assert d_all._pos_table_lookup("Θυμός", "NOUN") == "θυμός"
+        assert d_all.lemmatize_pos("Θυμός", "NOUN") == "θυμός"
         assert d_all.lemmatize_pos("Θυμός", "PROPN") == "Θυμός"
+        assert d_all.lemmatize_batch_pos(
+            ["Θυμός", "Θυμός"], ["NOUN", "PROPN"]) == ["θυμός", "Θυμός"]
 
     def test_allcaps_input_reaches_both_twins(self, d_all):
         """All-caps input has no case signal of its own; POS decides."""
@@ -1652,6 +1663,16 @@ class TestArticleResolution:
         result = d_resolve_articles.lemmatize("μοι")
         assert strip_accents(result.lower()) == strip_accents("ἐγώ"), \
             f"μοι -> expected ἐγώ, got {result}"
+
+    def test_canonical_pronouns_across_public_apis(self, d_resolve_articles):
+        """Scalar, batch, and candidate APIs share the opt-in convention."""
+        forms = ["τι", "τί", "αὐτοῦ", "Αὐτὴν", "τινῶν", "τίνων"]
+        expected = ["τις", "τίς", "αὐτός", "αὐτός", "τις", "τίς"]
+        assert d_resolve_articles.lemmatize_batch(forms, guess=False) == expected
+        for form, lemma in zip(forms, expected):
+            assert d_resolve_articles.lemmatize(form, guess=False) == lemma
+            candidates = d_resolve_articles.lemmatize_verbose(form, guess=False)
+            assert candidates[0].lemma == lemma
 
     def test_default_no_article_resolution(self, d_all):
         """Without resolve_articles, articles should self-map."""

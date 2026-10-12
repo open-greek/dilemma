@@ -132,6 +132,19 @@ class TestPresentSynthesis:
         assert "active_present_subjunctive_1sg" in out
         assert "active_aorist_subjunctive_1sg" not in out
 
+    @pytest.mark.parametrize("lemma,parts,present,aorist", [
+        ("ἀκούω", {"fut": "ἀκούσω"}, "ἄκουε", "ἄκουσον"),
+        ("πείθω", {"fut": "πείσω"}, "πεῖθε", "πεῖσον"),
+        ("κελεύω", {"fut": "κελεύσω"}, "κέλευε", "κέλευσον"),
+        ("παρακελεύω", {"fut": "παρακελεύσω"}, "παρακέλευε", "παρακέλευσον"),
+    ])
+    def test_active_imperative_recomputes_recessive_accent(
+        self, synth, lemma, parts, present, aorist
+    ):
+        out = synth.synthesize_active_moods(lemma, parts)
+        assert out["active_present_imperative_2sg"] == present
+        assert out["active_aorist_imperative_2sg"] == aorist
+
 
 # ---------------------------------------------------------------------------
 # Aorist synthesis from principal parts
@@ -163,7 +176,7 @@ class TestAoristSynthesisFromFut:
         )
         assert out["active_aorist_subjunctive_1sg"] == "παιδεύσω"
         assert out["active_aorist_optative_1sg"] == "παιδεύσαιμι"
-        assert out["active_aorist_imperative_2sg"] == "παιδεύσον"
+        assert out["active_aorist_imperative_2sg"] == "παίδευσον"
         assert out["active_aorist_imperative_3sg"] == "παιδευσάτω"
 
     def test_pempo_with_fut_psi_cluster(self, synth):
@@ -195,7 +208,7 @@ class TestAoristSynthesisFromAor:
         )
         assert out["active_aorist_subjunctive_1sg"] == "παιδεύσω"
         assert out["active_aorist_optative_1sg"] == "παιδεύσαιμι"
-        assert out["active_aorist_imperative_2sg"] == "παιδεύσον"
+        assert out["active_aorist_imperative_2sg"] == "παίδευσον"
 
 
 class TestAoristSkippedForIrregular:
@@ -305,12 +318,10 @@ class TestAccentHandling:
         n_acute = nfd.count("́")
         assert n_acute == 1, f"got {n_acute} acutes in {form!r}"
 
-    def test_2sg_2pl_keep_stem_accent(self, synth):
-        """2sg/2pl imperatives have un-accented endings; stem accent
-        should be preserved."""
+    def test_2sg_2pl_recessive_accent(self, synth):
+        """Different syllable counts can give different accent positions."""
         out = synth.synthesize_active_moods("παιδεύω", {"fut": "παιδεύσω"})
-        # παιδεύσον has acute on ευ (the diphthong)
-        assert out["active_aorist_imperative_2sg"] == "παιδεύσον"
+        assert out["active_aorist_imperative_2sg"] == "παίδευσον"
         assert out["active_aorist_imperative_2pl"] == "παιδεύσατε"
 
 
@@ -371,6 +382,17 @@ class TestPresentMiddleSynthesis:
 class TestAoristMiddleFromFut:
     """Aorist middle uses the σ-stem from the future principal part."""
 
+    @pytest.mark.parametrize("lemma,future,expected", [
+        ("τμήγω", "τμήξω", "τμῆξαι"),
+        ("παιδεύω", "παιδεύσω", "παιδεῦσαι"),
+        ("γράφω", "γράψω", "γράψαι"),
+        ("λύω", "λύσω", "λύσαι"),
+        ("ἀΐσσω", "ἀΐξω", "ἀΐξαι"),  # Unmarked iota has unknown quantity.
+    ])
+    def test_active_infinitive_long_penult(self, synth, lemma, future, expected):
+        out = synth.synthesize_active_moods(lemma, {"fut": future})
+        assert out["active_aorist_infinitive"] == expected
+
     def test_lyo_aorist_middle_subjunctive(self, synth):
         out = synth.synthesize_mp_moods("λύω", {"fut": "λύσω"})
         assert out["middle_aorist_subjunctive_1sg"] == "λύσωμαι"
@@ -403,6 +425,46 @@ class TestAoristMiddleFromFut:
     def test_lyo_aorist_middle_infinitive(self, synth):
         out = synth.synthesize_mp_moods("λύω", {"fut": "λύσω"})
         assert out["middle_aorist_infinitive"] == "λύσασθαι"
+
+    @pytest.mark.parametrize("lemma,future,expected", [
+        ("ὄζω", "ὀζήσω", "ὄζησαι"),
+        ("κελεύω", "κελεύσω", "κέλευσαι"),
+        ("παιδεύω", "παιδεύσω", "παίδευσαι"),
+        ("κρώζω", "κρώξω", "κρῶξαι"),
+        ("νήφω", "νήψω", "νῆψαι"),
+        ("πρήθω", "πρήσω", "πρῆσαι"),
+        ("ἀΐσσω", "ἀΐξω", "ἄϊξαι"),
+    ])
+    def test_second_singular_imperative_is_recessive(self, synth, lemma,
+                                                    future, expected):
+        out = synth.synthesize_mp_moods(lemma, {"fut": future})
+        assert out["middle_aorist_imperative_2sg"] == expected
+
+    @pytest.mark.parametrize("stem,expected", [
+        ("λῦσ", "λῦσαι"),
+        ("λῡ́σ", "λῡ͂σαι"),
+        ("παιδεῦσ", "παίδευσαι"),
+        ("λυσ", "λύσαι"),
+    ])
+    def test_recessive_accent_preserves_explicit_quantity(self, synth, stem,
+                                                         expected):
+        assert synth._recessive_full_form(stem, "αι") == unicodedata.normalize(
+            "NFC", expected)
+
+    @pytest.mark.parametrize("stem,expected", [
+        ("κατερηρειιμ", "κατερηρειίμον"),
+        ("κοιιλν", "κοιίλνον"),
+        ("σιιτομετρουισκ", "σιιτομετρουίσκον"),
+    ])
+    def test_three_vowels_do_not_form_one_syllable(self, synth, stem, expected):
+        assert synth._accent_full_form(stem, "ον", penult=True) == expected
+
+    @pytest.mark.parametrize("stem", [
+        "κατερηρείιμ", "κοίιλν", "σιιτομετρούισκ",
+    ])
+    def test_three_vowels_do_not_acquire_antepenult_circumflex(self, synth,
+                                                             stem):
+        assert synth._long_penult_circumflex(stem, "ον") == stem + "ον"
 
 
 class TestAoristMiddleFromAor:
@@ -1031,18 +1093,14 @@ class TestContractMoodsSchemaAlignment:
 
 
 class TestAor2AlphaDetection:
-    """The classifier ``_is_aor_2_alpha_form`` distinguishes mixed-α
-    aor-2 forms from clean sigmatic σ-aorists by checking root identity
-    against the lemma stem."""
+    """Only established lemma/form pairs supply mixed-alpha templates."""
 
     def test_pipto_alpha_detected(self, synth):
         # ἔπεσα is mixed-α: σ comes from a different root (πεσ- vs πιπτ-).
         assert synth._is_aor_2_alpha_form("ἔπεσα", "πίπτω")
 
     def test_lego_alpha_detected(self, synth):
-        # εἶπα: π before α, lemma λέγω predicts cluster ξ via γ → mismatch
-        # but actually our heuristic catches this through the cluster
-        # mismatch (σ != ξ). Either way, εἶπα is recognised as α-aor-2.
+        # The alpha indicative retains the second-aorist mood system.
         assert synth._is_aor_2_alpha_form("εἶπα", "λέγω")
 
     def test_heurisko_alpha_detected(self, synth):
@@ -1073,6 +1131,54 @@ class TestAor2AlphaDetection:
         # Alpha-pattern aor 1sg → unaugmented stem.
         assert synth.extract_aor2_stem("ἔπεσα", "πίπτω") == "πεσ"
         assert synth.extract_aor2_stem("εὗρα", "εὑρίσκω") == "εὗρ"
+
+    @pytest.mark.parametrize("lemma, form", [
+        ("παίζω", "ἔπαιξα"),
+        ("κηρύσσω", "ἐκήρυξα"),
+        ("ἀΐσσω", "ἤιξα"),
+        ("ἐθέλω", "ἠθέλησα"),
+        ("ὄζω", "ὤζησα"),
+        ("κερδαίνω", "ἐκέρδᾱνα"),
+        ("ξαίνω", "ἔξηνα"),
+        ("μένω", "ἔμεινα"),
+        ("νέμω", "ἔνειμα"),
+        ("φέρω", "ἤνεγκα"),
+        ("λήγω", "πάντα"),
+    ])
+    def test_other_alpha_forms_do_not_supply_second_aorist_cells(
+        self, synth, lemma, form
+    ):
+        assert not synth._is_aor_2_alpha_form(form, lemma)
+        assert synth.extract_aor2_stem(form, lemma) is None
+        assert synth.synthesize_aor2_moods(lemma, {"aor": form}) == {}
+
+    def test_explicit_second_aorist_supplies_active_template(self, synth):
+        out = synth.synthesize_aor2_moods(
+            "βλάπτω", {"aor": "ἔβλαψα", "aor2": "ἔβλαβον"}
+        )
+        assert out["active_aorist_infinitive"] == "βλαβεῖν"
+        assert all("ψ" not in form for form in out.values())
+
+    def test_middle_principal_part_does_not_mask_active(self, synth):
+        generic = {"aor": "κέκᾰδον"}
+        assert synth.synthesize_aor2_moods("χάζω", generic)
+        assert synth.synthesize_aor2_moods("χάζω", generic) == (
+            synth.synthesize_aor2_moods(
+                "χάζω", {**generic, "aor2": "κεκαδόμην"}
+            )
+        )
+
+    def test_alternate_second_aorist_does_not_replace_selected_one(self, synth):
+        generic = {"aor": "ἔτροπον"}
+        assert synth.synthesize_aor2_moods("τρέπω", generic)
+        assert synth.synthesize_aor2_moods("τρέπω", generic) == (
+            synth.synthesize_aor2_moods(
+                "τρέπω", {**generic, "aor2": "ἔτρᾰπον"}
+            )
+        )
+
+    def test_mixed_alpha_pair_requires_matching_lemma(self, synth):
+        assert not synth._is_aor_2_alpha_form("εὗρα", "λύω")
 
 
 class TestSuppletionGuard:
