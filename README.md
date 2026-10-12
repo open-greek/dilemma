@@ -2131,7 +2131,10 @@ quantity notation and initial capitalization are normalized; accents,
 breathings, and other letters are preserved. Competing owners or POS readings,
 incompatible cells, a positive historical marker variant, and a matching
 complete unelided word all withhold the change. Existing predecessor mappings
-and later changes remain protected. This check creates no bare lookup aliases.
+and later changes remain protected. When rebuilding from a reversed alias
+audit, an exact historical cell with its unchanged historical owner is checked
+again against current evidence, so a still-supported repair is reproducible.
+Independent marker variants remain protected. This check creates no bare lookup aliases.
 
 The historical overlay counts remain unchanged. Proven replacements run after
 the normal alias recovery, only while the former historical owner still
@@ -3675,6 +3678,8 @@ and tagger-data builders validate and apply that same audit through
 `--name-corrections PATH` (the audit above by default). Use
 `--lexical-heads PATH` and `--name-pairs PATH` for alternate pinned inputs.
 The audit can reconstruct the original pairs with `unapply_name_corrections`.
+Pair extraction and audit loading require the source `metadata.txt`; missing
+or changed exclusion metadata stops the build, including statistics-only runs.
 
 Output layout:
 

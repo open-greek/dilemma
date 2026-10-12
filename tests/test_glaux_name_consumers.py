@@ -16,15 +16,11 @@ COMMIT = "a" * 40
 
 @pytest.fixture
 def audited(tmp_path, monkeypatch):
-    import nc_filter
-    monkeypatch.setattr(nc_filter, "excluded_glaux_stems", lambda _p: set())
-    monkeypatch.setattr(nc_filter, "gorman_glaux_stems", lambda _p: {"9999-001"})
-    monkeypatch.setattr(tagger, "excluded_glaux_stems", lambda _p: set())
-    monkeypatch.setattr(tagger, "gorman_glaux_stems", lambda _p: {"9999-001"})
     xml = tmp_path / "xml"
     xml.mkdir()
     metadata = tmp_path / "metadata.txt"
-    metadata.write_text("TLG\tDIALECT\n9999-001\tAttic\n")
+    metadata.write_text("TLG\tDIALECT\tSOURCE_LICENSE\tTREEBANK_ANNOTATIONS\n"
+                        "9999-001\tAttic\tCC BY-SA\tGorman\n")
     source = xml / "9999-001.xml"
     source.write_text('<treebank><sentence id="1" analysis="auto">'
                       '<word id="1" form="Κέλσος" lemma="ξελσυς" postag="n-s---mn-"/>'
@@ -136,11 +132,12 @@ def test_new_source_file_invalidates_absence_of_competing_anchors(audited):
 
 
 def test_colliding_nominative_still_pins_its_source(tmp_path, monkeypatch):
-    import nc_filter
-    monkeypatch.setattr(nc_filter, "excluded_glaux_stems", lambda _p: set())
-    monkeypatch.setattr(nc_filter, "gorman_glaux_stems", lambda _p: set())
     xml = tmp_path / "xml"
     xml.mkdir()
+    metadata = tmp_path / "metadata.txt"
+    metadata.write_text("TLG\tDIALECT\tSOURCE_LICENSE\tTREEBANK_ANNOTATIONS\n"
+                        "9999-001\tAttic\tCC BY-SA\t\n"
+                        "9999-002\tAttic\tCC BY-SA\t\n")
     anchor = xml / "9999-001.xml"
     anchor.write_text('<treebank><sentence>'
                       '<word form="Κέλσος" lemma="ξελσυς" postag="n-s---mn-"/>'

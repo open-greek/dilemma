@@ -108,6 +108,9 @@ def test_extractor_audit_pins_contributing_xml_and_round_trips(evidence, tmp_pat
     monkeypatch.syspath_prepend(str(Path(b.__file__).parent))
     xml = tmp_path / "xml"
     xml.mkdir()
+    metadata = tmp_path / "metadata.txt"
+    metadata.write_text("TLG\tDIALECT\tSOURCE_LICENSE\tTREEBANK_ANNOTATIONS\n"
+                        "9999-001\tAttic\tCC BY-SA\t\n")
     source = xml / "9999-001.xml"
     source.write_text('<treebank><sentence id="1">'
                       '<word id="1" form="Κέλσος" lemma="ξελσυς" postag="n-s---mn-"/>'
@@ -118,6 +121,8 @@ def test_extractor_audit_pins_contributing_xml_and_round_trips(evidence, tmp_pat
                                 correction_audit=audit, source_commit=COMMIT)
     assert [r["lemma"] for r in corrected] == ["Κέλσος", "Κέλσος"]
     assert audit["source_xml"] == {source.name: b._fingerprint(source)}
+    assert audit["inputs"]["glaux_metadata"] == b._fingerprint(metadata)
+    assert "glaux_metadata" not in evidence["inputs"]
     assert all(r["source_xml"] == [source.name] for r in audit["corrections"])
     assert str(tmp_path) not in json.dumps(audit)
     assert [r["lemma"] for r in b.unapply_name_corrections(corrected, audit)] == ["ξελσυς"] * 2

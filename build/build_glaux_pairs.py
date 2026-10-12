@@ -212,6 +212,16 @@ def _fingerprint(path):
     return {"size": Path(path).stat().st_size, "sha256": digest.hexdigest()}
 
 
+def _require_glaux_metadata(metadata_path):
+    """Require the source exclusions before any production corpus read."""
+    path = Path(metadata_path)
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"GLAUx metadata is required for source exclusions: {path}. "
+            "Restore metadata.txt beside the xml directory or supply metadata_path.")
+    return path
+
+
 def load_name_evidence(lexical_path, name_pairs_path):
     """Require merged lexical support AND an exact independent name reading."""
     lexical_path, name_pairs_path = Path(lexical_path), Path(name_pairs_path)
@@ -316,6 +326,8 @@ def load_name_corrections(audit_path, glaux_dir, *, lexical_path=None,
     infer a replacement. Missing or stale evidence fails before extraction.
     """
     audit_path, glaux_dir = Path(audit_path), Path(glaux_dir)
+    metadata = _require_glaux_metadata(
+        metadata_path or glaux_dir.parent / "metadata.txt")
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
     if (audit.get("schema_version") != 2
             or re.fullmatch(r"[0-9a-f]{40}", audit.get("source_commit", "")) is None
@@ -324,9 +336,11 @@ def load_name_corrections(audit_path, glaux_dir, *, lexical_path=None,
     paths = {
         "grc_lexical_heads": Path(lexical_path or DATA_DIR / "grc_lexical_heads.json"),
         "ag_pairs": Path(name_pairs_path or DATA_DIR / "ag_pairs.json"),
+        "glaux_metadata": metadata,
     }
-    if "glaux_metadata" in audit.get("inputs", {}):
-        paths["glaux_metadata"] = Path(metadata_path or glaux_dir.parent / "metadata.txt")
+    if "glaux_metadata" not in audit.get("inputs", {}):
+        raise ValueError("GLAUx name-correction audit is missing its required metadata "
+                         "fingerprint; rebuild the pairs and audit")
     for source, path in paths.items():
         if audit.get("inputs", {}).get(source) != _fingerprint(path):
             raise ValueError(f"stale GLAUx name-correction evidence: {source}")
@@ -335,7 +349,6 @@ def load_name_corrections(audit_path, glaux_dir, *, lexical_path=None,
         from .nc_filter import excluded_glaux_stems, gorman_glaux_stems
     except ImportError:
         from nc_filter import excluded_glaux_stems, gorman_glaux_stems
-    metadata = Path(metadata_path or glaux_dir.parent / "metadata.txt")
     excluded = excluded_glaux_stems(metadata)
     gorman = gorman_glaux_stems(metadata)
     inventory = sorted(path.name for path in glaux_dir.glob("*.xml")
@@ -417,15 +430,18 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None, *,
     """Extract form->lemma pairs from GLAUx XML files.
 
     NonCommercial GLAUx source texts are always dropped (the build is openly
-    licensed by default); see build/nc_filter.py.
+    licensed by default); the source metadata is required, including for
+    stats-only reads. See build/nc_filter.py.
     """
+    meta = _require_glaux_metadata(
+        metadata_path or Path(glaux_dir).parent / "metadata.txt")
+    metadata_fingerprint = _fingerprint(meta)
     xml_files = sorted(Path(glaux_dir).glob("*.xml"))
     if not xml_files:
         print(f"No XML files found in {glaux_dir}")
         return []
 
     from nc_filter import excluded_glaux_stems, gorman_glaux_stems
-    meta = metadata_path or (Path(glaux_dir).parent / "metadata.txt")
     nc = excluded_glaux_stems(meta)
     gorman = gorman_glaux_stems(meta)
     dialects = glaux_dialects(meta)
@@ -632,13 +648,14 @@ def extract_glaux(glaux_dir, stats_only=False, metadata_path=None, *,
     for t, c in tense_counts.most_common():
         print(f"  {t:15s}: {c:,} ({100*c/total_tense:.1f}%)")
 
+    if _fingerprint(meta) != metadata_fingerprint:
+        raise ValueError("GLAUx metadata changed during extraction; rebuild the pairs and audit")
     if name_evidence is not None:
         pairs, audit = repair_name_lemmas(
             pairs, name_evidence, source_commit=source_commit,
             sources_by_key=sources_by_key,
             source_paths={path.name: path for path in xml_files})
-        if Path(meta).is_file():
-            audit["inputs"]["glaux_metadata"] = _fingerprint(meta)
+        audit["inputs"] = {**audit["inputs"], "glaux_metadata": metadata_fingerprint}
         if correction_audit is not None:
             correction_audit.update(audit)
         print(f"Recovered malformed name rows: {len(audit['corrections']):,}")

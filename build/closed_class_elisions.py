@@ -103,8 +103,14 @@ def plan_repairs(reference, reference_base, predecessor, source_pairs,
             continue
         form = surface(historical)
         source_spellings = {form[:-1] + mark for mark in MARKS} | {historical, form}
+        # A reversed alias artifact still includes the historical overlay.
+        # Only exact reference cells with their unchanged historical owner
+        # may be reconsidered; independent or intervening cells are kept.
+        predecessor_cells = [(key, predecessor[key]) for key in source_spellings
+                             if key in predecessor]
         if (not form.endswith('᾽') or any(key in reference_base for key in source_spellings)
-                or any(key in predecessor for key in source_spellings)
+                or any(owner != old_owner or reference.get(key) != old_owner
+                       for key, owner in predecessor_cells)
                 or citation(old_owner) in lexical_heads):
             continue
         readings = source_rows.get(form, [])

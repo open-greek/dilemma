@@ -25,6 +25,10 @@ All notable changes to Dilemma are documented here. The format follows
   independently of mistaken corpus accents.
 - Preserve the rare printed spelling `ὤοντο` from two cited passages, with
   matching profile and citation provenance required for the export.
+- Reapply supported historical pronoun repairs when regenerating source
+  aliases from a reversed audit, preserving independent and intervening owners.
+- Require GLAUx exclusion metadata during pair extraction and name-audit
+  loading, rejecting missing or changed metadata before accepting a rebuild.
 
 ## [1.3.7] - 2026-10-12
 
