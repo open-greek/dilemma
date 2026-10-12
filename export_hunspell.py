@@ -1580,29 +1580,13 @@ def add_cited_corpus_forms(
         # IDs only identify forms within one build. An older citation file can
         # reuse a current form_id for a different spelling, so bind the pair
         # before joining it. The builder hashes both mappings and citations.
-        from dilemma._attest_db import SCHEMA_VERSION as ATTESTATION_SCHEMA_VERSION
+        from dilemma._attest_db import validate_attestation_pair_metadata
         try:
             profile_meta = dict(conn.execute("SELECT key,value FROM main.meta"))
             citation_meta = dict(conn.execute("SELECT key,value FROM cited.meta"))
         except sqlite3.OperationalError as exc:
             raise ValueError("missing profile/citation pair metadata; rebuild both databases") from exc
-        for metadata in (profile_meta, citation_meta):
-            if (metadata.get("schema_version") != str(ATTESTATION_SCHEMA_VERSION)
-                    or re.fullmatch(r"[0-9a-f]{64}", metadata.get("content_hash", "")) is None
-                    or not metadata.get("source_sha")):
-                raise ValueError("invalid profile/citation pair metadata; rebuild both databases")
-            try:
-                source_hashes = json.loads(metadata["source_sha"])
-            except (TypeError, ValueError) as exc:
-                raise ValueError("invalid profile/citation source hashes") from exc
-            if (not isinstance(source_hashes, dict) or not source_hashes
-                    or any(not isinstance(value, str) or
-                           re.fullmatch(r"[0-9a-f]{64}", value) is None
-                           for value in source_hashes.values())):
-                raise ValueError("invalid profile/citation source hashes")
-        if any(profile_meta[key] != citation_meta[key]
-               for key in ("schema_version", "content_hash", "source_sha")):
-            raise ValueError("mismatched profile/citation databases; rebuild both databases")
+        validate_attestation_pair_metadata(profile_meta, citation_meta)
         for spec in CITED_CORPUS_FORMS:
             form, lemma = spec["form"], spec["lemma"]
             head_sources = heads.get(lemma)

@@ -29,6 +29,8 @@ All notable changes to Dilemma are documented here. The format follows
   aliases from a reversed audit, preserving independent and intervening owners.
 - Require GLAUx exclusion metadata during pair extraction and name-audit
   loading, rejecting missing or changed metadata before accepting a rebuild.
+- Reject mismatched citation caches at runtime while retaining the usage
+  profile, preventing form IDs from another build from returning wrong loci.
 
 ## [1.3.7] - 2026-10-12
 

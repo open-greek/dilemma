@@ -1655,6 +1655,12 @@ powers the usage-by-year graph and heatmap; `--with-citations` adds the example
 loci (and implies the profile). Without them, `attested_only` and
 `form_attestation` raise a clear "download it" error.
 
+Example loci require matching schema, content and source hashes in the two
+databases. If the citation file belongs to another build or lacks this
+metadata, `form_attestation` still returns the usage profile, with an empty
+`citations` list and a `citations_note` asking you to download both files
+together. `max_citations=0` reads only the profile.
+
 ### Saying "I don't know": guess=False
 
 By default the lemmatizer always answers: when nothing structured resolves a
