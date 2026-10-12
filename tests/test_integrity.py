@@ -55,7 +55,10 @@ TEST_CASES_ELISION = [
 # Minimum thresholds
 MIN_COMBINED_ROWS = 12_000_000
 MIN_AG_ONLY_ROWS = 10_000
-MIN_HEADWORDS = 150_000
+# The processed LSJ9 inventory has about 119K distinct headwords. The older
+# 150K floor counted generated variants that were removed in the LSJ9 cutover.
+MIN_HEADWORDS = 110_000
+HEADWORD_SENTINELS = frozenset({"λόγος", "λύω", "ἀνήρ", "γυνή", "χώρα", "θεός"})
 
 # Shared Dilemma instance cache (avoids repeated cold starts)
 _dilemma_cache = {}
@@ -366,7 +369,7 @@ def test_onnx_pytorch_parity():
 
 
 def test_headword_list():
-    """lsj_headwords.json should have >150K entries (119K LSJ + variants)."""
+    """The deduplicated LSJ9 list must be complete, well-formed, and unique."""
     if not LSJ_HEADWORDS.exists():
         return TestResult("headword list", False,
                           f"lsj_headwords.json not found at {LSJ_HEADWORDS}")
@@ -374,12 +377,35 @@ def test_headword_list():
     with open(LSJ_HEADWORDS, encoding="utf-8") as f:
         headwords = json.load(f)
 
+    if not isinstance(headwords, list) or any(
+            not isinstance(word, str) or not word.strip() for word in headwords):
+        return TestResult("headword list", False, "expected nonempty string entries")
     count = len(headwords)
+    inventory = set(headwords)
+    if len(inventory) != count:
+        return TestResult("headword list", False, "duplicate headwords")
     if count < MIN_HEADWORDS:
         return TestResult("headword list", False,
                           f"{count:,} entries < minimum {MIN_HEADWORDS:,}")
+    missing = HEADWORD_SENTINELS - inventory
+    if missing:
+        return TestResult("headword list", False,
+                          "missing core headwords: " + ", ".join(sorted(missing)))
 
     return TestResult("headword list", True, f"{count:,} entries")
+
+
+def test_headword_contract_rejects_corruption(tmp_path, monkeypatch):
+    """The size floor must not let malformed or duplicated inventories pass."""
+    original = json.loads(LSJ_HEADWORDS.read_text(encoding="utf-8"))
+    missing_core = [word for word in original if word != "λόγος"]
+    malformed = [*original[:-1], None]
+    candidates = [original[:10], [*original, original[0]], missing_core, malformed]
+    path = tmp_path / "lsj_headwords.json"
+    monkeypatch.setattr(sys.modules[__name__], "LSJ_HEADWORDS", path)
+    for candidate in candidates:
+        path.write_text(json.dumps(candidate, ensure_ascii=False), encoding="utf-8")
+        assert not test_headword_list().passed
 
 
 def main():
