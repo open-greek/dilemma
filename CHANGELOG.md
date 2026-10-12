@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-12
 
 ### Fixed
+- Exclude five monotonic noun lookup aliases from the polytonic export while
+  preserving their source-table circumflex forms and the distinct acute dual.
 - Preserve attested sparse inflections when a flat self-map or contracted
   verb citation hides an independently defined owner. Keep explicit contracted
   references separate from lexical definitions and require a unique target.

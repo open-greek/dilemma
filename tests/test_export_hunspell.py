@@ -929,6 +929,19 @@ def test_polytonic_modern_greek_particles_are_accepted():
         assert grc_orthography_reason(form) == "explicit_reject"
 
 
+def test_monotonic_noun_keys_do_not_become_polytonic_export_spellings():
+    from export_hunspell import GRC_MONOTONIC_NOUN_ALIASES
+    bad = set(GRC_MONOTONIC_NOUN_ALIASES)
+    bad.update(form[:1].upper() + form[1:] for form in list(bad))
+    good = set(GRC_MONOTONIC_NOUN_ALIASES.values()) | {"περσικώ"}
+    pairs = [(form, "περσικόν") for form in sorted(bad | good)]
+    kept, _ = finalize_grc_pairs(
+        pairs, evidence=_evidence(exact={}),
+        compatibility_forms=bad | good, textbook_forms=set(),
+        export_overrides={}, protected_forms=bad | good)
+    assert {form for form, _ in kept} == good
+
+
 def test_relative_pronoun_graves_come_in_with_their_acute_twins():
     # The closed list carries these whatever lookup.db holds.
     relatives = {"ὃ", "ἣ", "οἳ", "αἳ"}

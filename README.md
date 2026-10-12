@@ -2711,6 +2711,9 @@ The exporter requires one supported target and preserves tied references
 without choosing between them; it does not infer a verb from its ending.
 Build this artifact with `python build/build_grc_contracted_aliases.py --kaikki DIR`
 after generating the lexical inventory from those same source extracts.
+The export excludes the monotonic lookup aliases of the genitives and datives
+of `λιγυστικόν` and `περσικόν`; their circumflex spellings and the acute dual
+`περσικώ` remain available.
 
 ```bash
 # Audit a fresh Hunspell export against the committed full-run fixture.

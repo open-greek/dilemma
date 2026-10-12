@@ -295,6 +295,14 @@ GRC_CLOSED_LIST_FORMS = (
     | GRC_IOTA_SUBSCRIPT_CRASIS
 )
 
+# The source declension tables for these two nouns give circumflex genitives
+# and datives. Their acute counterparts are tolerant monotonic lookup keys,
+# not additional Ancient spellings. The acute dual περσικώ remains valid.
+GRC_MONOTONIC_NOUN_ALIASES = {
+    "λιγυστικού": "λιγυστικοῦ", "λιγυστικών": "λιγυστικῶν",
+    "περσικού": "περσικοῦ", "περσικών": "περσικῶν", "περσικοίς": "περσικοῖς",
+}
+
 # These lookup forms are not acceptable polytonic spellings. The genuine
 # enclitics του and τῳ belong to τις and must remain available independently
 # of the article spellings τοῦ and τῷ.
@@ -313,7 +321,8 @@ GRC_REJECT_FORMS = frozenset({
     # them: GLAUx Galen splits γί νεται and ἐνέρ γειαν; Galen/Heron split
     # μεγί στων. The unrelated Hesychian headword γία does not validate γί.
     "γί", "ἐνέρ", "μεγί",
-})
+}) | frozenset(GRC_MONOTONIC_NOUN_ALIASES) | frozenset(
+    form[:1].upper() + form[1:] for form in GRC_MONOTONIC_NOUN_ALIASES)
 
 # These deliberate polytonic particles retain their contextual grave, while
 # their acute spellings remain rejected. Other reviewed rejects also reject
