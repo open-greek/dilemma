@@ -2178,6 +2178,8 @@ a proper-name lemma. The audit distinguishes those two reasons and records the
 retained spelling, its count, and the existing ownership decision. Unattested
 lowercase name aliases and redundant sentence capitals remain filtered;
 explicit spelling, quotation, and bare-fragment rejections still take priority.
+Restored capitals with unresolved ownership must also pass the structural and
+corpus respelling checks; exact-case counts alone do not waive those checks.
 
 Exact reviewed forms also retain Archimedes' Doric `ἀποχρὴ` under `ἀπόχρη`,
 with its contextual acute twin. This textual exception does not remove accents

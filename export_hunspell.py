@@ -1433,6 +1433,15 @@ def filter_case_artifacts(
         inherited_without_lowercase = cased_form_key(form.lower()) not in surviving_lowercase
         if (bad_capital and form in compatibility_forms and evidence.cased is not None
                 and (count > 0 or inherited_without_lowercase)):
+            # Restoring unresolved capital ownership cannot waive spelling
+            # checks. Corpus counts alone also occur on OCR respellings.
+            supported, _ = filter_dominated_spelling_variants(
+                [pair], evidence.exact, evidence.dominant, evidence.treebank,
+                set(), treebank_confirmed=evidence.treebank_confirmed,
+            )
+            if grc_orthography_reason(form) is not None or not supported:
+                rejected.append(pair)
+                continue
             if retained_compatibility is not None:
                 retained_compatibility.append({
                     "form": form, "cased_count": count, "owner_bits": owner,

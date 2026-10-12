@@ -160,6 +160,34 @@ def test_inherited_capital_without_lowercase_remains_available_without_new_owner
         "reason": "inherited_capital_without_lowercase; lexical_ownership_unresolved"}]
 
 
+def test_inherited_capital_cannot_restore_a_misplaced_second_accent():
+    form = "Λάιός"
+    retained = []
+    pairs, report = finalize_grc_pairs([(form, "λάιος")],
+        evidence=_evidence({form: 3}), compatibility_forms={form},
+        textbook_forms=set(), export_overrides={}, protected_forms=set(),
+        case_ownership={exact_form_key(form): 2})
+    assert pairs == []
+    assert report["case_rejected"] == [(form, "λάιος")]
+    assert report["attested_compatibility_cases"] == retained
+
+
+@pytest.mark.parametrize("treebank_count,accepted", [(0, False), (24, False), (25, True)])
+def test_inherited_capital_respelling_requires_independent_treebank_support(
+    treebank_count, accepted,
+):
+    form = "Φαραῷ"
+    key = exact_form_key(form)
+    evidence = FormProfileEvidence({key: 30}, {"φαραω": 10_000},
+        {key: treebank_count}, {}, cased={cased_form_key(form): 30})
+    pair = (form, "φαραώ")
+    retained = []
+    kept, rejected = filter_case_artifacts([pair], evidence, {key: 2}, {form}, retained)
+    assert kept == ([pair] if accepted else [])
+    assert rejected == ([] if accepted else [pair])
+    assert bool(retained) is accepted
+
+
 @pytest.mark.parametrize("form,lemma", [("Πέμπτῃ", "πέμπτος"), ("Πόλῃ", "πόλις")])
 def test_inherited_sentence_capital_with_surviving_lowercase_remains_excluded(form, lemma):
     pairs = [(form, lemma), (form.lower(), lemma)]

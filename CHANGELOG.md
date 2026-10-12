@@ -21,6 +21,8 @@ All notable changes to Dilemma are documented here. The format follows
   corpus name handling, and runtime case matching. Retain reviewed capitalized
   spellings with exact-case attestation or no surviving lowercase spelling,
   without inventing a proper-name owner.
+- Keep structural and corpus respelling checks in force when restoring an
+  inherited capitalized spelling with unresolved lexical ownership.
 - Retain the directly cited forms `Κορῆ` and `Ὦρα` without deriving additional
   name spellings or treating ambiguous corpus counts as name frequencies.
 - Correct malformed corpus name lemmas through a reversible source audit
