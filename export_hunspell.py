@@ -1656,7 +1656,9 @@ def exact_inflection_lemma(
         targets = (lemma_aliases or {}).get(cased_form_key(lemma), ())
         if (len(targets) == 1 and lexical_head_key(targets[0]) in lexical_heads
                 and corpus_lexical_evidence_is_clean(targets[0])
-                and strip_accents(targets[0]) != strip_accents(form)):
+                and strip_accents(targets[0]) != strip_accents(form)
+                and (strip_accents(lemma).casefold() != strip_accents(form).casefold()
+                     or cased_form_key(lemma) == key)):
             return targets[0]
     targets = (exact_pos_owners or {}).get(key, ())
     if (found_exact and len(targets) == 1

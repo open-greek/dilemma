@@ -1859,8 +1859,10 @@ def test_sparse_evidence_merges_normalized_alias_and_form_conflicts(tmp_path):
 
 def test_sparse_alias_evidence_does_not_lend_another_accents_spelling():
     from export_hunspell import exact_inflection_lemma, lexical_head_key
-    rows = [(form, form, "grc") for form in
-            ("γαυρούμαι", "γαυροῦμαι", "διαμορφώ", "διαμορφῶ")]
+    rows = [("γαυρούμαι", "γαυροῦμαι", "grc"),
+            ("γαυροῦμαι", "γαυροῦμαι", "grc"),
+            ("διαμορφώ", "διαμορφῶ", "grc"),
+            ("διαμορφῶ", "διαμορφῶ", "grc")]
     conn = _lookup_db(rows)
     heads = frozenset(map(lexical_head_key, ["γαυρόομαι", "διαμορφόω"]))
     aliases = {"γαυροῦμαι": ("γαυρόομαι",), "διαμορφῶ": ("διαμορφόω",)}
