@@ -2709,6 +2709,8 @@ records explicit contracted-verb references separately from independent definiti
 so an attested form under `καταμετρῶ` can retain the defined `καταμετρέω` owner.
 The exporter requires one supported target and preserves tied references
 without choosing between them; it does not infer a verb from its ending.
+Contracted references retain the source spelling's accent; only contextual
+grave and acute variants share a key.
 Build this artifact with `python build/build_grc_contracted_aliases.py --kaikki DIR`
 after generating the lexical inventory from those same source extracts.
 The export excludes the monotonic lookup aliases of the genitives and datives

@@ -1805,15 +1805,15 @@ def test_sparse_inflection_requires_an_independently_defined_head():
 
 
 def test_sparse_inflection_can_follow_an_explicit_contracted_citation():
-    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    from export_hunspell import exact_inflection_lemma, lexical_head_key, cased_form_key
     conn = _lookup_db([("καταμετρηθείσης", "καταμετρῶ", "grc")])
     heads = frozenset(map(lexical_head_key, ["καταμετρέω", "καταμετράω"]))
-    aliases = {lexical_head_key("καταμετρῶ"): ("καταμετρέω",)}
+    aliases = {cased_form_key("καταμετρῶ"): ("καταμετρέω",)}
     assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
         lexical_heads=heads, lemma_aliases=aliases) == "καταμετρέω"
     assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
         lexical_heads=frozenset(), lemma_aliases=aliases) is None
-    aliases[lexical_head_key("καταμετρῶ")] += ("καταμετράω",)
+    aliases[cased_form_key("καταμετρῶ")] += ("καταμετράω",)
     assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
         lexical_heads=heads, lemma_aliases=aliases) is None
 
@@ -1843,16 +1843,33 @@ def test_sparse_evidence_merges_normalized_alias_and_form_conflicts(tmp_path):
     alias_file.write_text(json.dumps({"schema_version": 1, "language": "grc",
         "lexical_heads": {"size": lexical.stat().st_size,
                           "sha256": hashlib.sha256(lexical.read_bytes()).hexdigest()}, "aliases": {
-        "τιμῶ": [{"lemma": "τιμάω", "sources": ["one"]}],
-        "τιμώ": [{"lemma": "τιμέω", "sources": ["two"]}]}}))
+        "τιμώ": [{"lemma": "τιμάω", "sources": ["one"]}],
+        "τιμὼ": [{"lemma": "τιμέω", "sources": ["two"]}],
+        "τιμῶ": [{"lemma": "τιμάω", "sources": ["three"]}]}}))
     pos = tmp_path / "pos.json"
     pos.write_text(json.dumps({"τιμά": {"NOUN": "τιμή"},
                                "τιμὰ": {"VERB": "τιμάω"}}))
     heads = frozenset(map(lexical_head_key, ["τιμάω", "τιμέω", "τιμή"]))
     aliases, owners = load_grc_inflection_evidence(heads, lexical_path=lexical,
                                                   aliases_path=alias_file, pos_path=pos)
-    assert aliases[lexical_head_key("τιμῶ")] == ("τιμάω", "τιμέω")
+    assert aliases["τιμώ"] == ("τιμάω", "τιμέω")
+    assert aliases["τιμῶ"] == ("τιμάω",)
     assert set(owners["τιμά"]) == {"τιμάω", "τιμή"}
+
+
+def test_sparse_alias_evidence_does_not_lend_another_accents_spelling():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    rows = [(form, form, "grc") for form in
+            ("γαυρούμαι", "γαυροῦμαι", "διαμορφώ", "διαμορφῶ")]
+    conn = _lookup_db(rows)
+    heads = frozenset(map(lexical_head_key, ["γαυρόομαι", "διαμορφόω"]))
+    aliases = {"γαυροῦμαι": ("γαυρόομαι",), "διαμορφῶ": ("διαμορφόω",)}
+    for form in ("γαυρούμαι", "διαμορφώ"):
+        assert exact_inflection_lemma(conn, form, form, lexical_heads=heads,
+                                      lemma_aliases=aliases) is None
+    for form, expected in (("γαυροῦμαι", "γαυρόομαι"), ("διαμορφῶ", "διαμορφόω")):
+        assert exact_inflection_lemma(conn, form, form, lexical_heads=heads,
+                                      lemma_aliases=aliases) == expected
 
 
 def test_modern_head_evidence_is_scoped_to_edited_vernacular(tmp_path):

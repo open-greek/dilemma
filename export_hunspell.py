@@ -1610,7 +1610,7 @@ def load_grc_inflection_evidence(
                                 lexical_head_key(row["lemma"]) in lexical_heads and
                                 corpus_lexical_evidence_is_clean(row["lemma"])}))
         if targets and corpus_lexical_evidence_is_clean(alias):
-            alias_targets[lexical_head_key(alias)].update(targets)
+            alias_targets[cased_form_key(alias)].update(targets)
     form_targets: dict[str, set[str]] = defaultdict(set)
     for form, readings in json.loads(pos_path.read_text(encoding="utf-8")).items():
         targets = tuple(sorted({lemma for lemma in readings.values()
@@ -1653,7 +1653,7 @@ def exact_inflection_lemma(
             return lemma
         # A dictionary explicitly identifies these as contracted citations.
         # Never infer an uncontracted verb from an ending or select a tied owner.
-        targets = (lemma_aliases or {}).get(lexical_head_key(lemma), ())
+        targets = (lemma_aliases or {}).get(cased_form_key(lemma), ())
         if (len(targets) == 1 and lexical_head_key(targets[0]) in lexical_heads
                 and corpus_lexical_evidence_is_clean(targets[0])
                 and strip_accents(targets[0]) != strip_accents(form)):
@@ -1733,7 +1733,7 @@ def add_postclassical_corpus_forms(
                         and lexical_head_key(row[0]) in supported_vernacular_heads):
                     lemma = row[0]
                 elif row:
-                    targets = (lemma_aliases or {}).get(lexical_head_key(row[0]), ())
+                    targets = (lemma_aliases or {}).get(cased_form_key(row[0]), ())
                     if (len(targets) == 1 and not targets[0][:1].isupper()
                             and lexical_head_key(targets[0]) in lexical_heads):
                         lemma = targets[0]

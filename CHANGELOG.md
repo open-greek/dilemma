@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-12
 
 ### Fixed
+- Preserve tonal marks when matching explicit contracted-verb references,
+  preventing an acute spelling from borrowing a circumflex form's evidence.
 - Exclude five monotonic noun lookup aliases from the polytonic export while
   preserving their source-table circumflex forms and the distinct acute dual.
 - Preserve attested sparse inflections when a flat self-map or contracted
