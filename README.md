@@ -22,7 +22,7 @@ about the design.
 
 | # | Layer | Resolves | Speed |
 |---|-------|----------|-------|
-| 1 | **12.8M-form SQLite lookup** | known forms (Wiktionary + LSJ + Sophocles + GLAUx + treebanks) | `O(1)` hash, microseconds |
+| 1 | **14.5M-form SQLite lookup** | known forms (Wiktionary + LSJ + Sophocles + GLAUx + treebanks) | `O(1)` hash, microseconds |
 | 2 | **Rule-based fallback** | augment / reduplication stripping, elision, crasis, enclitic particles, compound decomposition | `O(1)` per rule |
 | 3 | **Dialect normalization** | Ionic, Doric, Aeolic, Koine -> Attic, so the (Attic-heavy) lookup can match | `O(k)` candidates |
 | 4 | **Character-level transformer** | unseen forms the other three layers miss | beam search, `O(b·n²)` |
@@ -39,7 +39,7 @@ every sub-rule (particle stripping, BK-tree spell correction, etc.).
 
 ### Three distinctive choices within the pipeline
 
-**A 12.8M-form lookup driven by Wiktionary's own Lua modules.** The
+**A 14.5M-form lookup driven by Wiktionary's own Lua modules.** The
 biggest contributor to layer 1's coverage is running
 [`Module:grc-decl`](https://en.wiktionary.org/wiki/Module:grc-decl) and
 [`Module:grc-conj`](https://en.wiktionary.org/wiki/Module:grc-conj)
@@ -49,9 +49,9 @@ inflection tables -- via
 over the LSJ headword set (32K nouns + 22K verbs + 14K adjectives) and
 the Sophocles Byzantine/Patristic lexicon (13.5K nouns + 4.6K verbs).
 The current expansion plus the pinned, known-good historical expansion layer
-generate about 6.4M additional AG entries no editor has touched, lifting the
-AG input from 2.47M Wiktionary entries to 8.87M and the combined lookup to
-12.82M forms across all languages. This mechanism closes the
+generate millions of additional Ancient Greek entries, bringing the current
+AG input to 10.64M mappings and the combined lookup to 14.47M forms across
+all languages. This mechanism closes the
 classical and Byzantine vocabulary gap that every other tool has. See
 [LSJ/Sophocles expansion](#lsjsophocles-expansion).
 
@@ -890,7 +890,7 @@ of gold-standard Modern Greek from CLARIN:EL).
 
 | Layer | Speed | Coverage | Source |
 |-------|-------|----------|--------|
-| **Lookup table** | hash lookup `O(1)` | 12.8M known forms | Wiktionary + LSJ + Sophocles + GLAUx + treebanks |
+| **Lookup table** | hash lookup `O(1)` | 14.5M known forms | Wiktionary + LSJ + Sophocles + GLAUx + treebanks |
 | **Normalizer** | k candidates `O(k)` | Byzantine orthographic variants | Rule-based candidate generation |
 | **Elision expansion** | v=7 vowels `O(v)` | AG elided forms | Vowel expansion against lookup |
 | **Crasis table** | hash lookup `O(1)` | ~40 common crasis forms | Hand-curated |
@@ -934,7 +934,7 @@ headwords an editor has manually written up. Running the modules over
 the 32K nouns + 22K verbs + 14K adjectives in LSJ and the 13.5K nouns +
 4.6K verbs in Sophocles produces millions of inflected forms for
 classical and Byzantine vocabulary that no editor has touched, which
-is what lifts the lookup table from 5.3M Wiktionary-only forms to 12.8M
+is what lifts the lookup table from 5.3M Wiktionary-only forms to 14.5M
 total and is why rare-vocabulary coverage on classical and Patristic
 texts is competitive with rule-based morphological analyzers. Cunliffe's
 Homeric Lexicon (~12K headwords) isn't expanded this way because its
@@ -1261,7 +1261,7 @@ for word in corpus:
 
 `preload()` is safe to call multiple times (idempotent) and does not
 change output - it only affects performance. It caches query results
-on demand rather than loading the full 12.8M-entry table into memory.
+on demand rather than loading the full 14.5M-entry table into memory.
 
 ### POS-aware disambiguation
 
@@ -1342,7 +1342,7 @@ d.suggest_spelling("θδός")       # [("θεός", 1), ...]  (letter-level ED1
 ```
 
 The approach works in two layers. First, diacritics are stripped from both
-the input and the dictionary, collapsing the 12.8M-entry lookup into 7.22M
+the input and the dictionary, collapsing the 14.5M-entry lookup into 6.97M
 unique base forms. ED0/ED1/ED2 matches are found on these stripped forms,
 then expanded back to their original polytonic variants and ranked by true
 Levenshtein distance. This means accent and breathing errors (wrong accent,
@@ -1752,7 +1752,7 @@ so the taggers reproduce from the public repo plus the corpora.
 
 Two engines sit behind the API and they scale very differently:
 
-- The **lemmatizer** is the workload: a 12.8M-form SQLite lookup, the rule
+- The **lemmatizer** is the workload: a 14.5M-form SQLite lookup, the rule
   layers, and a small char-transformer beam search for the tail. It is
   CPU-bound and, in aggregate, memory-bandwidth-bound. A GPU does not speed it
   up.
@@ -3775,7 +3775,7 @@ the v2 reader does not read v1 files (and vice versa).
 | EN + EL Wiktionary (MG) | 2.8M | From kaikki.org dumps |
 | EN + EL Wiktionary (AG) | 2.4M | From kaikki.org dumps |
 | EL Wiktionary (Medieval) | 6.9K | From kaikki.org dumps |
-| LSJ + Sophocles expansion | 6.4M net AG additions | Current Wiktionary-Lua expansion plus marked, revision-pinned historical recovery |
+| LSJ + Sophocles expansion | Millions of AG additions | Current Wiktionary-Lua expansion plus marked, revision-pinned historical recovery |
 | [Perseus / AGDT](https://github.com/PerseusDL/treebank_data) (CC BY-SA 3.0 US) | 81K | The 33 Greek AGDT works (Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch, Polybius, Athenaeus); the original, not the NC UD release |
 | GLAUx corpus | 557K | 17M tokens, 98.8% accuracy ([Keersmaekers 2021](https://github.com/alekkeersmaekers/glaux)) |
 | Diorisis corpus | 76K new | 10M tokens, 91.4% accuracy ([Vatri & McGillivray 2018](https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256)) |
@@ -3783,7 +3783,7 @@ the v2 reader does not read v1 files (and vice versa).
 | DGE headwords | 52K | Headword filter coverage from Diccionario Griego-Espanol |
 | LGPN names | 44K | Proper noun coverage from Lexicon of Greek Personal Names |
 | Perseus Digital Library headwords | 176K | Headword filter from L&S, Pape, Bailly, etc. |
-| **Total lookup** | **12.8M** | Deduped combined lookup rows (source rows above overlap) |
+| **Total lookup** | **14.5M** | Deduped combined lookup rows (source rows above overlap) |
 
 All Wiktionary data is extracted automatically from
 [kaikki.org](https://kaikki.org/) JSONL dumps. LSJ and Sophocles
@@ -4028,7 +4028,7 @@ blinded evaluation by expert readers. They found that methods using
 large lexica combined with POS tagging (CLTK backoff lemmatizer,
 Diorisis corpus) consistently outperformed pure ML approaches with
 smaller lexica. Dilemma follows the same principle: a large lookup
-table (12.8M forms) handles the vast majority of words, with a small
+table (14.5M forms) handles the vast majority of words, with a small
 model as fallback.
 
 [Celano (2025)](https://aclanthology.org/2025.lm4dh-1.5/) presented

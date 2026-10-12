@@ -6,7 +6,7 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.3.7] - 2026-10-11
+## [1.3.7] - 2026-10-12
 
 ### Fixed
 - Preserve projected readings for other parts of speech when a spelling
