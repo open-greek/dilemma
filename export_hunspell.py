@@ -1590,23 +1590,24 @@ def load_grc_inflection_evidence(
 ) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[str, ...]]]:
     """Keep defined citation aliases and exact dictionary POS readings separate."""
     payload = json.loads(lexical_path.read_text(encoding="utf-8"))
-    aliases = {}
+    alias_targets: dict[str, set[str]] = defaultdict(set)
     for alias, rows in payload.get("contracted_verb_aliases", {}).items():
         targets = tuple(sorted({row["lemma"] for row in rows
                                 if row.get("sources") and
                                 lexical_head_key(row["lemma"]) in lexical_heads and
                                 corpus_lexical_evidence_is_clean(row["lemma"])}))
         if targets and corpus_lexical_evidence_is_clean(alias):
-            aliases[lexical_head_key(alias)] = targets
-    owners = {}
+            alias_targets[lexical_head_key(alias)].update(targets)
+    form_targets: dict[str, set[str]] = defaultdict(set)
     for form, readings in json.loads(pos_path.read_text(encoding="utf-8")).items():
         targets = tuple(sorted({lemma for lemma in readings.values()
                                 if lexical_head_key(lemma) in lexical_heads and
                                 corpus_lexical_evidence_is_clean(lemma) and
                                 strip_accents(lemma) != strip_accents(form)}))
         if targets and corpus_lexical_evidence_is_clean(form):
-            owners[cased_form_key(form)] = targets
-    return aliases, owners
+            form_targets[cased_form_key(form)].update(targets)
+    return ({key: tuple(sorted(values)) for key, values in alias_targets.items()},
+            {key: tuple(sorted(values)) for key, values in form_targets.items()})
 
 
 def exact_inflection_lemma(

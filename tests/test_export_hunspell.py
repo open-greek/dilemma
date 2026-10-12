@@ -1820,6 +1820,22 @@ def test_sparse_inflection_preserves_a_defined_exact_pos_alternative():
         lexical_heads=heads, exact_pos_owners=owners) is None
 
 
+def test_sparse_evidence_merges_normalized_alias_and_form_conflicts(tmp_path):
+    import json
+    from export_hunspell import load_grc_inflection_evidence, lexical_head_key
+    lexical = tmp_path / "lexical.json"
+    lexical.write_text(json.dumps({"contracted_verb_aliases": {
+        "τιμῶ": [{"lemma": "τιμάω", "sources": ["one"]}],
+        "τιμώ": [{"lemma": "τιμέω", "sources": ["two"]}]}}))
+    pos = tmp_path / "pos.json"
+    pos.write_text(json.dumps({"τιμά": {"NOUN": "τιμή"},
+                               "τιμὰ": {"VERB": "τιμάω"}}))
+    heads = frozenset(map(lexical_head_key, ["τιμάω", "τιμέω", "τιμή"]))
+    aliases, owners = load_grc_inflection_evidence(heads, lexical_path=lexical, pos_path=pos)
+    assert aliases[lexical_head_key("τιμῶ")] == ("τιμάω", "τιμέω")
+    assert set(owners["τιμά"]) == {"τιμάω", "τιμή"}
+
+
 def test_modern_head_evidence_is_scoped_to_edited_vernacular(tmp_path):
     import json
     from collections import Counter
