@@ -81,6 +81,22 @@ def test_empty_batch():
     assert fake_model().generate(empty, empty.astype(bool)) == []
 
 
+def test_prediction_cache_keeps_beam_width_separate_and_is_bounded():
+    from dilemma import Dilemma
+    instance = object.__new__(Dilemma)
+    calls = []
+    def predict(words, num_beams=4):
+        calls.append((words, num_beams))
+        return [word + str(num_beams) for word in words]
+    instance._predict_uncached = predict
+    assert instance._predict(["a", "a", "b"]) == ["a4", "a4", "b4"]
+    assert instance._predict(["b", "a"]) == ["b4", "a4"]
+    assert instance._predict(["a"], num_beams=1) == ["a1"]
+    assert calls == [(["a", "b"], 4), (["a"], 1)]
+    instance._predict([str(i) for i in range(65540)])
+    assert len(instance._prediction_cache) == 65536
+
+
 @pytest.mark.slow
 def test_real_model_preserves_ranked_readings():
     from dilemma.core import MODEL_DIR
