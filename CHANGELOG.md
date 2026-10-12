@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Preserve projected readings for other parts of speech when a spelling
+  gains an exact corpus POS entry, retaining exact owners for their own tags.
 - Match scalar POS selection in batch calls for input case/accent variants,
   self-map citation comparisons, and ordered case-twin fallbacks, including
   absent POS entries. Preserve batched inference for unresolved words.

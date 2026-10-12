@@ -154,6 +154,43 @@ def test_projection_merges_parts_of_speech_and_withholds_competing_owners(revers
     assert result['ᾄδος'] == rows[1][1]
 
 
+@pytest.mark.parametrize('reverse', [False, True])
+def test_exact_noun_retains_projected_adjective(reverse):
+    rows = [('Κενταύρειον', {'ADJ': 'Κενταύρειος'}),
+            ('κενταύρειον', {'NOUN': 'κενταύρειον'})]
+    original = dict(reversed(rows) if reverse else rows)
+    result = build._project_pos_entries(original)
+    assert result['κενταύρειον'] == {
+        'NOUN': 'κενταύρειον', 'ADJ': 'Κενταύρειος'}
+    assert original == dict(rows)
+
+
+def test_exact_owner_wins_only_its_own_part_of_speech():
+    result = build._project_pos_entries({
+        'Κενταύρειον': {'ADJ': 'Κενταύρειος', 'NOUN': 'ἄλλος'},
+        'κενταύρειον': {'NOUN': 'κενταύρειον'},
+    })
+    assert result['κενταύρειον'] == {
+        'NOUN': 'κενταύρειον', 'ADJ': 'Κενταύρειος'}
+
+
+def test_conflicting_projection_cannot_remove_another_exact_part_of_speech():
+    result = build._project_pos_entries({
+        'Κενταύρειον': {'ADJ': 'Κενταύρειος'},
+        'κενταύρειον': {'NOUN': 'κενταύρειον'},
+    }, {'κενταύρειον': {'NOUN', 'ADJ'}})
+    assert result['κενταύρειον'] == {'NOUN': 'κενταύρειον'}
+
+
+def test_competing_adjective_projections_preserve_exact_noun():
+    result = build._project_pos_entries({
+        'Κενταύρειον': {'ADJ': 'Κενταύρειος'},
+        'ΚΕΝΤΑΎΡΕΙΟΝ': {'ADJ': 'ἄλλος'},
+        'κενταύρειον': {'NOUN': 'κενταύρειον'},
+    })
+    assert result['κενταύρειον'] == {'NOUN': 'κενταύρειον'}
+
+
 @pytest.mark.parametrize('source', ['en-el', 'el'])
 def test_either_dictionary_can_supply_an_independent_definition(inputs, source):
     inputs([{'form':'ἀκρασία','lemma':'ἀκρασία','pos':'noun'}], {'ἀκρασία':'ἀκρασία'},

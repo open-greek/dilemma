@@ -197,24 +197,24 @@ def _defined_pos_targets(wanted):
 
 def _project_pos_entries(lookup, conflicts=None):
     """Project only unique POS owners; retain every distinct POS reading."""
-    result = dict(lookup)
+    result = {form: dict(values) for form, values in lookup.items()}
     proposals = defaultdict(lambda: defaultdict(set))
     for form, upos_lemmas in lookup.items():
         for key in {form.lower(), to_monotonic(form.lower())} - {form}:
-            if key in lookup:
-                continue
             for upos, lemma in upos_lemmas.items():
+                if upos in lookup.get(key, {}):
+                    continue
                 proposals[key][upos].add(lemma)
     for key, values in proposals.items():
         unique = {upos: next(iter(lemmas)) for upos, lemmas in sorted(values.items())
                   if len(lemmas) == 1}
         if unique:
-            result[key] = unique
+            result.setdefault(key, {}).update(unique)
     for form, ambiguous_pos in (conflicts or {}).items():
-        if form in lookup or form not in result:
+        if form not in result:
             continue
         remaining = {upos: lemma for upos, lemma in result[form].items()
-                     if upos not in ambiguous_pos}
+                     if upos in lookup.get(form, {}) or upos not in ambiguous_pos}
         if remaining:
             result[form] = remaining
         else:
