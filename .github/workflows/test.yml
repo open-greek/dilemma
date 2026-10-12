@@ -34,7 +34,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v7
@@ -65,7 +65,7 @@ jobs:
         run: python3 scripts/hf_data.py verify
 
       - name: Check model and data integrity before the full suite
-        run: python3 -m pytest tests/test_integrity.py tests/test_export_hunspell.py::test_export_creates_output_directory_before_audit -q
+        run: python3 -m pytest tests/test_integrity.py tests/test_batched_decoder.py tests/test_export_hunspell.py::test_export_creates_output_directory_before_audit --run-slow -q
 
       - name: Build and audit Ancient Greek Hunspell coverage
         run: |

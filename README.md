@@ -2468,11 +2468,13 @@ files from HuggingFace (`lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, and `form_profile.db` for the Hunspell export,
 plus source tables including the elision-preserving `diorisis_pairs.json`)
 and the complete `combined-s3` model, all pinned by sha256 in `data/hf_manifest.json`.
-ONNX Runtime and PyTorch are installed, and model/data integrity runs before
-the full suite so missing or incompatible model files fail early. The Ancient
+ONNX Runtime and PyTorch are installed, and model/data integrity and real-model
+batched-decoding checks run before the full suite so missing or incompatible
+model files fail early. The Ancient
 export and coverage audit also run first, using the pinned merged corpus
 frequency table. The exporter creates its output directory before writing
-audit files, including on a clean checkout
+audit files, including on a clean checkout. The job has a 75-minute limit to
+cover both the full dictionary export and the test suite
 (see [Shipping rebuilt data artifacts](#shipping-rebuilt-data-artifacts)).
 
 ```bash
