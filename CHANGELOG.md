@@ -9,6 +9,9 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-12
 
 ### Fixed
+- Preserve attested sparse inflections when a flat self-map or contracted
+  verb citation hides an independently defined owner. Keep explicit contracted
+  references separate from lexical definitions and require a unique target.
 - Preserve independently defined projected readings for other parts of speech
   when a spelling gains an exact corpus POS entry, retaining exact owners for
   their own tags. Require matching lexical POS evidence from fresh definitions

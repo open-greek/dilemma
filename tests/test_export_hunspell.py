@@ -1791,6 +1791,35 @@ def test_sparse_inflection_requires_an_independently_defined_head():
     assert lexical_head_key("ἀνάνηψις") != lexical_head_key("ἁνάνηψις")
 
 
+def test_sparse_inflection_can_follow_an_explicit_contracted_citation():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    conn = _lookup_db([("καταμετρηθείσης", "καταμετρῶ", "grc")])
+    heads = frozenset(map(lexical_head_key, ["καταμετρέω", "καταμετράω"]))
+    aliases = {lexical_head_key("καταμετρῶ"): ("καταμετρέω",)}
+    assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
+        lexical_heads=heads, lemma_aliases=aliases) == "καταμετρέω"
+    assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
+        lexical_heads=frozenset(), lemma_aliases=aliases) is None
+    aliases[lexical_head_key("καταμετρῶ")] += ("καταμετράω",)
+    assert exact_inflection_lemma(conn, "καταμετρηθείσης", "καταμετρηθείσης",
+        lexical_heads=heads, lemma_aliases=aliases) is None
+
+
+def test_sparse_inflection_preserves_a_defined_exact_pos_alternative():
+    from export_hunspell import exact_inflection_lemma, lexical_head_key
+    conn = _lookup_db([("νευροειδές", "νευροειδές", "grc")])
+    heads = frozenset({lexical_head_key("νευροειδής")})
+    owners = {"νευροειδές": ("νευροειδής",)}
+    assert exact_inflection_lemma(conn, "νευροειδές", "νευροειδές",
+        lexical_heads=heads, exact_pos_owners=owners) == "νευροειδής"
+    assert exact_inflection_lemma(conn, "νευροειδές", "νευροειδές",
+        lexical_heads=frozenset(), exact_pos_owners=owners) is None
+    assert exact_inflection_lemma(conn, "νευροειδές", "νευροειδές",
+        lexical_heads=heads) is None
+    assert exact_inflection_lemma(conn, "Νευροειδές", "Νευροειδές",
+        lexical_heads=heads, exact_pos_owners=owners) is None
+
+
 def test_modern_head_evidence_is_scoped_to_edited_vernacular(tmp_path):
     import json
     from collections import Counter

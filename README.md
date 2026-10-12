@@ -2703,6 +2703,13 @@ counts embedded by `export_lm.py`. The exporter itself uses
 sparse exact-form evidence; `data/hunspell_grc_form_freq.json.gz` is retained
 only as an auditable LM artifact and is not an admission boundary.
 
+Sparse inflections can use an exact dictionary POS reading when a flat lookup
+self-map hides their defined headword. The lexical inventory also records
+explicit contracted-verb references separately from independent definitions,
+so an attested form under `καταμετρῶ` can retain the defined `καταμετρέω` owner.
+The exporter requires one supported target and preserves tied references
+without choosing between them; it does not infer a verb from its ending.
+
 ```bash
 # Audit a fresh Hunspell export against the committed full-run fixture.
 python scripts/audit_hunspell_frequency.py --source fixture

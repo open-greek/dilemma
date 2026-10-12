@@ -1583,8 +1583,36 @@ def load_grc_lexical_heads(path: Path = GRC_LEXICAL_HEADS, *,
                      if sources and corpus_lexical_evidence_is_clean(head))
 
 
+def load_grc_inflection_evidence(
+    lexical_heads: frozenset[str], *,
+    lexical_path: Path = GRC_LEXICAL_HEADS,
+    pos_path: Path = DATA / "ag_pos_lookup.json",
+) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[str, ...]]]:
+    """Keep defined citation aliases and exact dictionary POS readings separate."""
+    payload = json.loads(lexical_path.read_text(encoding="utf-8"))
+    aliases = {}
+    for alias, rows in payload.get("contracted_verb_aliases", {}).items():
+        targets = tuple(sorted({row["lemma"] for row in rows
+                                if row.get("sources") and
+                                lexical_head_key(row["lemma"]) in lexical_heads and
+                                corpus_lexical_evidence_is_clean(row["lemma"])}))
+        if targets and corpus_lexical_evidence_is_clean(alias):
+            aliases[lexical_head_key(alias)] = targets
+    owners = {}
+    for form, readings in json.loads(pos_path.read_text(encoding="utf-8")).items():
+        targets = tuple(sorted({lemma for lemma in readings.values()
+                                if lexical_head_key(lemma) in lexical_heads and
+                                corpus_lexical_evidence_is_clean(lemma) and
+                                strip_accents(lemma) != strip_accents(form)}))
+        if targets and corpus_lexical_evidence_is_clean(form):
+            owners[cased_form_key(form)] = targets
+    return aliases, owners
+
+
 def exact_inflection_lemma(
     conn: sqlite3.Connection, form: str, raw: str, *, lexical_heads: frozenset[str],
+    lemma_aliases: dict[str, tuple[str, ...]] | None = None,
+    exact_pos_owners: dict[str, tuple[str, ...]] | None = None,
 ) -> str | None:
     """Find a marked, case-preserving inflection in the pinned lookup.
 
@@ -1597,15 +1625,31 @@ def exact_inflection_lemma(
     if not corpus_lexical_evidence_is_clean(form):
         return None
     key = cased_form_key(form)
+    found_exact = False
     for found, lemma in conn.execute(
         "SELECT k.form, l.text FROM lookup k JOIN lemmas l ON l.id=k.lemma_id "
         "WHERE k.form IN (?, ?) AND k.src='grc'", (form, raw)
     ):
-        if (has_any_diacritic(found) and cased_form_key(found) == key
-                and corpus_lexical_evidence_is_clean(lemma)
-                and lexical_head_key(lemma) in lexical_heads
+        if not (has_any_diacritic(found) and cased_form_key(found) == key
+                and corpus_lexical_evidence_is_clean(lemma)):
+            continue
+        found_exact = True
+        if (lexical_head_key(lemma) in lexical_heads
                 and strip_accents(lemma) != strip_accents(form)):
             return lemma
+        # A dictionary explicitly identifies these as contracted citations.
+        # Never infer an uncontracted verb from an ending or select a tied owner.
+        targets = (lemma_aliases or {}).get(lexical_head_key(lemma), ())
+        if (len(targets) == 1 and lexical_head_key(targets[0]) in lexical_heads
+                and corpus_lexical_evidence_is_clean(targets[0])
+                and strip_accents(targets[0]) != strip_accents(form)):
+            return targets[0]
+    targets = (exact_pos_owners or {}).get(key, ())
+    if (found_exact and len(targets) == 1
+            and lexical_head_key(targets[0]) in lexical_heads
+            and corpus_lexical_evidence_is_clean(targets[0])
+            and strip_accents(targets[0]) != strip_accents(form)):
+        return targets[0]
     return None
 
 
@@ -1622,6 +1666,8 @@ def add_postclassical_corpus_forms(
     dev_spellings: Counter, *, profile_path: Path = FORM_PROFILE_DB,
     lexical_heads: frozenset[str] | None = None,
     vernacular_heads: frozenset[str] | None = None,
+    lemma_aliases: dict[str, tuple[str, ...]] | None = None,
+    exact_pos_owners: dict[str, tuple[str, ...]] | None = None,
 ) -> tuple[list[tuple[str, str]], list[dict]]:
     """Admit exact, independently evidenced spellings outside the AG lookup.
 
@@ -1655,7 +1701,9 @@ def add_postclassical_corpus_forms(
             sources = json.loads(sources_json)
             count = max(total, max(sources.values(), default=0))
             heldout = heldout_by_form[form]
-            lemma = exact_inflection_lemma(conn, form, raw, lexical_heads=lexical_heads)
+            lemma = exact_inflection_lemma(conn, form, raw, lexical_heads=lexical_heads,
+                                          lemma_aliases=lemma_aliases,
+                                          exact_pos_owners=exact_pos_owners)
             # The curated vernacular corpus is not OCR. Its dictionary-listed
             # lowercase words remain usable at one token (e.g. σπίτι,
             # στέκομαι), including independently defined Modern heads. That
@@ -1670,6 +1718,11 @@ def add_postclassical_corpus_forms(
                         and corpus_lexical_evidence_is_clean(row[0])
                         and lexical_head_key(row[0]) in supported_vernacular_heads):
                     lemma = row[0]
+                elif row:
+                    targets = (lemma_aliases or {}).get(lexical_head_key(row[0]), ())
+                    if (len(targets) == 1 and not targets[0][:1].isupper()
+                            and lexical_head_key(targets[0]) in lexical_heads):
+                        lemma = targets[0]
             if lemma is None and postclassical_spelling_reason(form) is not None:
                 continue
             reason = postclassical_admission_reason(
@@ -3161,8 +3214,11 @@ def run_export(sanity: int | None, variants: list[str],
             form_lemma, reviewed_paradigm_forms, reviewed_paradigm_audit = (
                 add_reviewed_postclassical_paradigms(form_lemma, conn))
             include_reviewed_name_ownership(case_ownership, reviewed_paradigm_audit)
+            lexical_heads = load_grc_lexical_heads()
+            lemma_aliases, exact_pos_owners = load_grc_inflection_evidence(lexical_heads)
             form_lemma, postclassical_audit = add_postclassical_corpus_forms(
-                form_lemma, conn, dev_spellings)
+                form_lemma, conn, dev_spellings, lexical_heads=lexical_heads,
+                lemma_aliases=lemma_aliases, exact_pos_owners=exact_pos_owners)
             print(f"  +{len(postclassical_audit):,} evidenced postclassical spellings")
 
         if variant == "grc":

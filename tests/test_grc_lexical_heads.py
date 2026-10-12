@@ -6,7 +6,28 @@ from build.build_grc_lexical_heads import (
     EDITED_INPUTS, KAIKKI_INPUTS, VERNACULAR_INPUTS, build_heads, has_definition,
     normalize_headword,
     principal_quantity_rows,
+    contracted_verb_targets,
 )
+
+
+@pytest.mark.parametrize("gloss,target", [
+    ("συνηρημένη μορφή του καταμετρέω", "καταμετρέω"),
+    ("συνηρημένη μορφή του διογκόω", "διογκόω"),
+    ("contracted form of κῠνηγέω (kunēgéō)", "κυνηγέω"),
+])
+def test_contracted_references_are_read_without_becoming_definitions(gloss, target):
+    entry = {"pos": "verb", "senses": [{"glosses": [gloss]}]}
+    assert contracted_verb_targets(entry) == {target}
+    assert not has_definition(entry)
+    assert contracted_verb_targets({**entry, "pos": "noun"}) == set()
+
+
+def test_contracted_references_do_not_guess_from_a_word_ending():
+    assert contracted_verb_targets({"word": "ποιῶ", "pos": "verb",
+                                    "senses": [{"glosses": ["to make"]}]}) == set()
+    assert contracted_verb_targets({"pos": "verb", "senses": [{
+        "glosses": ["third-person singular of τιμάω"],
+        "form_of": [{"word": "τιμάω"}]}]}) == set()
 
 
 @pytest.mark.parametrize("gloss", [
@@ -103,6 +124,32 @@ def test_builder_merges_independent_sources_and_pins_portable_inputs(tmp_path):
 def test_builder_fails_closed_without_an_input(tmp_path):
     with pytest.raises(FileNotFoundError):
         build_heads(tmp_path, tmp_path, tmp_path / "lsj.json")
+
+
+def test_builder_keeps_contracted_aliases_separate_and_requires_defined_targets(tmp_path):
+    data, kaikki = tmp_path / "data", tmp_path / "kaikki"
+    data.mkdir()
+    for name in EDITED_INPUTS:
+        (data / name).write_text("[]")
+    for source, relative, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
+        path = kaikki / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        entries = []
+        if source == "wiktionary_el_grc":
+            entries = [{"word": "τιμῶ", "lang_code": "grc", "pos": "verb",
+                        "senses": [{"glosses": ["συνηρημένη μορφή του " + target]}]}
+                       for target in ("τιμάω", "τιμέω", "ἀνύπαρκτος")]
+        path.write_text("".join(json.dumps(row) + "\n" for row in entries))
+    lsj = tmp_path / "lsj.json"
+    lsj.write_text(json.dumps([{"headword": "τιμάω"}, {"headword": "τιμέω"}]))
+    chunks = data / "sophocles" / "chunks"
+    chunks.mkdir(parents=True)
+    (chunks / "01.xml").write_text("<root/>")
+    result = build_heads(kaikki, data, lsj)
+    assert "τιμῶ" not in result["heads"]
+    assert result["contracted_verb_aliases"] == {"τιμῶ": [
+        {"lemma": "τιμάω", "sources": ["wiktionary_el_grc"]},
+        {"lemma": "τιμέω", "sources": ["wiktionary_el_grc"]}]}
 
 
 def test_principal_quantities_keep_source_marks_and_exclude_other_cells():
