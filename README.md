@@ -2459,7 +2459,10 @@ files from HuggingFace (`lookup.db`, `spell_index.db`,
 plus source tables including the elision-preserving `diorisis_pairs.json`)
 and the complete `combined-s3` model, all pinned by sha256 in `data/hf_manifest.json`.
 ONNX Runtime and PyTorch are installed, and model/data integrity runs before
-the full suite so missing or incompatible model files fail early
+the full suite so missing or incompatible model files fail early. The Ancient
+export and coverage audit also run first, using the pinned merged corpus
+frequency table. The exporter creates its output directory before writing
+audit files, including on a clean checkout
 (see [Shipping rebuilt data artifacts](#shipping-rebuilt-data-artifacts)).
 
 ```bash

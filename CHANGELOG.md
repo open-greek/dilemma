@@ -9,6 +9,8 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-12
 
 ### Fixed
+- Create the Hunspell output directory before writing audit files on a clean
+  checkout, and include merged corpus frequencies in the CI export inputs.
 - Download checksum-pinned model files and install ONNX Runtime in CI, with
   an early integrity check before the full dictionary tests.
 - Preserve tonal marks when matching explicit contracted-verb references,

@@ -47,6 +47,8 @@ TRACKED = [
     "data/lemma_attestation.json",
     # Exact-form attestation for the grc Hunspell export and its audit.
     "data/form_profile.db",
+    # Merged corpus counts used by the Ancient export's admission filter.
+    "data/corpus_freq.json",
     # Source cells preserve elision used by the Ancient alias recovery.
     "data/diorisis_pairs.json",
     # Reversible quotation evidence consumed by the Ancient export gate.

@@ -65,15 +65,15 @@ jobs:
         run: python3 scripts/hf_data.py verify
 
       - name: Check model and data integrity before the full suite
-        run: python3 -m pytest tests/test_integrity.py -q
-
-      - name: Run all tests
-        run: python3 -m pytest tests/ -x -v
+        run: python3 -m pytest tests/test_integrity.py tests/test_export_hunspell.py::test_export_creates_output_directory_before_audit -q
 
       - name: Build and audit Ancient Greek Hunspell coverage
         run: |
           python3 export_hunspell.py --variant grc
           python3 scripts/audit_hunspell_frequency.py --source fixture
+
+      - name: Run all tests
+        run: python3 -m pytest tests/ -x -v
 
       - name: Check deterministic benchmark baselines
         run: python3 scripts/check_benchmark_regressions.py

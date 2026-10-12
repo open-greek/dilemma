@@ -59,6 +59,13 @@ def test_ci_fetches_ancient_lexical_evidence():
     assert "data/grc_lexical_heads.json" in hf_data.TRACKED
 
 
+def test_ci_fetches_export_frequency_evidence_before_full_tests():
+    assert "data/corpus_freq.json" in hf_data.TRACKED
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert "test_export_creates_output_directory_before_audit" in workflow
+    assert workflow.index("- name: Build and audit Ancient Greek Hunspell coverage") < workflow.index("- name: Run all tests")
+
+
 def test_ci_provisions_and_checks_both_model_backends():
     """Fail model setup early instead of after the full dictionary tests."""
     assert {
@@ -71,7 +78,7 @@ def test_ci_provisions_and_checks_both_model_backends():
     } <= set(hf_data.TRACKED)
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
     assert "onnxruntime" in workflow
-    assert "python3 -m pytest tests/test_integrity.py -q" in workflow
+    assert "python3 -m pytest tests/test_integrity.py" in workflow
     assert workflow.index("pytest tests/test_integrity.py") < workflow.index("- name: Run all tests")
 
 

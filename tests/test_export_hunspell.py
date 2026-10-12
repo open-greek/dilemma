@@ -88,6 +88,50 @@ SPACING_DASIA = "῾"
 COMBINING_PSILI = "̓"
 
 
+def test_export_creates_output_directory_before_audit(tmp_path, monkeypatch):
+    """A clean checkout must write the audit and dictionary on its first run."""
+    import json
+    import export_hunspell as exporter
+    import export_lm
+
+    lookup = tmp_path / "lookup.db"
+    sqlite3.connect(lookup).close()
+    output = tmp_path / "new" / "hunspell"
+    monkeypatch.setattr(exporter, "LOOKUP_DB", lookup)
+    monkeypatch.setattr(exporter, "OUT", output)
+    monkeypatch.setattr(exporter, "GRC_CLOSED_LIST_FORMS", {"λόγος": "λόγος"})
+    evidence = FormProfileEvidence({"λόγος": 5}, {"λογος": 5}, {}, {})
+    helpers = {
+        "load_freq_maps": ({}, {"λόγος": 5}),
+        "load_form_profile_freq": evidence,
+        "load_exact_rating_counts": {"λόγος": 5},
+        "load_canonical_ag_sets": (set(), set()),
+        "load_top_lsj9_lemmas": set(),
+        "load_grc_compatibility_forms": ({"λόγος"}, {}),
+        "load_grc_textbook_forms": ({"λόγος"}, {"paradigms": {}}),
+        "load_lm_head_required_forms": set(),
+        "load_case_ownership": {},
+        "load_unsupported_bare_elisions": set(),
+        "load_diorisis_quote_keys": (frozenset(), {}),
+        "load_exact_elision_heads": (frozenset(), {}),
+        "load_grc_spelling_review": frozenset(),
+        "select_forms": [("λόγος", "λόγος")],
+    }
+    for name, value in helpers.items():
+        monkeypatch.setattr(exporter, name, lambda *args, _value=value, **kwargs: _value)
+    monkeypatch.setattr(export_lm, "dictionary_drift", lambda **kwargs: None)
+
+    assert not output.exists()
+    exporter.run_export(1, ["grc"], treebank_spelling_min_count=0)
+    files = {p.name: p.read_bytes() for p in output.iterdir()}
+    assert {"grc_polytonic.audit.json", "grc_polytonic.dic",
+            "grc_polytonic.aff", "grc_polytonic.version"} <= files.keys()
+    assert json.loads(files["grc_polytonic.audit.json"])["schema_version"] == 1
+    assert "λόγος" in files["grc_polytonic.dic"].decode("utf-8")
+    exporter.run_export(1, ["grc"], treebank_spelling_min_count=0)
+    assert {p.name: p.read_bytes() for p in output.iterdir()} == files
+
+
 def test_editorial_forms_resolve_only_optional_final_nu():
     assert resolve_editorial_form("καθᾶσι(ν") == ("καθᾶσι", "καθᾶσιν")
     assert resolve_editorial_form("καθᾶσι(ν)") == ("καθᾶσι", "καθᾶσιν")

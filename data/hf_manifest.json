@@ -1,7 +1,7 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-10-12T14:50:36Z",
+  "generated": "2026-10-12T15:29:51Z",
   "files": {
     "data/lookup.db": {
       "size": 1214099456,
@@ -22,6 +22,11 @@
       "size": 488013824,
       "sha256": "e7cc35dd4ded4e58c81f10b15a340b9263b4d49cc138155e48d4b509152eec01",
       "git_sha1": "e7adb82529f8d1f2dcb01cbda05ebf513922fe59"
+    },
+    "data/corpus_freq.json": {
+      "size": 91382841,
+      "sha256": "30a02ac21984b7a2dc1a1814bc7115187f36fa6b5ee02ec8bd2c62f0ab464d1d",
+      "git_sha1": "33acdcd2c834b0faa14192d3c7a964b016209af1"
     },
     "data/diorisis_pairs.json": {
       "size": 62868511,

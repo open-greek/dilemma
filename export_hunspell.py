@@ -3053,6 +3053,7 @@ def run_export(sanity: int | None, variants: list[str],
               file=sys.stderr)
         sys.exit(1)
 
+    OUT.mkdir(parents=True, exist_ok=True)
     commit = get_git_commit()
     version = read_version_file()
 
