@@ -1,7 +1,7 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-10-12T06:36:41Z",
+  "generated": "2026-10-12T06:38:25Z",
   "files": {
     "data/lookup.db": {
       "size": 1214099456,
@@ -79,9 +79,14 @@
       "git_sha1": "68f741c959ed1990e1978e3820885aa7c2e7b3ff"
     },
     "data/grc_lexical_heads.json": {
-      "size": 43506182,
-      "sha256": "8810099d15efa371b24aaef7aea97b604276acc403198c09ad30f5fa6cb5ddc7",
-      "git_sha1": "76fe3a541fc2108e99ca0ddc0f45f05394a0b7e8"
+      "size": 43351348,
+      "sha256": "04e763665f4354c32f45a54a7f326d96a7d73dd31348b7e98e143298b243f2ff",
+      "git_sha1": "c2d87a269bf9d314b1bd0faf63269d9ba8469353"
+    },
+    "data/grc_contracted_verb_aliases.json": {
+      "size": 155290,
+      "sha256": "17ff61f6526d1c8837e11cedff8f1987e4c3b5054dbb508c357cb8554be7f58d",
+      "git_sha1": "4364ecc9420a411053358857e077c6a122e304b3"
     },
     "data/el_closed_class_heads.json": {
       "size": 16158,
