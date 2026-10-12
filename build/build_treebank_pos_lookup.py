@@ -31,6 +31,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from dilemma.form_sanitize import is_capitalized
+
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
 OUTPUT_PATH = Path(__file__).parent.parent / "data" / "treebank_pos_lookup.json"
 KAIKKI_DIR = None
@@ -206,8 +208,8 @@ def _unique_owner(counts):
 
 def _record_capital_owner(votes, form, lemma, upos, source, weight, lexical_targets):
     """Keep defined name readings before the sparse POS-table selection."""
-    if (upos not in {"NOUN", "PROPN", "ADJ"} or not form[:1].isupper()
-            or not lemma[:1].isupper() or not _clean_lemma(lemma)
+    if (upos not in {"NOUN", "PROPN", "ADJ"} or not is_capitalized(form)
+            or not is_capitalized(lemma) or not _clean_lemma(lemma)
             or _lexical_target_key(lemma) not in lexical_targets):
         return
     form = unicodedata.normalize("NFC", form)

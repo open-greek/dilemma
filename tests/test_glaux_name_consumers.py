@@ -68,11 +68,15 @@ def test_shared_apply_requires_full_original_reading(audited, field):
                                       values["lemma"], values["postag"]) == values["lemma"]
 
 
-@pytest.mark.parametrize("field", ["source", "lexical", "names", "metadata", "builder"])
+@pytest.mark.parametrize("field", ["source", "lexical", "names", "metadata", "builder",
+                                 "form_sanitizer", "missing_form_sanitizer"])
 def test_stale_evidence_fails_before_use(audited, field):
-    if field == "builder":
+    if field in {"builder", "form_sanitizer", "missing_form_sanitizer"}:
         payload = json.loads(audited["audit_path"].read_text())
-        payload["builder_sha256"] = "0" * 64
+        if field == "missing_form_sanitizer":
+            payload.pop("form_sanitizer_sha256")
+        else:
+            payload[field + "_sha256"] = "0" * 64
         audited["audit_path"].write_text(json.dumps(payload))
     else:
         path = audited[field]

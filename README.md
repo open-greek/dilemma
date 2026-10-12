@@ -1342,6 +1342,9 @@ The audit also retains every source-supported capitalized name and ethnic
 adjective owner before the runtime table's ambiguity filter. The dictionary
 export combines those owners with exact cased corpus counts and lexical-head
 evidence, preserving attested names hidden by a flat lowercase owner.
+Capitalization checks recognize both Unicode uppercase and titlecase letters,
+including Greek capitals with a written iota such as `ᾍ` in `ᾍδης`, without
+changing their spelling or treating lowercase iota-subscript letters as capitals.
 A corpus vote that agrees with the bare lookup can still be needed when a
 lower-priority POS table, a projected spelling, or a capitalized scalar query
 would select another lemma. A case variant already corrected by the effective
@@ -1655,7 +1658,7 @@ powers the usage-by-year graph and heatmap; `--with-citations` adds the example
 loci (and implies the profile). Without them, `attested_only` and
 `form_attestation` raise a clear "download it" error.
 
-Example loci require matching schema, content and source hashes in the two
+Example loci require matching schema versions, content hashes and source hashes in the two
 databases. If the citation file belongs to another build or lacks this
 metadata, `form_attestation` still returns the usage profile, with an empty
 `citations` list and a `citations_note` asking you to download both files
@@ -2156,6 +2159,13 @@ the flat lookup assigns their spelling to a common-word lemma. The finite
 record the spelling, owner, citation, and source. They preserve forms such as
 `Πῶλε` and `Ὀνησίμῳ` without exempting unrelated capitalized common nouns from
 the case filter.
+
+An already reviewed compatibility spelling with positive exact-case corpus
+evidence also survives the case filter when its lexical owner is unresolved.
+This retains attested capitalized spellings and work titles without inventing
+a proper-name lemma. The audit records the retained spelling, its count, and
+the existing ownership decision. Unattested case variants remain filtered;
+explicit spelling, quotation, and bare-fragment rejections still take priority.
 
 Exact reviewed forms also retain Archimedes' Doric `ἀποχρὴ` under `ἀπόχρη`,
 with its contextual acute twin. This textual exception does not remove accents

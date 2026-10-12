@@ -43,7 +43,7 @@ from .nonlexical import is_lexical as _is_lexical
 from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
-from .form_sanitize import sanitize_form
+from .form_sanitize import is_capitalized, sanitize_form
 
 
 def _newest_marker_mtime(d: Path, markers):
@@ -2247,7 +2247,7 @@ class Dilemma:
             is_function = 0 if (stem_lower in _ELISION_PRIORITY
                                 and lemma in _FUNCTION_LEMMAS) else 1
             # Deprioritize proper nouns
-            is_proper = 1 if lemma and lemma[0].isupper() else 0
+            is_proper = 1 if is_capitalized(lemma) else 0
             # Use corpus frequency: more frequent lemmas are more likely
             # to be the correct resolution (κατά >> κάθω). Ranked things are
             # LEMMAS, so query the lemma-keyed attestation table - the
@@ -2314,7 +2314,7 @@ class Dilemma:
 
     def _is_proper(self, lemma: str) -> bool:
         """Check if a lemma is a proper noun (capitalized headword)."""
-        return bool(lemma) and lemma[0].isupper()
+        return is_capitalized(lemma)
 
     def _is_mg_citation_form(self, lemma: str) -> bool:
         """True iff ``lemma`` is a Modern Greek citation form: the MG table
@@ -2580,7 +2580,7 @@ class Dilemma:
                 return lemma
 
         # 4. Lowercase initial capital (Byzantine sentence-initial caps)
-        if word and word[0].isupper():
+        if is_capitalized(word):
             lowered = word[0].lower() + word[1:]
             lemma = self._lookup_word(lowered)
             if lemma:
@@ -2647,7 +2647,7 @@ class Dilemma:
             if fixed != word:
                 forms_to_try.append(fixed)
             # Lowercase
-            if word and word[0].isupper():
+            if is_capitalized(word):
                 forms_to_try.append(word[0].lower() + word[1:])
 
             # Only run normalizer if it wasn't already run pre-model
@@ -3368,7 +3368,7 @@ class Dilemma:
             if t[:1].islower():
                 if lower_twin is None:
                     lower_twin = t
-            elif t[:1].isupper():
+            elif is_capitalized(t):
                 if upper_twin is None:
                     upper_twin = t
         if lower_twin is None or upper_twin is None:
@@ -3723,7 +3723,7 @@ class Dilemma:
             if upos == "PROPN":
                 need = res[:1].islower()
             else:
-                need = word[:1].islower() and res[:1].isupper()
+                need = word[:1].islower() and is_capitalized(res)
             if not need:
                 continue
             candidates = self._lemmatize_verbose_impl(word, guess=guess)
@@ -3937,10 +3937,12 @@ class Dilemma:
                     _add(lemma, lang=lang, source="lookup", via=via)
                     # Also check if the OTHER case variant is a headword
                     # (Ἔρις the goddess vs ἔρις strife)
-                    if lemma[0].isupper():
+                    if is_capitalized(lemma):
                         alt = lemma[0].lower() + lemma[1:]
                     else:
-                        alt = lemma[0].upper() + lemma[1:]
+                        # Titlecase keeps Greek prosgegrammeni in one initial
+                        # character; uppercase expands ᾅ into the all-caps ἍΙ.
+                        alt = lemma[0].title() + lemma[1:]
                     # The alt must be a self-mapping headword (not just
                     # a form that maps elsewhere)
                     alt_lemma = table.get(alt)
@@ -4623,7 +4625,7 @@ class Dilemma:
             if h in lsj:
                 return h
             twins = [t for t in idx.get(strip_accents(h.lower()), ())
-                     if t in lsj and t[:1].isupper() == h[:1].isupper()]
+                     if t in lsj and is_capitalized(t) == is_capitalized(h)]
             return min(twins) if twins else h
 
         if s in canon:
@@ -4651,7 +4653,7 @@ class Dilemma:
             return None
 
         def _rank(h: str) -> tuple:
-            case_mismatch = (h[:1].isupper() != s[:1].isupper())
+            case_mismatch = (is_capitalized(h) != is_capitalized(s))
             att = self.attestation(h)
             freq = att["total"] if att else 0
             return (case_mismatch, -freq, h not in lsj, h)

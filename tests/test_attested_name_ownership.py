@@ -8,6 +8,7 @@ from export_hunspell import (
     cased_form_key,
     exact_form_key,
     filter_case_artifacts,
+    finalize_grc_pairs,
     include_attested_name_ownership,
     lexical_head_key,
 )
@@ -116,3 +117,58 @@ def test_corpus_typo_cannot_bypass_existing_orthography_guard():
         ownership, _evidence({"Δίά": 2}), readings={"Δίά": {"PROPN": "Ζεύς"}},
         lexical_heads=frozenset({lexical_head_key("Ζεύς")}),
     ) == []
+
+
+def test_attested_compatibility_spelling_is_retained_without_inventing_an_owner():
+    form = "Θεσμοφοριαζούσαις"
+    ownership = {exact_form_key(form): 2}
+    retained = []
+    pairs = [(form, "θεσμοφοριάζω")]
+    assert filter_case_artifacts(pairs, _evidence({form: 48}), ownership,
+                                 {form}, retained) == (pairs, [])
+    assert ownership == {exact_form_key(form): 2}
+    assert retained == [{
+        "form": form, "cased_count": 48, "owner_bits": 2,
+        "reason": "attested_inherited_spelling; lexical_ownership_unresolved",
+    }]
+
+
+@pytest.mark.parametrize("counts,compatibility", [
+    ({"Θεσμοφοριαζούσαις": 0}, {"Θεσμοφοριαζούσαις"}),
+    ({"θεσμοφοριαζούσαις": 48}, {"Θεσμοφοριαζούσαις"}),
+    ({"Θεσμοφοριαζούσαις": 48}, set()),
+    ({"Θεσμοφοριαζούσαις": 48}, {"θεσμοφοριαζούσαις"}),
+])
+def test_case_retention_requires_positive_cased_count_and_exact_compatibility(counts, compatibility):
+    form = "Θεσμοφοριαζούσαις"
+    pairs = [(form, "θεσμοφοριάζω")]
+    retained = []
+    assert filter_case_artifacts(pairs, _evidence(counts),
+        {exact_form_key(form): 2}, compatibility, retained) == ([], pairs)
+    assert retained == []
+
+
+def test_absent_cased_profile_does_not_preserve_inherited_capital():
+    form = "Θεσμοφοριαζούσαις"
+    pairs = [(form, "θεσμοφοριάζω")]
+    assert filter_case_artifacts(pairs, FormProfileEvidence({}, {}, {}, {}),
+        {exact_form_key(form): 2}, {form}) == ([], pairs)
+
+
+@pytest.mark.parametrize("veto", ["reviewed", "bare"])
+def test_explicit_rejection_precedes_inherited_case_retention(veto):
+    form = "Θεσμοφοριαζούσαις"
+    pairs, report = finalize_grc_pairs([(form, "θεσμοφοριάζω")],
+        evidence=_evidence({form: 48}), compatibility_forms={form},
+        textbook_forms=set(), export_overrides={}, protected_forms=set(),
+        case_ownership={exact_form_key(form): 2},
+        reviewed_rejects=frozenset({form}) if veto == "reviewed" else frozenset(),
+        bare_elision_keys={cased_form_key(form)} if veto == "bare" else set())
+    assert pairs == []
+    assert report["attested_compatibility_cases"] == []
+
+
+def test_zero_count_lowercase_name_alias_is_not_protected_by_compatibility():
+    pairs = [("ἑλλάδος", "Ἑλλάς")]
+    assert filter_case_artifacts(pairs, _evidence({"Ἑλλάδος": 300}),
+        {exact_form_key("ἑλλάδος"): 1}, {"ἑλλάδος"}) == ([], pairs)

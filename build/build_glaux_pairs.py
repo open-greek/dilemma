@@ -49,7 +49,7 @@ DEFAULT_GLAUX = Path.home() / "Documents" / "glaux" / "xml"
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from dilemma.form_sanitize import has_editorial_sigla  # noqa: E402
+from dilemma.form_sanitize import has_editorial_sigla, is_capitalized  # noqa: E402
 
 # What GLAUx puts in the lemma field of an editorial gap, where the manuscript
 # is damaged or unreadable. The surviving letters stay in the form, so the
@@ -193,8 +193,8 @@ def _malformed_name_key(text, known_heads):
 
 
 def _capital_greek(text):
-    return (bool(text) and text[0].isupper()
-            and not any(c.isupper() for c in text[1:])
+    return (is_capitalized(text)
+            and not any(is_capitalized(c) for c in text[1:])
             and all(unicodedata.combining(c) or "GREEK" in unicodedata.name(c, "")
                     for c in unicodedata.normalize("NFD", text)))
 
@@ -292,6 +292,8 @@ def repair_name_lemmas(pairs, evidence, *, source_commit, sources_by_key=None,
     source_paths = source_paths or {}
     audit = {"schema_version": 2, "source_commit": source_commit,
              "builder_sha256": _fingerprint(Path(__file__))["sha256"],
+             "form_sanitizer_sha256": _fingerprint(
+                 SCRIPT_DIR / "dilemma" / "form_sanitize.py")["sha256"],
              "inputs": evidence["inputs"],
              "source_xml": {name: _fingerprint(path) for name, path in sorted(source_paths.items())},
              "corpus_xml_inventory": sorted(source_paths),
@@ -331,7 +333,9 @@ def load_name_corrections(audit_path, glaux_dir, *, lexical_path=None,
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
     if (audit.get("schema_version") != 2
             or re.fullmatch(r"[0-9a-f]{40}", audit.get("source_commit", "")) is None
-            or audit.get("builder_sha256") != _fingerprint(Path(__file__))["sha256"]):
+            or audit.get("builder_sha256") != _fingerprint(Path(__file__))["sha256"]
+            or audit.get("form_sanitizer_sha256") != _fingerprint(
+                SCRIPT_DIR / "dilemma" / "form_sanitize.py")["sha256"]):
         raise ValueError("invalid or stale GLAUx name-correction audit; rebuild the pairs and audit")
     paths = {
         "grc_lexical_heads": Path(lexical_path or DATA_DIR / "grc_lexical_heads.json"),
