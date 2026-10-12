@@ -1281,6 +1281,13 @@ Curated POS entries can select among regular lookup candidates or override
 a single candidate when the dictionaries and corpus evidence support a
 different lemma for that part of speech.
 
+Batch POS calls apply the same overrides when all candidates are case or
+accent variants of the input. Agreement with a self-map still compares the
+available citation spellings. If no POS entry matches, case twins retain
+the scalar API's candidate order and capitalization rule; a single accent
+variant retains its scalar citation spelling. This fallback checks only
+structured readings, so unresolved words keep their batched model inference.
+
 With `convention="triantafyllidis"` or `lang="el"`, POS tags also fix MG
 self-map issues for adjective and verb inflections. MG lookup tables
 sometimes return self-maps for inflected forms (e.g. `ανθρώπινα` maps to

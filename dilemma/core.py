@@ -3504,8 +3504,11 @@ class Dilemma:
                 pos_lemma_conv = self._apply_convention(pos_lemma)
                 if pos_lemma_conv is None:
                     continue
-                if pos_lemma_conv == results[i]:
-                    # POS agrees with baseline - no change needed
+                if (pos_lemma_conv == results[i]
+                        and strip_accents(pos_lemma_conv.lower())
+                        != strip_accents(word.lower())):
+                    # A non-self result already agrees. Self-maps still need
+                    # the scalar API's candidate and citation comparison.
                     continue
 
                 # POS suggests a different lemma than baseline. Check if
@@ -3532,6 +3535,13 @@ class Dilemma:
                     # POS table (curated sources: treebank, GLAUx, Wiktionary)
                     results[i] = pos_lemma_conv
                     matched = True
+                if not matched and all(
+                        strip_accents(c.lemma.lower()) == strip_accents(word.lower())
+                        for c in candidates):
+                    # Match the scalar POS override when the candidates only
+                    # repeat the input with case or accent variations.
+                    results[i] = pos_lemma_conv
+                    matched = True
                 if matched:
                     continue
 
@@ -3545,6 +3555,26 @@ class Dilemma:
                     mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
                     if mg_fix is not None:
                         results[i] = mg_fix
+                        continue
+
+            if pos_lemma is None:
+                # Compare structured readings even without a POS entry. Do
+                # not repeat model inference for unresolved batch words.
+                candidates = self._lemmatize_verbose_impl(word, guess=False)
+                if (len(candidates) == 1 and results[i] is not None
+                        and strip_accents(candidates[0].lemma.lower())
+                        == strip_accents(results[i].lower())):
+                    results[i] = candidates[0].lemma
+                    continue
+
+            if (len(candidates) > 1
+                    and all(c.lemma.lower() == candidates[0].lemma.lower()
+                            for c in candidates)):
+                # An unmatched or absent POS entry does not disambiguate
+                # case twins. Preserve the scalar API's candidate order and
+                # existing PROPN/capitalization tiebreak.
+                results[i] = self._prefer_case_twin(
+                    word, upos, candidates[0].lemma, candidates)
 
         # Step 3: capitalization-agreement tiebreak between case-twin
         # lemmas (θυμός vs Θυμός), mirroring lemmatize_pos(). Only
