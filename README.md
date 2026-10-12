@@ -2071,6 +2071,26 @@ restorations, canonicalization, ambiguity skips, and portable input/source
 hashes. The merged source pairs, reviewed exact-form specification, and
 `grc_lexical_heads.json` are required inputs for this step.
 
+With `--kaikki DIR`, the overlay also checks historical-only elisions against
+both fresh Ancient Greek dumps in `en-el/` and `el/`. It can replace an
+unsupported historical owner only when all positively defined current source
+readings agree on one PRON or DET owner, and every reading fits an explicit
+case/number cell in that owner's independently defined entry of the same POS.
+The complete cell must be the marked stem plus one literal vowel. Source
+quantity notation and initial capitalization are normalized; accents,
+breathings, and other letters are preserved. Competing owners or POS readings,
+incompatible cells, a positive historical marker variant, and a matching
+complete unelided word all withhold the change. Existing predecessor mappings
+and later changes remain protected. This check creates no bare lookup aliases.
+
+The historical overlay counts remain unchanged. Proven replacements run after
+the normal alias recovery, only while the former historical owner still
+matches, and join the reversible `canonicalized` audit. The audit retains all
+source claims, own-entry cells, definitions, and withheld decisions. It pins
+both fresh dumps and the imported definition classifier and repair helper.
+Omitting `--kaikki` disables this additional check; providing it requires both
+dumps and rejects missing, malformed, or changed input files.
+
 The Ancient export retains independently cited proper-name forms even when
 the flat lookup assigns their spelling to a common-word lemma. The finite
 `source_forms` specifications in `data/hunspell_grc_postclassical_review.json`
@@ -2110,8 +2130,11 @@ alias changes, and pin the matching lookup, predecessor, source revision,
 and input hashes. `scripts/build_source_alias_manifest.py` verifies those
 pins and reverses each change before writing the manifest. Use
 `--pre-alias-lookup` for the first manifest, or `--pre-alias-manifest` to
-verify it against the recorded predecessor hash. These files are provenance
-artifacts and are not required at runtime.
+verify it against the recorded predecessor hash. When the audit includes
+historical closed-class elision checks, also pass the same `--kaikki DIR` to
+verify both external dump pins. The manifest verifies the imported classifier
+and helper against the source revision and retains strict byte reversal.
+These files are provenance artifacts and are not required at runtime.
 
 Expansion sources sometimes encode restored letters with Leiden square
 brackets or spelling alternatives with parentheses. These delimiters are

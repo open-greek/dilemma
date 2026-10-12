@@ -15,6 +15,7 @@ reference and its exact base are byte-pinned in ``data/ag_expansion_reference.js
 
 Usage:
     python overlay_lsj.py
+    python overlay_lsj.py --kaikki kaikki
     python overlay_lsj.py --dry-run
     python overlay_lsj.py --reference /path/to/pinned/ag_lookup.json
 """
@@ -51,6 +52,11 @@ SOURCE_PAIR_NAMES = (
     "diorisis_pairs.json", "nt_pairs.json", "ptnk_pairs.json",
     "tagnt_pairs.json", "pedalion_pairs.json",
 )
+# Paths remain relative to the user-supplied dump directory in portable audits.
+CLOSED_CLASS_DUMPS = {
+    "wiktionary_en_grc": ("en", "en-el/kaikki.org-dictionary-AncientGreek.jsonl"),
+    "wiktionary_el_grc": ("el", "el/kaikki.org-dictionary-AncientGreek.jsonl"),
+}
 _CHUNK = 1 << 20
 _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
 
@@ -491,6 +497,84 @@ def load_alias_lexical_heads(path: Path) -> set[str]:
     return {head for head, evidence in payload["heads"].items() if evidence}
 
 
+def load_closed_class_entries(kaikki: Path):
+    """Read both exact fresh dumps, retaining own Ancient PRON/DET entries."""
+    pins, paths, entries = {}, {}, []
+    for label, (source, relative) in CLOSED_CLASS_DUMPS.items():
+        path = kaikki / relative
+        if not path.is_file():
+            raise SystemExit(f"fresh closed-class source missing: {relative}")
+        paths[label] = path
+        pins[label] = {"path": relative, "sha256": file_sha256(path),
+                       "size": path.stat().st_size}
+    for label, (source, relative) in CLOSED_CLASS_DUMPS.items():
+        with paths[label].open(encoding="utf-8") as handle:
+            for line, text in enumerate(handle, 1):
+                entry = json.loads(text)
+                if entry.get("lang_code") == "grc" and entry.get("pos") in {"pron", "det"}:
+                    entries.append({"source": source, "line": line, "entry": entry})
+    verify_closed_class_inputs(paths, pins)
+    return entries, pins, paths
+
+
+def verify_closed_class_inputs(paths, pins):
+    """Do not publish evidence read while either dump changed."""
+    for label, path in paths.items():
+        actual = {"path": pins[label]["path"], "sha256": file_sha256(path),
+                  "size": path.stat().st_size}
+        if actual != pins[label]:
+            raise SystemExit(f"fresh closed-class source changed: {pins[label]['path']}")
+
+
+def prepare_closed_class_elisions(kaikki, reference, reference_base, predecessor,
+                                  source_pairs, lexical_heads):
+    """Plan before historical additions, with imported source and dump pins."""
+    if kaikki is None:
+        return {"schema_version": 1, "enabled": False}, {}
+    import build_data
+    from build import closed_class_elisions
+    imported = {
+        "build/closed_class_elisions.py": Path(closed_class_elisions.__file__),
+        "build_data.py": Path(build_data.__file__),
+    }
+    source_pins = {}
+    for relative, path in imported.items():
+        if path.resolve() != (ROOT / relative).resolve():
+            raise SystemExit(f"closed-class classifier imported outside source tree: {relative}")
+        source_pins[relative] = {"sha256": file_sha256(path), "size": path.stat().st_size}
+    entries, pins, paths = load_closed_class_entries(kaikki)
+    decisions = closed_class_elisions.plan_repairs(
+        reference, reference_base, predecessor, source_pairs, lexical_heads, entries)
+    return {"schema_version": 1, "enabled": True,
+            "external_input_sha256": pins, "source_sha256": source_pins,
+            "fresh_entry_count": len(entries), "decisions": decisions,
+            "planned_count": sum(row["accepted"] for row in decisions)}, paths
+
+
+def merge_closed_class_elisions(target, alias_stats, closed_class):
+    """Keep all proof decisions and merge only reversible still-matching rows."""
+    if not closed_class["enabled"]:
+        alias_stats["closed_class_elisions"] = closed_class
+        return
+    from build.closed_class_elisions import apply_repairs
+    applied = apply_repairs(target, closed_class["decisions"])
+    for row in applied["canonicalized"] + applied["existing_preserved"]:
+        row["repair_kind"] = "historical_closed_class_elision"
+    existing_forms = {row["form"] for row in alias_stats["recovered"]
+                      + alias_stats["canonicalized"]}
+    if existing_forms & {row["form"] for row in applied["canonicalized"]}:
+        raise SystemExit("closed-class repair duplicates another alias change")
+    alias_stats["canonicalized"].extend(applied["canonicalized"])
+    alias_stats["existing_preserved"].extend(applied["existing_preserved"])
+    alias_stats["canonicalized_count"] = len(alias_stats["canonicalized"])
+    alias_stats["existing_preserved_count"] = len(alias_stats["existing_preserved"])
+    closed_class.update(canonicalized=applied["canonicalized"],
+                        existing_preserved=applied["existing_preserved"],
+                        canonicalized_count=len(applied["canonicalized"]),
+                        existing_preserved_count=len(applied["existing_preserved"]))
+    alias_stats["closed_class_elisions"] = closed_class
+
+
 def alias_spelling_exclusions(exclusions: dict, review_path: Path) -> frozenset[str]:
     """Historical row conflicts are not absolute bans on a source spelling."""
     from export_hunspell import load_grc_spelling_review
@@ -736,6 +820,9 @@ def main() -> None:
     parser.add_argument("--lexical-heads", type=Path, default=DEFAULT_LEXICAL_HEADS)
     parser.add_argument("--source-alias-audit", type=Path,
                         help="Save portable alias evidence, conflicts and input hashes")
+    parser.add_argument("--kaikki", type=Path,
+                        help="Fresh dump directory; require both Ancient dumps for "
+                             "source-proved historical closed-class elision repairs")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     superseded_nouns = load_noun_generation_audit(args.noun_audit)
@@ -769,6 +856,14 @@ def main() -> None:
         target = json.load(handle)
     print(f"  {len(target):,} entries")
 
+    source_pairs, alias_inputs = load_alias_source_pairs(args.source_pairs)
+    lexical_heads = load_alias_lexical_heads(args.lexical_heads)
+    alias_inputs["grc_lexical_heads.json"] = {
+        "sha256": file_sha256(args.lexical_heads),
+        "size": args.lexical_heads.stat().st_size,
+    }
+    closed_class, fresh_paths = prepare_closed_class_elisions(
+        args.kaikki, reference, reference_base, target, source_pairs, lexical_heads)
     target_editorial_stats = resolve_target_editorial_entries(target)
     print(
         "Resolved target editorial notation: "
@@ -782,12 +877,6 @@ def main() -> None:
         reference, reference_base, target, excluded_forms=excluded_forms,
         superseded_noun_lemmas=superseded_nouns,
     )
-    source_pairs, alias_inputs = load_alias_source_pairs(args.source_pairs)
-    lexical_heads = load_alias_lexical_heads(args.lexical_heads)
-    alias_inputs["grc_lexical_heads.json"] = {
-        "sha256": file_sha256(args.lexical_heads),
-        "size": args.lexical_heads.stat().st_size,
-    }
     alias_stats = restore_attested_compound_aliases(
         reference, reference_base, target, source_pairs,
         lexical_heads,
@@ -795,6 +884,15 @@ def main() -> None:
             exclusions, args.source_pairs / "hunspell_grc_spelling_review.json"),
         historical_conflicts=exclusions["baseline_conflicts"],
     )
+    merge_closed_class_elisions(target, alias_stats, closed_class)
+    alias_stats["historical_overlay_counts"] = stats
+    if closed_class["enabled"]:
+        verify_closed_class_inputs(fresh_paths, closed_class["external_input_sha256"])
+        for relative, expected in closed_class["source_sha256"].items():
+            actual = {"sha256": file_sha256(ROOT / relative),
+                      "size": (ROOT / relative).stat().st_size}
+            if actual != expected:
+                raise SystemExit(f"closed-class source changed: {relative}")
     spelling_review = args.source_pairs / "hunspell_grc_spelling_review.json"
     alias_inputs[spelling_review.name] = {
         "sha256": file_sha256(spelling_review), "size": spelling_review.stat().st_size}
@@ -823,6 +921,8 @@ def main() -> None:
     print(f"Recovered entries: {stats['added']:,}")
     print(f"Attested compound cells/aliases recovered: {alias_stats['recovered_count']:,}")
     print(f"Attested owners canonicalized: {alias_stats['canonicalized_count']:,}")
+    print(f"Historical closed-class elisions canonicalized: "
+          f"{closed_class.get('canonicalized_count', 0):,}")
     print(f"Ambiguous aliases withheld: {alias_stats['ambiguous_count']:,}")
     print(f"Independent existing readings preserved: {alias_stats['existing_preserved_count']:,}")
     print(f"Final size: {len(target):,}")

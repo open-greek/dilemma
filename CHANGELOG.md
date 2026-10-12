@@ -9,6 +9,10 @@ All notable changes to Dilemma are documented here. The format follows
 ## [1.3.7] - 2026-10-11
 
 ### Fixed
+- Repair historical-only closed-class elisions only from unique current
+  source readings and explicit literal-completion cells in fresh same-POS
+  definitions. Preserve competing and complete-word readings, and record
+  reversible changes with the matching dump and source hashes.
 - Keep explicitly tagged articles from returning a noncanonical POS-table
   target in scalar and batch calls, while preserving the existing Ancient
   and Modern article lemmas.

@@ -14,6 +14,12 @@ SOURCE_FILES = (
     'data/hunspell_grc_postclassical_review.json', 'data/ag_expansion_reference.json',
 )
 
+CLOSED_CLASS_SOURCE_FILES = ('build/closed_class_elisions.py', 'build_data.py')
+CLOSED_CLASS_DUMPS = {
+    'wiktionary_en_grc': 'en-el/kaikki.org-dictionary-AncientGreek.jsonl',
+    'wiktionary_el_grc': 'el/kaikki.org-dictionary-AncientGreek.jsonl',
+}
+
 
 def pin(path: Path) -> dict:
     with path.open('rb') as handle:
@@ -47,6 +53,54 @@ def require_portable(value) -> None:
         assert not Path(value).is_absolute() and not PureWindowsPath(value).is_absolute()
 
 
+def validate_closed_class_evidence(audit, repo, kaikki, sources):
+    """Validate explicit external sources without treating them as data files."""
+    block = audit.get('closed_class_elisions')
+    tagged = [row for row in audit['canonicalized']
+              if row.get('repair_kind') == 'historical_closed_class_elision']
+    if block is None:
+        assert not tagged, 'closed-class changes lack their evidence block'
+        return {}, None
+    assert block['schema_version'] == 1
+    if block.get('enabled') is False:
+        assert block == {'schema_version': 1, 'enabled': False}
+        assert not tagged
+        return {}, block
+    assert block.get('enabled') is True
+    assert kaikki is not None, '--kaikki is required to verify fresh closed-class sources'
+    assert set(block['external_input_sha256']) == set(CLOSED_CLASS_DUMPS)
+    external = {}
+    for label, relative in CLOSED_CLASS_DUMPS.items():
+        expected = block['external_input_sha256'][label]
+        assert expected == {'path': relative, **pin(kaikki / relative)}, label
+        external[label] = expected
+    assert set(block['source_sha256']) == set(CLOSED_CLASS_SOURCE_FILES)
+    for name in CLOSED_CLASS_SOURCE_FILES:
+        assert block['source_sha256'][name] == sources[name], name
+    decisions = block['decisions']
+    assert len({row['form'] for row in decisions}) == len(decisions)
+    assert block['planned_count'] == sum(row['accepted'] for row in decisions)
+    assert block['canonicalized_count'] == len(block['canonicalized'])
+    assert block['existing_preserved_count'] == len(block['existing_preserved'])
+    assert tagged == block['canonicalized']
+    preserved = [row for row in audit['existing_preserved']
+                 if row.get('repair_kind') == 'historical_closed_class_elision']
+    assert preserved == block['existing_preserved']
+    accepted = {row['form']: row for row in decisions if row['accepted']}
+    assert len(block['canonicalized']) + len(preserved) == len(accepted)
+    for row in block['canonicalized'] + preserved:
+        plan = accepted.pop(row['form'])
+        assert all(row[key] == value for key, value in plan.items() if key != 'reason')
+        if row in block['canonicalized']:
+            assert row['reason'] == plan['reason']
+            assert row['current_owner'] == row['historical_owner']
+        else:
+            assert row['reason'] == 'intervening_or_absent_owner_preserved'
+            assert row['current_owner'] != row['historical_owner']
+    assert not accepted
+    return external, block
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('repo', 'audit', 'lookup', 'output'):
@@ -56,6 +110,9 @@ def main() -> None:
     predecessor.add_argument('--pre-alias-manifest', type=Path,
                              help='Use the predecessor hash from an existing portable manifest')
     parser.add_argument('--source-revision', required=True)
+    parser.add_argument('--kaikki', type=Path,
+                        help='Fresh dump directory required when the audit repairs '
+                             'historical closed-class elisions')
     args = parser.parse_args()
     resolved_revision = subprocess.check_output(
         ['git', 'rev-parse', args.source_revision + '^{commit}'],
@@ -70,13 +127,20 @@ def main() -> None:
     audit = json.loads(args.audit.read_text())
     assert audit['schema_version'] == 1
     sources = {}
-    for name in SOURCE_FILES:
+    closed_class = audit.get('closed_class_elisions', {})
+    source_files = SOURCE_FILES + (CLOSED_CLASS_SOURCE_FILES
+                                  if closed_class.get('enabled') is True else ())
+    for name in source_files:
         sources[name] = pin(args.repo / name)
         recorded = subprocess.check_output(
             ['git', 'show', resolved_revision + ':' + name], cwd=args.repo)
         assert hashlib.sha256(recorded).hexdigest() == sources[name]['sha256'], name
     assert sources['overlay_lsj.py']['sha256'] == audit['generator_sha256']
     assert sources['build/expand_lsj.py']['sha256'] == audit['cell_pattern_source_sha256']
+    external_inputs, closed_class = validate_closed_class_evidence(
+        audit, args.repo, args.kaikki, sources)
+    external_before = {label: pin(args.kaikki / row['path'])
+                       for label, row in external_inputs.items()}
     inputs = {}
     for name, expected in audit['input_sha256'].items():
         assert Path(name).name == name
@@ -112,6 +176,10 @@ def main() -> None:
     restored = {'sha256': writer.digest.hexdigest(), 'size': writer.size}
     assert restored == predecessor_pin
     assert before == {path: pin(path) for path in artifact_paths}
+    assert external_before == {label: pin(args.kaikki / row['path'])
+                               for label, row in external_inputs.items()}
+    assert sources == {name: pin(args.repo / name) for name in source_files}
+    assert inputs == {name: pin(args.repo / name) for name in inputs}
     manifest = {
         'schema_version': 1,
         'audit_schema_version': audit['schema_version'],
@@ -123,12 +191,20 @@ def main() -> None:
         },
         'source_sha256': sources,
         'input_sha256': inputs,
+        'external_input_sha256': external_inputs,
+        'closed_class_elisions': ({
+            'enabled': True,
+            'planned': closed_class['planned_count'],
+            'owner_changes': closed_class['canonicalized_count'],
+            'preserved_intervening_readings': closed_class['existing_preserved_count'],
+            'decision_count': len(closed_class['decisions']),
+        } if external_inputs else {'enabled': False}),
         'historical_reference': reference_manifest['reference'],
         'historical_reference_base': reference_manifest['reference_base'],
         'historical_exclusions': reference_manifest['exclusions'],
         'noun_generation_audits': noun_audits,
         'scope': {
-            'description': 'Recover exact source cells and normalized lookup aliases in historical withheld irregular-compound families; recover independently re-owned cells only within the documented historical-key shape scope. No approximate paradigm generation.',
+            'description': 'Recover exact source cells and normalized lookup aliases in historical withheld irregular-compound families; recover independently re-owned cells only within the documented historical-key shape scope. Historical-only marked PRON/DET owners may be canonicalized only from unique current source readings and explicit literal-completion cells in fresh same-POS definitions. No approximate paradigm generation.',
             'source_cells': audit['source_cells'],
             'scope_aliases': audit['scope_aliases'],
             'added_cells_and_aliases': audit['recovered_count'],
