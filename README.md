@@ -2412,9 +2412,9 @@ python export_onnx.py                  # exports encoder.onnx + decoder_step.onn
 
 ### Shipping rebuilt data artifacts
 
-The artifacts CI tests against (`lookup.db`, `spell_index.db`,
-`lemma_attestation.json`, `form_profile.db`) live on HuggingFace, not in
-git, so the two
+The artifacts CI tests against (including `lookup.db`, `spell_index.db`,
+`lemma_attestation.json`, `form_profile.db`, and the ONNX/PyTorch files in
+`model/combined-s3/`) live on HuggingFace, not in git, so the two
 have to be kept in step by hand. `data/hf_manifest.json` pins their
 sha256 and `scripts/hf_data.py` does the bookkeeping:
 
@@ -2456,8 +2456,10 @@ Tests run automatically on GitHub-hosted runners for pushes and pull requests
 to `main`. CI downloads data
 files from HuggingFace (`lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, and `form_profile.db` for the Hunspell export,
-plus source tables including the elision-preserving `diorisis_pairs.json`),
-pinned by sha256 in `data/hf_manifest.json`
+plus source tables including the elision-preserving `diorisis_pairs.json`)
+and the complete `combined-s3` model, all pinned by sha256 in `data/hf_manifest.json`.
+ONNX Runtime and PyTorch are installed, and model/data integrity runs before
+the full suite so missing or incompatible model files fail early
 (see [Shipping rebuilt data artifacts](#shipping-rebuilt-data-artifacts)).
 
 ```bash

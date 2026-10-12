@@ -45,7 +45,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -q --upgrade pip
-          pip install -q pytest spylls huggingface_hub betacode beta-code pygtrie lxml
+          pip install -q pytest spylls huggingface_hub betacode beta-code pygtrie lxml onnxruntime
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q transformers
 
@@ -56,13 +56,16 @@ jobs:
       - name: Wait for the HuggingFace artifacts in data/hf_manifest.json
         run: python3 scripts/hf_data.py wait --timeout 900
 
-      - name: Download lookup data from HuggingFace Hub
+      - name: Download data and models from HuggingFace Hub
         run: |
           read -r -a files <<< "$(python3 scripts/hf_data.py files)"
           hf download ciscoriordan/dilemma "${files[@]}" --local-dir .
 
       - name: Verify the downloaded artifacts against the manifest
         run: python3 scripts/hf_data.py verify
+
+      - name: Check model and data integrity before the full suite
+        run: python3 -m pytest tests/test_integrity.py -q
 
       - name: Run all tests
         run: python3 -m pytest tests/ -x -v

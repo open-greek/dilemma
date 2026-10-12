@@ -75,6 +75,13 @@ TRACKED = [
     "data/el_closed_class_heads.json",
     # Exact POS-specific definitions for Ancient non-flat training readings.
     "data/grc_reading_heads.json",
+    # Integrity checks exercise both exported and PyTorch model backends.
+    "model/combined-s3/vocab.json",
+    "model/combined-s3/encoder.onnx",
+    "model/combined-s3/decoder_step.onnx",
+    "model/combined-s3/model.pt",
+    "model/combined-s3/head_labels.json",
+    "model/combined-s3/heads.npz",
 ]
 
 _CHUNK = 1 << 20
