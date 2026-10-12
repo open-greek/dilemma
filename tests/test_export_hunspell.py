@@ -1822,16 +1822,22 @@ def test_sparse_inflection_preserves_a_defined_exact_pos_alternative():
 
 def test_sparse_evidence_merges_normalized_alias_and_form_conflicts(tmp_path):
     import json
+    import hashlib
     from export_hunspell import load_grc_inflection_evidence, lexical_head_key
     lexical = tmp_path / "lexical.json"
-    lexical.write_text(json.dumps({"contracted_verb_aliases": {
+    lexical.write_text("{}")
+    alias_file = tmp_path / "aliases.json"
+    alias_file.write_text(json.dumps({"schema_version": 1, "language": "grc",
+        "lexical_heads": {"size": lexical.stat().st_size,
+                          "sha256": hashlib.sha256(lexical.read_bytes()).hexdigest()}, "aliases": {
         "τιμῶ": [{"lemma": "τιμάω", "sources": ["one"]}],
         "τιμώ": [{"lemma": "τιμέω", "sources": ["two"]}]}}))
     pos = tmp_path / "pos.json"
     pos.write_text(json.dumps({"τιμά": {"NOUN": "τιμή"},
                                "τιμὰ": {"VERB": "τιμάω"}}))
     heads = frozenset(map(lexical_head_key, ["τιμάω", "τιμέω", "τιμή"]))
-    aliases, owners = load_grc_inflection_evidence(heads, lexical_path=lexical, pos_path=pos)
+    aliases, owners = load_grc_inflection_evidence(heads, lexical_path=lexical,
+                                                  aliases_path=alias_file, pos_path=pos)
     assert aliases[lexical_head_key("τιμῶ")] == ("τιμάω", "τιμέω")
     assert set(owners["τιμά"]) == {"τιμάω", "τιμή"}
 

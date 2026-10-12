@@ -35,6 +35,7 @@ data/el_noun_heads.json
 data/el_adjective_heads.json
 data/el_verb_heads.json
 data/grc_lexical_heads.json
+data/grc_contracted_verb_aliases.json
 data/lsj9_pos_lookup.json
 data/el_closed_class_heads.json
 data/grc_reading_heads.json

@@ -69,6 +69,8 @@ TRACKED = [
     "data/lsj9_pos_lookup.json",
     # Independent lexical heads for sparse Ancient corpus admission.
     "data/grc_lexical_heads.json",
+    # Explicit citation references consumed by sparse-form export admission.
+    "data/grc_contracted_verb_aliases.json",
     # Exact POS-specific source evidence for non-flat Modern morphology.
     "data/el_closed_class_heads.json",
     # Exact POS-specific definitions for Ancient non-flat training readings.

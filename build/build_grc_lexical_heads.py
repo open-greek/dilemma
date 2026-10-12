@@ -188,30 +188,10 @@ def principal_quantity_rows(entry: dict, source: str) -> list[dict]:
     return rows
 
 
-def contracted_verb_targets(entry: dict) -> set[str]:
-    """Read explicit contracted citation references without making new heads."""
-    if entry.get("pos") != "verb":
-        return set()
-    targets = set()
-    for sense in entry.get("senses", []):
-        tags = set(entry.get("tags", [])) | set(sense.get("tags", []))
-        if "contracted" in tags:
-            for reference in sense.get("form_of", []):
-                if target := normalize_headword(reference.get("word", "")):
-                    targets.add(target)
-        for gloss in sense.get("glosses", []):
-            match = re.match(r"^(?:συνηρημένη μορφή του|contracted form of)\s+([^\s(,;:]+)",
-                             gloss.strip(), re.IGNORECASE)
-            if match and (target := normalize_headword(match[1])):
-                targets.add(target)
-    return targets
-
-
 def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
     heads: dict[str, set[str]] = defaultdict(set)
     vernacular_heads: dict[str, set[str]] = defaultdict(set)
     quantities: dict[str, dict[str, dict]] = defaultdict(dict)
-    contracted: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
     inputs, counts = {}, Counter()
 
     def pin(source: str, path: Path) -> None:
@@ -231,10 +211,6 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
         with path.open(encoding="utf-8") as stream:
             for line in stream:
                 entry = json.loads(line)
-                if (entry.get("lang_code") == "grc"
-                        and (alias := normalize_headword(entry.get("word", "")))):
-                    for target in contracted_verb_targets(entry):
-                        contracted[alias][target].add(source)
                 if (entry.get("lang_code") == language
                         and has_definition(entry, "en" if source.startswith("wiktionary_en_") else "el")):
                     add(entry["word"], source,
@@ -280,12 +256,7 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
                                  for word in sorted(vernacular_heads)},
             "verb_principal_quantities": {
                 word: [quantities[word][key] for key in sorted(quantities[word])]
-                for word in sorted(quantities)},
-            "contracted_verb_aliases": {
-                alias: [{"lemma": target, "sources": sorted(sources)}
-                        for target, sources in sorted(targets.items()) if target in heads]
-                for alias, targets in sorted(contracted.items())
-                if any(target in heads for target in targets)}}
+                for word in sorted(quantities)}}
 
 
 def main() -> None:

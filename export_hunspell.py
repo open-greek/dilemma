@@ -1586,12 +1586,16 @@ def load_grc_lexical_heads(path: Path = GRC_LEXICAL_HEADS, *,
 def load_grc_inflection_evidence(
     lexical_heads: frozenset[str], *,
     lexical_path: Path = GRC_LEXICAL_HEADS,
+    aliases_path: Path = DATA / "grc_contracted_verb_aliases.json",
     pos_path: Path = DATA / "ag_pos_lookup.json",
 ) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[str, ...]]]:
     """Keep defined citation aliases and exact dictionary POS readings separate."""
-    payload = json.loads(lexical_path.read_text(encoding="utf-8"))
+    payload = json.loads(aliases_path.read_text(encoding="utf-8"))
+    digest = hashlib.sha256(lexical_path.read_bytes()).hexdigest()
+    assert payload["lexical_heads"] == {"size": lexical_path.stat().st_size, "sha256": digest}
+    assert payload["schema_version"] == 1 and payload["language"] == "grc"
     alias_targets: dict[str, set[str]] = defaultdict(set)
-    for alias, rows in payload.get("contracted_verb_aliases", {}).items():
+    for alias, rows in payload["aliases"].items():
         targets = tuple(sorted({row["lemma"] for row in rows
                                 if row.get("sources") and
                                 lexical_head_key(row["lemma"]) in lexical_heads and
