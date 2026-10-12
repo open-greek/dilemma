@@ -1347,8 +1347,10 @@ data-mismatch error rather than trusting an unbound rejection list. Refresh
 both files with `python -m dilemma download --no-tagger` (use `--dir PATH`
 for a custom data directory), or rebuild the corpus POS table against the
 current merged lexical-head inventory. Validation is cached for each model.
-When a POS entry supplies a distinct supported citation spelling, it takes
-precedence over an accent-stripped lookup collision.
+When a POS entry supplies a distinct supported citation spelling for an
+inflection, it takes precedence over an accent-stripped lookup collision.
+An exact independent lookup entry keeps its own spelling, such as `οὖ`
+beside the differently accented adverb `οὐ`.
 The audit also retains every source-supported capitalized name and ethnic
 adjective owner before the runtime table's ambiguity filter. The dictionary
 export combines those owners with exact cased corpus counts and lexical-head

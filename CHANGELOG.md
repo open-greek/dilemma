@@ -13,6 +13,8 @@ All notable changes to Dilemma are documented here. The format follows
   rejected claims and tied owner votes in a deterministic companion audit.
 - Keep noun homographs from supplying unsupported verb stems during fallback
   lemmatization, and honor explicit verb tags beside case variants of a name.
+- Preserve an independent exact lookup spelling beside a differently accented
+  POS homograph, including `οὖ` beside `οὐ`.
 - Count exact spellings separately from ranked words in the Hunspell frequency
   audit summary, including acute and grave variants.
 - Preserve attested capitalized names and ethnic adjectives when a flat

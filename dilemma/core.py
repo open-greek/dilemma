@@ -3384,9 +3384,11 @@ class Dilemma:
         return checked
 
     def _prefer_exact_pos_citation(self, word, upos, candidate, pos_lemma):
-        # A literal self-map still needs the ordinary citation normalization.
+        # An exact lookup self-map can be an independent word rather than an
+        # inflection of the differently accented POS target (οὖ versus οὐ).
         # Modern POS behavior is unchanged by the Ancient target safeguard.
         if (self._ancient_pos_context(word, upos)
+                and grave_to_acute(word).lower() != grave_to_acute(candidate).lower()
                 and grave_to_acute(word).lower() != grave_to_acute(pos_lemma).lower()):
             return pos_lemma
         return candidate

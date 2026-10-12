@@ -87,6 +87,14 @@ def test_exact_pos_citation_wins_over_stripped_breathing_collision(evidence, upo
     assert instance.lemmatize_batch_pos(["Ὦρα"], [upos], guess=False) == [expected]
 
 
+@pytest.mark.parametrize("word", ["οὖ", "Οὖ"])
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_exact_independent_word_keeps_its_accent_beside_pos_homograph(evidence, word, lang):
+    instance = model(["οὖ"], "οὐ", lang=lang)
+    assert instance.lemmatize_pos(word, "ADV", guess=False) == "οὖ"
+    assert instance.lemmatize_batch_pos([word], ["ADV"], guess=False) == ["οὖ"]
+
+
 @pytest.mark.parametrize("kind", ["missing", "stale_heads", "wrong_schema", "bad_count", "missing_pin"])
 def test_unbound_rejection_evidence_fails_clearly(evidence, kind):
     heads, audit, payload = evidence
