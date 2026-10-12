@@ -2695,7 +2695,7 @@ The release audit loads the expanded `.dic`/`.aff` pair with `spylls` and
 checks both the corpus head and the complete artifact. The LM fixture lists
 the 1,000 most frequent Greek-bearing words of the language model (ranked
 with a contextual grave read as the acute) in each of the 1,215 spellings the
-model writes them with, `καί` and `καὶ` apart (16,546,331 LM tokens). Each
+model writes them with, `καί` and `καὶ` apart (16,546,390 LM tokens). Each
 spelling is looked up as written: a keyboard writes a grave only where the
 dictionary has the grave spelling, so an acute twin does not stand in for it.
 All must be accepted except 30 reviewed Modern spellings (among them the
@@ -2703,11 +2703,10 @@ graves `τὴ` and `στὴν`, which the polytonic Modern Greek list carries),
 fragments, numerals, bare stems and corpus misspellings (`ὃτι`, `ἢδη`),
 which must remain rejected. The fixture checks all 1,185 remaining spellings,
 including their contextual grave variants. The whole-artifact gates additionally
-retain 1,317,810 of the 1,363,275 spellings in the reviewed
-baseline (the export of commit `2e633cc`, as the keyboard compiled it).
-The 45,465 documented exclusions comprise 45,222 unsupported case variants,
-121 bare elision fragments, 108 reviewed respellings and
-14 explicit source errors. The current export has 1,353,044 expanded
+check the 1,363,275 spellings in the reviewed baseline (the export of commit
+`2e633cc`, as the keyboard compiled it), with documented exclusions for
+unsupported case variants, bare elision fragments, reviewed respellings, and
+explicit source errors. The current export has 1,371,104 expanded
 spellings. The gates also require all 1,996 valid citation spellings
 among the top 2,000 LSJ9 lemmas, and all 2,154 pinned cells of the textbook
 paradigms for `λύω`, `παιδεύω`, `τίθημι`,
@@ -3075,9 +3074,9 @@ grc's spellings get a line, with the contextual grave of an avoided acute.
 A Hunspell reader that does not know the field accepts the marked
 spellings, as grc does.
 
-The list has 16,786 attested words (759 in `C` and 2,409 in `M`; 17 and
-172 by the slice's counts alone), 49,348 generated spellings (below), 189
-`mg:avoid` lines and 6,650 `mg:shared` lines. The attested words include 981 capitalized, 152
+The list has 16,774 attested words (759 in `C` and 2,408 in `M`),
+49,344 generated spellings (below), 189
+`mg:avoid` lines and 6,651 `mg:shared` lines. The attested words include 969 capitalized, 152
 elided and 197 aphaeresized spellings (`᾽ναι`,
 `᾽ς`), the six weak
 pronouns, `κι` and `κι᾽`, `στὴν`, `στὸν`, `στὴ`, `στοὺς`, `τὴ`, `γι᾽`, and
@@ -3308,11 +3307,10 @@ paradigms and the frequencies (`verb_paradigms_sha256`,
 generates nothing, and `--no-generated-verbs` leaves the generated forms
 out. In the current export, 80,678 candidate analyses are covered by grc or
 the attested list, 2,219 remain beside a spelling of the same letters,
-and 1,234 give way to one. The 49,348 generated entries are
-18,297 verb forms, 2,484 subjunctive twins, 13,461 noun forms,
-7,771 adjective forms, 482 name forms, 86 standalone participle
-forms, 222 other forms, 6,531 contextual twins and 14 plain nominal
-twins. Of the generated entries, 274 are in `C` and 4,950 in `M`.
+and 1,234 give way to one. The 49,344 generated entries cover verbs,
+nouns, adjectives, names, standalone participles, and other source cells,
+including subjunctive twins, contextual twins, and plain nominal twins.
+Of the generated entries, 274 are in `C` and 4,950 in `M`.
 
 The list leaves out what grc accepts, so the commonest Modern Greek words
 that keep their Ancient spelling (`θέση`, `πόδια`, `κοίτα`, `ἀγορά`) had no
@@ -3323,7 +3321,7 @@ fr:C mg:shared` (``shared_lines``): a grc spelling the slice attests takes
 the bucket an attested entry would, and a generated spelling grc has as
 written the bucket of its monotonic form's count, unless the slice writes
 that form otherwise (`ἐμᾶς`, not the generated `ἐμάς`). The current list
-has 6,650 shared rows (1,422 `C`, 5,105 `M`, 123 `R`). Low-frequency alternatives
+has 6,651 shared rows (1,422 `C`, 5,105 `M`, 124 `R`). Low-frequency alternatives
 remain at `R`. These rows rate spellings already in the Ancient dictionary;
 they are no sign that a text is Modern Greek and are not additional
 entries: a reader that merges the two lists keeps grc's entry and reads
