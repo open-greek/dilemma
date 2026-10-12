@@ -195,7 +195,7 @@ def _defined_pos_targets(wanted):
     return found
 
 
-def _project_pos_entries(lookup, conflicts=None):
+def _project_pos_entries(lookup, conflicts=None, *, defined_targets=None):
     """Project only unique POS owners; retain every distinct POS reading."""
     result = {form: dict(values) for form, values in lookup.items()}
     proposals = defaultdict(lambda: defaultdict(set))
@@ -205,9 +205,18 @@ def _project_pos_entries(lookup, conflicts=None):
                 if upos in lookup.get(key, {}):
                     continue
                 proposals[key][upos].add(lemma)
+    # Adding a different POS beside an exact spelling broadens the prior
+    # table's scope. Require an independent definition for that new reading:
+    # inherited corpus labels can otherwise turn e.g. πείραι into ἀπολάω.
+    wanted = {(lemma, upos) for key, values in proposals.items() if key in lookup
+              for upos, lemmas in values.items() for lemma in lemmas
+              if len(lemmas) == 1}
+    defined = (_defined_pos_targets(wanted) if defined_targets is None and wanted
+               else set() if defined_targets is None else defined_targets)
     for key, values in proposals.items():
         unique = {upos: next(iter(lemmas)) for upos, lemmas in sorted(values.items())
-                  if len(lemmas) == 1}
+                  if len(lemmas) == 1 and (key not in lookup or
+                     (next(iter(lemmas)), upos) in defined)}
         if unique:
             result.setdefault(key, {}).update(unique)
     for form, ambiguous_pos in (conflicts or {}).items():

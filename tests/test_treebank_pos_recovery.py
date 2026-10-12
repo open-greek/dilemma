@@ -159,7 +159,8 @@ def test_exact_noun_retains_projected_adjective(reverse):
     rows = [('Κενταύρειον', {'ADJ': 'Κενταύρειος'}),
             ('κενταύρειον', {'NOUN': 'κενταύρειον'})]
     original = dict(reversed(rows) if reverse else rows)
-    result = build._project_pos_entries(original)
+    result = build._project_pos_entries(original,
+        defined_targets={("Κενταύρειος", "ADJ")})
     assert result['κενταύρειον'] == {
         'NOUN': 'κενταύρειον', 'ADJ': 'Κενταύρειος'}
     assert original == dict(rows)
@@ -169,9 +170,43 @@ def test_exact_owner_wins_only_its_own_part_of_speech():
     result = build._project_pos_entries({
         'Κενταύρειον': {'ADJ': 'Κενταύρειος', 'NOUN': 'ἄλλος'},
         'κενταύρειον': {'NOUN': 'κενταύρειον'},
-    })
+    }, defined_targets={("Κενταύρειος", "ADJ")})
     assert result['κενταύρειον'] == {
         'NOUN': 'κενταύρειον', 'ADJ': 'Κενταύρειος'}
+
+
+
+@pytest.mark.parametrize("kind", ["missing", "wrong_pos", "reference"])
+def test_new_pos_beside_exact_form_requires_matching_independent_definition(inputs, kind):
+    definitions = []
+    if kind == "wrong_pos":
+        definitions = [{"word": "ἀπολάω", "lang_code": "grc", "pos": "noun",
+                        "senses": [{"glosses": ["A noun meaning."]}]}]
+    elif kind == "reference":
+        definitions = [{"word": "ἀπολάω", "lang_code": "grc", "pos": "verb",
+                        "senses": [{"glosses": ["form of ἀπολαύω"],
+                                    "form_of": [{"word": "ἀπολαύω"}]}]}]
+    inputs([], {}, {}, definitions)
+    result = build._project_pos_entries({
+        "Πείραι": {"VERB": "ἀπολάω"}, "πείραι": {"NOUN": "πεῖρα"}})
+    assert result["πείραι"] == {"NOUN": "πεῖρα"}
+    assert result["Πείραι"] == {"VERB": "ἀπολάω"}
+
+
+def test_new_pos_beside_exact_form_accepts_fresh_definition(inputs):
+    inputs([], {}, {}, [{"word": "Κενταύρειος", "lang_code": "grc", "pos": "adj",
+                         "senses": [{"glosses": ["of a centaur"]}]}])
+    result = build._project_pos_entries({
+        "Κενταύρειον": {"ADJ": "Κενταύρειος"},
+        "κενταύρειον": {"NOUN": "κενταύρειον"}})
+    assert result["κενταύρειον"] == {"NOUN": "κενταύρειον", "ADJ": "Κενταύρειος"}
+
+
+def test_missing_dumps_do_not_broaden_existing_exact_pos(monkeypatch):
+    monkeypatch.setattr(build, "KAIKKI_DIR", None)
+    result = build._project_pos_entries({
+        "Πείραι": {"VERB": "ἀπολάω"}, "πείραι": {"NOUN": "πεῖρα"}})
+    assert result["πείραι"] == {"NOUN": "πεῖρα"}
 
 
 def test_conflicting_projection_cannot_remove_another_exact_part_of_speech():
