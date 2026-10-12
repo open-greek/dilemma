@@ -825,6 +825,8 @@ def main() -> None:
                              "source-proved historical closed-class elision repairs")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.kaikki is not None:
+        os.environ["KAIKKI_DIR"] = str(args.kaikki)
     superseded_nouns = load_noun_generation_audit(args.noun_audit)
     superseded_nouns |= load_noun_generation_audit(args.sophocles_noun_audit,
                                                   "expand_sophocles.py")

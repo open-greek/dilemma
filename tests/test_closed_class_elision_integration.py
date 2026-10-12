@@ -1,5 +1,6 @@
 import copy
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -9,6 +10,23 @@ import pytest
 import overlay_lsj as overlay
 from build.closed_class_elisions import plan_repairs
 from scripts import build_source_alias_manifest as publication
+
+
+def test_dump_argument_binds_noun_input_validation_before_loading(tmp_path, monkeypatch):
+    class ReachedInputValidation(Exception):
+        pass
+
+    monkeypatch.setenv('KAIKKI_DIR', str(tmp_path / 'older'))
+    fresh = tmp_path / 'fresh'
+    monkeypatch.setattr(sys, 'argv', ['overlay_lsj.py', '--kaikki', str(fresh)])
+
+    def validate(path):
+        assert os.environ['KAIKKI_DIR'] == str(fresh)
+        raise ReachedInputValidation
+
+    monkeypatch.setattr(overlay, 'load_noun_generation_audit', validate)
+    with pytest.raises(ReachedInputValidation):
+        overlay.main()
 
 
 def evidence():

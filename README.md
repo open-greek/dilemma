@@ -2072,7 +2072,8 @@ hashes. The merged source pairs, reviewed exact-form specification, and
 `grc_lexical_heads.json` are required inputs for this step.
 
 With `--kaikki DIR`, the overlay also checks historical-only elisions against
-both fresh Ancient Greek dumps in `en-el/` and `el/`. It can replace an
+both fresh Ancient Greek dumps in `en-el/` and `el/`, and binds noun input
+validation to that same directory. It can replace an
 unsupported historical owner only when all positively defined current source
 readings agree on one PRON or DET owner, and every reading fits an explicit
 case/number cell in that owner's independently defined entry of the same POS.
