@@ -64,8 +64,6 @@ AG	ag_lookup.json	final_elision_mark	παρ᾽	παρ᾽
 AG	ag_lookup.json	final_elision_mark	παῖδα’	παῖ’
 AG	ag_lookup.json	final_elision_mark	πορφύρεοσ’	πορφύρεοσ’
 AG	ag_lookup.json	final_elision_mark	ποώποτ’	ποώποτ’
-AG	ag_lookup.json	final_elision_mark	τοῖνδ’	τόνδ’
-AG	ag_lookup.json	final_elision_mark	τοῖσιδ’	τόσιδ’
 AG	ag_lookup.json	final_elision_mark	τ᾽	τ᾽
 AG	ag_lookup.json	final_elision_mark	τ᾿	τ᾿
 AG	ag_lookup.json	final_elision_mark	φ̓	φ᾽
@@ -2398,7 +2396,6 @@ EL	glaux_pairs.json	final_elision_mark	ου’	ου’
 EL	glaux_pairs.json	final_elision_mark	παῖδα’	παῖ’
 EL	glaux_pairs.json	final_elision_mark	πορφύρεοσ’	πορφύρεοσ’
 EL	glaux_pairs.json	final_elision_mark	ποώποτ’	ποώποτ’
-EL	glaux_pairs.json	final_elision_mark	τοῖνδ’	τόνδ’
 EL	glaux_pairs.json	final_elision_mark	υεθ’	υεθ’
 EL	glaux_pairs.json	final_elision_mark	ἀλλαιχ’	ἀλλαιχ’
 EL	glaux_pairs.json	final_elision_mark	ἀμελεῖν’	ἀμελεῖν’
