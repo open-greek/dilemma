@@ -57,6 +57,8 @@ TRACKED = [
     "data/changes/diorisis_token_normalizations.json",
     # Reversible corrections shared by GLAUx lemma consumers.
     "data/changes/glaux_name_lemmas.json",
+    # Reversible, source-backed completion of sparse Modern paradigms.
+    "data/changes/el_paradigm_completion.json",
     # Input-pinned provenance for the generated noun expansion layer.
     "data/ag_noun_generation_audit.json",
     "data/ag_sophocles_noun_generation_audit.json",
