@@ -1,7 +1,7 @@
 # Dilemma <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/ancient-greece.svg" width="28" alt="Ancient Greece"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/languages/el.svg" width="28" alt="Greek"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/countries/cy.svg" width="28" alt="Cyprus"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/byzantine.svg" width="28" alt="Byzantine"> [![Tests](https://github.com/open-greek/dilemma/actions/workflows/test.yml/badge.svg)](https://github.com/open-greek/dilemma/actions/workflows/test.yml)
 
 <p align="center">
-  <img width="640" alt="dilemma" src="scripts/social.jpg">
+  <img width="640" alt="dilemma" src="https://raw.githubusercontent.com/open-greek/dilemma/main/scripts/social.jpg">
 </p>
 
 Dilemma is a diachronic Greek lemmatizer spanning Ancient Greek (Classical,
@@ -4034,6 +4034,33 @@ pip install -e '.[glossapi-audit]'
 python scripts/audit_glossapi_coverage.py --source stream
 ```
 
+For a resumable audit, add `--sample-dir data/glossapi_samples`. The saved
+counters are keyed by the source revision, artifact pins, reader, and sample
+limits; coverage is recomputed against the current Dilemma inputs. Reports
+record the code revision and the SHA-256 of the actual lookup and supporting
+tables. Generated reports and sample counters stay local and uncommitted.
+
+Sampling assigns a separate token budget to each artifact and selected Parquet
+row group, and reads one group at a time. A row is a procedure, article,
+consultation, or volume depending on the source, so document counts are not
+directly comparable. The Parliament reader counts `section` once; its
+`json_section` field duplicates that text and adds serialization escapes.
+Unknown-form categories are triage hints, not confirmed dictionary omissions.
+The report distinguishes database language disagreements from disagreements
+that remain after removing citation spelling differences.
+
+Frequency downsampling preserves the observed distribution instead of taking
+only its most frequent forms. The experiment retains per-source counts, source
+shares, and the checksum of the production frequency list. It still requires
+contextual evaluation before changing ambiguous-lemma ranking.
+
+The October 20, 2026 manifest supersedes the unavailable OpenGov v2 repository
+with a verified pin of `glossAPI/OpenGov_Deliberations`. It retains the old pin
+for comparison and samples the replacement's archive and recent consultations
+separately. Equal artifact budgets balance those periods; they do not estimate
+their population proportions. Any inaccessible source is reported explicitly
+and keeps the frequency experiment incomplete.
+
 Large sources can be deferred explicitly, without making a partial frequency
 experiment look complete:
 
@@ -4047,7 +4074,10 @@ overwrite `data/mg_freq.txt`. Gutenberg, Ekklisiastika, and Archetai are
 audit-only: historical evidence must first pass through Open Greek Corpus
 provenance, language, OCR-quality, and deduplication gates. In particular,
 raw Ekklisiastika rubrics, joined tokens, and repeated hymn cycles must not
-feed language-model or frequency counts.
+feed language-model or frequency counts. OGC additionally blocks Ekklisiastika
+admission pending written permission for the underlying GOARCH text or an
+independently licensed replacement. A dataset-level license does not remove
+that gate.
 
 The GlossAPI variety classifier has a separate optional evaluation so
 GreekBERT does not become a Dilemma runtime dependency:

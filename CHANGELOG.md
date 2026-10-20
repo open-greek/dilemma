@@ -6,6 +6,13 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Use an absolute public URL for the README image so it renders on PyPI.
+- Audit the replacement OpenGov archive and recent consultations at verified
+  revisions, and count Parliament passages once without their JSON duplicate.
+- Preserve source balance and rare forms in GlossAPI frequency experiments,
+  record actual lookup inputs, and retain resumable, revision-pinned samples.
+
 ## [1.3.8] - 2026-10-12
 
 ### Fixed
@@ -1396,7 +1403,8 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
-[1.3.7]: https://github.com/open-greek/dilemma/releases/tag/1.3.7
+[1.3.8]: https://github.com/open-greek/dilemma/compare/3651c5b76b0c5c186eccee27b29cdf7d35e3bfdc...7353f606173259441f2816ee50fbe126d6af90fc
+[1.3.7]: https://github.com/open-greek/dilemma/compare/1.3.6...3651c5b76b0c5c186eccee27b29cdf7d35e3bfdc
 [1.3.6]: https://github.com/open-greek/dilemma/releases/tag/1.3.6
 [1.3.5]: https://github.com/open-greek/dilemma/releases/tag/1.3.5
 [1.3.4]: https://github.com/open-greek/dilemma/releases/tag/1.3.4

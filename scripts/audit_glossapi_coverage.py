@@ -31,9 +31,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import re
 import sqlite3
+import subprocess
 import sys
 import unicodedata
 import zipfile
@@ -51,6 +51,8 @@ sys.path.insert(0, str(ROOT))
 from dilemma.core import (  # noqa: E402
     LOOKUP_DB_PATH,
     Dilemma,
+    DATA_DIR,
+    grave_to_acute,
     strip_accents,
     to_monotonic,
     to_standard_sigma,
@@ -63,6 +65,7 @@ DEFAULT_FREQUENCY_REPORT = (
     ROOT / "data" / "glossapi_mg_frequency_experiment.json"
 )
 DEFAULT_MG_FREQUENCY = ROOT / "data" / "mg_freq.txt"
+SAMPLING_VERSION = 2
 
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -399,7 +402,9 @@ def _is_latin_letter(char: str) -> bool:
 
 
 def _is_word_char(char: str) -> bool:
-    return unicodedata.category(char)[0] in {"L", "M", "N"} or char in _WORD_JOINERS
+    return (unicodedata.category(char)[0] in {"L", "M", "N"}
+            or char in _WORD_JOINERS or char == "\ufffd"
+            or unicodedata.category(char) == "Co")
 
 
 def iter_greek_tokens(text: str) -> Iterator[str]:
@@ -444,6 +449,10 @@ def token_defects(token: str) -> tuple[str, ...]:
         defects.append("mixed_greek_latin")
     if has_greek and any(char.isdigit() for char in token):
         defects.append("mixed_greek_digit")
+    if any(_is_greek_letter(a) and a.islower()
+           and _is_greek_letter(b) and b.isupper()
+           for a, b in zip(token, token[1:])):
+        defects.append("possible_joined_boundary")
 
     previous_was_base_or_mark = False
     for char in token:
@@ -480,6 +489,7 @@ class RawSample:
     tokens: Counter[str] = field(default_factory=Counter)
     defect_tokens: Counter[str] = field(default_factory=Counter)
     defect_types: dict[str, set[str]] = field(default_factory=dict)
+    artifacts: list[dict] = field(default_factory=list)
 
     @property
     def token_count(self) -> int:
@@ -512,6 +522,7 @@ class RawSample:
         self.documents += other.documents
         self.tokens.update(other.tokens)
         self.defect_tokens.update(other.defect_tokens)
+        self.artifacts.extend(other.artifacts)
         for defect, forms in other.defect_types.items():
             self.defect_types.setdefault(defect, set()).update(forms)
 
@@ -541,14 +552,37 @@ def collect_artifact_sample(
     reader = corpus["reader"]
     with open_artifact(corpus, artifact, source) as handle:
         if reader["kind"] == "parquet":
-            rows = iter_parquet_rows(handle, reader, max_documents=max_documents)
-            for index, row in enumerate(rows):
-                sample.add_document(
-                    extract_row_text(row, reader),
-                    identity=f"{corpus['key']}:{artifact['path']}:{index}",
-                )
-                if sample.token_count >= token_cap:
-                    break
+            # Bound Arrow memory to one row group. Give every selected group
+            # a token budget before reading it, so early groups cannot use
+            # the entire corpus cap and large files remain stratified.
+            import pyarrow.parquet as pq
+            parquet = pq.ParquetFile(handle)
+            groups = _sampled_row_groups(
+                parquet.metadata.num_row_groups, min(32, max_documents, token_cap)
+            )
+            for position, group in enumerate(groups):
+                budget = token_cap // len(groups) + (position < token_cap % len(groups))
+                document_budget = (max_documents // len(groups)
+                                   + (position < max_documents % len(groups)))
+                part = RawSample(token_cap=budget)
+                for index, batch in enumerate(parquet.iter_batches(
+                    batch_size=1, row_groups=[group],
+                    columns=_top_level_columns(reader), use_threads=False,
+                )):
+                    if index >= document_budget:
+                        break
+                    part.add_document(
+                        extract_row_text(batch.to_pylist()[0], reader),
+                        identity=f"{corpus['key']}:{artifact['path']}:{group}:{index}",
+                    )
+                    if part.token_count >= budget:
+                        break
+                sample.merge(part)
+            sample.artifacts.append({
+                **artifact, "rows_available": parquet.metadata.num_rows,
+                "row_groups_available": parquet.metadata.num_row_groups,
+                "row_groups_sampled": groups,
+            })
         elif reader["kind"] == "zip_text":
             texts = iter_zip_texts(
                 handle, reader, corpus["revision"], max_documents=max_documents
@@ -560,6 +594,7 @@ def collect_artifact_sample(
                 )
                 if sample.token_count >= token_cap:
                     break
+            sample.artifacts.append(artifact)
         else:
             raise AuditError(f"{corpus['key']}: unsupported reader kind")
     return sample
@@ -575,8 +610,10 @@ def collect_corpus_sample(
     """Collect an equal-budget sample from every pinned artifact in a corpus."""
     combined = RawSample(token_cap=token_cap)
     files = corpus["files"]
-    per_file_cap = math.ceil(token_cap / len(files))
-    for artifact in files:
+    for index, artifact in enumerate(files):
+        per_file_cap = token_cap // len(files) + (index < token_cap % len(files))
+        if per_file_cap == 0:
+            continue
         part = collect_artifact_sample(
             corpus,
             artifact,
@@ -585,17 +622,6 @@ def collect_corpus_sample(
             max_documents=max_documents,
         )
         combined.merge(part)
-    # Per-file rounding can exceed the declared corpus cap by at most N-1.
-    if combined.token_count > token_cap:
-        excess = combined.token_count - token_cap
-        for token in sorted(combined.tokens, reverse=True):
-            removed = min(excess, combined.tokens[token])
-            combined.tokens[token] -= removed
-            excess -= removed
-            if combined.tokens[token] == 0:
-                del combined.tokens[token]
-            if not excess:
-                break
     return combined
 
 
@@ -609,7 +635,8 @@ class LookupConflictResolver:
     def variants(form: str) -> list[str]:
         form = to_standard_sigma(unicodedata.normalize("NFC", form))
         lower = form.lower()
-        values = [form, lower, to_monotonic(lower), strip_accents(lower)]
+        values = [form, lower, grave_to_acute(form), grave_to_acute(lower),
+                  to_monotonic(lower), strip_accents(lower)]
         return list(dict.fromkeys(values))
 
     def conflicts(self, forms: Counter[str]) -> dict:
@@ -641,6 +668,13 @@ class LookupConflictResolver:
                 for variant in variants_by_form[form]:
                     available = rows.get(variant, {})
                     hit = available.get(language) or available.get("all")
+                    if (hit and variant in {to_monotonic(form.lower()),
+                                            strip_accents(form.lower())}
+                            and variant not in {form, form.lower(),
+                                                grave_to_acute(form),
+                                                grave_to_acute(form.lower())}
+                            and len(variant) <= 2 and hit[0] == variant):
+                        hit = None
                     if hit:
                         effective[language] = {
                             "lemma": hit[0],
@@ -662,6 +696,17 @@ class LookupConflictResolver:
             "tokens": conflict_tokens,
             "types": conflict_types,
             "examples": examples[:40],
+            "method": "effective database rows; differences include citation spelling and are not errors",
+            "different_normalized_lemma_tokens": sum(
+                item["count"] for item in examples
+                if strip_accents(item["el"]["lemma"].lower())
+                != strip_accents(item["grc"]["lemma"].lower())
+            ),
+            "different_normalized_lemma_types": sum(
+                strip_accents(item["el"]["lemma"].lower())
+                != strip_accents(item["grc"]["lemma"].lower())
+                for item in examples
+            ),
         }
 
 
@@ -676,6 +721,23 @@ def _percent(numerator: int, denominator: int) -> float:
     return round(100.0 * numerator / denominator, 4) if denominator else 0.0
 
 
+def unknown_category(form: str) -> str:
+    """Conservative triage labels, not automatic spelling corrections."""
+    defects = token_defects(form)
+    if "mixed_greek_digit" in defects:
+        return "number_or_identifier"
+    if defects:
+        return "unicode_or_extraction_candidate"
+    letters = [c for c in form if c.isalpha()]
+    if len(letters) > 1 and all(c.isupper() for c in letters):
+        return "acronym_or_numeral_candidate"
+    if "-" in form:
+        return "compound_or_hyphenation_candidate"
+    if form[:1].isupper():
+        return "name_or_sentence_initial_candidate"
+    return "unresolved_lexical_candidate"
+
+
 def measure_coverage(
     sample: RawSample,
     *,
@@ -686,6 +748,7 @@ def measure_coverage(
     forms = _normalize_counts(sample.tokens)
     dilemma = Dilemma(
         lang=lookup_lang,
+        convention="triantafyllidis" if lookup_lang == "el" else "wiktionary",
         resolve_articles=True,
         skip_pos=True,
     )
@@ -724,6 +787,7 @@ def measure_coverage(
                 "form": form,
                 "count": count,
                 "defects": list(token_defects(form)),
+                "category": unknown_category(form),
             })
     unknown.sort(key=lambda item: (-item["count"], item["form"]))
     conflicts = LookupConflictResolver(lookup_db).conflicts(forms)
@@ -739,6 +803,15 @@ def measure_coverage(
         "unknown_tokens": lexical_tokens - covered_tokens,
         "unknown_types": lexical_types - covered_types,
         "unknown_examples": unknown[:100],
+        "unknown_forms": unknown,
+        "unknown_categories": {
+            category: {
+                "tokens": sum(item["count"] for item in unknown
+                              if item["category"] == category),
+                "types": sum(item["category"] == category for item in unknown),
+            }
+            for category in sorted({item["category"] for item in unknown})
+        },
         "first_candidate_sources": {
             source: {
                 "tokens": source_tokens[source],
@@ -775,16 +848,23 @@ def _clean_mg_form(form: str) -> str | None:
 def mg_frequency_counts(sample: RawSample, token_cap: int) -> Counter[str]:
     """Create a clean monotonic MG form counter from a capped corpus sample."""
     result: Counter[str] = Counter()
-    consumed = 0
-    for raw, count in sample.tokens.most_common():
+    for raw, count in sample.tokens.items():
         clean = _clean_mg_form(raw)
         if clean is None:
             continue
-        add = min(count, token_cap - consumed)
-        if add <= 0:
-            break
-        result[clean] += add
-        consumed += add
+        result[clean] += count
+    # Proportional apportionment preserves the distribution when an audit
+    # sample is larger than the experiment cap. Taking the most common forms
+    # until the cap is filled would systematically delete the long tail.
+    total = sum(result.values())
+    if total > token_cap:
+        quotas = {form: divmod(count * token_cap, total)
+                  for form, count in result.items()}
+        result = Counter({form: whole for form, (whole, _) in quotas.items()})
+        remaining = token_cap - sum(result.values())
+        for form in sorted(quotas, key=lambda f: (-quotas[f][1], f))[:remaining]:
+            result[form] += 1
+        result = +result
     return result
 
 
@@ -821,6 +901,7 @@ def build_frequency_experiment(
             "eligible_tokens": sum(counts.values()),
             "types": len(counts),
             "top_forms": counts.most_common(100),
+            "counts": dict(sorted(counts.items())),
         }
 
     existing = load_frequency_ranks(existing_frequency)
@@ -835,6 +916,9 @@ def build_frequency_experiment(
         comparisons[f"top_{n}_overlap"] = len(old_top & new_top)
         comparisons[f"top_{n}_overlap_percent"] = _percent(
             len(old_top & new_top), min(n, len(new_top))
+        )
+        comparisons[f"top_{n}_experimental_token_mass_percent"] = _percent(
+            sum(combined[form] for form in old_top), sum(combined.values())
         )
     changes = []
     for form, new_rank in combined_rank.items():
@@ -859,12 +943,28 @@ def build_frequency_experiment(
         "sources": source_reports,
         "combined_tokens": sum(combined.values()),
         "combined_types": len(combined),
+        "combined_counts": dict(sorted(combined.items())),
+        "source_token_share_percent": {
+            key: _percent(sum(counts.values()), sum(combined.values()))
+            for key, counts in source_counts.items()
+        },
+        "legal_token_share_percent": _percent(
+            sum(report["eligible_tokens"] for report in source_reports.values()
+                if report["role"] == "mg_legal"), sum(combined.values())
+        ),
+        "existing_mg_freq_sha256": file_sha256(existing_frequency),
         "combined_top_forms": combined.most_common(1000),
         "existing_mg_freq_comparison": comparisons,
         "largest_absolute_rank_changes": changes[:100],
         "new_top_1000_forms": [
             form for form, _count in combined.most_common(1000)
             if form not in existing
+        ],
+        "limitations": [
+            "Source caps limit legal volume, but OpenGov and MITOS also contain administrative language.",
+            "Document windows and row-group sampling are deterministic, not a random population survey.",
+            "Clean Greek tokens may still be acronyms, names, repeated boilerplate, spelling errors, or OCR errors.",
+            "Surface frequencies alone cannot establish the correct lemma for an ambiguous form; held-out contextual evaluation is required.",
         ],
     }
 
@@ -875,15 +975,36 @@ def audit_corpus(
     source: str,
     max_tokens: int | None,
     max_documents: int,
+    sample_dir: Path | None = None,
 ) -> tuple[dict, RawSample]:
     declared_cap = corpus["audit_token_cap"]
     token_cap = min(declared_cap, max_tokens) if max_tokens else declared_cap
-    sample = collect_corpus_sample(
-        corpus,
-        source=source,
-        token_cap=token_cap,
-        max_documents=max_documents,
-    )
+    recipe = {"corpus": corpus, "token_cap": token_cap,
+              "max_documents": max_documents, "version": SAMPLING_VERSION}
+    recipe_sha = hashlib.sha256(json.dumps(recipe, sort_keys=True).encode()).hexdigest()
+    cache = sample_dir / f"{corpus['key']}-{recipe_sha}.json" if sample_dir else None
+    reused_sample = bool(cache and cache.exists())
+    if reused_sample:
+        saved = json.loads(cache.read_text(encoding="utf-8"))
+        if saved["recipe_sha256"] != recipe_sha:
+            raise AuditError("sample cache recipe mismatch")
+        sample = RawSample(token_cap=token_cap, documents=saved["documents"],
+                           tokens=Counter(saved["tokens"]), artifacts=saved["artifacts"])
+        for token, count in sample.tokens.items():
+            for defect in token_defects(token):
+                sample.defect_tokens[defect] += count
+                sample.defect_types.setdefault(defect, set()).add(token)
+    else:
+        sample = collect_corpus_sample(
+            corpus, source=source, token_cap=token_cap, max_documents=max_documents,
+        )
+        if cache:
+            _write_json(cache, {
+                "recipe_sha256": recipe_sha, "recipe": recipe,
+                "collected_at": datetime.now(timezone.utc).isoformat(),
+                "documents": sample.documents, "tokens": dict(sample.tokens),
+                "artifacts": sample.artifacts,
+            })
     if sample.token_count == 0:
         raise AuditError(
             f"{corpus['key']}: configured reader produced no Greek-bearing tokens"
@@ -895,12 +1016,28 @@ def audit_corpus(
         "license": corpus["license"],
         "role": corpus["role"],
         "sample": {
-            "method": "row_group_stratified_deterministic_windows",
+            "method": ("equal_token_budgets_per_artifact_and_row_group"
+                       if corpus["reader"]["kind"] == "parquet"
+                       else "revision_seeded_zip_member_order"),
+            "sampling_version": SAMPLING_VERSION,
+            "recipe_sha256": recipe_sha,
+            "max_documents_per_artifact": max_documents,
+            "max_tokens_per_document": sample.per_document_token_cap,
+            "reused_sample_counter": reused_sample,
+            "artifact_verification": ("Hub LFS size and SHA-256 metadata; ranged reads"
+                                      if source == "stream"
+                                      else "full local byte size and SHA-256"),
             "declared_token_cap": declared_cap,
             "effective_token_cap": token_cap,
             "documents": sample.documents,
             "greek_bearing_tokens": sample.token_count,
             "greek_bearing_types": len(sample.tokens),
+            "artifacts": sample.artifacts,
+            "limitations": [
+                "Documents are corpus rows (consultations, procedures, articles, or volumes), not comparable units between corpora.",
+                "Up to 32 evenly spaced row groups per artifact; capped deterministic document windows, not a full-corpus audit.",
+                "Unicode and mixed-script diagnostics are candidate defects, not confirmed OCR mistakes.",
+            ],
         },
         "unicode_ocr_defects": sample.defect_report(),
         "coverage": coverage,
@@ -933,6 +1070,26 @@ def _print_summary(key: str, report: dict) -> None:
     )
 
 
+def runtime_provenance() -> dict:
+    """Identify actual lookup inputs, including optional linguistic tables."""
+    import dilemma.core as core
+    declared_paths = {value for value in vars(core).values()
+                      if isinstance(value, Path) and value.parent == DATA_DIR}
+    paths = {path for path in declared_paths if path.is_file()}
+    paths.update(DATA_DIR.glob("convention_*.json"))
+    inputs = {path.name: {"size": path.stat().st_size, "sha256": file_sha256(path)}
+              for path in sorted(paths)}
+    commit = subprocess.check_output(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    return {"git_commit": commit,
+            "auditor_sha256": file_sha256(Path(__file__)),
+            "core_sha256": file_sha256(Path(core.__file__)), "inputs": inputs,
+            "absent_optional_inputs": sorted(path.name for path in declared_paths
+                                             if not path.is_file()),
+            "lookup_policy": "guess=False; el uses triantafyllidis; all/grc use wiktionary"}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
@@ -958,7 +1115,11 @@ def main(argv: list[str] | None = None) -> int:
         "--frequency-output", type=Path, default=DEFAULT_FREQUENCY_REPORT
     )
     parser.add_argument("--skip-frequency", action="store_true")
+    parser.add_argument("--sample-dir", type=Path,
+                        help="save/reuse counters keyed by pins and sampling recipe")
     args = parser.parse_args(argv)
+    if (args.max_tokens is not None and args.max_tokens <= 0) or args.max_documents <= 0:
+        parser.error("sample limits must be positive")
 
     manifest = load_manifest(args.manifest)
     all_corpora = manifest["corpora"]
@@ -993,6 +1154,7 @@ def main(argv: list[str] | None = None) -> int:
                 source=args.source,
                 max_tokens=args.max_tokens,
                 max_documents=args.max_documents,
+                sample_dir=args.sample_dir,
             )
         except AuditError as exc:
             failures[corpus["key"]] = str(exc)
@@ -1004,9 +1166,10 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "manifest": str(args.manifest),
+        "manifest": args.manifest.name,
         "manifest_sha256": manifest_sha256(args.manifest),
         "source_mode": args.source,
+        "runtime": runtime_provenance(),
         "corpora": reports,
         "unavailable": failures,
         "excluded": {
@@ -1030,6 +1193,7 @@ def main(argv: list[str] | None = None) -> int:
             "manifest_sha256": payload["manifest_sha256"],
             "complete": not missing_frequency_sources,
             "missing_sources": missing_frequency_sources,
+            "runtime": payload["runtime"],
         })
         _write_json(args.frequency_output, frequency)
         print(f"frequency experiment: {args.frequency_output}")
