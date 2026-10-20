@@ -45,7 +45,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -q --upgrade pip
-          pip install -q pytest spylls huggingface_hub betacode beta-code pygtrie lxml onnxruntime
+          pip install -q pytest spylls huggingface_hub betacode beta-code pygtrie lxml onnxruntime pyarrow
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q transformers
 

@@ -6,6 +6,13 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Use an absolute public URL for the README image so it renders on PyPI.
+- Audit the replacement OpenGov archive and recent consultations at verified
+  revisions, and count Parliament passages once without their JSON duplicate.
+- Preserve source balance and rare forms in GlossAPI frequency experiments,
+  record actual lookup inputs, and retain resumable, revision-pinned samples.
+
 ## [1.3.8] - 2026-10-12
 
 ### Fixed

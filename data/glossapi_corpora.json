@@ -29,8 +29,8 @@
   "corpora": [
     {
       "key": "opengov",
-      "repo": "glossAPI/opengov-deliberations-v2",
-      "revision": "67b01a847f79cb81a178a38ef79ffd82587b75c4",
+      "repo": "glossAPI/OpenGov_Deliberations",
+      "revision": "3afe7e77b40c62e9bc63f5e1c1e1a8758dceac2e",
       "license": "CC-BY-4.0",
       "role": "mg_core",
       "lookup_lang": "el",
@@ -38,9 +38,14 @@
       "frequency_token_cap": 1000000,
       "files": [
         {
-          "path": "opengov_deliberations_v2.parquet",
-          "size": 375085231,
-          "sha256": "5f4b3ca08de3488d685ad2eb6e6c6a3fb265ec758517b2aafd3de56021f4e0f6"
+          "path": "archive_version.parquet",
+          "size": 232783788,
+          "sha256": "349a18edb8e0aef93195b36d0c52aa96b85054f2884e4712ac4579271ac9705e"
+        },
+        {
+          "path": "OpenGov.parquet",
+          "size": 5668307,
+          "sha256": "85e89bcf99e4e55ee018c2ed69313c80ad19d77fdb4c874fb5bd3e496e1cf81f"
         }
       ],
       "reader": {
@@ -56,14 +61,23 @@
           {"path": "documents[].title", "format": "plain"}
         ]
       },
-      "availability_note": {
-        "checked_on": "2026-10-20",
-        "status": "original_repository_unavailable",
-        "replacement_repo": "glossAPI/OpenGov_Deliberations",
-        "replacement_revision": "3afe7e77b40c62e9bc63f5e1c1e1a8758dceac2e",
-        "replacement_status": "separate_access_approval_required",
-        "policy": "Retain the original pin until replacement access and byte verification succeed."
-      }
+      "supersedes": {
+        "repo": "glossAPI/opengov-deliberations-v2",
+        "revision": "67b01a847f79cb81a178a38ef79ffd82587b75c4",
+        "files": [
+          {
+            "path": "opengov_deliberations_v2.parquet",
+            "size": 375085231,
+            "sha256": "5f4b3ca08de3488d685ad2eb6e6c6a3fb265ec758517b2aafd3de56021f4e0f6"
+          }
+        ],
+        "reason": "Original repository unavailable on 2026-10-20; replacement archive/current split verified with authenticated access."
+      },
+      "known_quality_risks": [
+        "Equal artifact budgets deliberately balance the 2009-2026 archive and 14 recent consultations, not their population sizes.",
+        "Per-document caps can leave the recent-consultation token budget unfilled.",
+        "Consultation bodies contain legislation as well as citizen comments, so this is not a general conversational corpus."
+      ]
     },
     {
       "key": "mitos",

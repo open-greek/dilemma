@@ -1,7 +1,7 @@
 # Dilemma <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/ancient-greece.svg" width="28" alt="Ancient Greece"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/languages/el.svg" width="28" alt="Greek"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/countries/cy.svg" width="28" alt="Cyprus"> <img src="https://raw.githubusercontent.com/ciscoriordan/svg-flags/main/circle/historical/byzantine.svg" width="28" alt="Byzantine"> [![Tests](https://github.com/open-greek/dilemma/actions/workflows/test.yml/badge.svg)](https://github.com/open-greek/dilemma/actions/workflows/test.yml)
 
 <p align="center">
-  <img width="640" alt="dilemma" src="scripts/social.jpg">
+  <img width="640" alt="dilemma" src="https://raw.githubusercontent.com/open-greek/dilemma/main/scripts/social.jpg">
 </p>
 
 Dilemma is a diachronic Greek lemmatizer spanning Ancient Greek (Classical,
@@ -4054,11 +4054,12 @@ only its most frequent forms. The experiment retains per-source counts, source
 shares, and the checksum of the production frequency list. It still requires
 contextual evaluation before changing ambiguous-lemma ranking.
 
-As of October 20, 2026, the original OpenGov repository is unavailable. Its
-replacement, `glossAPI/OpenGov_Deliberations`, has a separate access gate and
-different artifacts. The original pin is retained until the replacement is
-accessible and verified; an unavailable source is reported explicitly and
-keeps the frequency experiment incomplete.
+The October 20, 2026 manifest supersedes the unavailable OpenGov v2 repository
+with a verified pin of `glossAPI/OpenGov_Deliberations`. It retains the old pin
+for comparison and samples the replacement's archive and recent consultations
+separately. Equal artifact budgets balance those periods; they do not estimate
+their population proportions. Any inaccessible source is reported explicitly
+and keeps the frequency experiment incomplete.
 
 Large sources can be deferred explicitly, without making a partial frequency
 experiment look complete:
