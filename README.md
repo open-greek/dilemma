@@ -4107,18 +4107,32 @@ The evaluator retains the raw token windows and removes repeated lines,
 explicit field labels, and enumeration markers. It restores stress only in
 all-capitals words with one accented spelling in the pinned Modern lookup.
 Counts and reports remain local; `--reuse-counts` requires matching collector,
-source-manifest, lookup, and sampling pins. A smaller sanity run can use
+source-manifest, lookup, and sampling pins. After reviewing an unchanged
+cleaning recipe, `--collector-sha SHA256` can explicitly pin counters from an
+older collector while testing a new reranker. Runtime ranking inputs must
+match `data/hf_manifest.json`; missing attestation or POS tables stop the run.
+A smaller sanity run can use
 `--corpus mitos --max-tokens 20000 --max-documents 32 --limit-eval 100` with
 separate `--counts` and `--output` paths.
 
 The pinned UD Greek GDT development split selects among fixed mixture weights;
 the test split measures that choice and a predeclared 10% mixture. This is an
-experimental reranker of tied lookup candidates, preserving preceding-article
-contexts. It reports paired gains/losses and compares against both production
+experimental reranker of tied lookup candidates and source-recorded noun,
+verb, adjective, and adverb alternatives accepted by the existing POS
+validator. Gold POS is not used to select candidates, and preceding-article
+contexts are preserved. It reports paired gains/losses and compares against
+both production
 surface-frequency priors and the shipped runtime. Dictionary-mapped surface
 counts are uncertain lemma priors. They do not replace the runtime's annotated
 lemma attestation or `data/mg_freq.txt`. Adoption requires a positive test
 effect and replication; insufficient evidence leaves the experiment separate.
+
+The October 20, 2026 run collected all six Modern sources at their declared
+caps. On the 9,243-token GDT development split it selected a 25% domain prior.
+On the separate 9,452-token test split, that mixture scored 8,200 correct
+lemmas, versus 8,193 for the production-frequency comparator and 8,213 for
+the shipped runtime. The gain over the frequency comparator did not exceed
+the runtime, so the mixture was not adopted and `mg_freq.txt` remains unchanged.
 
 The GlossAPI variety classifier has a separate optional evaluation so
 GreekBERT does not become a Dilemma runtime dependency:

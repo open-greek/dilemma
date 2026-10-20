@@ -3,8 +3,9 @@
 
 Corpus windows are identical before and after cleaning. Development data
 selects a mixture weight; a separately pinned test split measures that choice.
-The experimental reranker changes only tied lookup candidates, preserves
-article contexts, and does not alter Dilemma's runtime ranking implementation.
+The experimental reranker uses tied lookup candidates and independently
+recorded POS alternatives, preserves article contexts, and does not alter
+Dilemma's runtime ranking implementation.
 """
 from __future__ import annotations
 
@@ -22,9 +23,10 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from dilemma import Dilemma, strip_accents, to_monotonic
-from dilemma.core import LOOKUP_DB_PATH
+from dilemma.core import LOOKUP_DB_PATH, DATA_DIR, MG_POS_LOOKUP_PATH
 from scripts.audit_glossapi_coverage import (collect_corpus_sample, file_sha256,
-    iter_greek_tokens, load_manifest, mg_frequency_counts, RawSample, _clean_mg_form)
+    iter_greek_tokens, load_manifest, mg_frequency_counts, RawSample, _clean_mg_form,
+    runtime_provenance)
 
 UD_REVISION = "005bb3e0853a40f95162aab35177250c6f1c7328"
 UD_BASE = f"https://raw.githubusercontent.com/UniversalDependencies/UD_Greek-GDT/{UD_REVISION}/"
@@ -122,7 +124,7 @@ def load_ud(path):
     return [r for r in records if r["upos"] not in {"PUNCT", "SYM", "X"} and r["gold"] != "_"]
 
 
-def candidate_records(records, engine):
+def candidate_records(records, engine, pos_lookup=None):
     cache = {}
     output = []
     for record in records:
@@ -131,10 +133,22 @@ def candidate_records(records, engine):
             candidates = engine.lemmatize_verbose(key[0], guess=False, prev_word=key[1])
             base = candidates[0].lemma if candidates else None
             pool = []
-            if candidates and candidates[0].source == "lookup" and key[1].lower() not in ARTICLES:
+            if (candidates and candidates[0].source == "lookup" and not candidates[0].proper
+                    and key[1].lower() not in ARTICLES):
                 first = candidates[0]
                 pool = list(dict.fromkeys(c.lemma for c in candidates if c.source == "lookup"
                                          and c.score == first.score and c.proper == first.proper))
+                # Scalar lookup flattens homographs. Recover only POS readings
+                # already recorded by the existing source tables and accepted
+                # by the runtime validator. Gold POS is never an input.
+                variants = {key[0], key[0].lower(), to_monotonic(key[0].lower()),
+                            strip_accents(key[0].lower())}
+                positions = {pos for variant in variants for pos in (pos_lookup or {}).get(variant, {})
+                             if pos in {"NOUN", "VERB", "ADJ", "ADV"}}
+                for pos in sorted(positions):
+                    alternative = engine.lemmatize_pos(key[0], pos, guess=False)
+                    if alternative and alternative not in pool:
+                        pool.append(alternative)
             cache[key] = (base, pool)
         base, pool = cache[key]
         output.append({**record, "runtime": base, "pool": pool})
@@ -165,7 +179,7 @@ def score(records, prior, baseline=None):
     discordant = gains + losses
     p_value = min(1.0, 2 * sum(math.comb(discordant, k) for k in range(min(gains, losses) + 1)) / 2**discordant) if discordant else 1.0
     return {"tokens": len(records), "correct": correct, "accuracy": correct / len(records),
-            "ambiguous_ties": sum(len(r["pool"]) > 1 for r in records),
+            "ambiguous_tokens": sum(len(r["pool"]) > 1 for r in records),
             "changed": changed, "gains": gains, "losses": losses,
             "paired_exact_p": p_value, "examples": examples}
 
@@ -175,12 +189,22 @@ def blend(base, domain, weight):
             for key in base.keys() | domain.keys()}
 
 
+def validate_runtime_inputs():
+    manifest = json.loads((ROOT / "data/hf_manifest.json").read_text())["files"]
+    for name in ("lookup.db", "lemma_attestation.json", "lsj9_pos_lookup.json",
+                 "corpus_freq.json", "treebank_pos_lookup.audit.json"):
+        path = DATA_DIR / name
+        if not path.exists() or file_sha256(path) != manifest[f"data/{name}"]["sha256"]:
+            raise ValueError(f"{name} is missing or differs from the runtime manifest; set DILEMMA_DATA_DIR to the complete pinned data")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lookup", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=ROOT / "data/glossapi_frequency_evaluation.json")
     parser.add_argument("--counts", type=Path, default=ROOT / "data/glossapi_frequency_clean_counts.json")
     parser.add_argument("--reuse-counts", action="store_true")
+    parser.add_argument("--collector-sha", help="Explicit SHA-256 of a reviewed older collector when reusing its unchanged cleaning recipe")
     parser.add_argument("--max-tokens", type=int)
     parser.add_argument("--source", choices=("cache", "stream"), default="stream")
     parser.add_argument("--fixture-dir", type=Path, default=ROOT / "data/glossapi_frequency_fixtures")
@@ -188,9 +212,12 @@ def main():
     parser.add_argument("--corpus", action="append")
     parser.add_argument("--max-documents", type=int, default=4096)
     args = parser.parse_args()
+    if args.collector_sha and (not args.reuse_counts or not re.fullmatch(r"[0-9a-f]{64}", args.collector_sha)):
+        parser.error("--collector-sha requires --reuse-counts and a full SHA-256")
     if (args.max_tokens is not None and args.max_tokens <= 0) or args.max_documents <= 0:
         parser.error("sample limits must be positive")
     recipe = {"max_tokens": args.max_tokens, "corpus": args.corpus, "max_documents": args.max_documents}
+    validate_runtime_inputs()
     lookup = json.loads(args.lookup.read_text())
     production = ROOT / "data/mg_freq.txt"
     before = file_sha256(production)
@@ -200,7 +227,7 @@ def main():
             raise ValueError("clean counts belong to a different lookup snapshot")
         if recipe != counts["recipe"]:
             raise ValueError("sample limits differ from saved counters")
-        if counts["collector_sha256"] != file_sha256(Path(__file__)):
+        if counts["collector_sha256"] != (args.collector_sha or file_sha256(Path(__file__))):
             raise ValueError("clean counts belong to a different collector revision")
         if counts["manifest_sha256"] != file_sha256(ROOT / "data/glossapi_corpora.json"):
             raise ValueError("source manifest differs from saved counters")
@@ -239,7 +266,8 @@ def main():
     base = lemma_prior(counts_from_file(production), lookup)
     domain = lemma_prior(combined, lookup)
     args.fixture_dir.mkdir(parents=True, exist_ok=True)
-    engine = Dilemma(lang="el", convention="triantafyllidis", skip_pos=True)
+    engine = Dilemma(lang="el", convention="triantafyllidis", skip_pos=False)
+    pos_lookup = json.loads(MG_POS_LOOKUP_PATH.read_text())
     fixtures = {}
     evaluated = {}
     for split in ("dev", "test"):
@@ -252,31 +280,45 @@ def main():
             raise ValueError(f"{split} fixture differs from the pinned GDT bytes")
         fixtures[split] = {"url": UD_BASE + name, "sha256": file_sha256(path)}
         records = load_ud(path)
-        evaluated[split] = candidate_records(records[:args.limit_eval] if args.limit_eval else records, engine)
+        evaluated[split] = candidate_records(records[:args.limit_eval] if args.limit_eval else records, engine, pos_lookup)
         print("evaluated", split, len(evaluated[split]), flush=True)
     dev = evaluated["dev"]
     results = {str(weight): score(dev, blend(base, domain, weight)) for weight in WEIGHTS}
     weight = max(WEIGHTS, key=lambda w: (results[str(w)]["correct"], -w))
     test = evaluated["test"]
     baseline = [predict(record, base) for record in test]
+    runtime_predictions = [record["runtime"] for record in test]
     selected = score(test, blend(base, domain, weight), baseline)
+    runtime_comparison = score(test, blend(base, domain, weight), runtime_predictions)
     fixed = score(test, blend(base, domain, 0.10), baseline)
     runtime_correct = sum(r["runtime"] == r["gold"] for r in test)
     measurable = (weight > 0 and selected["gains"] > selected["losses"] and selected["paired_exact_p"] <= .05
-                  and selected["correct"] > runtime_correct and counts["complete"] and args.limit_eval is None)
+                  and selected["correct"] > runtime_correct and runtime_comparison["paired_exact_p"] <= .05
+                  and counts["complete"] and args.limit_eval is None)
+    roles = {c["key"]: c["role"] for c in load_manifest()["corpora"]}
     report = {"status": "experiment_only", "replaces_mg_freq": False, "production_sha256": before,
               "counts_sha256": file_sha256(args.counts), "fixtures": fixtures,
+              "counts_collector_sha256": counts["collector_sha256"],
+              "runtime": runtime_provenance(),
               "lookup_sha256": file_sha256(args.lookup), "code_sha256": file_sha256(Path(__file__)),
               "runtime_lookup_sha256": file_sha256(LOOKUP_DB_PATH),
               "raw_tokens": sum(sum(s["raw"].values()) for s in counts["sources"].values()),
               "clean_tokens": sum(combined.values()), "clean_types": len(combined),
               "weights_predeclared": WEIGHTS, "development": results, "selected_weight": weight,
               "test": selected, "fixed_ten_percent_test": fixed,
+              "selected_against_runtime": runtime_comparison,
+              "production_prior_test": score(test, base, runtime_predictions),
               "shipped_runtime_test_correct": runtime_correct, "measurable_improvement": measurable,
               "decision": "keep_separate_pending_replication" if measurable else "do_not_adopt",
-              "source_diagnostics": {k: {f: v for f,v in s.items() if f not in {"raw","clean"}} for k,s in counts["sources"].items()},
+              "source_diagnostics": {k: {**{f: v for f,v in s.items() if f not in {"raw","clean"}},
+                    "raw_eligible_tokens": sum(s["raw"].values()), "clean_tokens": sum(s["clean"].values()),
+                    "clean_share_percent": 100 * sum(s["clean"].values()) / sum(combined.values())}
+                    for k,s in counts["sources"].items()},
+              "clean_legal_share_percent": 100 * sum(sum(s["clean"].values()) for k,s in counts["sources"].items()
+                                                        if roles[k] == "mg_legal") / sum(combined.values()),
               "limitations": ["Dictionary-mapped surface counts are uncertain lemma priors, not annotated lemma counts.",
-                 "Only tied lookup candidates without preceding article agreement are reranked.",
+                 "Only tied lookup and validated source POS alternatives without preceding article agreement are reranked; gold POS is not used.",
+                 "Field-labelled lines are treated as template structure; deduplication and cleaning can change register balance.",
                  "The pinned GDT splits come from a separate treebank; exact corpus overlap was not exhaustively checked, and dictionary/tagger source overlap is possible.",
                  "No runtime ranking code or production frequency file is changed."]}
     assert file_sha256(production) == before

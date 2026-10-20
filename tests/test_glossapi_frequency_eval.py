@@ -1,6 +1,8 @@
 from collections import Counter
+from types import SimpleNamespace
+import pytest
 
-from eval.eval_glossapi_frequency import (ContextCounter, accent_restorations,
+from eval.eval_glossapi_frequency import (ContextCounter, accent_restorations, candidate_records, validate_runtime_inputs,
     load_ud, predict, score)
 from scripts.audit_glossapi_coverage import RawSample
 
@@ -43,3 +45,25 @@ def test_ranking_evaluation_counts_paired_gains_and_losses():
     report = score(rows, prior, ["α", "α"])
     assert report["gains"] == report["losses"] == 1
     assert report["paired_exact_p"] == 1
+
+
+def test_candidate_pool_uses_validated_source_alternatives_without_gold_pos():
+    class Engine:
+        def lemmatize_verbose(self, word, **kwargs):
+            return [SimpleNamespace(lemma="μέτρο", source="lookup", score=1, proper=False)]
+
+        def lemmatize_pos(self, word, pos, **kwargs):
+            assert kwargs == {"guess": False}
+            return "μετράω" if pos == "VERB" else None
+
+    rows = [{"form": "μέτρα", "gold": "unseen gold", "upos": "NOUN", "previous": ""},
+            {"form": "μέτρα", "gold": "unseen gold", "upos": "VERB", "previous": "τα"}]
+    result = candidate_records(rows, Engine(), {"μέτρα": {"VERB": "μετράω", "NOUN": "μέτρο"}})
+    assert result[0]["pool"] == ["μέτρο", "μετράω"]
+    assert result[1]["pool"] == []
+
+
+def test_incomplete_runtime_is_rejected_before_evaluation(tmp_path, monkeypatch):
+    monkeypatch.setattr("eval.eval_glossapi_frequency.DATA_DIR", tmp_path)
+    with pytest.raises(ValueError, match="missing or differs"):
+        validate_runtime_inputs()
