@@ -4034,6 +4034,32 @@ pip install -e '.[glossapi-audit]'
 python scripts/audit_glossapi_coverage.py --source stream
 ```
 
+For a resumable audit, add `--sample-dir data/glossapi_samples`. The saved
+counters are keyed by the source revision, artifact pins, reader, and sample
+limits; coverage is recomputed against the current Dilemma inputs. Reports
+record the code revision and the SHA-256 of the actual lookup and supporting
+tables. Generated reports and sample counters stay local and uncommitted.
+
+Sampling assigns a separate token budget to each artifact and selected Parquet
+row group, and reads one group at a time. A row is a procedure, article,
+consultation, or volume depending on the source, so document counts are not
+directly comparable. The Parliament reader counts `section` once; its
+`json_section` field duplicates that text and adds serialization escapes.
+Unknown-form categories are triage hints, not confirmed dictionary omissions.
+The report distinguishes database language disagreements from disagreements
+that remain after removing citation spelling differences.
+
+Frequency downsampling preserves the observed distribution instead of taking
+only its most frequent forms. The experiment retains per-source counts, source
+shares, and the checksum of the production frequency list. It still requires
+contextual evaluation before changing ambiguous-lemma ranking.
+
+As of October 20, 2026, the original OpenGov repository is unavailable. Its
+replacement, `glossAPI/OpenGov_Deliberations`, has a separate access gate and
+different artifacts. The original pin is retained until the replacement is
+accessible and verified; an unavailable source is reported explicitly and
+keeps the frequency experiment incomplete.
+
 Large sources can be deferred explicitly, without making a partial frequency
 experiment look complete:
 
@@ -4047,7 +4073,10 @@ overwrite `data/mg_freq.txt`. Gutenberg, Ekklisiastika, and Archetai are
 audit-only: historical evidence must first pass through Open Greek Corpus
 provenance, language, OCR-quality, and deduplication gates. In particular,
 raw Ekklisiastika rubrics, joined tokens, and repeated hymn cycles must not
-feed language-model or frequency counts.
+feed language-model or frequency counts. OGC additionally blocks Ekklisiastika
+admission pending written permission for the underlying GOARCH text or an
+independently licensed replacement. A dataset-level license does not remove
+that gate.
 
 The GlossAPI variety classifier has a separate optional evaluation so
 GreekBERT does not become a Dilemma runtime dependency:

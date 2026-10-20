@@ -55,6 +55,14 @@
           {"path": "articles[].comments[].content", "format": "plain"},
           {"path": "documents[].title", "format": "plain"}
         ]
+      },
+      "availability_note": {
+        "checked_on": "2026-10-20",
+        "status": "original_repository_unavailable",
+        "replacement_repo": "glossAPI/OpenGov_Deliberations",
+        "replacement_revision": "3afe7e77b40c62e9bc63f5e1c1e1a8758dceac2e",
+        "replacement_status": "separate_access_approval_required",
+        "policy": "Retain the original pin until replacement access and byte verification succeed."
       }
     },
     {
@@ -165,10 +173,13 @@
       "reader": {
         "kind": "parquet",
         "text_fields": [
-          {"path": "*", "format": "plain"}
-        ],
-        "exclude_fields": ["id", "url", "document_url", "pdf_url", "source_url"]
-      }
+          {"path": "section", "format": "plain"}
+        ]
+      },
+      "known_quality_risks": [
+        "section and json_section encode the same passage; only section is counted",
+        "section rows can repeat headings and legislative boilerplate"
+      ]
     },
     {
       "key": "eurlex",
@@ -188,7 +199,9 @@
       ],
       "reader": {
         "kind": "zip_text",
-        "member_suffixes": [".md"]
+        "member_suffixes": [
+          ".md"
+        ]
       }
     },
     {
@@ -200,7 +213,7 @@
       "lookup_lang": "all",
       "audit_token_cap": 500000,
       "frequency_token_cap": 0,
-      "ogc_decision": "Route public-domain Ancient/Medieval rows through OGC document deduplication and provenance review; do not ingest classifier labels or raw Dilemma frequency data directly.",
+      "ogc_decision": "Hold ingestion until OGC independently recovers stable work and edition identities, establishes the underlying rights and variety, and completes passage deduplication. Classifier labels are not admission evidence. No raw historical text or frequencies enter Dilemma.",
       "files": [
         {
           "path": "gutenberg_clean.parquet",
@@ -224,7 +237,7 @@
       "lookup_lang": "grc",
       "audit_token_cap": 500000,
       "frequency_token_cap": 0,
-      "ogc_decision": "Route through OGC with source-level deduplication against biblical and liturgical witnesses; retain work/title provenance and admit only public deduplicated lexicon evidence. Strip structural rubrics, detect run-together OCR tokens, and near-deduplicate repeated hymn cycles before counting language evidence; never use raw token or n-gram frequencies.",
+      "ogc_decision": "Blocked by OGC pending written permission for underlying GOARCH text or an independently licensed replacement, plus work/edition identity, provenance, OCR quality, and deduplication. No raw historical frequencies or text enter Dilemma.",
       "known_quality_risks": [
         "structural rubrics and page identifiers",
         "run-together sentence and section boundaries",
