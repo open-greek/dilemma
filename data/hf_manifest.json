@@ -1,17 +1,17 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-10-12T20:23:38Z",
+  "generated": "2026-10-20T20:22:45Z",
   "files": {
     "data/lookup.db": {
-      "size": 1214115840,
-      "sha256": "43d9e8df629de2ce7b7b7ed95a8035af19815592493938f8b1aa754d32562b08",
-      "git_sha1": "fb7e9e14a8292013eb4cbdaaa113dd48f8183082"
+      "size": 1214173184,
+      "sha256": "f94c1deb85fe352f8e48290eed00d9fbd32cd4536cf02a77629303d37f952285",
+      "git_sha1": "dafd6ee861b0ed62aa355b56bb6c5bea3fabe259"
     },
     "data/spell_index.db": {
-      "size": 602923008,
-      "sha256": "fe8d5ddd96b5a5282406902d94243544109c83ae72de7468d60ab2463e3f4175",
-      "git_sha1": "74dfc8447d8660581925fc8a0a0a8ad415e5d4cc"
+      "size": 602959872,
+      "sha256": "525933cbf6740121730612e6a29824c204df4a3e624661c087c6c81520c78404",
+      "git_sha1": "16550ff27952ab032069fd22f388b8790ce2b7dd"
     },
     "data/lemma_attestation.json": {
       "size": 48258266,
@@ -47,6 +47,11 @@
       "size": 270024,
       "sha256": "842d3bb4e921327af02395c95cd27fb9167bd0c0838b6d6cb4dc46a3604e434c",
       "git_sha1": "d3b1b128b240d4012a92e26ef40ee2da1bf88c00"
+    },
+    "data/changes/el_paradigm_completion.json": {
+      "size": 22621,
+      "sha256": "8931c492cd6e3295af920a63fb5385be3036fe498472192d06ee3af8b3d79cd5",
+      "git_sha1": "766b1a95bb574bde5fd1aeac360170b16d2a9c45"
     },
     "data/ag_noun_generation_audit.json": {
       "size": 8939171,

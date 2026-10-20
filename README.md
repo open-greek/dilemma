@@ -2477,6 +2477,24 @@ python export_onnx.py                  # exports encoder.onnx + decoder_step.onn
 
 ### Shipping rebuilt data artifacts
 
+`build_lookup_db.py` fills reviewed missing Modern Greek present-active cells
+for `εμπίπτω`, `απορρέω`, and `συνιστώ`, plus the masculine noun paradigm of
+`αιτών`. The rules in `dilemma/el_paradigm_gaps.py` require an existing
+self-mapped Modern head and never overwrite an existing Modern reading or
+infer another tense. The noun readings `αιτούντος` and `αιτούντες` belong to
+`αιτών`; they are not relabeled as finite verbs.
+
+For a bounded refresh of an existing release, run
+`python scripts/complete_el_paradigms.py --base PATH_TO_BASE --manifest PATH_TO_BASE_MANIFEST`.
+The base directory must contain `lookup.db`, `spell_index.db`, and
+`mg_lookup.json` whose hashes match that release's manifest. The command uses
+the same rules as the full builder, preserves existing combined and Ancient
+rows, and writes `data/changes/el_paradigm_completion.json` with input/output
+hashes, source references, generator hashes, and every added row. Reversing the
+exact refresh with `--undo PATH_TO_AUDIT` restores the original logical rows;
+it refuses files changed by subsequent work. A full rebuild remains the
+standard path when other lexical inputs change.
+
 The artifacts CI tests against (including `lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, `form_profile.db`, and the ONNX/PyTorch files in
 `model/combined-s3/`) live on HuggingFace, not in git, so the two
@@ -4078,6 +4096,43 @@ feed language-model or frequency counts. OGC additionally blocks Ekklisiastika
 admission pending written permission for the underlying GOARCH text or an
 independently licensed replacement. A dataset-level license does not remove
 that gate.
+
+Evaluate cleaned Modern Greek frequencies separately with:
+
+```bash
+python eval/eval_glossapi_frequency.py --lookup PATH_TO_PINNED_MG_LOOKUP
+```
+
+The evaluator retains the raw token windows and removes repeated lines,
+explicit field labels, and enumeration markers. It restores stress only in
+all-capitals words with one accented spelling in the pinned Modern lookup.
+Counts and reports remain local; `--reuse-counts` requires matching collector,
+source-manifest, lookup, and sampling pins. After reviewing an unchanged
+cleaning recipe, `--collector-sha SHA256` can explicitly pin counters from an
+older collector while testing a new reranker. Runtime ranking inputs must
+match `data/hf_manifest.json`; missing attestation or POS tables stop the run.
+A smaller sanity run can use
+`--corpus mitos --max-tokens 20000 --max-documents 32 --limit-eval 100` with
+separate `--counts` and `--output` paths.
+
+The pinned UD Greek GDT development split selects among fixed mixture weights;
+the test split measures that choice and a predeclared 10% mixture. This is an
+experimental reranker of tied lookup candidates and source-recorded noun,
+verb, adjective, and adverb alternatives accepted by the existing POS
+validator. Gold POS is not used to select candidates, and preceding-article
+contexts are preserved. It reports paired gains/losses and compares against
+both production
+surface-frequency priors and the shipped runtime. Dictionary-mapped surface
+counts are uncertain lemma priors. They do not replace the runtime's annotated
+lemma attestation or `data/mg_freq.txt`. Adoption requires a positive test
+effect and replication; insufficient evidence leaves the experiment separate.
+
+The October 20, 2026 run collected all six Modern sources at their declared
+caps. On the 9,243-token GDT development split it selected a 25% domain prior.
+On the separate 9,452-token test split, that mixture scored 8,200 correct
+lemmas, versus 8,193 for the production-frequency comparator and 8,213 for
+the shipped runtime. The gain over the frequency comparator did not exceed
+the runtime, so the mixture was not adopted and `mg_freq.txt` remains unchanged.
 
 The GlossAPI variety classifier has a separate optional evaluation so
 GreekBERT does not become a Dilemma runtime dependency:

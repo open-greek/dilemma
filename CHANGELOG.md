@@ -6,6 +6,17 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Fill reviewed Modern Greek noun and present-active paradigm gaps, including
+  αιτούντος, αιτούντες, εμπίπτουν, συνιστούν, and απορρέουν, without replacing
+  existing readings. Record the bounded lookup refresh in a reversible audit.
+
+### Added
+- Evaluate cleaned GlossAPI frequencies against pinned development and test
+  data, with explicit source caps, paired ranking changes, and separate local
+  outputs. Experimental counts do not replace production frequencies.
+  The selected mixture remained below the shipped runtime on the test split.
+
 ## [1.3.9] - 2026-10-20
 
 ### Fixed

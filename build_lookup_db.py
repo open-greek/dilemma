@@ -35,6 +35,7 @@ from dilemma.elision_tails import (  # noqa: E402
     find_elision_tails,
     open_profile_attestation,
 )
+from dilemma.el_paradigm_gaps import complete_lookup  # noqa: E402
 
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
@@ -281,6 +282,8 @@ def build():
     print("Loading lookup tables...")
     ag, ag_default_source = _load_lookup("ag", AG_PATH, "AG")
     el, el_default_source = _load_lookup("mg", MG_PATH, "MG")
+    completed = complete_lookup(el)
+    print(f"  Reviewed Modern Greek paradigm gaps: +{len(completed)} keys")
     med, med_default_source = _load_lookup("med", MED_PATH, "Med")
     ag_source_overrides: dict[str, str] = {}
     el_source_overrides: dict[str, str] = {}

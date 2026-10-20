@@ -547,6 +547,7 @@ def collect_artifact_sample(
     source: str,
     token_cap: int,
     max_documents: int,
+    document_observer=None,
 ) -> RawSample:
     sample = RawSample(token_cap=token_cap)
     reader = corpus["reader"]
@@ -571,10 +572,12 @@ def collect_artifact_sample(
                 )):
                     if index >= document_budget:
                         break
-                    part.add_document(
-                        extract_row_text(batch.to_pylist()[0], reader),
-                        identity=f"{corpus['key']}:{artifact['path']}:{group}:{index}",
-                    )
+                    text = extract_row_text(batch.to_pylist()[0], reader)
+                    identity = f"{corpus['key']}:{artifact['path']}:{group}:{index}"
+                    if document_observer is not None:
+                        document_observer(text, identity, min(part.per_document_token_cap,
+                                                             budget - part.token_count))
+                    part.add_document(text, identity=identity)
                     if part.token_count >= budget:
                         break
                 sample.merge(part)
@@ -588,9 +591,13 @@ def collect_artifact_sample(
                 handle, reader, corpus["revision"], max_documents=max_documents
             )
             for index, text in enumerate(texts):
+                identity = f"{corpus['key']}:{artifact['path']}:{index}"
+                if document_observer is not None:
+                    document_observer(text, identity, min(sample.per_document_token_cap,
+                                                         token_cap - sample.token_count))
                 sample.add_document(
                     text,
-                    identity=f"{corpus['key']}:{artifact['path']}:{index}",
+                    identity=identity,
                 )
                 if sample.token_count >= token_cap:
                     break
@@ -606,6 +613,7 @@ def collect_corpus_sample(
     source: str,
     token_cap: int,
     max_documents: int = 4096,
+    document_observer=None,
 ) -> RawSample:
     """Collect an equal-budget sample from every pinned artifact in a corpus."""
     combined = RawSample(token_cap=token_cap)
@@ -620,6 +628,7 @@ def collect_corpus_sample(
             source=source,
             token_cap=per_file_cap,
             max_documents=max_documents,
+            document_observer=document_observer,
         )
         combined.merge(part)
     return combined
