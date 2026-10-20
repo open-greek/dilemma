@@ -3344,6 +3344,15 @@ below, that broke 12 dev words on the author folds in the Automatic
 register, against 1 now, and lost the traditional subjunctive in mixed text
 (`πρὶν σταματήσῃ`, `νὰ ἀποφασίσῃ` left bare).
 
+Modern forms normally require 50 monotonic tokens for generation. An
+explicit finite verb, infinitive, or nominal case-and-number cell may enter
+from 10 tokens when the merged Modern lexical-head evidence independently
+defines its headword. A part-of-speech label alone does not establish a cell,
+and rare, obsolete, dialectal, misspelled, or unparsed source rows retain
+the ordinary floor. The actual token count and generated provenance remain
+unchanged; this admits forms such as `κουταλιοῦ` without promoting their
+frequency. Existing orthography, homograph, and review checks still apply.
+
 `eval/eval_mg_paradigms.py` measures reconstruction of held-out source
 spellings. It holds out, in turn,
 every form the slice attests at least 3 times with one spelling taking more
@@ -3354,7 +3363,7 @@ counted as one and a capital as its small letter. The 81 forms the generator
 declines (an unaccented word of several syllables, a clitic of one) are left
 out:
 
-| Verb class or part of speech | Spelling | Of them, forms with 50 monotonic tokens (those generated) | Subjunctive spelling |
+| Verb class or part of speech | Spelling | Of them, forms with at least 50 monotonic tokens | Subjunctive spelling |
 |------------|--------------------:|---------------------:|---------------------:|
 | verbs in `-ω` (`γράφω`) | 99.0% of 5,027 | 99.2% of 3,416 | 91.1% of 1,058 |
 | `-άω` (`μιλάω`) | 95.5% of 1,034 | 95.8% of 781 | 93.6% of 157 |

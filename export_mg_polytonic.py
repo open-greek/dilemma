@@ -1923,6 +1923,36 @@ def _positive_inflected_capital(g, lexical_heads) -> bool:
             and head in lexical_heads)
 
 
+def _sourced_rare_cells(paradigms, lexical_heads) -> frozenset[tuple[str, str]]:
+    """Explicit inflections of independently defined Modern heads.
+
+    A source row with only a part of speech is insufficient. Require its
+    case and number, finite person, or explicit verb infinitive analysis;
+    do not infer a cell from the spelling or an Ancient dictionary entry.
+    """
+    import mg_polytonic_paradigms as p
+
+    out = set()
+    numbers = frozenset(p.NUMBERS)
+    for lemma, forms in paradigms.items():
+        if not (lemma in lexical_heads or lemma[:1].upper() + lemma[1:] in lexical_heads):
+            continue
+        for form in forms:
+            for tags in p.form_tag_rows(paradigms, lemma, form):
+                if tags & {"rare", "archaic", "obsolete", "dated", "dialectal",
+                           "nonstandard", "misspelling", "error-unrecognized-form"}:
+                    continue
+                pos = p.pos_of(tags)
+                nominal = (pos in NOMINAL_CELL_POS and tags & p.CASE_TAGS
+                           and tags & numbers)
+                verb = (pos == "verb" and ("infinitive" in tags
+                        or p.FINITE in tags and tags & p.PERSON_TAGS and tags & numbers))
+                if nominal or verb:
+                    out.add((lemma, form))
+                    break
+    return frozenset(out)
+
+
 def generated_verb_forms(
     counts: CorpusCounts,
     sources: set[int],
@@ -1970,8 +2000,9 @@ def generated_verb_forms(
     verb_paradigms, frequencies = inputs
     attested = attested_lowercase(counts, sources)
     evidence = paradigms.Evidence(attested, grc_words, verb_paradigms)
-    candidates = paradigms.generate(verb_paradigms, frequencies, evidence)
     lexical_heads = load_modern_lexical_heads()
+    candidates = paradigms.generate(verb_paradigms, frequencies, evidence,
+        rare_forms=_sourced_rare_cells(verb_paradigms, lexical_heads))
     realized = _realization_cells(candidates)
     counted_cells: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for g in candidates:

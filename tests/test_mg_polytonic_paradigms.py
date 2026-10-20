@@ -340,6 +340,39 @@ def test_generation_covers_frequent_forms_with_both_subjunctives():
     assert not any(g.mono == "έρθουν" for g in out)
 
 
+def test_lower_frequency_generation_requires_explicit_admission():
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    par = {"κουτάλι": {"κουτάλι": noun("nominative", "singular"),
+                      "κουταλιού": noun("genitive", "singular")}}
+    frequencies = {"κουτάλι": 1000, "κουταλιού": 42}
+    evidence = P.Evidence({}, GRC, par)
+    ordinary = P.generate(par, frequencies, evidence)
+    assert not any(g.mono == "κουταλιού" for g in ordinary)
+    admitted = mg._sourced_rare_cells(par, {"κουτάλι"})
+    extended = P.generate(par, frequencies, evidence, rare_forms=admitted)
+    own = [g for g in extended if g.mono == "κουταλιού"]
+    assert [(g.spelling, g.tokens, g.weight) for g in own] == [("κουταλιοῦ", 42, 42)]
+    assert not any(g.mono == "κουταλιού" for g in P.generate(
+        par, {"κουταλιού": 9}, evidence, rare_forms=admitted))
+
+
+def test_rare_cells_need_a_positive_head_and_complete_source_tags():
+    par = {
+        "θηλάζω": {"θηλάζουν": frozenset({"pos:verb", "present", "finite",
+                                          "third-person", "plural"}),
+                    "θηλάζει": frozenset({"pos:verb"}),
+                    "θηλάζαν": frozenset({"pos:verb", "finite", "dialectal"})},
+        "ξενιτιά": {"ξενιτιά": frozenset({"pos:noun", "nominative", "singular"}),
+                    "ξενιτιάς": frozenset({"pos:noun", "genitive"})},
+        "λάρισα": {"Λάρισας": frozenset({"pos:name", "genitive", "singular"})},
+        "κυμαίνομαι": {"κυμανθεί": frozenset({"pos:verb", "infinitive"})},
+    }
+    assert mg._sourced_rare_cells(par, set()) == frozenset()
+    assert mg._sourced_rare_cells(par, {"θηλάζω", "ξενιτιά", "Λάρισα", "κυμαίνομαι"}) == {
+        ("θηλάζω", "θηλάζουν"), ("ξενιτιά", "ξενιτιά"),
+        ("λάρισα", "Λάρισας"), ("κυμαίνομαι", "κυμανθεί")}
+
+
 def _counts(rows):
     counts = CorpusCounts()
     counts.documents = [DocumentInfo(f"d{i}", a, f"t{i}", words=1000)
