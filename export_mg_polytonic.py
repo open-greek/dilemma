@@ -1937,6 +1937,11 @@ def _sourced_rare_cells(paradigms, lexical_heads) -> frozenset[tuple[str, str]]:
     for lemma, forms in paradigms.items():
         if not (lemma in lexical_heads or lemma[:1].upper() + lemma[1:] in lexical_heads):
             continue
+        owned_noun = p._owned_noun(lemma, paradigms)
+        owned_other = {p.pos_of(tags) for head in forms
+                       if head.lower() == lemma.lower()
+                       for tags in p.form_tag_rows(paradigms, lemma, head)
+                       if {"nominative", "singular"} <= tags}
         for form in forms:
             for tags in p.form_tag_rows(paradigms, lemma, form):
                 if tags & {"rare", "archaic", "obsolete", "dated", "dialectal",
@@ -1945,12 +1950,80 @@ def _sourced_rare_cells(paradigms, lexical_heads) -> frozenset[tuple[str, str]]:
                 pos = p.pos_of(tags)
                 nominal = (pos in NOMINAL_CELL_POS and tags & p.CASE_TAGS
                            and tags & numbers)
-                verb = (pos == "verb" and ("infinitive" in tags
-                        or p.FINITE in tags and tags & p.PERSON_TAGS and tags & numbers))
+                letters = p.letters(form.lower())
+                groups = p.nuclei(letters)
+                stress = next((len(groups) - 1 - i for i, group in enumerate(groups)
+                               if any(p.ACUTE in letters[j].marks for j in group)), None)
+                # The lower floor is deliberately narrower than ordinary
+                # generation. Inflected noun headers and final-accented
+                # names/adjectives are too easily another cell's reading.
+                nominal = nominal and (
+                    pos == "noun" and owned_noun and not lemma.endswith(("ής", "ιάς"))
+                    or pos in {"adj", "name"} and pos in owned_other
+                    and stress is not None and stress >= 2)
+                key = p.bare(form)
+                verb = (pos == "verb" and (
+                    "infinitive" in tags and key.endswith("ει")
+                    or p.FINITE in tags and tags & p.PERSON_TAGS and tags & numbers
+                    and key.endswith(("ουν", "ουμε", "αν", "αμε", "ουσαν"))))
                 if nominal or verb:
                     out.add((lemma, form))
                     break
     return frozenset(out)
+
+
+def _rare_spelling_conflicts(g, frequencies, attested) -> bool:
+    """A new low-frequency inference cannot contradict an edited spelling.
+
+    Compare the same monotonic spelling, including stress position. This
+    does not suppress a distinct Modern stress merely because Ancient
+    Greek stresses those letters elsewhere.
+    """
+    import mg_polytonic_paradigms as p
+
+    if p.form_tokens(g.mono, frequencies) >= p.GENERATED_MIN_TOKENS:
+        return False
+    spellings = Counter()
+    for spelling, tokens in attested.get(p.monotonic_key(g.spelling), {}).items():
+        spellings[contextual_acute(spelling)] += tokens
+    if not spellings:
+        return False
+    dominant, tokens = spellings.most_common(1)[0]
+    return (tokens >= p.SIBLING_MIN_TOKENS and tokens * 2 > sum(spellings.values())
+            and dominant != contextual_acute(g.spelling))
+
+
+def _common_plural_completions(paradigms, frequencies, lexical_heads, evidence):
+    """Fill a missing common -νουν present of an independently defined -νω verb.
+
+    Require separate first- and third-person singular past cells and the
+    actual plural's common token rate. This inflection is inferred, not
+    represented as an attested source row. Contracted verbs are excluded.
+    """
+    import mg_polytonic_paradigms as p
+
+    existing = {form for forms in paradigms.values() for form in forms}
+    total = sum(frequencies.values())
+    out = []
+    tags = frozenset({"pos:verb", "finite", "present", "active", "third-person", "plural"})
+    for lemma, forms in paradigms.items():
+        if (lemma not in lexical_heads or not lemma.endswith("νω")
+                or p.verb_class(lemma, forms) != "A"):
+            continue
+        persons = {person for form in forms
+                   for row in p.form_tag_rows(paradigms, lemma, form)
+                   if {"pos:verb", "finite", "past", "singular"} <= row
+                   for person in row & p.PERSON_TAGS}
+        if not {"first-person", "third-person"} <= persons:
+            continue
+        form = lemma[:-1] + "ουν"
+        tokens = p.form_tokens(form, frequencies)
+        if form in existing or monotonic_bucket(tokens, total) != "C":
+            continue
+        spelling = p.polytonic(form, tags, "A", evidence.lemma_spellings(forms), evidence, lemma)
+        if spelling:
+            out.append(p.Generated(spelling, form, lemma, tokens, "indicative", "A", "present", tokens))
+    return out
 
 
 def generated_verb_forms(
@@ -2003,6 +2076,13 @@ def generated_verb_forms(
     lexical_heads = load_modern_lexical_heads()
     candidates = paradigms.generate(verb_paradigms, frequencies, evidence,
         rare_forms=_sourced_rare_cells(verb_paradigms, lexical_heads))
+    completions = _common_plural_completions(verb_paradigms, frequencies, lexical_heads, evidence)
+    report["generated_common_plural"] += len(completions)
+    candidates.extend(completions)
+    candidates.sort(key=lambda g: (-g.weight, -g.tokens, g.mono, g.kind))
+    admitted = [g for g in candidates if not _rare_spelling_conflicts(g, frequencies, attested)]
+    report["generated_rare_conflict"] += len(candidates) - len(admitted)
+    candidates = admitted
     realized = _realization_cells(candidates)
     counted_cells: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for g in candidates:

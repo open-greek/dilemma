@@ -363,6 +363,42 @@ def test_nominal_final_vowel_does_not_inherit_a_dative_subscript():
                       "βυζαντινός") == "βυζαντινή"
 
 
+def test_new_rare_spellings_respect_edited_marks_but_not_another_stress():
+    candidate = P.Generated("βούρλα", "βούρλα", "βούρλα", 36,
+                            "indicative", "noun", "noun nominative plural", 36)
+    assert mg._rare_spelling_conflicts(candidate, {"βούρλα": 36},
+                                      {"βούρλα": Counter({"βοῦρλα": 6})})
+    assert not mg._rare_spelling_conflicts(candidate, {"βούρλα": 36},
+                                          {"βούρλα": Counter({"βοῦρλα": 1})})
+    assert not mg._rare_spelling_conflicts(candidate, {"βούρλα": 500},
+                                          {"βούρλα": Counter({"βοῦρλα": 6})})
+    modern = P.Generated("ἤπιους", "ήπιους", "ήπιος", 21,
+                         "indicative", "adj", "adj accusative plural", 21)
+    assert not mg._rare_spelling_conflicts(modern, {"ήπιους": 21},
+                                          {"ηπίους": Counter({"ἠπίους": 6})})
+
+
+def test_common_present_plural_can_fill_an_incomplete_modern_verb(monkeypatch):
+    verb = lambda person: frozenset({"pos:verb", "finite", "past", "singular", person})
+    par = {"συμβαίνω": {"συνέβην": verb("first-person"), "συνέβη": verb("third-person")}}
+    frequencies = {"συμβαίνουν": 9893, "πολύ": 262_000_000}
+    evidence = P.Evidence({}, GRC, par)
+    assert not mg._common_plural_completions(par, frequencies, set(), evidence)
+    completed = mg._common_plural_completions(par, frequencies, {"συμβαίνω"}, evidence)
+    assert [(g.spelling, g.tokens, g.cell) for g in completed] == [("συμβαίνουν", 9893, "present")]
+    assert not mg._common_plural_completions(par, {**frequencies, "συμβαίνουν": 100}, {"συμβαίνω"}, evidence)
+    assert not mg._common_plural_completions(
+        {"συμβαίνω": {"συνέβη": verb("third-person")}}, frequencies, {"συμβαίνω"}, evidence)
+    assert not mg._common_plural_completions(
+        {"συμβαίνω": {**par["συμβαίνω"], "συμβαίνουν": frozenset({"pos:verb"})}},
+        frequencies, {"συμβαίνω"}, evidence)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, frequencies))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"συμβαίνω"})
+    kept = mg.generated_verb_forms(_counts([]), {0, 1, 2}, set(GRC), set(), frozenset(), Counter())
+    assert kept["συμβαίνουν"] == 9893
+
+
 @pytest.mark.parametrize("source, count, stopped", [
     ("generated", 14, False), ("generated", 100, True), ("grc", 14, True)])
 def test_rare_new_noun_does_not_remove_a_frequent_verbs_subjunctive(source, count, stopped):
@@ -380,13 +416,18 @@ def test_rare_cells_need_a_positive_head_and_complete_source_tags():
                     "θηλάζαν": frozenset({"pos:verb", "finite", "dialectal"})},
         "ξενιτιά": {"ξενιτιά": frozenset({"pos:noun", "nominative", "singular"}),
                     "ξενιτιάς": frozenset({"pos:noun", "genitive"})},
-        "λάρισα": {"Λάρισας": frozenset({"pos:name", "genitive", "singular"})},
+        "λάρισα": {"Λάρισα": frozenset({"pos:name", "nominative", "singular"}),
+                    "Λάρισας": frozenset({"pos:name", "genitive", "singular"})},
         "κυμαίνομαι": {"κυμανθεί": frozenset({"pos:verb", "infinitive"})},
+        "αναδεικνύω": {"αναδειχθείς": frozenset({"pos:verb", "finite", "dependent",
+                                                 "second-person", "singular"})},
+        "καφετζής": {"καφετζής": frozenset({"pos:noun", "nominative", "singular"}),
+                       "καφετζή": frozenset({"pos:noun", "genitive", "singular"})},
     }
     assert mg._sourced_rare_cells(par, set()) == frozenset()
-    assert mg._sourced_rare_cells(par, {"θηλάζω", "ξενιτιά", "Λάρισα", "κυμαίνομαι"}) == {
+    assert mg._sourced_rare_cells(par, set(par) | {"Λάρισα"}) == {
         ("θηλάζω", "θηλάζουν"), ("ξενιτιά", "ξενιτιά"),
-        ("λάρισα", "Λάρισας"), ("κυμαίνομαι", "κυμανθεί")}
+        ("λάρισα", "Λάρισα"), ("λάρισα", "Λάρισας"), ("κυμαίνομαι", "κυμανθεί")}
 
 
 def _counts(rows):
