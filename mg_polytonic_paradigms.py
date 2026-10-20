@@ -612,7 +612,10 @@ def polytonic(mono: str, tags: frozenset, vclass: str,
     out = [Letter(l.base, l.marks - {ACUTE}) for l in word]
     out[carrier] = Letter(out[carrier].base, out[carrier].marks | {accent})
     if out[carrier].base in "αηω" and (
-            _stem_subscript(word, carrier, siblings)
+            # A nominal's final subscript belongs to a dative ending,
+            # not to its stem (βυζαντινῇ does not imply βυζαντινῄ).
+            (verb or carrier < len(word) - 1)
+            and _stem_subscript(word, carrier, siblings)
             or (verb and accent == CIRCUMFLEX and position == 0
                 and out[carrier].base == "α"
                 and cell(tags) in ("present", "other")

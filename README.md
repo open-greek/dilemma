@@ -3352,6 +3352,9 @@ and rare, obsolete, dialectal, misspelled, or unparsed source rows retain
 the ordinary floor. The actual token count and generated provenance remain
 unchanged; this admits forms such as `κουταλιοῦ` without promoting their
 frequency. Existing orthography, homograph, and review checks still apply.
+New rare nouns do not erase a frequent verb's traditional subjunctive
+spelling. Nominal final vowels do not inherit a sibling dative's iota
+subscript, which belongs to that ending rather than the stem.
 
 `eval/eval_mg_paradigms.py` measures reconstruction of held-out source
 spellings. It holds out, in turn,

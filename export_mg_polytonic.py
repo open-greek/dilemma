@@ -2248,6 +2248,14 @@ def _stops(g, rival: Rival) -> bool:
     # A rival monotonic text never writes says nothing of the form's use.
     far_commoner = 0 < rival.tokens and RIVAL_RATIO * g.weight <= rival.tokens
     if g.kind == "subjunctive" and far_commoner:
+        import mg_polytonic_paradigms as paradigms
+        if (rival.source == "generated" and rival.cells
+                and not _same_cell(g.lemma, g.cell, rival.cells)
+                and rival.tokens < paradigms.GENERATED_MIN_TOKENS <= g.tokens):
+            # A newly admitted rare noun (βάφτισης) does not remove a
+            # frequent verb's traditional spelling (βαφτίσῃς). Both
+            # positively sourced cells remain available as alternatives.
+            return False
         return True
     if _same_cell(g.lemma, g.cell, rival.cells):
         if (rival.source == "list" and g.kind == "indicative"

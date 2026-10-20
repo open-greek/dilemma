@@ -356,6 +356,22 @@ def test_lower_frequency_generation_requires_explicit_admission():
         par, {"κουταλιού": 9}, evidence, rare_forms=admitted))
 
 
+def test_nominal_final_vowel_does_not_inherit_a_dative_subscript():
+    tags = frozenset({"pos:adj", "feminine", "nominative", "singular"})
+    siblings = [("βυζαντινῇ", 10, frozenset({"pos:adj", "dative", "singular"}))]
+    assert P.polytonic("βυζαντινή", tags, "adj", siblings, EVIDENCE,
+                      "βυζαντινός") == "βυζαντινή"
+
+
+@pytest.mark.parametrize("source, count, stopped", [
+    ("generated", 14, False), ("generated", 100, True), ("grc", 14, True)])
+def test_rare_new_noun_does_not_remove_a_frequent_verbs_subjunctive(source, count, stopped):
+    candidate = P.Generated("βαφτίσῃς", "βαφτίσεις", "βαφτίζω", 500,
+                            "subjunctive", "A", "dependent", 0)
+    rival = mg.Rival(frozenset({("βάφτιση", "noun genitive singular")}), count, source)
+    assert mg._stops(candidate, rival) == stopped
+
+
 def test_rare_cells_need_a_positive_head_and_complete_source_tags():
     par = {
         "θηλάζω": {"θηλάζουν": frozenset({"pos:verb", "present", "finite",
