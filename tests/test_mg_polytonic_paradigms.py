@@ -2116,3 +2116,45 @@ def test_identified_nominal_stress_variant_uses_its_own_count():
                             "indicative", "noun", "noun accusative plural", 1000)
     rival = mg.Rival(frozenset({("φάκελος", "noun accusative plural")}), 10, "list")
     assert not mg._stops(candidate, rival)
+
+
+@pytest.mark.parametrize("tokens, other, source, kind, stopped", [
+    (35, 195, "generated", "indicative", True),
+    (35, 195, "list", "indicative", True),
+    (35, 195, "grc", "indicative", False),
+    (50, 195, "generated", "indicative", False),
+    (35, 49, "generated", "indicative", False),
+    (35, 60, "generated", "indicative", False),
+    (0, 195, "generated", "noun-alternative", False),
+])
+def test_lower_floor_yields_to_established_modern_reading(
+        tokens, other, source, kind, stopped):
+    candidate = P.Generated("χάκι", "χάκι", "χάκι", tokens, kind,
+                            "noun", "noun nominative singular", tokens)
+    rival = mg.Rival(frozenset({("χακί", "noun invariable")}), other, source)
+    assert mg._stops(candidate, rival) == stopped
+
+
+def test_rare_homograph_does_not_replace_established_color(monkeypatch):
+    candidates = [
+        P.Generated("χακί", "χακί", "χακί", 195, "indicative",
+                    "noun", "noun invariable", 195),
+        P.Generated("χάκι", "χάκι", "χάκι", 35, "indicative",
+                    "noun", "noun nominative singular", 35),
+    ]
+    got = _dative_rival_generation(monkeypatch, candidates,
+                                  {"χακί": 195, "χάκι": 35}, set())
+    assert "χακί" in got
+    assert "χάκι" not in got
+
+
+def test_generated_modern_rating_survives_uncounted_ancient_entry():
+    generated = {"ψαρᾶς": 851, "ψᾶρας": 851}
+    frequencies = {"ψαράς": 851, "ψάρας": 851, "πολύ": 263_000_000}
+    assert mg.shared_lines({}, generated, frequencies, set()) == {}
+    assert mg.shared_lines({}, generated, frequencies, set(),
+                           uncounted={"ψαρᾶς"}) == {"ψαρᾶς": "R"}
+    assert mg.shared_lines({}, generated, frequencies, set(),
+                           uncounted={"ψαρᾶς"}, avoided={"ψαρᾶς"}) == {}
+    assert mg.shared_lines({}, {}, frequencies, set(),
+                           uncounted={"ψαρᾶς"}) == {}

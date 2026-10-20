@@ -1728,7 +1728,8 @@ def select_list(
                               slice_spellings=spellings,
                               written=selection.entries,
                               realizations=realizations, twins=twins,
-                              alternatives=alternatives)
+                              alternatives=alternatives,
+                              uncounted=getattr(grc_words, "uncounted_lowercase", frozenset()))
         report["shared_lines"] = len(shared)
         buckets = list_buckets(selection.entries, generated, frequencies,
                                report, names=names,
@@ -2317,7 +2318,9 @@ def _stops(g, rival: Rival) -> bool:
     a spelling of its cell, the list's or one generated before it or a grc
     spelling at least as common, and to a far commoner spelling of no
     cell. An identified Modern stress variant far commoner than the list's
-    spelling retains its own count. Another cell's spelling never stops it.
+    spelling retains its own count. Another cell normally does not stop it;
+    a newly admitted low-frequency inference still yields to a far commoner
+    Modern reading that meets the ordinary generation floor.
     """
     if rival.counted_form:
         import mg_polytonic_paradigms as paradigms
@@ -2348,6 +2351,14 @@ def _stops(g, rival: Rival) -> bool:
             return False
         return rival.source != "grc" or 0 < rival.tokens and \
             g.weight <= rival.tokens
+    if far_commoner and g.kind == "indicative" and rival.source != "grc":
+        import mg_polytonic_paradigms as paradigms
+        if 0 < g.tokens < paradigms.GENERATED_MIN_TOKENS <= rival.tokens:
+            # The lower floor must not make a rare homograph (χάκι)
+            # displace an established Modern reading (χακί). Ordinary
+            # forms, traditional subjunctives and Ancient rivals retain
+            # their existing rules.
+            return True
     return not rival.cells and far_commoner
 
 
@@ -2787,7 +2798,8 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
                  written: Iterable[str] = (),
                  realizations: dict[str, frozenset] | None = None,
                  twins: dict[str, int] | None = None,
-                 alternatives: set[str] = frozenset()) -> dict[str, str]:
+                 alternatives: set[str] = frozenset(),
+                 uncounted: Iterable[str] = ()) -> dict[str, str]:
     """The Modern Greek rating of the frequent spellings grc has, written
     ``form<TAB>fr:B mg:shared``: the list leaves out what grc accepts, so
     the commonest Modern Greek words that keep their Ancient spelling (θέση,
@@ -2807,7 +2819,9 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
     so the Modern list does not rate only their subscript spelling.
     An Ancient final contraction replaced by the Modern nominal's acute
     receives only its own slice count, not the other realization's count.
-    Other attested accents are not overruled by an inferred paradigm."""
+    Other attested accents are not overruled by an inferred paradigm.
+    Generated Modern readings of uncounted Ancient entries retain R too:
+    an Ancient X rating supplies no Modern frequency (ψαρᾶς)."""
     import mg_polytonic_paradigms as paradigms
 
     total = sum(frequencies.values())
@@ -2868,8 +2882,8 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
         bucket = "R" if name == spelling[:1].islower() \
             else monotonic_bucket(n, total)
         out[spelling] = max(out.get(spelling, "R"), bucket, key="RMC".index)
-    return {s: b for s, b in sorted(out.items())
-            if b != "R" or s in (twins or {})}
+    rare = set(twins or {}) | (set(uncounted) & generated.keys())
+    return {s: b for s, b in sorted(out.items()) if b != "R" or s in rare}
 
 
 def list_buckets(entries: dict[str, int], generated: dict[str, int],

@@ -3369,7 +3369,9 @@ defines its headword. Nouns also require an owned nominative singular, excluding
 ambiguous `-ής` and `-ιάς` heads. Adjectives and names require their own
 nominative singular and an antepenultimate accent in the admitted form.
 A new low-frequency spelling also gives way to a dominant edited spelling
-with the same monotonic stress, while a distinct stress remains eligible.
+with the same monotonic stress. A distinct stress remains eligible unless
+an established Modern reading meets the ordinary floor and has at least
+twice its count; admitting rare `χάκι` must not displace the color `χακί`.
 A part-of-speech label alone does not establish a cell,
 and rare, obsolete, dialectal, misspelled, or unparsed source rows retain
 the ordinary floor. The actual token count and generated provenance remain
@@ -3378,6 +3380,9 @@ frequency. Existing orthography, homograph, and review checks still apply.
 New rare nouns do not erase a frequent verb's traditional subjunctive
 spelling. Nominal final vowels do not inherit a sibling dative's iota
 subscript, which belongs to that ending rather than the stem.
+An explicitly generated Modern reading also retains its R rating when
+the Ancient entry is uncounted (X), as for `ψαρᾶς`. This supplies its
+Modern count without turning a shared spelling into a register signal.
 An independently defined uncontracted verb in `-νω` with separate first-
 and third-person singular past cells may also supply a missing present
 plural in `-νουν` when that exact plural has the common token rate.
