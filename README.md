@@ -3389,6 +3389,16 @@ plural in `-νουν` when that exact plural has the common token rate.
 This is an inferred inflection with generated provenance, not a claimed
 source row. It fills incomplete paradigms such as `συμβαίνω` / `συμβαίνουν`.
 
+`data/hunspell_mg_reviewed_loanwords.json` is maintained lexical input for
+indeclinable loans missing from the source headword tables. Each form needs
+two recorded sources, a review date, and at least 50 tokens in the existing
+merged Modern frequency input. For example, the separately written
+`σούπερ μάρκετ` documents `μάρκετ`. The exporter adds only the reviewed word,
+never guessed components or inflections, and honors existing entries and
+spelling rejections. These entries carry `mg:generated mg:reviewed`; they
+are counted separately and never reported as polytonic corpus attestations.
+The source file's hash is recorded in the export version.
+
 `eval/eval_mg_paradigms.py` measures reconstruction of held-out source
 spellings. It holds out, in turn,
 every form the slice attests at least 3 times with one spelling taking more

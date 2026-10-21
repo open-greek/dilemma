@@ -166,6 +166,7 @@ LOOKUP_DB = ROOT / "data" / "lookup.db"
 # data/hunspell_grc_spelling_review.json, which is read too.
 MG_SPELLING_REVIEW = ROOT / "data" / "hunspell_mg_spelling_review.json"
 MODERN_LEXICAL_HEADS = ROOT / "data" / "grc_lexical_heads.json"
+REVIEWED_LOANWORDS = ROOT / "data" / "hunspell_mg_reviewed_loanwords.json"
 DIC_NAME = "grc_mg_polytonic"
 
 KORONIS = "\u1FBD"
@@ -1659,6 +1660,9 @@ class ModernGreekList(NamedTuple):
     # The Modern Greek rating of spellings grc has (``shared_lines``),
     # written with mg:shared.
     shared: dict[str, str] | None = None
+    # A sourced subset of generated spellings, never counted as tokens
+    # attested in the polytonic training slice.
+    reviewed_loanwords: frozenset[str] = frozenset()
 
 
 def select_list(
@@ -1694,6 +1698,7 @@ def select_list(
     twins: dict[str, int] = {}
     realizations: dict[str, frozenset] = {}
     alternatives: set[str] = set()
+    reviewed_loanwords: dict[str, int] = {}
     if generate_verbs:
         generated = generated_verb_forms(
             counts, sources, grc_words, set(selection.entries),
@@ -1704,6 +1709,13 @@ def select_list(
             set(lines) | MG_LETTERS_OF_ANOTHER_WORD, reviewed_rejects, report,
             realizations=realizations, written=selection.shared)
         generated.update(new_twins)
+        frequencies = _monotonic_frequencies()
+        if frequencies is not None:
+            reviewed_loanwords = reviewed_loanword_forms(
+                frequencies, grc_words, set(selection.entries) | set(generated),
+                reviewed_rejects)
+            generated.update(reviewed_loanwords)
+            report["reviewed_loanwords"] = len(reviewed_loanwords)
         report["generated"] = len(generated)
     buckets = None
     shared = None
@@ -1759,7 +1771,48 @@ def select_list(
     return ModernGreekList(selection.entries, lines, dict(report),
                            selection.rejected, frozenset(ancient),
                            frozenset(generated), buckets,
-                           ancient_corpora is not None, shared)
+                           ancient_corpora is not None, shared,
+                           frozenset(reviewed_loanwords))
+
+
+def reviewed_loanword_forms(frequencies: dict[str, int], grc_words: set[str],
+                           existing: set[str], rejected: frozenset[str],
+                           path: Path | None = None) -> dict[str, int]:
+    """Sourced indeclinables absent from the headword tables.
+
+    Require two recorded lexical/use sources and independent frequency
+    evidence. Do not infer other words from the compound or manufacture
+    inflections. They remain generated rather than corpus-attested entries.
+    """
+    import mg_polytonic_paradigms as paradigms
+
+    path = REVIEWED_LOANWORDS if path is None else path
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text())
+    if payload.get("schema_version") != 1 or not isinstance(payload.get("entries"), list):
+        raise ValueError(f"invalid reviewed loanwords: {path}")
+    result = {}
+    seen = set()
+    for entry in payload["entries"]:
+        form = entry.get("form", "")
+        evidence = entry.get("evidence", [])
+        urls = {e.get("url") for e in evidence if isinstance(e, dict)
+                and isinstance(e.get("url"), str) and e["url"].startswith("https://")
+                and form in e.get("reading", "")}
+        if (not form or form != unicodedata.normalize("NFC", form)
+                or form in seen or entry.get("language") != "el"
+                or entry.get("part_of_speech") != "noun"
+                or entry.get("inflection") != "indeclinable"
+                or not entry.get("reviewed_on") or len(urls) < 2
+                or mg_orthography_reason(form, set()) is not None):
+            raise ValueError(f"invalid reviewed loanword {form!r}: {path}")
+        seen.add(form)
+        count = frequencies.get(paradigms.monotonic_key(form), 0)
+        if count >= 50 and form not in existing and form not in rejected \
+                and not grc_accepts(form, grc_words):
+            result[form] = count
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -3207,6 +3260,7 @@ def write_list(
     buckets: dict[str, str] | None = None,
     bucket_source: str | None = None,
     shared: dict[str, str] | None = None,
+    reviewed_loanwords: Iterable[str] = (),
 ) -> dict:
     """Write ``<DIC_NAME>.dic``, ``.aff`` and ``.version`` to ``out_dir``.
 
@@ -3240,10 +3294,12 @@ def write_list(
                    "R" if form in ancient else freq_bucket(n))
                for form, n in entries.items()}
     generated = sorted(set(generated) - set(entries))
+    reviewed_loanwords = set(reviewed_loanwords) & set(generated)
     generated_buckets = {form: given.get(form, "R") for form in generated}
     lines = sorted(
         [f"{form}\tfr:{bucket}" for form, bucket in buckets.items()]
         + [f"{form}\tfr:{bucket} mg:generated"
+           + (" mg:reviewed" if form in reviewed_loanwords else "")
            for form, bucket in generated_buckets.items()]
         + [f"{form}\tmg:avoid" for form in avoid]
         + [f"{form}\tfr:{bucket} mg:shared"
@@ -3272,6 +3328,8 @@ def write_list(
         f"entries: {len(entries) + len(generated)}\n"
         f"attested: {len(entries)}\n"
         f"generated: {len(generated)}\n"
+        + (f"reviewed_loanwords: {len(reviewed_loanwords)}\n" if reviewed_loanwords else "")
+        +
         f"mg_avoid: {len(avoid)}\n"
         f"mg_shared: {len(shared or {})}\n"
         f"aff_rules: 0\n"
@@ -3293,7 +3351,8 @@ def write_list(
             "attested": len(entries), "generated": len(generated),
             "mg_avoid": len(avoid), "mg_shared": len(shared or {}),
             "dic_path": str(dic_path), "buckets": dict(counted_attested),
-            "generated_buckets": dict(counted_generated)}
+            "generated_buckets": dict(counted_generated),
+            "reviewed_loanwords": len(reviewed_loanwords)}
 
 
 def write_selection(selection: ModernGreekList, out_dir: Path, *,
@@ -3307,7 +3366,8 @@ def write_selection(selection: ModernGreekList, out_dir: Path, *,
         ancient=selection.ancient, generated=selection.generated,
         inputs=inputs, buckets=selection.buckets,
         bucket_source=bucket_source(selection.ancient_checked)
-        if selection.buckets else None, shared=selection.shared)
+        if selection.buckets else None, shared=selection.shared,
+        reviewed_loanwords=selection.reviewed_loanwords)
 
 
 def sha256_file(path: Path) -> str:
@@ -3336,6 +3396,7 @@ def input_digests(generate_verbs: bool = True) -> dict[str, str | None]:
         files.append(("form_frequencies", paradigms.MG_FORM_FREQ))
     if generate_verbs:
         files.append(("modern_lexical_heads", MODERN_LEXICAL_HEADS))
+        files.append(("reviewed_loanwords", REVIEWED_LOANWORDS))
     return {name: sha256_file(path) if path.exists() else None
             for name, path in files}
 

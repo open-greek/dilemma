@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "description": "Maintained lexical input for independently documented indeclinable loanwords missing from the source headword tables. This is not generated dictionary output. Entries still require at least 50 tokens in the merged Modern frequency input.",
+  "entries": [
+    {
+      "form": "μάρκετ",
+      "language": "el",
+      "part_of_speech": "noun",
+      "inflection": "indeclinable",
+      "reviewed_on": "2026-10-20",
+      "evidence": [
+        {
+          "url": "https://el.wiktionary.org/w/index.php?title=σουπερμάρκετ&oldid=7264626",
+          "reading": "σούπερ μάρκετ",
+          "note": "Explicit alternative spelling of the indeclinable neuter noun."
+        },
+        {
+          "url": "https://www.greek-language.gr/certification/files/document/teach_content/99/shopping_g1.pdf",
+          "reading": "σούπερ μάρκετ",
+          "note": "Centre for the Greek Language teaching material, page 2."
+        }
+      ]
+    }
+  ]
+}
