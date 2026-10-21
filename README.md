@@ -3399,6 +3399,12 @@ spelling rejections. These entries carry `mg:generated mg:reviewed`; they
 are counted separately and never reported as polytonic corpus attestations.
 The source file's hash is recorded in the export version.
 
+A generated word's frequency ceiling follows its lexical ownership. When
+the source paradigms positively assign two spellings to separate Modern
+headwords, one word no longer inherits the other's ceiling solely because
+their bare letters match (`στυλό` and `στύλο`). Forms of the same lemma and
+forms without independent ownership evidence retain the existing cap.
+
 `eval/eval_mg_paradigms.py` measures reconstruction of held-out source
 spellings. It holds out, in turn,
 every form the slice attests at least 3 times with one spelling taking more

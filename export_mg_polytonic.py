@@ -1748,7 +1748,9 @@ def select_list(
                                shared={s: b for s, b in shared.items()
                                        if b != "R"},
                                slice_spellings=spellings,
-                               alternatives=alternatives)
+                               alternatives=alternatives,
+                               realizations=realizations,
+                               lexical_heads=load_modern_lexical_heads() if generate_verbs else frozenset())
     ancient: set[str] = set()
     if ancient_corpora is not None:
         if buckets is None:
@@ -2944,7 +2946,9 @@ def list_buckets(entries: dict[str, int], generated: dict[str, int],
                  names: set[str] = frozenset(),
                  shared: dict[str, str] | None = None,
                  slice_spellings: dict[str, int] | None = None,
-                 alternatives: set[str] = frozenset()
+                 alternatives: set[str] = frozenset(),
+                 realizations: dict[str, frozenset] | None = None,
+                 lexical_heads: frozenset[str] = frozenset()
                  ) -> dict[str, str]:
     """The fr: bucket of every entry and generated form
     (``MONOTONIC_BUCKETS``), before the Ancient-word cap. The monotonic
@@ -2989,14 +2993,22 @@ def list_buckets(entries: dict[str, int], generated: dict[str, int],
     # attested μιλᾶ (M). A spelling with the second accent of an enclitic
     # after it (ὁδήγησέ) is the same word as the plain one, and sets no
     # ceiling.
-    ceiling: dict[str, str] = {}
+    ceiling: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    owners: dict[str, set[str]] = defaultdict(set)
+    for spelling, cells in (realizations or {}).items():
+        owners[monotonic_spelling(spelling)].update(lemma for lemma, _ in cells)
+
+    def independent_words(left: str, right: str) -> bool:
+        first = owners.get(monotonic_spelling(left), set())
+        second = owners.get(monotonic_spelling(right), set())
+        return bool(first and second and first.isdisjoint(second)
+                    and first | second <= lexical_heads)
+
     for spelling, bucket in [*buckets.items(), *(shared or {}).items()]:
         if (spelling[:1].islower() and not final_subscript(spelling)
                 and _tonal_marks(spelling) < 2):
             letters = paradigms.bare(spelling)
-            if letters not in ceiling or \
-                    order.index(bucket) < order.index(ceiling[letters]):
-                ceiling[letters] = bucket
+            ceiling[letters].append((spelling, bucket))
     for spelling, n in generated.items():
         if not spelling[:1].islower():
             # A name's lowercased count is shared with the words of its
@@ -3011,7 +3023,12 @@ def list_buckets(entries: dict[str, int], generated: dict[str, int],
             bucket = monotonic_bucket(
                 subscript_count(spelling, frequencies, slice_spellings)
                 if subjunctive_subscript(spelling) else n, total)
-            cap = ceiling.get(paradigms.bare(spelling))
+            rivals = ceiling.get(paradigms.bare(spelling), [])
+            relevant = [rating for other, rating in rivals
+                        if not independent_words(spelling, other)]
+            cap = min(relevant, key=order.index) if relevant else None
+            if rivals and not relevant:
+                report["generated_bucket_independent_word"] += 1
             if cap and order.index(cap) < order.index(bucket):
                 report["generated_bucket_capped"] += 1
                 bucket = cap
