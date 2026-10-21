@@ -1243,6 +1243,9 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
     heads = tmp_path / "grc_lexical_heads.json"
     heads.write_bytes(b"heads")
     monkeypatch.setattr(mg, "MODERN_LEXICAL_HEADS", heads)
+    loanwords = tmp_path / "reviewed_loanwords.json"
+    loanwords.write_bytes(b"loanwords")
+    monkeypatch.setattr(mg, "REVIEWED_LOANWORDS", loanwords)
     import hashlib
     import mg_polytonic_paradigms as paradigms
     freq = tmp_path / "mg_freq.txt"
@@ -1257,7 +1260,8 @@ def test_the_version_records_every_input(tmp_path, monkeypatch):
         "form_profile": None, "verb_paradigms": None,
         "participle_paradigms": hashlib.sha256(b"participles").hexdigest(),
         "form_frequencies": hashlib.sha256(b"freq").hexdigest(),
-        "modern_lexical_heads": hashlib.sha256(b"heads").hexdigest()}
+        "modern_lexical_heads": hashlib.sha256(b"heads").hexdigest(),
+        "reviewed_loanwords": hashlib.sha256(b"loanwords").hexdigest()}
     assert mg.input_digests(generate_verbs=False) == {
         "lookup_db": hashlib.sha256(b"lookup").hexdigest(),
         "form_profile": None}
