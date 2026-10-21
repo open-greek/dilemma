@@ -612,7 +612,10 @@ def polytonic(mono: str, tags: frozenset, vclass: str,
     out = [Letter(l.base, l.marks - {ACUTE}) for l in word]
     out[carrier] = Letter(out[carrier].base, out[carrier].marks | {accent})
     if out[carrier].base in "αηω" and (
-            _stem_subscript(word, carrier, siblings)
+            # A nominal's final subscript belongs to a dative ending,
+            # not to its stem (βυζαντινῇ does not imply βυζαντινῄ).
+            (verb or carrier < len(word) - 1)
+            and _stem_subscript(word, carrier, siblings)
             or (verb and accent == CIRCUMFLEX and position == 0
                 and out[carrier].base == "α"
                 and cell(tags) in ("present", "other")
@@ -1361,12 +1364,16 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
              frequencies: dict[str, int],
              evidence: Evidence,
              min_tokens: int = GENERATED_MIN_TOKENS,
+             *, rare_forms: frozenset[tuple[str, str]] = frozenset(),
+             rare_min_tokens: int = 10,
              ) -> list[Generated]:
     """Polytonic spellings for every form monotonic text has at least
     ``min_tokens`` times, of every part of speech in ``paradigms``, and the
     subjunctive spellings of a verb's second and third person singular,
     whether or not the texts attest them; the caller drops what the
-    dictionaries already have.
+    dictionaries already have. A caller may explicitly admit independently
+    sourced cells through ``rare_forms`` at the lower ``rare_min_tokens``
+    floor. Their actual token counts remain unchanged.
 
     A form several lemmas share (επόμενες, of επόμενος and έπομαι; πουλάμε,
     of πουλάω and πωλώ) gets one spelling: it reads the attested spellings
@@ -1384,7 +1391,9 @@ def generate(paradigms: dict[str, dict[str, frozenset]],
     lemmas_of: dict[str, list[str]] = defaultdict(list)
     for lemma, forms in paradigms.items():
         for form in forms:
-            if form_tokens(form, frequencies) >= min_tokens:
+            tokens = form_tokens(form, frequencies)
+            if (tokens >= min_tokens or (lemma, form) in rare_forms
+                    and tokens >= rare_min_tokens):
                 lemmas_of[form].append(lemma)
     if not lemmas_of:
         return []

@@ -1728,7 +1728,8 @@ def select_list(
                               slice_spellings=spellings,
                               written=selection.entries,
                               realizations=realizations, twins=twins,
-                              alternatives=alternatives)
+                              alternatives=alternatives,
+                              uncounted=getattr(grc_words, "uncounted_lowercase", frozenset()))
         report["shared_lines"] = len(shared)
         buckets = list_buckets(selection.entries, generated, frequencies,
                                report, names=names,
@@ -1923,6 +1924,109 @@ def _positive_inflected_capital(g, lexical_heads) -> bool:
             and head in lexical_heads)
 
 
+def _sourced_rare_cells(paradigms, lexical_heads) -> frozenset[tuple[str, str]]:
+    """Explicit inflections of independently defined Modern heads.
+
+    A source row with only a part of speech is insufficient. Require its
+    case and number, finite person, or explicit verb infinitive analysis;
+    do not infer a cell from the spelling or an Ancient dictionary entry.
+    """
+    import mg_polytonic_paradigms as p
+
+    out = set()
+    numbers = frozenset(p.NUMBERS)
+    for lemma, forms in paradigms.items():
+        if not (lemma in lexical_heads or lemma[:1].upper() + lemma[1:] in lexical_heads):
+            continue
+        owned_noun = p._owned_noun(lemma, paradigms)
+        owned_other = {p.pos_of(tags) for head in forms
+                       if head.lower() == lemma.lower()
+                       for tags in p.form_tag_rows(paradigms, lemma, head)
+                       if {"nominative", "singular"} <= tags}
+        for form in forms:
+            for tags in p.form_tag_rows(paradigms, lemma, form):
+                if tags & {"rare", "archaic", "obsolete", "dated", "dialectal",
+                           "nonstandard", "misspelling", "error-unrecognized-form"}:
+                    continue
+                pos = p.pos_of(tags)
+                nominal = (pos in NOMINAL_CELL_POS and tags & p.CASE_TAGS
+                           and tags & numbers)
+                letters = p.letters(form.lower())
+                groups = p.nuclei(letters)
+                stress = next((len(groups) - 1 - i for i, group in enumerate(groups)
+                               if any(p.ACUTE in letters[j].marks for j in group)), None)
+                # The lower floor is deliberately narrower than ordinary
+                # generation. Inflected noun headers and final-accented
+                # names/adjectives are too easily another cell's reading.
+                nominal = nominal and (
+                    pos == "noun" and owned_noun and not lemma.endswith(("ής", "ιάς"))
+                    or pos in {"adj", "name"} and pos in owned_other
+                    and stress is not None and stress >= 2)
+                key = p.bare(form)
+                verb = (pos == "verb" and (
+                    "infinitive" in tags and key.endswith("ει")
+                    or p.FINITE in tags and tags & p.PERSON_TAGS and tags & numbers
+                    and key.endswith(("ουν", "ουμε", "αν", "αμε", "ουσαν"))))
+                if nominal or verb:
+                    out.add((lemma, form))
+                    break
+    return frozenset(out)
+
+
+def _rare_spelling_conflicts(g, frequencies, attested) -> bool:
+    """A new low-frequency inference cannot contradict an edited spelling.
+
+    Compare the same monotonic spelling, including stress position. This
+    does not suppress a distinct Modern stress merely because Ancient
+    Greek stresses those letters elsewhere.
+    """
+    import mg_polytonic_paradigms as p
+
+    if p.form_tokens(g.mono, frequencies) >= p.GENERATED_MIN_TOKENS:
+        return False
+    spellings = Counter()
+    for spelling, tokens in attested.get(p.monotonic_key(g.spelling), {}).items():
+        spellings[contextual_acute(spelling)] += tokens
+    if not spellings:
+        return False
+    dominant, tokens = spellings.most_common(1)[0]
+    return (tokens >= p.SIBLING_MIN_TOKENS and tokens * 2 > sum(spellings.values())
+            and dominant != contextual_acute(g.spelling))
+
+
+def _common_plural_completions(paradigms, frequencies, lexical_heads, evidence):
+    """Fill a missing common -νουν present of an independently defined -νω verb.
+
+    Require separate first- and third-person singular past cells and the
+    actual plural's common token rate. This inflection is inferred, not
+    represented as an attested source row. Contracted verbs are excluded.
+    """
+    import mg_polytonic_paradigms as p
+
+    existing = {form for forms in paradigms.values() for form in forms}
+    total = sum(frequencies.values())
+    out = []
+    tags = frozenset({"pos:verb", "finite", "present", "active", "third-person", "plural"})
+    for lemma, forms in paradigms.items():
+        if (lemma not in lexical_heads or not lemma.endswith("νω")
+                or p.verb_class(lemma, forms) != "A"):
+            continue
+        persons = {person for form in forms
+                   for row in p.form_tag_rows(paradigms, lemma, form)
+                   if {"pos:verb", "finite", "past", "singular"} <= row
+                   for person in row & p.PERSON_TAGS}
+        if not {"first-person", "third-person"} <= persons:
+            continue
+        form = lemma[:-1] + "ουν"
+        tokens = p.form_tokens(form, frequencies)
+        if form in existing or monotonic_bucket(tokens, total) != "C":
+            continue
+        spelling = p.polytonic(form, tags, "A", evidence.lemma_spellings(forms), evidence, lemma)
+        if spelling:
+            out.append(p.Generated(spelling, form, lemma, tokens, "indicative", "A", "present", tokens))
+    return out
+
+
 def generated_verb_forms(
     counts: CorpusCounts,
     sources: set[int],
@@ -1970,8 +2074,16 @@ def generated_verb_forms(
     verb_paradigms, frequencies = inputs
     attested = attested_lowercase(counts, sources)
     evidence = paradigms.Evidence(attested, grc_words, verb_paradigms)
-    candidates = paradigms.generate(verb_paradigms, frequencies, evidence)
     lexical_heads = load_modern_lexical_heads()
+    candidates = paradigms.generate(verb_paradigms, frequencies, evidence,
+        rare_forms=_sourced_rare_cells(verb_paradigms, lexical_heads))
+    completions = _common_plural_completions(verb_paradigms, frequencies, lexical_heads, evidence)
+    report["generated_common_plural"] += len(completions)
+    candidates.extend(completions)
+    candidates.sort(key=lambda g: (-g.weight, -g.tokens, g.mono, g.kind))
+    admitted = [g for g in candidates if not _rare_spelling_conflicts(g, frequencies, attested)]
+    report["generated_rare_conflict"] += len(candidates) - len(admitted)
+    candidates = admitted
     realized = _realization_cells(candidates)
     counted_cells: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for g in candidates:
@@ -2206,7 +2318,9 @@ def _stops(g, rival: Rival) -> bool:
     a spelling of its cell, the list's or one generated before it or a grc
     spelling at least as common, and to a far commoner spelling of no
     cell. An identified Modern stress variant far commoner than the list's
-    spelling retains its own count. Another cell's spelling never stops it.
+    spelling retains its own count. Another cell normally does not stop it;
+    a newly admitted low-frequency inference still yields to a far commoner
+    Modern reading that meets the ordinary generation floor.
     """
     if rival.counted_form:
         import mg_polytonic_paradigms as paradigms
@@ -2217,6 +2331,14 @@ def _stops(g, rival: Rival) -> bool:
     # A rival monotonic text never writes says nothing of the form's use.
     far_commoner = 0 < rival.tokens and RIVAL_RATIO * g.weight <= rival.tokens
     if g.kind == "subjunctive" and far_commoner:
+        import mg_polytonic_paradigms as paradigms
+        if (rival.source == "generated" and rival.cells
+                and not _same_cell(g.lemma, g.cell, rival.cells)
+                and rival.tokens < paradigms.GENERATED_MIN_TOKENS <= g.tokens):
+            # A newly admitted rare noun (βάφτισης) does not remove a
+            # frequent verb's traditional spelling (βαφτίσῃς). Both
+            # positively sourced cells remain available as alternatives.
+            return False
         return True
     if _same_cell(g.lemma, g.cell, rival.cells):
         if (rival.source == "list" and g.kind == "indicative"
@@ -2229,6 +2351,14 @@ def _stops(g, rival: Rival) -> bool:
             return False
         return rival.source != "grc" or 0 < rival.tokens and \
             g.weight <= rival.tokens
+    if far_commoner and g.kind == "indicative" and rival.source != "grc":
+        import mg_polytonic_paradigms as paradigms
+        if 0 < g.tokens < paradigms.GENERATED_MIN_TOKENS <= rival.tokens:
+            # The lower floor must not make a rare homograph (χάκι)
+            # displace an established Modern reading (χακί). Ordinary
+            # forms, traditional subjunctives and Ancient rivals retain
+            # their existing rules.
+            return True
     return not rival.cells and far_commoner
 
 
@@ -2668,7 +2798,8 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
                  written: Iterable[str] = (),
                  realizations: dict[str, frozenset] | None = None,
                  twins: dict[str, int] | None = None,
-                 alternatives: set[str] = frozenset()) -> dict[str, str]:
+                 alternatives: set[str] = frozenset(),
+                 uncounted: Iterable[str] = ()) -> dict[str, str]:
     """The Modern Greek rating of the frequent spellings grc has, written
     ``form<TAB>fr:B mg:shared``: the list leaves out what grc accepts, so
     the commonest Modern Greek words that keep their Ancient spelling (θέση,
@@ -2688,7 +2819,9 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
     so the Modern list does not rate only their subscript spelling.
     An Ancient final contraction replaced by the Modern nominal's acute
     receives only its own slice count, not the other realization's count.
-    Other attested accents are not overruled by an inferred paradigm."""
+    Other attested accents are not overruled by an inferred paradigm.
+    Generated Modern readings of uncounted Ancient entries retain R too:
+    an Ancient X rating supplies no Modern frequency (ψαρᾶς)."""
     import mg_polytonic_paradigms as paradigms
 
     total = sum(frequencies.values())
@@ -2749,8 +2882,8 @@ def shared_lines(attested: dict[str, int], generated: dict[str, int],
         bucket = "R" if name == spelling[:1].islower() \
             else monotonic_bucket(n, total)
         out[spelling] = max(out.get(spelling, "R"), bucket, key="RMC".index)
-    return {s: b for s, b in sorted(out.items())
-            if b != "R" or s in (twins or {})}
+    rare = set(twins or {}) | (set(uncounted) & generated.keys())
+    return {s: b for s, b in sorted(out.items()) if b != "R" or s in rare}
 
 
 def list_buckets(entries: dict[str, int], generated: dict[str, int],

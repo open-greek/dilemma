@@ -340,6 +340,96 @@ def test_generation_covers_frequent_forms_with_both_subjunctives():
     assert not any(g.mono == "έρθουν" for g in out)
 
 
+def test_lower_frequency_generation_requires_explicit_admission():
+    noun = lambda *tags: frozenset({"pos:noun", *tags})
+    par = {"κουτάλι": {"κουτάλι": noun("nominative", "singular"),
+                      "κουταλιού": noun("genitive", "singular")}}
+    frequencies = {"κουτάλι": 1000, "κουταλιού": 42}
+    evidence = P.Evidence({}, GRC, par)
+    ordinary = P.generate(par, frequencies, evidence)
+    assert not any(g.mono == "κουταλιού" for g in ordinary)
+    admitted = mg._sourced_rare_cells(par, {"κουτάλι"})
+    extended = P.generate(par, frequencies, evidence, rare_forms=admitted)
+    own = [g for g in extended if g.mono == "κουταλιού"]
+    assert [(g.spelling, g.tokens, g.weight) for g in own] == [("κουταλιοῦ", 42, 42)]
+    assert not any(g.mono == "κουταλιού" for g in P.generate(
+        par, {"κουταλιού": 9}, evidence, rare_forms=admitted))
+
+
+def test_nominal_final_vowel_does_not_inherit_a_dative_subscript():
+    tags = frozenset({"pos:adj", "feminine", "nominative", "singular"})
+    siblings = [("βυζαντινῇ", 10, frozenset({"pos:adj", "dative", "singular"}))]
+    assert P.polytonic("βυζαντινή", tags, "adj", siblings, EVIDENCE,
+                      "βυζαντινός") == "βυζαντινή"
+
+
+def test_new_rare_spellings_respect_edited_marks_but_not_another_stress():
+    candidate = P.Generated("βούρλα", "βούρλα", "βούρλα", 36,
+                            "indicative", "noun", "noun nominative plural", 36)
+    assert mg._rare_spelling_conflicts(candidate, {"βούρλα": 36},
+                                      {"βούρλα": Counter({"βοῦρλα": 6})})
+    assert not mg._rare_spelling_conflicts(candidate, {"βούρλα": 36},
+                                          {"βούρλα": Counter({"βοῦρλα": 1})})
+    assert not mg._rare_spelling_conflicts(candidate, {"βούρλα": 500},
+                                          {"βούρλα": Counter({"βοῦρλα": 6})})
+    modern = P.Generated("ἤπιους", "ήπιους", "ήπιος", 21,
+                         "indicative", "adj", "adj accusative plural", 21)
+    assert not mg._rare_spelling_conflicts(modern, {"ήπιους": 21},
+                                          {"ηπίους": Counter({"ἠπίους": 6})})
+
+
+def test_common_present_plural_can_fill_an_incomplete_modern_verb(monkeypatch):
+    verb = lambda person: frozenset({"pos:verb", "finite", "past", "singular", person})
+    par = {"συμβαίνω": {"συνέβην": verb("first-person"), "συνέβη": verb("third-person")}}
+    frequencies = {"συμβαίνουν": 9893, "πολύ": 262_000_000}
+    evidence = P.Evidence({}, GRC, par)
+    assert not mg._common_plural_completions(par, frequencies, set(), evidence)
+    completed = mg._common_plural_completions(par, frequencies, {"συμβαίνω"}, evidence)
+    assert [(g.spelling, g.tokens, g.cell) for g in completed] == [("συμβαίνουν", 9893, "present")]
+    assert not mg._common_plural_completions(par, {**frequencies, "συμβαίνουν": 100}, {"συμβαίνω"}, evidence)
+    assert not mg._common_plural_completions(
+        {"συμβαίνω": {"συνέβη": verb("third-person")}}, frequencies, {"συμβαίνω"}, evidence)
+    assert not mg._common_plural_completions(
+        {"συμβαίνω": {**par["συμβαίνω"], "συμβαίνουν": frozenset({"pos:verb"})}},
+        frequencies, {"συμβαίνω"}, evidence)
+    monkeypatch.setattr(mg, "_verb_inputs", lambda: (par, frequencies))
+    monkeypatch.setattr(mg, "_VERB_INPUTS", {})
+    monkeypatch.setattr(mg, "load_modern_lexical_heads", lambda: {"συμβαίνω"})
+    kept = mg.generated_verb_forms(_counts([]), {0, 1, 2}, set(GRC), set(), frozenset(), Counter())
+    assert kept["συμβαίνουν"] == 9893
+
+
+@pytest.mark.parametrize("source, count, stopped", [
+    ("generated", 14, False), ("generated", 100, True), ("grc", 14, True)])
+def test_rare_new_noun_does_not_remove_a_frequent_verbs_subjunctive(source, count, stopped):
+    candidate = P.Generated("βαφτίσῃς", "βαφτίσεις", "βαφτίζω", 500,
+                            "subjunctive", "A", "dependent", 0)
+    rival = mg.Rival(frozenset({("βάφτιση", "noun genitive singular")}), count, source)
+    assert mg._stops(candidate, rival) == stopped
+
+
+def test_rare_cells_need_a_positive_head_and_complete_source_tags():
+    par = {
+        "θηλάζω": {"θηλάζουν": frozenset({"pos:verb", "present", "finite",
+                                          "third-person", "plural"}),
+                    "θηλάζει": frozenset({"pos:verb"}),
+                    "θηλάζαν": frozenset({"pos:verb", "finite", "dialectal"})},
+        "ξενιτιά": {"ξενιτιά": frozenset({"pos:noun", "nominative", "singular"}),
+                    "ξενιτιάς": frozenset({"pos:noun", "genitive"})},
+        "λάρισα": {"Λάρισα": frozenset({"pos:name", "nominative", "singular"}),
+                    "Λάρισας": frozenset({"pos:name", "genitive", "singular"})},
+        "κυμαίνομαι": {"κυμανθεί": frozenset({"pos:verb", "infinitive"})},
+        "αναδεικνύω": {"αναδειχθείς": frozenset({"pos:verb", "finite", "dependent",
+                                                 "second-person", "singular"})},
+        "καφετζής": {"καφετζής": frozenset({"pos:noun", "nominative", "singular"}),
+                       "καφετζή": frozenset({"pos:noun", "genitive", "singular"})},
+    }
+    assert mg._sourced_rare_cells(par, set()) == frozenset()
+    assert mg._sourced_rare_cells(par, set(par) | {"Λάρισα"}) == {
+        ("θηλάζω", "θηλάζουν"), ("ξενιτιά", "ξενιτιά"),
+        ("λάρισα", "Λάρισα"), ("λάρισα", "Λάρισας"), ("κυμαίνομαι", "κυμανθεί")}
+
+
 def _counts(rows):
     counts = CorpusCounts()
     counts.documents = [DocumentInfo(f"d{i}", a, f"t{i}", words=1000)
@@ -2026,3 +2116,45 @@ def test_identified_nominal_stress_variant_uses_its_own_count():
                             "indicative", "noun", "noun accusative plural", 1000)
     rival = mg.Rival(frozenset({("φάκελος", "noun accusative plural")}), 10, "list")
     assert not mg._stops(candidate, rival)
+
+
+@pytest.mark.parametrize("tokens, other, source, kind, stopped", [
+    (35, 195, "generated", "indicative", True),
+    (35, 195, "list", "indicative", True),
+    (35, 195, "grc", "indicative", False),
+    (50, 195, "generated", "indicative", False),
+    (35, 49, "generated", "indicative", False),
+    (35, 60, "generated", "indicative", False),
+    (0, 195, "generated", "noun-alternative", False),
+])
+def test_lower_floor_yields_to_established_modern_reading(
+        tokens, other, source, kind, stopped):
+    candidate = P.Generated("χάκι", "χάκι", "χάκι", tokens, kind,
+                            "noun", "noun nominative singular", tokens)
+    rival = mg.Rival(frozenset({("χακί", "noun invariable")}), other, source)
+    assert mg._stops(candidate, rival) == stopped
+
+
+def test_rare_homograph_does_not_replace_established_color(monkeypatch):
+    candidates = [
+        P.Generated("χακί", "χακί", "χακί", 195, "indicative",
+                    "noun", "noun invariable", 195),
+        P.Generated("χάκι", "χάκι", "χάκι", 35, "indicative",
+                    "noun", "noun nominative singular", 35),
+    ]
+    got = _dative_rival_generation(monkeypatch, candidates,
+                                  {"χακί": 195, "χάκι": 35}, set())
+    assert "χακί" in got
+    assert "χάκι" not in got
+
+
+def test_generated_modern_rating_survives_uncounted_ancient_entry():
+    generated = {"ψαρᾶς": 851, "ψᾶρας": 851}
+    frequencies = {"ψαράς": 851, "ψάρας": 851, "πολύ": 263_000_000}
+    assert mg.shared_lines({}, generated, frequencies, set()) == {}
+    assert mg.shared_lines({}, generated, frequencies, set(),
+                           uncounted={"ψαρᾶς"}) == {"ψαρᾶς": "R"}
+    assert mg.shared_lines({}, generated, frequencies, set(),
+                           uncounted={"ψαρᾶς"}, avoided={"ψαρᾶς"}) == {}
+    assert mg.shared_lines({}, {}, frequencies, set(),
+                           uncounted={"ψαρᾶς"}) == {}

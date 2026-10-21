@@ -3362,6 +3362,33 @@ below, that broke 12 dev words on the author folds in the Automatic
 register, against 1 now, and lost the traditional subjunctive in mixed text
 (`πρὶν σταματήσῃ`, `νὰ ἀποφασίσῃ` left bare).
 
+Modern forms normally require 50 monotonic tokens for generation. An
+explicit plural verb, infinitive in `-ει`, or nominal case-and-number cell may
+enter from 10 tokens when the merged Modern lexical-head evidence independently
+defines its headword. Nouns also require an owned nominative singular, excluding
+ambiguous `-ής` and `-ιάς` heads. Adjectives and names require their own
+nominative singular and an antepenultimate accent in the admitted form.
+A new low-frequency spelling also gives way to a dominant edited spelling
+with the same monotonic stress. A distinct stress remains eligible unless
+an established Modern reading meets the ordinary floor and has at least
+twice its count; admitting rare `χάκι` must not displace the color `χακί`.
+A part-of-speech label alone does not establish a cell,
+and rare, obsolete, dialectal, misspelled, or unparsed source rows retain
+the ordinary floor. The actual token count and generated provenance remain
+unchanged; this admits forms such as `κουταλιοῦ` without promoting their
+frequency. Existing orthography, homograph, and review checks still apply.
+New rare nouns do not erase a frequent verb's traditional subjunctive
+spelling. Nominal final vowels do not inherit a sibling dative's iota
+subscript, which belongs to that ending rather than the stem.
+An explicitly generated Modern reading also retains its R rating when
+the Ancient entry is uncounted (X), as for `ψαρᾶς`. This supplies its
+Modern count without turning a shared spelling into a register signal.
+An independently defined uncontracted verb in `-νω` with separate first-
+and third-person singular past cells may also supply a missing present
+plural in `-νουν` when that exact plural has the common token rate.
+This is an inferred inflection with generated provenance, not a claimed
+source row. It fills incomplete paradigms such as `συμβαίνω` / `συμβαίνουν`.
+
 `eval/eval_mg_paradigms.py` measures reconstruction of held-out source
 spellings. It holds out, in turn,
 every form the slice attests at least 3 times with one spelling taking more
@@ -3372,7 +3399,7 @@ counted as one and a capital as its small letter. The 81 forms the generator
 declines (an unaccented word of several syllables, a clitic of one) are left
 out:
 
-| Verb class or part of speech | Spelling | Of them, forms with 50 monotonic tokens (those generated) | Subjunctive spelling |
+| Verb class or part of speech | Spelling | Of them, forms with at least 50 monotonic tokens | Subjunctive spelling |
 |------------|--------------------:|---------------------:|---------------------:|
 | verbs in `-ω` (`γράφω`) | 99.0% of 5,027 | 99.2% of 3,416 | 91.1% of 1,058 |
 | `-άω` (`μιλάω`) | 95.5% of 1,034 | 95.8% of 781 | 93.6% of 157 |
