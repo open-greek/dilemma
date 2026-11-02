@@ -156,7 +156,7 @@ def restore_attested_compound_aliases(
 
     heads = {grave_to_acute(sanitize_form(head)) for head in lexical_heads
              if corpus_lexical_evidence_is_clean(head)}
-    from build.expand_lsj import _IRREGULAR_BASE_FORMS
+    from dilemma_build.expand_lsj import _IRREGULAR_BASE_FORMS
 
     # Some independently attested old cells have already been re-owned
     # outside the withheld family (e.g. ἄνοντος -> ἄνω). Match their letter
@@ -532,7 +532,7 @@ def prepare_closed_class_elisions(kaikki, reference, reference_base, predecessor
     if kaikki is None:
         return {"schema_version": 1, "enabled": False}, {}
     import build_data
-    from build import closed_class_elisions
+    from dilemma_build import closed_class_elisions
     imported = {
         "build/closed_class_elisions.py": Path(closed_class_elisions.__file__),
         "build_data.py": Path(build_data.__file__),
@@ -556,7 +556,7 @@ def merge_closed_class_elisions(target, alias_stats, closed_class):
     if not closed_class["enabled"]:
         alias_stats["closed_class_elisions"] = closed_class
         return
-    from build.closed_class_elisions import apply_repairs
+    from dilemma_build.closed_class_elisions import apply_repairs
     applied = apply_repairs(target, closed_class["decisions"])
     for row in applied["canonicalized"] + applied["existing_preserved"]:
         row["repair_kind"] = "historical_closed_class_elision"

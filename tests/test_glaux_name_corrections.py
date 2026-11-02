@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from build import build_glaux_pairs as b
+from dilemma_build import build_glaux_pairs as b
 
 
 COMMIT = "a" * 40

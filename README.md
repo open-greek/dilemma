@@ -2009,6 +2009,12 @@ lookup.
 
 ## Development
 
+Repository build helpers use the `dilemma_build` import namespace, separate
+from PyPA's `build` package. Their source scripts and generated outputs remain
+under `build/`, so existing commands such as `python build/expand_lsj.py` keep
+working alongside `python -m build`. The development extra includes PyPA
+`build`, and CI runs the source-validation tests with it installed.
+
 ### Full installation
 
 ```bash

@@ -10,7 +10,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from build.build_grc_lexical_heads import normalize_headword
+from dilemma_build.build_grc_lexical_heads import normalize_headword
 
 SOURCES = {
     "wiktionary_en_grc": "en-el/kaikki.org-dictionary-AncientGreek.jsonl",

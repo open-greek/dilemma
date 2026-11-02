@@ -38,8 +38,8 @@ from beta_code import beta_code_to_greek
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import canonicalize_final_elision  # noqa: E402
-from build.corpus_freq_key import beta_trailing_paren_is_elision  # noqa: E402
-from build.diorisis_source import DiorisisSourceContext  # noqa: E402
+from dilemma_build.corpus_freq_key import beta_trailing_paren_is_elision  # noqa: E402
+from dilemma_build.diorisis_source import DiorisisSourceContext  # noqa: E402
 
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"

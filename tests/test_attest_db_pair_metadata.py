@@ -7,7 +7,7 @@ import sqlite3
 
 import pytest
 
-from build import build_form_attestation as builder
+from dilemma_build import build_form_attestation as builder
 from dilemma import _attest_db
 from dilemma._attest_db import AttestDB
 

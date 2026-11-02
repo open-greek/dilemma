@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "build"))
 import expand_lsj
 import expand_sophocles
-from build.build_grc_lexical_heads import sha256
+from dilemma_build.build_grc_lexical_heads import sha256
 
 
 @pytest.mark.parametrize("payload", [b"", bytes(range(256)) * 8193],

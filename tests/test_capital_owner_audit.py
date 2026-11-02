@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from build import build_treebank_pos_lookup as build
+from dilemma_build import build_treebank_pos_lookup as build
 from export_hunspell import (
     cased_form_key,
     exact_form_key,

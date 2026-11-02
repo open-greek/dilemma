@@ -1,7 +1,7 @@
 """Corpus morphology variants cannot multiply one POS-disambiguation vote."""
 import json
 
-from build import build_treebank_pos_lookup as build
+from dilemma_build import build_treebank_pos_lookup as build
 
 
 def test_distinct_morphology_does_not_outvote_an_independent_source(tmp_path, monkeypatch):

@@ -52,7 +52,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Iterator
 
-from build.diorisis_source import DiorisisSourceContext
+from dilemma_build.diorisis_source import DiorisisSourceContext
 
 # Reserved tokens. Keep in sync with train_lm.py. Import-from is avoided
 # so this module stays independent and merge-friendly against parallel

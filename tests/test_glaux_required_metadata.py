@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from build import build_glaux_pairs as pairs
+from dilemma_build import build_glaux_pairs as pairs
 
 
 COMMIT = "a" * 40

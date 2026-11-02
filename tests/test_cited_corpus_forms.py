@@ -134,7 +134,7 @@ def test_prior_schema_without_pair_metadata_is_rejected(cited_evidence, key):
 
 
 def _build_pair(directory, forms):
-    from build import build_form_attestation as builder
+    from dilemma_build import build_form_attestation as builder
     directory.mkdir()
     profiles = {}
     for i, _ in enumerate(forms):

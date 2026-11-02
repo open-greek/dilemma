@@ -1,7 +1,7 @@
 """Nominal morphology labels do not supply independent lexical definitions."""
 import pytest
 from build_data import is_independent_lexical_entry
-from build.build_grc_lexical_heads import has_definition
+from dilemma_build.build_grc_lexical_heads import has_definition
 
 @pytest.mark.parametrize("word,pos,gloss", [
     ("δεσμά", "noun", "neuter heteroclitic nominative/accusative/vocative plural of δεσμός m (desmós)"),

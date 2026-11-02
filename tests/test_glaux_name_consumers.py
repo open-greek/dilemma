@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from build import build_glaux_pairs as pairs
-from build import build_lemma_attestation as attestation
-from build import build_tagger_data as tagger
+from dilemma_build import build_glaux_pairs as pairs
+from dilemma_build import build_lemma_attestation as attestation
+from dilemma_build import build_tagger_data as tagger
 
 
 COMMIT = "a" * 40

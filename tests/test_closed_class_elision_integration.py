@@ -8,7 +8,7 @@ import sys
 import pytest
 
 import overlay_lsj as overlay
-from build.closed_class_elisions import plan_repairs
+from dilemma_build.closed_class_elisions import plan_repairs
 from scripts import build_source_alias_manifest as publication
 
 

@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from build.diorisis_source import DiorisisSourceContext, restore_source_beta
+from dilemma_build.diorisis_source import DiorisisSourceContext, restore_source_beta
 
 
 MORPHS = ("imperf ind act 3rd pl (doric aeolic)",
@@ -118,7 +118,7 @@ def test_quotation_candidates_cannot_corroborate_each_other():
 
 def test_pair_builder_preserves_analyses_and_genuine_elision(tmp_path):
     pytest.importorskip("beta_code")
-    from build.build_diorisis_pairs import extract_diorisis
+    from dilemma_build.build_diorisis_pairs import extract_diorisis
 
     root, _token = source()
     sentence = ET.SubElement(root, "sentence", {"id": "1486"})
