@@ -32,12 +32,12 @@ from beta_code import beta_code_to_greek
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from build.corpus_freq_key import (
+from dilemma_build.corpus_freq_key import (
     ELISION_MARKS,
     beta_trailing_paren_is_elision,
     corpus_freq_key,
 )
-from build.diorisis_source import DiorisisSourceContext
+from dilemma_build.diorisis_source import DiorisisSourceContext
 
 DATA_DIR = SCRIPT_DIR / "data"
 DEFAULT_DIORISIS_DIR = DATA_DIR / "diorisis" / "xml"

@@ -1,7 +1,7 @@
 """Contracted and uncontracted form labels are not lexical definitions."""
 import pytest
 from build_data import _is_verb_inflection_gloss, is_independent_finite_entry, is_independent_lexical_entry
-from build.build_grc_lexical_heads import has_definition
+from dilemma_build.build_grc_lexical_heads import has_definition
 
 @pytest.mark.parametrize("word,gloss", [
     ("καλέουσι", "uncontracted third-person plural present active indicative of καλέω (kaléō)"),

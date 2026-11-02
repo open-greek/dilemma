@@ -112,6 +112,11 @@ database (~0.3s startup) instead of parsing 600 MB of JSON (~11s),
 falling back to JSON if the DB isn't present. ONNX Runtime (~50 MB) and
 PyTorch (~2 GB) produce identical inference results -- use whichever
 you already have. The lookup handles 95%+ of words and needs neither.
+Constructing `Dilemma` does not import either native runtime. Backend checks,
+imports, and model loading happen only when model inference is first requested;
+calls with `guess=False` stay lookup-only even when model files are installed.
+A missing-backend warning is emitted at that first inference request, rather
+than during construction.
 
 For unseen forms, ONNX decoding batches active beams from different words in
 groups of at most 128. Each word retains its own beam ranking and stopping
@@ -275,6 +280,11 @@ treebank conventions (AGDT, DiGreC). This mode uses accent placement to
 distinguish indefinite `τις` from interrogative `τίς`; a final grave is
 normalized to acute. Default lookup can retain independent adverb and
 particle readings of forms such as `αὐτοῦ` and `τί`.
+Marked Ancient articles are recognized in `grc` and `all` modes even when
+their lookup entries are absent or conflicting. They keep their own forms
+(`ἡ` stays `ἡ`, distinct from `ἤ`); positional graves become acute
+(`τὸ` becomes `τό`). Verbose results identify these readings as `article`
+with the `DET` tag. Strict citation-headword checks still apply.
 The opt-in mode also recognizes monotonic projections of polytonic articles,
 such as `τών` from `τῶν`, without removing accents from unrelated words.
 The `triantafyllidis` convention auto-enables
@@ -1999,6 +2009,12 @@ lookup.
 
 ## Development
 
+Repository build helpers use the `dilemma_build` import namespace, separate
+from PyPA's `build` package. Their source scripts and generated outputs remain
+under `build/`, so existing commands such as `python build/expand_lsj.py` keep
+working alongside `python -m build`. The development extra includes PyPA
+`build`, and CI runs the source-validation tests with it installed.
+
 ### Full installation
 
 ```bash
@@ -2536,7 +2552,9 @@ points at a SHA whose data files match what's on HuggingFace.
 ### Testing
 
 Tests run automatically on GitHub-hosted runners for pushes and pull requests
-to `main`. CI downloads data
+to `main`. Startup, article and pronoun recognition, and build-import
+regression tests run before artifact downloads, using temporary test data.
+CI downloads data
 files from HuggingFace (`lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, and the matching `form_profile.db` and
 `form_citations.db` pair for the Hunspell export,

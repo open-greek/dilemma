@@ -723,7 +723,7 @@ def test_ancient_dialect_reference_is_not_an_independent_lexical_definition(glos
     ("adj", "επικός τύπος της λέξης γλύκιος"),
 ])
 def test_reference_target_syntax_preserves_any_independent_meaning(pos, gloss):
-    from build.build_grc_lexical_heads import has_definition
+    from dilemma_build.build_grc_lexical_heads import has_definition
     from build_data import is_independent_lexical_entry
     entry = {"word": "λέξη", "pos": pos, "senses": [{"glosses": [gloss]}]}
     assert not is_independent_lexical_entry(entry, "el")
@@ -852,7 +852,7 @@ def test_ancient_dialect_description_with_own_definition_retains_head(word, pos,
     ("adj", "επικός τύπος του βελτίων (καλύτερος)· συγκριτικός βαθμός του ἀγαθός"),
 ])
 def test_complete_reference_with_grammar_notes_does_not_prove_a_head(pos, gloss):
-    from build.build_grc_lexical_heads import has_definition
+    from dilemma_build.build_grc_lexical_heads import has_definition
     from build_data import is_independent_lexical_entry
     entry = {"word": "λέξη", "pos": pos, "senses": [{"glosses": [gloss]}]}
     assert not is_independent_lexical_entry(entry, "el")
@@ -871,7 +871,7 @@ def test_complete_reference_with_grammar_notes_does_not_prove_a_head(pos, gloss)
     "συγκριτικός του ἀγαθός",
 ])
 def test_degree_reference_does_not_supply_an_independent_adjective(gloss):
-    from build.build_grc_lexical_heads import has_definition
+    from dilemma_build.build_grc_lexical_heads import has_definition
     from build_data import is_independent_lexical_entry
     entry = {"word": "λέξη", "pos": "adj", "senses": [{"glosses": [gloss]}]}
     assert not is_independent_lexical_entry(entry, "el")
@@ -882,7 +882,7 @@ def test_degree_reference_does_not_supply_an_independent_adjective(gloss):
 
 
 def test_independent_adjective_definition_can_discuss_degrees():
-    from build.build_grc_lexical_heads import has_definition
+    from dilemma_build.build_grc_lexical_heads import has_definition
     from build_data import is_independent_lexical_entry
     entry = {"word": "λέξη", "pos": "adj", "senses": [
         {"glosses": ["ο συγκριτικός βαθμός δηλώνει ανώτερη ιδιότητα"]}]}
@@ -898,7 +898,7 @@ def test_independent_adjective_definition_can_discuss_degrees():
     "επικός τύπος του ὁδός, μόνο στην Οδύσσεια (σε αιτιατική): ※ Ὅμηρος: δρόμος",
 ])
 def test_unknown_reference_tail_remains_lexical_evidence(gloss):
-    from build.build_grc_lexical_heads import has_definition
+    from dilemma_build.build_grc_lexical_heads import has_definition
     from build_data import is_independent_lexical_entry
     entry = {"word": "λέξη", "pos": "verb", "senses": [{"glosses": [gloss]}]}
     assert is_independent_lexical_entry(entry, "el")
@@ -922,7 +922,7 @@ def test_unknown_reference_tail_remains_lexical_evidence(gloss):
     "(ρ. Τηλεμάχου καὶ Ὀδυσσέως ἐπάνοδος εἰς Ἰθάκην.), στίχ. 196 (195-196 )",
 ])
 def test_reviewed_reference_keeps_any_appended_definition(gloss):
-    from build.build_grc_lexical_heads import has_definition
+    from dilemma_build.build_grc_lexical_heads import has_definition
     from build_data import is_independent_lexical_entry
     entry = {"word": "καυχός", "pos": "noun", "senses": [{"glosses": [gloss]}]}
     assert not is_independent_lexical_entry(entry, "el")
@@ -2801,7 +2801,7 @@ def test_main_emits_noun_head_companion_with_exact_input_hashes(tmp_path, monkey
 
 
 def test_verb_head_evidence_requires_independent_finite_entries(tmp_path):
-    from build.build_el_verb_heads import build_inventory, required_verb_heads
+    from dilemma_build.build_el_verb_heads import build_inventory, required_verb_heads
     from build_data import validate_verb_head_inventory
 
     entries = [
@@ -2847,7 +2847,7 @@ def test_verb_head_validator_rejects_forged_nonfinite_evidence(tmp_path, kind):
 
 
 def test_verb_head_inventory_keeps_ordinary_head_with_related_participle_annotation(tmp_path):
-    from build.build_el_verb_heads import build_inventory
+    from dilemma_build.build_el_verb_heads import build_inventory
     from build_data import validate_verb_head_inventory
     entries = [{"word": "πίνω", "pos": "verb", "senses": [
         {"glosses": ["drink"]},
@@ -2866,7 +2866,7 @@ def test_verb_head_inventory_keeps_ordinary_head_with_related_participle_annotat
 ])
 @pytest.mark.parametrize("empty_first", [False, True])
 def test_verb_head_evidence_rejects_unstructured_inflection_senses(tmp_path, gloss, empty_first):
-    from build.build_el_verb_heads import build_inventory
+    from dilemma_build.build_el_verb_heads import build_inventory
     senses = ([{"tags": ["no-gloss"]}] if empty_first else []) + [{"glosses": [gloss]}]
     path = _write(tmp_path, [{"word": "τρέχει", "pos": "verb", "senses": senses}])
     with pytest.raises(ValueError, match="No independent finite verb evidence"):

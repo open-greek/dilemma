@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from build.build_grc_lexical_heads import (
+from dilemma_build.build_grc_lexical_heads import (
     EDITED_INPUTS, KAIKKI_INPUTS, VERNACULAR_INPUTS, build_heads, has_definition,
     normalize_headword,
     principal_quantity_rows,

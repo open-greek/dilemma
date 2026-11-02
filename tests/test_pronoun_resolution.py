@@ -7,6 +7,7 @@ from dilemma.core import Dilemma, _ARTICLE_FORMS, to_monotonic
 
 def resolver(*, enabled=True, convention=None):
     instance = object.__new__(Dilemma)
+    instance.lang = "grc"
     instance._resolve_articles = enabled
     instance._convention_name = convention
     return instance
@@ -33,10 +34,13 @@ def test_default_leaves_readings_to_the_lookup(form):
 
 
 @pytest.mark.parametrize("form", sorted({to_monotonic(f) for f in _ARTICLE_FORMS}))
-def test_opt_in_accepts_normalized_forms_of_every_article(form):
+def test_normalized_articles_keep_recognition_separate_from_resolution(form):
     assert resolver()._resolve_closed_class(form) == "ὁ"
     assert resolver()._resolve_closed_class(form.upper()) == "ὁ"
-    assert resolver(enabled=False)._resolve_closed_class(form) is None
+    # Normalization leaves these marked spellings recognizable as articles.
+    # Other normalized spellings still depend on the ordinary lookup.
+    retained = form if form in {"τά", "τάς", "τήν", "τό", "τόν", "τούς", "τώ"} else None
+    assert resolver(enabled=False)._resolve_closed_class(form) == retained
 
 
 @pytest.mark.parametrize("form", ["ἤ", "ή", "ὦ", "ώ", "τῇδε", "τῆλε"])

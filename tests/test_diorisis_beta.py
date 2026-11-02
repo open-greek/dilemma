@@ -65,7 +65,7 @@ def test_pairs_builder_preserves_elision_and_distinguishes_real_breathing(beta, 
 
 def test_pairs_extraction_does_not_create_a_complete_form_from_elision(tmp_path):
     pytest.importorskip("beta_code")
-    from build.build_diorisis_pairs import extract_diorisis
+    from dilemma_build.build_diorisis_pairs import extract_diorisis
 
     (tmp_path / "sample.xml").write_text('''<text>
         <word form="a)niou=s'"><lemma entry="ἄνειμι" POS="verb">

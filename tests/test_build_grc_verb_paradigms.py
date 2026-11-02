@@ -1745,7 +1745,7 @@ class TestAmbiguousSourceCells:
         import sys
         script = '''
 import json
-from build.build_grc_verb_paradigms import drop_collapsed_cells, extract_dialects
+from dilemma_build.build_grc_verb_paradigms import drop_collapsed_cells, extract_dialects
 rows = [{"form": f, "lemma": "λύω", "pos": "verb", "tags": [
     "middle", "present", "indicative", "first-person", "singular"]}
     for f in ("λύομαι", "λύει", "λύεται", "λυόμεθα")]

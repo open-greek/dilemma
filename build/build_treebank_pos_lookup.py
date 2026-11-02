@@ -166,7 +166,7 @@ def _clean_lemma(lemma: str) -> bool:
 
 def _lexical_target_key(lemma):
     """Match tonal/quantity variants without merging distinct lexical marks."""
-    from build.build_grc_lexical_heads import normalize_headword
+    from dilemma_build.build_grc_lexical_heads import normalize_headword
 
     head = normalize_headword(lemma)
     if head is None:
@@ -274,7 +274,7 @@ def _defined_projection_targets(wanted):
     if not wanted or LSJ9_HEADWORDS is None:
         return found
     import hashlib
-    from build.build_grc_lexical_heads import normalize_headword
+    from dilemma_build.build_grc_lexical_heads import normalize_headword
 
     merged = json.loads((DATA_DIR / "grc_lexical_heads.json").read_text())
     expected = merged["inputs"]["lsj9_headwords"]

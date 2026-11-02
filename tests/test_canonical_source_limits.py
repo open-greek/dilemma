@@ -2,7 +2,7 @@
 
 import pytest
 
-from build import build_grc_verb_paradigms as B
+from dilemma_build import build_grc_verb_paradigms as B
 
 
 def pair(lemma="οικειόομαι", form="οἰκειόομαι", tags=None):

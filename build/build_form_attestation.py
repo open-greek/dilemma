@@ -60,7 +60,7 @@ from build_lemma_attestation import (  # noqa: E402
     fold_file_hash,
 )
 from extract_diorisis_lm import beta_to_nfc  # noqa: E402
-from build.diorisis_source import DiorisisSourceContext  # noqa: E402
+from dilemma_build.diorisis_source import DiorisisSourceContext  # noqa: E402
 import tei_locus  # noqa: E402
 from dilemma._attest_db import nfc_key, norm_key, SCHEMA_VERSION  # noqa: E402
 

@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from build.closed_class_elisions import apply_repairs, plan_repairs
+from dilemma_build.closed_class_elisions import apply_repairs, plan_repairs
 
 
 CELLS = [

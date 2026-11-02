@@ -45,9 +45,15 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -q --upgrade pip
-          pip install -q pytest spylls huggingface_hub betacode beta-code pygtrie lxml onnxruntime pyarrow
+          pip install -q pytest spylls build huggingface_hub betacode beta-code pygtrie lxml onnxruntime pyarrow
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q transformers
+
+      - name: Check lookup-only and closed-class regression fixtures
+        run: >-
+          python3 -m pytest tests/test_lazy_model_backend.py
+          tests/test_article_self_mappings.py tests/test_pronoun_resolution.py
+          tests/test_builder_namespace.py -q
 
       # The data artifacts live on the Hub, not in git, so a push that lands
       # before `hf upload` finishes would otherwise test new code against the

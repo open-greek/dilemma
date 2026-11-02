@@ -1289,7 +1289,7 @@ def load_diorisis_quote_keys(
     evidence supports it. A normalized elision whose Unicode spelling did
     not change needs no extra gate.
     """
-    from build.build_diorisis_pairs import betacode_to_unicode
+    from dilemma_build.build_diorisis_pairs import betacode_to_unicode
 
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("schema_version") != 1 or not isinstance(payload.get("sources"), list):

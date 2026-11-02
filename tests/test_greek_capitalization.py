@@ -8,8 +8,8 @@ import json
 
 import pytest
 
-from build import build_treebank_pos_lookup as build
-from build import build_glaux_pairs, build_glaux_pos_lookup
+from dilemma_build import build_treebank_pos_lookup as build
+from dilemma_build import build_glaux_pairs, build_glaux_pos_lookup
 from dilemma.core import Dilemma
 from dilemma.core import strip_accents as runtime_strip_accents
 from dilemma import core

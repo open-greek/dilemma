@@ -1,6 +1,6 @@
 """An accent-description reference does not create an adverb head."""
 from build_data import is_independent_lexical_entry
-from build.build_grc_lexical_heads import has_definition
+from dilemma_build.build_grc_lexical_heads import has_definition
 
 
 def test_paroxytone_adverb_reference_preserves_separate_lexical_senses():

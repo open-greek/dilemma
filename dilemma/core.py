@@ -5,7 +5,7 @@ Fast lookup table for known forms, custom transformer model for unknown forms.
 Usage:
     from dilemma import Dilemma
 
-    m = Dilemma()                        # loads lookup table + model
+    m = Dilemma()                        # loads lookup table; model stays lazy
     m.lemmatize("πάθης")                # -> "παθαίνω"
     m.lemmatize("πολεμούσαν")           # -> "πολεμώ"
     m.lemmatize_batch(["δώση", "σκότωσε"])  # -> ["δίνω", "σκοτώνω"]
@@ -314,6 +314,11 @@ _ARTICLE_FORMS = {
     "τα", "τους", "τοις", "οι", "αι",
     # Stripped (no accents/breathings)
     "τω", "ται",
+}
+_MARKED_ARTICLE_FORMS = {
+    form for form in _ARTICLE_FORMS
+    if any(unicodedata.combining(char)
+           for char in unicodedata.normalize("NFD", form))
 }
 
 _PRONOUN_LEMMAS = {
@@ -1123,6 +1128,10 @@ class Dilemma:
             )
         if lang == "both":
             lang = "all"
+        if lang not in ("all", "el", "grc"):
+            raise ValueError(
+                f"Unknown language {lang!r}. Valid values: 'all', 'el', 'grc'."
+            )
         self.lang = lang
         self._citation_policy = citation_policy
         self._scale = scale
@@ -1133,6 +1142,7 @@ class Dilemma:
         self._resolve_articles = resolve_articles
         self._convention_name = convention
         self._model = None
+        self._backend_checked = False
         self._vocab = None
         self._device = device
         self._normalizer = None
@@ -1179,10 +1189,9 @@ class Dilemma:
         self._load_lookups(skip_pos=skip_pos)
         self._convention_map = self._build_convention_map(convention)
         self._convention_monotonic = convention in _MONOTONIC_CONVENTIONS
-        self._check_backend()
 
     def _check_backend(self):
-        """Warn once at init if no model backend is available."""
+        """Check native dependencies only when model inference is requested."""
         model_dir = self._find_model_dir()
         has_onnx_files = (model_dir / "encoder.onnx").exists()
         has_pt_file = (model_dir / "model.pt").exists()
@@ -1890,6 +1899,10 @@ class Dilemma:
         if self._model is not None:
             return
 
+        if not self._backend_checked:
+            self._backend_checked = True
+            self._check_backend()
+
         model_path = self._find_model_dir()
 
         # Try ONNX first (no PyTorch dependency, ~50MB vs ~2GB)
@@ -1998,6 +2011,10 @@ class Dilemma:
         """Correct only a known tagged article with a noncanonical target."""
         if upos != "DET" or not self._is_ancient_article_form(word):
             return None
+        if not self._resolve_articles:
+            retained = self._resolve_closed_class(word)
+            if retained is not None:
+                return retained
         lemma = self._pos_table_lookup(word, upos)
         if lemma in (None, _ARTICLE_LEMMA, _MG_ARTICLE_LEMMA):
             return None
@@ -2007,7 +2024,7 @@ class Dilemma:
         return _ARTICLE_LEMMA
 
     def _resolve_closed_class(self, word: str) -> str | None:
-        """Resolve articles/pronouns to canonical lemma if enabled.
+        """Recognize Ancient articles and optionally canonicalize closed classes.
 
         When convention='triantafyllidis', MG closed-class resolution
         takes priority: MG articles -> ο, preposition contractions
@@ -2016,6 +2033,11 @@ class Dilemma:
         serve as prepositions/particles in MG.
         """
         if not self._resolve_articles:
+            lower = unicodedata.normalize("NFC", word).lower()
+            if self.lang in ("all", "grc") and lower in _MARKED_ARTICLE_FORMS:
+                # Recognition does not depend on the lookup's lemma choice.
+                # Preserve the article form, normalizing positional graves.
+                return grave_to_acute(lower)
             return None
 
         # MG closed-class resolution (triantafyllidis convention)
@@ -3996,11 +4018,13 @@ class Dilemma:
         word = to_standard_sigma(word)
 
         # 1. Article/pronoun
-        if self._resolve_articles:
-            closed = self._resolve_closed_class(word)
-            if closed is not None:
+        closed = self._resolve_closed_class(word)
+        if closed is not None:
+            if self._resolve_articles:
                 _add(closed, source="article")
-                return candidates
+            else:
+                _add(closed, lang="grc", source="article", via="self", tag="DET")
+            return candidates
 
         # 2. Crasis
         from .crasis import resolve_crasis

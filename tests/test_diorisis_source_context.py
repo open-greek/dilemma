@@ -7,7 +7,7 @@ import subprocess
 
 import pytest
 
-from build.diorisis_source import DiorisisSourceContext, restore_source_beta
+from dilemma_build.diorisis_source import DiorisisSourceContext, restore_source_beta
 
 
 def _word(beta, entry="Βάκχος", pos="proper", morph="masc gen sg", wid="1"):
@@ -141,9 +141,9 @@ def test_multiple_quote_levels_and_contextual_grave_are_reversible():
 def test_reader_paths_share_the_same_contextual_forms(tmp_path):
     pytest.importorskip("beta_code")
     pytest.importorskip("betacode")
-    from build.build_diorisis_pairs import extract_diorisis
-    from build.build_diorisis_freq import betacode_to_unicode
-    from build.corpus_freq_key import corpus_freq_key
+    from dilemma_build.build_diorisis_pairs import extract_diorisis
+    from dilemma_build.build_diorisis_freq import betacode_to_unicode
+    from dilemma_build.corpus_freq_key import corpus_freq_key
     from extract_diorisis_lm import iter_diorisis_sentences
 
     root = _root(_word("*ba/kxou") + _word("*ba/kxw|", morph="masc dat sg", wid="2"),
@@ -164,7 +164,7 @@ def test_reader_paths_share_the_same_contextual_forms(tmp_path):
                                    subprocess.CalledProcessError(128, "git")])
 def test_source_archives_can_write_audits_without_git_metadata(monkeypatch, error):
     pytest.importorskip("beta_code")
-    from build import build_diorisis_pairs as builder
+    from dilemma_build import build_diorisis_pairs as builder
 
     def unavailable(*args, **kwargs):
         raise error
@@ -176,7 +176,7 @@ def test_source_archives_can_write_audits_without_git_metadata(monkeypatch, erro
 @pytest.mark.parametrize("quoted_first", [False, True])
 def test_normalized_cells_preserve_distinct_pos_in_both_token_orders(tmp_path, quoted_first):
     pytest.importorskip("beta_code")
-    from build.build_diorisis_pairs import extract_diorisis
+    from dilemma_build.build_diorisis_pairs import extract_diorisis
 
     noun = _word("o(lkw=|", "ὁλκός", "noun", "masc dat sg")
     adjective = _word("o(lkw=|", "ὁλκός", "adjective", "masc dat sg")
@@ -195,7 +195,7 @@ def test_normalized_cells_preserve_distinct_pos_in_both_token_orders(tmp_path, q
 
 def test_later_document_normalization_restores_all_earlier_analyses(tmp_path):
     pytest.importorskip("beta_code")
-    from build.build_diorisis_pairs import extract_diorisis
+    from dilemma_build.build_diorisis_pairs import extract_diorisis
 
     ordinary = _word("o(lkw=|", "ὁλκός", "noun", "masc dat sg").replace(
         "</word>", '<lemma entry="ὁλκός" POS="adjective">'
@@ -213,7 +213,7 @@ def test_later_document_normalization_restores_all_earlier_analyses(tmp_path):
 
 def test_normalized_token_keeps_multiple_lemmas_and_analyses(tmp_path):
     pytest.importorskip("beta_code")
-    from build.build_diorisis_pairs import extract_diorisis
+    from dilemma_build.build_diorisis_pairs import extract_diorisis
 
     ordinary = _word("*ba/kxou").replace(
         "</word>", '<lemma entry="ἄλλος" POS="adjective">'
@@ -233,7 +233,7 @@ def test_normalized_token_keeps_multiple_lemmas_and_analyses(tmp_path):
 
 def test_untouched_cells_keep_legacy_first_analysis(tmp_path):
     pytest.importorskip("beta_code")
-    from build.build_diorisis_pairs import extract_diorisis
+    from dilemma_build.build_diorisis_pairs import extract_diorisis
 
     ordinary = _word("o(lkw=|", "ὁλκός", "noun", "masc dat sg").replace(
         "</lemma>", '<analysis morph="neut dat sg"/></lemma>').replace(

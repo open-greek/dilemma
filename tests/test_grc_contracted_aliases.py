@@ -1,6 +1,6 @@
 import json
 
-from build.build_grc_contracted_aliases import (
+from dilemma_build.build_grc_contracted_aliases import (
     SOURCES, build_aliases, contracted_verb_targets, pin,
 )
 

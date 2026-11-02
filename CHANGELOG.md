@@ -6,6 +6,17 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Defer ONNX Runtime and PyTorch availability checks until model inference is
+  requested, keeping construction and `guess=False` lookups free of native
+  backend imports.
+- Preserve marked Ancient Greek article forms when canonical article
+  resolution is disabled, including grave-to-acute normalization, without
+  confusing `ἡ` with `ἤ`.
+- Import repository build helpers through `dilemma_build` so installing PyPA
+  `build` does not hide extraction and source-validation modules. Existing
+  script paths and packaging commands remain available.
+
 ## [1.3.10] - 2026-10-20
 
 ### Fixed
