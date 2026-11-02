@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Extract sentence-level n-gram counts from Ancient Greek corpora for
-the polytonic next-word prediction LM.
+"""Extract next-word prediction counts from Greek corpora.
 
 Produces intermediate JSON/NPZ files under ``build/lm/`` which the
 companion ``export_lm.py`` compiles into the mmap-friendly binary
@@ -406,8 +405,9 @@ def main():
                          "the --glaux directory).")
     ap.add_argument("--diorisis", type=str, default=str(DEFAULT_DIORISIS))
     ap.add_argument("--no-diorisis", action="store_true",
-                    help="Skip the Diorisis corpus; GLAUx only "
-                         "(reproduces the original baseline).")
+                    help="Skip the Diorisis corpus. Other enabled sources "
+                         "are unchanged; also use --no-polytonic-mg and "
+                         "--no-byzantine for a GLAUx-only baseline.")
     ap.add_argument("--no-polytonic-mg", action="store_true",
                     help="Skip the Wikisource 19th-c. Katharevousa "
                          "slice (extract_polytonic_mg.py).")

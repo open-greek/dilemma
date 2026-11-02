@@ -6,6 +6,11 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Put installation and common usage first in the README, with detailed API,
+  data, evaluation, and build documentation in linked guides. Update corpus
+  descriptions, citations, and language-model command examples.
+
 ## [1.3.11] - 2026-11-02
 
 ### Fixed
