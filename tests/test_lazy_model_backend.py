@@ -13,6 +13,23 @@ import pytest
 from dilemma import core
 
 
+@pytest.mark.parametrize("lang", ["invalid", "med", None])
+def test_invalid_language_is_rejected_without_loading_data(monkeypatch, lang):
+    def unexpected_load(*args, **kwargs):
+        pytest.fail("Invalid language must be rejected before loading data")
+
+    monkeypatch.setattr(core.Dilemma, "_load_lookups", unexpected_load)
+    with pytest.raises(ValueError, match="Unknown language"):
+        core.Dilemma(lang=lang)
+
+
+def test_legacy_both_alias_does_not_require_backend_discovery(monkeypatch):
+    monkeypatch.setattr(core.Dilemma, "_load_lookups", lambda *a, **k: None)
+    engine = core.Dilemma(lang="both")
+    assert engine.lang == "all"
+    assert engine._model is None
+
+
 @pytest.mark.parametrize("storage", ["sqlite", "json"])
 @pytest.mark.parametrize("artifact", [None, "encoder.onnx", "model.pt"])
 @pytest.mark.parametrize("worker_thread", [False, True])

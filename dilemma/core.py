@@ -1128,6 +1128,10 @@ class Dilemma:
             )
         if lang == "both":
             lang = "all"
+        if lang not in ("all", "el", "grc"):
+            raise ValueError(
+                f"Unknown language {lang!r}. Valid values: 'all', 'el', 'grc'."
+            )
         self.lang = lang
         self._citation_policy = citation_policy
         self._scale = scale
