@@ -112,6 +112,11 @@ database (~0.3s startup) instead of parsing 600 MB of JSON (~11s),
 falling back to JSON if the DB isn't present. ONNX Runtime (~50 MB) and
 PyTorch (~2 GB) produce identical inference results -- use whichever
 you already have. The lookup handles 95%+ of words and needs neither.
+Constructing `Dilemma` does not import either native runtime. Backend checks,
+imports, and model loading happen only when model inference is first requested;
+calls with `guess=False` stay lookup-only even when model files are installed.
+A missing-backend warning is emitted at that first inference request, rather
+than during construction.
 
 For unseen forms, ONNX decoding batches active beams from different words in
 groups of at most 128. Each word retains its own beam ranking and stopping

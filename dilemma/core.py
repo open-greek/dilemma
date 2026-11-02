@@ -5,7 +5,7 @@ Fast lookup table for known forms, custom transformer model for unknown forms.
 Usage:
     from dilemma import Dilemma
 
-    m = Dilemma()                        # loads lookup table + model
+    m = Dilemma()                        # loads lookup table; model stays lazy
     m.lemmatize("πάθης")                # -> "παθαίνω"
     m.lemmatize("πολεμούσαν")           # -> "πολεμώ"
     m.lemmatize_batch(["δώση", "σκότωσε"])  # -> ["δίνω", "σκοτώνω"]
@@ -1133,6 +1133,7 @@ class Dilemma:
         self._resolve_articles = resolve_articles
         self._convention_name = convention
         self._model = None
+        self._backend_checked = False
         self._vocab = None
         self._device = device
         self._normalizer = None
@@ -1179,10 +1180,9 @@ class Dilemma:
         self._load_lookups(skip_pos=skip_pos)
         self._convention_map = self._build_convention_map(convention)
         self._convention_monotonic = convention in _MONOTONIC_CONVENTIONS
-        self._check_backend()
 
     def _check_backend(self):
-        """Warn once at init if no model backend is available."""
+        """Check native dependencies only when model inference is requested."""
         model_dir = self._find_model_dir()
         has_onnx_files = (model_dir / "encoder.onnx").exists()
         has_pt_file = (model_dir / "model.pt").exists()
@@ -1889,6 +1889,10 @@ class Dilemma:
         """Lazy-load the model on first use. Prefers ONNX, falls back to PyTorch."""
         if self._model is not None:
             return
+
+        if not self._backend_checked:
+            self._backend_checked = True
+            self._check_backend()
 
         model_path = self._find_model_dir()
 
