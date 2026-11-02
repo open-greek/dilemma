@@ -315,6 +315,11 @@ _ARTICLE_FORMS = {
     # Stripped (no accents/breathings)
     "τω", "ται",
 }
+_MARKED_ARTICLE_FORMS = {
+    form for form in _ARTICLE_FORMS
+    if any(unicodedata.combining(char)
+           for char in unicodedata.normalize("NFD", form))
+}
 
 _PRONOUN_LEMMAS = {
     # 1st person -> ἐγώ
@@ -2002,6 +2007,10 @@ class Dilemma:
         """Correct only a known tagged article with a noncanonical target."""
         if upos != "DET" or not self._is_ancient_article_form(word):
             return None
+        if not self._resolve_articles:
+            retained = self._resolve_closed_class(word)
+            if retained is not None:
+                return retained
         lemma = self._pos_table_lookup(word, upos)
         if lemma in (None, _ARTICLE_LEMMA, _MG_ARTICLE_LEMMA):
             return None
@@ -2011,7 +2020,7 @@ class Dilemma:
         return _ARTICLE_LEMMA
 
     def _resolve_closed_class(self, word: str) -> str | None:
-        """Resolve articles/pronouns to canonical lemma if enabled.
+        """Recognize Ancient articles and optionally canonicalize closed classes.
 
         When convention='triantafyllidis', MG closed-class resolution
         takes priority: MG articles -> ο, preposition contractions
@@ -2020,6 +2029,11 @@ class Dilemma:
         serve as prepositions/particles in MG.
         """
         if not self._resolve_articles:
+            lower = unicodedata.normalize("NFC", word).lower()
+            if self.lang in ("all", "grc") and lower in _MARKED_ARTICLE_FORMS:
+                # Recognition does not depend on the lookup's lemma choice.
+                # Preserve the article form, normalizing positional graves.
+                return grave_to_acute(lower)
             return None
 
         # MG closed-class resolution (triantafyllidis convention)
@@ -4000,11 +4014,13 @@ class Dilemma:
         word = to_standard_sigma(word)
 
         # 1. Article/pronoun
-        if self._resolve_articles:
-            closed = self._resolve_closed_class(word)
-            if closed is not None:
+        closed = self._resolve_closed_class(word)
+        if closed is not None:
+            if self._resolve_articles:
                 _add(closed, source="article")
-                return candidates
+            else:
+                _add(closed, lang="grc", source="article", via="self", tag="DET")
+            return candidates
 
         # 2. Crasis
         from .crasis import resolve_crasis

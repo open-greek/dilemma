@@ -280,6 +280,11 @@ treebank conventions (AGDT, DiGreC). This mode uses accent placement to
 distinguish indefinite `τις` from interrogative `τίς`; a final grave is
 normalized to acute. Default lookup can retain independent adverb and
 particle readings of forms such as `αὐτοῦ` and `τί`.
+Marked Ancient articles are recognized in `grc` and `all` modes even when
+their lookup entries are absent or conflicting. They keep their own forms
+(`ἡ` stays `ἡ`, distinct from `ἤ`); positional graves become acute
+(`τὸ` becomes `τό`). Verbose results identify these readings as `article`
+with the `DET` tag. Strict citation-headword checks still apply.
 The opt-in mode also recognizes monotonic projections of polytonic articles,
 such as `τών` from `τῶν`, without removing accents from unrelated words.
 The `triantafyllidis` convention auto-enables
