@@ -2552,7 +2552,9 @@ points at a SHA whose data files match what's on HuggingFace.
 ### Testing
 
 Tests run automatically on GitHub-hosted runners for pushes and pull requests
-to `main`. CI downloads data
+to `main`. Startup, article and pronoun recognition, and build-import
+regression tests run before artifact downloads, using temporary test data.
+CI downloads data
 files from HuggingFace (`lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, and the matching `form_profile.db` and
 `form_citations.db` pair for the Hunspell export,

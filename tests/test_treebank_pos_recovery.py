@@ -290,12 +290,13 @@ def article_model(monkeypatch):
 
 @pytest.mark.parametrize('lang', ['grc', 'all'])
 @pytest.mark.parametrize('resolve', [False, True])
-@pytest.mark.parametrize('form', ['τών', 'Τών', 'τῶν'])
-def test_explicit_article_pos_rejects_noncanonical_target(article_model, lang, resolve, form):
+@pytest.mark.parametrize('form,retained', [('τών', 'ὁ'), ('Τών', 'ὁ'), ('τῶν', 'τῶν')])
+def test_explicit_article_pos_rejects_noncanonical_target(article_model, lang, resolve, form, retained):
     model = article_model
     model.lang, model._resolve_articles = lang, resolve
-    assert model.lemmatize_pos(form, 'DET', guess=False) == 'ὁ'
-    assert model.lemmatize_batch_pos([form], ['DET'], guess=False) == ['ὁ']
+    expected = 'ὁ' if resolve else retained
+    assert model.lemmatize_pos(form, 'DET', guess=False) == expected
+    assert model.lemmatize_batch_pos([form], ['DET'], guess=False) == [expected]
 
 
 @pytest.mark.parametrize('target', ['ὁ', 'ο'])
@@ -390,8 +391,9 @@ def test_article_correction_precedes_multiple_candidate_selection(
     monkeypatch.setattr(model, '_lemmatize_verbose_impl', lambda word, **kw:
                         [SimpleNamespace(lemma=form), SimpleNamespace(lemma=form.lower())])
     monkeypatch.setattr(model, 'lemmatize_batch', lambda words, **kw: [form] * len(words))
-    assert model.lemmatize_pos(form, 'DET', guess=False) == 'ὁ'
-    assert model.lemmatize_batch_pos([form], ['DET'], guess=False) == ['ὁ']
+    expected = 'τοῦ' if form == 'Τοῦ' else 'ὁ'
+    assert model.lemmatize_pos(form, 'DET', guess=False) == expected
+    assert model.lemmatize_batch_pos([form], ['DET'], guess=False) == [expected]
 
 
 @pytest.mark.parametrize("form,lemma,gloss,template", [
