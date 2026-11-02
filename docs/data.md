@@ -93,7 +93,7 @@ python build/merge_corpus_freq.py             # writes data/corpus_freq.json
 The OGC adapter auto-detects the input checkout commit, hashes the generated
 `public_lexicon.tsv`, and records both values in `cog_public_freq.json`.
 `merge_corpus_freq.py` carries that source string into `corpus_freq.json`.
-The current rollup uses OGC commit `f4062a50` and public-lexicon SHA-256
+The recorded rollup uses OGC commit `f4062a50` and public-lexicon SHA-256
 `02d6de7181e8a108abe224081352d817c2064edf6234a51ecc63a5b8c83e6c2d`.
 
 The PTA TEI corpus is tokenized by `build/tei_tokenize.py`, which extracts

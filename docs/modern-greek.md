@@ -710,7 +710,7 @@ Automatic register the held-out sentences gained 129 words and lost 28 and
 the passages gained 173 and lost 25, the losses again mostly subjunctives
 after `νὰ`.
 
-Against that list, with the same keyboard build, the list as it is now
+Against that list, with the same keyboard build, the list used in that comparison
 fixed 8 words on the author folds in the Modern register and broke 1 (6,184
 errors to 6,177), and fixed 3 and broke 1 in the Automatic one (7,190 to
 7,188); the broken word, `γιοὺς` written `γιὸς` in the two folds whose

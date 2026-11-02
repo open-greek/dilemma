@@ -15,8 +15,9 @@
 
 ## Reading the results
 
-The comparison tables preserve earlier benchmark runs; they are not a new
-measurement of release 1.3.11 or of current third-party packages. The release
+The comparison tables preserve earlier benchmark runs. They have not been
+rerun for every package release and do not establish the accuracy of current
+third-party packages. The release
 passed CI's [deterministic regression gate](../scripts/check_benchmark_regressions.py),
 which uses `guess=False`, checks the gold-file hashes, and rejects decreases
 in strict or equivalence-adjusted correctness on the compact Classical,
