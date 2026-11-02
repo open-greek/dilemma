@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.11] - 2026-11-02
+
 ### Fixed
 - Defer ONNX Runtime and PyTorch availability checks until model inference is
   requested, keeping construction and `guess=False` lookups free of native
@@ -1429,6 +1431,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.11]: https://github.com/open-greek/dilemma/releases/tag/1.3.11
 [1.3.10]: https://github.com/open-greek/dilemma/releases/tag/1.3.10
 [1.3.9]: https://github.com/open-greek/dilemma/releases/tag/1.3.9
 [1.3.8]: https://github.com/open-greek/dilemma/compare/3651c5b76b0c5c186eccee27b29cdf7d35e3bfdc...7353f606173259441f2816ee50fbe126d6af90fc
