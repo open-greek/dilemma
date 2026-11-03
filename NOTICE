@@ -28,6 +28,13 @@ Lexica and dictionaries
   License: CC BY-SA 3.0  (https://creativecommons.org/licenses/by-sa/3.0/).
   Glosses and inflection data are extracted and transformed.
 
+  The optional verb_subjects.json table extracts explicitly labeled usage
+  restrictions from both editions via Kaikki/Wiktextract. It preserves source
+  links, sense identifiers, labels, and snapshot hashes. The extracted and
+  transformed table is distributed under CC BY-SA 4.0
+  (https://creativecommons.org/licenses/by-sa/4.0/), matching the current
+  Wiktionary text license. Its license is separate from the MIT source code.
+
 - A Greek-English Lexicon (LSJ), H.G. Liddell, R. Scott, H.S. Jones,
   9th ed. (Oxford, 1940). Public domain. Headwords, forms, and POS via the
   LSJ9 processed exports (https://github.com/ciscoriordan/lsj9).

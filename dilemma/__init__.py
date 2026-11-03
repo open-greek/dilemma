@@ -59,6 +59,7 @@ from .paradigm import (
     ParadigmSlot,
     ParadigmSource,
 )
+from .verb_subjects import verb_subjects
 
 
 def __getattr__(name):
@@ -104,5 +105,6 @@ __all__ = [
     "ParadigmForm",
     "ParadigmSlot",
     "ParadigmSource",
+    "verb_subjects",
     "__version__",
 ]

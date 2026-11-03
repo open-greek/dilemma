@@ -83,6 +83,8 @@ TRACKED = [
     "data/el_closed_class_heads.json",
     # Exact POS-specific definitions for Ancient non-flat training readings.
     "data/grc_reading_heads.json",
+    # Explicit, sense-scoped dictionary evidence for optional verb exports.
+    "data/verb_subjects.json",
     # Source-merged capital name owners and exact corpus target audit.
     "data/treebank_pos_lookup.audit.json",
     # Integrity checks exercise both exported and PyTorch model backends.

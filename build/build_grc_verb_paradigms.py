@@ -30,6 +30,10 @@ Usage:
   python build/build_grc_verb_paradigms.py
   python build/build_grc_verb_paradigms.py --sanity   # 5-lemma smoke test
   python build/build_grc_verb_paradigms.py --only γράφω,τίθημι
+  python build/build_grc_verb_paradigms.py --with-subjects --out paradigms.json
+
+The optional --with-subjects flag adds source-backed subject_evidence by
+voice from verb_subjects.json; forms and other existing fields are preserved.
 """
 
 import argparse
@@ -1474,7 +1478,7 @@ def synthesize_missing_participles(results: dict, synthesis_families: dict = Non
     return verbs_touched, cells_added + aor2_cells_added + contract_cells_added
 
 
-def build_paradigms(only_lemmas=None):
+def build_paradigms(only_lemmas=None, *, with_subjects=False):
     """Aggregate verb pairs from all sources into per-lemma paradigms."""
     print("Building Ancient Greek verb paradigms ...")
     sources = []
@@ -1876,6 +1880,10 @@ def build_paradigms(only_lemmas=None):
         print(f"  forms per lemma (post-participle-synth): "
               f"min={counts[0]} median={counts[n//2]} "
               f"max={counts[-1]} avg={sum(counts)/n:.1f}")
+    if with_subjects:
+        from dilemma.verb_subjects import annotate_verb_entry
+        for lemma, entry in results.items():
+            annotate_verb_entry(lemma, entry)
     return results
 
 
@@ -1888,6 +1896,8 @@ def main():
                     help="comma-separated lemma list (debug)")
     ap.add_argument("--out", type=str, default=None,
                     help="output path override")
+    ap.add_argument("--with-subjects", action="store_true",
+                    help="attach optional source-backed verb-subject evidence")
     args = ap.parse_args()
 
     only = None
@@ -1907,7 +1917,7 @@ def main():
         only = [s.strip() for s in args.only.split(",") if s.strip()]
     only_set = set(only) if only else None
 
-    paradigms = build_paradigms(only_lemmas=only_set)
+    paradigms = build_paradigms(only_lemmas=only_set, with_subjects=args.with_subjects)
 
     if args.sanity:
         out = OUT_PATH.with_suffix(".sanity.json")

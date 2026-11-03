@@ -6,6 +6,12 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Expose optional, source-backed verb-subject evidence in the Python API and
+  paradigm exports. Preserve person, thing, and impersonal readings by sense
+  and source; leave unmarked uses unknown. Build the table reproducibly from
+  both English and Greek Wiktionary editions without changing lookup data.
+
 ## [1.3.12] - 2026-11-02
 
 ### Changed
