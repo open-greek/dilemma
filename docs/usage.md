@@ -13,6 +13,7 @@
 - [POS-aware disambiguation](#pos-aware-disambiguation)
 - [Spelling correction](#spelling-correction)
 - [Paradigm generation](#paradigm-generation)
+- [Verb subject evidence](#verb-subject-evidence)
 - [Elision expansion](#elision-expansion)
 - [Corpus attestation](#corpus-attestation)
 - [Attested forms and example passages](#attested-forms-and-example-passages)
@@ -566,6 +567,94 @@ python -m dilemma paradigm fill --in pending.json --out filled.json [--with-temp
 Each filled cell is recorded in a sidecar `inflections_source.<dialect>.<key>`
 field on the entry so downstream consumers can render generator-filled
 cells distinctly from corpus-attested ones.
+
+## Verb subject evidence
+
+Inflection tells you a verb's person, number, and voice. It does not tell you
+whether a passive subject is a person or a thing. `verb_subjects()` returns
+explicit dictionary labels for documented senses, with their source links,
+sense identifiers, and input hashes:
+
+```python
+from dilemma import verb_subjects
+
+personal = verb_subjects("αὐλέω", sense_id="en-αὐλέω-grc-verb-2ux0~vtJ")
+personal["subject_type"]  # "person": the passive sense of being played to
+
+ambiguous = verb_subjects("ἀπαιτέω")
+ambiguous["subject_type"]  # "either": separate person and thing senses
+[(r["sense_id"], r["subject_type"]) for r in ambiguous["readings"]]
+
+impersonal = verb_subjects("φαίνω", sense_id="en-φαίνω-grc-verb-d~efoY9B")
+impersonal["subject_type"]   # None: no referential subject in this construction
+impersonal["constructions"] # ["impersonal"]
+
+verb_subjects("γράφω")["subject_type"]  # None: no explicit subject-type label
+```
+
+The `subject_type` values are `person`, `thing`, `either`, and `None` for
+unknown. An impersonal construction is recorded separately; an English dummy
+“it” does not refer to a thing. Each reading has its own `construction`,
+`voice`, `sense_id`, `conditions`, source labels, and provenance. `either`
+can summarize different senses or conflicting editions. Every reading is
+retained, without voting away disagreement. Use `sense_id=` to select one
+source's sense when a consumer has already identified it.
+
+`construction` is `personal`, `impersonal`, or `None` when the source does
+not establish either. `constructions` lists only the supported alternatives.
+
+An unclassified passive sense remains in `readings` with a `None` type and
+sets `has_unknown_readings=True`. The overall `subject_type` then stays
+unknown unless both person and thing are already documented, in which case
+it is `either`. `subject_types` lists the alternatives with explicit support.
+A single personal sense therefore cannot turn the whole verb into a
+person-only restriction.
+
+The default is `lang="grc", voice="passive"`. `lang="el"` selects Modern
+Greek evidence. Labels without an explicit voice require
+`voice="unspecified"`; they never silently apply to a passive. The current
+extraction is deliberately narrow: ordinary English glosses, grammatical
+gender, an active verb's object, and the label “personal” do not establish
+human subject semantics. `coverage="documented_senses"` means a reading is
+documented, not that all other uses are excluded or that its frequency is
+known. Choose a pronoun from sentence context, not from this summary alone.
+
+Download `verb_subjects.json` with the normal data download. Missing data or
+unsupported senses return `None`. Set `DILEMMA_DATA_DIR` or pass `data_dir=`
+to use a pinned table. To attach evidence to generated forms, pass
+`with_subjects=True` to `generate()` or `generate_paradigm()` and read the
+returned `ParadigmForm.subject_evidence`. Tense restrictions and finite
+third-person singular impersonal usage are checked against the requested
+cell. The spelling, form source, and default generation behavior are unchanged.
+
+Exports keep their existing fields and add `subject_evidence.<voice>` only
+where evidence exists:
+
+```bash
+python -m dilemma paradigm fill --in pending.json --out filled.json --with-subjects
+python build/build_grc_verb_paradigms.py --with-subjects --out paradigms.json
+```
+
+`fill_canonical_dict(..., with_subjects=True)` also annotates verb entries
+that need no new inflection cells. Existing caller-owned evidence is preserved.
+These options use a small JSON table and require neither neural models nor
+form-attestation databases.
+
+Rebuild the table from both English and Greek Wiktionary editions:
+
+```bash
+python build/build_verb_subjects.py --kaikki kaikki
+# Bounded source check, leaving the full table alone:
+python build/build_verb_subjects.py --kaikki kaikki --lang grc \
+  --only αὐλέω,ἀπαιτέω,φαίνω,γράφω --out subject-check.json
+```
+
+The builder requires both editions for each selected language and writes
+deterministic output. It retains sense and voice scope through nested
+definitions, so a parent's active-object label does not become the child's
+passive-subject label. Publish a rebuilt table using the manifest procedure
+in the [development guide](development.md); no lookup rebuild or retraining
+is needed.
 
 ## Elision expansion
 

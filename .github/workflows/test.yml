@@ -53,7 +53,7 @@ jobs:
         run: >-
           python3 -m pytest tests/test_lazy_model_backend.py
           tests/test_article_self_mappings.py tests/test_pronoun_resolution.py
-          tests/test_builder_namespace.py -q
+          tests/test_builder_namespace.py tests/test_verb_subjects.py -q
 
       # The data artifacts live on the Hub, not in git, so a push that lands
       # before `hf upload` finishes would otherwise test new code against the

@@ -42,6 +42,7 @@ data/grc_contracted_verb_aliases.json
 data/lsj9_pos_lookup.json
 data/el_closed_class_heads.json
 data/grc_reading_heads.json
+data/verb_subjects.json
 # PROIEL is CC BY-NC-SA; never ingested, kept out of the openly-licensed repo
 data/proiel_pairs.json
 data/spell_index.db

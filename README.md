@@ -125,6 +125,10 @@ explains the options and their data requirements, including
 `citation_policy="strict_ag"` for independently supported Ancient Greek
 headwords.
 
+Verb exports can include source-backed subject evidence: whether a documented
+passive sense takes a person or a thing, or uses an impersonal construction.
+This is optional lexical information; unmarked senses remain unknown.
+
 ## Tag and parse sentences
 
 Install the ONNX tagger runtime and download its weights:
@@ -153,7 +157,7 @@ for tokenization, model sources, and device settings.
 
 | Guide | Contents |
 |---|---|
-| [API](https://github.com/open-greek/dilemma/blob/main/docs/usage.md) | Methods, conventions, unknown words, spelling, paradigms, and attestation |
+| [API](https://github.com/open-greek/dilemma/blob/main/docs/usage.md) | Methods, conventions, spelling, paradigms, verb subjects, and attestation |
 | [Language coverage](https://github.com/open-greek/dilemma/blob/main/docs/coverage.md) | Periods, dialects, and language codes |
 | [Tagging and parsing](https://github.com/open-greek/dilemma/blob/main/docs/tagger.md) | Sentence annotation, models, and performance |
 | [How it works](https://github.com/open-greek/dilemma/blob/main/docs/design.md) | Lookup order, rules, normalization, and model architecture |
