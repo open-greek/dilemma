@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.12] - 2026-11-02
+
 ### Changed
 - Put installation and common usage first in the README, with detailed API,
   data, evaluation, and build documentation in linked guides. Update corpus
@@ -1436,6 +1438,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.12]: https://github.com/open-greek/dilemma/releases/tag/1.3.12
 [1.3.11]: https://github.com/open-greek/dilemma/releases/tag/1.3.11
 [1.3.10]: https://github.com/open-greek/dilemma/releases/tag/1.3.10
 [1.3.9]: https://github.com/open-greek/dilemma/releases/tag/1.3.9
