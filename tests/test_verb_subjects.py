@@ -167,6 +167,7 @@ def test_unknown_child_restriction_does_not_inherit_parent_type():
 def test_shared_active_passive_label_does_not_type_active_subjects():
     rows = extract_sense(sense("(active voice or passive voice, of persons) example"))
     assert {r["voice"]: r["subject_type"] for r in rows} == {"active": None, "passive": "person"}
+    assert next(r for r in rows if r["voice"] == "active")["construction"] is None
 
 
 def test_explicit_subject_label_is_independent_of_voice():

@@ -148,7 +148,7 @@ def extract_sense(sense: dict) -> list[dict]:
         sense_id = "sha256:" + hashlib.sha256(body).hexdigest()
     return [{
         "subject_type": kind if voice == "passive" or explicit_subject else None,
-        "construction": construction,
+        "construction": construction if voice == "passive" or explicit_subject or kind is None else None,
         "voice": voice,
         "sense_id": sense_id,
         "conditions": conditions,
