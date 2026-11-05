@@ -6,6 +6,21 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Extend reviewed grammatical analyses to additional `εἶμι` compounds,
+  `οἶδα` pluperfects, and copula forms, including person and number variants.
+  Correct related-headword conflations in older POS tables without replacing
+  independently supported lexical owners.
+- Preserve separate verb readings and their tenses for ambiguous forms such
+  as `ᾖσαν`, `ἴσθι`, `ἔπεσαν`, and `ξύνισαν`. Keep grammatical identities
+  when a requested dictionary convention maps them to the same citation.
+
+### Added
+- Add a source-reviewed passage audit across all five lemma APIs, retaining
+  original corpus annotations and valid citation alternatives. Future lookup
+  builds store all reviewed grammatical readings separately from the flat
+  lookup preference.
+
 ## [1.3.14] - 2026-11-05
 
 ### Fixed

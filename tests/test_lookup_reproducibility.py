@@ -19,6 +19,7 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
         "ag_lookup.json": {"λόγος": "λόγος", "λέγει": "λέγω",
                            "ἀπῇμεν": "ἀπέρχομαι", "Ἀπῇμεν": "ἀπέρχομαι",
                            "ᾖμεν": "ἔρχομαι", "ἐξῇμεν": "ἐξέρχομαι",
+                           "ᾖσαν": "ἀείδω", "ἴσθι": "εἰμί",
                            "ἀπῆμεν": "ἄπειμι"},
         "mg_lookup.json": {"λόγος": "λόγος", "λέει": "λέω", "λέγει": "λέω"},
         "med_lookup.json": {},
@@ -83,6 +84,16 @@ builder.build()
         ))
         assert rows["ἀπῇμεν"] == rows["Ἀπῇμεν"] == rows["ἀπῆμεν"] == "ἄπειμι"
         assert rows["ᾖμεν"] == "εἶμι" and rows["ἐξῇμεν"] == "ἔξειμι"
+        assert rows["ᾖσαν"] == "ἀείδω" and rows["ἴσθι"] == "εἰμί"
+        # The default citation remains independent of the complete analysis
+        # set. A future rebuild must not discard ambiguity or its evidence.
+        readings = json.loads(conn.execute(
+            "SELECT readings FROM grammatical_readings WHERE form = ?", ("ᾖσαν",)
+        ).fetchone()[0])
+        assert {r["lemma"] for r in readings} == {"εἶμι", "οἶδα", "ἀείδω"}
+        assert {r["lemma"]: r["analyses"][0]["tense"] for r in readings} == {
+            "εἶμι": "imperfect", "οἶδα": "pluperfect", "ἀείδω": "aorist"}
+        assert all(r["evidence"] for r in readings)
         for name in ("vlg_headwords.json", "wip_headwords.json",
                      "lsj10_headwords.json"):
             assert all(rows[word] == word for word in sources[name])
