@@ -429,7 +429,7 @@ python eval/audit_verb_lemmas.py --output verb-lemma-audit.json
 ```
 
 It compares scalar, verbose, batch, and POS-aware calls on 297 examples
-from ten works, keeping accepted dictionary citation alternatives. POS tables
+from eleven works, keeping accepted dictionary citation alternatives. POS tables
 are enabled when available; model guesses are disabled. The fixture preserves
 the original Diorisis tokens, annotations, locations, and input hashes
 separately from the reviewed expectations. This is a regression audit,
