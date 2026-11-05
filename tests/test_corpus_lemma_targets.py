@@ -73,13 +73,18 @@ def test_rejection_preserves_a_supported_competing_verb(inputs):
     assert build.build_lookup()["πεῖραι"] == {"NOUN": "πεῖρα", "VERB": "πείρω"}
 
 
-def test_related_headword_does_not_replace_the_grammatical_lemma(inputs):
+@pytest.mark.parametrize("form,lemma,headword", [
+    ("ἀπῇμεν", "ἄπειμι", "ἀπέρχομαι"),
+    ("ᾖμεν", "εἶμι", "ἔρχομαι"),
+    ("ἐξῇμεν", "ἔξειμι", "ἐξέρχομαι"),
+])
+def test_related_headword_does_not_replace_the_grammatical_lemma(inputs, form, lemma, headword):
     inputs({"glaux": [
-        {"form": "ἀπῇμεν", "lemma": "ἀπέρχομαι", "pos": "verb"},
-        {"form": "ἀπῇμεν", "lemma": "λόγος", "pos": "noun"},
-    ]}, {"ἄπειμι": ["lsj9_headwords"], "ἀπέρχομαι": ["lsj9_headwords"],
+        {"form": form, "lemma": headword, "pos": "verb"},
+        {"form": form, "lemma": "λόγος", "pos": "noun"},
+    ]}, {lemma: ["lsj9_headwords"], headword: ["lsj9_headwords"],
          "λόγος": ["lsj9_headwords"]})
-    assert build.build_lookup()["ἀπῇμεν"] == {"NOUN": "λόγος", "VERB": "ἄπειμι"}
+    assert build.build_lookup()[form] == {"NOUN": "λόγος", "VERB": lemma}
 
 
 @pytest.mark.parametrize(("head", "target", "accepted"), [

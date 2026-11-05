@@ -12,10 +12,20 @@ from dilemma.grammatical_lemmas import (
     APEIMI_IMPERFECT, correct_grammatical_lemma, reviewed_verb_grammar,
 )
 
+ADDITIONAL_READINGS = [
+    ("ᾖμεν", "εἶμι", "ἔρχομαι"),
+    ("ἐξῇμεν", "ἔξειμι", "ἐξέρχομαι"),
+    ("εἰσῇμεν", "εἴσειμι", "εἰσέρχομαι"),
+    ("προσῇμεν", "πρόσειμι", "προσέρχομαι"),
+    ("παρῇμεν", "πάρειμι", "παρέρχομαι"),
+    ("προῇμεν", "πρόειμι", "προέρχομαι"),
+]
+
 
 @pytest.fixture(params=["json", "sqlite"])
 def engine_factory(request, tmp_path, monkeypatch):
     lookup = dict.fromkeys(APEIMI_IMPERFECT, "ἀπέρχομαι")
+    lookup.update({form: headword for form, _, headword in ADDITIONAL_READINGS})
     lookup.update({"ἄπειμι": "ἄπειμι", "ἀπῆμεν": "ἄπειμι",
                    "ἀπέλθομεν": "ἀπέρχομαι", "λόγοι": "λόγος"})
     database = tmp_path / "lookup.db"
@@ -31,7 +41,7 @@ def engine_factory(request, tmp_path, monkeypatch):
                         else core.LookupDB(database))
         self._ag_lookup = self._lookup
         self._mg_lookup = self._lookup
-        self._pos_lookup = {form: {"VERB": "ἀπέρχομαι"} for form in APEIMI_IMPERFECT}
+        self._pos_lookup = {form: {"VERB": lemma} for form, lemma in lookup.items()}
         self._pos_ag_lookup = self._pos_lookup
 
     monkeypatch.setattr(core.Dilemma, "_load_lookups", load)
@@ -51,6 +61,21 @@ def engine_factory(request, tmp_path, monkeypatch):
         engine._trusted_grave_targets = {"ἄπειμι", "ἀπέρχομαι"}
         return engine
     return make
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+@pytest.mark.parametrize("form,lemma,headword", ADDITIONAL_READINGS)
+def test_other_reviewed_suppletive_families(engine_factory, lang, form, lemma, headword):
+    engine = engine_factory(lang=lang)
+    assert engine.lemmatize(form, guess=False) == lemma
+    assert engine.lemmatize_batch([form], guess=False) == [lemma]
+    assert engine.lemmatize_pos(form, "VERB", guess=False) == lemma
+    assert engine.lemmatize_batch_pos([form], ["VERB"], guess=False) == [lemma]
+    candidate, = engine.lemmatize_verbose(form, guess=False)
+    assert candidate.lemma == candidate.grammar["lemma"] == lemma
+    assert candidate.grammar["related_headwords"][0]["lemma"] == headword
+    analysis, = candidate.grammar["analyses"]
+    assert (analysis["person"], analysis["number"], analysis["tense"]) == ("1", "pl", "imperfect")
 
 
 @pytest.mark.parametrize("lang", ["grc", "all"])

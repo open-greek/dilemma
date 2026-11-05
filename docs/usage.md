@@ -362,11 +362,10 @@ Each `LemmaCandidate` has:
 - `grammar` - optional reviewed grammatical analysis, described below
 - `is_lexical` - `False` for a non-lexical token (`source == "nonlexical"`), `True` otherwise
 
-The reviewed imperfects of `ἄπειμι` from `εἶμι` retain their grammatical
-lemma even when an older lookup or POS table assigns them to `ἀπέρχομαι`.
-The latter is a related dictionary headword because present forms of
-`ἄπειμι` can supply its future in Attic. An imperfect such as `ἀπῇμεν`
-keeps its imperfect analysis.
+Reviewed imperfects of `εἶμι` and its compounds retain their grammatical
+lemma even when an older lookup or POS table groups them under `ἔρχομαι`
+or a corresponding compound. Present forms can supply future meanings in
+Attic. An imperfect such as `ἀπῇμεν` keeps its imperfect analysis.
 
 ```python
 candidate, = Dilemma(lang="grc", skip_pos=True).lemmatize_verbose(
@@ -385,7 +384,8 @@ related["lemma"], related["relation"], related["applies_to_input"]
 list using the fields of `ParadigmSlot`, `related_headwords`, and `evidence`
 links. Both person readings of `ἀπῄειν` are retained. `ἀπῆμεν`, from the
 homonym meaning “be absent,” keeps its own reading. The metadata covers the
-reviewed imperfect spellings and is `None` for other inputs. A requested
+reviewed spellings for `εἶμι`, `ἄπειμι`, `ἔξειμι`, `εἴσειμι`, `πρόσειμι`,
+`πάρειμι`, and `πρόειμι`, and is `None` for other inputs. A requested
 dictionary convention can remap `candidate.lemma` while `grammar["lemma"]`
 retains the grammatical lemma. The same correction applies to scalar, batch,
 and POS-aware calls in `grc` and `all` modes and to subsequent lookup builds.
