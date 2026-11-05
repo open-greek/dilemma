@@ -114,6 +114,11 @@ rank verbose candidates through `prev_word`.
 Reviewed imperfect forms such as `ἀπῇμεν` retain the grammatical lemma
 `ἄπειμι`. Their candidate's `grammar` field gives the person, number, tense,
 voice, and mood, with `ἀπέρχομαι` recorded separately as a related headword.
+When a reviewed form belongs to several verbs, verbose mode keeps each
+reading. For example, `ᾖσαν` can come from `εἶμι`, `οἶδα`, or `ἀείδω`,
+with a different tense in each analysis. A single-answer call keeps its
+existing supported preference; these methods do not resolve same-POS
+ambiguity from sentence meaning.
 See [verbose mode](https://github.com/open-greek/dilemma/blob/main/docs/usage.md#verbose-mode)
 for the fields and source evidence.
 

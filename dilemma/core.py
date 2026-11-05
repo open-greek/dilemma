@@ -46,7 +46,10 @@ from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
 from .form_sanitize import is_capitalized, sanitize_form
-from .grammatical_lemmas import reviewed_verb_grammar
+from .grammatical_lemmas import (
+    correct_grammatical_lemma, preferred_reviewed_lemma, reviewed_verb_grammar,
+    reviewed_verb_readings,
+)
 
 
 def _newest_marker_mtime(d: Path, markers):
@@ -3449,6 +3452,12 @@ class Dilemma:
             return bool(lemma) and not _is_elided_junk_value(lemma) \
                 and "̅" not in unicodedata.normalize("NFD", lemma)
 
+        def _target(lemma):
+            lemma = self._normalize_grave_citation_lemma(lemma)
+            if self.lang in ("all", "grc") and upos in ("VERB", "AUX"):
+                return correct_grammatical_lemma(word, lemma)
+            return lemma
+
         # For polytonic input, try AG-only POS first
         nfd = unicodedata.normalize("NFD", word)
         has_poly = any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
@@ -3458,14 +3467,14 @@ class Dilemma:
                 pos_entry = self._pos_ag_lookup.get(variant)
                 if pos_entry and upos in pos_entry \
                         and _usable(pos_entry[upos]):
-                    return self._normalize_grave_citation_lemma(pos_entry[upos])
+                    return _target(pos_entry[upos])
 
         # Combined POS lookup
         for variant in variants:
             pos_entry = self._pos_lookup.get(variant)
             if pos_entry and upos in pos_entry \
                     and _usable(pos_entry[upos]):
-                return self._normalize_grave_citation_lemma(pos_entry[upos])
+                return _target(pos_entry[upos])
 
         return None
 
@@ -3999,7 +4008,7 @@ class Dilemma:
                                 ) -> list[LemmaCandidate]:
         """Build the candidate list (no attestation gate); see lemmatize_verbose."""
         candidates = []
-        seen = set()  # track (lemma_lower, lang) to avoid exact dupes
+        seen = set()  # Citation, language, and grammatical identity.
         supported_elisions = set()
 
         def _add(lemma, lang="", source="", via="", score=1.0, tag="", grammar=None):
@@ -4010,7 +4019,7 @@ class Dilemma:
             if check.lemma is None:
                 return
             lemma = check.lemma
-            key = (lemma, lang)
+            key = (lemma, lang, grammar["lemma"] if grammar else None)
             if key not in seen:
                 seen.add(key)
                 candidates.append(LemmaCandidate(
@@ -4035,10 +4044,22 @@ class Dilemma:
         word = to_standard_sigma(word)
 
         if self.lang in ("all", "grc"):
-            grammar = reviewed_verb_grammar(word)
-            if grammar is not None:
-                _add(grammar["lemma"], lang="grc", source="lookup",
-                     via="reviewed_inflection", tag="VERB", grammar=grammar)
+            readings = reviewed_verb_readings(word)
+            if readings:
+                original = self._lookup_word(word)
+                owners = {reading["lemma"] for reading in readings}
+                related = {head["lemma"] for reading in readings
+                           for head in reading["related_headwords"]}
+                if original and original not in owners | related:
+                    # A reviewed verbal reading does not erase another
+                    # exact lexical owner, e.g. the adverb ἦ beside its
+                    # verbal homographs. Its unreviewed grammar stays None.
+                    _add(original, lang="grc", source="lookup", via="exact")
+                preferred = preferred_reviewed_lemma(word, original)
+                readings.sort(key=lambda reading: reading["lemma"] != preferred)
+                for grammar in readings:
+                    _add(grammar["lemma"], lang="grc", source="lookup",
+                         via="reviewed_inflection", tag="VERB", grammar=grammar)
                 return candidates
 
         # 1. Article/pronoun

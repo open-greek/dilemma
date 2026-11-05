@@ -383,15 +383,57 @@ related["lemma"], related["relation"], related["applies_to_input"]
 `grammar` contains the grammatical `lemma`, its `base_lemma`, an `analyses`
 list using the fields of `ParadigmSlot`, `related_headwords`, and `evidence`
 links. Both person readings of `ἀπῄειν` are retained. `ἀπῆμεν`, from the
-homonym meaning “be absent,” keeps its own reading. The metadata covers the
-reviewed spellings for `εἶμι`, `ἄπειμι`, `ἔξειμι`, `εἴσειμι`, `πρόσειμι`,
-`πάρειμι`, and `πρόειμι`, and is `None` for other inputs. A requested
-dictionary convention can remap `candidate.lemma` while `grammar["lemma"]`
-retains the grammatical lemma. The same correction applies to scalar, batch,
-and POS-aware calls in `grc` and `all` modes and to subsequent lookup builds.
+homonym meaning “be absent,” keeps its own reading. Related headwords use
+`present_used_as_future` when that Attic usage is documented, or
+`shared_paradigm` for a connection without that claim. Neither relationship
+changes the input's grammatical tense.
 
-The evidence comes from [LSJ](https://atlas.perseus.tufts.edu/dictionaries/entry/urn:cite2:scaife-viewer:dictionaries.v1:lsj-n11710/)
-and the [Wiktionary paradigm](https://en.wiktionary.org/w/index.php?title=ἄπειμι&oldid=93465794).
+The metadata covers reviewed imperfect spellings of `εἶμι` and thirteen
+compounds, pluperfects of `οἶδα`, and selected forms of `εἰμί` and its
+homographs. It is `None` outside the reviewed set. These are source-reviewed
+analyses, not complete paradigms or a guarantee of attestation for every
+listed spelling. The `evidence` links cite LSJ, Bailly, and Wiktionary.
+
+Several forms have independent lexical readings. Verbose mode preserves
+each owner and its own analyses:
+
+```python
+candidates = Dilemma(lang="grc").lemmatize_verbose("ᾖσαν", guess=False)
+{c.grammar["lemma"]: c.grammar["analyses"][0]["tense"] for c in candidates}
+# {"ἀείδω": "aorist", "εἶμι": "imperfect", "οἶδα": "pluperfect"}
+```
+
+The order follows the existing supported lookup preference. Scalar and
+POS-aware calls still return one lemma; they may choose different valid
+owners. A POS tag alone cannot distinguish two verbs with different meanings,
+and these APIs do not infer the intended sense from the surrounding passage.
+`ἴσθι`, `ἔπεσαν`, `ἐπήϊεν`, and `ξύνισαν` likewise retain their separate
+verbal readings. The nonverbal reading of `ἦ` stays alongside its verb
+readings. An optional `semantic_tense` distinguishes the usual meaning of
+`οἶδα` and `σύνοιδα` forms from their morphological tense. Dialect-specific
+analyses carry a `dialect` field, such as `"doric"` for third-plural `ἦν`.
+
+A requested dictionary convention can remap `candidate.lemma` while
+`grammar["lemma"]` retains the grammatical lemma, even when several owners
+map to the same citation. Citation and attestation gates still apply.
+The corrections work with older downloaded data in `grc` and `all` modes.
+On subsequent builds, `build_lookup_db.py` corrects unambiguous lookup
+targets and stores every reviewed analysis in a separate
+`grammatical_readings(form, readings)` table, with JSON in `readings`.
+Ambiguous forms retain their existing flat lookup preference.
+
+Run the passage regression audit from a checkout with downloaded data:
+
+```sh
+python eval/audit_verb_lemmas.py --output verb-lemma-audit.json
+```
+
+It compares scalar, verbose, batch, and POS-aware calls on 297 examples
+from eleven works, keeping accepted dictionary citation alternatives. POS tables
+are enabled when available; model guesses are disabled. The fixture preserves
+the original Diorisis tokens, annotations, locations, and input hashes
+separately from the reviewed expectations. This is a regression audit,
+not a held-out accuracy benchmark.
 
 ## POS-aware disambiguation
 

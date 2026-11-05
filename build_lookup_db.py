@@ -36,7 +36,9 @@ from dilemma.elision_tails import (  # noqa: E402
     open_profile_attestation,
 )
 from dilemma.el_paradigm_gaps import complete_lookup  # noqa: E402
-from dilemma.grammatical_lemmas import reviewed_verb_lemmas  # noqa: E402
+from dilemma.grammatical_lemmas import (  # noqa: E402
+    reviewed_verb_forms, reviewed_verb_lemmas, reviewed_verb_readings,
+)
 
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
@@ -1307,11 +1309,20 @@ def build():
     conn.execute("CREATE INDEX idx_related_lemma ON related_lemmas (lemma_id)")
     conn.execute("CREATE INDEX idx_related_related ON related_lemmas (related_id)")
 
-    # Compact main DB
-    print("\nOptimizing lookup.db...")
+    # A single lookup target is a citation preference. Keep every reviewed
+    # grammatical reading separately, including lexical ambiguity and roles.
+    # Older databases remain supported by the packaged runtime registry.
+    conn.execute("CREATE TABLE grammatical_readings ("
+                 "form TEXT PRIMARY KEY, readings TEXT NOT NULL)")
+    conn.executemany("INSERT INTO grammatical_readings VALUES (?, ?)", (
+        (form, json.dumps(reviewed_verb_readings(form), ensure_ascii=False,
+                          sort_keys=True, separators=(",", ":")))
+        for form in reviewed_verb_forms()))
     conn.commit()
     conn.close()
 
+    # Compact main DB
+    print("\nOptimizing lookup.db...")
     # Re-open for ANALYZE/VACUUM (avoids resource exhaustion on large DBs)
     conn = sqlite3.connect(str(DB_PATH))
     try:
