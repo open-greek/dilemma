@@ -111,6 +111,12 @@ and proper-name metadata. Use `lemmatize_pos()` or `lemmatize_batch_pos()`
 when you already have part-of-speech tags. A preceding article can also help
 rank verbose candidates through `prev_word`.
 
+Reviewed imperfect forms such as `ἀπῇμεν` retain the grammatical lemma
+`ἄπειμι`. Their candidate's `grammar` field gives the person, number, tense,
+voice, and mood, with `ἀπέρχομαι` recorded separately as a related headword.
+See [verbose mode](https://github.com/open-greek/dilemma/blob/main/docs/usage.md#verbose-mode)
+for the fields and source evidence.
+
 For nonstandard historical spelling, enable a normalization profile:
 
 ```python

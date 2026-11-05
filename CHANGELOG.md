@@ -6,6 +6,12 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Preserve `ἄπειμι` as the grammatical lemma of reviewed imperfect forms,
+  including `ἀπῇμεν`, across lookup, verbose, batch, and POS-aware calls.
+  Verbose candidates expose the grammatical analysis and the separate
+  relationship to `ἀπέρχομαι`, including with older local data.
+
 ## [1.3.13] - 2026-11-03
 
 ### Added
