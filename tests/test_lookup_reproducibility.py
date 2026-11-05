@@ -16,7 +16,10 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
     sources = {
-        "ag_lookup.json": {"λόγος": "λόγος", "λέγει": "λέγω"},
+        "ag_lookup.json": {"λόγος": "λόγος", "λέγει": "λέγω",
+                           "ἀπῇμεν": "ἀπέρχομαι", "Ἀπῇμεν": "ἀπέρχομαι",
+                           "ᾖμεν": "ἔρχομαι", "ἐξῇμεν": "ἐξέρχομαι",
+                           "ἀπῆμεν": "ἄπειμι"},
         "mg_lookup.json": {"λόγος": "λόγος", "λέει": "λέω", "λέγει": "λέω"},
         "med_lookup.json": {},
         "vlg_headwords.json": ["ἀρχή", "βίος", "γῆ", "δῶρον", "ἔργον"],
@@ -78,6 +81,8 @@ builder.build()
             "SELECT form, lemmas.text FROM lookup JOIN lemmas "
             "ON lookup.lemma_id = lemmas.id WHERE lang = 'all'"
         ))
+        assert rows["ἀπῇμεν"] == rows["Ἀπῇμεν"] == rows["ἀπῆμεν"] == "ἄπειμι"
+        assert rows["ᾖμεν"] == "εἶμι" and rows["ἐξῇμεν"] == "ἔξειμι"
         for name in ("vlg_headwords.json", "wip_headwords.json",
                      "lsj10_headwords.json"):
             assert all(rows[word] == word for word in sources[name])

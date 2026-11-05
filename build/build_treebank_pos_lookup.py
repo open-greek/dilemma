@@ -32,6 +32,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from dilemma.form_sanitize import is_capitalized
+from dilemma.grammatical_lemmas import correct_grammatical_lemma
 
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
 OUTPUT_PATH = Path(__file__).parent.parent / "data" / "treebank_pos_lookup.json"
@@ -645,6 +646,11 @@ def build_lookup():
 
     lookup = _project_pos_entries(lookup, conflicts)
     print(f"After adding lowercase/monotonic variants: {len(lookup)}")
+
+    for form, readings in lookup.items():
+        for upos in ("VERB", "AUX"):
+            if upos in readings:
+                readings[upos] = correct_grammatical_lemma(form, readings[upos])
 
     # Sort for stable output
     lookup = dict(sorted(lookup.items()))

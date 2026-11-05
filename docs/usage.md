@@ -356,9 +356,42 @@ Each `LemmaCandidate` has:
 - `source` - `"lookup"`, `"elision"`, `"crasis"`, `"particle_strip"`, `"verb_morphology"`, `"compound"`, `"article"`, `"normalize"`, `"byzantine_norm"`, `"prefix_strip"`, `"model"`, `"identity"`, `"nonlexical"`
 - `via` - how it matched: `"exact"`, `"lower"`, `"elision:ε"`, `"suffix_strip"`, `"augment_strip"`, `"θεο+φθόγγος"`, `"+case_alt"`, etc. For a non-lexical token, the non-lexical class label.
 - `score` - `1.0` for lookup, `0.5` for model, `0.0` for identity fallback
-- `tag` - `"X"` for a non-lexical token, `""` otherwise
+- `tag` - `"X"` for a nonlexical token, `"DET"` for a retained article,
+  `"VERB"` for a reviewed verbal reading, or `""` when unspecified
 - `citation` - citation-form validation note such as `"trusted_headword"`, `"grave_to_trusted_headword"`, `"modern_greek"`, or `"unchanged"`
+- `grammar` - optional reviewed grammatical analysis, described below
 - `is_lexical` - `False` for a non-lexical token (`source == "nonlexical"`), `True` otherwise
+
+Reviewed imperfects of `εἶμι` and its compounds retain their grammatical
+lemma even when an older lookup or POS table groups them under `ἔρχομαι`
+or a corresponding compound. Present forms can supply future meanings in
+Attic. An imperfect such as `ἀπῇμεν` keeps its imperfect analysis.
+
+```python
+candidate, = Dilemma(lang="grc", skip_pos=True).lemmatize_verbose(
+    "ἀπῇμεν", guess=False)
+candidate.lemma                       # "ἄπειμι"
+candidate.grammar["base_lemma"]        # "εἶμι" (go)
+analysis, = candidate.grammar["analyses"]
+analysis["tense"], analysis["person"], analysis["number"]
+# ("imperfect", "1", "pl")
+related, = candidate.grammar["related_headwords"]
+related["lemma"], related["relation"], related["applies_to_input"]
+# ("ἀπέρχομαι", "present_used_as_future", False)
+```
+
+`grammar` contains the grammatical `lemma`, its `base_lemma`, an `analyses`
+list using the fields of `ParadigmSlot`, `related_headwords`, and `evidence`
+links. Both person readings of `ἀπῄειν` are retained. `ἀπῆμεν`, from the
+homonym meaning “be absent,” keeps its own reading. The metadata covers the
+reviewed spellings for `εἶμι`, `ἄπειμι`, `ἔξειμι`, `εἴσειμι`, `πρόσειμι`,
+`πάρειμι`, and `πρόειμι`, and is `None` for other inputs. A requested
+dictionary convention can remap `candidate.lemma` while `grammar["lemma"]`
+retains the grammatical lemma. The same correction applies to scalar, batch,
+and POS-aware calls in `grc` and `all` modes and to subsequent lookup builds.
+
+The evidence comes from [LSJ](https://atlas.perseus.tufts.edu/dictionaries/entry/urn:cite2:scaife-viewer:dictionaries.v1:lsj-n11710/)
+and the [Wiktionary paradigm](https://en.wiktionary.org/w/index.php?title=ἄπειμι&oldid=93465794).
 
 ## POS-aware disambiguation
 

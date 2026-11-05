@@ -6,6 +6,12 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Preserve the grammatical lemmas of reviewed `εἶμι` imperfects and compounds,
+  including `ἀπῇμεν`, across lookup, verbose, batch, and POS-aware calls.
+  Verbose candidates expose the grammatical analysis and the separate
+  relationship to `ἔρχομαι` and its compounds, including with older local data.
+
 ## [1.3.13] - 2026-11-03
 
 ### Added

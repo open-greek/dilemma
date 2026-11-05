@@ -36,6 +36,7 @@ from dilemma.elision_tails import (  # noqa: E402
     open_profile_attestation,
 )
 from dilemma.el_paradigm_gaps import complete_lookup  # noqa: E402
+from dilemma.grammatical_lemmas import reviewed_verb_lemmas  # noqa: E402
 
 DATA_DIR = SCRIPT_DIR / "data"
 DB_PATH = DATA_DIR / "lookup.db"
@@ -1050,6 +1051,8 @@ def build():
     # Manual corrections for known lookup bugs.
     # These override wrong entries from Wiktionary or pipeline errors.
     _LOOKUP_OVERRIDES = {
+        **reviewed_verb_lemmas(),
+        **{form.title(): lemma for form, lemma in reviewed_verb_lemmas().items()},
         "φασιν": "φημί",          # was Φᾶσις (proper noun beats common verb)
         "Ἔστι": "εἰμί",          # was Ἔσθι (GLAUx annotation error)
         "σκέπτεσθαι": "σκέπτομαι",  # was self-map (infinitive as headword)

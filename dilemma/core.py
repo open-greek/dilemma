@@ -46,6 +46,7 @@ from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
 from .form_sanitize import is_capitalized, sanitize_form
+from .grammatical_lemmas import reviewed_verb_grammar
 
 
 def _newest_marker_mtime(d: Path, markers):
@@ -448,6 +449,8 @@ class LemmaCandidate:
                           # classified by dilemma.nonlexical. "" otherwise.
     citation: str = ""    # Citation-form validation note, e.g.
                           # "trusted_headword", "grave_to_trusted_headword".
+    grammar: dict | None = None  # Reviewed grammatical lemma, analyses and
+                                # related headwords; independent of convention.
 
     @property
     def is_lexical(self) -> bool:
@@ -2084,6 +2087,11 @@ class Dilemma:
         and map to themselves - these are usually false positives from
         accent stripping on elided or particle forms.
         """
+        if self.lang in ("all", "grc"):
+            grammar = reviewed_verb_grammar(word)
+            if grammar is not None:
+                return grammar["lemma"]
+
         # For MG mode or triantafyllidis convention, try MG-specific
         # lookup first. MG entries take priority over AG when there's a
         # conflict (e.g. χρήσης -> χρήση in MG vs χράω in AG, or
@@ -3421,6 +3429,10 @@ class Dilemma:
         For polytonic input, checks the AG-only POS table first to avoid
         MG lemma overrides on Ancient Greek text. Returns None if no match.
         """
+        if self.lang in ("all", "grc") and upos in ("VERB", "AUX"):
+            grammar = reviewed_verb_grammar(word)
+            if grammar is not None:
+                return grammar["lemma"]
         lower = word.lower()
         acute = grave_to_acute(lower)
         mono = to_monotonic(lower)
@@ -3933,6 +3945,10 @@ class Dilemma:
         and source. Useful for downstream tools that can use context
         to disambiguate.
 
+        Reviewed inflections also populate ``grammar`` with their grammatical
+        lemma, analyses, related headwords, and evidence. Dictionary convention
+        remapping affects ``lemma`` while preserving that grammatical record.
+
         Args:
             word: The Greek word to lemmatize.
             prev_word: Optional preceding word. If this is a Greek article
@@ -3986,7 +4002,7 @@ class Dilemma:
         seen = set()  # track (lemma_lower, lang) to avoid exact dupes
         supported_elisions = set()
 
-        def _add(lemma, lang="", source="", via="", score=1.0, tag=""):
+        def _add(lemma, lang="", source="", via="", score=1.0, tag="", grammar=None):
             supported_elision = (via == "elision-exact"
                                   and self._positive_elision_target(lemma))
             check = self._apply_convention_check(
@@ -4006,6 +4022,7 @@ class Dilemma:
                     via=via,
                     tag=tag,
                     citation=check.reason,
+                    grammar=grammar,
                 ))
                 if supported_elision:
                     supported_elisions.add(id(candidates[-1]))
@@ -4016,6 +4033,13 @@ class Dilemma:
             return candidates
         # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
         word = to_standard_sigma(word)
+
+        if self.lang in ("all", "grc"):
+            grammar = reviewed_verb_grammar(word)
+            if grammar is not None:
+                _add(grammar["lemma"], lang="grc", source="lookup",
+                     via="reviewed_inflection", tag="VERB", grammar=grammar)
+                return candidates
 
         # 1. Article/pronoun
         closed = self._resolve_closed_class(word)
