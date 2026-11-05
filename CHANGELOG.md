@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.14] - 2026-11-05
+
 ### Fixed
 - Preserve the grammatical lemmas of reviewed `εἶμι` imperfects and compounds,
   including `ἀπῇμεν`, across lookup, verbose, batch, and POS-aware calls.
@@ -1452,6 +1454,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.14]: https://github.com/open-greek/dilemma/releases/tag/1.3.14
 [1.3.13]: https://github.com/open-greek/dilemma/releases/tag/1.3.13
 [1.3.12]: https://github.com/open-greek/dilemma/releases/tag/1.3.12
 [1.3.11]: https://github.com/open-greek/dilemma/releases/tag/1.3.11
