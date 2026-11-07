@@ -38,11 +38,41 @@ at commit f08cf8f on 2026-11-07.
 
 ## Reproduce
 
+The bundle is built in four steps, each reading the output of the one
+before. From a fresh clone:
+
 ```bash
-python extract_el_monotonic_lm.py               # the corpus (el-monotonic-corpus.md)
-python export_el_monotonic.py                   # the word list, about 3 minutes
-python train_lm.py --lang el                    # the model, under a minute once the shards are encoded
-python export_lm.py --lang el                   # build/lm/el_ngram.bin, about 15 s
+hf download ciscoriordan/dilemma data/lookup.db data/mg_pairs.json \
+    data/el_participles.json --local-dir .       # Wiktionary inputs of the word list
+python extract_el_monotonic_lm.py --download    # fetch the pinned corpus inputs
+python extract_el_monotonic_lm.py --sanity      # 2,000 documents per source, about 20 s
+python extract_el_monotonic_lm.py               # 1. the corpus, build/el_corpus, about 6 minutes
+python export_el_monotonic.py                   # 2. the word list, build/hunspell, about 3 minutes
+python train_lm.py --lang el                    # 3. the counts, build/lm_el, under a minute
+python export_lm.py --lang el                   # 4. build/lm/el_ngram.{bin,version}, about 15 s
+python export_lm.py --lang el --check-dictionary
+                                                # exits 1 if the model is older than the list
+```
+
+The word list refuses Hugging Face inputs whose sha256 differs from
+`data/hf_manifest.json`. The Wiktionary usage examples of the corpus are
+read from the kaikki.org dumps that `build_data.py` uses (`kaikki/`, or
+`$DILEMMA_KAIKKI_DIR`), and the Tatoeba export is replaced upstream every
+week, so a machine without the pinned copies needs new pins first (see the
+corpus page's [known limitations](el-monotonic-corpus.md#known-limitations)).
+The model takes its vocabulary from the word list, so steps 3 and 4 follow
+every export of the list; `export_el_monotonic.py` prints a note when the
+model in `build/lm` was built from another list.
+
+A rebuild from a fresh clone at commit 3862f50 on 2026-11-07 (about 10
+minutes on an 18-core Mac) reproduced the corpus shards, the `.dic`, the
+two companion lists, the evidence table and `el_ngram.bin` byte for byte.
+The `.aff`, the `.version` files, the audit and the corpus manifest differ
+only in the commit they record.
+
+The evaluation:
+
+```bash
 python eval/eval_el_accent_restoration.py --quick
                                                 # small samples, about 1 minute
 python eval/eval_el_accent_restoration.py --enclitic-evidence --workers 12

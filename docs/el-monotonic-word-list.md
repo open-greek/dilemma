@@ -39,7 +39,11 @@ source (`build/el_type_counts.py`, about 40 s with 10 worker processes) into
 corpus manifest's shard digests change. The evaluation counts the dev split
 the same way. A run with `--max-lemmas` is refused in `build/hunspell`.
 The Wiktionary inputs must match the sha256 pins of `data/hf_manifest.json`
-unless `--allow-unpinned` is given.
+unless `--allow-unpinned` is given (`hf download ciscoriordan/dilemma
+data/lookup.db data/mg_pairs.json data/el_participles.json --local-dir .`
+fetches them). After writing `build/hunspell`, the exporter prints a note
+when the [next-word model](el-monotonic-lm.md) in `build/lm` was built from
+another list, since the model takes its vocabulary from the list.
 
 ## Output
 

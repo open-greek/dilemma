@@ -215,9 +215,15 @@ itself.
 - `εντάξει` is also a form of the verb `εντάσσω` (`να εντάξει`). After `να`,
   `θα`, `μην` or `δεν` it is about 5% of the Parliament occurrences, 24% in
   OpenGov and 29% in Wikipedia, so its rate is not a pure register measure.
-- Tatoeba replaces its per-language export every week, so the pinned file
-  can no longer be downloaded once it changes; a fresh download needs a new
-  pin. The Wiktionary pins depend on the local kaikki.org dumps.
+- Tatoeba replaces its per-language export every week and keeps no older
+  copies. The pinned export of 2026-10-31 was already replaced by
+  2026-11-07, so it exists only in `data/raw/tatoeba/` of the machine that
+  built the corpus, and `--download` elsewhere stops at the sha256 check.
+  To re-pin: download the current file, put its size, sha256 and date in
+  the `tatoeba` entry of `data/el_lm_corpora.json`, and rebuild the corpus,
+  the word list and the model. The Wiktionary pins likewise depend on the
+  local kaikki.org dumps: refreshing them for `build_data.py` changes the
+  sha256, and the old dumps must be kept to rebuild this corpus.
 - The European Parliament documents are formal and largely translated. They
   are capped at 5M tokens until a comparison shows whether they help.
 - The open sources hold little casual written conversation. The best
