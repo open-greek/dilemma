@@ -315,15 +315,17 @@ evaluation below is of this build.
 
 Training took 31 s with the encoded shards cached (11.5 GB peak memory) and
 export 21 s, on an Apple M5 Max. `build/gnlm_reader.py` finds no
-structural problem in the file. The keyboard's Swift `LMReader` was checked
-on the previous build (sha256 `9eeaf85c`, commit f08cf8f), which has the
-same format and export code: it resolved each of the 150,000 vocabulary
-entries to its own id and the four reserved tokens to the ids the header
-names, and found all 12,989 out-of-vocabulary counts; the sidecar's
-`artifact_size_bytes` was the file's size. On 6,000 queries drawn from the
-dev sentences (`suggest`, `score` and `suggestCompletions`, with context
-words in capitals and with ASCII apostrophes), the answers of
-`build/gnlm_reader.py` and of the keyboard's reader were identical.
+structural problem in the file. The keyboard's Swift `LMReader` was run on
+this binary: it resolved each of the 150,000 vocabulary entries to its own
+id and the four reserved tokens to the ids the header names, and found a
+count for each of the 13,157 list words outside the vocabulary that the
+table covers (13,146 counts; 11 capitalized entries such as `Βόλε` reach
+the count of their lowercase spelling). The sidecar's `artifact_size_bytes`
+is the file's size. On 6,000 queries drawn from the dev sentences
+(`suggest`, `score` and `suggestCompletions`, with context words in
+capitals and with ASCII apostrophes), the answers of
+`build/gnlm_reader.py` and of the keyboard's reader were identical. The
+previous build (sha256 `9eeaf85c`, commit f08cf8f) passed the same checks.
 
 ## Evaluation
 

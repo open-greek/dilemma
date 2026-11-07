@@ -121,7 +121,7 @@ route:
    `σόι`, which the spelling check reads as monosyllables).
 2. **Function words.** The reviewed closed list (`και`, `ο`, `ή`, `πού`), which
    Wiktionary files partly on its Ancient Greek side.
-3. **Corpus words.** A lowercase word the lexicon lacks (`ρωτάω`) with at
+3. **Corpus words.** A lowercase word the lexicon lacks (`συμβαίνουν`) with at
    least 50 FrequencyWords tokens and at least 5 open-corpus tokens in 2
    documents, or, for formal words subtitles rarely have (`επικροτεί`,
    `θεσπιστεί`, forms Wiktionary's tables lack), at least 3 FrequencyWords
@@ -227,7 +227,9 @@ For the earlier export at commit f08cf8f (630,463 entries), the keyboard's
 Swift dictionary compiler produced a file of exactly the estimated size
 (34,881,785 bytes) in about 5 s on an Apple M5 Max, and its reader found
 each entry with the bucket of its `fr:` field. For this export the compiler
-again wrote exactly the estimated size (34,930,430 bytes) in about 5 s.
+again wrote exactly the estimated size (34,930,430 bytes) in about 5 s, and
+the reader found all 631,696 entries with the bucket of their `fr:` field
+and the `mg:generated` mark of the 219,199 generated forms.
 The largest rejections were unattested capitalized forms (246,100), forms
 of unattested lemmas (215,678) and unaccented polysyllables (10,675). The
 lexicon no longer reads the 698,350 accent-stripped aliases of `lookup.db`
