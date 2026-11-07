@@ -3,6 +3,12 @@
 mmap-friendly binary artifact ``build/lm/grc_ngram.bin`` consumed by
 an iOS keyboard extension.
 
+``--lang el`` compiles the monotonic Modern Greek model instead: the
+intermediates ``train_lm.py --lang el`` writes to ``build/lm_el`` become
+``build/lm/el_ngram.bin`` and ``build/lm/el_ngram.version``, with the
+out-of-vocabulary table chosen against ``build/hunspell/el_monotonic.dic``
+(see ``docs/el-monotonic-lm.md``). The format is the same.
+
 This is the on-disk contract with the Swift reader. Once a keyboard ships a
 reader against this, bumping the file format requires a version bump.
 
@@ -94,6 +100,23 @@ as before. The completed rows stay in descending-count order, so their
 first ``top_k`` entries and the next-word lists are unchanged.
 Exporting with ``--homograph-context-min-count 0`` turns this off, and
 with both minimums at 0 the exporter writes the plain top-K rows.
+
+Enclitic host and twin pairs (``--lang el``)
+--------------------------------------------
+
+The monotonic model keeps a double-accented enclitic form (όνομά) as a
+vocabulary token beside its host (όνομα), so a keyboard can compare
+``όνομά μου`` with ``όνομα μου`` (``el_accent.enclitic_evidence``). The
+two are no homograph spellings of each other: the twin is not a word of
+the list. Instead, past the cut, the bigram row of a host or twin keeps
+every keyboard enclitic (μου, σου, μας, σας, του, της, τους, το, τα,
+τον, την, τις) seen at least ``HOMOGRAPH_CONTEXT_MIN_COUNT`` times after
+it, a trigram row whose second word is a host or twin keeps every such
+enclitic seen at least ``KEEP_HOMOGRAPH_MIN_COUNT`` times, and a row that
+keeps one half of a pair also keeps the other half when the row has it.
+Both readings are then scored from the same depth of rows. The first
+``top_k`` entries of every row are unchanged. The Ancient Greek model has
+no such pairs.
 
 Header (128 bytes, zero-padded)
 -------------------------------
@@ -354,6 +377,25 @@ OOV_UNIGRAM_MIN_COUNT = 1
 OOV_UNIGRAM_MAGIC = b"GNUO"
 OOV_COUNT_CAP = 255
 DEFAULT_OOV_DICTIONARY = SCRIPT_DIR / "build" / "hunspell" / "grc_polytonic.dic"
+# --lang el: the monotonic Modern Greek model. Intermediates come from
+# ``train_lm.py --lang el`` (build/el_ngram.py); the artifact and its
+# sidecar go next to the grc ones under build/lm.
+LANG_DEFAULTS = {
+    "grc": {
+        "in_dir": BUILD_DIR,
+        "out": BUILD_DIR / "grc_ngram.bin",
+        "version_out": BUILD_DIR / "grc_ngram.version",
+        "oov_dictionary": DEFAULT_OOV_DICTIONARY,
+        "drop_unknown_contexts": False,
+    },
+    "el": {
+        "in_dir": SCRIPT_DIR / "build" / "lm_el",
+        "out": BUILD_DIR / "el_ngram.bin",
+        "version_out": BUILD_DIR / "el_ngram.version",
+        "oov_dictionary": SCRIPT_DIR / "build" / "hunspell" / "el_monotonic.dic",
+        "drop_unknown_contexts": True,
+    },
+}
 FNV64_OFFSET = 0xCBF29CE484222325
 FNV64_PRIME = 0x100000001B3
 
@@ -434,19 +476,74 @@ def spelling_key(token: str) -> str:
     return unicodedata.normalize("NFC", nfd).lower()
 
 
-def homograph_spelling_ids(vocab: list[str]) -> set[int]:
+def homograph_spelling_ids(vocab: list[str],
+                           exclude_ids: set[int] | frozenset = frozenset()) -> set[int]:
     """Ids of the vocabulary tokens that are one spelling of a homograph
     set: tokens whose bare letters another token shares with a different
-    :func:`spelling_key`. Reserved tokens are never included.
+    :func:`spelling_key`. Reserved tokens and ``exclude_ids`` (for el, the
+    double-accented enclitic twins, which share their letters with their
+    host) are never included and never make another token one.
     """
     spellings: dict[str, set[str]] = defaultdict(set)
-    for tok in vocab:
-        if tok not in RESERVED_TOKENS:
+    for i, tok in enumerate(vocab):
+        if tok not in RESERVED_TOKENS and i not in exclude_ids:
             spellings[bare_letters(tok)].add(spelling_key(tok))
     return {
         i for i, tok in enumerate(vocab)
-        if tok not in RESERVED_TOKENS and len(spellings[bare_letters(tok)]) > 1
+        if tok not in RESERVED_TOKENS and i not in exclude_ids
+        and len(spellings[bare_letters(tok)]) > 1
     }
+
+
+# The monotonic keyboard's enclitics (EncliticAccent.pronouns and
+# articleHomographs): the rows of an enclitic host and its double-accented
+# twin keep them, so the keyboard can compare the two readings.
+KEYBOARD_ENCLITICS = frozenset({"μου", "σου", "μας", "σας", "του", "της",
+                                "τους", "το", "τα", "τον", "την", "τις"})
+
+
+def _tonos_count(token: str) -> int:
+    return unicodedata.normalize("NFD", token).count("\u0301")
+
+
+def double_accented_ids(vocab: list[str]) -> set[int]:
+    """el: ids of the tokens with two acute accents, the double-accented
+    enclitic forms (όνομά) the monotonic model keeps beside their hosts."""
+    return {i for i, tok in enumerate(vocab) if _tonos_count(tok) >= 2}
+
+
+def enclitic_pairs(vocab: list[str]) -> dict[int, int]:
+    """el: for every double-accented token whose host (its spelling with
+    the last tonos removed, όνομά to όνομα) is in the vocabulary, twin id
+    -> host id and host id -> twin id."""
+    index = {tok: i for i, tok in enumerate(vocab)}
+    pairs: dict[int, int] = {}
+    for i in sorted(double_accented_ids(vocab)):
+        nfd = unicodedata.normalize("NFD", vocab[i])
+        last = nfd.rindex("\u0301")
+        host = unicodedata.normalize("NFC", nfd[:last] + nfd[last + 1:])
+        j = index.get(host)
+        if j is not None and _tonos_count(host) == 1:
+            pairs[i] = j
+            pairs[j] = i
+    return pairs
+
+
+def complete_pairs(entries: list[tuple[int, int]], top: list[tuple[int, int]],
+                   pairs: dict[int, int]) -> list[tuple[int, int]]:
+    """``top`` (kept entries of a row, count order) with the pair partner
+    (:func:`enclitic_pairs`) of every kept entry added when the row has it,
+    re-sorted by descending count, then id."""
+    if not pairs:
+        return top
+    kept = {w for w, _ in top}
+    want = {pairs[w] for w in kept if w in pairs} - kept
+    if not want:
+        return top
+    extra = [(w, c) for w, c in entries if w in want]
+    if not extra:
+        return top
+    return sorted(top + extra, key=lambda t: (-t[1], t[0]))
 
 
 def keep_past_cut(
@@ -559,7 +656,7 @@ def load_type_counts(path: Path):
 
 def select_oov_unigrams(
     type_counts, vocab: set[str], min_count: int,
-    lookup_keys: set[str] | None,
+    lookup_keys: set[str] | None, stats: dict | None = None,
 ) -> list[tuple[int, int]]:
     """(hash, count) entries of the out-of-vocabulary unigram table,
     sorted by hash. Training types a reader resolves to a vocabulary id
@@ -567,7 +664,10 @@ def select_oov_unigrams(
     their :func:`table_spelling`, and a spelling is kept when its count
     is at least ``min_count`` and its :func:`lookup_key` is in
     ``lookup_keys`` (every spelling when it is None). Counts are capped
-    at 255. Two spellings with one hash raise ValueError."""
+    at 255; ``stats``, when given, receives how many were
+    (``saturated``). Two spellings with one hash raise ValueError."""
+    if stats is not None:
+        stats["saturated"] = 0
     if min_count <= 0:
         return []
     summed: dict[str, int] = defaultdict(int)
@@ -586,6 +686,8 @@ def select_oov_unigrams(
             raise ValueError(
                 f"FNV-1a collision: {table[h][0]!r} and {spelling!r}")
         table[h] = (spelling, min(c, OOV_COUNT_CAP))
+        if stats is not None and c > OOV_COUNT_CAP:
+            stats["saturated"] += 1
     return sorted((h, c) for h, (_, c) in table.items())
 
 
@@ -609,14 +711,26 @@ def read_oov_unigram_table(data: bytes) -> dict[int, int]:
     return dict(zip(keys, data[off + 8 * n: off + 9 * n]))
 
 
+# What to rerun when the dictionary changed under an exported LM. The el
+# model also takes its vocabulary from the word list, so it is counted again.
+REBUILD_STEPS = {
+    "grc": ("Re-export the LM (python export_lm.py) so its "
+            "out-of-vocabulary table follows the dictionary."),
+    "el": ("Re-export the LM (python train_lm.py --lang el, then python "
+           "export_lm.py --lang el) so its vocabulary and its "
+           "out-of-vocabulary table follow the word list."),
+}
+
+
 def dictionary_drift(
     version_path: Path = BUILD_DIR / "grc_ngram.version",
     dic_path: Path = DEFAULT_OOV_DICTIONARY,
+    lang: str = "grc",
 ) -> str | None:
     """A warning when the LM described by ``version_path`` carries an
     out-of-vocabulary table selected against another ``dic_path`` than
     the one on disk now, else None (also when either file is missing or
-    the LM has no table)."""
+    the LM has no table). ``lang`` picks the rebuild steps it names."""
     version_path, dic_path = Path(version_path), Path(dic_path)
     if not version_path.exists() or not dic_path.exists():
         return None
@@ -629,8 +743,7 @@ def dictionary_drift(
         return None
     return (f"{version_path} was exported against a {dic_path.name} with "
             f"sha256 {recorded[:12]}, and the one on disk now has "
-            f"{current[:12]}. Re-export the LM (python export_lm.py) so its "
-            f"out-of-vocabulary table follows the dictionary.")
+            f"{current[:12]}. {REBUILD_STEPS[lang]}")
 
 
 def build_bigram_contexts(
@@ -640,6 +753,8 @@ def build_bigram_contexts(
     complete_ids: set[int] | frozenset = frozenset(),
     complete_min_count: int = 0,
     stats: dict | None = None,
+    pairs: dict[int, int] | None = None,
+    enclitic_ids: set[int] | frozenset = frozenset(),
 ):
     """Group bigrams by w1, sort continuations by prob, keep top_k.
 
@@ -651,7 +766,11 @@ def build_bigram_contexts(
     ``complete_min_count`` times after a context in ``complete_ids``.
     ``stats``, when given, receives the number of completed rows
     (``context_rows``) and of the entries they gained over the first two
-    rules (``context_entries``).
+    rules (``context_entries``). With ``pairs`` (el,
+    :func:`enclitic_pairs`), the row of a host or twin also keeps every
+    continuation in ``enclitic_ids`` seen at least ``complete_min_count``
+    times, and a row that keeps one half of a pair keeps the other when it
+    has it (:func:`complete_pairs`).
     """
     by_w1: dict[int, list[tuple[int, int]]] = {}
     for w1, w2, c in bigrams:
@@ -675,6 +794,14 @@ def build_bigram_contexts(
                 rows += 1
                 added += len(completed) - len(top)
             top = completed
+        if pairs:
+            if complete_min_count > 0 and w1 in pairs and enclitic_ids:
+                have = {w for w, _ in top}
+                top = sorted(top + [(w, c) for w, c in entries
+                                    if w in enclitic_ids and w not in have
+                                    and c >= complete_min_count],
+                             key=lambda t: (-t[1], t[0]))
+            top = complete_pairs(entries, top, pairs)
         scored = [(w2, math.log(c / denom)) for w2, c in top]
         contexts.append((w1, scored))
     if stats is not None:
@@ -687,6 +814,8 @@ def build_trigram_contexts(
     trigrams, bigram_counts: dict[tuple[int, int], int], top_k: int,
     excluded_continuation_ids: set[int],
     keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
+    pairs: dict[int, int] | None = None,
+    enclitic_ids: set[int] | frozenset = frozenset(),
 ):
     """Group trigrams by (w1, w2), rank continuations, keep top_k.
 
@@ -694,7 +823,10 @@ def build_trigram_contexts(
     <UNK>, <PAD>, <s>) are dropped from suggestions so the keyboard
     never proposes them to the user. Continuations in ``keep_ids`` seen
     at least ``keep_min_count`` times stay past the cut
-    (:func:`keep_past_cut`).
+    (:func:`keep_past_cut`). With ``pairs`` (el), a row whose second
+    context word is a host or a twin also keeps every continuation in
+    ``enclitic_ids`` seen at least ``keep_min_count`` times, and a row that
+    keeps one half of a pair keeps the other when it has it.
     """
     by_ctx: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for w1, w2, w3, c in trigrams:
@@ -710,6 +842,14 @@ def build_trigram_contexts(
         entries = by_ctx[ctx]
         entries.sort(key=lambda t: (-t[1], t[0]))
         top = keep_past_cut(entries, top_k, keep_ids, keep_min_count)
+        if pairs:
+            if keep_min_count > 0 and ctx[1] in pairs and enclitic_ids:
+                have = {w for w, _ in top}
+                top = sorted(top + [(w, c) for w, c in entries
+                                    if w in enclitic_ids and w not in have
+                                    and c >= keep_min_count],
+                             key=lambda t: (-t[1], t[0]))
+            top = complete_pairs(entries, top, pairs)
         scored = [(w3, math.log(c / denom)) for w3, c in top]
         contexts.append((ctx, scored))
     return contexts
@@ -882,13 +1022,103 @@ def write_binary(
         f"Size mismatch: planned {total_size}, wrote {out_path.stat().st_size}"
 
 
+def prepruned_refusal(prepruned: dict | None, keep_min: int,
+                      context_min: int) -> str | None:
+    """Why intermediates pruned for the cuts in ``prepruned`` (the
+    ``prepruned_for`` of a ``stats.json``) cannot give the rows these export
+    settings would keep, or None when they can (or were not pre-pruned)."""
+    if not prepruned:
+        return None
+    problems = []
+    if prepruned.get("top_k_bi") != TOP_K_BI or prepruned.get("top_k_tri") != TOP_K_TRI:
+        problems.append(f"top-K {prepruned.get('top_k_bi')}/"
+                        f"{prepruned.get('top_k_tri')}, export cuts at "
+                        f"{TOP_K_BI}/{TOP_K_TRI}")
+    for name, value in (("keep_homograph_min_count", keep_min),
+                        ("homograph_context_min_count", context_min)):
+        floor = prepruned.get(name, 0)
+        if 0 < value < floor:
+            problems.append(f"{name} {floor}, export asks for {value}")
+    if not problems:
+        return None
+    return ("The intermediates were pruned for " + "; ".join(problems)
+            + ". Rerun train_lm.py with --no-preprune, or export with the "
+            "settings they were pruned for.")
+
+
+def el_version_fields(train_stats: dict, out: Path, saturated: int,
+                      drop_unknown: bool) -> dict:
+    """Sidecar fields of the monotonic Modern Greek model: provenance of
+    its corpus and vocabulary, its training counts and the artifact's own
+    sha256 (so the sidecar changes whenever the binary does)."""
+    digest = hashlib.sha256(out.read_bytes()).hexdigest()
+    per_source = {
+        name: {k: v for k, v in d.items()
+               if k in ("train_tokens", "weighted_tokens", "weight")}
+        for name, d in sorted(train_stats.get("per_source", {}).items())
+    }
+    return {
+        "lang": "el",
+        "dilemma_commit": get_full_commit(),
+        "train_commit": train_stats.get("commit"),
+        "artifact_sha256": digest,
+        "corpus_manifest_sha256": train_stats.get("corpus_manifest_sha256"),
+        "el_lm_corpora_sha256": train_stats.get("el_lm_corpora_sha256"),
+        "vocab_dictionary_sha256": train_stats.get("dictionary_sha256"),
+        "vocab_size_requested": train_stats.get("vocab_size_requested"),
+        "vocab_added_for_oov_cap": train_stats.get("vocab_added_for_oov_cap"),
+        "vocab_enclitic_twins": train_stats.get("vocab_enclitic_twins"),
+        "twin_min_count": train_stats.get("twin_min_count"),
+        "seen_spellings": train_stats.get("n_seen_spellings"),
+        "train_words_weighted": train_stats.get("n_train_words_weighted"),
+        "in_vocab_word_share": train_stats.get("in_vocab_word_share"),
+        "unk_word_share": train_stats.get("unk_word_share"),
+        "caps": train_stats.get("caps"),
+        "sample_fraction": train_stats.get("sample_fraction"),
+        "min_count_bi": train_stats.get("min_count_bi"),
+        "min_count_tri": train_stats.get("min_count_tri"),
+        "min_bigram_for_tri": train_stats.get("min_bigram_for_tri"),
+        "drop_unknown_contexts": drop_unknown,
+        "oov_count_cap": OOV_COUNT_CAP,
+        "oov_counts_saturated": saturated,
+        "per_source": per_source,
+    }
+
+
+def get_full_commit() -> str:
+    """HEAD (40 hex), marked ``-dirty`` when tracked files differ."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=SCRIPT_DIR,
+            stderr=subprocess.DEVNULL).decode().strip()
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=SCRIPT_DIR, stderr=subprocess.DEVNULL).decode()
+    except Exception:
+        return "unknown"
+    return f"{commit}-dirty" if status.strip() else commit
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--in", dest="in_dir", default=str(BUILD_DIR),
-                    help="Intermediate directory from train_lm.py")
-    ap.add_argument("--out", default=str(BUILD_DIR / "grc_ngram.bin"))
-    ap.add_argument("--version-out",
-                    default=str(BUILD_DIR / "grc_ngram.version"))
+    ap.add_argument("--lang", choices=sorted(LANG_DEFAULTS), default="grc",
+                    help="grc (default): the polytonic model, build/lm/"
+                         "grc_ngram.bin. el: the monotonic Modern Greek "
+                         "model from build/lm_el into build/lm/el_ngram.bin, "
+                         "its table chosen against "
+                         "build/hunspell/el_monotonic.dic.")
+    ap.add_argument("--in", dest="in_dir", default=None,
+                    help="Intermediate directory from train_lm.py "
+                         "(default: build/lm, or build/lm_el for el)")
+    ap.add_argument("--out", default=None)
+    ap.add_argument("--version-out", default=None)
+    ap.add_argument("--drop-unknown-contexts", default=None,
+                    action=argparse.BooleanOptionalAction,
+                    help="Leave out the rows headed by <UNK> (the bigram row "
+                         "of <UNK>, trigram rows with <UNK> in their "
+                         "context), which a reader never reaches because "
+                         "it resolves no context word to <UNK> (default: "
+                         "on for el, off for grc).")
     ap.add_argument("--keep-homograph-min-count", type=int,
                     default=KEEP_HOMOGRAPH_MIN_COUNT,
                     help="Keep a homograph spelling past a context's "
@@ -911,19 +1141,23 @@ def main():
                          "letters, when seen at least this often "
                          f"(default {OOV_UNIGRAM_MIN_COUNT}); 0 leaves "
                          "the table out.")
-    ap.add_argument("--oov-dictionary", default=str(DEFAULT_OOV_DICTIONARY),
+    ap.add_argument("--oov-dictionary", default=None,
                     help="Hunspell .dic (with its .aff beside it) whose "
                          "spellings the out-of-vocabulary table serves "
-                         "(default: the grc export of export_hunspell.py).")
+                         "(default: the grc export of export_hunspell.py, "
+                         "or el_monotonic.dic for el).")
     ap.add_argument("--check-dictionary", action="store_true",
                     help="Export nothing; exit 1 when the LM at "
                          "--version-out was exported against another "
                          "--oov-dictionary than the one on disk.")
     args = ap.parse_args()
+    for key, value in LANG_DEFAULTS[args.lang].items():
+        if getattr(args, key) is None:
+            setattr(args, key, str(value) if isinstance(value, Path) else value)
 
     if args.check_dictionary:
         drift = dictionary_drift(Path(args.version_out),
-                                 Path(args.oov_dictionary))
+                                 Path(args.oov_dictionary), lang=args.lang)
         print(drift or "The LM's out-of-vocabulary table matches "
               f"{args.oov_dictionary}.")
         sys.exit(1 if drift else 0)
@@ -945,6 +1179,32 @@ def main():
                     f"No {need}: the out-of-vocabulary unigram table needs "
                     f"it ({how}). --oov-min-count 0 exports without the "
                     f"table.")
+
+    train_stats = {}
+    if (in_dir / "stats.json").exists():
+        train_stats = json.loads(
+            (in_dir / "stats.json").read_text(encoding="utf-8"))
+    keep_min = max(0, args.keep_homograph_min_count)
+    context_min = max(0, args.homograph_context_min_count)
+    refusal = prepruned_refusal(train_stats.get("prepruned_for"),
+                                keep_min, context_min)
+    if refusal:
+        raise SystemExit(refusal)
+    prepruned = train_stats.get("prepruned_for")
+    if args.lang == "el" and prepruned and not prepruned.get("enclitic_pairs"):
+        raise SystemExit(
+            f"{in_dir} was pruned before the double-accented enclitic forms "
+            f"were kept with their hosts. Rerun train_lm.py --lang el.")
+    if args.lang == "el" and oov_min:
+        counted = train_stats.get("dictionary_sha256")
+        table = hashlib.sha256(oov_dictionary.read_bytes()).hexdigest()
+        if counted != table:
+            raise SystemExit(
+                f"{in_dir} was counted against a word list with sha256 "
+                f"{str(counted)[:12]}, and --oov-dictionary {oov_dictionary} "
+                f"has {table[:12]}. Rerun train_lm.py --lang el so the "
+                f"vocabulary and the out-of-vocabulary table come from the "
+                f"same list.")
 
     t0 = time.time()
     id2tok = load_vocab(in_dir / "vocab.json")
@@ -1000,11 +1260,15 @@ def main():
     # uses less memory than recomputing.
     w1_totals = uni_by_new
 
+    unk_id = reserved_ids["<UNK>"]
+    drop_unknown = bool(args.drop_unknown_contexts)
     remapped_bigrams = []
     for old_a, old_b, c in load_bigrams(in_dir / "bigrams.tsv.gz"):
         a = remap[old_a]
         b = remap[old_b]
         bigram_counts[(a, b)] = c
+        if drop_unknown and a == unk_id:
+            continue
         remapped_bigrams.append((a, b, c))
     print(f"  loaded {len(remapped_bigrams):,} bigrams", flush=True)
 
@@ -1018,9 +1282,14 @@ def main():
         reserved_ids["</s>"],
     }
 
-    keep_min = max(0, args.keep_homograph_min_count)
-    context_min = max(0, args.homograph_context_min_count)
-    homograph_ids = (homograph_spelling_ids(sorted_vocab)
+    # el keeps the double-accented enclitic forms (όνομά) as tokens: they
+    # are no homographs of their hosts, and the rows of a host and its twin
+    # keep the enclitics and each other (see build_bigram_contexts).
+    twin_ids = double_accented_ids(sorted_vocab) if args.lang == "el" else set()
+    pairs = enclitic_pairs(sorted_vocab) if args.lang == "el" else {}
+    enclitic_ids = ({i for i, t in enumerate(sorted_vocab) if t in KEYBOARD_ENCLITICS}
+                    if args.lang == "el" else set())
+    homograph_ids = (homograph_spelling_ids(sorted_vocab, twin_ids)
                      if keep_min or context_min else set())
     keep_ids = homograph_ids if keep_min else set()
     if keep_min:
@@ -1033,7 +1302,7 @@ def main():
         remapped_bigrams, w1_totals, TOP_K_BI, excluded,
         keep_ids, keep_min,
         homograph_ids if context_min else set(), context_min,
-        context_stats,
+        context_stats, pairs, enclitic_ids,
     )
     if context_min:
         print(f"  completed {context_stats['context_rows']:,} bigram rows "
@@ -1051,24 +1320,31 @@ def main():
         a = remap[old_a]
         b = remap[old_b]
         c = remap[old_c]
+        if drop_unknown and (a == unk_id or b == unk_id):
+            continue
         remapped_trigrams.append((a, b, c, k))
     print(f"  loaded {len(remapped_trigrams):,} trigrams", flush=True)
 
     trigram_ctx = build_trigram_contexts(
         remapped_trigrams, bigram_counts, TOP_K_TRI, excluded,
-        keep_ids, keep_min,
+        keep_ids, keep_min, pairs, enclitic_ids,
     )
     print(f"  built {len(trigram_ctx):,} trigram contexts "
           f"(top_k={TOP_K_TRI})", flush=True)
 
     oov_unigrams: list[tuple[int, int]] = []
     oov_dictionary_sha256 = None
+    oov_stats: dict[str, int] = {"saturated": 0}
     if oov_min:
         dictionary_words = read_hunspell_words(oov_dictionary)
         oov_unigrams = select_oov_unigrams(
             load_type_counts(type_counts_path), set(sorted_vocab), oov_min,
-            contested_lookup_keys(dictionary_words),
+            contested_lookup_keys(dictionary_words), oov_stats,
         )
+        if oov_stats["saturated"]:
+            print(f"  WARNING: {oov_stats['saturated']:,} out-of-vocabulary "
+                  f"counts exceed {OOV_COUNT_CAP} and are stored as "
+                  f"{OOV_COUNT_CAP}", flush=True)
         oov_dictionary_sha256 = hashlib.sha256(
             oov_dictionary.read_bytes()).hexdigest()
         print(f"  {len(oov_unigrams):,} out-of-vocabulary spellings in the "
@@ -1101,6 +1377,8 @@ def main():
         "homograph_context_min_count": context_min,
         "homograph_context_rows": context_stats.get("context_rows", 0),
         "homograph_context_entries": context_stats.get("context_entries", 0),
+        **({"enclitic_twins": len(twin_ids),
+            "enclitic_twin_pairs": len(pairs) // 2} if args.lang == "el" else {}),
         "oov_unigram_min_count": oov_min,
         "oov_unigrams": len(oov_unigrams),
         "oov_dictionary_sha256": oov_dictionary_sha256,
@@ -1110,6 +1388,9 @@ def main():
         "total_tokens": total_tokens,
         "artifact_size_bytes": out.stat().st_size,
     }
+    if args.lang == "el":
+        version_info.update(el_version_fields(
+            train_stats, out, oov_stats["saturated"], drop_unknown))
     Path(args.version_out).write_text(
         json.dumps(version_info, ensure_ascii=False, indent=2),
         encoding="utf-8"

@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "language": "el",
+  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling or typing-slip rules of the corpus route would refuse because a far commoner word shares its letters or its sound, or is one typing slip away; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version.",
+  "rejects": [
+    {
+      "form": "κι’",
+      "reason": "κι is already the shortened form of και and takes no elision mark in standard spelling (κι αν, κι εγώ)."
+    },
+    {
+      "form": "’χη",
+      "reason": "An old spelling of ’χει (να ’χη), from the Katharevousa subjunctive έχη."
+    },
+    {
+      "form": "γιαυτό",
+      "reason": "γι’ αυτό written as one word."
+    },
+    {
+      "form": "καναδυό",
+      "reason": "κανά δυο written as one word."
+    },
+    {
+      "form": "τιδήποτε",
+      "reason": "A misspelling of οτιδήποτε."
+    },
+    {
+      "form": "συνέβει",
+      "reason": "A misspelling of συνέβη; the variant rule keeps it because -ει after the stem of a noun in -η is a Katharevousa dative (εν γνώσει)."
+    },
+    {
+      "form": "πάσει",
+      "reason": "A misspelling of πάση (πάση θυσία); kept by the variant rule for the same reason as συνέβει."
+    },
+    {
+      "form": "ι",
+      "reason": "The letter iota, not a word; Wiktionary has it as a letter entry and enumerations (ι) supply its counts. As a rated entry it would accept a slip for ο (the next key) or a misspelling of the article η uncorrected."
+    },
+    {
+      "form": "υ",
+      "reason": "The letter upsilon, not a word; Wiktionary has it as a letter entry and enumerations (υ) supply its counts. As a rated entry it would accept a slip for τ or θ uncorrected."
+    },
+    {
+      "form": "κε",
+      "reason": "An abbreviation of κύριε written without its period (the abbreviation list has κ.). As an entry, rated C on subtitle counts, it accepted κε, the commonest misspelling of και, uncorrected: in the typing-slip simulation of eval/eval_el_accent_restoration.py --quick it was the most frequent slip that lands on an entry (137 of 6,204 slipped words)."
+    }
+  ],
+  "corpus_accepts": [
+    {
+      "form": "έδωκε",
+      "reason": "The older aorist έδωκε of δίνω in folk and literary text, not a slip of έδωσε."
+    },
+    {
+      "form": "ήτον",
+      "reason": "The colloquial ήτον beside ήταν, not a slip of τον."
+    },
+    {
+      "form": "αναμασά",
+      "reason": "From αναμασώ (rehash), not a slip of ανάμεσα."
+    },
+    {
+      "form": "βγάνει",
+      "reason": "The colloquial βγάνω beside βγάζω, not a slip of βγαίνει."
+    },
+    {
+      "form": "βορεινά",
+      "reason": "From βορεινός (northern), not a slip of βόρεια."
+    },
+    {
+      "form": "γόη",
+      "reason": "From γόης (charmer), not a slip of γη."
+    },
+    {
+      "form": "δαύτον",
+      "reason": "The colloquial pronoun δαύτος, not a slip of αυτόν."
+    },
+    {
+      "form": "δευτέριο",
+      "reason": "Deuterium, not a slip of δεύτερο."
+    },
+    {
+      "form": "είπας",
+      "reason": "The colloquial second person είπας beside είπες, not a slip of είπα."
+    },
+    {
+      "form": "εμέ",
+      "reason": "The emphatic pronoun εμέ beside εμένα, not a slip of με."
+    },
+    {
+      "form": "ενάντιοι",
+      "reason": "From ενάντιος (opposed), not a slip of εναντίον."
+    },
+    {
+      "form": "επαιτεί",
+      "reason": "From επαιτώ (beg), not a slip of απαιτεί."
+    },
+    {
+      "form": "καλήν",
+      "reason": "The set phrases καλήν εσπέρα and καλήν αντάμωση, not a slip of καλή."
+    },
+    {
+      "form": "κότινο",
+      "reason": "From κότινος (olive wreath), not a slip of κοινό."
+    },
+    {
+      "form": "μάκρο",
+      "reason": "The loanword μάκρο (macro), not a slip of μικρό."
+    },
+    {
+      "form": "μαίνεται",
+      "reason": "From μαίνομαι (rage), not a slip of φαίνεται."
+    },
+    {
+      "form": "νοεί",
+      "reason": "From νοώ (mean, understand), not a slip of νέοι."
+    },
+    {
+      "form": "πολύν",
+      "reason": "The accusative πολύν in πολύν καιρό, standard Modern Greek, not a slip of πολύ."
+    },
+    {
+      "form": "πρωτού",
+      "reason": "The conjunction πρωτού (before), a word in its own right, not a misplaced accent of πρώτου."
+    },
+    {
+      "form": "πρόπολη",
+      "reason": "Propolis, not a slip of προβολή."
+    },
+    {
+      "form": "πόρταλ",
+      "reason": "The loanword πόρταλ (portal), not a slip of πόρτα."
+    },
+    {
+      "form": "συνέχει",
+      "reason": "From συνέχω (hold together), not a slip of συνέχεια."
+    },
+    {
+      "form": "τέτοιαν",
+      "reason": "The accusative τέτοιαν before a vowel, like μιαν and καμιάν, not a slip of τέτοια."
+    },
+    {
+      "form": "τρίτιο",
+      "reason": "Tritium, not a slip of τρίτο."
+    }
+  ],
+  "elision_accepts": [],
+  "abbreviation_rejects": [
+    {
+      "form": "κλπ.Β.",
+      "reason": "κλπ. and a list letter (Β.) written without the space between them."
+    },
+    {
+      "form": "κ.λπ.Β.",
+      "reason": "κ.λπ. and a list letter (Β.) written without the space between them."
+    },
+    {
+      "form": "παρ.Β.",
+      "reason": "παρ. and a list letter (Β.) written without the space between them."
+    },
+    {
+      "form": "κλπ.κλπ.",
+      "reason": "κλπ. written twice without a space."
+    },
+    {
+      "form": "αι.π.Χ.",
+      "reason": "αι. and π.Χ. written without the space between them (5ος αι. π.Χ.)."
+    },
+    {
+      "form": "βλ.Π.Δ.",
+      "reason": "βλ. and the acronym Π.Δ. written without the space between them."
+    },
+    {
+      "form": "νΠ.Κ.",
+      "reason": "ν. and the acronym Π.Κ. written without the period and space between them."
+    }
+  ],
+  "acronym_rejects": [
+    {
+      "form": "ΙΙ",
+      "reason": "A Roman numeral (II) written with Greek capital iotas, not an acronym."
+    },
+    {
+      "form": "ΙΙΙ",
+      "reason": "A Roman numeral (III) written with Greek capital iotas, not an acronym."
+    },
+    {
+      "form": "ΧΙΙ",
+      "reason": "A Roman numeral (XII) written with Greek capitals, not an acronym."
+    },
+    {
+      "form": "ΧΙΙΙ",
+      "reason": "A Roman numeral (XIII) written with Greek capitals, not an acronym."
+    },
+    {
+      "form": "ΧΧΧ",
+      "reason": "A Roman numeral (XXX) written with Greek capitals, or a placeholder for withheld text, not an acronym."
+    }
+  ]
+}

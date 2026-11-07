@@ -17,6 +17,12 @@ next-word prediction. It is used by the Tonos keyboard and exported as
 polytonic Modern Greek from Wikisource, and Byzantine vernacular texts.
 Sources can be disabled individually for comparison runs.
 
+The corpus for monotonic Modern Greek is built separately; see
+[Monotonic Modern Greek corpus](el-monotonic-corpus.md). Its model,
+`el_ngram.bin`, is built by `train_lm.py --lang el` and
+`export_lm.py --lang el` in the same format; see
+[Monotonic Modern Greek next-word model](el-monotonic-lm.md).
+
 The model uses stupid backoff with a configurable context table size. Its
 binary format supports memory-mapped lookup without a neural runtime. The
 measured results below describe particular builds; size and latency depend

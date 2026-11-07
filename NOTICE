@@ -153,6 +153,58 @@ Treebanks and annotated corpora
   corpus_freq.json.
 
 
+Modern Greek text corpora (monotonic next-word model and word list)
+------------------------------------------------------------------
+
+The monotonic Modern Greek next-word model and word list are derived from the
+openly licensed corpora below. Each is pinned (revision, size, sha256) in
+data/el_lm_corpora.json, which also records the excluded corpora and why;
+extract_el_monotonic_lm.py refuses NonCommercial and NoDerivatives licenses.
+"Derived" means n-gram and word counts computed from normalized, tokenized
+sentences; the sentences themselves are not distributed.
+
+- Greek Parliament Proceedings 1989-2020 (tell_all.csv), Konstantina Dritsa,
+  Kaiti Thoma, John Pavlopoulos, Panagiotis Louridas. A Greek Parliament
+  Proceedings Dataset for Computational Linguistics and Political Analysis.
+  Zenodo, 2022. https://doi.org/10.5281/zenodo.7005201
+  License: CC BY 4.0.
+
+- OpenGov Greek Public Deliberations (citizen comments), glossAPI and GFOSS
+  (Open Technologies Alliance), from opengov.gr.
+  https://huggingface.co/datasets/glossAPI/OpenGov_Deliberations
+  License: CC BY 4.0.
+
+- Greek Wikipedia (2023-11-01 dump), Wikipedia contributors, via the
+  Wikimedia Foundation dataset wikimedia/wikipedia.
+  https://huggingface.co/datasets/wikimedia/wikipedia
+  License: CC BY-SA 4.0 (older revisions CC BY-SA 3.0).
+
+- Greek data of the European Parliament (documents, amendments, written
+  questions), glossAPI and GFOSS; source: European Parliament Open Data
+  Portal. https://huggingface.co/datasets/glossAPI/ellinika_dedomena_europaikou_koinovouliou
+  License: CC BY-SA 4.0.
+
+- EELLAK network articles, glossAPI; articles of the ellak.gr site network.
+  https://huggingface.co/datasets/glossAPI/eellak-articles
+  License: CC BY-SA 4.0.
+
+- Greek Wikisource, monotonic modern texts, Wikisource contributors, via the
+  glossAPI dataset Wikisource_Greek_texts (listed under Frequencies below).
+  License: CC BY-SA 3.0 (most texts are in the public domain).
+
+- Tatoeba, Modern Greek sentences, Tatoeba contributors.
+  https://tatoeba.org/ (per-language export of 2026-10-31)
+  License: CC BY 2.0 FR (some sentences CC0 1.0).
+
+- Common Voice sentence collection, Greek, Mozilla Common Voice contributors.
+  https://github.com/common-voice/common-voice (server/data/el)
+  License: CC0 1.0.
+
+- Wiktionary usage examples of Modern Greek entries (Greek and English
+  editions), Wiktionary contributors, extracted by kaikki.org (Wiktextract).
+  License: CC BY-SA 4.0 (older revisions CC BY-SA 3.0).
+
+
 Evaluation data
 ---------------
 
@@ -162,12 +214,29 @@ Evaluation data
 - DBBE datasets, Swaelens et al. License: CC BY 4.0.
   https://github.com/coswaele/ByzantineGreekDatasets
 
+- Greek spelling dictionary of LibreOffice (el_GR 0.9, elspell), pinned to
+  commit 74d8e826359dbf38224fac1b9c02254b7fe0186a of
+  https://github.com/LibreOffice/dictionaries (el_GR/).
+  License: MPL 1.1, GPL 2.0 or LGPL 2.1. eval/eval_el_monotonic.py downloads
+  it into data/raw/elspell/ (ignored by git) to cross-check the monotonic
+  word list. It never admits a word, and none of its content is shipped.
+
 
 Frequencies and assets
 ----------------------
 
 - glossAPI / Wikisource Greek texts.
   https://huggingface.co/datasets/glossAPI/Wikisource_Greek_texts
+
+- FrequencyWords, Hermit Dave, Modern Greek full word list (el_full.txt,
+  1.49M forms), built from the OpenSubtitles2018 corpus of OPUS.
+  https://github.com/hermitdave/FrequencyWords
+  Source corpus: http://opus.nlpl.eu/OpenSubtitles2018.php
+  License: CC BY-SA 4.0 for the word lists (the repository's code is MIT).
+  Stored as data/mg_freq.txt, sha256
+  7cad3ec81acd202137b6aa997e642b9456e353c3f27b29b6deffdad22ea5d6f5.
+  Only the word counts are used, for frequency ranks of word forms; no
+  subtitle text is read or distributed.
 
 - Flag icons, svg-flags. https://github.com/ciscoriordan/svg-flags
 

@@ -78,6 +78,8 @@ Usage
     python train_lm.py --glaux /path/to/xml   # custom GLAUx location
     python train_lm.py --diorisis /path       # custom Diorisis location
     python train_lm.py --glaux-metadata /path/to/metadata.txt
+    python train_lm.py --lang el              # monotonic Modern Greek
+                                              # (build/el_ngram.py)
 
 The sanity pass is deliberately small so the rest of the pipeline
 (``export_lm.py``, ``eval_lm.py``) can be exercised end-to-end in under
@@ -396,6 +398,18 @@ def build_corpus_sources(args, max_files):
 
 
 def main():
+    # ``--lang el`` is the monotonic Modern Greek model, counted by its own
+    # streaming module over the extracted corpus; see build/el_ngram.py.
+    if "--lang" in sys.argv[1:] or any(a.startswith("--lang=")
+                                       for a in sys.argv[1:]):
+        lang = argparse.ArgumentParser(add_help=False)
+        lang.add_argument("--lang", choices=["grc", "el"], default="grc")
+        known, rest = lang.parse_known_args()
+        if known.lang == "el":
+            from dilemma_build import el_ngram
+            el_ngram.main(sys.argv[1:])
+            return
+        sys.argv = sys.argv[:1] + rest
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--glaux", type=str, default=str(DEFAULT_GLAUX))
     ap.add_argument("--glaux-metadata", type=str, default=None,

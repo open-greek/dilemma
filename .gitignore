@@ -99,6 +99,10 @@ data/treebanks/UD_Greek-Messinian/
 # Kaikki dumps
 kaikki/
 
+# Pinned raw downloads of data/el_lm_corpora.json (extract_el_monotonic_lm.py
+# --download); verified by sha256, never committed
+data/raw/
+
 # Model artifacts (stored on HuggingFace: hf.co/ciscoriordan/dilemma)
 model/
 
