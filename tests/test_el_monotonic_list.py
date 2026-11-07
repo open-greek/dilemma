@@ -242,6 +242,11 @@ def test_abbreviation_shapes(spelling, rejected):
     assert (ex.abbreviation_shape_reason(spelling, words) is not None) is rejected
 
 
+def test_learned_monosyllables_of_fixed_phrases_are_function_words():
+    words = ex.load_function_words(ex.FUNCTION_WORDS)
+    assert {"εις", "τοις", "τω"} <= set(words)
+
+
 # -- type counts -----------------------------------------------------------------
 
 def test_type_counts_record_elision_neighbors(tmp_path):

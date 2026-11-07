@@ -30,6 +30,14 @@
     {
       "form": "πάσει",
       "reason": "A misspelling of πάση (πάση θυσία); kept by the variant rule for the same reason as συνέβει."
+    },
+    {
+      "form": "ι",
+      "reason": "The letter iota, not a word; Wiktionary has it as a letter entry and enumerations (ι) supply its counts. As a rated entry it would accept a slip for ο (the next key) or a misspelling of the article η uncorrected."
+    },
+    {
+      "form": "υ",
+      "reason": "The letter upsilon, not a word; Wiktionary has it as a letter entry and enumerations (υ) supply its counts. As a rated entry it would accept a slip for τ or θ uncorrected."
     }
   ],
   "corpus_accepts": [
