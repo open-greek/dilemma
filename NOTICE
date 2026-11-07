@@ -214,6 +214,13 @@ Evaluation data
 - DBBE datasets, Swaelens et al. License: CC BY 4.0.
   https://github.com/coswaele/ByzantineGreekDatasets
 
+- Greek spelling dictionary of LibreOffice (el_GR 0.9, elspell), pinned to
+  commit 74d8e826359dbf38224fac1b9c02254b7fe0186a of
+  https://github.com/LibreOffice/dictionaries (el_GR/).
+  License: MPL 1.1, GPL 2.0 or LGPL 2.1. eval/eval_el_monotonic.py downloads
+  it into data/raw/elspell/ (ignored by git) to cross-check the monotonic
+  word list. It never admits a word, and none of its content is shipped.
+
 
 Frequencies and assets
 ----------------------
