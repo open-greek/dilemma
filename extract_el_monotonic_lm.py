@@ -22,7 +22,11 @@ pass collects the case-folded key of every kept dev sentence of every
 source; the train pass then drops each training sentence whose key is a dev
 key, so repeated speeches, campaign comments and quotations cannot leak. In
 both splits a sentence is kept at most ``max_sentence_repeats`` times per
-source, which bounds procedural formulas and copy-pasted comments.
+source, which bounds procedural formulas and copy-pasted comments. Both
+rules apply only to sentences of at least ``dedup_min_tokens`` tokens:
+shorter sentences (Ευχαριστώ, Το ξέρω, Γεια σου) recur naturally in every
+source, so their repeats are the frequencies a keyboard has to learn, not
+copies.
 
 Caps and weights
 ----------------
@@ -161,7 +165,7 @@ def write_tsv_gz(path: Path, counter: Counter) -> str:
 
 def _empty_split():
     return {"documents": 0, "sentences": 0, "tokens": 0, "words": 0,
-            "num": 0, "foreign": 0, "abbreviations": 0,
+            "num": 0, "foreign": 0, "abbreviations": 0, "short_sentences": 0,
             "dropped_repeats": {"sentences": 0, "tokens": 0},
             "dropped_dev_duplicates": {"sentences": 0, "tokens": 0}}
 
@@ -172,6 +176,7 @@ def run_pass(src, paths, split, pool, args, dev_keys, state):
     dev_fraction = src.get("dev_fraction", state["split_fraction"])
     options = el_corpus.text_options(src)
     max_repeats = state["max_repeats"]
+    min_tokens = state["dedup_min_tokens"]
     writer = el_corpus.ShardWriter(args.out_dir / key, split, args.shard_tokens)
     acc = state["sources"][key]["splits"][split]
     repeats: dict[int, int] = {}
@@ -191,21 +196,24 @@ def run_pass(src, paths, split, pool, args, dev_keys, state):
             kept = []
             doc_tokens = 0
             for (s, skey, ntok, words, num, foreign, abbr, rhits) in sents:
-                if split == "train" and skey in dev_keys:
-                    acc["dropped_dev_duplicates"]["sentences"] += 1
-                    acc["dropped_dev_duplicates"]["tokens"] += ntok
-                    continue
-                seen = repeats.get(skey, 0)
-                repeats[skey] = seen + 1
-                if seen == 1:
-                    repeated_len[skey] = ntok
-                    repeated_text[skey] = s
-                if seen >= max_repeats:
-                    acc["dropped_repeats"]["sentences"] += 1
-                    acc["dropped_repeats"]["tokens"] += ntok
-                    continue
-                if split == "dev":
-                    dev_keys.add(skey)
+                if ntok >= min_tokens:
+                    if split == "train" and skey in dev_keys:
+                        acc["dropped_dev_duplicates"]["sentences"] += 1
+                        acc["dropped_dev_duplicates"]["tokens"] += ntok
+                        continue
+                    seen = repeats.get(skey, 0)
+                    repeats[skey] = seen + 1
+                    if seen == 1:
+                        repeated_len[skey] = ntok
+                        repeated_text[skey] = s
+                    if seen >= max_repeats:
+                        acc["dropped_repeats"]["sentences"] += 1
+                        acc["dropped_repeats"]["tokens"] += ntok
+                        continue
+                    if split == "dev":
+                        dev_keys.add(skey)
+                else:
+                    acc["short_sentences"] += 1
                 kept.append(s)
                 doc_tokens += ntok
                 acc["sentences"] += 1
@@ -304,6 +312,7 @@ def main(argv=None) -> int:
     state = {
         "split_fraction": manifest["split"]["dev_fraction"],
         "max_repeats": manifest["max_sentence_repeats"],
+        "dedup_min_tokens": manifest["dedup_min_tokens"],
         "sources": {s["key"]: {"splits": {"dev": _empty_split(),
                                           "train": _empty_split()},
                                "documents_read": {}} for s in sources},
@@ -388,6 +397,7 @@ def main(argv=None) -> int:
                   "buckets": el_corpus.BUCKETS,
                   "default_dev_fraction": state["split_fraction"],
                   "max_sentence_repeats": state["max_repeats"],
+                  "dedup_min_tokens": state["dedup_min_tokens"],
                   "dev_sentence_keys": len(dev_keys)},
         "placeholders": sorted(el_text.PLACEHOLDERS),
         "totals": {"dev": dict(totals["dev"]), "train": dict(totals["train"]),

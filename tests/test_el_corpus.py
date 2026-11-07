@@ -47,10 +47,10 @@ def url_source(key, path, reader, **extra):
     }
 
 
-def manifest_of(*sources, max_repeats=5):
+def manifest_of(*sources, max_repeats=5, min_tokens=5):
     return {"schema_version": 1,
             "split": {"unit": "group", "seed": C.SPLIT_SEED, "dev_fraction": 0.02},
-            "max_sentence_repeats": max_repeats,
+            "max_sentence_repeats": max_repeats, "dedup_min_tokens": min_tokens,
             "sources": list(sources), "excluded": []}
 
 
@@ -115,6 +115,14 @@ def test_malformed_manifests_are_refused(change, message):
     m = _good_manifest()
     change(m["sources"][0])
     with pytest.raises(C.CorpusError, match=message):
+        C.validate_manifest(m)
+
+
+@pytest.mark.parametrize("field", ["max_sentence_repeats", "dedup_min_tokens"])
+def test_repeat_settings_are_required(field):
+    m = _good_manifest()
+    m.pop(field)
+    with pytest.raises(C.CorpusError, match=field):
         C.validate_manifest(m)
 
 
@@ -293,8 +301,9 @@ LINES_FRACTION = 0.3
 
 
 def _corpus_fixture(tmp_path):
-    """A text_lines source whose dev and train lines share one sentence and
-    whose train lines repeat another, plus a Tatoeba source."""
+    """A text_lines source whose dev and train lines share one long and one
+    short sentence and whose train lines repeat a long and a short sentence,
+    plus a Tatoeba source."""
     raw = tmp_path / "raw"
     sides = {i: C.split_of(f"{LINES_KEY}:line:{i}", LINES_FRACTION)
              for i in range(60)}
@@ -306,11 +315,13 @@ def _corpus_fixture(tmp_path):
         word = _SYL1[i % 8] + _SYL2[i // 8]
         text = f"Η λέξη {word} είναι εδώ."
         if i == dev_lines[0]:
-            text += " Καλημέρα σε όλους."
+            text += " Καλημέρα σε όλους τους φίλους. Γεια σου."
         if i in train_lines[:3]:
-            text += " καλημέρα σε ΌΛΟΥΣ."          # same key after case folding
+            # the same key after case folding: removed; too short: kept
+            text += " καλημέρα σε ΌΛΟΥΣ τους φίλους. Γεια σου."
         if i in train_lines[3:11]:
-            text += " Ευχαριστώ πολύ για όλα."    # 8 copies, cap 5
+            # 8 copies: 5 kept; too short to cap: 8 kept
+            text += " Ευχαριστώ πολύ για όλα αυτά. Το ξέρω."
         lines.append(text)
     f = raw / LINES_KEY / "lines.txt"
     f.parent.mkdir(parents=True)
@@ -349,22 +360,27 @@ def test_extractor_end_to_end(tmp_path, monkeypatch):
     assert dev["documents"] + train["documents"] == 60
     assert lines["documents_read"] == {"dev": 60, "train": 60}
 
-    groups = {}
-    keys = {}
+    groups, keys, long_keys = {}, {}, {}
     for split in ("dev", "train"):
         docs = [d for s in lines["splits"][split]["shards"]
                 for d in C.iter_shard_documents(out / LINES_KEY / s["file"])]
         groups[split] = {d["group"] for d in docs}
         keys[split] = [T.sentence_key(x.split(" ")) for d in docs for x in d["s"]]
+        long_keys[split] = {T.sentence_key(x.split(" ")) for d in docs
+                            for x in d["s"] if len(x.split(" ")) >= 5}
     assert not groups["dev"] & groups["train"]
-    assert not set(keys["dev"]) & set(keys["train"])
+    assert not long_keys["dev"] & long_keys["train"]
+    assert set(keys["dev"]) & set(keys["train"]) == {T.sentence_key(["Γεια", "σου"])}
 
-    assert train["dropped_dev_duplicates"] == {"sentences": 3, "tokens": 9}
-    assert train["dropped_repeats"] == {"sentences": 3, "tokens": 12}
-    thanks = T.sentence_key(["Ευχαριστώ", "πολύ", "για", "όλα"])
+    assert train["dropped_dev_duplicates"] == {"sentences": 3, "tokens": 15}
+    assert train["dropped_repeats"] == {"sentences": 3, "tokens": 15}
+    thanks = T.sentence_key(["Ευχαριστώ", "πολύ", "για", "όλα", "αυτά"])
     assert keys["train"].count(thanks) == 5
-    assert train["repeat_cap_tokens_removed"]["1"] == 7 * 4
-    assert train["most_repeated"][0] == [8, "Ευχαριστώ πολύ για όλα"]
+    assert keys["train"].count(T.sentence_key(["Γεια", "σου"])) == 3
+    assert keys["train"].count(T.sentence_key(["Το", "ξέρω"])) == 8
+    assert train["short_sentences"] == 11
+    assert train["repeat_cap_tokens_removed"]["1"] == 7 * 5
+    assert train["most_repeated"][0] == [8, "Ευχαριστώ πολύ για όλα αυτά"]
 
     tatoeba = meta["sources"]["tatoeba"]
     assert tatoeba["weight"] == 10

@@ -8,6 +8,8 @@
   "note": "The split hashes each document's group (a sitting, a consultation, an article, an entry), so repeated text in one group stays on one side. Training sentences whose case-folded token sequence equals a dev sentence of any source are removed."
  },
  "max_sentence_repeats": 5,
+ "dedup_min_tokens": 5,
+ "dedup_note": "The dev-duplicate rule and the repeat cap apply to sentences of at least dedup_min_tokens tokens. Shorter sentences (Ευχαριστώ, Το ξέρω, Τι να κάνουμε, Γεια σου) recur naturally in every source; removing their repeats would remove the most conversational sentences from training.",
  "sources": [
   {
    "key": "parliament",

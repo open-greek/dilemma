@@ -115,6 +115,10 @@ def validate_manifest(manifest: dict) -> None:
     """Refuse floating pins, refused licenses and malformed entries."""
     if manifest.get("schema_version") != 1:
         raise CorpusError("unsupported el_lm_corpora schema")
+    for field in ("max_sentence_repeats", "dedup_min_tokens"):
+        value = manifest.get(field)
+        if not isinstance(value, int) or value < 1:
+            raise CorpusError(f"{field} must be an integer >= 1")
     sources = manifest.get("sources")
     if not isinstance(sources, list) or not sources:
         raise CorpusError("manifest has no sources")
