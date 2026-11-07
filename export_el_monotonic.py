@@ -1254,6 +1254,21 @@ def is_shipping_dir(out_dir: Path) -> bool:
         return str(out_dir.resolve()).casefold() == str(OUT.resolve()).casefold()
 
 
+LM_VERSION = ROOT / "build" / "lm" / "el_ngram.version"
+
+
+def stale_model_note(dic_path: Path, version_path: Path | None = None) -> str | None:
+    """A note when the next-word model at ``version_path`` (default
+    ``LM_VERSION``) was built from another word list than ``dic_path``: its
+    vocabulary and its out-of-vocabulary table come from the list, so it
+    must be counted and exported again. None when they match or either
+    file is missing."""
+    from export_lm import dictionary_drift
+
+    return dictionary_drift(Path(version_path or LM_VERSION), Path(dic_path),
+                            lang="el")
+
+
 def dic_lines(entries: dict[str, Entry]) -> list[str]:
     lines = [f"{e.form}\tfr:{e.bucket}" + (" mg:generated" if e.generated else "")
              for e in entries.values()]
@@ -1454,6 +1469,10 @@ def run(args) -> dict:
           f"{result['acronyms']} acronyms, compiled about "
           f"{result['compiled_size_estimate_bytes'] / 1e6:.1f} MB "
           f"({time.time() - t0:.0f} s)")
+    if is_shipping_dir(out_dir):
+        note = stale_model_note(out_dir / f"{DIC_NAME}.dic")
+        if note:
+            print(f"NOTE: {note}")
     return result
 
 

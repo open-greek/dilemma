@@ -639,14 +639,26 @@ def read_oov_unigram_table(data: bytes) -> dict[int, int]:
     return dict(zip(keys, data[off + 8 * n: off + 9 * n]))
 
 
+# What to rerun when the dictionary changed under an exported LM. The el
+# model also takes its vocabulary from the word list, so it is counted again.
+REBUILD_STEPS = {
+    "grc": ("Re-export the LM (python export_lm.py) so its "
+            "out-of-vocabulary table follows the dictionary."),
+    "el": ("Re-export the LM (python train_lm.py --lang el, then python "
+           "export_lm.py --lang el) so its vocabulary and its "
+           "out-of-vocabulary table follow the word list."),
+}
+
+
 def dictionary_drift(
     version_path: Path = BUILD_DIR / "grc_ngram.version",
     dic_path: Path = DEFAULT_OOV_DICTIONARY,
+    lang: str = "grc",
 ) -> str | None:
     """A warning when the LM described by ``version_path`` carries an
     out-of-vocabulary table selected against another ``dic_path`` than
     the one on disk now, else None (also when either file is missing or
-    the LM has no table)."""
+    the LM has no table). ``lang`` picks the rebuild steps it names."""
     version_path, dic_path = Path(version_path), Path(dic_path)
     if not version_path.exists() or not dic_path.exists():
         return None
@@ -659,8 +671,7 @@ def dictionary_drift(
         return None
     return (f"{version_path} was exported against a {dic_path.name} with "
             f"sha256 {recorded[:12]}, and the one on disk now has "
-            f"{current[:12]}. Re-export the LM (python export_lm.py) so its "
-            f"out-of-vocabulary table follows the dictionary.")
+            f"{current[:12]}. {REBUILD_STEPS[lang]}")
 
 
 def build_bigram_contexts(
@@ -1045,7 +1056,7 @@ def main():
 
     if args.check_dictionary:
         drift = dictionary_drift(Path(args.version_out),
-                                 Path(args.oov_dictionary))
+                                 Path(args.oov_dictionary), lang=args.lang)
         print(drift or "The LM's out-of-vocabulary table matches "
               f"{args.oov_dictionary}.")
         sys.exit(1 if drift else 0)

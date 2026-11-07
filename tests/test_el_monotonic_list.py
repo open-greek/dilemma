@@ -548,3 +548,33 @@ def test_unpinned_inputs_are_refused(exported, tmp_path, monkeypatch):
     monkeypatch.setattr(ex, "check_hf_pins", lambda *args, **kwargs: mismatched)
     with pytest.raises(ex.ExportError, match="hf_manifest"):
         ex.run(ex_args(paths, tmp_path / "pinned", allow_unpinned=False))
+
+
+def test_an_export_to_the_shipping_directory_flags_a_stale_model(
+        exported, tmp_path, monkeypatch, capsys):
+    paths, _ = exported
+    shipping = tmp_path / "hunspell"
+    version = tmp_path / "lm" / "el_ngram.version"
+    version.parent.mkdir()
+    monkeypatch.setattr(ex, "OUT", shipping)
+    monkeypatch.setattr(ex, "LM_VERSION", version)
+    version.write_text(json.dumps({"oov_dictionary_sha256": "0" * 64}),
+                       encoding="utf-8")
+    ex.run(ex_args(paths, shipping))
+    note = capsys.readouterr().out
+    assert "NOTE:" in note and "train_lm.py --lang el" in note
+    dic = shipping / "el_monotonic.dic"
+    assert "train_lm.py --lang el" in ex.stale_model_note(dic)
+    # A model built from this list, or no model at all, needs nothing.
+    version.write_text(json.dumps({"oov_dictionary_sha256": sha(dic)}),
+                       encoding="utf-8")
+    assert ex.stale_model_note(dic) is None
+    ex.run(ex_args(paths, shipping))
+    assert "NOTE:" not in capsys.readouterr().out
+    version.unlink()
+    assert ex.stale_model_note(dic) is None
+    # Another directory is not the shipping list and is not compared.
+    version.write_text(json.dumps({"oov_dictionary_sha256": "0" * 64}),
+                       encoding="utf-8")
+    ex.run(ex_args(paths, tmp_path / "other"))
+    assert "NOTE:" not in capsys.readouterr().out
