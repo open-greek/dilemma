@@ -31,7 +31,10 @@ All notable changes to Dilemma are documented here. The format follows
   the dev split with a Python reader that answers as the Swift reader does,
   and `eval/tune_el_ngram.py` compares pruning and vocabulary sizes.
   `export_lm.py` gains `--lang` and `--drop-unknown-contexts`; the Ancient
-  Greek export is unchanged.
+  Greek export is unchanged. Since the model takes its vocabulary from the
+  word list, `export_el_monotonic.py` prints a note when the model in
+  `build/lm` was built from another list, and
+  `export_lm.py --lang el --check-dictionary` exits 1 in that case.
 - Add `build/el_accent.py`, which restores accents to words typed without
   them using only the monotonic word list and next-word model, and
   `eval/eval_el_accent_restoration.py`, which measures it on the dev split
