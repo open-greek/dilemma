@@ -34,7 +34,8 @@ under ``rejects`` in ``data/el_monotonic_review.json``.
    dative cells, table fragments and undeclined foreign names), the
    lemmas' own headwords, and the ``el`` side of ``data/lookup.db`` for
    forms mg_pairs does not have at all (εμείς, συνιστά), as long as a form
-   starts like its lemma. A form no frequency source has is rated X and
+   starts like its lemma and is not the unmarked letters of a Wiktionary
+   form with a tonos or a dialytika (πλαι for πλάι, σοι for σόι). A form no frequency source has is rated X and
    marked ``mg:generated``. The capitalized forms of a lemma (names, months)
    need their own evidence: one of them written with its capital inside a
    sentence ``NAME_LEMMA_MIN_TOKENS`` times in ``NAME_LEMMA_MIN_DOCS``
@@ -353,6 +354,11 @@ class Lexicon:
         return {f for forms in self.groups.values() for f in forms}
 
 
+def _has_marks(form: str) -> bool:
+    """True when ``form`` has a tonos or a dialytika."""
+    return L.bare_key(form) != L.lower_el(form).replace("ς", "σ")
+
+
 def _initials(form: str) -> set[str]:
     """The first letter of a form, and the letter after a past tense's
     augment (ε, η, ει before a consonant)."""
@@ -405,6 +411,12 @@ def load_lexicon(mg_pairs: Path = MG_PAIRS, lookup_db: Path | None = LOOKUP_DB,
         groups[key] = forms
     if lookup_db is not None and Path(lookup_db).exists():
         wanted = set(keys) if max_lemmas is not None else None
+        # The letters of Wiktionary forms with a tonos or a dialytika: an
+        # unmarked lookup.db form with the same letters is the stripped
+        # alias of one, even when the stripping makes a monosyllable that
+        # passes the spelling check (πλαι for πλάι, σοι for σόι, φαι for
+        # φαΐ).
+        marked_keys = {L.bare_key(f) for f in raw_forms if _has_marks(f)}
         con = sqlite3.connect(f"file:{Path(lookup_db).resolve()}?mode=ro", uri=True)
         try:
             query = ("SELECT l.form, m.text FROM lookup l JOIN lemmas m "
@@ -416,6 +428,8 @@ def load_lexicon(mg_pairs: Path = MG_PAIRS, lookup_db: Path | None = LOOKUP_DB,
                     continue
                 if L.case_shape(form) != "lower":
                     continue        # a capitalized alias of a common word
+                if not _has_marks(form) and L.bare_key(form) in marked_keys:
+                    continue        # a stripped alias (πλαι for πλάι)
                 key = lemma
                 if wanted is not None and key not in wanted:
                     continue

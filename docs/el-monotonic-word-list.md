@@ -116,7 +116,9 @@ route:
    written with its capital in less than a quarter of at least 20
    mid-sentence uses (`Μέσα`, `Αυτού`, `Νέοι`) is left out. `lookup.db`
    forms join only when `mg_pairs.json` lacks them, their lemma is lowercase,
-   and they start like their lemma.
+   they start like their lemma, and they are not the unmarked letters of a
+   Wiktionary form with a tonos or a dialytika (`πλαι` for `πλάι`, `σοι` for
+   `σόι`, which the spelling check reads as monosyllables).
 2. **Function words.** The reviewed closed list (`και`, `ο`, `ή`, `πού`), which
    Wiktionary files partly on its Ancient Greek side.
 3. **Corpus words.** A lowercase word the lexicon lacks (`ρωτάω`) with at

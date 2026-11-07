@@ -328,6 +328,7 @@ def write_fixture(tmp_path):
     # in lowercase
     paradigm("Μέσα", "adv", [("Μέσα", [])])
     paradigm("μέσα", "adv", [("μέσα", [])])
+    paradigm("πλάι", "adv", [("πλάι", [])])
     paradigm("ζαβολιάρης", "noun", [("ζαβολιάρης", ["nominative", "singular"]),
                                     ("ζαβολιάρη", ["genitive", "singular"])])
     paradigm("γράφω", "verb", [
@@ -343,9 +344,10 @@ def write_fixture(tmp_path):
     con = sqlite3.connect(db)
     con.execute("CREATE TABLE lemmas (id INTEGER PRIMARY KEY, text TEXT)")
     con.execute("CREATE TABLE lookup (form TEXT, lemma_id INTEGER, src TEXT)")
-    con.execute("INSERT INTO lemmas VALUES (1, 'γράφω'), (2, 'καλός')")
+    con.execute("INSERT INTO lemmas VALUES (1, 'γράφω'), (2, 'καλός'), (3, 'πλάι')")
     con.executemany("INSERT INTO lookup VALUES (?, ?, ?)", [
-        ("γράφουμε", 1, "el"), ("γραφω", 1, "el"), ("Καλός", 2, "el")])
+        ("γράφουμε", 1, "el"), ("γραφω", 1, "el"), ("Καλός", 2, "el"),
+        ("πλαι", 3, "el")])
     con.commit()
     con.close()
 
@@ -387,6 +389,7 @@ def write_fixture(tmp_path):
         "Ρώμη": (40, 0, 12), "ρώμη": (2, 0, 2),
         "Σοφία": (30, 0, 12), "σοφία": (60, 0, 30),
         "μέσα": (500, 0, 80), "Μέσα": (60, 30, 25),
+        "πλάι": (20, 0, 5), "πλαι": (4, 0, 3),
         "και": (900, 50, 99), "Και": (60, 60, 40), "από": (300, 0, 90),
         "απ’": (50, 0, 10), "καλ’": (20, 0, 5), "’γραψα": (15, 0, 6),
         "π.χ.": (30, 0, 5), "σελ.": (20, 0, 4), "του.Β.": (15, 0, 3),
@@ -456,6 +459,9 @@ def test_routes_and_ratings(exported):
     # a lookup.db form mg_pairs lacks joins its lemma; aliases do not
     assert ratings["γράφουμε"] == "fr:M"          # 20 FrequencyWords tokens
     assert "γραφω" not in ratings and "Καλός" not in ratings
+    # nor does a stripped alias that the stripping makes a monosyllable
+    # (πλαι, read as one syllable, for πλάι)
+    assert "πλάι" in ratings and "πλαι" not in ratings
     # no double-accented enclitic forms
     assert "γράφοντάς" not in ratings
     # an unattested lemma stays out
