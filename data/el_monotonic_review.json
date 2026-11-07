@@ -38,6 +38,10 @@
     {
       "form": "υ",
       "reason": "The letter upsilon, not a word; Wiktionary has it as a letter entry and enumerations (υ) supply its counts. As a rated entry it would accept a slip for τ or θ uncorrected."
+    },
+    {
+      "form": "κε",
+      "reason": "An abbreviation of κύριε written without its period (the abbreviation list has κ.). As an entry, rated C on subtitle counts, it accepted κε, the commonest misspelling of και, uncorrected: in the typing-slip simulation of eval/eval_el_accent_restoration.py --quick it was the most frequent slip that lands on an entry (137 of 6,204 slipped words)."
     }
   ],
   "corpus_accepts": [
