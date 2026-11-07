@@ -239,7 +239,22 @@ def test_keystroke_savings_count_taps_and_letters(model):
     assert 0 < s["savings_three_completions"] < 1
     assert s["savings_three_completions"] >= s["savings_predictions_only"]
     assert s["savings_three_completions"] >= s["savings_commit_aware"]
+    assert s["savings_three_completions"] >= s["savings_completions_only"]
     assert ks["completion_check"]["mismatches"] == 0
+
+
+def test_completions_only_counts_words_a_prediction_had(model):
+    from dilemma_build.el_ngram import Resolver, load_dictionary
+    lm = model["lm"]
+    r = E.Restorer(model["index"], lm, margin=0.5, policy="keep")
+    entries = load_dictionary(model["dic"])
+    # "θα" is the model's first prediction at the start of a sentence
+    # in the fixture, and its first completion after one letter.
+    dev = {"news": [["θα"]]}
+    s = E.run_keystrokes(r, E.Completer(lm), Resolver(entries), entries, dev)["pooled"]["all"]
+    assert s["prediction_hit_share"] == 1.0
+    assert s["savings_predictions_only"] == pytest.approx(2 / 3)
+    assert s["savings_completions_only"] == pytest.approx(1 / 3)
 
 
 def test_the_next_word_widens_a_correct_lead(model):

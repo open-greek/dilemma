@@ -982,7 +982,9 @@ def run_keystrokes(restorer: Restorer, completer: Completer, resolver: Resolver,
                     shown_pred[lm.vocab[preds[0]]] += 1
                 pred_hit = target is not None and target in preds
                 comp_at: dict[str, int | None] = {"three": None, "aware": None}
-                if target is not None and not pred_hit:
+                # Completions are looked for even when a prediction already
+                # had the word: the completions-only layout needs them.
+                if target is not None:
                     for k in range(1, n):
                         stem = typed[:k]
                         nstem = normalize(stem)
