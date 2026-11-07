@@ -39,7 +39,9 @@ at commit f08cf8f on 2026-11-07.
 ## Reproduce
 
 The bundle is built in four steps, each reading the output of the one
-before. From a fresh clone:
+before. Besides the standard library they need numpy, pyarrow and
+huggingface_hub (`python -m pip install numpy pyarrow huggingface_hub`).
+From a fresh clone:
 
 ```bash
 hf download ciscoriordan/dilemma data/lookup.db data/mg_pairs.json \
