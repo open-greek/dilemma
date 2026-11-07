@@ -114,6 +114,10 @@ its own (π.Χ., before Christ, beside π.χ., for example). Acronyms are
 all-capital Greek tokens of two or more letters that open text writes in
 capitals (95% Wilson lower bound of the share at least
 ``ACRONYM_MIN_SHARE``) and whose letters are no entry of the word list.
+Two words run together in capitals (ΚΕΙΜΕΝΟΣΕΛΙΔΑ, ΔΙΑΤΑΞΗΤΗΣ) are no
+acronym: a token of at least ``ACRONYM_RUN_TOGETHER_MIN_LETTERS`` letters
+whose letters split into two rated (C or M) entries, the first of at least
+``ACRONYM_RUN_TOGETHER_MIN_HEAD`` letters, is left out.
 
 Usage
 -----
@@ -210,6 +214,8 @@ ABBREVIATION_CANDIDATE_MIN_TOKENS = 20
 ACRONYM_MIN_TOKENS = 20
 ACRONYM_MIN_DOCS = 5
 ACRONYM_MIN_SHARE = 0.9
+ACRONYM_RUN_TOGETHER_MIN_LETTERS = 9
+ACRONYM_RUN_TOGETHER_MIN_HEAD = 5
 # Bytes of the keyboard's compiled dictionary (TONOSDIC v5): a 56-byte
 # header, three u32 tables, the raw and stripped string pools and one
 # frequency byte per entry.
@@ -1170,13 +1176,29 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
     return sorted(set(kept), key=lambda s: s.encode("utf-8")), audit
 
 
+def run_together_split(key: str, common_keys: set[str]) -> tuple[str, str] | None:
+    """The two rated entries whose letters (``el_lexicon.bare_key``) make
+    up ``key``, for a token of capitals that is two words run together
+    (κειμενοσελιδα: κειμενο + σελιδα), or None."""
+    if len(key) < ACRONYM_RUN_TOGETHER_MIN_LETTERS:
+        return None
+    for i in range(ACRONYM_RUN_TOGETHER_MIN_HEAD, len(key)):
+        if key[:i] in common_keys and key[i:] in common_keys:
+            return key[:i], key[i:]
+    return None
+
+
 def select_acronyms(evidence: Evidence, entries: set[str],
-                    rejects: dict[str, str]) -> tuple[list[str], list[dict]]:
+                    rejects: dict[str, str],
+                    common_entries: set[str] = frozenset()
+                    ) -> tuple[list[str], list[dict]]:
     """All-capital acronyms (see the module docstring). The letters of an
     acronym must not be those of an entry of the word list (ΠΕ, πε), so
     that a word typed in capitals is still resolved to its accented
     spelling. A name the lexicon has but the list does not, because text
-    writes it in capitals (Σύριζα), leaves its acronym (ΣΥΡΙΖΑ) in."""
+    writes it in capitals (Σύριζα), leaves its acronym (ΣΥΡΙΖΑ) in.
+    ``common_entries`` are the entries rated C or M, whose letters make up
+    two words run together (``run_together_split``)."""
     others: Counter = Counter()          # bare key -> tokens not in capitals
     caps: Counter = Counter()
     caps_docs: Counter = Counter()
@@ -1193,6 +1215,7 @@ def select_acronyms(evidence: Evidence, entries: set[str],
             elif shape in ("lower", "title"):
                 others[L.bare_key(token)] += n
     bare_entries = {L.bare_key(w) for w in entries if L.APOSTROPHE not in w}
+    common_keys = {L.bare_key(w) for w in common_entries if L.APOSTROPHE not in w}
     kept, audit = [], []
     for token in sorted(caps):
         n = caps[token]
@@ -1208,6 +1231,8 @@ def select_acronyms(evidence: Evidence, entries: set[str],
                "not_in_capitals": other}
         if key in bare_entries:
             row["rejected"] = "its letters are an entry of the word list"
+        elif (split := run_together_split(key, common_keys)) is not None:
+            row["rejected"] = f"two words run together: {split[0]} + {split[1]}"
         elif token in rejects:
             row["rejected"] = rejects[token]
         else:
@@ -1452,8 +1477,9 @@ def run(args) -> dict:
     abbreviations, abbr_audit = select_abbreviations(
         evidence, candidates, lexicon_words | set(sel.entries),
         review["abbreviation_rejects"])
-    acronyms, acr_audit = select_acronyms(evidence, set(sel.entries),
-                                          review["acronym_rejects"])
+    acronyms, acr_audit = select_acronyms(
+        evidence, set(sel.entries), review["acronym_rejects"],
+        {f for f, e in sel.entries.items() if e.bucket in ("C", "M")})
     paths = {"mg_pairs": Path(args.mg_pairs), "mg_freq": Path(args.mg_freq),
              "function_words": Path(args.function_words), "review": Path(args.review),
              "corpus_manifest": corpus_dir / "manifest.json"}

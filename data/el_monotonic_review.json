@@ -148,6 +148,18 @@
     {
       "form": "ΙΙΙ",
       "reason": "A Roman numeral (III) written with Greek capital iotas, not an acronym."
+    },
+    {
+      "form": "ΧΙΙ",
+      "reason": "A Roman numeral (XII) written with Greek capitals, not an acronym."
+    },
+    {
+      "form": "ΧΙΙΙ",
+      "reason": "A Roman numeral (XIII) written with Greek capitals, not an acronym."
+    },
+    {
+      "form": "ΧΧΧ",
+      "reason": "A Roman numeral (XXX) written with Greek capitals, or a placeholder for withheld text, not an acronym."
     }
   ]
 }

@@ -242,6 +242,16 @@ def test_abbreviation_shapes(spelling, rejected):
     assert (ex.abbreviation_shape_reason(spelling, words) is not None) is rejected
 
 
+def test_two_words_run_together_in_capitals_are_found():
+    keys = {"κειμενο", "σελιδα", "διαταξη", "τησ", "ευρω", "τεχνικη"}
+    assert ex.run_together_split("κειμενοσελιδα", keys) == ("κειμενο", "σελιδα")
+    assert ex.run_together_split("διαταξητησ", keys) == ("διαταξη", "τησ")
+    # the first word is too short to tell a run-together from a name
+    assert ex.run_together_split("ευρωτεχνικη", keys) is None
+    assert ex.run_together_split("σελιδατη", keys) is None     # too short
+    assert ex.run_together_split("κειμενοσελ", keys) is None
+
+
 def test_learned_monosyllables_of_fixed_phrases_are_function_words():
     words = ex.load_function_words(ex.FUNCTION_WORDS)
     assert {"εις", "τοις", "τω"} <= set(words)
@@ -368,7 +378,7 @@ def write_fixture(tmp_path):
         "απ’": (50, 0, 10), "καλ’": (20, 0, 5), "’γραψα": (15, 0, 6),
         "π.χ.": (30, 0, 5), "σελ.": (20, 0, 4), "του.Β.": (15, 0, 3),
         "π.Χ.": (12, 0, 3), "Π.χ.": (11, 11, 3), "Σελ.": (4, 4, 2),
-        "ΟΗΕ": (40, 0, 10), "ΚΑΙ": (30, 0, 6),
+        "ΟΗΕ": (40, 0, 10), "ΚΑΙ": (30, 0, 6), "ΚΑΛΟΣΣΠΙΤΙ": (40, 0, 6),
     }
     context = {"απ’": [50, 48, 1, 45, 40], "καλ’": [20, 3, 1, 20, 15],
                "’γραψα": [15, 2, 3, 15, 15]}
@@ -473,7 +483,11 @@ def test_companion_lists(exported):
     assert "π.Χ." in abbreviations
     assert "Π.χ." not in abbreviations and "Σελ." not in abbreviations
     acronyms = (out / "el_monotonic_acronyms.txt").read_text(encoding="utf-8").split()
+    # ΚΑΙ is a word in capitals; ΚΑΛΟΣΣΠΙΤΙ is two words run together
     assert acronyms == ["ΟΗΕ"]
+    audit = json.loads((out / "el_monotonic.audit.json").read_text(encoding="utf-8"))
+    rows = {r["acronym"]: r.get("rejected") for r in audit["acronym_review"]}
+    assert rows["ΚΑΛΟΣΣΠΙΤΙ"] == "two words run together: καλοσ + σπιτι"
 
 
 def test_aff_and_version(exported):
