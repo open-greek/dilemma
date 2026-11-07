@@ -226,7 +226,8 @@ string pools with offsets, a stripped index, one frequency byte per entry).
 For the earlier export at commit f08cf8f (630,463 entries), the keyboard's
 Swift dictionary compiler produced a file of exactly the estimated size
 (34,881,785 bytes) in about 5 s on an Apple M5 Max, and its reader found
-each entry with the bucket of its `fr:` field.
+each entry with the bucket of its `fr:` field. For this export the compiler
+again wrote exactly the estimated size (34,930,430 bytes) in about 5 s.
 The largest rejections were unattested capitalized forms (246,100), forms
 of unattested lemmas (215,678) and unaccented polysyllables (10,675). The
 lexicon no longer reads the 698,350 accent-stripped aliases of `lookup.db`
