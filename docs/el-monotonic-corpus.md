@@ -33,7 +33,10 @@ python -m pytest tests/test_el_text.py tests/test_el_corpus.py -q
 Hugging Face inputs come from the Hugging Face cache at the pinned revision.
 URL inputs are kept in `data/raw/<source>/` (ignored by git), or in
 `$DILEMMA_EL_RAW_DIR`. The Wiktionary examples are read from the kaikki.org
-dumps that `build_data.py` uses (`kaikki/`, or `$DILEMMA_KAIKKI_DIR`). Every
+dumps that `build_data.py` uses (`kaikki/`, or `$DILEMMA_KAIKKI_DIR`); the
+editorial notes both editions file among the examples (alternative forms
+and spellings, synonym lists, links to Wikipedia or a category, quotation
+headers, `→ χρειάζεται παράθεμα`) are skipped. Every
 input's size and sha256 must match the manifest, and a run stops on any
 difference. A run limited by `--sanity`, `--max-docs` or `--sources` cannot
 write `build/el_corpus`. The full run takes about 5 minutes with 16 worker
@@ -185,16 +188,16 @@ training words, case-folded.
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Parliament | 1,280,927 | 166.6M | 170.0M | 100.0M | 3.78M | 0% | 179,219 | 0.45M | 334.2 | 271.6 | 79.7 |
 | OpenGov comments | 441,886 | 52.4M | 54.5M | 54.5M | 1.86M | 7% | 14,680 | 21.13M | 262.6 | 44.8 | 17.3 |
-| Wikipedia | 226,834 | 83.3M | 89.8M | 30.0M | 1.92M | 11% | 24,711 | 0.21M | 23.8 | 5.2 | 4.1 |
+| Wikipedia | 226,834 | 83.3M | 89.8M | 30.0M | 1.92M | 11% | 24,709 | 0.21M | 23.8 | 5.2 | 4.1 |
 | European Parliament | 154,876 | 85.1M | 88.0M | 5.0M | 1.90M | 21% | 169,416 | 2.84M | 8.2 | 0.1 | 4.7 |
 | EELLAK articles | 7,284 | 2.75M | 2.97M | 2.97M | 56K | 28% | 549 | 9K | 35.6 | 18.5 | 14.9 |
 | Wikisource | 4,806 | 2.23M | 2.25M | 2.25M | 108K | 83% | 122 | 1K | 552.5 | 403.3 | 1.3 |
 | Tatoeba | 42,985 | 237K | 237K | 237K | 12K | 0% | 26 | 0 | 5,279.2 | 1,452.8 | 156.3 |
 | Common Voice | 6,461 | 41K | 41K | 41K | 2K | 0% | 0 | 0 | 710.8 | 857.9 | 24.5 |
-| Wiktionary examples | 56,919 | 674K | 705K | 705K | 44K | 11% | 2,759 | 31K | 368.1 | 148.4 | 49.0 |
+| Wiktionary examples | 49,257 | 655K | 683K | 683K | 42K | 10% | 2,627 | 30K | 378.7 | 152.7 | 50.4 |
 
 In total, train has 408.5M tokens (393.4M words, 18.75M sentences) and dev
-has 9.68M tokens (449,676 sentences); 195.7M training tokens are under the
+has 9.68M tokens (449,360 sentences); 195.6M training tokens are under the
 caps. Wikisource loses most of its text because most of its documents are
 polytonic. The repeat cap removes 21.1M tokens of OpenGov comments: copies of
 the same text submitted by many people.

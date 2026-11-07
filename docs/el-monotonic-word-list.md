@@ -205,57 +205,59 @@ spellings of the same letters, and letters that are no entry of the list.
 
 ## Recorded export
 
-Export of 2026-11-07, commit f08cf8f, version 1.3.15 (sha256 of the
-`.dic` `d27e8336`):
+Export of 2026-11-07, commit 489336b, version 1.3.15 (sha256 of the
+`.dic` `abef641c`):
 
 | Measure | Value |
 |---|---|
-| Entries | 630,463 |
-| C, M, R, X | 7,690, 39,791, 363,975, 219,007 |
-| Attested, generated | 411,456, 219,007 |
-| Paradigm, corpus word, name, elision, function word | 607,522, 6,604, 16,141, 195, 1 |
-| Abbreviations, acronyms | 226, 1,699 (a re-export that added the case variants of abbreviations, with a byte-identical `.dic`) |
-| Compiled size estimate | 34.9 MB, 55.3 bytes per entry |
-| Lexicon read | 192,529 lemmas, 1.80M forms; 53,836 lemmas attested |
+| Entries | 631,696 |
+| C, M, R, X | 7,613, 39,353, 365,531, 219,199 |
+| Attested, generated | 412,497, 219,199 |
+| Paradigm, corpus word, name, elision, function word | 607,247, 6,605, 17,645, 195, 4 |
+| Abbreviations, acronyms | 226, 1,691 |
+| Compiled size estimate | 34.9 MB (34,930,430 bytes), 55.3 bytes per entry |
+| Lexicon read | 187,846 lemmas, 1.10M forms; 53,811 lemmas attested |
 
 The compiled size follows the keyboard's dictionary format (raw and stripped
 string pools with offsets, a stripped index, one frequency byte per entry).
-The keyboard's Swift dictionary compiler turns this export into a file of
-exactly that size (34,881,785 bytes) in about 5 s on an Apple M5 Max, and
-its reader finds each of the 630,463 entries with the bucket of its
-`fr:` field.
-The largest rejections were unaccented polysyllables (708,597, mostly
-accent-stripped aliases in `lookup.db`), unattested capitalized forms
-(246,051) and forms of unattested lemmas (215,554).
+For the earlier export at commit f08cf8f (630,463 entries), the keyboard's
+Swift dictionary compiler produced a file of exactly the estimated size
+(34,881,785 bytes) in about 5 s on an Apple M5 Max, and its reader found
+each entry with the bucket of its `fr:` field.
+The largest rejections were unattested capitalized forms (246,100), forms
+of unattested lemmas (215,678) and unaccented polysyllables (10,675). The
+lexicon no longer reads the 698,350 accent-stripped aliases of `lookup.db`
+(see route 1), which the spelling check used to reject one by one.
 
 ## Evaluation
 
-`eval/eval_el_monotonic.py` on the dev split (9.30M word tokens in 49,611
+`eval/eval_el_monotonic.py` on the dev split (9.30M word tokens in 49,310
 documents the exporter never read):
 
 | Measure | List | elspell |
 |---|---|---|
-| Word tokens accepted as spelled | 98.34% | 97.20% |
-| Lowercase tokens accepted as spelled | 98.87% | 98.68% |
-| Accepted with accents ignored | 98.66% | 97.49% |
-| Capitalized tokens accepted | 94.86% | |
-| All-capital tokens accepted | 94.26% | |
-| Abbreviation tokens in the abbreviation list | 60.3% | |
+| Word tokens accepted as spelled | 98.36% | 97.20% |
+| Lowercase tokens accepted as spelled | 98.89% | 98.68% |
+| Accepted with accents ignored | 98.69% | 97.49% |
+| Capitalized tokens accepted | 94.96% | |
+| All-capital tokens accepted | 93.94% | |
+| Abbreviation tokens in the abbreviation list | 61.6% | |
 
-Per source, exact coverage is 99.2% for Parliament, 99.3% for the European
-Parliament, 98.1% for OpenGov comments, 97.0% for Wikipedia and 78.6% for
+Per source, exact coverage is 99.3% for Parliament, 99.3% for the European
+Parliament, 98.1% for OpenGov comments, 97.0% for Wikipedia and 79.4% for
 monotonic Wikisource, whose older literary spelling the list does not
 accept. A token with an enclitic's second accent counts as accepted when
-the entry without it is one. The commonest misses are the Katharevousa
-`εις`, `τοις` and `διά`, numbering letters (`β`, `γ`), the `ό` of `ό,τι`
-(tokenized apart), technical words FrequencyWords lacks
+the entry without it is one. The commonest misses are numbering letters
+(`β`, `γ`, and the capital `Ι` of Roman numerals, which the letter `ι` no
+longer covers), the `ό` of `ό,τι` (tokenized apart), the old accented
+monosyllable `τού`, `διά`, technical words FrequencyWords lacks
 (`φυτοπροστατευτικών`) and mixed-case acronyms (`ΣτΕ`).
 
 False accepts: of 34 reviewed misspellings (unaccented, accented
 monosyllables, double accents, Latin look-alikes, wrong accents, wrong or
 missing dialytika, old spellings, ASCII apostrophes), the list accepts one,
-`νοιώθω`, which Wiktionary lists as a form of `νιώθω`. Of the 121,274
-spellings made by moving the tonos of a C or M entry to another vowel, 3,151
+`νοιώθω`, which Wiktionary lists as a form of `νιώθω`. Of the 119,679
+spellings made by moving the tonos of a C or M entry to another vowel, 3,124
 (2.6%) are entries, most of them other words (`πότε`, `ποτέ`). Triantafyllidis
 headwords: 81.9% of 44,396 single-word headwords are entries; the missing ones
 are mostly rare derived adjectives no source attests (`άβαλτος`, `άγλωσσος`).
@@ -274,15 +276,15 @@ the evaluation script) is licensed MPL 1.1, GPL 2.0 or LGPL 2.1. GPL and LGPL
 terms cannot be met by an app distributed through the App Store, and MPL 1.1
 keeps the covered file under MPL, which a list that also carries CC BY-SA
 content cannot satisfy. So it is used only to evaluate the list, never to
-admit words. On the dev split, it accepts 8,781 token types (39,771 tokens)
-that the list rejects, mostly single letters, Katharevousa words (`εις`,
-`τοις`, `διά`, `τω`), old accented monosyllables (`τού`, `τούς`, `μάς`),
-abbreviations written without their period (`κλπ`, `πχ`) and formal
-participles (`καταταγέντων`). The list accepts 21,606 types (145,421 tokens)
-it rejects, mostly acronyms, elisions, names, recent words (`πάροχοι`,
-`οικοτόπων`) and old spellings Wiktionary lists (`καμμία`). It lacks 175 C
-entries of the list: names, elisions, recent technical words (`ιστότοπο`,
-`μεταδεδομένα`) and dialect or older forms (`ήτο`, `απάνου`).
+admit words. On the dev split, it accepts 8,662 token types (37,407 tokens)
+that the list rejects, mostly single letters, old accented monosyllables
+(`τού`, `τούς`, `μάς`), `διά`, abbreviations written without their period
+(`κλπ`, `πχ`) and formal participles (`καταταγέντων`). The list accepts
+21,621 types (145,459 tokens) it rejects, mostly acronyms, elisions, names,
+recent words (`πάροχοι`, `οικοτόπων`) and old spellings Wiktionary lists
+(`καμμία`). It lacks 132 C entries of the list: names (`Τσίπρα`, `Βοστώνη`),
+elisions, recent technical words (`ανοιχτότητα`) and dialect or older forms
+(`ήτο`, `απάνου`).
 
 ## Known limitations
 
@@ -298,6 +300,21 @@ entries of the list: names, elisions, recent technical words (`ιστότοπο`
 - The typing-slip rule also rejects older forms of common words that
   Wiktionary lacks (`ήκουσα`, `είδον`, `ταύτης`), so older literary text
   has more words the list rejects.
+- A capitalized spelling whose lowercase is a word is a name only with a
+  Wiktionary name page. Names without one stay lowercase (`Ευρωπαϊκή
+  Ένωση`, `Ηνωμένων Εθνών`; the model predicts `ένωση` after
+  `Ευρωπαϊκή`), as does `Όρος` of `Άγιο Όρος`, which text mostly writes
+  as the word `όρος`. A few titles that Parliament minutes capitalize and
+  Wiktionary files as names are entries (`Βουλευτή`, `Αίθουσα`).
+- `τοις` and `τω` are function words for `τοις εκατό` and `εν τω
+  μεταξύ`, which make up most of their uses, but they are also slips of
+  `τις`, `της`, `τους` and `το`. In the typing-slip simulation of
+  [monotonic keyboard data](monotonic-keyboard-data.md), `το` typed `τω`
+  is 64 of 795 o and ω slips; a keyboard can accept the two only where the
+  next-word model expects them.
+- Monotonic Wikisource is a rating source of its own, so 979 entries, some
+  of them older literary forms (`ψυχήν`, `όλην`, `ώραν`, `οπού`), are
+  rated C on its counts.
 - X entries (219,007) are Wiktionary forms no source has. Rare legitimate
   forms and Wiktionary's dialectal or colloquial variants are among them.
 - Acronyms whose letters are an entry (`ΝΑΤΟ` beside `νάτο`) are left out of

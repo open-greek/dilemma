@@ -11,17 +11,23 @@ All notable changes to Dilemma are documented here. The format follows
   (`data/el_lm_corpora.json`) and `extract_el_monotonic_lm.py`, which
   normalizes, filters and tokenizes it the way a keyboard segments words and
   writes a document-level train/dev split under `build/el_corpus/`. The
-  manifest refuses NonCommercial and NoDerivatives sources.
+  manifest refuses NonCommercial and NoDerivatives sources. The editorial
+  notes filed among Wiktionary's usage examples are skipped.
 - Add `export_el_monotonic.py`, which writes the monotonic Modern Greek word
   list `build/hunspell/el_monotonic.{dic,aff,version}` with abbreviation and
   acronym lists: Wiktionary paradigms of attested lemmas, reviewed function
   words, corpus words, names and elisions, rated by their rate per million in
   FrequencyWords and the open corpus. Corpus words one typing slip from a
   far commoner word (`είνα`, `πρέπε`, `συγκεριμένα`) are rejected, since
-  they would hide a slip of that word. `eval/eval_el_monotonic.py` measures it
-  on the corpus's held-out dev split (98.34% of word tokens accepted as
-  spelled), with false-accept checks and a cross-check against the
-  LibreOffice Greek dictionary, which its licenses limit to evaluation.
+  they would hide a slip of that word. A name whose letters are also a word
+  keeps its capital when Wiktionary has a name page for it (`Ρώμη`,
+  `Τσίπρα`), a capitalized twin of a word that text writes in lowercase is
+  left out (`Μέσα`), a C or M rating needs evidence from 10 or 3 documents
+  of its source, and the stripped aliases of `lookup.db` are not read.
+  `eval/eval_el_monotonic.py` measures it on the corpus's held-out dev split
+  (98.36% of word tokens accepted as spelled), with false-accept checks and
+  a cross-check against the LibreOffice Greek dictionary, which its
+  licenses limit to evaluation.
 - Add a monotonic Modern Greek next-word model: `train_lm.py --lang el`
   counts the capped training split of that corpus with numpy, resolving
   every token to the monotonic word-list spelling a keyboard looks up, and
