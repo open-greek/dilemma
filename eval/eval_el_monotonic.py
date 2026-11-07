@@ -203,6 +203,8 @@ class Lists:
 
 
 def is_word(token: str) -> bool:
+    if L.lower_el(token) == L.OTI:
+        return True
     return (any(c in L.LETTERS for c in token)
             and all(c in L.LETTERS or c == L.APOSTROPHE for c in token))
 

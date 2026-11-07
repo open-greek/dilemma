@@ -24,7 +24,8 @@ else the reason it may not:
 
 * NFC, the monotonic letters of the Greek block only (no Greek Extended,
   no Latin look-alikes, no digits); U+2019 only as an elision mark at the
-  end (απ’, είν’) or an aphaeresis mark at the start (’ναι, ’ρθει);
+  end (απ’, είν’) or an aphaeresis mark at the start (’ναι, ’ρθει); the
+  one comma is that of ``ό,τι``, which is always an entry;
 * lowercase, or a capital initial for names; never all capitals (Greek
   capitals drop the tonos, so all-capital spellings go to the acronym
   list instead);
@@ -65,6 +66,8 @@ from __future__ import annotations
 import unicodedata
 
 APOSTROPHE = "’"
+# ό,τι (whatever), the one word written with a comma (``el_text.OTI``).
+OTI = "ό,τι"
 C_PER_MILLION = 37.0
 M_PER_MILLION = 3.7
 BUCKETS = ("C", "M", "R", "X")
@@ -254,6 +257,8 @@ def orthography_reason(form: str, *, allow_capital: bool = True,
         return "empty"
     if nfc(form) != form:
         return "not_nfc"
+    if form == OTI:
+        return None
     lead = form.startswith(APOSTROPHE)
     trail = form.endswith(APOSTROPHE) and len(form) > 1
     core = form[1 if lead else 0:len(form) - (1 if trail else 0)]

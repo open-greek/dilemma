@@ -115,6 +115,18 @@ def test_hyphenated_compounds_are_split_like_the_keyboard():
         assert "-" not in tok
 
 
+def test_oti_with_its_comma_is_one_token():
+    # ό,τι (whatever) is one word; ό alone is no word.
+    assert one("Κάνε ό,τι θέλεις") == ["Κάνε", T.OTI, "θέλεις"]
+    assert one("Ό,τι κι αν πεις.") == ["Ό,τι", "κι", "αν", "πεις"]
+    assert one("ό,τι.")[0] == T.OTI
+    assert T.process_document("ό,τι").stats["tok_oti"] == 1
+    # Only the comma with no space, and only before the end of the word.
+    assert one("ό, τι") == ["ό", "τι"]
+    assert one("ό,τιδήποτε") == ["ό", "τιδήποτε"]
+    assert one("καλό,τι") == ["καλό", "τι"]
+
+
 def test_word_final_sigma_is_normalized_except_before_a_hyphen():
     pd = T.process_document("ο καλόσ δρόμος")
     assert pd.sentences == [["ο", "καλός", "δρόμος"]]

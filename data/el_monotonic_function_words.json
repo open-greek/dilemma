@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "language": "el",
-  "description": "Closed-class monotonic Modern Greek words that the monotonic word list (export_el_monotonic.py) always holds, whatever the lexicon and the corpus say. Wiktionary files some of them only on the Ancient side or as a lemma with no form row (και, ο, ή), so a list built from its paradigms alone would miss the commonest words of the language. The learned monosyllables of fixed phrases (τοις εκατό, εν τω μεταξύ, εις βάρος) are listed here because the corpus route admits no monosyllables. Every entry must pass el_lexicon.orthography_reason; tests/test_el_monotonic_list.py checks this. Frequency ratings come from the frequency sources like any other entry's. Reviewed 2026-11-07.",
+  "description": "Closed-class monotonic Modern Greek words that the monotonic word list (export_el_monotonic.py) always holds, whatever the lexicon and the corpus say. Wiktionary files some of them only on the Ancient side or as a lemma with no form row (και, ο, ή), so a list built from its paradigms alone would miss the commonest words of the language. The learned monosyllables of fixed phrases (τοις εκατό, εν τω μεταξύ, εις βάρος) are listed here because the corpus route admits no monosyllables. ό,τι (whatever) is the one word written with a comma; the corpus tokenizer keeps it as one token. Every entry must pass el_lexicon.orthography_reason; tests/test_el_monotonic_list.py checks this. Frequency ratings come from the frequency sources like any other entry's. Reviewed 2026-11-07.",
   "categories": {
     "article": ["ο", "η", "το", "οι", "τα", "του", "της", "των", "τον", "την", "τη", "τους", "τις", "ένας", "μια", "μία", "ένα", "ενός", "μιας"],
     "article_with_preposition": ["στο", "στη", "στην", "στον", "στα", "στους", "στις", "στου", "στης", "στων"],
@@ -12,7 +12,7 @@
     "interrogative": ["πού", "πώς", "τι", "ποιος", "ποια", "ποιο", "ποιοι", "ποιες", "ποιους", "ποιον", "ποιων", "πόσος", "πόση", "πόσο", "πόσοι", "πόσες", "πόσα", "πότε"],
     "numeral": ["δυο", "δύο", "τρία", "τρεις", "τέσσερα", "τέσσερις"],
     "adverb": ["εδώ", "εκεί", "τώρα", "πολύ", "πιο", "λίγο", "ήδη", "ακόμα", "ακόμη", "πια", "πάλι", "μόνο", "ίσως", "τότε", "μάλλον"],
-    "indefinite": ["κάποιος", "κάποια", "κάποιο", "κανείς", "κανένας", "καμία", "κανένα", "τίποτα", "τίποτε", "κάθε", "καθένας", "όλος", "όλη", "όλο", "όλοι", "όλες", "όλα", "οποίος", "οποία", "οποίο", "όποιος", "όποια", "όποιο"],
+    "indefinite": ["κάποιος", "κάποια", "κάποιο", "κανείς", "κανένας", "καμία", "κανένα", "τίποτα", "τίποτε", "κάθε", "καθένας", "όλος", "όλη", "όλο", "όλοι", "όλες", "όλα", "οποίος", "οποία", "οποίο", "όποιος", "όποια", "όποιο", "ό,τι"],
     "interjection": ["αχ", "ω", "ε", "ωχ", "ουφ", "μπα"],
     "learned_in_fixed_phrases": ["εις", "τοις", "τω"]
   }

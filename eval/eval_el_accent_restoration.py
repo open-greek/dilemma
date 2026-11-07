@@ -181,6 +181,8 @@ def typable(token: str) -> bool:
     if not el_type_counts.is_word_token(token):
         return False
     core = token.replace(APOSTROPHE, "")
+    if L.lower_el(core) == L.OTI:
+        core = core.replace(",", "")
     if not core or any(c not in L.LETTERS for c in core):
         return False
     shape = L.case_shape(core)

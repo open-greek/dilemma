@@ -8,7 +8,10 @@ the keyboard will look up:
 * A word is a run of letters. Every other character breaks words: space,
   punctuation, digits, symbols, and the hyphen. A hyphenated compound
   (γερο-Ανέστης, ελληνο-τουρκικός) is therefore always two tokens, in
-  order, and no token ever contains a hyphen.
+  order, and no token ever contains a hyphen. The one exception is the
+  pronoun ``ό,τι`` (whatever, ``Ό,τι`` at the start of a sentence), one
+  word written with a comma and no space: ``ό`` alone is no word, so it
+  stays one token (``OTI``).
 * The apostrophe U+2019 is part of a word, never a breaker. The elided
   word keeps it (σ’ αγαπώ is ``σ’`` ``αγαπώ``, απ’ το is ``απ’`` ``το``),
   an aphaeresis keeps it in front (θα ’ρθω is ``θα`` ``’ρθω``), and an
@@ -72,6 +75,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 APOSTROPHE = "\u2019"
+# ό,τι (whatever): the one word with a comma inside, kept as one token.
+OTI = "ό,τι"
 NUM_TOKEN = "<NUM>"
 FOREIGN_TOKEN = "<FOREIGN>"
 PLACEHOLDERS = frozenset({NUM_TOKEN, FOREIGN_TOKEN})
@@ -200,6 +205,7 @@ _TOKEN_RE = re.compile(
     r"|(?P<abbr>(?<![^\W\d_])(?:" + _LETTER + r"{1,4}\.){2,}(?![^\W\d_]))"
     r"|(?P<latindot>[A-Za-z][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)+)"
     r"|(?P<num>\d(?:[\d.,:/]*\d)?" + _LETTER + r"*)"
+    r"|(?P<oti>(?<![^\W\d_])[όΌ],τι(?![^\W\d_]))"
     r"|(?P<word>" + _APOS + r"?" + _LETTER
     + r"(?:" + _LETTER + r"|[\u0300-\u036f]|" + _APOS + r"(?=" + _LETTER
     + r"))*" + _APOS + r"?)"
@@ -500,7 +506,12 @@ def tokenize_text(
         raw = m.group()
         nxt = items[i + 1] if i + 1 < n else None
         adjacent = nxt is not None and nxt.start() == m.end()
-        if kind == "word":
+        if kind == "oti":
+            # ό,τι (whatever) is one word written with a comma; ό alone is
+            # no word, so splitting it would leave a fragment.
+            current.append(Token(raw, "word"))
+            stats["tok_oti"] += 1
+        elif kind == "word":
             word, numeral = _fold_apostrophes(raw, stats)
             if not word:
                 i += 1
