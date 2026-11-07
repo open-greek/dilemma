@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "language": "el",
-  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling rule of the corpus route would refuse because a far commoner word shares its letters or its sound; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version.",
+  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling or typing-slip rules of the corpus route would refuse because a far commoner word shares its letters or its sound, or is one typing slip away; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version.",
   "rejects": [
     {
       "form": "κι’",
@@ -34,8 +34,100 @@
   ],
   "corpus_accepts": [
     {
+      "form": "έδωκε",
+      "reason": "The older aorist έδωκε of δίνω in folk and literary text, not a slip of έδωσε."
+    },
+    {
+      "form": "ήτον",
+      "reason": "The colloquial ήτον beside ήταν, not a slip of τον."
+    },
+    {
+      "form": "αναμασά",
+      "reason": "From αναμασώ (rehash), not a slip of ανάμεσα."
+    },
+    {
+      "form": "βγάνει",
+      "reason": "The colloquial βγάνω beside βγάζω, not a slip of βγαίνει."
+    },
+    {
+      "form": "βορεινά",
+      "reason": "From βορεινός (northern), not a slip of βόρεια."
+    },
+    {
+      "form": "γόη",
+      "reason": "From γόης (charmer), not a slip of γη."
+    },
+    {
+      "form": "δαύτον",
+      "reason": "The colloquial pronoun δαύτος, not a slip of αυτόν."
+    },
+    {
+      "form": "δευτέριο",
+      "reason": "Deuterium, not a slip of δεύτερο."
+    },
+    {
+      "form": "είπας",
+      "reason": "The colloquial second person είπας beside είπες, not a slip of είπα."
+    },
+    {
+      "form": "εμέ",
+      "reason": "The emphatic pronoun εμέ beside εμένα, not a slip of με."
+    },
+    {
+      "form": "ενάντιοι",
+      "reason": "From ενάντιος (opposed), not a slip of εναντίον."
+    },
+    {
+      "form": "επαιτεί",
+      "reason": "From επαιτώ (beg), not a slip of απαιτεί."
+    },
+    {
+      "form": "καλήν",
+      "reason": "The set phrases καλήν εσπέρα and καλήν αντάμωση, not a slip of καλή."
+    },
+    {
+      "form": "κότινο",
+      "reason": "From κότινος (olive wreath), not a slip of κοινό."
+    },
+    {
+      "form": "μάκρο",
+      "reason": "The loanword μάκρο (macro), not a slip of μικρό."
+    },
+    {
+      "form": "μαίνεται",
+      "reason": "From μαίνομαι (rage), not a slip of φαίνεται."
+    },
+    {
+      "form": "νοεί",
+      "reason": "From νοώ (mean, understand), not a slip of νέοι."
+    },
+    {
+      "form": "πολύν",
+      "reason": "The accusative πολύν in πολύν καιρό, standard Modern Greek, not a slip of πολύ."
+    },
+    {
       "form": "πρωτού",
       "reason": "The conjunction πρωτού (before), a word in its own right, not a misplaced accent of πρώτου."
+    },
+    {
+      "form": "πρόπολη",
+      "reason": "Propolis, not a slip of προβολή."
+    },
+    {
+      "form": "πόρταλ",
+      "reason": "The loanword πόρταλ (portal), not a slip of πόρτα."
+    },
+    {
+      "form": "συνέχει",
+      "reason": "From συνέχω (hold together), not a slip of συνέχεια."
+    },
+    {
+      "form": "τέτοιαν",
+      "reason": "The accusative τέτοιαν before a vowel, like μιαν and καμιάν, not a slip of τέτοια."
+    },
+    {
+      "form": "τρίτιο",
+      "reason": "Tritium, not a slip of τρίτο."
     }
   ],
   "elision_accepts": [],

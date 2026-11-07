@@ -59,7 +59,13 @@ under ``rejects`` in ``data/el_monotonic_review.json``.
    a missing dialytika (προυπόθεση), misplaced accents (έιναι, ποίος) and
    old or wrong spellings (κάθησε, νοιώθεις, βαθειά). A Katharevousa
    ending that sounds like a Modern Greek one (``LEARNED_ENDINGS``: εν
-   γνώσει, εν καιρώ, νομικώς) is no misspelling.
+   γνώσει, εν καιρώ, νομικώς) is no misspelling. Nor may a known word one
+   typing slip away (a letter left out, added, replaced, or swapped with
+   the next one; ``slip_keys``) be ``SLIP_MIN_TWIN_RATIO`` times as common
+   in both: those are typing errors (είνα, είανι, πρέπε, φία for για,
+   συγκεριμένα) and Katharevousa endings of common words (χώραν, έχειν),
+   which a keyboard must not accept as words, since a slip that lands on
+   one is then never corrected.
 4. ``name``: a capitalized spelling the lexicon lacks or holds without its
    own evidence, written with its capital inside a sentence at least
    ``NAME_CORPUS_MIN_TOKENS`` times in ``NAME_CORPUS_MIN_DOCS`` documents,
@@ -187,6 +193,13 @@ VARIANT_MIN_TWIN_RATIOS = {
 # stem (εν γνώσει, εν καιρώ, νομικώς): (corpus word ending, known word
 # ending). A spelling variant that differs only there is not rejected.
 LEARNED_ENDINGS = (("ει", "η"), ("ώ", "ό"), ("ω", "ο"), ("ώς", "ός"))
+# A corpus word one typing slip from a known word this many times as common
+# in the open corpus and in the FrequencyWords counts is a slip of it.
+# Measured on the 2026-11 export: at 300 the rule rejects 227 corpus words,
+# nearly all misspellings or Katharevousa endings; the real Modern Greek
+# words it caught are listed under corpus_accepts in the review file.
+SLIP_MIN_TWIN_RATIO = 300.0
+SLIP_LETTERS = "αβγδεζηθικλμνξοπρστυφχψω"
 REVIEWED_LOANWORD_MIN_TOKENS = 50
 ABBREVIATION_MIN_TOKENS = 10
 ABBREVIATION_MIN_DOCS = 3
@@ -585,6 +598,28 @@ class Selection:
         examples.append((weight, form))
 
 
+def slip_keys(key: str) -> set[str]:
+    """Every accent-free key (``el_lexicon.bare_key``) one typing slip
+    from ``key``: one letter left out, added or replaced, or two adjacent
+    letters swapped."""
+    out = set()
+    n = len(key)
+    for i in range(n):
+        out.add(key[:i] + key[i + 1:])
+        for c in SLIP_LETTERS:
+            if c != key[i]:
+                out.add(key[:i] + c + key[i + 1:])
+    for i in range(n + 1):
+        for c in SLIP_LETTERS:
+            out.add(key[:i] + c + key[i:])
+    for i in range(n - 1):
+        if key[i] != key[i + 1]:
+            out.add(key[:i] + key[i + 1] + key[i] + key[i + 2:])
+    out.discard(key)
+    out.discard("")
+    return out
+
+
 def _spelling_ok(form: str, wiktionary_forms: set[str]) -> str | None:
     """``orthography_reason`` with two exceptions for Wiktionary's own
     spellings:
@@ -612,6 +647,9 @@ def _spelling_ok(form: str, wiktionary_forms: set[str]) -> str | None:
 # and ου (όπ’). Not η or ω, so that έπ’ (for επ’) does not pass as έπη and
 # εδ’ (a numbering mark) as εδώ.
 ELIDED_VOWELS = tuple("αειουάέίόύ") + ("αι", "ου", "ού")
+# Before a word that had a rough breathing, an elided τ, π or κ is written
+# θ, φ or χ: μεθ’ ημών from μετά, αφ’ ότου from από, εφ’ όσον from επί.
+ASPIRATED = {"θ": "τ", "φ": "π", "χ": "κ"}
 APHAERESIS_PREFIXES = tuple("αεηιουωάέήίόύώ") + (
     "αι", "ει", "οι", "ου", "αί", "εί", "οί", "ού")
 
@@ -655,7 +693,9 @@ def elision_reason(form: str, attested: set[str], after_vowels: dict[str, str],
 
     An elision (σ’, απ’, είν’, μεταξ’) must be an attested word cut before
     its last vowel or vowel digraph (``ELIDED_VOWELS``), letter for letter,
-    accent included: είν’ from είναι, απ’ from από, γι’ from για. An
+    accent included: είν’ from είναι, απ’ from από, γι’ from για. Its last
+    letter may be the aspirated form of the word's consonant (``ASPIRATED``:
+    μεθ’ from μετά, αφ’ from από). An
     unaccented elision of two or more syllables must come from a word
     accented on the vowel that was dropped. It may not be a word by itself
     (εξ’, εν’, εκ’: εκ, εξ and εν do not elide), unless ``accepts`` lists
@@ -681,8 +721,11 @@ def elision_reason(form: str, attested: set[str], after_vowels: dict[str, str],
         if core.endswith("σ") and len(core) > 1 and core[:-1] + "ς" in admitted:
             return "quotation_mark_after_a_word"
         unaccented = L.tonos_count(core) == 0 and L.syllable_count(core) >= 2
-        if not any(core + v in attested and (not unaccented or L.tonos_count(v))
-                   for v in ELIDED_VOWELS):
+        stems = [core]
+        if core[-1] in ASPIRATED:
+            stems.append(core[:-1] + ASPIRATED[core[-1]])
+        if not any(stem + v in attested and (not unaccented or L.tonos_count(v))
+                   for stem in stems for v in ELIDED_VOWELS):
             return "elision_without_full_word"
         if (L.wilson_lower(next_vowel + next_clitic, next_word)
                 < ELISION_MIN_NEXT_VOWEL_SHARE):
@@ -822,6 +865,19 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
                 return reason
         return None
 
+    def slip_reason(form: str) -> str | None:
+        """``slip_of_a_known_word`` when a known word one typing slip
+        away is ``SLIP_MIN_TWIN_RATIO`` times as common in both sources."""
+        n_open = max(evidence.exact(form)[0], 1)
+        n_sub = max(evidence.subtitles.get(form, 0), 1)
+        for key in sorted(slip_keys(L.bare_key(form))):
+            for twin in known_bare.get(key, ()):
+                if (evidence.exact(twin)[0] >= SLIP_MIN_TWIN_RATIO * n_open
+                        and evidence.subtitles.get(twin, 0)
+                        >= SLIP_MIN_TWIN_RATIO * n_sub):
+                    return "slip_of_a_known_word"
+        return None
+
     corpus_words = []
     for form, n in sorted(evidence.subtitles.items()):
         if n < CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS or form in sel.entries:
@@ -852,8 +908,9 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
             # misspellings when a known twin is far commoner: the letters
             # without the dialytika (προυπόθεση) or with the accent elsewhere
             # (έιναι, ποίος), or the sound with the same stressed syllable
-            # (κάθησε, νοιώθεις, βαθειά).
-            reason = variant_reason(form)
+            # (κάθησε, νοιώθεις, βαθειά), or one typing slip away (είνα,
+            # πρέπε, έχειν).
+            reason = variant_reason(form) or slip_reason(form)
         if reason:
             sel.reject(form, reason, n + tokens)
             continue
@@ -1296,6 +1353,7 @@ def write_outputs(sel: Selection, out_dir: Path, *, evidence: Evidence,
                        if k.isupper() and isinstance(v, (int, float))
                        and not isinstance(v, bool)},
         "variant_min_twin_ratios": VARIANT_MIN_TWIN_RATIOS,
+        "slip_min_twin_ratio": SLIP_MIN_TWIN_RATIO,
         "learned_endings": [list(pair) for pair in LEARNED_ENDINGS],
         "compiled_size_estimate_bytes": size,
         "bytes_per_entry": round(size / max(1, len(entries)), 2),

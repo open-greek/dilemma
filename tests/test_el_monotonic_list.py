@@ -115,6 +115,12 @@ def test_sound_key(a, b, same):
     assert (L.sound_key(a) == L.sound_key(b)) is same
 
 
+def test_slip_keys_cover_one_typing_slip():
+    keys = ex.slip_keys("ειναι")
+    assert {"εινα", "ειαναι", "ιεναι", "ειναιη", "εικαι"} <= keys
+    assert "ειναι" not in keys and "ενα" not in keys
+
+
 def test_bare_key_is_the_stripped_key():
     assert L.bare_key("Προϊόντα") == "προιοντα"
     assert L.bare_key("καλός") == "καλοσ"
@@ -170,7 +176,7 @@ def neighbors(next_word=0, next_vowel=0, next_clitic=0, prev_word=0, prev_vowel=
 @pytest.fixture
 def elision_tables():
     attested = {"από", "είναι", "έχει", "εκεί", "κατά", "άδηλος", "εδώ",
-                "καλό", "μεταξύ", "εξ", "τους", "έγραψα"}
+                "καλό", "μεταξύ", "εξ", "τους", "έγραψα", "μετά"}
     return ex.elision_index(attested)
 
 
@@ -183,6 +189,11 @@ def test_elision_needs_its_full_word_and_a_vowel_after(elision_tables):
     assert ex.elision_reason("είν" + A, attested, after, admitted, set(), good) is None
     # μεταξ’: unaccented, from a word accented on the dropped vowel
     assert ex.elision_reason("μεταξ" + A, attested, after, admitted, set(), good) is None
+    # an aspirated consonant before a word that had a rough breathing
+    assert ex.elision_reason("μεθ" + A, attested, after, admitted, set(), good) is None
+    assert ex.elision_reason("αφ" + A, attested, after, admitted, set(), good) is None
+    assert (ex.elision_reason("εχ" + A, attested, after, admitted, set(), good)
+            == "elision_without_full_word")
     # colloquial elision before a weak pronoun counts as an elision context
     clitic = neighbors(next_word=100, next_vowel=40, next_clitic=55)
     assert ex.elision_reason("απ" + A, attested, after, admitted, set(), clitic) is None
@@ -288,6 +299,7 @@ def write_fixture(tmp_path):
         ("σπίτι", ["nominative", "singular"]), ("σπιτιού", ["genitive", "singular"]),
         ("σπίτια", ["nominative", "plural"]),
     ])
+    paradigm("είμαι", "verb", [("είναι", ["third-person", "present", "singular"])])
     paradigm("βουλή", "noun", [("βουλή", ["nominative", "singular"]),
                                ("βουλής", ["genitive", "singular"])])
     paradigm("Αθήνα", "name", [("Αθήνα", ["nominative", "singular"]),
@@ -317,6 +329,7 @@ def write_fixture(tmp_path):
     freq.write_text("\n".join([
         "zzzz 999000", "καλός 500", "σπίτι 5000", "ρωτάω 500", "σπιτί 60",
         "και 400", "γράφουμε 20", "απ 10", "επικροτεί 5", "θεσπιστεί 5",
+        "είναι 20000", "είνα 50", "είαι 50",
     ]) + "\n", encoding="utf-8")
 
     function_words = tmp_path / "function_words.json"
@@ -326,7 +339,8 @@ def write_fixture(tmp_path):
                        "particle": ["να"], "article": ["του"]}}, ensure_ascii=False), encoding="utf-8")
     review = tmp_path / "review.json"
     review.write_text(json.dumps({
-        "schema_version": 1, "rejects": [], "corpus_accepts": [],
+        "schema_version": 1, "rejects": [],
+        "corpus_accepts": [{"form": "είαι", "reason": "fixture"}],
         "elision_accepts": [], "abbreviation_rejects": [],
         "acronym_rejects": []}), encoding="utf-8")
 
@@ -343,6 +357,7 @@ def write_fixture(tmp_path):
         "Αθήνα": (40, 0, 5), "Αθήνας": (3, 0, 2),
         "γράφω": (40, 0, 10), "έγραψα": (4, 0, 2), "γράφοντάς": (10, 0, 3),
         "ρωτάω": (20, 0, 4), "σπιτί": (6, 0, 2),
+        "είναι": (2000, 0, 99), "είνα": (5, 0, 2), "είαι": (5, 0, 2),
         "επικροτεί": (25, 0, 12), "θεσπιστεί": (10, 0, 4),
         "Κηφισιά": (40, 0, 4),
         "και": (900, 50, 99), "Και": (60, 60, 40), "από": (300, 0, 90),
@@ -428,6 +443,10 @@ def test_routes_and_ratings(exported):
     assert "επικροτεί" in ratings and "θεσπιστεί" not in ratings
     # a misplaced accent of a far commoner word is no corpus word
     assert "σπιτί" not in ratings
+    # nor is a typing slip of one (a letter left out of είναι), unless the
+    # review file accepts it
+    assert ratings["είναι"] == "fr:C"
+    assert "είνα" not in ratings and "είαι" in ratings
     # names from the corpus; institutional capitals of common words are not
     assert "Κηφισιά" in ratings and "Βουλή" not in ratings
     # elisions with U+2019: a real one, an aphaeresis, not a numbering mark
