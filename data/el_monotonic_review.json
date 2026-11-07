@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "language": "el",
+  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling rule of the corpus route would refuse because a far commoner word shares its letters or its sound; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version.",
+  "rejects": [
+    {
+      "form": "κι’",
+      "reason": "κι is already the shortened form of και and takes no elision mark in standard spelling (κι αν, κι εγώ)."
+    },
+    {
+      "form": "’χη",
+      "reason": "An old spelling of ’χει (να ’χη), from the Katharevousa subjunctive έχη."
+    },
+    {
+      "form": "γιαυτό",
+      "reason": "γι’ αυτό written as one word."
+    },
+    {
+      "form": "καναδυό",
+      "reason": "κανά δυο written as one word."
+    },
+    {
+      "form": "τιδήποτε",
+      "reason": "A misspelling of οτιδήποτε."
+    },
+    {
+      "form": "συνέβει",
+      "reason": "A misspelling of συνέβη; the variant rule keeps it because -ει after the stem of a noun in -η is a Katharevousa dative (εν γνώσει)."
+    },
+    {
+      "form": "πάσει",
+      "reason": "A misspelling of πάση (πάση θυσία); kept by the variant rule for the same reason as συνέβει."
+    }
+  ],
+  "corpus_accepts": [
+    {
+      "form": "πρωτού",
+      "reason": "The conjunction πρωτού (before), a word in its own right, not a misplaced accent of πρώτου."
+    }
+  ],
+  "elision_accepts": [],
+  "abbreviation_rejects": [],
+  "acronym_rejects": [
+    {
+      "form": "ΙΙ",
+      "reason": "A Roman numeral (II) written with Greek capital iotas, not an acronym."
+    },
+    {
+      "form": "ΙΙΙ",
+      "reason": "A Roman numeral (III) written with Greek capital iotas, not an acronym."
+    }
+  ]
+}
