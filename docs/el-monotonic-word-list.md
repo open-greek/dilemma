@@ -199,6 +199,10 @@ Export of 2026-11-07, commit f08cf8f, version 1.3.15 (sha256 of the
 
 The compiled size follows the keyboard's dictionary format (raw and stripped
 string pools with offsets, a stripped index, one frequency byte per entry).
+The keyboard's Swift dictionary compiler turns this export into a file of
+exactly that size (34,881,785 bytes) in about 5 s on an Apple M5 Max, and
+its reader finds each of the 630,463 entries with the bucket of its
+`fr:` field.
 The largest rejections were unaccented polysyllables (708,597, mostly
 accent-stripped aliases in `lookup.db`), unattested capitalized forms
 (246,051) and forms of unattested lemmas (215,554).

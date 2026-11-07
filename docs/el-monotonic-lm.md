@@ -314,10 +314,14 @@ the evaluation below is of this build.
 
 Training took 24 s with the encoded shards cached (11.5 GB peak memory) and
 export 13 s, on an Apple M5 Max. `build/gnlm_reader.py` finds no
-structural problem in the file. On the build of commit fead20e, the same
-format and settings, its answers matched those of the keyboard's Swift
-reader on the same file (`suggest`, `score` and `suggestCompletions`, with
-context words in capitals and with ASCII apostrophes).
+structural problem in the file. The keyboard's Swift `LMReader` loads this
+build, resolves each of the 150,000 vocabulary entries to its own id and
+the four reserved tokens to the ids the header names, and finds all 12,989
+out-of-vocabulary counts; the sidecar's `artifact_size_bytes` is the
+file's size. On 6,000 queries drawn from the dev sentences (`suggest`,
+`score` and `suggestCompletions`, with context words in capitals and with
+ASCII apostrophes), the answers of `build/gnlm_reader.py` and of the
+keyboard's reader were identical.
 
 ## Evaluation
 
@@ -437,13 +441,17 @@ refusals of malformed files.
   bigram row, so a weakly attested trigram entry outranks a strong bigram
   entry. The minimum trigram count of 4 removes the weakest; ranking the
   two tiers together by backoff score may do better.
-- **Completion cost grows with the vocabulary.** For a Greek stem, the
-  Swift reader's vocabulary scan decodes every entry and strips its
-  diacritics. With that code on an Apple M5 Max, a completion took a median
-  150, 230, 288 and 385 ms at 80,000, 120,000, 150,000 and 200,000 types,
-  over the 50 ms its comments allow. A precomputed index of diacritic-free
-  spellings would make the cost independent of the vocabulary size; the
-  format does not carry one.
+- **Completion cost grows with the vocabulary.** For a Greek stem the
+  reader scans the whole vocabulary, which is sorted by its accented
+  bytes. The first version of the keyboard's Swift reader decoded every
+  entry and stripped its diacritics: on an Apple M5 Max a completion took a
+  median 150, 230, 288 and 385 ms at 80,000, 120,000, 150,000 and 200,000
+  types, over the 50 ms its comments allow. Its current version folds each
+  entry's letters in place and rejects most entries at the first letter; on
+  the same machine a completion takes 0.7 ms on average at 150,000 types
+  (4,000 stems of two and three letters from the Parliament dev
+  sentences). The scan is still linear in the vocabulary size, but the
+  format needs no index.
 - **Pooled numbers.** Parliament has 39% of the dev word targets, so it
   dominates the pooled results; the per-source rows are the better guide.
 - **Wikisource.** Only 72.40% of its dev words are vocabulary spellings:
