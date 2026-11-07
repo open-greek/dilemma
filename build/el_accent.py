@@ -40,7 +40,10 @@ The decision (:func:`decide`)
 
 The enclitic second accent (:func:`enclitic_accent`)
 -----------------------------------------------------
-The word list holds no double accents. A word stressed on the third
+The word list holds no double accents; the next-word model keeps them as
+tokens of their own (:func:`enclitic_twin`), and the keyboard compares the
+two readings by the model's scores (:func:`enclitic_evidence`,
+:func:`keyboard_enclitic_decision`) before it falls back to the rules below. A word stressed on the third
 syllable from the end, counted with synizesis (:func:`el_lexicon.
 is_proparoxytone`: ``άνθρωπος`` yes, ``σπίτια`` no), takes a second tonos
 on its last syllable before an enclitic pronoun (``ο άνθρωπός μου``,
@@ -270,6 +273,120 @@ def enclitic_accent(word: str) -> str | None:
     if slot is None or marks_of(word[slot]).count(TONOS):
         return None
     return word[:slot] + nfc(word[slot] + TONOS) + word[slot + 1:]
+
+
+def enclitic_twin(host: str) -> str | None:
+    """The double-accented form of ``host`` the keyboard can write before an
+    enclitic (``EncliticAccent.twin(of:)``): Greek letters only, in
+    lowercase or with a capital first letter, exactly one tonos, stressed on
+    the third syllable from the end counted with or without synizesis
+    (``όνομα`` to ``όνομά``, ``δωμάτιο`` to ``δωμάτιό``, ``σπίτια`` to
+    ``σπίτιά``). None otherwise. The next-word model keeps these forms as
+    tokens of their own, so the keyboard can compare the two readings."""
+    if not host or any(c not in el_lexicon.LETTERS for c in host):
+        return None
+    if el_lexicon.case_shape(host) not in ("lower", "title"):
+        return None
+    if el_lexicon.tonos_count(host) != 1:
+        return None
+    if not (el_lexicon.is_proparoxytone(host) or needs_synizesis_call(host)):
+        return None
+    slot = _last_vowel_slot(host)
+    if slot is None or marks_of(host[slot]).count(TONOS):
+        return None
+    return host[:slot] + nfc(host[slot] + TONOS) + host[slot + 1:]
+
+
+# The keyboard's enclitics (``EncliticAccent.pronouns`` and
+# ``articleHomographs``) and the words after which an article homograph is
+# read as the enclitic (``possessiveSignals``).
+PRONOUN_ENCLITICS = frozenset({"μου", "σου", "μας", "σας"})
+ARTICLE_HOMOGRAPHS = frozenset({"του", "της", "τους", "το", "τα", "τον", "την",
+                                "τις"})
+KEYBOARD_ENCLITICS = PRONOUN_ENCLITICS | ARTICLE_HOMOGRAPHS
+POSSESSIVE_SIGNALS = frozenset({
+    "και", "κι", "αλλά", "ή", "ενώ", "όμως", "μα", "ούτε", "είτε", "που",
+    "όταν", "αν", "γιατί", "επειδή", "ότι", "πως", "ώστε", "αφού", "μόλις",
+    "καθώς", "θα", "δεν", "δε", "να", "μη", "μην", "ας", "σε", "σ’", "στο",
+    "στη", "στην", "στον", "στα", "στους", "στις", "στου", "στης", "από",
+    "απ’", "με", "για", "χωρίς", "μέχρι", "ως", "προς", "κατά", "μετά",
+    "παρά", "είναι", "ήταν"})
+ENCLITIC_MARGIN = 1.0
+
+
+def enclitic_evidence(lm, host: str, twin: str, enclitic: str,
+                      next_word: str | None, prev: str | None,
+                      curr: str | None, margin: float = ENCLITIC_MARGIN) -> bool | None:
+    """``EncliticAccent.evidence``: True when the model prefers the
+    double-accented reading ``twin enclitic`` over ``host enclitic`` by
+    ``margin`` (natural log units), False when it prefers the plain one,
+    None when it has no say (a form it has never seen, or a smaller
+    difference). Each reading scores the host form after ``prev curr``, the
+    enclitic after ``curr`` and the form, and, when ``next_word`` is given
+    and both readings score it, that word after the form and the enclitic.
+    ``lm`` answers ``knows(word)`` and ``score(word, prev, curr)`` the way
+    the keyboard's reader does (``gnlm_reader.GNLMReader``)."""
+    if not (lm.knows(twin) and lm.knows(host)):
+        return None
+
+    def path(form: str) -> float:
+        return lm.score(form, prev, curr) + lm.score(enclitic, curr, form)
+
+    twin_score = path(twin)
+    host_score = path(host)
+    if next_word is not None:
+        after_twin = lm.score(next_word, twin, enclitic)
+        after_host = lm.score(next_word, host, enclitic)
+        if math.isfinite(after_twin) and math.isfinite(after_host):
+            twin_score += after_twin
+            host_score += after_host
+    if not (math.isfinite(twin_score) or math.isfinite(host_score)):
+        return None
+    if not math.isfinite(host_score) or twin_score - host_score >= margin:
+        return True
+    if not math.isfinite(twin_score) or host_score - twin_score >= margin:
+        return False
+    return None
+
+
+def keyboard_enclitic_decision(lm, host: str, enclitic: str, next_word: str | None,
+                               prev: str | None, curr: str | None,
+                               margin: float = ENCLITIC_MARGIN) -> bool:
+    """Whether the keyboard writes ``host`` with the second accent before
+    ``enclitic`` (lowercase) once ``next_word`` is known (None: the
+    sentence ends after the enclitic), as ``EncliticAccent.decide`` does
+    over the two commits. A pronoun is decided on the model's evidence with
+    the next word, else without it, else by the syllable rule; an article
+    homograph at the end of the sentence on the evidence without a next
+    word, else by the syllable rule, and before a word on the evidence with
+    it, else only before a ``POSSESSIVE_SIGNALS`` word and by the syllable
+    rule. ``lm`` None decides without evidence."""
+    twin = enclitic_twin(host)
+    if twin is None or enclitic not in KEYBOARD_ENCLITICS:
+        return False
+    rule = el_lexicon.is_proparoxytone(host)
+
+    def ev(nxt):
+        if lm is None:
+            return None
+        return enclitic_evidence(lm, host, twin, enclitic, nxt, prev, curr, margin)
+
+    if enclitic in PRONOUN_ENCLITICS:
+        if next_word is None:
+            first = ev(None)
+            return rule if first is None else first
+        with_next = ev(next_word)
+        if with_next is not None:
+            return with_next
+        first = ev(None)
+        return rule if first is None else first
+    if next_word is None:
+        first = ev(None)
+        return rule if first is None else first
+    with_next = ev(next_word)
+    if with_next is not None:
+        return with_next
+    return el_lexicon.lower_el(next_word) in POSSESSIVE_SIGNALS and rule
 
 
 def takes_enclitic_accent(enclitic: str, next_token: str | None) -> bool:

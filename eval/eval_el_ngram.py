@@ -14,7 +14,9 @@ Measures
 * **Next word.** After each word of a sentence (and after ``<s>``), the
   first 1 and 3 suggestions of ``LMReader.suggest`` with the two previous
   words as context, against the word that follows. ``</s>`` is never a
-  target. ``all words`` counts every word target (an ``<UNK>`` or a
+  target. The keyboard never offers a double-accented enclitic form
+  (όνομά), so suggestions leave them out and such a target counts as its
+  host (όνομα). ``all words`` counts every word target (an ``<UNK>`` or a
   spelling out of the vocabulary is a miss); ``in vocabulary`` only
   targets the model can propose. A context word out of the vocabulary
   resolves to nothing, as on the keyboard.
@@ -51,6 +53,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from dilemma_build.el_ngram import fold_enclitic_accent  # noqa: E402
 from dilemma_build.gnlm_reader import GNLMReader, normalize  # noqa: E402
 
 DEFAULT_BIN = ROOT / "build" / "lm" / "el_ngram.bin"
@@ -102,7 +105,7 @@ class Evaluator:
             arr = np.full(lm.V, -1, dtype=np.int64)
             groups: dict[int, list[int]] = defaultdict(list)
             for i, n in enumerate(norm):
-                if len(n) < k or i in lm.reserved_ids:
+                if len(n) < k or i in lm.reserved_ids or i in lm.hidden_ids:
                     continue
                 c = codes.setdefault(n[:k], len(codes))
                 arr[i] = c
@@ -137,7 +140,7 @@ class Evaluator:
             sel = np.flatnonzero(arr[ids] == code)
             for j in sel.tolist():
                 w = int(ids[j])
-                if w in seen:
+                if w in seen or w in lm.hidden_ids:
                     continue
                 seen.add(w)
                 pool.append((backoff + q[j] / 1024.0, int(lm.counts[w]), w))
@@ -171,6 +174,11 @@ def evaluate(lm: GNLMReader, dev: dict[str, list[list[str]]]) -> dict:
                 prev_id = ids[i - 2] if i >= 2 else None
                 curr_id = ids[i - 1]
                 wid = ids[i]
+                host = fold_enclitic_accent(target)
+                if host != target:
+                    # The keyboard offers the host of a double-accented
+                    # form and writes the second accent itself.
+                    target, wid = host, index.get(host)
                 listed = target not in unk_names
                 in_vocab = wid is not None
                 r["words"] += 1
@@ -282,6 +290,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     t0 = time.time()
     lm = GNLMReader(Path(args.bin))
+    lm.hide_double_accented()
     dev = load_dev(Path(args.dev_dir), args.max_sentences)
     results = evaluate(lm, dev)
     rep = report(lm, results)

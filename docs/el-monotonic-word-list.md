@@ -100,7 +100,9 @@ route:
 - The dialytika only on ι or υ, after a vowel, and only where the two letters
   would otherwise read as a digraph (`προϊόν`, `ταΐζω`; not `τσάϊ`, `πρωϊνό`).
 - No letter three times in a row, no double accents. The second accent before
-  an enclitic (`όνομά μου`) is added by the keyboard, never listed.
+  an enclitic (`όνομά μου`) is added by the keyboard, never listed; the
+  [next-word model](el-monotonic-lm.md) keeps the double-accented forms
+  so the keyboard can decide it.
 - A lowercase spelling with no tonos that synizesis makes a monosyllable
   must be Wiktionary's own (`μια`, `δυο`, `γεια`); otherwise it is an
   accent-stripped alias (`τρια`, `πλοιο`).
@@ -138,14 +140,29 @@ route:
    (`είνα`, `πρέπε`, `συγκεριμένα`) and Katharevousa endings of common
    words (`έχειν`, `χώραν`), which would hide a slip of the common word
    from correction. The review file accepts the Modern Greek words this
-   catches (`ήτον`, `πολύν`, `τρίτιο`).
+   catches (`ήτον`, `πολύν`, `τρίτιο`). Last, a word that starts with
+   `θα`, `να`, `δεν`, `που`, `από`, `είναι`, `πρέπει`, `μπορεί`, `αυτό`,
+   `κατά` or `για` and continues with a C entry or a function word of at
+   least two letters is two words written without the space (`είναιτο`,
+   `πρέπεινα`, `απότι`, `θαήθελα`) and is rejected.
 4. **Names.** A capitalized spelling the lexicon lacks, written with its
    capital inside sentences at least 20 times in 3 documents, with a 95%
    Wilson lower bound of the capitalized share of at least 0.9. When its
-   lowercase is a word, it must be a form of a Wiktionary name page, which
-   the paradigm reader drops (`Ρώμη` beside `ρώμη`, `Τσίπρα` beside
-   `τσίπρα`), with a lower bound of at least 0.75; a title or an
-   institution some sources capitalize (`Υπουργός`, `Πρόεδρε`) is no name.
+   lowercase is a word, the lower bound must be at least 0.75 and the
+   sources must agree. Each frequency source with at least 20 mid-sentence
+   uses of the two spellings votes for the one whose share has a lower
+   bound of at least 0.75. A form of a Wiktionary name page, which the
+   paradigm reader drops (`Ρώμη` beside `ρώμη`, `Τσίπρα` beside `τσίπρα`),
+   needs no more sources voting for the lowercase than for the capital;
+   any other spelling needs at least two sources voting for the capital
+   and more than vote for the lowercase (`Ένωση` of `Ευρωπαϊκή Ένωση`,
+   `Εθνών` of `Ηνωμένων Εθνών`, `Επιτροπή`). So a title or an institution
+   one source capitalizes (`Υπουργός`, `Πρόεδρε`, `Βουλευτή` and `Αίθουσα`
+   in the Parliament minutes) is no name. A name is also rejected when a
+   capitalized spelling of the same letters is far commoner inside
+   sentences: 100 times with the accent elsewhere (`Βρετάνια` beside
+   `Βρετανία`), 4 times when only the dialytika differs (`Γουϊνέα` beside
+   `Γουινέα`).
 5. **Elisions.** A spelling with U+2019 seen at least 10 times in 3
    documents. An elision (`απ’`, `είν’`, `κατ’`) must be an attested entry cut
    before its final α, ε, ι, ο, υ, αι or ου, accent kept, with τ, π or κ
@@ -156,13 +173,36 @@ route:
    An aphaeresis (`’ναι`, `’χει`, `’κει`) must be an attested entry without
    its first vowel, with the accent matching what is left, and must follow a
    word that ends in a vowel; that rejects quotation marks folded into
-   apostrophes (`’το`, `’και`).
+   apostrophes (`’το`, `’και`). An elision without a tonos is dropped when
+   an elision of the same letters with one is at least twice as common:
+   `ολ’` (passing as an elision of `ολέ`) beside `όλ’`, `πρωτ’` beside
+   `πρώτ’`; `αλλ’` beside the rarer `άλλ’` stays.
 6. **Reviewed loanwords** of `data/hunspell_mg_reviewed_loanwords.json` with
    at least 50 FrequencyWords tokens.
 
-Last, an X entry is dropped when a C or M entry has its letters with another
-accent (`αερόπλανα` beside `αεροπλάνα`): a mistyped accent would otherwise
-pass as a word nobody writes.
+Last, three cleanups drop entries that would hide a typing slip of a
+common word:
+
+- An X entry is dropped when a C or M entry has its letters with another
+  accent (`αερόπλανα` beside `αεροπλάνα`): a mistyped accent would
+  otherwise pass as a word nobody writes.
+- A lowercase R or X entry in fewer than 10 open-corpus documents is
+  dropped when a spelling of its letters with another accent is at least
+  50 times as common (plus one) in both the open corpus and FrequencyWords
+  (`καλήμερα` beside `καλημέρα`, `Γαλλιά` beside `Γαλλία`), and a
+  capitalized entry when a capitalized spelling of its letters is at least
+  40 times as common inside sentences (`Σαββάτο` beside `Σάββατο`).
+  Function words, elisions and reviewed loanwords stay, and so does a form
+  of the commoner spelling's own lemma (the colloquial `ακούσαν` beside
+  `άκουσαν`) or of a lemma with a C or M form (`τροπών` beside `τρόπων`):
+  those are words, not misplaced accents. That removed 537 entries.
+- A paradigm form of at most three letters, rated R or X and in fewer
+  than 10 documents, is dropped when its letters are a same-sound
+  spelling or a neighboring-key slip on the same keyboard row of a word
+  at least 300 times as common in both sources (`μάι` for `με`, `ξάι`
+  for `και`, `άε` for `σε`). A letter left out or added does not count
+  here, since a short word is one letter away from many others. That
+  removed 27 entries.
 
 ## Frequency ratings
 
@@ -180,7 +220,11 @@ mid-sentence uses. An open-corpus rate counts for C only when the spelling
 is in at least 10 of the source's documents, and for M only in at least 3;
 otherwise it is held just under that edge, so that one novel repeating a
 character's name (`Κατίγκω`) or one article repeating a term does not make
-a word common. An elided word written without its mark (`απ` for `απ’`,
+a word common. A source of fewer than 10M words (EELLAK articles,
+Wikisource and the pooled small sources) rates C only when a larger source
+or FrequencyWords also reaches C; otherwise its rate is held just under
+the C edge. That moved 1,411 entries from C to M, mostly words that a few
+thousand Tatoeba sentences repeat. An elided word written without its mark (`απ` for `απ’`,
 which FrequencyWords counts) is never an entry.
 
 ## Companion lists
@@ -203,35 +247,48 @@ in `data/el_monotonic_review.json`.
 Acronyms are all-capital tokens of two or more letters with at least 20
 tokens in 5 documents, no tonos on a capital, a 95% Wilson lower bound of at
 least 0.9 for their all-capital share against lowercase and capitalized
-spellings of the same letters, and letters that are no entry of the list.
+spellings of the same letters, and letters that are no entry of the list,
+unless the acronym is at least 10 times as common in capitals as the
+letters are in lowercase in the open corpus, and at least 10 times as
+common, per million words, as the entry is in FrequencyWords (`ΣΥΡΙΖΑ`
+beside the adverb `σύριζα`, `ΑΕΙ`, `ΑΠΕ`, `ΧΥΤΑ`).
 
 ## Recorded export
 
-Export of 2026-11-07, commit e2315cd, version 1.3.15 (sha256 of the
-`.dic` `abef641c`; the export at commit 489336b, which the next-word model
-was trained from, wrote the same `.dic`):
+Export of 2026-11-07, version 1.3.15 (sha256 of the `.dic` `b21c4047`),
+which the next-word model was trained from:
 
 | Measure | Value |
 |---|---|
-| Entries | 631,696 |
-| C, M, R, X | 7,613, 39,353, 365,531, 219,199 |
-| Attested, generated | 412,497, 219,199 |
-| Paradigm, corpus word, name, elision, function word | 607,247, 6,605, 17,645, 195, 4 |
-| Abbreviations, acronyms | 219, 1,691 |
-| Compiled size estimate | 34.9 MB (34,930,430 bytes), 55.3 bytes per entry |
+| Entries | 631,330 |
+| C, M, R, X | 6,253, 40,862, 365,100, 219,115 |
+| Attested, generated | 412,215, 219,115 |
+| Paradigm, corpus word, name, elision, function word | 606,690, 6,585, 17,859, 191, 5 |
+| Abbreviations, acronyms | 219, 1,723 |
+| Compiled size estimate | 34.9 MB (34,918,054 bytes), 55.3 bytes per entry |
 | Lexicon read | 187,846 lemmas, 1.10M forms; 53,811 lemmas attested |
+
+Against the export before (631,696 entries, sha256 `abef641c`), 618
+entries left and 252 joined, and 1,411 moved from C to M (the cap on small
+sources). The ones that left: 537 rare spellings beside a commoner one
+with another accent, 27 rare short slips, 25 names beside a commoner
+spelling of the same letters (`Προέδρε`, `Βρετάνια`, `Γουϊνέα`), 20 words
+run together, 4 elisions without their tonos, and capitals that only one
+source uses (`Βουλευτή`, `Αίθουσα`). Most that joined are names that two
+sources write with their capital (`Ένωση`, `Εθνών`, `Ηνωμένων`,
+`Επιτροπή`, `Δημοκρατίας`); 32 acronyms joined (`ΣΥΡΙΖΑ`, `ΑΕΙ`, `ΑΠΕ`,
+`ΧΥΤΑ`, `ΟΛΜΕ`).
 
 The compiled size follows the keyboard's dictionary format (raw and stripped
 string pools with offsets, a stripped index, one frequency byte per entry).
-For the earlier export at commit f08cf8f (630,463 entries), the keyboard's
-Swift dictionary compiler produced a file of exactly the estimated size
-(34,881,785 bytes) in about 5 s on an Apple M5 Max, and its reader found
-each entry with the bucket of its `fr:` field. For this export the compiler
-again wrote exactly the estimated size (34,930,430 bytes) in about 5 s, and
-the reader found all 631,696 entries with the bucket of their `fr:` field
-and the `mg:generated` mark of the 219,199 generated forms.
+For the earlier exports at commit f08cf8f (630,463 entries) and e2315cd
+(631,696 entries), the keyboard's Swift dictionary compiler produced a file
+of exactly the estimated size (34,881,785 and 34,930,430 bytes) in about
+5 s on an Apple M5 Max, and its reader found every entry with the bucket of
+its `fr:` field and the `mg:generated` mark of the generated forms; the
+format of this export is the same.
 The largest rejections were unattested capitalized forms (246,100), forms
-of unattested lemmas (215,678) and unaccented polysyllables (10,675). The
+of unattested lemmas (215,678) and unaccented polysyllables (10,676). The
 lexicon no longer reads the 698,350 accent-stripped aliases of `lookup.db`
 (see route 1), which the spelling check used to reject one by one.
 
@@ -242,30 +299,31 @@ documents the exporter never read):
 
 | Measure | List | elspell |
 |---|---|---|
-| Word tokens accepted as spelled | 98.36% | 97.20% |
-| Lowercase tokens accepted as spelled | 98.89% | 98.68% |
-| Accepted with accents ignored | 98.69% | 97.49% |
-| Capitalized tokens accepted | 94.96% | |
+| Word tokens accepted as spelled | 98.39% | 97.20% |
+| Lowercase tokens accepted as spelled | 98.92% | 98.68% |
+| Accepted with accents ignored | 98.69% | 97.46% |
+| Capitalized tokens accepted | 94.95% | |
 | All-capital tokens accepted | 93.94% | |
 | Abbreviation tokens in the abbreviation list | 61.6% | |
 
 Per source, exact coverage is 99.3% for Parliament, 99.3% for the European
-Parliament, 98.1% for OpenGov comments, 97.0% for Wikipedia and 79.4% for
+Parliament, 98.1% for OpenGov comments, 97.0% for Wikipedia and 79.5% for
 monotonic Wikisource, whose older literary spelling the list does not
 accept. A token with an enclitic's second accent counts as accepted when
 the entry without it is one. The commonest misses are numbering letters
-(`β`, `γ`, and the capital `Ι` of Roman numerals, which the letter `ι` no
-longer covers), the `ό` of `ό,τι` (tokenized apart), the old accented
-monosyllable `τού`, `διά`, technical words FrequencyWords lacks
-(`φυτοπροστατευτικών`) and mixed-case acronyms (`ΣτΕ`).
+(`β`, `γ`, `δ`, and the capital `Ι` of Roman numerals, which the letter `ι`
+no longer covers), the old accented monosyllable `τού`, the misspelling
+`απο`, `διά`, technical words FrequencyWords lacks (`φυτοπροστατευτικών`),
+`κλπ` without its period and mixed-case acronyms (`ΣτΕ`). `ό,τι` is one
+token and one entry (2,732 dev tokens).
 
 False accepts: of 34 reviewed misspellings (unaccented, accented
 monosyllables, double accents, Latin look-alikes, wrong accents, wrong or
 missing dialytika, old spellings, ASCII apostrophes), the list accepts one,
-`νοιώθω`, which Wiktionary lists as a form of `νιώθω`. Of the 119,679
-spellings made by moving the tonos of a C or M entry to another vowel, 3,124
-(2.6%) are entries, most of them other words (`πότε`, `ποτέ`). Triantafyllidis
-headwords: 81.9% of 44,396 single-word headwords are entries; the missing ones
+`νοιώθω`, which Wiktionary lists as a form of `νιώθω`. Of the 119,687
+spellings made by moving the tonos of a C or M entry to another vowel, 2,910
+(2.4%) are entries, most of them other words (`πότε`, `ποτέ`). Triantafyllidis
+headwords: 81.8% of 44,396 single-word headwords are entries; the missing ones
 are mostly rare derived adjectives no source attests (`άβαλτος`, `άγλωσσος`).
 
 [Monotonic keyboard data](monotonic-keyboard-data.md) measures the list
@@ -282,20 +340,21 @@ the evaluation script) is licensed MPL 1.1, GPL 2.0 or LGPL 2.1. GPL and LGPL
 terms cannot be met by an app distributed through the App Store, and MPL 1.1
 keeps the covered file under MPL, which a list that also carries CC BY-SA
 content cannot satisfy. So it is used only to evaluate the list, never to
-admit words. On the dev split, it accepts 8,662 token types (37,407 tokens)
+admit words. On the dev split, it accepts 8,689 token types (37,451 tokens)
 that the list rejects, mostly single letters, old accented monosyllables
 (`τού`, `τούς`, `μάς`), `διά`, abbreviations written without their period
 (`κλπ`, `πχ`) and formal participles (`καταταγέντων`). The list accepts
-21,621 types (145,459 tokens) it rejects, mostly acronyms, elisions, names,
-recent words (`πάροχοι`, `οικοτόπων`) and old spellings Wiktionary lists
-(`καμμία`). It lacks 132 C entries of the list: names (`Τσίπρα`, `Βοστώνη`),
-elisions, recent technical words (`ανοιχτότητα`) and dialect or older forms
-(`ήτο`, `απάνου`).
+21,570 types (148,203 tokens) it rejects, mostly acronyms, elisions, `ό,τι`,
+names, recent words (`πάροχοι`, `οικοτόπων`) and old spellings Wiktionary
+lists (`καμμία`). It lacks 60 C entries of the list: names (`Τσίπρα`,
+`Σένγκεν`), recent technical words (`διαλειτουργικότητα`, `ενωσιακή`,
+`μοριοδότηση`), the abbreviations `κα` and `κου` written without their
+period, and `καμμία`.
 
 ## Known limitations
 
-- `ό,τι` is tokenized as `ό` and `τι`; the keyboard must treat `ό,τι` as a
-  unit, since `ό` alone is not an entry.
+- `ό,τι` is one token and one entry, but the keyboard must not split it at
+  its comma, since `ό` alone is not an entry.
 - The corpus-word route needs at least 3 FrequencyWords tokens, so technical
   words seen only in open text (`φυτοπροστατευτικών`, 682 dev tokens) are
   missing unless Wiktionary has their form.
@@ -306,22 +365,30 @@ elisions, recent technical words (`ανοιχτότητα`) and dialect or older
 - The typing-slip rule also rejects older forms of common words that
   Wiktionary lacks (`ήκουσα`, `είδον`, `ταύτης`), so older literary text
   has more words the list rejects.
-- A capitalized spelling whose lowercase is a word is a name only with a
-  Wiktionary name page. Names without one stay lowercase (`Ευρωπαϊκή
-  Ένωση`, `Ηνωμένων Εθνών`; the model predicts `ένωση` after
-  `Ευρωπαϊκή`), as does `Όρος` of `Άγιο Όρος`, which text mostly writes
-  as the word `όρος`. A few titles that Parliament minutes capitalize and
-  Wiktionary files as names are entries (`Βουλευτή`, `Αίθουσα`).
+- A capitalized spelling whose lowercase is a word is a name when the
+  sources agree on its capital. `Όρος` of `Άγιο Όρος` stays out, because
+  text mostly writes it as the word `όρος`. Names of institutions that two
+  sources capitalize (`Επιτροπή`, `Ναυτιλίας`) are entries, so a keyboard
+  can propose them with their capital where the lowercase word is meant.
+- A name rarer than a spelling of the same letters with the accent
+  elsewhere is kept unless the other is 100 times as common, so a few
+  misplaced accents remain (`Αρκαδιά`, 16 documents, beside `Αρκαδία`, 19
+  times as common): a lower ratio would drop transliterated names such as
+  `Ίσαακ`. The other way round, the cleanup of rare spellings beside a
+  commoner one with another accent drops a few real names that text
+  writes far less often than their twin: `Μάρια` beside `Μαρία`, `Χρύσης`
+  (the priest of the Iliad) beside `Χρυσής`.
 - `τοις` and `τω` are function words for `τοις εκατό` and `εν τω
   μεταξύ`, which make up most of their uses, but they are also slips of
   `τις`, `της`, `τους` and `το`. In the typing-slip simulation of
   [monotonic keyboard data](monotonic-keyboard-data.md), `το` typed `τω`
   is 594 of 6,490 ο and ω slips; a keyboard can accept the two only where the
   next-word model expects them.
-- Monotonic Wikisource is a rating source of its own, so 979 entries, some
-  of them older literary forms (`ψυχήν`, `όλην`, `ώραν`, `οπού`), are
-  rated C on its counts.
+- Monotonic Wikisource is a rating source of its own, so older literary
+  forms (`ψυχήν`, `όλην`, `ώραν`, `οπού`) are rated M on its counts; it
+  rates C only what a larger source also rates C.
 - X entries (219,199) are Wiktionary forms no source has. Rare legitimate
   forms and Wiktionary's dialectal or colloquial variants are among them.
-- Acronyms whose letters are an entry (`ΝΑΤΟ` beside `νάτο`) are left out of
-  the acronym list.
+- Acronyms whose letters are an entry are left out of the acronym list
+  unless they are far commoner than the entry; `ΝΑΤΟ` stays out, because
+  FrequencyWords counts `νάτο` (here it is) 1,480 times.

@@ -28,7 +28,9 @@ Measures
   run, ``keep_next_word``, also scores each candidate by the best
   candidate of the next typed word after it, as a keyboard can once the
   next word is typed. Then the enclitic second accent
-  is added by ``el_accent.takes_enclitic_accent``. Words in capitals,
+  is added as the keyboard decides it
+  (``el_accent.keyboard_enclitic_decision``, with the model's evidence).
+  Words in capitals,
   placeholders and abbreviations are not typed. Reported per source:
   word accuracy (over all words, and over words whose spelling the list
   holds), the **damage rate** (words that were already right as typed, such
@@ -50,7 +52,14 @@ Measures
   and by host class, and with the keyboard rule
   (``el_accent.takes_enclitic_accent``: μου, σου, μας and σας always, the
   article-like and preposition-like enclitics only at the end of a
-  sentence). With ``--enclitic-evidence``, also a rule that follows the
+  sentence), and with the keyboard's decision from the model's evidence
+  (``el_accent.keyboard_enclitic_decision``): the model keeps the
+  double-accented twins (``όνομά``) as tokens of their own, so it scores
+  ``όνομά μου`` against ``όνομα μου``, with the next word when one
+  follows; the syllable rule decides where the model has no say, and an
+  article homograph before a word takes the accent then only after a
+  word that marks the enclitic (``el_accent.POSSESSIVE_SIGNALS``). With
+  ``--enclitic-evidence``, also a rule that follows the
   training split's own majority spelling of the host before that enclitic
   and the next word, or before that enclitic alone, when it has seen the
   pair at least ``--evidence-min`` times, and the keyboard rule otherwise.
@@ -295,12 +304,14 @@ class Restorer:
                 if decisions[i] is None or typed[i + 1] is None:
                     continue
                 enc = L.lower_el(typed[i + 1])
-                if enc not in A.ENCLITICS:
+                if enc not in A.KEYBOARD_ENCLITICS:
                     continue
                 nxt = tokens[i + 2] if i + 2 < len(tokens) else None
-                if not A.takes_enclitic_accent(enc, nxt):
+                prev, curr = self.context(out, i)
+                if not A.keyboard_enclitic_decision(self.lm, out[i], enc, nxt,
+                                                    prev, curr):
                     continue
-                acc = A.enclitic_accent(out[i])
+                acc = A.enclitic_twin(out[i])
                 if acc:
                     out[i] = acc
                     added.add(i)
@@ -477,7 +488,7 @@ def pooled(stats: dict[str, AccentStats], sources) -> AccentStats:
 
 I_SPELLINGS = ("ει", "οι", "ι", "η", "υ")
 DOUBLED = "λμνρσττπκ"
-LAYOUT_ROWS = ("ςερτυθιοπ", "ασδφγηξκλ", "ζχψωβνμ")
+LAYOUT_ROWS = L.KEYBOARD_ROWS
 NEIGHBORS = {}
 for _row in LAYOUT_ROWS:
     for _k, _c in enumerate(_row):
@@ -678,9 +689,11 @@ def host_class(base: str) -> str:
     return "other"
 
 
-def enclitic_pairs(toks: list[str]):
+def enclitic_pairs(toks: list[str], with_context: bool = False):
     """``(base host, enclitic, corpus has the second accent, next token)``
-    for every typed host with at least one tonos followed by an enclitic."""
+    for every typed host with at least one tonos followed by an enclitic;
+    with ``with_context``, also the two tokens before the host (``<s>`` at
+    the start of the sentence, as ``Restorer.context``)."""
     for i in range(len(toks) - 1):
         enc = toks[i + 1]
         if enc not in A.ENCLITICS:
@@ -697,7 +710,12 @@ def enclitic_pairs(toks: list[str]):
         if L.syllable_count(base) < 2:
             continue
         nxt = toks[i + 2] if i + 2 < len(toks) else None
-        yield base, enc, marks == 2, nxt
+        if with_context:
+            curr = toks[i - 1] if i >= 1 else "<s>"
+            prev = toks[i - 2] if i >= 2 else ("<s>" if i == 1 else None)
+            yield base, enc, marks == 2, nxt, prev, curr
+        else:
+            yield base, enc, marks == 2, nxt
 
 
 def _evidence_shard(task: tuple[str, int]) -> dict:
@@ -778,17 +796,20 @@ def enclitic_summary(cells_by_enclitic: dict) -> dict:
     return out
 
 
-def run_enclitics(sentences, evidence: dict | None, evidence_min: int) -> dict:
+def run_enclitics(sentences, evidence: dict | None, evidence_min: int,
+                  lm: GNLMReader | None = None) -> dict:
     # [class][enclitic] -> [rule&double, rule&single, norule&double, norule&single]
     table: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(lambda: [0, 0, 0, 0]))
     keyboard = defaultdict(lambda: [0, 0, 0, 0])
     with_evidence = defaultdict(lambda: [0, 0, 0, 0])
+    with_model = defaultdict(lambda: [0, 0, 0, 0])
+    model_used = Counter()
     evidence_used = Counter()
     by_source = defaultdict(lambda: [0, 0])
     misses = Counter()
     false_adds = Counter()
     for source, toks in sentences:
-        for base, enc, double, nxt in enclitic_pairs(toks):
+        for base, enc, double, nxt, prev, curr in enclitic_pairs(toks, True):
             cls = host_class(base)
             rule = cls == "proparoxytone"
             cell = (0 if double else 1) if rule else (2 if double else 3)
@@ -817,6 +838,14 @@ def run_enclitics(sentences, evidence: dict | None, evidence_min: int) -> dict:
                             break
                 with_evidence[enc][(0 if double else 1) if pred else
                                    (2 if double else 3)] += 1
+            if lm is not None:
+                pred = A.keyboard_enclitic_decision(lm, base, enc, nxt, prev, curr)
+                if cls != "other" and enc in A.KEYBOARD_ENCLITICS:
+                    twin = A.enclitic_twin(base)
+                    model_used["host and twin known" if twin and lm.knows(twin)
+                               and lm.knows(base) else "rule only"] += 1
+                with_model[enc][(0 if double else 1) if pred else
+                                (2 if double else 3)] += 1
 
     def agree(cells):
         n = sum(cells)
@@ -829,6 +858,8 @@ def run_enclitics(sentences, evidence: dict | None, evidence_min: int) -> dict:
     rules = {"syllable_rule": pure, "keyboard_rule": keyboard}
     if evidence is not None:
         rules["with_training_evidence"] = with_evidence
+    if lm is not None:
+        rules["keyboard_with_model_evidence"] = with_model
 
     out = {"cells": "[rule and corpus accented, rule and corpus unaccented, "
                     "no rule and corpus accented, no rule and corpus unaccented]",
@@ -845,6 +876,12 @@ def run_enclitics(sentences, evidence: dict | None, evidence_min: int) -> dict:
            "top_accented_hosts_the_rule_misses": [
                [h, e, c, n] for (h, e, c), n in misses.most_common(30)],
            "summary": {name: enclitic_summary(cells) for name, cells in rules.items()}}
+    if lm is not None:
+        out["keyboard_with_model_evidence"] = {
+            "margin": A.ENCLITIC_MARGIN,
+            "hosts_with_a_twin": dict(model_used),
+            "by_enclitic": {enc: {"cells": v, "agreement": agree(v)}
+                            for enc, v in sorted(with_model.items())}}
     if evidence is not None:
         out["with_training_evidence"] = {
             "min_pairs": evidence_min,
@@ -873,7 +910,7 @@ class Completer:
         self.rank[self.order] = np.arange(lm.V)
         self.counts = lm.counts.astype(np.int64)
         self.vocab = lm.vocab
-        self.reserved = lm.reserved_ids
+        self.reserved = lm.reserved_ids | lm.hidden_ids
         self.cache: dict[str, list[int]] = {}
 
     def span(self, nstem: str) -> tuple[int, int]:
@@ -1125,6 +1162,8 @@ def main(argv=None):
     spellings = {s for s, _ in entries_r}
     index = A.AccentIndex(entries_r)
     lm = GNLMReader(Path(args.bin))
+    hidden = lm.hide_double_accented()
+    print(f"double-accented enclitic forms in the model: {len(hidden):,}")
     print(f"word list: {len(entries_r):,} entries, {len(index):,} keys; "
           f"model: {lm.V:,} types ({time.time() - t0:.0f}s)")
     report: dict = {"inputs": {"dic": str(args.dic), "bin": str(args.bin),
@@ -1233,7 +1272,7 @@ def main(argv=None):
         evidence = training_evidence(corpus_dir, args.workers or 8)
         print(f"\ntraining evidence: {len(evidence):,} host and enclitic pairs "
               f"({time.time() - t0:.0f}s)")
-    enc = run_enclitics(iter_dev(corpus_dir), evidence, args.evidence_min)
+    enc = run_enclitics(iter_dev(corpus_dir), evidence, args.evidence_min, lm)
     report["enclitics"] = enc
     print("\nEnclitic second accent, whole dev split:")
     print("| Rule | Enclitics | Hosts | Corpus accented | Rule accents | "

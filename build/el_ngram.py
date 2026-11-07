@@ -26,7 +26,8 @@ Steps
    multiplying its counts.
 3. **Vocabulary.** The most frequent word-list spellings, plus every
    spelling the out-of-vocabulary table would otherwise store with a
-   saturated count (below).
+   saturated count (below), plus the double-accented twins of the
+   spellings in it (below).
 4. **Count.** Bigram and trigram keys are packed into uint64 (21 bits per
    id) and counted with ``np.unique`` over sentence-aligned chunks; the
    sorted runs are merged by key.
@@ -37,15 +38,27 @@ Steps
 Resolution
 ----------
 The keyboard looks words up as NFC strings, literal first and then
-lowercased (``LMReader.idCaseInsensitive``), and adds the enclitic's second
-accent itself. Counting follows the same spellings:
+lowercased (``LMReader.idCaseInsensitive``), and decides the enclitic's
+second accent itself, from the model's scores of the two spellings.
+Counting follows the same spellings:
 
 * ``<NUM>``, ``<FOREIGN>`` and abbreviations with their period (``κ.``,
   ``π.χ.``) are ``<UNK>``: the word list holds none of them.
 * A double-accented enclitic host (``όνομά`` in ``το όνομά μου``,
-  ``άκουσέ`` in ``άκουσέ με``) keeps only its first tonos, so it is counted
-  as ``όνομα``. The word list holds no double accents; the keyboard adds
-  the second accent by rule when the enclitic follows.
+  ``άκουσέ`` in ``άκουσέ με``) is a token of its own when it is the
+  keyboard's twin of a list spelling (``el_accent.enclitic_twin``: one
+  tonos, stressed on the third syllable from the end with or without
+  synizesis, the second tonos on the last syllable). It is resolved like
+  the spelling it doubles: lowercased at the start of a sentence or
+  inside one when only the lowercase twin exists. The twins get ids after
+  the list spellings (``N_RESERVED + len(entries) + j``). A twin joins the
+  vocabulary, outside its budget, when its host is in it and it was seen
+  at least ``TWIN_MIN_COUNT`` times; a rarer twin is counted as its host.
+  So the model scores ``όνομά μου`` and ``όνομα μου`` apart, and the
+  keyboard compares the two. Twins are no homograph spellings and never
+  go into the out-of-vocabulary table: they are not words of the list,
+  and the keyboard never offers them as suggestions. Any other
+  double-accented token keeps only its first tonos (``ENCLITIC_FOLDED``).
 * A capitalized first word of a sentence is lowercased when its lowercase
   is a list spelling (``Θα`` to ``θα``), and kept when only the capitalized
   spelling is one (``Αθήνα``).
@@ -60,8 +73,8 @@ accent itself. Counting follows the same spellings:
   disjunctive Ή are lowercased; any other one-letter capital is a label or
   an initial (τμήμα Α), not the interjection α.
 * Everything else is ``<UNK>``. So the vocabulary holds only list
-  spellings and the reserved tokens, and the model never proposes a word
-  the list rejects.
+  spellings, their twins and the reserved tokens, and the model never
+  proposes a word the list rejects.
 
 Rows the keyboard cannot reach
 ------------------------------
@@ -87,8 +100,12 @@ Pre-pruned intermediates
 The bigram and trigram files hold only what ``export_lm.py`` can keep: in
 every row the entries down to the count of the row's last top-K entry (ties
 included), the homograph spellings seen at least ``keep_homograph_min_count``
-times, the completion of a homograph spelling's bigram row, and the bigram
-of every kept trigram context (its denominator). Export cuts a row by count
+times, the completion of a homograph spelling's bigram row, the keyboard's
+enclitics after a host or its twin (bigram rows seen at least
+``homograph_context_min_count`` times, trigram rows whose second word is a
+host or twin at least ``keep_homograph_min_count`` times), the other half
+of every host and twin pair a row keeps one half of, and the bigram of
+every kept trigram context (its denominator). Export cuts a row by count
 and then by id, so any superset of the entries it keeps gives the same
 file; the test suite checks that export from these files and from the full
 tables is byte-identical. ``stats.json`` records the cuts the files were
@@ -114,7 +131,7 @@ from pathlib import Path
 
 import numpy as np
 
-from dilemma_build import el_corpus, el_lexicon, el_text
+from dilemma_build import el_accent, el_corpus, el_lexicon, el_text
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CORPUS = ROOT / "build" / "el_corpus"
@@ -155,6 +172,9 @@ TOP_K_TRI = 15
 KEEP_HOMOGRAPH_MIN_COUNT = 3
 HOMOGRAPH_CONTEXT_MIN_COUNT = 3
 OOV_COUNT_CAP = 255
+# A double-accented enclitic form (όνομά) joins the vocabulary, outside the
+# vocabulary budget, when its host is in it and it was seen this often.
+TWIN_MIN_COUNT = 3
 
 SAMPLE_SEED = 2626
 # The shipped settings (docs/el-monotonic-lm.md, "Pruning" and "Vocabulary
@@ -185,6 +205,25 @@ def fold_enclitic_accent(token: str) -> str:
     return unicodedata.normalize("NFC", nfd[:first + 1] + rest)
 
 
+def enclitic_twins(entries: list[str]) -> list[str]:
+    """The double-accented forms (``el_accent.enclitic_twin``) of the
+    word-list spellings that can take one, sorted: the tokens the model
+    keeps beside the list spellings (όνομά beside όνομα)."""
+    listed = set(entries)
+    twins = {t for e in entries if (t := el_accent.enclitic_twin(e)) is not None}
+    return sorted(twins - listed)
+
+
+def twin_hosts(entries: list[str], twins: list[str]) -> np.ndarray:
+    """Full id -> full id of the host of the twin it is (``-1`` for the
+    list spellings and reserved ids), over ``entries + twins``."""
+    index = {e: i + N_RESERVED for i, e in enumerate(entries)}
+    hosts = np.full(len(entries) + len(twins) + N_RESERVED, -1, dtype=np.int64)
+    for j, t in enumerate(twins):
+        hosts[len(entries) + N_RESERVED + j] = index[fold_enclitic_accent(t)]
+    return hosts
+
+
 def load_dictionary(path: Path) -> list[str]:
     """The spellings of a word-list ``.dic`` (first field of every line
     after the count), sorted by code point, which is UTF-8 byte order."""
@@ -199,14 +238,18 @@ def load_dictionary(path: Path) -> list[str]:
 
 
 class Resolver:
-    """Resolve corpus tokens to word-list spellings (see the module
-    docstring). ``code(token, initial)`` returns ``full_id * 16 + outcome``,
-    where ``full_id`` is the spelling's index in ``entries`` plus
-    ``N_RESERVED``, or ``UNK``."""
+    """Resolve corpus tokens to word-list spellings and their
+    double-accented twins (see the module docstring). ``code(token,
+    initial)`` returns ``full_id * 16 + outcome``, where ``full_id`` is the
+    spelling's index in ``entries + twins`` plus ``N_RESERVED``, or
+    ``UNK``."""
 
-    def __init__(self, entries: list[str]):
+    def __init__(self, entries: list[str], twins: list[str] = ()):
         self.entries = entries
+        self.twins = list(twins)
         self.index = {e: i + N_RESERVED for i, e in enumerate(entries)}
+        base = len(entries) + N_RESERVED
+        self.twin_index = {t: base + j for j, t in enumerate(self.twins)}
         self._initial: dict[str, int] = {}
         self._inside: dict[str, int] = {}
 
@@ -224,6 +267,16 @@ class Resolver:
             if n_letters > 1 or (word not in ONE_LETTER_CAPITAL_WORDS
                                  and el_lexicon.APOSTROPHE not in word):
                 return UNK, UNK_CAPS | folded
+        if folded and self.twin_index:
+            # A double-accented twin of a listed spelling stays a token of
+            # its own, resolved like the spelling it doubles.
+            low = el_lexicon.lower_el(token)
+            if initial and low != token and low in self.twin_index:
+                return self.twin_index[low], LOWERED_INITIAL
+            if token in self.twin_index:
+                return self.twin_index[token], EXACT
+            if low != token and low in self.twin_index:
+                return self.twin_index[low], LOWERED_INSIDE
         low = el_lexicon.lower_el(word)
         if initial and low != word and low in self.index:
             return self.index[low], LOWERED_INITIAL | folded
@@ -269,9 +322,9 @@ def sample_bucket(doc_id: str, seed: int = SAMPLE_SEED) -> int:
 _RESOLVER: Resolver | None = None
 
 
-def _init_worker(entries: list[str]) -> None:
+def _init_worker(entries: list[str], twins: list[str] = ()) -> None:
     global _RESOLVER
-    _RESOLVER = Resolver(entries)
+    _RESOLVER = Resolver(entries, twins)
 
 
 def encode_shard(path: str) -> dict:
@@ -375,8 +428,10 @@ class EncodedShard:
 def encode_corpus(corpus_dir: Path, dictionary: Path, cache_dir: Path,
                   entries: list[str], *, workers: int = 0,
                   max_shards: int | None = None,
-                  sources: list[str] | None = None) -> list[EncodedShard]:
-    """Encode (or reuse) every train and dev shard of the corpus."""
+                  sources: list[str] | None = None,
+                  twins: list[str] = ()) -> list[EncodedShard]:
+    """Encode (or reuse) every train and dev shard of the corpus, resolving
+    to ``entries`` and their double-accented ``twins``."""
     corpus_dir = Path(corpus_dir)
     meta = json.loads((corpus_dir / "manifest.json").read_text(encoding="utf-8"))
     dic_sha = sha256_file(dictionary)
@@ -384,7 +439,9 @@ def encode_corpus(corpus_dir: Path, dictionary: Path, cache_dir: Path,
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     stamp_path = cache_dir / "stamp.json"
-    stamp = {"dictionary_sha256": dic_sha, "resolver_sha256": digest}
+    twins_sha = hashlib.sha256("\n".join(twins).encode("utf-8")).hexdigest()
+    stamp = {"dictionary_sha256": dic_sha, "resolver_sha256": digest,
+             "twins_sha256": twins_sha}
     old = (json.loads(stamp_path.read_text(encoding="utf-8"))
            if stamp_path.exists() else None)
     if old is not None and {k: old.get(k) for k in stamp} != stamp:
@@ -418,12 +475,12 @@ def encode_corpus(corpus_dir: Path, dictionary: Path, cache_dir: Path,
         n = workers or min(len(todo), os.cpu_count() or 4)
         print(f"  encoding {len(todo)} shard(s) with {n} worker(s)", flush=True)
         if n <= 1:
-            _init_worker(entries)
+            _init_worker(entries, twins)
             for task in todo:
                 _encode_to(task)
         else:
             with ProcessPoolExecutor(max_workers=n, initializer=_init_worker,
-                                     initargs=(entries,)) as pool:
+                                     initargs=(entries, list(twins))) as pool:
                 for done in pool.map(_encode_to, todo):
                     pass
         print(f"  encoded in {time.time() - t0:.1f}s", flush=True)
@@ -452,16 +509,23 @@ def selection(shards: list[EncodedShard], *, caps: bool = True,
 # Counting
 # --------------------------------------------------------------------------
 
-def outcome_counts(selected) -> dict:
-    """Token counts per resolution outcome (unweighted), BOS/EOS left out."""
+def outcome_counts(selected, first_twin: int | None = None) -> dict:
+    """Token counts per resolution outcome (unweighted), BOS/EOS left out;
+    with ``first_twin`` (the first full id of the double-accented twins),
+    also how many tokens resolved to a twin (``enclitic_twin``)."""
     totals = np.zeros(16, dtype=np.int64)
+    twins = 0
     for sh, codes in selected:
         ids = codes >> OUTCOME_BITS
         word = (ids != BOS) & (ids != EOS)
         totals += np.bincount(codes[word] & 15, minlength=16)
+        if first_twin is not None:
+            twins += int((ids >= first_twin).sum())
     out = {name: int(totals[k] + totals[k | ENCLITIC_FOLDED])
            for k, name in OUTCOME_NAMES.items()}
     out["enclitic_folded"] = int(totals[ENCLITIC_FOLDED:].sum())
+    if first_twin is not None:
+        out["enclitic_twin"] = twins
     return out
 
 
@@ -499,13 +563,24 @@ def contested_mask(entries: list[str]) -> np.ndarray:
 
 def choose_vocab(counts: np.ndarray, entries: list[str], vocab_size: int,
                  contested: np.ndarray | None,
-                 oov_cap: int = OOV_COUNT_CAP) -> tuple[list[int], int]:
+                 oov_cap: int = OOV_COUNT_CAP,
+                 hosts: np.ndarray | None = None,
+                 twin_min: int = TWIN_MIN_COUNT) -> tuple[list[int], int]:
     """Full ids of the vocabulary, reserved ids first, then by descending
     count (ties by spelling): the ``vocab_size - 4`` most frequent seen
     spellings, plus every contested spelling seen more than ``oov_cap``
-    times (so the out-of-vocabulary table never caps a count). Returns the
-    ids and the number of such additions."""
-    seen = np.flatnonzero(counts[N_RESERVED:] > 0) + N_RESERVED
+    times (so the out-of-vocabulary table never caps a count), plus every
+    double-accented twin (``hosts`` >= 0, outside the budget) seen at least
+    ``twin_min`` times whose host is in. A host ranks by its count plus its
+    twin's. Returns the ids and the number of contested additions."""
+    is_twin = (hosts >= 0) if hosts is not None else np.zeros(len(counts), dtype=bool)
+    twin_counts = counts
+    if is_twin.any():
+        # A host ranks by its uses with and without the second accent.
+        counts = counts.copy()
+        tw = np.flatnonzero(is_twin)
+        np.add.at(counts, hosts[tw], counts[tw])
+    seen = np.flatnonzero((counts[N_RESERVED:] > 0) & ~is_twin[N_RESERVED:]) + N_RESERVED
     # Sort by (-count, spelling); spellings sort like their indices.
     order = seen[np.lexsort((seen, -counts[seen]))]
     budget = max(0, vocab_size - N_RESERVED)
@@ -515,11 +590,34 @@ def choose_vocab(counts: np.ndarray, entries: list[str], vocab_size: int,
         rest = order[budget:]
         forced = rest[contested[rest] & (counts[rest] > oov_cap)]
     chosen = np.concatenate([top, forced])
+    if hosts is not None and is_twin.any():
+        twins = np.flatnonzero(is_twin & (twin_counts >= max(1, twin_min)))
+        member = np.zeros(len(counts), dtype=bool)
+        member[chosen] = True
+        chosen = np.concatenate([chosen, twins[member[hosts[twins]]]])
+        counts = np.where(is_twin, twin_counts, counts)
     chosen = chosen[np.lexsort((chosen, -counts[chosen]))]
     if len(chosen) + N_RESERVED > MAX_VOCAB:
         raise ValueError(f"vocabulary of {len(chosen) + N_RESERVED:,} exceeds "
                          f"{MAX_VOCAB:,} ids")
     return list(range(N_RESERVED)) + chosen.tolist(), len(forced)
+
+
+def pair_arrays(vocab: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Over vocabulary ids: the id of the other half of a host and twin
+    pair (``-1`` for the rest), True for both halves of every pair, True
+    for the keyboard's enclitics (``export_lm.enclitic_pairs``)."""
+    ex = _export_lm()
+    pairs = ex.enclitic_pairs(vocab)
+    partner = np.full(len(vocab), -1, dtype=np.int64)
+    for a, b in pairs.items():
+        partner[a] = b
+    member = partner >= 0
+    enclitic = np.zeros(len(vocab), dtype=bool)
+    ids = [i for i, t in enumerate(vocab) if t in ex.KEYBOARD_ENCLITICS]
+    if ids:
+        enclitic[np.asarray(ids)] = True
+    return partner, member, enclitic
 
 
 def map_to_vocab(vocab_full_ids: list[int], n_full: int) -> np.ndarray:
@@ -604,9 +702,10 @@ def count_ngrams(selected, full_to_vocab: np.ndarray, *,
 def homograph_vocab_mask(vocab: list[str]) -> np.ndarray:
     """True for the vocabulary ids ``export_lm.homograph_spelling_ids``
     returns (that function decides which rows keep spellings past the
-    cut)."""
+    cut), double-accented twins left out as export does for el."""
     mask = np.zeros(len(vocab), dtype=bool)
-    ids = list(_export_lm().homograph_spelling_ids(vocab))
+    ex = _export_lm()
+    ids = list(ex.homograph_spelling_ids(vocab, ex.double_accented_ids(vocab)))
     if ids:
         mask[np.asarray(ids)] = True
     return mask
@@ -633,19 +732,40 @@ def _row_keep(groups: np.ndarray, counts: np.ndarray, top_k: int) -> np.ndarray:
     return keep
 
 
+def _complete_pairs(row_keys: np.ndarray, conts: np.ndarray, keep: np.ndarray,
+                    partner: np.ndarray) -> np.ndarray:
+    """``keep`` with every entry added whose pair partner (``partner`` of
+    its continuation) is kept in the same row; ``row_keys`` and ``conts``
+    are each entry's row key and continuation id."""
+    if partner is None or not len(conts):
+        return keep
+    p = partner[conts]
+    cand = np.flatnonzero(~keep & (p >= 0))
+    if not len(cand):
+        return keep
+    kept = np.flatnonzero(keep & (partner[conts] >= 0))
+    kept_keys = (row_keys[kept] << np.uint64(ID_BITS)) | conts[kept].astype(np.uint64)
+    want = (row_keys[cand] << np.uint64(ID_BITS)) | p[cand].astype(np.uint64)
+    keep = keep.copy()
+    keep[cand] = np.isin(want, kept_keys)
+    return keep
+
+
 def prune(bi, tri, homograph: np.ndarray, *, min_count_bi: int = 1,
           min_count_tri: int = 1, min_bigram_for_tri: int = 1,
           drop_unknown_contexts: bool = True, preprune: bool = True,
           top_k_bi: int = TOP_K_BI, top_k_tri: int = TOP_K_TRI,
           keep_min: int = KEEP_HOMOGRAPH_MIN_COUNT,
-          context_min: int = HOMOGRAPH_CONTEXT_MIN_COUNT) -> tuple:
+          context_min: int = HOMOGRAPH_CONTEXT_MIN_COUNT,
+          pairs: tuple | None = None) -> tuple:
     """The bigrams and trigrams to write. First the Ancient Greek trainer's
     pruning: bigrams seen fewer than ``min_count_bi`` times, trigrams seen
     fewer than ``min_count_tri`` times and trigrams whose context bigram
     (after the bigram cut) was seen fewer than ``min_bigram_for_tri`` times
     go. Then, with ``drop_unknown_contexts``, every row headed by ``<UNK>``.
     With ``preprune``, only the superset of entries ``export_lm.py`` can
-    keep is written (see the module docstring)."""
+    keep is written (see the module docstring). ``pairs`` is
+    :func:`pair_arrays` of the vocabulary, for the host and twin rules."""
     bk, bc = bi
     tk, tc = tri
     m = bc >= min_count_bi
@@ -678,6 +798,12 @@ def prune(bi, tri, homograph: np.ndarray, *, min_count_bi: int = 1,
     keep_t[idx] = _row_keep(t_ctx[idx], tc[idx], top_k_tri)
     if keep_min > 0:
         keep_t |= cont & homograph[t3] & (tc >= keep_min)
+    if pairs is not None:
+        partner, member, enclitic = pairs
+        t2 = (t_ctx & np.uint64(ID_MASK)).astype(np.int64)
+        if keep_min > 0:
+            keep_t |= cont & member[t2] & enclitic[t3] & (tc >= keep_min)
+        keep_t = _complete_pairs(t_ctx, t3, keep_t, partner)
     tk, tc = tk[keep_t], tc[keep_t]
 
     # Bigram rows: the same, plus the completion of homograph rows, plus
@@ -692,6 +818,11 @@ def prune(bi, tri, homograph: np.ndarray, *, min_count_bi: int = 1,
         keep_b |= cont & homograph[b2] & (bc >= keep_min)
     if context_min > 0:
         keep_b |= cont & homograph[b1] & (bc >= context_min)
+    if pairs is not None:
+        partner, member, enclitic = pairs
+        if context_min > 0:
+            keep_b |= cont & member[b1] & enclitic[b2] & (bc >= context_min)
+        keep_b = _complete_pairs(b1.astype(np.uint64), b2, keep_b, partner)
     needed = np.unique(tk >> np.uint64(ID_BITS))
     keep_b |= np.isin(bk, needed, assume_unique=False)
     return (bk[keep_b], bc[keep_b]), (tk, tc)
@@ -730,9 +861,11 @@ def write_ngrams(out: Path, bi, tri) -> None:
 
 
 def write_type_counts(out: Path, counts: np.ndarray, entries: list[str]) -> int:
-    """``spelling<TAB>count`` of every seen word-list spelling, most frequent
-    first (ties by spelling), weighted like the n-grams: what
-    ``export_lm.py`` chooses the out-of-vocabulary table from."""
+    """``spelling<TAB>count`` of every seen token (word-list spellings and
+    their double-accented twins), most frequent first (ties by spelling),
+    weighted like the n-grams: what ``export_lm.py`` chooses the
+    out-of-vocabulary table from (it never takes a twin, which is no
+    dictionary spelling)."""
     seen = np.flatnonzero(counts[N_RESERVED:] > 0) + N_RESERVED
     order = seen[np.lexsort((seen, -counts[seen]))]
     _gz_lines(out / "type_counts.tsv.gz",
@@ -809,11 +942,14 @@ def count_corpus(corpus_dir: Path, dictionary: Path, *, vocab_size: int,
     if entries is None:
         entries = load_dictionary(dictionary)
         print(f"Word list: {len(entries):,} spellings from {dictionary}", flush=True)
-    n_full = len(entries) + N_RESERVED
+    twins = enclitic_twins(entries)
+    tokens = entries + twins
+    n_full = len(tokens) + N_RESERVED
     if shards is None:
         cache = Path(cache_dir) if cache_dir else ROOT / "build" / "lm_el_encoded"
         shards = encode_corpus(corpus_dir, dictionary, cache, entries,
-                               workers=workers, max_shards=1 if sanity else None)
+                               workers=workers, max_shards=1 if sanity else None,
+                               twins=twins)
     fraction = sample_fraction
     if sample_tokens:
         fraction = sample_fraction_for(sample_tokens, selection(shards, caps=caps))
@@ -821,13 +957,27 @@ def count_corpus(corpus_dir: Path, dictionary: Path, *, vocab_size: int,
 
     t0 = time.time()
     counts = full_counts(train_sel, n_full)
-    contested = contested_mask(entries) if oov_safe_vocab else None
-    vocab_full, forced = choose_vocab(counts, entries, vocab_size, contested)
-    names = list(RESERVED) + entries
+    contested = None
+    if oov_safe_vocab:
+        contested = np.zeros(n_full, dtype=bool)
+        contested[:len(entries) + N_RESERVED] = contested_mask(entries)
+    hosts = twin_hosts(entries, twins)
+    vocab_full, forced = choose_vocab(counts, entries, vocab_size, contested,
+                                      hosts=hosts)
+    names = list(RESERVED) + tokens
     vocab = [names[i] for i in vocab_full]
     full_to_vocab = map_to_vocab(vocab_full, n_full)
+    # A twin left out of the vocabulary counts as its host, as every
+    # double-accented form did before the model kept them.
+    rare = np.flatnonzero((hosts >= 0) & (full_to_vocab == UNK))
+    full_to_vocab[rare] = full_to_vocab[hosts[rare]]
+    counts = counts.copy()
+    np.add.at(counts, hosts[rare], counts[rare])
+    counts[rare] = 0
+    n_twins = int((hosts[np.asarray(vocab_full, dtype=np.int64)] >= 0).sum())
     print(f"Vocabulary: {len(vocab):,} ids ({forced:,} added so no "
-          f"out-of-vocabulary count exceeds {OOV_COUNT_CAP}) of "
+          f"out-of-vocabulary count exceeds {OOV_COUNT_CAP}, {n_twins:,} "
+          f"double-accented twins) of "
           f"{int((counts[N_RESERVED:] > 0).sum()):,} seen spellings "
           f"in {time.time() - t0:.1f}s", flush=True)
 
@@ -846,13 +996,15 @@ def count_corpus(corpus_dir: Path, dictionary: Path, *, vocab_size: int,
                                               "weighted_tokens": 0})
         d["train_tokens"] += n_words
         d["weighted_tokens"] += n_words * sh.weight
+    outcomes = outcome_counts(train_sel, len(entries) + N_RESERVED)
     return Counted(
         corpus_dir=corpus_dir, dictionary=dictionary, entries=entries,
+        tokens=tokens, twins=twins, n_twins=n_twins,
         shards=shards, caps=caps, sample_fraction=fraction, sanity=sanity,
         vocab_size_requested=vocab_size, vocab=vocab, vocab_full=vocab_full,
         forced=forced, counts=counts, uni=uni, bi=bi, tri=tri,
-        homograph=homograph_vocab_mask(vocab),
-        outcomes=outcome_counts(train_sel), per_source=per_source)
+        homograph=homograph_vocab_mask(vocab), pairs=pair_arrays(vocab),
+        outcomes=outcomes, per_source=per_source)
 
 
 def write_intermediates(c: Counted, out: Path, *,
@@ -868,17 +1020,19 @@ def write_intermediates(c: Counted, out: Path, *,
     bi_w, tri_w = prune(
         c.bi, c.tri, c.homograph, min_count_bi=min_count_bi,
         min_count_tri=min_count_tri, min_bigram_for_tri=min_bigram_for_tri,
-        drop_unknown_contexts=True, preprune=preprune)
+        drop_unknown_contexts=True, preprune=preprune,
+        pairs=getattr(c, "pairs", None))
     write_ngrams(out, bi_w, tri_w)
     (out / "vocab.json").write_text(json.dumps(c.vocab, ensure_ascii=False),
                                     encoding="utf-8")
     (out / "unigrams.json").write_text(
         json.dumps({str(i): int(n) for i, n in enumerate(c.uni.tolist()) if n}),
         encoding="utf-8")
-    n_types = write_type_counts(out, c.counts, c.entries)
+    tokens = getattr(c, "tokens", c.entries)
+    n_types = write_type_counts(out, c.counts, tokens)
     per_source = {k: dict(v) for k, v in c.per_source.items()}
     if dev:
-        dev_counts = write_dev(out, selection(c.shards, split="dev"), c.entries)
+        dev_counts = write_dev(out, selection(c.shards, split="dev"), tokens)
         for source, n in dev_counts.items():
             per_source.setdefault(source, {})["dev_sentences"] = n
     print(f"Wrote {len(bi_w[0]):,} bigrams and {len(tri_w[0]):,} trigrams "
@@ -900,6 +1054,9 @@ def write_intermediates(c: Counted, out: Path, *,
         "dictionary": str(c.dictionary),
         "dictionary_sha256": sha256_file(c.dictionary),
         "dictionary_entries": len(c.entries),
+        "enclitic_twins": len(getattr(c, "twins", ())),
+        "vocab_enclitic_twins": getattr(c, "n_twins", 0),
+        "twin_min_count": TWIN_MIN_COUNT,
         "resolver_sha256": resolver_digest(),
         "sanity": bool(c.sanity),
         "caps": c.caps,
@@ -929,6 +1086,7 @@ def write_intermediates(c: Counted, out: Path, *,
             "top_k_bi": TOP_K_BI, "top_k_tri": TOP_K_TRI,
             "keep_homograph_min_count": KEEP_HOMOGRAPH_MIN_COUNT,
             "homograph_context_min_count": HOMOGRAPH_CONTEXT_MIN_COUNT,
+            "enclitic_pairs": True,
         },
     }
     (out / "stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=2),

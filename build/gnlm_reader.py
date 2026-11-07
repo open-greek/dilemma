@@ -190,6 +190,9 @@ class GNLMReader:
         self.tri_ids = self.tri_sug["id"].astype(np.int64)
         self.tri_q = self.tri_sug["q"].astype(np.int64)
         self.reserved_ids = {self.id_pad, self.id_unk, self.id_bos, self.id_eos}
+        # Ids suggest_ids and suggest_completions never return; see
+        # hide_double_accented.
+        self.hidden_ids: set[int] = set()
         self.oov_off, self.oov_n = self._oov_table()
         if self.oov_n:
             self.oov_keys = np.frombuffer(d, dtype="<u8", count=self.oov_n,
@@ -357,7 +360,7 @@ class GNLMReader:
         if curr_id is not None:
             rows.append(self.bigram_row(curr_id))
         rows.append((np.array([w for w, _ in self.unigram_topk], dtype=np.int64), None))
-        reserved = self.reserved_ids
+        reserved = self.reserved_ids | self.hidden_ids
         for row in rows:
             if row is None:
                 continue
@@ -400,6 +403,22 @@ class GNLMReader:
                     return LOG_ALPHA + row[1][hit[0]] / 1024.0
         return self.unigram_score(int(self.counts[word_id]))
 
+    def hide_double_accented(self) -> set[int]:
+        """Leave the double-accented enclitic forms (όνομά) out of
+        suggestions, as the keyboard does (it writes them only before an
+        enclitic), and return their ids."""
+        self.hidden_ids = {i for i, t in enumerate(self.vocab)
+                           if unicodedata.normalize("NFD", t).count("\u0301") >= 2}
+        return self.hidden_ids
+
+    def knows(self, word: str) -> bool:
+        """``LMEngine.knows``: the word has a vocabulary id that is no
+        reserved token, or a count in the out-of-vocabulary table."""
+        word_id = self.id_case_insensitive(word)
+        if word_id is not None:
+            return word_id not in self.reserved_ids
+        return self.oov_count(word) > 0
+
     def score(self, word: str, prev: str | None, curr: str | None) -> float:
         word_id = self.id_case_insensitive(word)
         if word_id is None:
@@ -440,7 +459,7 @@ class GNLMReader:
             if row is None:
                 return
             for w, q in zip(row[0].tolist(), row[1].tolist()):
-                if w in self.reserved_ids or w in seen:
+                if w in self.reserved_ids or w in seen or w in self.hidden_ids:
                     continue
                 if not norm[w].startswith(nstem):
                     continue
@@ -454,7 +473,7 @@ class GNLMReader:
         if curr_id is not None:
             collect(self.bigram_row(curr_id), LOG_ALPHA)
         for w in self.prefix_ids(nstem):
-            if w in seen or w in self.reserved_ids:
+            if w in seen or w in self.reserved_ids or w in self.hidden_ids:
                 continue
             seen.add(w)
             tok = self.vocab[w]

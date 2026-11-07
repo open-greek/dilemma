@@ -89,7 +89,7 @@ the word-list spelling the keyboard would look up, or to `<UNK>`:
 |---|---|---|
 | `<NUM>`, `<FOREIGN>` | `<UNK>` | Not words of the list |
 | Abbreviation with its period (`κ.`, `π.χ.`) | `<UNK>` | The list keeps abbreviations apart |
-| `όνομά` in `το όνομά μου` | `όνομα` | The list has no double accents; the keyboard adds the enclitic's second accent by rule |
+| `όνομά` in `το όνομά μου` | `όνομά` | The double-accented form of a list spelling is a token of its own, so the keyboard can compare `όνομά μου` with `όνομα μου` (below) |
 | `Θα` at the start of a sentence | `θα` | The lowercase is a list spelling |
 | `Αθήνα` at the start of a sentence | `Αθήνα` | Only the capitalized spelling is in the list |
 | `Νίκη` inside a sentence | `Νίκη` | The name is a list spelling of its own beside `νίκη` |
@@ -98,14 +98,28 @@ the word-list spelling the keyboard would look up, or to `<UNK>`:
 | `Ο`, `Η`, `Ή` | `ο`, `η`, `ή` | The capital articles and the disjunctive; any other one-letter capital is a label (`τμήμα Α`) |
 | Anything else | `<UNK>` | Not a list spelling |
 
-`fold_enclitic_accent` keeps the first tonos of a word with two. In the
-full training run, of the 195,658,122 training tokens under the caps
-(before weighting), 167,732,478 were list
-spellings as written, 8,941,770 were lowercased at the start of a
-sentence and 7,839,470 inside one, 514,365 lost an enclitic's
-second accent, and 11,144,404 became `<UNK>` (5,426,891
-placeholders, 1,244,119 abbreviations, 1,673,681 words in capitals,
-2,799,713 not in the list).
+A double-accented token is kept as it is when it is the form the keyboard
+writes before an enclitic for a list spelling (`el_accent.enclitic_twin`:
+one tonos, stressed on the third syllable from the end with or without
+synizesis, the second tonos on the last vowel), resolved like the
+spelling it doubles. The list has 265,200 such forms. One seen at least 3
+times whose host is in the vocabulary joins the vocabulary, outside its
+150,000 types, with its id after the list spellings; a host ranks by its
+count plus its twin's. A rarer one is counted as its host. These forms
+are no words of the list: they are never homograph spellings, never go
+into the out-of-vocabulary table, and the keyboard must never offer them
+as predictions or completions (the evaluations hide every vocabulary
+token with two tonos, `GNLMReader.hide_double_accented`). Any other
+double-accented token keeps only its first tonos (`fold_enclitic_accent`).
+
+In the full training run, of the 195,633,147 training tokens under the
+caps (before weighting), 169,505,613 were list spellings or their
+double-accented forms as written, 8,948,242 were lowercased at the start
+of a sentence and 6,163,654 inside one, and 11,015,638 became `<UNK>`
+(5,425,695 placeholders, 1,244,243 abbreviations, 1,670,885 words in
+capitals, 2,674,815 not in the list). 474,750 tokens were double-accented
+forms of list spellings, and 39,774 other double-accented tokens lost
+their second accent. The vocabulary holds 5,784 double-accented forms.
 
 ## Counting
 
@@ -124,7 +138,8 @@ Ancient Greek path, which would need tens of gigabytes for 200M tokens:
    independent document-level sample (its own hash seed) of about N
    weighted tokens, for the subsamples the pruning was tuned on.
 3. **Vocabulary.** The most frequent word-list spellings by weighted count,
-   plus the four reserved tokens.
+   plus the four reserved tokens, plus the double-accented forms of the
+   spellings in it seen at least 3 times.
 4. **Count.** Bigram and trigram keys are packed into uint64, 21 bits per
    id, counted with `np.unique` over chunks of whole sentences, and the
    sorted runs are merged.
@@ -152,11 +167,11 @@ Export uses the Ancient Greek settings: rows of the 30 most likely
 continuations after a word and the 15 most likely after two, 10 global
 fallbacks, homograph spellings seen at least 3 times kept in a row past
 that cut, and the bigram row of a homograph spelling completed with every
-continuation seen at least 3 times. In this vocabulary 6,079
+continuation seen at least 3 times. In this vocabulary 6,058
 spellings share their letters with another (`που` and `πού`, `πότε` and
 `ποτέ`, `όρος` and `ορός`).
 
-Two things differ from the Ancient Greek export:
+Three things differ from the Ancient Greek export:
 
 - **No rows headed by `<UNK>`.** The reader resolves a context word to an
   id only when the word is in the vocabulary, so a bigram row headed by
@@ -173,6 +188,15 @@ Two things differ from the Ancient Greek export:
   binary as the full tables; a test checks they are byte-identical.
   `stats.json` records the cuts, and export refuses settings that would
   need entries the files do not have.
+- **Host and double-accented form pairs.** Past the cut, the bigram row
+  of a host or its double-accented form keeps every enclitic the keyboard
+  decides the accent for (`μου`, `σου`, `μας`, `σας`, `του`, `της`,
+  `τους`, `το`, `τα`, `τον`, `την`, `τις`) seen at least 3 times after
+  it; a trigram row whose second word is one of the pair keeps those
+  enclitics seen at least 3 times; and a row that keeps one of the pair
+  keeps the other when it has it. The keyboard scores both readings from
+  rows of the same depth. The first 30 or 15 entries of every row are
+  unchanged.
 
 ## Pruning
 
@@ -291,41 +315,45 @@ in proportion to its size; see [Known limitations](#known-limitations).
 
 ## Recorded model
 
-Built at commit 489336b on 2026-11-07, from the corpus extracted at
-3a7c05a and the word list with sha256 `abef641c` (631,696 entries); the
-binary's sha256 is `227240c4`:
+Built on 2026-11-07, from the corpus extracted at commit 3a45179 and the
+word list with sha256 `b21c4047` (631,330 entries); the binary's sha256 is
+`8f62be97`:
 
 | Part | Measure |
 |---|---|
-| Size | 60,428,378 bytes (57.6 MiB), 20.6 MB under `xz -6` |
-| Vocabulary | 150,000 types (4.0 MB with counts and the 10 global fallbacks) |
-| Bigram rows | 147,493 rows (1.8 MB), 2,193,478 entries (13.2 MB) |
-| Trigram rows | 1,255,315 rows (20.1 MB), 3,545,046 entries (21.3 MB) |
-| Homograph spellings | 6,123 kept past the cut; 1,180 bigram rows completed with 263,876 entries |
-| Out-of-vocabulary table | 13,146 counts (0.1 MB), none capped |
-| Training words | 200.5M weighted (195.6M tokens under the caps); 93.99% vocabulary spellings, 5.64% `<UNK>`, 0.37% list spellings outside the vocabulary |
-| Distinct n-grams counted | 13.7M bigrams, 58.2M trigrams |
+| Size | 61,065,151 bytes (58.2 MiB), 20.8 MB under `xz -6` |
+| Vocabulary | 155,784 types: 150,000 plus 5,784 double-accented forms (4.2 MB with counts and the 10 global fallbacks) |
+| Bigram rows | 153,020 rows (1.8 MB), 2,218,343 entries (13.3 MB) |
+| Trigram rows | 1,263,685 rows (20.2 MB), 3,567,076 entries (21.4 MB) |
+| Homograph spellings | 6,058 kept past the cut; 1,156 bigram rows completed with 263,637 entries |
+| Host and double-accented form pairs | 5,784 |
+| Out-of-vocabulary table | 12,831 counts (0.1 MB), none capped |
+| Training words | 200.5M weighted (195.6M tokens under the caps); 94.02% vocabulary spellings, 5.61% `<UNK>`, 0.37% list spellings outside the vocabulary |
+| Distinct n-grams counted | 13.8M bigrams, 58.5M trigrams |
 
 The pruning and vocabulary tables above were measured with the word list
-of commit 2951b0e (630,688 entries). The list of this build differs from it
-in about 2,000 entries, most of them names and rare forms (see
+of commit 2951b0e (630,688 entries) and without the double-accented forms.
+The list of this build differs from it in about 3,000 entries, most of
+them names and rare forms (see
 [Monotonic keyboard data](monotonic-keyboard-data.md#changes-to-the-word-list)),
-and the corpus has since dropped Wiktionary's editorial notes; the
-evaluation below is of this build.
+and the corpus has since dropped Wiktionary's editorial notes and keeps
+`ό,τι` as one token; the evaluation below is of this build. The previous
+build (sha256 `227240c4`, 60,428,378 bytes, 150,000 types) scored 18.52%
+top-1 and 30.36% top-3 on its dev sentences, which split `ό,τι`.
 
-Training took 31 s with the encoded shards cached (11.5 GB peak memory) and
-export 21 s, on an Apple M5 Max. `build/gnlm_reader.py` finds no
-structural problem in the file. The keyboard's Swift `LMReader` was run on
-this binary: it resolved each of the 150,000 vocabulary entries to its own
-id and the four reserved tokens to the ids the header names, and found a
-count for each of the 13,157 list words outside the vocabulary that the
-table covers (13,146 counts; 11 capitalized entries such as `Βόλε` reach
-the count of their lowercase spelling). The sidecar's `artifact_size_bytes`
-is the file's size. On 6,000 queries drawn from the dev sentences
-(`suggest`, `score` and `suggestCompletions`, with context words in
-capitals and with ASCII apostrophes), the answers of
-`build/gnlm_reader.py` and of the keyboard's reader were identical. The
-previous build (sha256 `9eeaf85c`, commit f08cf8f) passed the same checks.
+Training took 56 s after the shards were encoded again for the new list
+(16 s), and export about 20 s, on an Apple M5 Max. `build/gnlm_reader.py`
+finds no structural problem in the file, and `export_lm.py --lang el
+--check-dictionary` confirms the out-of-vocabulary table matches the list.
+The format is unchanged: the double-accented forms are ordinary vocabulary
+tokens. The keyboard's Swift `LMReader` was last checked on the previous
+build (sha256 `227240c4`): it resolved each of its 150,000 vocabulary
+entries to its own id and the four reserved tokens to the ids the header
+names, found a count for each list word outside the vocabulary that the
+table covers, and gave the same answers as `build/gnlm_reader.py` on
+6,000 queries drawn from the dev sentences (`suggest`, `score` and
+`suggestCompletions`, with context words in capitals and with ASCII
+apostrophes).
 
 ## Evaluation
 
@@ -354,21 +382,23 @@ Parliament dominates them; *conversational* pools Tatoeba, Common Voice and the
 Wiktionary examples.
 
 Whole dev split, 449,360 sentences (`python eval/eval_el_ngram.py`, about
-7 minutes):
+7 minutes on an idle machine). Double-accented forms are hidden from the
+suggestions as on the keyboard, and a double-accented target counts as its
+host:
 
 | Set | Word targets | In vocabulary | Top-1 | Top-3 | Top-1, vocabulary targets | Top-3, vocabulary targets | Pseudo-perplexity | Completion after 2 letters, top-1 | top-3 | After 3 letters, top-1 | top-3 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Common Voice | 2,087 | 95.64 | 9.39 | 17.63 | 9.82 | 18.44 | 4110 | 36.74 | 50.15 | 36.51 | 49.57 |
-| EELLAK articles | 56,126 | 90.04 | 15.54 | 26.65 | 17.26 | 29.60 | 1116 | 47.58 | 58.60 | 42.84 | 56.38 |
-| European Parliament | 1,904,930 | 94.61 | 22.26 | 34.60 | 23.53 | 36.57 | 502 | 53.46 | 64.26 | 49.71 | 61.49 |
-| OpenGov comments | 1,856,140 | 91.71 | 17.46 | 28.80 | 19.04 | 31.40 | 757 | 50.47 | 62.49 | 48.44 | 61.00 |
-| Parliament | 3,775,597 | 96.50 | 19.64 | 32.22 | 20.35 | 33.39 | 489 | 55.19 | 67.68 | 54.51 | 68.03 |
-| Tatoeba | 12,304 | 98.15 | 15.59 | 27.25 | 15.88 | 27.77 | 1440 | 44.42 | 57.00 | 44.91 | 61.18 |
-| Wikipedia | 1,924,450 | 88.78 | 14.69 | 25.51 | 16.55 | 28.74 | 1928 | 43.69 | 55.84 | 42.01 | 54.91 |
-| Wikisource | 108,149 | 73.06 | 4.39 | 10.01 | 6.00 | 13.70 | 9383 | 28.35 | 41.86 | 24.25 | 39.07 |
-| Wiktionary examples | 42,214 | 88.48 | 11.92 | 20.80 | 13.47 | 23.51 | 3601 | 38.36 | 49.66 | 36.47 | 49.15 |
-| All, pooled | 9,681,997 | 93.34 | 18.52 | 30.36 | 19.84 | 32.53 | 720 | 51.40 | 63.39 | 49.63 | 62.51 |
-| Conversational, pooled | 56,605 | 90.84 | 12.62 | 22.09 | 13.89 | 24.31 | 2918 | 39.66 | 51.31 | 38.32 | 51.80 |
+| Common Voice | 2,086 | 95.69 | 9.44 | 17.50 | 9.87 | 18.29 | 4164 | 36.96 | 50.24 | 36.51 | 49.48 |
+| EELLAK articles | 56,120 | 90.05 | 15.56 | 26.74 | 17.28 | 29.69 | 1116 | 47.64 | 58.71 | 42.92 | 56.33 |
+| European Parliament | 1,904,781 | 94.62 | 22.28 | 34.65 | 23.55 | 36.62 | 503 | 53.37 | 64.19 | 49.62 | 61.34 |
+| OpenGov comments | 1,856,015 | 91.72 | 17.50 | 28.88 | 19.08 | 31.48 | 760 | 50.45 | 62.55 | 48.40 | 60.98 |
+| Parliament | 3,773,347 | 96.55 | 19.74 | 32.37 | 20.44 | 33.52 | 488 | 55.18 | 67.72 | 54.47 | 67.95 |
+| Tatoeba | 12,295 | 98.22 | 15.68 | 27.35 | 15.97 | 27.85 | 1439 | 44.39 | 57.05 | 44.84 | 61.17 |
+| Wikipedia | 1,924,319 | 88.79 | 14.71 | 25.56 | 16.57 | 28.79 | 1940 | 43.58 | 55.84 | 41.95 | 54.84 |
+| Wikisource | 107,987 | 73.17 | 4.40 | 10.04 | 6.02 | 13.72 | 9397 | 28.49 | 42.01 | 24.19 | 39.09 |
+| Wiktionary examples | 42,202 | 88.51 | 11.99 | 20.93 | 13.55 | 23.65 | 3601 | 38.36 | 49.77 | 36.52 | 49.15 |
+| All, pooled | 9,679,152 | 93.37 | 18.57 | 30.45 | 19.89 | 32.62 | 722 | 51.36 | 63.41 | 49.57 | 62.43 |
+| Conversational, pooled | 56,583 | 90.89 | 12.70 | 22.20 | 13.97 | 24.43 | 2920 | 39.65 | 51.41 | 38.34 | 51.79 |
 
 Completion after 3 letters can score below completion after 2 letters
 because it is measured over words of more than 3 letters, a harder set
@@ -402,7 +432,7 @@ The first three completions (`suggestCompletions`) of a stem typed without accen
 
 | Context | Stem | Completions |
 |---|---|---|
-| `θα ήθελα` | `να` | να, ναι, ναυτιλίας |
+| `θα ήθελα` | `να` | να, ναι, Ναυτιλίας |
 | `τι κάνεις` | `σ` | στον, στη, συνήθως |
 | `ευχαριστώ` at the start of a sentence | `π` | πολύ, πάρα, που |
 | start of a sentence | `καλ` | καλό, καλά, καλύτερα |
@@ -414,19 +444,24 @@ The first three completions (`suggestCompletions`) of a stem typed without accen
 `tests/test_el_ngram.py` builds a two-source fixture corpus and word list,
 trains, exports and reads the binary back. It checks the resolution table
 above, that streaming counts equal `Counter` counts, the token caps and
-weights, that the vocabulary holds only list spellings and the reserved
-tokens at the ids the header names, the structure of every row (sorted
-contexts, contiguous offsets, rows in descending probability, no reserved
-or out-of-range ids, no `<UNK>` rows), the out-of-vocabulary footer and its
-counts, the sidecar fields, byte-identical output from pre-pruned and full
-intermediates and across reruns, the export refusals, and the reader's
-refusals of malformed files.
+weights, that the vocabulary holds only list spellings, their
+double-accented forms and the reserved tokens at the ids the header names,
+the structure of every row (sorted contexts, contiguous offsets, rows in
+descending probability, no reserved or out-of-range ids, no `<UNK>` rows),
+the out-of-vocabulary footer and its counts, the sidecar fields,
+byte-identical output from pre-pruned and full intermediates (also on
+randomized counts with host and double-accented pairs) and across reruns,
+the export refusals, and the reader's refusals of malformed files. For
+the double-accented forms it checks that they resolve to tokens of their
+own, join the vocabulary outside its budget, are no homographs of their
+hosts, keep both halves of a pair and their enclitics in the rows, and are
+hidden from the reader's suggestions.
 
 ## Known limitations
 
 - **Register.** Parliament, OpenGov and Wikipedia make up most of the
-  training text. The conversational sets score far lower (top-1 12.62%
-  against 18.52% pooled), and some predictions show the Parliament
+  training text. The conversational sets score far lower (top-1 12.70%
+  against 18.57% pooled), and some predictions show the Parliament
   register: after `ευχαριστώ πολύ` the first suggestions are `κύριε` and
   `κυρία`. The open sources hold little casual conversation (see the
   corpus's limitations).
@@ -438,9 +473,15 @@ refusals of malformed files.
   has no accent-insensitive lookup. `ΘΑ` finds `θα`, but a word typed in
   capitals without its tonos (`ΕΙΝΑΙ`) resolves to nothing unless the
   keyboard restores the accent first.
-- **`ό,τι`.** The corpus splits words at commas, as the keyboard does, so
-  `ό,τι` is counted as `ό` (`<UNK>`) and `τι`, and the model never
-  proposes it.
+- **Capitalized names of institutions.** Spellings that two sources
+  write with their capital inside sentences are list entries of their own
+  (`Ένωση`, `Ναυτιλίας` of `Υπουργείο Ναυτιλίας`), so the model counts
+  them apart from the lowercase word and can propose them in their
+  capitalized form: after `θα ήθελα` the third completion of `να` is
+  `Ναυτιλίας`.
+- **Rare double-accented forms.** A double-accented form seen fewer than
+  3 times in training is counted as its host, so for it the keyboard has
+  no evidence and falls back to the syllable rule.
 - **Trigram entries first.** The reader lists a trigram row before the
   bigram row, so a weakly attested trigram entry outranks a strong bigram
   entry. The minimum trigram count of 4 removes the weakest; ranking the
@@ -458,7 +499,7 @@ refusals of malformed files.
   format needs no index.
 - **Pooled numbers.** Parliament has 39% of the dev word targets, so it
   dominates the pooled results; the per-source rows are the better guide.
-- **Wikisource.** Only 73.06% of its dev words are vocabulary spellings:
+- **Wikisource.** Only 73.17% of its dev words are vocabulary spellings:
   literary and dialect text, much of it older, that the list and the
   model cover poorly.
 - **Pseudo-perplexity.** Stupid backoff scores are not normalized, so the

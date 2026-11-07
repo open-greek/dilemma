@@ -101,6 +101,23 @@ first ``top_k`` entries and the next-word lists are unchanged.
 Exporting with ``--homograph-context-min-count 0`` turns this off, and
 with both minimums at 0 the exporter writes the plain top-K rows.
 
+Enclitic host and twin pairs (``--lang el``)
+--------------------------------------------
+
+The monotonic model keeps a double-accented enclitic form (όνομά) as a
+vocabulary token beside its host (όνομα), so a keyboard can compare
+``όνομά μου`` with ``όνομα μου`` (``el_accent.enclitic_evidence``). The
+two are no homograph spellings of each other: the twin is not a word of
+the list. Instead, past the cut, the bigram row of a host or twin keeps
+every keyboard enclitic (μου, σου, μας, σας, του, της, τους, το, τα,
+τον, την, τις) seen at least ``HOMOGRAPH_CONTEXT_MIN_COUNT`` times after
+it, a trigram row whose second word is a host or twin keeps every such
+enclitic seen at least ``KEEP_HOMOGRAPH_MIN_COUNT`` times, and a row that
+keeps one half of a pair also keeps the other half when the row has it.
+Both readings are then scored from the same depth of rows. The first
+``top_k`` entries of every row are unchanged. The Ancient Greek model has
+no such pairs.
+
 Header (128 bytes, zero-padded)
 -------------------------------
 
@@ -459,19 +476,74 @@ def spelling_key(token: str) -> str:
     return unicodedata.normalize("NFC", nfd).lower()
 
 
-def homograph_spelling_ids(vocab: list[str]) -> set[int]:
+def homograph_spelling_ids(vocab: list[str],
+                           exclude_ids: set[int] | frozenset = frozenset()) -> set[int]:
     """Ids of the vocabulary tokens that are one spelling of a homograph
     set: tokens whose bare letters another token shares with a different
-    :func:`spelling_key`. Reserved tokens are never included.
+    :func:`spelling_key`. Reserved tokens and ``exclude_ids`` (for el, the
+    double-accented enclitic twins, which share their letters with their
+    host) are never included and never make another token one.
     """
     spellings: dict[str, set[str]] = defaultdict(set)
-    for tok in vocab:
-        if tok not in RESERVED_TOKENS:
+    for i, tok in enumerate(vocab):
+        if tok not in RESERVED_TOKENS and i not in exclude_ids:
             spellings[bare_letters(tok)].add(spelling_key(tok))
     return {
         i for i, tok in enumerate(vocab)
-        if tok not in RESERVED_TOKENS and len(spellings[bare_letters(tok)]) > 1
+        if tok not in RESERVED_TOKENS and i not in exclude_ids
+        and len(spellings[bare_letters(tok)]) > 1
     }
+
+
+# The monotonic keyboard's enclitics (EncliticAccent.pronouns and
+# articleHomographs): the rows of an enclitic host and its double-accented
+# twin keep them, so the keyboard can compare the two readings.
+KEYBOARD_ENCLITICS = frozenset({"μου", "σου", "μας", "σας", "του", "της",
+                                "τους", "το", "τα", "τον", "την", "τις"})
+
+
+def _tonos_count(token: str) -> int:
+    return unicodedata.normalize("NFD", token).count("\u0301")
+
+
+def double_accented_ids(vocab: list[str]) -> set[int]:
+    """el: ids of the tokens with two acute accents, the double-accented
+    enclitic forms (όνομά) the monotonic model keeps beside their hosts."""
+    return {i for i, tok in enumerate(vocab) if _tonos_count(tok) >= 2}
+
+
+def enclitic_pairs(vocab: list[str]) -> dict[int, int]:
+    """el: for every double-accented token whose host (its spelling with
+    the last tonos removed, όνομά to όνομα) is in the vocabulary, twin id
+    -> host id and host id -> twin id."""
+    index = {tok: i for i, tok in enumerate(vocab)}
+    pairs: dict[int, int] = {}
+    for i in sorted(double_accented_ids(vocab)):
+        nfd = unicodedata.normalize("NFD", vocab[i])
+        last = nfd.rindex("\u0301")
+        host = unicodedata.normalize("NFC", nfd[:last] + nfd[last + 1:])
+        j = index.get(host)
+        if j is not None and _tonos_count(host) == 1:
+            pairs[i] = j
+            pairs[j] = i
+    return pairs
+
+
+def complete_pairs(entries: list[tuple[int, int]], top: list[tuple[int, int]],
+                   pairs: dict[int, int]) -> list[tuple[int, int]]:
+    """``top`` (kept entries of a row, count order) with the pair partner
+    (:func:`enclitic_pairs`) of every kept entry added when the row has it,
+    re-sorted by descending count, then id."""
+    if not pairs:
+        return top
+    kept = {w for w, _ in top}
+    want = {pairs[w] for w in kept if w in pairs} - kept
+    if not want:
+        return top
+    extra = [(w, c) for w, c in entries if w in want]
+    if not extra:
+        return top
+    return sorted(top + extra, key=lambda t: (-t[1], t[0]))
 
 
 def keep_past_cut(
@@ -681,6 +753,8 @@ def build_bigram_contexts(
     complete_ids: set[int] | frozenset = frozenset(),
     complete_min_count: int = 0,
     stats: dict | None = None,
+    pairs: dict[int, int] | None = None,
+    enclitic_ids: set[int] | frozenset = frozenset(),
 ):
     """Group bigrams by w1, sort continuations by prob, keep top_k.
 
@@ -692,7 +766,11 @@ def build_bigram_contexts(
     ``complete_min_count`` times after a context in ``complete_ids``.
     ``stats``, when given, receives the number of completed rows
     (``context_rows``) and of the entries they gained over the first two
-    rules (``context_entries``).
+    rules (``context_entries``). With ``pairs`` (el,
+    :func:`enclitic_pairs`), the row of a host or twin also keeps every
+    continuation in ``enclitic_ids`` seen at least ``complete_min_count``
+    times, and a row that keeps one half of a pair keeps the other when it
+    has it (:func:`complete_pairs`).
     """
     by_w1: dict[int, list[tuple[int, int]]] = {}
     for w1, w2, c in bigrams:
@@ -716,6 +794,14 @@ def build_bigram_contexts(
                 rows += 1
                 added += len(completed) - len(top)
             top = completed
+        if pairs:
+            if complete_min_count > 0 and w1 in pairs and enclitic_ids:
+                have = {w for w, _ in top}
+                top = sorted(top + [(w, c) for w, c in entries
+                                    if w in enclitic_ids and w not in have
+                                    and c >= complete_min_count],
+                             key=lambda t: (-t[1], t[0]))
+            top = complete_pairs(entries, top, pairs)
         scored = [(w2, math.log(c / denom)) for w2, c in top]
         contexts.append((w1, scored))
     if stats is not None:
@@ -728,6 +814,8 @@ def build_trigram_contexts(
     trigrams, bigram_counts: dict[tuple[int, int], int], top_k: int,
     excluded_continuation_ids: set[int],
     keep_ids: set[int] | frozenset = frozenset(), keep_min_count: int = 0,
+    pairs: dict[int, int] | None = None,
+    enclitic_ids: set[int] | frozenset = frozenset(),
 ):
     """Group trigrams by (w1, w2), rank continuations, keep top_k.
 
@@ -735,7 +823,10 @@ def build_trigram_contexts(
     <UNK>, <PAD>, <s>) are dropped from suggestions so the keyboard
     never proposes them to the user. Continuations in ``keep_ids`` seen
     at least ``keep_min_count`` times stay past the cut
-    (:func:`keep_past_cut`).
+    (:func:`keep_past_cut`). With ``pairs`` (el), a row whose second
+    context word is a host or a twin also keeps every continuation in
+    ``enclitic_ids`` seen at least ``keep_min_count`` times, and a row that
+    keeps one half of a pair keeps the other when it has it.
     """
     by_ctx: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for w1, w2, w3, c in trigrams:
@@ -751,6 +842,14 @@ def build_trigram_contexts(
         entries = by_ctx[ctx]
         entries.sort(key=lambda t: (-t[1], t[0]))
         top = keep_past_cut(entries, top_k, keep_ids, keep_min_count)
+        if pairs:
+            if keep_min_count > 0 and ctx[1] in pairs and enclitic_ids:
+                have = {w for w, _ in top}
+                top = sorted(top + [(w, c) for w, c in entries
+                                    if w in enclitic_ids and w not in have
+                                    and c >= keep_min_count],
+                             key=lambda t: (-t[1], t[0]))
+            top = complete_pairs(entries, top, pairs)
         scored = [(w3, math.log(c / denom)) for w3, c in top]
         contexts.append((ctx, scored))
     return contexts
@@ -968,6 +1067,8 @@ def el_version_fields(train_stats: dict, out: Path, saturated: int,
         "vocab_dictionary_sha256": train_stats.get("dictionary_sha256"),
         "vocab_size_requested": train_stats.get("vocab_size_requested"),
         "vocab_added_for_oov_cap": train_stats.get("vocab_added_for_oov_cap"),
+        "vocab_enclitic_twins": train_stats.get("vocab_enclitic_twins"),
+        "twin_min_count": train_stats.get("twin_min_count"),
         "seen_spellings": train_stats.get("n_seen_spellings"),
         "train_words_weighted": train_stats.get("n_train_words_weighted"),
         "in_vocab_word_share": train_stats.get("in_vocab_word_share"),
@@ -1089,6 +1190,11 @@ def main():
                                 keep_min, context_min)
     if refusal:
         raise SystemExit(refusal)
+    prepruned = train_stats.get("prepruned_for")
+    if args.lang == "el" and prepruned and not prepruned.get("enclitic_pairs"):
+        raise SystemExit(
+            f"{in_dir} was pruned before the double-accented enclitic forms "
+            f"were kept with their hosts. Rerun train_lm.py --lang el.")
     if args.lang == "el" and oov_min:
         counted = train_stats.get("dictionary_sha256")
         table = hashlib.sha256(oov_dictionary.read_bytes()).hexdigest()
@@ -1176,7 +1282,14 @@ def main():
         reserved_ids["</s>"],
     }
 
-    homograph_ids = (homograph_spelling_ids(sorted_vocab)
+    # el keeps the double-accented enclitic forms (όνομά) as tokens: they
+    # are no homographs of their hosts, and the rows of a host and its twin
+    # keep the enclitics and each other (see build_bigram_contexts).
+    twin_ids = double_accented_ids(sorted_vocab) if args.lang == "el" else set()
+    pairs = enclitic_pairs(sorted_vocab) if args.lang == "el" else {}
+    enclitic_ids = ({i for i, t in enumerate(sorted_vocab) if t in KEYBOARD_ENCLITICS}
+                    if args.lang == "el" else set())
+    homograph_ids = (homograph_spelling_ids(sorted_vocab, twin_ids)
                      if keep_min or context_min else set())
     keep_ids = homograph_ids if keep_min else set()
     if keep_min:
@@ -1189,7 +1302,7 @@ def main():
         remapped_bigrams, w1_totals, TOP_K_BI, excluded,
         keep_ids, keep_min,
         homograph_ids if context_min else set(), context_min,
-        context_stats,
+        context_stats, pairs, enclitic_ids,
     )
     if context_min:
         print(f"  completed {context_stats['context_rows']:,} bigram rows "
@@ -1214,7 +1327,7 @@ def main():
 
     trigram_ctx = build_trigram_contexts(
         remapped_trigrams, bigram_counts, TOP_K_TRI, excluded,
-        keep_ids, keep_min,
+        keep_ids, keep_min, pairs, enclitic_ids,
     )
     print(f"  built {len(trigram_ctx):,} trigram contexts "
           f"(top_k={TOP_K_TRI})", flush=True)
@@ -1264,6 +1377,8 @@ def main():
         "homograph_context_min_count": context_min,
         "homograph_context_rows": context_stats.get("context_rows", 0),
         "homograph_context_entries": context_stats.get("context_entries", 0),
+        **({"enclitic_twins": len(twin_ids),
+            "enclitic_twin_pairs": len(pairs) // 2} if args.lang == "el" else {}),
         "oov_unigram_min_count": oov_min,
         "oov_unigrams": len(oov_unigrams),
         "oov_dictionary_sha256": oov_dictionary_sha256,

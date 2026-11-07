@@ -147,6 +147,90 @@ def test_article_and_preposition_forms_take_the_accent_only_at_the_end():
     assert not A.takes_enclitic_accent("και", None)
 
 
+@pytest.mark.parametrize("host, twin", [
+    ("όνομα", "όνομά"), ("Άνθρωπος", "Άνθρωπός"), ("δωμάτιο", "δωμάτιό"),
+    ("σπίτια", "σπίτιά"), ("σπίτι", None), ("καλή", None), ("όνομά", None),
+    ("ΟΝΟΜΑ", None), ("είν’", None), ("και", None),
+])
+def test_the_keyboard_twin_of_a_host(host, twin):
+    assert A.enclitic_twin(host) == twin
+
+
+class FakeLM:
+    """``knows`` and ``score`` of a reader, from a table of
+    ``(prev, curr, word) -> score``; every other trigram scores ``default``."""
+
+    def __init__(self, vocab, scores, default=-10.0):
+        self.vocab, self.scores, self.default = set(vocab), scores, default
+
+    def knows(self, word):
+        return word in self.vocab
+
+    def score(self, word, prev, curr):
+        return self.scores.get((prev, curr, word), self.default)
+
+
+VOCAB = {"η", "απόφαση", "απόφασή", "του", "να", "υπουργού", "όνομα", "όνομά",
+         "μου", "δωμάτιο", "δωμάτιό"}
+
+
+def test_enclitic_evidence_compares_the_two_readings():
+    ev = A.enclitic_evidence
+    # the enclitic after the twin is far likelier than after the host
+    lm = FakeLM(VOCAB, {("η", "απόφασή", "του"): -2.0})
+    assert ev(lm, "απόφαση", "απόφασή", "του", None, "<s>", "η") is True
+    # and the other way round
+    lm = FakeLM(VOCAB, {("η", "απόφαση", "του"): -2.0})
+    assert ev(lm, "απόφαση", "απόφασή", "του", None, "<s>", "η") is False
+    # a difference under the margin says nothing
+    lm = FakeLM(VOCAB, {("η", "απόφασή", "του"): -9.5})
+    assert ev(lm, "απόφαση", "απόφασή", "του", None, "<s>", "η") is None
+    # a form the model has never seen says nothing either
+    lm = FakeLM(VOCAB - {"απόφασή"}, {("η", "απόφασή", "του"): -2.0})
+    assert ev(lm, "απόφαση", "απόφασή", "του", None, "<s>", "η") is None
+    # the next word settles a tie when both readings score it
+    lm = FakeLM(VOCAB, {("απόφασή", "του", "να"): -1.0})
+    assert ev(lm, "απόφαση", "απόφασή", "του", "να", "<s>", "η") is True
+    assert ev(lm, "απόφαση", "απόφασή", "του", None, "<s>", "η") is None
+    # and is left out when one reading cannot score it
+    lm = FakeLM(VOCAB, {("απόφασή", "του", "να"): -1.0,
+                        ("απόφαση", "του", "να"): -math.inf})
+    assert ev(lm, "απόφαση", "απόφασή", "του", "να", "<s>", "η") is None
+    # a reading the model cannot score loses to one it can
+    lm = FakeLM(VOCAB, {("η", "απόφαση", "του"): -math.inf})
+    assert ev(lm, "απόφαση", "απόφασή", "του", None, "<s>", "η") is True
+
+
+def test_the_keyboard_decision_without_evidence():
+    decide = A.keyboard_enclitic_decision
+    # a pronoun: the syllable rule, which leaves out synizesis words
+    assert decide(None, "όνομα", "μου", "είναι", "<s>", "το") is True
+    assert decide(None, "δωμάτιο", "μου", None, "<s>", "το") is False
+    # an article homograph: the rule at the end of the sentence, and before
+    # a word only after a word that marks the enclitic
+    assert decide(None, "απόφαση", "του", None, "<s>", "η") is True
+    assert decide(None, "απόφαση", "του", "υπουργού", "<s>", "η") is False
+    assert decide(None, "απόφαση", "του", "να", "<s>", "η") is True
+    # no twin, or no enclitic of the keyboard
+    assert decide(None, "σπίτι", "μου", None, "<s>", "το") is False
+    assert decide(None, "όνομα", "με", None, "<s>", "το") is False
+
+
+def test_the_keyboard_decision_follows_the_model():
+    decide = A.keyboard_enclitic_decision
+    # evidence with the next word overrides the syllable rule for a pronoun
+    lm = FakeLM(VOCAB, {("όνομα", "μου", "είναι"): -1.0})
+    assert decide(lm, "όνομα", "μου", "είναι", "<s>", "το") is False
+    # with no say from the next word, the evidence without it decides
+    lm = FakeLM(VOCAB, {("το", "δωμάτιό", "μου"): -1.0})
+    assert decide(lm, "δωμάτιο", "μου", "είναι", "<s>", "το") is True
+    # an article homograph before a word that is no possessive signal
+    lm = FakeLM(VOCAB, {("απόφασή", "του", "υπουργού"): -1.0})
+    assert decide(lm, "απόφαση", "του", "υπουργού", "<s>", "η") is True
+    lm = FakeLM(VOCAB, {("απόφαση", "του", "να"): -1.0})
+    assert decide(lm, "απόφαση", "του", "να", "<s>", "η") is False
+
+
 # --- typing slips -----------------------------------------------------------------
 
 def test_slips_respect_digraphs_and_final_sigma():

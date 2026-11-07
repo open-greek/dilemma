@@ -93,7 +93,9 @@ its terms are not a named open license and the dataset is gated.
   per-source table `homoglyph_repairs.tsv.gz` lists each original and
   corrected spelling.
 - Hyphens, digits, spaces and punctuation separate words, as on the keyboard,
-  so `γερο-Ανέστης` gives `γερο` and `Ανέστης`.
+  so `γερο-Ανέστης` gives `γερο` and `Ανέστης`. The one exception is
+  `ό,τι` (and `Ό,τι`), which stays one token when no space follows the
+  comma: `ό` alone is no word.
 - A word-final σ becomes ς, except before a hyphen.
 - Numbers and Greek numerals (`Β΄`, `ΙΑ΄`, list markers such as `ΙΑ.`)
   become `<NUM>`. Latin words, other scripts, URLs and e-mail addresses

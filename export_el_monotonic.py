@@ -69,22 +69,39 @@ under ``rejects`` in ``data/el_monotonic_review.json``.
    in both: those are typing errors (είνα, είανι, πρέπε, φία for για,
    συγκεριμένα) and Katharevousa endings of common words (χώραν, έχειν),
    which a keyboard must not accept as words, since a slip that lands on
-   one is then never corrected.
+   one is then never corrected. Nor is one of ``RUN_TOGETHER_HEADS`` (θα,
+   να, από, είναι, ...) written with no space before a common (C) entry or
+   a function word of at least ``RUN_TOGETHER_MIN_PART_LETTERS`` letters
+   (είναιτο, θαήθελα, απότο).
 4. ``name``: a capitalized spelling the lexicon lacks or holds without its
    own evidence, written with its capital inside a sentence at least
    ``NAME_CORPUS_MIN_TOKENS`` times in ``NAME_CORPUS_MIN_DOCS`` documents,
    with a capitalized share of its mid-sentence uses whose 95% Wilson lower
    bound is at least ``NAME_MIN_CAPITAL_SHARE``. When its lowercase is a
-   word, it must be a form of a Wiktionary name page (Ρώμη beside ρώμη,
-   Τσίπρα beside τσίπρα), which the paradigm reader drops, with a lower
-   bound of at least ``NAME_HOMOGRAPH_MIN_CAPITAL_SHARE``; a title or an
-   institution some sources capitalize (Υπουργός, Πρόεδρε) is no name.
+   word, the lower bound must be at least
+   ``NAME_HOMOGRAPH_MIN_CAPITAL_SHARE`` over the whole corpus, and no more
+   of the pools with ``NAME_POOL_MIN_MID_TOKENS`` mid-sentence uses may
+   write it without its capital than with it (a pool votes for a spelling
+   whose share has a lower bound of ``NAME_HOMOGRAPH_MIN_CAPITAL_SHARE``);
+   a spelling that is no form of a Wiktionary name page needs more votes
+   for its capital than against, and at least
+   ``NAME_MIN_CAPITALIZED_POOLS`` of them (Ρώμη beside ρώμη, Ένωση of
+   Ευρωπαϊκή Ένωση beside ένωση). A title or an institution one source
+   capitalizes (Υπουργός, Βουλευτή and Αίθουσα in the Parliament minutes)
+   is no name. A name is also left out when a
+   capitalized spelling of its letters with another accent is
+   ``NAME_ACCENT_TWIN_RATIO`` times as frequent inside sentences, or one
+   that differs in its dialytika only is ``NAME_DIALYTIKA_TWIN_RATIO``
+   times as frequent (Βρετάνια beside Βρετανία, Γουϊνέα beside Γουινέα).
 5. ``elision``: a spelling with U+2019 (σ’, απ’, γι’, ’ναι) seen at least
    ``ELISION_MIN_TOKENS`` times in ``ELISION_MIN_DOCS`` documents of the
    open corpus, whose full word is an attested entry (the letters plus a
    final vowel, or a first vowel plus the letters), and which stands
    before a vowel (an elision) or after one (an aphaeresis) in most of its
-   uses; see ``elision_reason``.
+   uses; see ``elision_reason``. An elision with no tonos is left out when
+   an elision of the same letters with a tonos is
+   ``ELISION_ACCENT_TWIN_RATIO`` times as common (ολ’ beside όλ’); a pair
+   whose unaccented spelling is the common one stays (αλλ’ beside άλλ’).
 6. ``reviewed``: the indeclinable loanwords of
    ``data/hunspell_mg_reviewed_loanwords.json`` with at least 50
    FrequencyWords tokens.
@@ -95,6 +112,23 @@ mistyped accent would otherwise pass as a word nobody writes. And on every
 route, a lowercase spelling with no tonos that synizesis makes a
 monosyllable (τρια, πλοιο, the accent-stripped aliases of lookup.db) must
 be Wiktionary's own (μια, δυο, ποιος, γεια).
+
+Two more passes run over the finished list. A rare entry is dropped when an
+entry with its letters and another accent or dialytika is much commoner: a
+lowercase entry rated R or X, in fewer than ``ACCENT_TWIN_MAX_DOCS`` open
+documents, whose twin is ``ACCENT_TWIN_RATIO`` times as common in the open
+corpus and in the FrequencyWords counts (καλήμερα beside καλημέρα; πότε
+beside ποτέ stays), and a capitalized entry whose capitalized twin is
+``ACCENT_TWIN_CAPITAL_RATIO`` times as frequent inside sentences (Σαββάτο
+beside Σάββατο). Function words, elisions and reviewed loanwords are never
+dropped, nor a form of the twin's own Wiktionary lemma (ακούσαν beside
+άκουσαν, Αύγουστου beside Αυγούστου) or of a lemma with a form rated C or
+M (τροπών beside τρόπων). And a paradigm form of at most ``SHORT_FORM_MAX_LETTERS`` letters
+rated R or X, in fewer than ``SHORT_FORM_MAX_DOCS`` open documents, is
+dropped when a word whose letters it spells with the same sound or with one
+key replaced by its neighbor is ``SLIP_MIN_TWIN_RATIO`` times as common in
+both the open corpus and the FrequencyWords counts (μάι beside με, ξάι
+beside και, άε beside σε); see ``short_slips_to_drop``.
 
 Frequency ratings
 -----------------
@@ -111,7 +145,11 @@ the start of a sentence is shared between a word and its capitalized twin
 in proportion to their mid-sentence uses. An open-corpus rate counts for C
 only when the spelling is in ``RATING_C_MIN_DOCS`` of the pool's documents,
 and for M only in ``RATING_M_MIN_DOCS``; otherwise it is held just under
-that edge.
+that edge. A pool of fewer than ``RATING_C_CONFIRM_MIN_WORDS`` words (the
+Wikisource and EELLAK texts, the pooled small sources) rates a form C only
+when a larger source does too; otherwise its rate is held just under the C
+edge, so older literary forms (ψυχήν, όλην) are not rated C on a few
+hundred tokens.
 
 Companion lists
 ---------------
@@ -124,7 +162,9 @@ differs from a listed one in case is listed too when it has evidence of
 its own (π.Χ., before Christ, beside π.χ., for example). Acronyms are
 all-capital Greek tokens of two or more letters that open text writes in
 capitals (95% Wilson lower bound of the share at least
-``ACRONYM_MIN_SHARE``) and whose letters are no entry of the word list.
+``ACRONYM_MIN_SHARE``) and whose letters are no entry of the word list,
+unless the acronym is ``ACRONYM_OVER_WORD_RATIO`` times as frequent as the
+entry's letters written otherwise (ΣΥΡΙΖΑ beside σύριζα).
 Two words run together in capitals (ΚΕΙΜΕΝΟΣΕΛΙΔΑ, ΔΙΑΤΑΞΗΤΗΣ) are no
 acronym: a token of at least ``ACRONYM_RUN_TOGETHER_MIN_LETTERS`` letters
 whose letters split into two rated (C or M) entries, the first of at least
@@ -187,6 +227,13 @@ MIN_RATING_SOURCE_WORDS = 1_000_000
 # that a word is common.
 RATING_C_MIN_DOCS = 10
 RATING_M_MIN_DOCS = 3
+# A pool of fewer words than this (monotonic Wikisource, the EELLAK
+# articles, the small sources pooled) rates a spelling at most M by itself:
+# its rate counts for C only when FrequencyWords or a larger pool also rates
+# the spelling C. About 80 tokens in 10 documents of the 2.2M words of
+# Wikisource would otherwise make an older or poetic form common (ψυχήν,
+# όλην, κάθουνταν).
+RATING_C_CONFIRM_MIN_WORDS = 10_000_000
 SMALL_POOL = "open_small"
 SUBTITLES = "subtitles"
 CORPUS_WORD_MIN_SUBTITLE_TOKENS = 50
@@ -203,8 +250,8 @@ NAME_CORPUS_MIN_TOKENS = 20
 NAME_CORPUS_MIN_DOCS = 3
 NAME_MIN_CAPITAL_SHARE = 0.9
 # A capitalized spelling whose lowercase is a word (Ρώμη, ρώμη; Σοφία,
-# σοφία) is a name when Wiktionary has a name page for it and the 95% Wilson
-# lower bound of its capitalized share is at least this.
+# σοφία) is a name when the 95% Wilson lower bound of its capitalized share
+# is at least this (and see NAME_POOL_MIN_MID_TOKENS).
 NAME_HOMOGRAPH_MIN_CAPITAL_SHARE = 0.75
 # A capitalized form of a lemma that is no Wiktionary name, whose lowercase
 # is a word, and that is written with its capital in fewer than this share
@@ -213,8 +260,55 @@ NAME_HOMOGRAPH_MIN_CAPITAL_SHARE = 0.75
 # the lowercase word.
 NAME_TWIN_MIN_CAPITAL_SHARE = 0.25
 NAME_TWIN_MIN_MID_TOKENS = 20
+# A capitalized spelling whose lowercase is a word is a name only when no
+# more pools write it without its capital than with it, a pool with at
+# least this many mid-sentence uses voting for a spelling whose share has a
+# Wilson lower bound of NAME_HOMOGRAPH_MIN_CAPITAL_SHARE; a spelling that is
+# no form of a Wiktionary name page needs more votes for the capital than
+# against it, and at least NAME_MIN_CAPITALIZED_POOLS of them. Parliament minutes capitalize titles (Βουλευτή,
+# Αίθουσα) that other text writes in lowercase, while Ένωση (Ευρωπαϊκή
+# Ένωση) and Εθνών (Ηνωμένων Εθνών) are capitalized nearly everywhere.
+NAME_POOL_MIN_MID_TOKENS = 20
+NAME_MIN_CAPITALIZED_POOLS = 2
+# A corpus name whose letters a capitalized spelling with another accent
+# has this many times as often inside sentences is a misspelling of it
+# (Προέδρε, Βρετάνια, Ιτάλια); with only another dialytika, this many
+# (Γουϊνέα, Αχαΐα written Αχαία). Transcriptions of foreign names with the
+# stress elsewhere (Μάρια, Ίσαακ, Άντρεα) are seldom 100 times rarer.
+NAME_ACCENT_TWIN_RATIO = 100.0
+NAME_DIALYTIKA_TWIN_RATIO = 4.0
+# A rare entry whose letters a much commoner spelling has with another
+# accent (καλήμερα beside καλημέρα) is dropped when its own evidence is
+# weak. Lowercase, rated R or X: the twin is this many times as common in
+# lowercase in the open corpus and in FrequencyWords, and the entry is in
+# fewer than ACCENT_TWIN_MAX_DOCS documents. Capitalized: the twin is
+# ACCENT_TWIN_CAPITAL_RATIO times as common written with its capital inside
+# sentences (Σαββάτο beside Σάββατο, Ιούλιου beside Ιουλίου). Genuine pairs
+# have spread in open text (ποτέ and πότε, νόμου and νομού, έκτος and
+# εκτός, Αθηνά and Αθήνα) and stay.
+ACCENT_TWIN_RATIO = 50.0
+ACCENT_TWIN_MAX_DOCS = 10
+ACCENT_TWIN_CAPITAL_RATIO = 40.0
+# A corpus word that is one of these words run together with a common
+# entry or a function word of at least RUN_TOGETHER_MIN_PART_LETTERS
+# letters (είναιτο, θαήθελα, απότο, πρέπεινα). Only these heads: other
+# splits are mostly learned compounds and endings (διαφόρους, ανέργου,
+# θεωρείτο).
+RUN_TOGETHER_HEADS = ("θα", "να", "δεν", "που", "από", "είναι", "πρέπει",
+                      "μπορεί", "αυτό", "κατά", "για")
+RUN_TOGETHER_MIN_PART_LETTERS = 2
+# Rare short paradigm forms (μάι, ξάι, άε), in fewer than
+# SHORT_FORM_MAX_DOCS open documents, one typing slip from a word
+# SLIP_MIN_TWIN_RATIO times as common catch slips of it (με, και, σε).
+SHORT_FORM_MAX_LETTERS = 3
+SHORT_FORM_MAX_DOCS = 10
 ELISION_MIN_TOKENS = 10
 ELISION_MIN_DOCS = 3
+# An elision without a tonos (ολ’) whose letters an admitted elision has
+# with one (όλ’) at least this many times as often is the accented one
+# written without its tonos; the genuine pairs have the unaccented one far
+# commoner (κατ’ and κάτ’, παρ’ and πάρ’, καθ’ and κάθ’).
+ELISION_ACCENT_TWIN_RATIO = 2.0
 ELISION_MIN_NEXT_VOWEL_SHARE = 0.5
 APHAERESIS_MIN_PREV_VOWEL_SHARE = 0.7
 # A corpus word that is a variant spelling of a known word is rejected when
@@ -246,6 +340,12 @@ ACRONYM_MIN_DOCS = 5
 ACRONYM_MIN_SHARE = 0.9
 ACRONYM_RUN_TOGETHER_MIN_LETTERS = 9
 ACRONYM_RUN_TOGETHER_MIN_HEAD = 5
+# An acronym whose letters are an entry stays when its capitals are at
+# least this many times as frequent (per million words) as the entry's
+# letters written otherwise, in the open corpus and in the subtitles
+# (ΣΥΡΙΖΑ beside σύριζα, ΝΑΤΟ beside Νάτο); otherwise the entry wins (ΠΕ
+# beside πε), so that a word typed in capitals still gets its accent.
+ACRONYM_OVER_WORD_RATIO = 10.0
 # Bytes of the keyboard's compiled dictionary (TONOSDIC v5): a 56-byte
 # header, three u32 tables, the raw and stripped string pools and one
 # frequency byte per entry.
@@ -491,8 +591,10 @@ class Evidence:
     """Counts of every spelling in every frequency source."""
 
     def __init__(self, subtitles: dict[str, int], tables: list[TC.TypeCounts],
-                 min_source_words: int = MIN_RATING_SOURCE_WORDS):
+                 min_source_words: int = MIN_RATING_SOURCE_WORDS,
+                 c_confirm_min_words: int = RATING_C_CONFIRM_MIN_WORDS):
         self.subtitles = subtitles
+        self.c_confirm_min_words = c_confirm_min_words
         self.subtitle_words = sum(subtitles.values())
         self.tables = tables
         big = [t for t in tables if t.words >= min_source_words]
@@ -569,7 +671,9 @@ class Evidence:
     def rates(self, form: str, *, subtitles: bool = True) -> dict[str, float]:
         """Rates per million words of ``form`` in each frequency source,
         each open-corpus rate held under the C or M edge when the spelling
-        is in too few of the pool's documents (``doc_capped_rate``)."""
+        is in too few of the pool's documents (``doc_capped_rate``), and
+        the rate of a pool smaller than ``RATING_C_CONFIRM_MIN_WORDS`` held
+        under the C edge unless a larger source also reaches it."""
         title = L.case_shape(form.replace(L.APOSTROPHE, "")) == "title"
         low = L.lower_el(form) if title else form
         out = {}
@@ -580,6 +684,13 @@ class Evidence:
         if subtitles and L.APOSTROPHE not in form:
             out[SUBTITLES] = L.rate_per_million(self.subtitles.get(low, 0),
                                                 self.subtitle_words)
+        small = [p.name for p in self.pools if p.words < self.c_confirm_min_words]
+        confirmed = any(rate >= L.C_PER_MILLION for name, rate in out.items()
+                        if name not in small)
+        if not confirmed:
+            for name in small:
+                if out[name] >= L.C_PER_MILLION:
+                    out[name] = math.nextafter(L.C_PER_MILLION, 0.0)
         return out
 
     def raw_counts(self, form: str, *, subtitles: bool = True) -> dict[str, float]:
@@ -959,6 +1070,20 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
                     return "slip_of_a_known_word"
         return None
 
+    tails = {f for f, e in sel.entries.items()
+             if (e.bucket == "C" or e.route == "function_word")
+             and L.case_shape(f) == "lower"
+             and len(f) >= RUN_TOGETHER_MIN_PART_LETTERS}
+
+    def run_together_reason(form: str) -> str | None:
+        """``run_together_words`` for one of ``RUN_TOGETHER_HEADS`` written
+        with no space before a common entry or a function word (είναιτο:
+        είναι and το)."""
+        for head in RUN_TOGETHER_HEADS:
+            if form.startswith(head) and form[len(head):] in tails:
+                return "run_together_words"
+        return None
+
     corpus_words = []
     for form, n in sorted(evidence.subtitles.items()):
         if n < CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS or form in sel.entries:
@@ -991,7 +1116,8 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
             # (έιναι, ποίος), or the sound with the same stressed syllable
             # (κάθησε, νοιώθεις, βαθειά), or one typing slip away (είνα,
             # πρέπε, έχειν).
-            reason = variant_reason(form) or slip_reason(form)
+            reason = (variant_reason(form) or slip_reason(form)
+                      or run_together_reason(form))
         if reason:
             sel.reject(form, reason, n + tokens)
             continue
@@ -1015,6 +1141,49 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
                     or token.endswith(".")):
                 continue
             seen_titles.add(token)
+    titles_by_bare: dict[str, list[str]] = defaultdict(list)
+    for token in sorted(seen_titles):
+        titles_by_bare[L.bare_key(token)].append(token)
+
+    def capitalized_across_sources(token: str, name_page: bool) -> bool:
+        """For a form of a Wiktionary name page, True unless more pools
+        write ``token`` without its capital than with it; for any other
+        spelling, True when more pools write it with its capital than
+        without, and at least ``NAME_MIN_CAPITALIZED_POOLS`` do. A pool with at least
+        ``NAME_POOL_MIN_MID_TOKENS`` mid-sentence uses of the two spellings
+        votes for the one whose share has a 95% Wilson lower bound of at
+        least ``NAME_HOMOGRAPH_MIN_CAPITAL_SHARE``, and abstains when
+        neither has."""
+        low = L.lower_el(token)
+        capital = lowercase = 0
+        for pool in evidence.pools:
+            cap = pool.count.get(token, 0) - pool.initial.get(token, 0)
+            lower = pool.count.get(low, 0) - pool.initial.get(low, 0)
+            if cap + lower < NAME_POOL_MIN_MID_TOKENS:
+                continue
+            if L.wilson_lower(cap, cap + lower) >= NAME_HOMOGRAPH_MIN_CAPITAL_SHARE:
+                capital += 1
+            elif L.wilson_lower(lower, cap + lower) >= NAME_HOMOGRAPH_MIN_CAPITAL_SHARE:
+                lowercase += 1
+        if name_page:
+            return capital >= lowercase
+        return capital >= NAME_MIN_CAPITALIZED_POOLS and capital > lowercase
+
+    def name_variant_reason(token: str) -> str | None:
+        """Why a corpus name is a misspelling of a capitalized spelling of
+        the same letters that text uses far more often inside sentences
+        (``NAME_ACCENT_TWIN_RATIO``, ``NAME_DIALYTIKA_TWIN_RATIO``)."""
+        mid = max(evidence.exact(token)[1], 1)
+        for twin in titles_by_bare.get(L.bare_key(token), ()):
+            if L.lower_el(twin) == L.lower_el(token):
+                continue
+            dialytika_only = without_dialytika(twin) == without_dialytika(token)
+            ratio = NAME_DIALYTIKA_TWIN_RATIO if dialytika_only else NAME_ACCENT_TWIN_RATIO
+            if evidence.exact(twin)[1] >= ratio * mid:
+                return ("dialytika_variant_of_a_commoner_name" if dialytika_only
+                        else "accent_variant_of_a_commoner_name")
+        return None
+
     for token in sorted(seen_titles):
         if token in sel.entries:
             continue
@@ -1025,18 +1194,22 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
         share = L.wilson_lower(cap, total)
         low = L.lower_el(token)
         if low in lexicon_words or low in sel.entries:
-            # A common word some sources capitalize as a title or an
-            # institution (Υπουργός, Πρόεδρε) is no name; a spelling of a
-            # Wiktionary name page that text writes with its capital is one
-            # (Ρώμη beside ρώμη, Τσίπρα beside τσίπρα).
-            if (token not in lexicon.name_forms
-                    or share < NAME_HOMOGRAPH_MIN_CAPITAL_SHARE):
+            # A common word one source capitalizes as a title or an
+            # institution (Υπουργός, Πρόεδρε, Βουλευτή and Αίθουσα in the
+            # Parliament minutes, which Wiktionary files as names too) is
+            # no name; a spelling that text writes with its capital
+            # whatever the source is one (Ρώμη beside ρώμη, Ένωση of
+            # Ευρωπαϊκή Ένωση beside ένωση). A spelling of no Wiktionary
+            # name page needs that in NAME_MIN_CAPITALIZED_POOLS pools.
+            if (share < NAME_HOMOGRAPH_MIN_CAPITAL_SHARE
+                    or not capitalized_across_sources(
+                        token, token in lexicon.name_forms)):
                 if share >= NAME_MIN_CAPITAL_SHARE:
                     sel.reject(token, "capitalized_common_word", mid)
                 continue
         elif share < NAME_MIN_CAPITAL_SHARE:
             continue
-        reason = gate(token)
+        reason = gate(token) or name_variant_reason(token)
         if reason:
             sel.reject(token, reason, mid)
             continue
@@ -1083,6 +1256,22 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
             continue
         sel.add(form, "elision", evidence, subtitles=False)
         elisions.append((n, form, docs))
+    # An elision written without the tonos its accented twin carries far
+    # more often is a typing slip that would block the accented one (ολ’
+    # beside όλ’); a pair whose unaccented spelling is the common one stays
+    # (αλλ’ beside άλλ’, καθ’ beside κάθ’).
+    elided_entries = [f for f in sel.entries if L.APOSTROPHE in f]
+    for n, form, docs in list(elisions):
+        core = form.strip(L.APOSTROPHE)
+        if (not form.endswith(L.APOSTROPHE) or form.startswith(L.APOSTROPHE)
+                or L.tonos_count(core) != 0):
+            continue
+        if any(L.bare_key(other) == L.bare_key(form) and L.tonos_count(other)
+               and elided.get(other, 0) >= ELISION_ACCENT_TWIN_RATIO * n
+               for other in elided_entries):
+            del sel.entries[form]
+            sel.reject(form, "elision_without_the_tonos_of_a_commoner_twin", n)
+            elisions.remove((n, form, docs))
     elisions.sort(key=lambda r: (-r[0], r[1]))
     audit_routes["elision"] = {
         "count": len(elisions),
@@ -1118,8 +1307,140 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
     audit_routes["paradigm"]["unattested_accent_twins_removed"] = len(pruned)
     audit_routes["paradigm"]["unattested_accent_twins_examples"] = pruned[:AUDIT_LIST_LIMIT]
 
+    # 8. a rare entry beside a much commoner spelling of its letters with
+    # another accent, whose own evidence is weak (καλήμερα beside καλημέρα,
+    # Σαββάτο beside Σάββατο); see ACCENT_TWIN_RATIO.
+    dropped = accent_twins_to_drop(sel, evidence, set(function_words),
+                                   titles_by_bare, lexicon)
+    for form, twin in dropped:
+        del sel.entries[form]
+        sel.reject(form, "rare_accent_twin_of_a_commoner_spelling", weight(form))
+    audit_routes["paradigm"]["rare_accent_twins_removed"] = len(dropped)
+    audit_routes["paradigm"]["rare_accent_twins_examples"] = [
+        list(d) for d in dropped[:AUDIT_LIST_LIMIT]]
+
+    # 9. rare short forms one typing slip from a far commoner word (μάι
+    # for με, ξάι for και, άε for σε).
+    short = short_slips_to_drop(sel, evidence)
+    for form, twin in short:
+        del sel.entries[form]
+        sel.reject(form, "rare_short_slip_of_a_common_word", weight(form))
+    audit_routes["paradigm"]["rare_short_slips_removed"] = len(short)
+    audit_routes["paradigm"]["rare_short_slips_examples"] = [
+        list(d) for d in short[:AUDIT_LIST_LIMIT]]
+
     sel.audit["route_details"] = audit_routes
     return sel
+
+
+def short_slips_to_drop(sel: Selection, evidence: Evidence) -> list[tuple[str, str]]:
+    """``(entry, word)`` for every entry rule 9 of :func:`select` drops: a
+    paradigm form of at most ``SHORT_FORM_MAX_LETTERS`` letters rated R or
+    X, in fewer than ``SHORT_FORM_MAX_DOCS`` open documents, whose bare
+    letters are a slip of the bare letters of a word ``SLIP_MIN_TWIN_RATIO``
+    times as common in the open corpus and in the FrequencyWords counts.
+    The slips are those of the restoration evaluation: the letters of the
+    same sound (``el_lexicon.sound_key``: μαι for με) and one key replaced
+    by the key beside it on its row (ξαι for και, αε for σε). Dropping or
+    adding a letter is no slip here: a short word is one letter from many
+    others (ξι beside έξι, ρέω beside ρω)."""
+    by_bare: dict[str, list[str]] = defaultdict(list)
+    by_sound: dict[str, list[str]] = defaultdict(list)
+    for f in sorted(sel.entries):
+        if L.case_shape(f) == "lower" and L.APOSTROPHE not in f:
+            by_bare[L.bare_key(f)].append(f)
+            by_sound[L.sound_key(L.bare_key(f))].append(f)
+    out = []
+    for form in sorted(sel.entries):
+        entry = sel.entries[form]
+        if (entry.route != "paradigm" or entry.bucket not in ("R", "X")
+                or L.case_shape(form) != "lower" or L.APOSTROPHE in form
+                or sum(c in L.LETTERS for c in form) > SHORT_FORM_MAX_LETTERS):
+            continue
+        n_open, _, docs = evidence.exact(form)
+        if docs >= SHORT_FORM_MAX_DOCS:
+            continue
+        key = L.bare_key(form)
+        words = [t for t in by_sound.get(L.sound_key(key), ()) if L.bare_key(t) != key]
+        for i, c in enumerate(key):
+            for d in sorted(L.NEIGHBOR_KEYS.get(c, ())):
+                words += by_bare.get(key[:i] + d + key[i + 1:], [])
+        n_open = max(n_open, 1)
+        n_sub = max(evidence.subtitles.get(form, 0), 1)
+        word = next((t for t in sorted(set(words))
+                     if evidence.exact(t)[0] >= SLIP_MIN_TWIN_RATIO * n_open
+                     and evidence.subtitles.get(t, 0) >= SLIP_MIN_TWIN_RATIO * n_sub),
+                    None)
+        if word is not None:
+            out.append((form, word))
+    return out
+
+
+def accent_twins_to_drop(sel: Selection, evidence: Evidence, keep: set[str],
+                         titles_by_bare: dict[str, list[str]],
+                         lexicon: Lexicon) -> list[tuple[str, str]]:
+    """``(entry, twin)`` for every entry rule 8 of :func:`select` drops: a
+    rare entry whose letters a much commoner spelling has with another
+    accent or dialytika, its own evidence weak (``ACCENT_TWIN_RATIO``,
+    ``ACCENT_TWIN_MAX_DOCS``, ``ACCENT_TWIN_CAPITAL_RATIO``). Function
+    words, elisions and reviewed loanwords are never dropped. Nor is a form
+    of the twin's own Wiktionary lemma (the colloquial ακούσαν beside
+    άκουσαν, the imperative αναζήτα beside αναζητά, Αύγουστου beside
+    Αυγούστου), or a form of a lemma that has a form rated C or M (τροπών,
+    of τροπή, beside τρόπων): those are words, not misplaced accents."""
+    lower_by_bare: dict[str, list[str]] = defaultdict(list)
+    for f in sorted(sel.entries):
+        if L.case_shape(f) == "lower" and L.APOSTROPHE not in f:
+            lower_by_bare[L.bare_key(f)].append(f)
+    lemmas_of: dict[str, set[str]] = defaultdict(set)
+    for lemma, forms in lexicon.groups.items():
+        for f in forms:
+            lemmas_of[f].add(lemma)
+
+    def open_lower(f: str) -> float:
+        return sum(evidence.lower_counts(f).values())
+
+    def a_word_of_its_own(form: str, twin: str) -> bool:
+        lemmas = lemmas_of.get(form, set())
+        if lemmas & lemmas_of.get(twin, set()):
+            return True
+        return any(other != form and other in sel.entries
+                   and sel.entries[other].bucket in ("C", "M")
+                   for lemma in lemmas for other in lexicon.groups[lemma])
+
+    out = []
+    for form in sorted(sel.entries):
+        entry = sel.entries[form]
+        if form in keep or L.APOSTROPHE in form or entry.route in ("function_word", "reviewed"):
+            continue
+        key = L.bare_key(form)
+        shape = L.case_shape(form)
+        if shape == "lower":
+            if entry.bucket not in ("R", "X"):
+                continue
+            docs = sum(p.docs.get(form, 0) for p in evidence.pools)
+            if docs >= ACCENT_TWIN_MAX_DOCS:
+                continue
+            n_open, n_sub = open_lower(form), evidence.subtitles.get(form, 0)
+            for twin in lower_by_bare.get(key, ()):
+                if twin == form:
+                    continue
+                if (open_lower(twin) + 1 >= ACCENT_TWIN_RATIO * (n_open + 1)
+                        and evidence.subtitles.get(twin, 0) + 1
+                        >= ACCENT_TWIN_RATIO * (n_sub + 1)
+                        and not a_word_of_its_own(form, twin)):
+                    out.append((form, twin))
+                    break
+        elif shape == "title":
+            mid = max(evidence.exact(form)[1], 1)
+            for twin in titles_by_bare.get(key, ()):
+                if L.lower_el(twin) == L.lower_el(form):
+                    continue
+                if (evidence.exact(twin)[1] >= ACCENT_TWIN_CAPITAL_RATIO * mid
+                        and not a_word_of_its_own(form, twin)):
+                    out.append((form, twin))
+                    break
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -1273,7 +1594,8 @@ def select_acronyms(evidence: Evidence, entries: set[str],
     """All-capital acronyms (see the module docstring). The letters of an
     acronym must not be those of an entry of the word list (ΠΕ, πε), so
     that a word typed in capitals is still resolved to its accented
-    spelling. A name the lexicon has but the list does not, because text
+    spelling, unless the acronym is far more frequent than the entry
+    (``ACRONYM_OVER_WORD_RATIO``: ΣΥΡΙΖΑ beside σύριζα). A name the lexicon has but the list does not, because text
     writes it in capitals (Σύριζα), leaves its acronym (ΣΥΡΙΖΑ) in.
     ``common_entries`` are the entries rated C or M, whose letters make up
     two words run together (``run_together_split``)."""
@@ -1292,7 +1614,10 @@ def select_acronyms(evidence: Evidence, entries: set[str],
                 caps_docs[token] += pool.docs.get(token, 0)
             elif shape in ("lower", "title"):
                 others[L.bare_key(token)] += n
-    bare_entries = {L.bare_key(w) for w in entries if L.APOSTROPHE not in w}
+    bare_entries: Counter = Counter()    # bare key -> subtitle tokens
+    for w in entries:
+        if L.APOSTROPHE not in w:
+            bare_entries[L.bare_key(w)] += evidence.subtitles.get(L.lower_el(w), 0)
     common_keys = {L.bare_key(w) for w in common_entries if L.APOSTROPHE not in w}
     kept, audit = [], []
     for token in sorted(caps):
@@ -1307,8 +1632,12 @@ def select_acronyms(evidence: Evidence, entries: set[str],
             continue
         row = {"acronym": token, "tokens": n, "docs": caps_docs[token],
                "not_in_capitals": other}
-        if key in bare_entries:
+        if key in bare_entries and not (
+                n >= ACRONYM_OVER_WORD_RATIO * other
+                and n * evidence.subtitle_words
+                >= ACRONYM_OVER_WORD_RATIO * bare_entries[key] * evidence.open_words):
             row["rejected"] = "its letters are an entry of the word list"
+            row["subtitle_tokens_of_the_entry"] = bare_entries[key]
         elif (split := run_together_split(key, common_keys)) is not None:
             row["rejected"] = f"two words run together: {split[0]} + {split[1]}"
         elif token in rejects:
@@ -1528,6 +1857,10 @@ def run(args) -> dict:
     if args.max_lemmas is not None and is_shipping_dir(out_dir):
         raise ExportError(f"refusing to write a partial list (--max-lemmas) to {OUT}; "
                           "pass another --out-dir")
+    if (getattr(args, "c_confirm_min_words", RATING_C_CONFIRM_MIN_WORDS)
+            != RATING_C_CONFIRM_MIN_WORDS and is_shipping_dir(out_dir)):
+        raise ExportError(f"refusing to write a test rating rule to {OUT}; "
+                          "pass another --out-dir")
     corpus_dir = Path(args.corpus)
     if not (corpus_dir / "manifest.json").exists():
         raise ExportError(f"{corpus_dir}/manifest.json is missing; run "
@@ -1543,7 +1876,9 @@ def run(args) -> dict:
     lexicon = load_lexicon(Path(args.mg_pairs),
                            None if args.no_lookup else Path(args.lookup_db),
                            max_lemmas=args.max_lemmas)
-    evidence = Evidence(load_subtitle_counts(Path(args.mg_freq)), counts)
+    evidence = Evidence(load_subtitle_counts(Path(args.mg_freq)), counts,
+                        c_confirm_min_words=getattr(args, "c_confirm_min_words",
+                                                    RATING_C_CONFIRM_MIN_WORDS))
     function_words = load_function_words(Path(args.function_words))
     review = load_review(Path(args.review))
     loanwords = load_reviewed_loanwords(Path(args.reviewed_loanwords))
@@ -1623,6 +1958,8 @@ def main(argv=None) -> int:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--version", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--commit", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--c-confirm-min-words", type=int,
+                    default=RATING_C_CONFIRM_MIN_WORDS, help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
     try:
         run(args)

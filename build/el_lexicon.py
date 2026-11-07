@@ -114,6 +114,13 @@ def lower_el(word: str) -> str:
     return low
 
 
+# The letter rows of the Greek keyboard layout, for slips onto a key beside
+# the intended one.
+KEYBOARD_ROWS = ("ςερτυθιοπ", "ασδφγηξκλ", "ζχψωβνμ")
+NEIGHBOR_KEYS = {c: frozenset(row[j] for j in (k - 1, k + 1) if 0 <= j < len(row))
+                 for row in KEYBOARD_ROWS for k, c in enumerate(row)}
+
+
 def bare_key(word: str) -> str:
     """The accent-insensitive key: lowercase, no tonos, no dialytika, ς as
     σ. The keyboard's stripped key (``HunspellCompiler.strippedForm``)."""

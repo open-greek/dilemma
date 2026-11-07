@@ -200,11 +200,14 @@ def test_enclitic_hosts_and_sentence_capitals_count_as_the_base_spelling(tmp_pat
     c = N.count_corpus(corpus, dic, vocab_size=1000, workers=1,
                        cache_dir=tmp_path / "enc")
     count = dict(zip(c.vocab, c.uni.tolist()))
-    assert count["όνομα"] == 1          # from "όνομά μου"
+    # "όνομά μου" resolves to the double-accented twin, which, seen once,
+    # stays out of the vocabulary and counts as its host
+    assert count["όνομα"] == 1
     assert count["θα"] == 5 + 2         # sentence-initial Θα, conv weighs 2
     assert "Θα" not in count and "όνομά" not in count
     assert count["Νίκη"] == 1 and count["νίκη"] == 1
-    assert c.outcomes["enclitic_folded"] == 1
+    assert c.outcomes["enclitic_twin"] == 1
+    assert c.outcomes["enclitic_folded"] == 0
     assert c.outcomes["unk_capitals"] == 1             # ΕΣΥ
     assert c.outcomes["unk_abbreviation"] == 1         # κ.
     assert c.outcomes["unk_not_in_word_list"] == 2     # Παπαδόπουλος, δική
@@ -466,3 +469,161 @@ def test_apostrophes_fold_to_the_corpus_mark(model):
     assert GNLMReader._fold_elision("σʼ") == "σ’"
     assert GNLMReader._fold_elision("σε") is None
     assert lm.context_id("ΘΑ") == lm.id_exact("θα")
+
+
+# --- double-accented enclitic forms -------------------------------------------
+
+TWIN_ENTRIES = sorted(["άνθρωπος", "όνομα", "μου", "Άλκηστη", "πότε", "ποτέ",
+                       "σπίτι", "το"])
+
+
+def test_double_accented_twins_resolve_to_tokens_of_their_own():
+    twins = N.enclitic_twins(TWIN_ENTRIES)
+    assert twins == ["Άλκηστή", "άνθρωπός", "όνομά"]
+    r = N.Resolver(TWIN_ENTRIES, twins)
+    names = list(N.RESERVED) + TWIN_ENTRIES + twins
+    for token, initial, spelling, outcome in [
+            ("όνομά", False, "όνομά", N.EXACT),
+            ("Όνομά", True, "όνομά", N.LOWERED_INITIAL),
+            ("Όνομά", False, "όνομά", N.LOWERED_INSIDE),
+            ("Άλκηστή", True, "Άλκηστή", N.EXACT),
+            # a second tonos elsewhere is no twin: folded as before
+            ("όνόμα", False, "όνομα", N.EXACT | N.ENCLITIC_FOLDED),
+            ("όνομα", False, "όνομα", N.EXACT)]:
+        full_id, got = r.resolve(token, initial)
+        assert (names[full_id], got) == (spelling, outcome), token
+    hosts = N.twin_hosts(TWIN_ENTRIES, twins)
+    assert names[hosts[names.index("όνομά")]] == "όνομα"
+    assert hosts[names.index("όνομα")] == -1
+
+
+def test_twins_join_the_vocabulary_outside_its_budget():
+    entries = ["α", "β", "όνομα"]
+    twins = ["όνομά"]
+    hosts = N.twin_hosts(entries, twins)
+    # ids: 4 α, 5 β, 6 όνομα, 7 όνομά
+    counts = np.array([0, 0, 0, 0, 10, 6, 2, 5])
+    # όνομα ranks by its uses with and without the second accent (7), so
+    # it takes the last place of the budget, and its twin, seen 5 times,
+    # comes in on top of the budget
+    vocab, _ = N.choose_vocab(counts, entries, N.N_RESERVED + 2, None, hosts=hosts)
+    assert sorted(vocab[N.N_RESERVED:]) == [4, 6, 7]
+    # a twin seen fewer than TWIN_MIN_COUNT times stays out
+    counts[7] = N.TWIN_MIN_COUNT - 1
+    vocab, _ = N.choose_vocab(counts, entries, N.N_RESERVED + 3, None, hosts=hosts)
+    assert 7 not in vocab and 6 in vocab
+    # and a twin whose host is out stays out too
+    counts[7] = 5
+    counts[6] = 0
+    vocab, _ = N.choose_vocab(counts, entries, N.N_RESERVED + 1, None, hosts=hosts)
+    assert vocab[N.N_RESERVED:] == [4]
+
+
+def _keys(rows):
+    return np.array([(a << N.ID_BITS) | b for a, b, _ in rows], dtype=np.uint64)
+
+
+def test_rows_keep_both_halves_of_a_host_and_twin_pair_and_their_enclitics():
+    vocab = list(N.RESERVED) + ["α", "β", "γ", "μου", "όνομα", "όνομά", "δ"]
+    ids = {t: i for i, t in enumerate(vocab)}
+    pairs = N.pair_arrays(vocab)
+    partner, member, enclitic = pairs
+    assert partner[ids["όνομα"]] == ids["όνομά"] and partner[ids["όνομά"]] == ids["όνομα"]
+    assert enclitic[ids["μου"]] and member[ids["όνομα"]] and not member[ids["α"]]
+    a, b, g, mou, host, twin, d = (ids[t] for t in ("α", "β", "γ", "μου", "όνομα", "όνομά", "δ"))
+    bi = sorted([(a, host, 50), (a, b, 40), (a, twin, 3), (a, g, 2),
+                 (host, b, 30), (host, g, 20), (host, mou, 4), (host, d, 3),
+                 (twin, mou, 6), (twin, d, 1)])
+    keys = _keys(bi)
+    order = np.argsort(keys)
+    bk, bc = keys[order], np.array([c for *_, c in bi], dtype=np.int64)[order]
+    homograph = np.zeros(len(vocab), dtype=bool)
+    empty = (np.zeros(0, dtype=np.uint64), np.zeros(0, dtype=np.int64))
+    (kb, kc), _ = N.prune((bk, bc), empty, homograph, top_k_bi=1, keep_min=3,
+                          context_min=3, pairs=pairs)
+    kept = {(int(k) >> N.ID_BITS, int(k) & N.ID_MASK) for k in kb}
+    # the row of α keeps the twin beside its host, not γ
+    assert (a, twin) in kept and (a, g) not in kept
+    # the host's row keeps μου past the cut (seen 4 >= 3 times), not δ
+    assert (host, mou) in kept and (host, d) not in kept
+    # export keeps the same rows from the full and the pre-pruned bigrams
+    totals = {a: 95, host: 57, twin: 7}
+    export_pairs = export_lm.enclitic_pairs(vocab)
+
+    def exported(bigrams):
+        rows = export_lm.build_bigram_contexts(
+            bigrams, totals, 1, set(range(4)), set(), 3, set(), 3, None,
+            export_pairs, {mou})
+        return {(w1, w2) for w1, row in rows for w2, _ in row}
+
+    full = exported(bi)
+    assert full == exported([(int(k) >> N.ID_BITS, int(k) & N.ID_MASK, int(c))
+                             for k, c in zip(kb, kc)])
+    assert (a, twin) in full and (host, mou) in full and (twin, mou) in full
+    assert (a, g) not in full and (host, d) not in full
+
+
+def test_twins_are_no_homographs_of_their_hosts():
+    vocab = list(N.RESERVED) + ["όνομα", "όνομά", "πότε", "ποτέ"]
+    twin_ids = export_lm.double_accented_ids(vocab)
+    assert twin_ids == {5}
+    ids = export_lm.homograph_spelling_ids(vocab, twin_ids)
+    assert {vocab[i] for i in ids} == {"πότε", "ποτέ"}
+    # without the exclusion (the polytonic model) they would be
+    assert 4 in export_lm.homograph_spelling_ids(vocab)
+    assert export_lm.enclitic_pairs(vocab) == {5: 4, 4: 5}
+
+
+def test_the_reader_hides_double_accented_suggestions(model):
+    lm = GNLMReader(model["bin"])
+    assert lm.hide_double_accented() == set()
+    assert lm.knows("θα") and not lm.knows("<UNK>") and not lm.knows("ζζζ")
+
+
+def test_prepruned_rows_export_like_the_full_rows_with_pairs():
+    rng = np.random.default_rng(7)
+    vocab = list(N.RESERVED) + ["μου", "το", "όνομα", "όνομά", "άνθρωπος",
+                                "άνθρωπός", "πότε", "ποτέ"] + [f"λ{k}" for k in range(12)]
+    V = len(vocab)
+    pairs = N.pair_arrays(vocab)
+    homograph = N.homograph_vocab_mask(vocab)
+    bi_c, tri_c = Counter(), Counter()
+    for _ in range(4000):
+        a, b = (int(x) for x in rng.integers(N.N_RESERVED, V, 2))
+        bi_c[(a, b)] += 1
+    for _ in range(600):
+        a, b, c = (int(x) for x in rng.integers(N.N_RESERVED, N.N_RESERVED + 6, 3))
+        bi_c[(a, b)] += 1
+        tri_c[(a, b, c)] += 1
+    bk = np.array(sorted((a << N.ID_BITS) | b for a, b in bi_c), dtype=np.uint64)
+    bc = np.array([bi_c[(int(k) >> N.ID_BITS, int(k) & N.ID_MASK)] for k in bk])
+    tk = np.array(sorted((a << 2 * N.ID_BITS) | (b << N.ID_BITS) | c
+                         for a, b, c in tri_c), dtype=np.uint64)
+    tc = np.array([tri_c[(int(k) >> 2 * N.ID_BITS, (int(k) >> N.ID_BITS) & N.ID_MASK,
+                          int(k) & N.ID_MASK)] for k in tk])
+    kw = dict(top_k_bi=3, top_k_tri=2, keep_min=3, context_min=3, pairs=pairs)
+    full = N.prune((bk, bc), (tk, tc), homograph, preprune=False, **kw)
+    pre = N.prune((bk, bc), (tk, tc), homograph, preprune=True, **kw)
+    assert len(pre[0][0]) < len(full[0][0]) and len(pre[1][0]) < len(full[1][0])
+    export_pairs = export_lm.enclitic_pairs(vocab)
+    enclitics = {i for i, t in enumerate(vocab) if t in export_lm.KEYBOARD_ENCLITICS}
+    hom = set(np.flatnonzero(homograph).tolist())
+    totals = Counter()
+    for (a, _), n in bi_c.items():
+        totals[a] += n
+
+    def rows(pruned):
+        (b_k, b_c), (t_k, t_c) = pruned
+        bigrams = [(int(k) >> N.ID_BITS, int(k) & N.ID_MASK, int(c))
+                   for k, c in zip(b_k, b_c)]
+        trigrams = [(int(k) >> 2 * N.ID_BITS, (int(k) >> N.ID_BITS) & N.ID_MASK,
+                     int(k) & N.ID_MASK, int(c)) for k, c in zip(t_k, t_c)]
+        counts = {(a, b): c for a, b, c in bigrams}
+        return (export_lm.build_bigram_contexts(
+                    bigrams, totals, 3, set(range(4)), hom, 3, hom, 3, None,
+                    export_pairs, enclitics),
+                export_lm.build_trigram_contexts(
+                    trigrams, counts, 2, set(range(4)), hom, 3, export_pairs,
+                    enclitics))
+
+    assert rows(pre) == rows(full)

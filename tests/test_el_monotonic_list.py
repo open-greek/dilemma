@@ -337,6 +337,24 @@ def write_fixture(tmp_path):
         ("έγραψα", ["first-person", "past", "singular"]),
         ("γράφοντάς", ["gerund"]),
     ])
+    # a rare spelling with a misplaced accent, its own lemma (καλήμερα), and
+    # a colloquial accent of the commoner spelling's lemma (ακούσαν)
+    paradigm("καλημέρα", "noun", [("καλημέρα", ["nominative", "singular"])])
+    paradigm("καλήμερα", "intj", [("καλήμερα", [])])
+    paradigm("ακούω", "verb", [("άκουσαν", ["third-person", "past", "plural"]),
+                               ("ακούσαν", ["third-person", "past", "plural"])])
+    paradigm("Σαββάτο", "name", [("Σαββάτο", ["nominative", "singular"])])
+    # a rare short word one key from και
+    paradigm("ξάι", "noun", [("ξάι", ["nominative", "singular"])])
+    # common words that one source writes with a capital
+    paradigm("ένωση", "noun", [("ένωση", ["nominative", "singular"])])
+    paradigm("αίθουσα", "noun", [("αίθουσα", ["nominative", "singular"])])
+    # full words of elisions
+    paradigm("όλος", "adj", [("όλα", ["neuter", "nominative", "plural"])])
+    paradigm("άλλος", "adj", [("άλλα", ["neuter", "nominative", "plural"])])
+    paradigm("ολέ", "intj", [("ολέ", [])])
+    # a word whose letters are an acronym's
+    paradigm("σύριζα", "adv", [("σύριζα", [])])
     mg_pairs = tmp_path / "mg_pairs.json"
     mg_pairs.write_text(json.dumps(pairs, ensure_ascii=False), encoding="utf-8")
 
@@ -355,13 +373,14 @@ def write_fixture(tmp_path):
     freq.write_text("\n".join([
         "zzzz 999000", "καλός 500", "σπίτι 5000", "ρωτάω 500", "σπιτί 60",
         "και 400", "γράφουμε 20", "απ 10", "επικροτεί 5", "θεσπιστεί 5",
-        "είναι 20000", "είνα 50", "είαι 50",
+        "είναι 20000", "είνα 50", "είαι 50", "είναικαι 60", "καλημέρα 300",
+        "άκουσαν 300", "σπίτια 100",
     ]) + "\n", encoding="utf-8")
 
     function_words = tmp_path / "function_words.json"
     function_words.write_text(json.dumps({
         "schema_version": 1, "description": "fixture",
-        "categories": {"conjunction": ["και", "ή"], "preposition": ["από"],
+        "categories": {"conjunction": ["και", "ή", "αλλά"], "preposition": ["από"],
                        "particle": ["να"], "article": ["του"]}}, ensure_ascii=False), encoding="utf-8")
     review = tmp_path / "review.json"
     review.write_text(json.dumps({
@@ -373,9 +392,9 @@ def write_fixture(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     shards = [{"file": f, "sha256": d} for f, d in SHARD.items()]
+    splits = {"splits": {"train": {"shards": shards}, "dev": {"shards": shards}}}
     (corpus / "manifest.json").write_text(json.dumps({"sources": {
-        "wiki": {"splits": {"train": {"shards": shards}, "dev": {"shards": shards}}}}}),
-        encoding="utf-8")
+        "wiki": splits, "parl": splits}}), encoding="utf-8")
     rows = {
         "καλός": (100, 0, 50), "καλή": (10, 0, 5), "καλό": (1, 0, 1),
         "σπίτι": (500, 0, 80), "σπίτια": (5, 0, 3),
@@ -395,11 +414,33 @@ def write_fixture(tmp_path):
         "π.χ.": (30, 0, 5), "σελ.": (20, 0, 4), "του.Β.": (15, 0, 3),
         "π.Χ.": (12, 0, 3), "Π.χ.": (11, 11, 3), "Σελ.": (4, 4, 2),
         "ΟΗΕ": (40, 0, 10), "ΚΑΙ": (30, 0, 6), "ΚΑΛΟΣΣΠΙΤΙ": (40, 0, 6),
+        # είναι and και run together
+        "είναικαι": (6, 0, 3),
+        "καλημέρα": (200, 0, 40), "καλήμερα": (3, 0, 2),
+        "άκουσαν": (200, 0, 30), "ακούσαν": (1, 0, 1),
+        "Σάββατο": (150, 10, 40), "Σαββάτο": (3, 0, 2),
+        "ξάι": (3, 0, 2),
+        # names spelled with the accent elsewhere or with a dialytika that
+        # a far commoner spelling of the same letters lacks
+        "Πάτρα": (4100, 0, 80), "Πατρά": (40, 0, 6),
+        "Γουινέα": (200, 0, 20), "Γουϊνέα": (40, 0, 6),
+        "Ένωση": (100, 0, 20), "ένωση": (5, 0, 3),
+        "αίθουσα": (25, 0, 10),
+        "όλα": (300, 0, 50), "άλλα": (200, 0, 40), "αλλά": (400, 0, 90), "ολέ": (5, 0, 3),
+        "όλ’": (40, 0, 8), "ολ’": (12, 0, 4), "αλλ’": (50, 0, 10), "άλλ’": (15, 0, 5),
+        "σύριζα": (3, 0, 2), "ΣΥΡΙΖΑ": (200, 0, 30), "ΣΠΙΤΙΑ": (150, 0, 20),
     }
     context = {"απ’": [50, 48, 1, 45, 40], "καλ’": [20, 3, 1, 20, 15],
-               "’γραψα": [15, 2, 3, 15, 15]}
+               "’γραψα": [15, 2, 3, 15, 15], "όλ’": [40, 38, 1, 40, 20],
+               "ολ’": [12, 11, 1, 12, 6], "αλλ’": [50, 48, 1, 50, 25],
+               "άλλ’": [15, 14, 1, 15, 8]}
+    # Parliament minutes write Ένωση and Αίθουσα with a capital; the other
+    # source writes αίθουσα in lowercase
+    parl = {"Ένωση": (100, 0, 20), "ένωση": (3, 0, 2),
+            "Αίθουσα": (600, 0, 30), "αίθουσα": (2, 0, 2)}
     out_dir = tmp_path / "type_counts"
     TC.write_table(table("wiki", rows, context), TC.table_path(out_dir, "wiki", "train"))
+    TC.write_table(table("parl", parl), TC.table_path(out_dir, "parl", "train"))
     return {"mg_pairs": mg_pairs, "lookup_db": db, "mg_freq": freq,
             "function_words": function_words, "review": review, "corpus": corpus,
             "type_counts": out_dir}
@@ -414,7 +455,10 @@ def run_export(paths, out_dir, *extra):
             "--review", str(paths["review"]),
             "--reviewed-loanwords", str(paths["review"].with_name("none.json")),
             "--allow-unpinned", "--workers", "1",
-            "--version", "9.9.9", "--commit", "c" * 40, *extra]
+            "--version", "9.9.9", "--commit", "c" * 40,
+            # each fixture pool has 1M words, so no larger source would
+            # confirm a C rating (test_small_pools_rate_c_only_when_confirmed)
+            "--c-confirm-min-words", "0", *extra]
     assert ex.main(argv) == 0
 
 
@@ -500,6 +544,76 @@ def test_routes_and_ratings(exported):
     assert "απ" not in ratings
 
 
+def rejected_as(out, reason):
+    audit = json.loads((out / "el_monotonic.audit.json").read_text(encoding="utf-8"))
+    return {form for form, _ in audit["rejected_top"].get(reason, [])}
+
+
+def test_misspellings_of_commoner_words_are_left_out(exported):
+    _, out = exported
+    ratings = dict(line.split("\t") for line in read_dic(out / "el_monotonic.dic"))
+    # two words run together after one of the frequent heads
+    assert "είναικαι" not in ratings
+    assert "είναικαι" in rejected_as(out, "run_together_words")
+    # a rare entry beside a far commoner spelling with another accent;
+    # a form of the commoner spelling's own lemma stays (ακούσαν)
+    assert "καλήμερα" not in ratings and "καλημέρα" in ratings
+    assert "Σαββάτο" not in ratings and "Σάββατο" in ratings
+    assert {"καλήμερα", "Σαββάτο"} <= rejected_as(
+        out, "rare_accent_twin_of_a_commoner_spelling")
+    assert "ακούσαν" in ratings and "άκουσαν" in ratings
+    # a rare short word one key from a very common one
+    assert "ξάι" not in ratings
+    assert "ξάι" in rejected_as(out, "rare_short_slip_of_a_common_word")
+    # names with the accent elsewhere, or with a dialytika, than a far
+    # commoner name of the same letters
+    assert "Πάτρα" in ratings and "Πατρά" not in ratings
+    assert "Γουινέα" in ratings and "Γουϊνέα" not in ratings
+    assert "Πατρά" in rejected_as(out, "accent_variant_of_a_commoner_name")
+    assert "Γουϊνέα" in rejected_as(out, "dialytika_variant_of_a_commoner_name")
+    # an unaccented elision beside a commoner accented one (ολ’ beside όλ’),
+    # but not when the unaccented one is the commoner (αλλ’ beside άλλ’)
+    assert "όλ’" in ratings and "ολ’" not in ratings
+    assert "ολ’" in rejected_as(out, "elision_without_the_tonos_of_a_commoner_twin")
+    assert "αλλ’" in ratings and "άλλ’" in ratings
+
+
+def test_a_capitalized_common_word_needs_its_capital_in_two_sources(exported):
+    _, out = exported
+    ratings = dict(line.split("\t") for line in read_dic(out / "el_monotonic.dic"))
+    # Both sources write Ένωση with its capital; only the Parliament
+    # minutes write Αίθουσα with one, though they make up most of its uses.
+    assert "Ένωση" in ratings and "ένωση" in ratings
+    assert "Αίθουσα" not in ratings and "αίθουσα" in ratings
+    assert "Αίθουσα" in rejected_as(out, "capitalized_common_word")
+
+
+def test_small_pools_rate_c_only_when_confirmed():
+    def pool(source, words, rows):
+        return table(source, {t: (n, 0, 50) for t, n in rows.items()}, words=words)
+
+    small = pool("tatoeba", 1_000_000, {"Κηφισιά": 40, "λόγος": 40})
+    large = pool("wikipedia", 20_000_000, {"λόγος": 800, "Κηφισιά": 20})
+    subtitles = {"λόγος": 50, "zzzz": 999_950}
+    evidence = ex.Evidence(subtitles, [small, large])
+    # 40 per million in the small pool alone: held under the C edge
+    rates = evidence.rates("Κηφισιά")
+    assert rates["tatoeba"] < L.C_PER_MILLION
+    assert L.bucket_for_rate(max(rates.values())) == "M"
+    # confirmed by the large pool (40 per million there too)
+    assert evidence.rating("λόγος")[0] == "C"
+    assert evidence.rates("λόγος")["tatoeba"] == 40.0
+    # the rule is off when no pool counts as small
+    assert ex.Evidence(subtitles, [small, large],
+                       c_confirm_min_words=0).rating("Κηφισιά")[0] == "C"
+
+
+def test_a_test_rating_rule_is_refused_in_the_shipping_directory(exported):
+    paths, _ = exported
+    with pytest.raises(ex.ExportError, match="test rating rule"):
+        ex.run(ex_args(paths, ex.OUT, c_confirm_min_words=0))
+
+
 def test_companion_lists(exported):
     _, out = exported
     abbreviations = (out / "el_monotonic_abbreviations.txt").read_text(
@@ -513,11 +627,15 @@ def test_companion_lists(exported):
     assert "π.Χ." in abbreviations
     assert "Π.χ." not in abbreviations and "Σελ." not in abbreviations
     acronyms = (out / "el_monotonic_acronyms.txt").read_text(encoding="utf-8").split()
-    # ΚΑΙ is a word in capitals; ΚΑΛΟΣΣΠΙΤΙ is two words run together
-    assert acronyms == ["ΟΗΕ"]
+    # ΚΑΙ is a word in capitals; ΚΑΛΟΣΣΠΙΤΙ is two words run together;
+    # ΣΠΙΤΙΑ is σπίτια in capitals, while ΣΥΡΙΖΑ is far commoner than the
+    # word σύριζα in both sources
+    assert acronyms == ["ΟΗΕ", "ΣΥΡΙΖΑ"]
     audit = json.loads((out / "el_monotonic.audit.json").read_text(encoding="utf-8"))
     rows = {r["acronym"]: r.get("rejected") for r in audit["acronym_review"]}
     assert rows["ΚΑΛΟΣΣΠΙΤΙ"] == "two words run together: καλοσ + σπιτι"
+    assert rows["ΣΠΙΤΙΑ"] == "its letters are an entry of the word list"
+    assert rows["ΣΥΡΙΖΑ"] is None
 
 
 def test_aff_and_version(exported):
