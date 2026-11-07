@@ -34,7 +34,7 @@ so a keyboard implementation can be checked against it word for word.
 
 The numbers below are for the word list (631,330 entries, sha256
 `b21c4047`) and the model trained from it (sha256 `8f62be97`), both built
-on 2026-11-07.
+at commit cc4cdaa on 2026-11-07.
 
 ## Reproduce
 

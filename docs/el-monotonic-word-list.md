@@ -255,8 +255,8 @@ beside the adverb `σύριζα`, `ΑΕΙ`, `ΑΠΕ`, `ΧΥΤΑ`).
 
 ## Recorded export
 
-Export of 2026-11-07, version 1.3.15 (sha256 of the `.dic` `b21c4047`),
-which the next-word model was trained from:
+Export of 2026-11-07, commit cc4cdaa, version 1.3.15 (sha256 of the
+`.dic` `b21c4047`), which the next-word model was trained from:
 
 | Measure | Value |
 |---|---|

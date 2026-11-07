@@ -315,9 +315,9 @@ in proportion to its size; see [Known limitations](#known-limitations).
 
 ## Recorded model
 
-Built on 2026-11-07, from the corpus extracted at commit 3a45179 and the
-word list with sha256 `b21c4047` (631,330 entries); the binary's sha256 is
-`8f62be97`:
+Built at commit cc4cdaa on 2026-11-07, from the corpus extracted at
+commit 3a45179 and the word list with sha256 `b21c4047` (631,330 entries);
+the binary's sha256 is `8f62be97`:
 
 | Part | Measure |
 |---|---|
@@ -341,8 +341,8 @@ and the corpus has since dropped Wiktionary's editorial notes and keeps
 build (sha256 `227240c4`, 60,428,378 bytes, 150,000 types) scored 18.52%
 top-1 and 30.36% top-3 on its dev sentences, which split `ό,τι`.
 
-Training took 56 s after the shards were encoded again for the new list
-(16 s), and export about 20 s, on an Apple M5 Max. `build/gnlm_reader.py`
+Training took 31 s with the encoded shards cached (56 s when the new list
+made it encode them again) and export 16 s, on an Apple M5 Max. `build/gnlm_reader.py`
 finds no structural problem in the file, and `export_lm.py --lang el
 --check-dictionary` confirms the out-of-vocabulary table matches the list.
 The format is unchanged: the double-accented forms are ordinary vocabulary
