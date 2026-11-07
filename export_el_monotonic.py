@@ -108,7 +108,9 @@ Abbreviations (π.χ., κ.λπ., δισ., σελ.) are the tokens the corpus
 tokenizer kept with their period inside sentences, seen in enough
 documents, and written that way rather than without the period; plus the
 words the tokenizer did not know that a lowercase word follows after a
-period at least ``ABBREVIATION_MIN_SHARE`` of the time. Acronyms are
+period at least ``ABBREVIATION_MIN_SHARE`` of the time. A spelling that
+differs from a listed one in case is listed too when it has evidence of
+its own (π.Χ., before Christ, beside π.χ., for example). Acronyms are
 all-capital Greek tokens of two or more letters that open text writes in
 capitals (95% Wilson lower bound of the share at least
 ``ACRONYM_MIN_SHARE``) and whose letters are no entry of the word list.
@@ -1091,9 +1093,17 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
     letters (κ., σ.) cannot be words, so their counts suffice. A word the
     corpus tokenizer did not know as an abbreviation qualifies when a
     lowercase word follows it after a period, by the same share, at least
-    ``ABBREVIATION_CANDIDATE_MIN_TOKENS`` times."""
+    ``ABBREVIATION_CANDIDATE_MIN_TOKENS`` times.
+
+    Spellings that differ only in case are counted together, and the
+    commonest is listed. Another spelling with a lowercase letter and its
+    own ``ABBREVIATION_MIN_TOKENS`` tokens in ``ABBREVIATION_MIN_DOCS``
+    documents is listed as well (π.Χ. beside π.χ., υπ. beside Υπ.), unless
+    it is a listed spelling with its first letter capitalized (Παρ., a
+    sentence start), which a keyboard lowercases before it looks."""
     by_key: dict[str, Counter] = defaultdict(Counter)
     docs: Counter = Counter()
+    spelling_docs: Counter = Counter()
     for pool in evidence.pools:
         for token, n in pool.count.items():
             if not token.endswith(".") or len(token) < 2:
@@ -1103,6 +1113,7 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
                 continue
             by_key[L.lower_el(token)][token] += n
             docs[L.lower_el(token)] += pool.docs.get(token, 0)
+            spelling_docs[token] += pool.docs.get(token, 0)
     rows = []
     for key, spellings in by_key.items():
         n = sum(spellings.values())
@@ -1120,6 +1131,18 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
         rows.append({"abbreviation": spelling, "tokens": n, "docs": docs[key],
                      "without_period": plain, "share": round(share, 4),
                      "route": "tokenizer"})
+        variants = [s for s in sorted(spellings, key=lambda s: (-spellings[s], s))
+                    if s != spelling and _has_lowercase(s)
+                    and spellings[s] >= ABBREVIATION_MIN_TOKENS
+                    and spelling_docs[s] >= ABBREVIATION_MIN_DOCS]
+        listed = {spelling} | set(variants)
+        for variant in variants:
+            if variant[0] != L.lower_el(variant[0]) and \
+                    L.lower_el(variant[0]) + variant[1:] in listed:
+                continue
+            rows.append({"abbreviation": variant, "tokens": spellings[variant],
+                         "docs": spelling_docs[variant], "without_period": plain,
+                         "share": round(share, 4), "route": "case_variant"})
     for word, n in candidates.items():
         abbr = word + "."
         if (L.lower_el(abbr) in by_key or n < ABBREVIATION_CANDIDATE_MIN_TOKENS

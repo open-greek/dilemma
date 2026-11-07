@@ -362,6 +362,7 @@ def write_fixture(tmp_path):
         "και": (900, 50, 99), "Και": (60, 60, 40), "από": (300, 0, 90),
         "απ’": (50, 0, 10), "καλ’": (20, 0, 5), "’γραψα": (15, 0, 6),
         "π.χ.": (30, 0, 5), "σελ.": (20, 0, 4), "του.Β.": (15, 0, 3),
+        "π.Χ.": (12, 0, 3), "Π.χ.": (11, 11, 3), "Σελ.": (4, 4, 2),
         "ΟΗΕ": (40, 0, 10), "ΚΑΙ": (30, 0, 6),
     }
     context = {"απ’": [50, 48, 1, 45, 40], "καλ’": [20, 3, 1, 20, 15],
@@ -460,6 +461,12 @@ def test_companion_lists(exported):
         encoding="utf-8").split()
     assert "π.χ." in abbreviations and "σελ." in abbreviations
     assert "του.Β." not in abbreviations
+    # spellings that differ in case are counted together; another spelling
+    # with its own evidence is listed too (π.Χ., before Christ), but not a
+    # listed one with a sentence-initial capital (Π.χ.) or one with too
+    # few tokens (Σελ.)
+    assert "π.Χ." in abbreviations
+    assert "Π.χ." not in abbreviations and "Σελ." not in abbreviations
     acronyms = (out / "el_monotonic_acronyms.txt").read_text(encoding="utf-8").split()
     assert acronyms == ["ΟΗΕ"]
 

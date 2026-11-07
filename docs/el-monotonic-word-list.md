@@ -177,9 +177,14 @@ Abbreviations are the tokens the corpus tokenizer kept with their period
 inside sentences, at least 10 times in 3 documents, with a lowercase letter
 (all-capital dotted acronyms are left out), written with the period more
 often than without when they have one period and two or more letters; plus
-words a lowercase word follows after a period. A single letter with a tonos
-or a final sigma, and a dotted token with a word of three or more letters
-inside (`του.Β.`, a missing space), are not abbreviations.
+words a lowercase word follows after a period. Spellings that differ only in
+case are counted together and the commonest is listed; another spelling
+with a lowercase letter and its own 10 tokens in 3 documents is listed as
+well (`π.Χ.`, before Christ, beside `π.χ.`, for example; `υπ.` beside
+`Υπ.`), unless it is a listed spelling with a capital first letter (`Παρ.`
+at the start of a sentence). A single letter with a tonos or a final
+sigma, and a dotted token with a word of three or more letters inside
+(`του.Β.`, a missing space), are not abbreviations.
 
 Acronyms are all-capital tokens of two or more letters with at least 20
 tokens in 5 documents, no tonos on a capital, a 95% Wilson lower bound of at
@@ -197,7 +202,7 @@ Export of 2026-11-07, commit f08cf8f, version 1.3.15 (sha256 of the
 | C, M, R, X | 7,690, 39,791, 363,975, 219,007 |
 | Attested, generated | 411,456, 219,007 |
 | Paradigm, corpus word, name, elision, function word | 607,522, 6,604, 16,141, 195, 1 |
-| Abbreviations, acronyms | 210, 1,699 |
+| Abbreviations, acronyms | 226, 1,699 (a re-export that added the case variants of abbreviations, with a byte-identical `.dic`) |
 | Compiled size estimate | 34.9 MB, 55.3 bytes per entry |
 | Lexicon read | 192,529 lemmas, 1.80M forms; 53,836 lemmas attested |
 
