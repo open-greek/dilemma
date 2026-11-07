@@ -12,6 +12,14 @@ All notable changes to Dilemma are documented here. The format follows
   normalizes, filters and tokenizes it the way a keyboard segments words and
   writes a document-level train/dev split under `build/el_corpus/`. The
   manifest refuses NonCommercial and NoDerivatives sources.
+- Add `export_el_monotonic.py`, which writes the monotonic Modern Greek word
+  list `build/hunspell/el_monotonic.{dic,aff,version}` with abbreviation and
+  acronym lists: Wiktionary paradigms of attested lemmas, reviewed function
+  words, corpus words, names and elisions, rated by their rate per million in
+  FrequencyWords and the open corpus. `eval/eval_el_monotonic.py` measures it
+  on the corpus's held-out dev split (98.34% of word tokens accepted as
+  spelled), with false-accept checks and a cross-check against the
+  LibreOffice Greek dictionary, which its licenses limit to evaluation.
 
 ## [1.3.15] - 2026-11-05
 

@@ -95,6 +95,15 @@ merge into grc. It comes from
 `export_mg_polytonic.py`; see
 [below](modern-greek.md#polytonic-modern-greek-word-list).
 
+A fourth list, `el_monotonic.{dic,aff,version}` with the companion lists
+`el_monotonic_abbreviations.txt` and `el_monotonic_acronyms.txt`, holds
+monotonic Modern Greek for a monotonic keyboard bundle. Unlike the
+`el_GR_monotonic` variant above, it is built from Wiktionary paradigms with
+frequency evidence from FrequencyWords and the openly licensed monotonic
+corpus, and from corpus words, names and elisions. It comes from
+`export_el_monotonic.py`; see
+[Monotonic Modern Greek word list](el-monotonic-word-list.md).
+
 Each dictionary entry carries a morphological field `fr:<bucket>` where
 the bucket is one of `C` (common), `M` (medium), `R` (rare), or `X`
 (unseen in corpus). This lets consumers rank spelling candidates

@@ -180,6 +180,7 @@ for tokenization, model sources, and device settings.
 | [Polytonic Modern Greek](https://github.com/open-greek/dilemma/blob/main/docs/modern-greek.md) | Modern word-list construction and validation |
 | [Next-word prediction](https://github.com/open-greek/dilemma/blob/main/docs/language-model.md) | Training, evaluation, and binary export |
 | [Monotonic Modern Greek corpus](https://github.com/open-greek/dilemma/blob/main/docs/el-monotonic-corpus.md) | Sources, normalization, tokenization, and split for monotonic text |
+| [Monotonic Modern Greek word list](https://github.com/open-greek/dilemma/blob/main/docs/el-monotonic-word-list.md) | Admission routes, spelling rules, ratings, and held-out evaluation of the monotonic list |
 
 Benchmark results depend on the text, citation convention, available context,
 and artifact version. Recognition of a spelling and selection of the correct

@@ -12,8 +12,8 @@
 - [Known limitations](#known-limitations)
 
 `extract_el_monotonic_lm.py` builds the corpus of monotonic Modern Greek used
-for a monotonic next-word model and for the corpus routes of the monotonic
-word list. It reads the pinned, openly licensed sources of
+for a monotonic next-word model and for the corpus routes of the
+[monotonic word list](el-monotonic-word-list.md). It reads the pinned, openly licensed sources of
 `data/el_lm_corpora.json`, normalizes and tokenizes every document with
 `build/el_text.py` exactly as a keyboard segments the words a person types,
 and writes a document-level train/dev split under `build/el_corpus/`. The
