@@ -168,7 +168,11 @@ Wiktionary examples are pooled (0.95M words). FrequencyWords lowercases and
 strips apostrophes, so it rates lowercase words only, and a name only when
 its lowercase is no word. In the open corpus, a sentence-initial capital is
 shared between a word and its capitalized twin in proportion to their
-mid-sentence uses. An elided word written without its mark (`απ` for `απ’`,
+mid-sentence uses. An open-corpus rate counts for C only when the spelling
+is in at least 10 of the source's documents, and for M only in at least 3;
+otherwise it is held just under that edge, so that one novel repeating a
+character's name (`Κατίγκω`) or one article repeating a term does not make
+a word common. An elided word written without its mark (`απ` for `απ’`,
 which FrequencyWords counts) is never an entry.
 
 ## Companion lists

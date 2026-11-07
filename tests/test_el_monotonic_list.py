@@ -368,7 +368,7 @@ def write_fixture(tmp_path):
         "καλός": (100, 0, 50), "καλή": (10, 0, 5), "καλό": (1, 0, 1),
         "σπίτι": (500, 0, 80), "σπίτια": (5, 0, 3),
         "βουλή": (10, 0, 5), "Βουλή": (40, 0, 20),
-        "Αθήνα": (40, 0, 5), "Αθήνας": (3, 0, 2),
+        "Αθήνα": (40, 0, 12), "Αθήνας": (3, 0, 2),
         "γράφω": (40, 0, 10), "έγραψα": (4, 0, 2), "γράφοντάς": (10, 0, 3),
         "ρωτάω": (20, 0, 4), "σπιτί": (6, 0, 2),
         "είναι": (2000, 0, 99), "είνα": (5, 0, 2), "είαι": (5, 0, 2),
@@ -449,6 +449,11 @@ def test_routes_and_ratings(exported):
     assert "ζαβολιάρης" not in ratings
     # a name with its own evidence keeps its capital
     assert ratings["Αθήνα"] == "fr:C" and "Αθήνας" in ratings
+    # an open-corpus rate counts for C only in 10 documents and for M only
+    # in 3: Κηφισιά (40 per million in 4 documents) is held at M, έγραψα
+    # (4 per million in 2 documents) at R
+    assert ratings["Κηφισιά"] == "fr:M"
+    assert ratings["έγραψα"] == "fr:R"
     # function words
     assert "και" in ratings and "ή" in ratings and "από" in ratings
     assert "Και" not in ratings

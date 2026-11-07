@@ -100,7 +100,10 @@ words; the smaller sources are pooled into one. FrequencyWords lowercases
 and strips apostrophes, so it rates lowercase words only, and a name only
 when its lowercase is no lowercase word. In the open corpus, a capital at
 the start of a sentence is shared between a word and its capitalized twin
-in proportion to their mid-sentence uses.
+in proportion to their mid-sentence uses. An open-corpus rate counts for C
+only when the spelling is in ``RATING_C_MIN_DOCS`` of the pool's documents,
+and for M only in ``RATING_M_MIN_DOCS``; otherwise it is held just under
+that edge.
 
 Companion lists
 ---------------
@@ -138,6 +141,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import math
 import sqlite3
 import subprocess
 import sys
@@ -168,6 +172,13 @@ DEFAULT_CORPUS = ROOT / "build" / "el_corpus"
 
 ATTESTED_LEMMA_MIN_TOKENS = 3
 MIN_RATING_SOURCE_WORDS = 1_000_000
+# A rate from an open-corpus pool counts for C only when the spelling is in
+# this many of the pool's documents, and for M only in this many; otherwise
+# it is held just under that edge. One novel that repeats a character's
+# name (Κατίγκω, Δυσσέας) or one article that repeats a term is no evidence
+# that a word is common.
+RATING_C_MIN_DOCS = 10
+RATING_M_MIN_DOCS = 3
 SMALL_POOL = "open_small"
 SUBTITLES = "subtitles"
 CORPUS_WORD_MIN_SUBTITLE_TOKENS = 50
@@ -428,6 +439,17 @@ class Pool:
     context: dict = field(default_factory=dict)
 
 
+def doc_capped_rate(rate: float, docs: int) -> float:
+    """``rate`` held just under the C edge when the spelling is in fewer
+    than ``RATING_C_MIN_DOCS`` documents of the pool, and just under the M
+    edge when it is in fewer than ``RATING_M_MIN_DOCS``."""
+    if rate >= L.C_PER_MILLION and docs < RATING_C_MIN_DOCS:
+        rate = math.nextafter(L.C_PER_MILLION, 0.0)
+    if rate >= L.M_PER_MILLION and docs < RATING_M_MIN_DOCS:
+        rate = math.nextafter(L.M_PER_MILLION, 0.0)
+    return rate
+
+
 class Evidence:
     """Counts of every spelling in every frequency source."""
 
@@ -508,15 +530,16 @@ class Evidence:
     # -- ratings ----------------------------------------------------------
 
     def rates(self, form: str, *, subtitles: bool = True) -> dict[str, float]:
-        """Rates per million words of ``form`` in each frequency source."""
-        if L.case_shape(form.replace(L.APOSTROPHE, "")) == "title":
-            counts = self.title_counts(form)
-            low = L.lower_el(form)
-        else:
-            counts = self.lower_counts(form)
-            low = form
-        out = {name: L.rate_per_million(n, self._words(name))
-               for name, n in counts.items()}
+        """Rates per million words of ``form`` in each frequency source,
+        each open-corpus rate held under the C or M edge when the spelling
+        is in too few of the pool's documents (``doc_capped_rate``)."""
+        title = L.case_shape(form.replace(L.APOSTROPHE, "")) == "title"
+        low = L.lower_el(form) if title else form
+        out = {}
+        for p in self.pools:
+            n_low, n_title, d_low, d_title = self._split(p, low)
+            n, docs = (n_title, d_title) if title else (n_low, d_low)
+            out[p.name] = doc_capped_rate(L.rate_per_million(n, p.words), docs)
         if subtitles and L.APOSTROPHE not in form:
             out[SUBTITLES] = L.rate_per_million(self.subtitles.get(low, 0),
                                                 self.subtitle_words)
