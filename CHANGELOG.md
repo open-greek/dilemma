@@ -20,6 +20,16 @@ All notable changes to Dilemma are documented here. The format follows
   on the corpus's held-out dev split (98.34% of word tokens accepted as
   spelled), with false-accept checks and a cross-check against the
   LibreOffice Greek dictionary, which its licenses limit to evaluation.
+- Add a monotonic Modern Greek next-word model: `train_lm.py --lang el`
+  counts the capped training split of that corpus with numpy, resolving
+  every token to the monotonic word-list spelling a keyboard looks up, and
+  `export_lm.py --lang el` writes `build/lm/el_ngram.bin` (GNLM v2) and
+  `el_ngram.version`, with the corpus manifest and word-list hashes.
+  `eval/eval_el_ngram.py` measures next-word and completion hit rates on
+  the dev split with a Python reader that answers as the Swift reader does,
+  and `eval/tune_el_ngram.py` compares pruning and vocabulary sizes.
+  `export_lm.py` gains `--lang` and `--drop-unknown-contexts`; the Ancient
+  Greek export is unchanged.
 
 ## [1.3.15] - 2026-11-05
 

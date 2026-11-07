@@ -57,7 +57,8 @@ Under `build/hunspell/`:
 
 Every file is byte-identical across runs with the same inputs and commit.
 The outputs are build products and are not committed; the keyboard project
-takes the `.dic`, `.aff`, `.version` and the two companion lists.
+takes the `.dic`, `.aff`, `.version` and the two companion lists. The
+[next-word model](el-monotonic-lm.md) takes its vocabulary from the `.dic`.
 
 ## Inputs and licenses
 
