@@ -143,7 +143,36 @@
     }
   ],
   "elision_accepts": [],
-  "abbreviation_rejects": [],
+  "abbreviation_rejects": [
+    {
+      "form": "κλπ.Β.",
+      "reason": "κλπ. and a list letter (Β.) written without the space between them."
+    },
+    {
+      "form": "κ.λπ.Β.",
+      "reason": "κ.λπ. and a list letter (Β.) written without the space between them."
+    },
+    {
+      "form": "παρ.Β.",
+      "reason": "παρ. and a list letter (Β.) written without the space between them."
+    },
+    {
+      "form": "κλπ.κλπ.",
+      "reason": "κλπ. written twice without a space."
+    },
+    {
+      "form": "αι.π.Χ.",
+      "reason": "αι. and π.Χ. written without the space between them (5ος αι. π.Χ.)."
+    },
+    {
+      "form": "βλ.Π.Δ.",
+      "reason": "βλ. and the acronym Π.Δ. written without the space between them."
+    },
+    {
+      "form": "νΠ.Κ.",
+      "reason": "ν. and the acronym Π.Κ. written without the period and space between them."
+    }
+  ],
   "acronym_rejects": [
     {
       "form": "ΙΙ",
