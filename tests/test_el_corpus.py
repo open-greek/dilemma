@@ -230,7 +230,8 @@ def test_parquet_readers(tmp_path):
 def test_kaikki_reader_keeps_modern_greek_examples(tmp_path):
     entries = [
         {"word": "Σπίτι", "lang_code": "el",
-         "senses": [{"examples": [{"text": "Το σπίτι μας."}, {"text": ""}]}]},
+         "senses": [{"examples": [{"text": "Το σπίτι μας.", "type": "example"},
+                                  {"text": ""}]}]},
         {"word": "οἶκος", "lang_code": "grc",
          "senses": [{"examples": [{"text": "ὁ οἶκος"}]}]},
         {"word": "νερό", "lang_code": "el", "senses": [{"glosses": ["water"]}]},
@@ -242,6 +243,60 @@ def test_kaikki_reader_keeps_modern_greek_examples(tmp_path):
                                  [f]))
     assert [(d.id, d.group, d.text) for d in docs] == [
         ("wkt:en:0:0:0", "wkt:σπίτι", "Το σπίτι μας.")]
+
+
+@pytest.mark.parametrize("text", [
+    "→ χρειάζεται παράθεμα",
+    "≈ συνώνυμα: νόθος, πλαστός",
+    "άλλες μορφές: μυτίτσα, μυτούλα",
+    "πολυτονική γραφή: εὐσεβάστως",
+    "συντομογραφία: κ.λπ.",
+    "εναλλακτικά: αποίκισης",
+    "Δείτε επίσης: σπίτι",
+    "σύστημα φυλοκαθορισμού στη Βικιπαίδεια",
+    "Κατηγορία:Πτηνά (νέα ελληνικά) στο Βικιλεξικό",
+    "να, ας, αν, ίσως γράψω (υποτακτική αορίστου)",
+    "※ 1911 Λορέντζος Μαβίλης",
+    "※ 19ος/20ός αιώνας, ⌘ Νίκος Καζαντζάκης, Ταξιδεύοντας",
+    "※ ⌘ Ανδρέας Καρκαβίτσας, Ο ζητιάνος, 1897",
+])
+def test_kaikki_editorial_notes_are_recognized(text):
+    assert C.kaikki_note(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Οι βροχές ανακούφισαν τη διψασμένη γη.",
+    "※ Η ξυλοναυπηγική είναι η χειροτεχνική κατασκευή σκάφους.",
+    "※ 25 χρόνια μετά γύρισε στο χωριό.",
+    "Αποσκιαδερή Μάνη: η δυτική Μάνη",
+    "χαμόσπιτο, παράσπιτο",
+    "(μεταφορικά) πήρε φωτιά",
+])
+def test_kaikki_examples_are_not_notes(text):
+    assert not C.kaikki_note(text)
+
+
+def test_kaikki_reader_skips_editorial_notes(tmp_path):
+    el = tmp_path / "kaikki.org-el-dictionary-Greek.jsonl"
+    el.write_text(json.dumps({"word": "σπίτι", "lang_code": "el", "senses": [
+        {"examples": [{"text": "άλλες μορφές: σπιτάκι"},
+                      {"text": "Έχει ένα μεγάλο σπίτι."},
+                      {"text": "→ χρειάζεται παράθεμα"}]}]},
+        ensure_ascii=False) + "\n", encoding="utf-8")
+    en = tmp_path / "kaikki.org-en-dictionary-Greek.jsonl"
+    en.write_text(json.dumps({"word": "σπίτι", "lang_code": "el", "senses": [
+        {"examples": [{"text": "Polytonic spelling: σπίτιον"},
+                      {"text": "Πάμε σπίτι.", "type": "example"},
+                      {"text": "Ήρθε σπίτι.", "translation": "He came home."},
+                      {"text": "Μένω σε σπίτι.", "type": "quotation"}]}]},
+        ensure_ascii=False) + "\n", encoding="utf-8")
+    docs = list(C.iter_documents({"key": "wkt", "reader": {"kind": "kaikki_examples"}},
+                                 [el, en]))
+    assert [(d.id, d.text) for d in docs] == [
+        ("wkt:el:0:0:1", "Έχει ένα μεγάλο σπίτι."),
+        ("wkt:en:0:0:1", "Πάμε σπίτι."),
+        ("wkt:en:0:0:2", "Ήρθε σπίτι."),
+        ("wkt:en:0:0:3", "Μένω σε σπίτι.")]
 
 
 def test_text_options_defaults():

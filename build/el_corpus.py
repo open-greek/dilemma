@@ -371,11 +371,63 @@ def _iter_text_lines(src: dict, paths: list[Path]) -> Iterator[Document]:
                 yield Document(did, did, text)
 
 
+# The "examples" lists of both Wiktionary editions also carry editorial
+# notes: alternative forms and spellings, synonym and antonym lists, links to
+# Wikipedia or a category, requests for a quotation, the header line of a
+# quotation (year, author, work) and grammar tables. They are not sentences
+# anyone types, and a few of them repeat hundreds of times ("→ χρειάζεται
+# παράθεμα" alone is 483 items), so the reader skips them.
+_KAIKKI_NOTE_MARKS = ("→", "≈", "≠", "≋", "<", ">", "≤", "≥", "⌘")
+_KAIKKI_NOTE_LABELS = frozenset({
+    "άλλες μορφές", "άλλη μορφή", "μορφές", "εναλλακτική μορφή",
+    "λόγια μορφή", "λόγιες μορφές", "λαϊκή μορφή", "λόγιος τύπος",
+    "παλιότερος τύπος", "πολυτονική γραφή", "παλιότερη πολυτονική γραφή",
+    "παλιότερη γραφή", "παλαιότερη γραφή", "παλιά γραφή", "άλλη γραφή",
+    "άλλες γραφές", "μονοτονική γραφή", "μη απλοποιημένη γραφή",
+    "παλιότερη ορθογραφία", "συνώνυμο", "συνώνυμα", "αντώνυμο", "αντώνυμα",
+    "ταυτόσημα", "υπώνυμο", "υπώνυμα", "υπερώνυμο", "υπερώνυμα", "παρώνυμο",
+    "συγγενικά", "παράγωγα", "υποκοριστικά", "συντομογραφία",
+    "διεθνής συντομογραφία", "σύμβολο", "συμβολισμός", "ταξινομικός όρος",
+    "κοινή ονομασία", "επίσημη ονομασία", "κωδικός γλώσσας", "βλέπε",
+    "παράρτημα",
+})
+_KAIKKI_NOTE_PREFIXES = ("δείτε", "εναλλακτικά", "σημείωση", "σημειωση",
+                         "κατηγορία:", "να, ας, αν")
+_KAIKKI_NOTE_MENTIONS = ("στη Βικιπαίδεια", "στο Βικιλεξικό", "Κατηγορία:",
+                         "χρειάζεται παράθεμα", "χρειάζεται παράδειγμα")
+# "※ 1911 Λορέντζος Μαβίλης", "※ 19ος/20ός αιώνας, ⌘ Νίκος Καζαντζάκης, ..."
+_KAIKKI_CITATION = re.compile(
+    r"(?:\d{3,4}|\d{1,2}(?:ος|ός))"
+    r"(?:\s*[-–/]\s*(?:\d{3,4}|\d{1,2}(?:ος|ός)))?(?:[\s,]|$)|⌘")
+# English-edition items that are examples or quotations; the untyped rest
+# are notes ("Polytonic spelling: ...", "Near-synonym: ...") unless they
+# carry a translation.
+_KAIKKI_EN_EXAMPLE_TYPES = ("example", "quotation")
+
+
+def kaikki_note(text: str) -> bool:
+    """True for a Greek-edition "example" that is an editorial note."""
+    s = text.strip()
+    if s.startswith(_KAIKKI_NOTE_MARKS):
+        return True
+    low = s.lower()
+    if low.startswith(_KAIKKI_NOTE_PREFIXES):
+        return True
+    if ":" in s and low.split(":", 1)[0].strip() in _KAIKKI_NOTE_LABELS:
+        return True
+    if any(m in s for m in _KAIKKI_NOTE_MENTIONS):
+        return True
+    return s.startswith("※") and bool(_KAIKKI_CITATION.match(s[1:].strip()))
+
+
 def _iter_kaikki_examples(src: dict, paths: list[Path]) -> Iterator[Document]:
     """Usage examples of Modern Greek entries in the kaikki.org dumps.
 
     The group is the entry's word, lowercased, so every example filed under
     one word is on one side of the split whichever edition holds it.
+    Editorial notes filed among the examples are skipped (``kaikki_note``
+    for the Greek edition; untyped items without a translation for the
+    English edition).
     """
     key = src["key"]
     lang_code = src["reader"].get("lang_code", "el")
@@ -392,10 +444,18 @@ def _iter_kaikki_examples(src: dict, paths: list[Path]) -> Iterator[Document]:
                 for si, sense in enumerate(entry.get("senses") or []):
                     for ei, ex in enumerate(sense.get("examples") or []):
                         text = ex.get("text") or ""
-                        if text:
-                            yield Document(
-                                f"{key}:{edition}:{line_no}:{si}:{ei}",
-                                f"{key}:{word}", text)
+                        if not text:
+                            continue
+                        if edition == "en":
+                            if (ex.get("type") not in _KAIKKI_EN_EXAMPLE_TYPES
+                                    and not ex.get("translation")
+                                    and not ex.get("english")):
+                                continue
+                        elif kaikki_note(text):
+                            continue
+                        yield Document(
+                            f"{key}:{edition}:{line_no}:{si}:{ei}",
+                            f"{key}:{word}", text)
 
 
 READERS = {
