@@ -46,7 +46,7 @@ that license, an attribution, a role, a token cap and a weight. The extractor
 reads only licenses on the allowed list in `build/el_corpus.py` (CC0, CC BY,
 CC BY-SA) and refuses any license with NC or ND in it. Corpora that were
 considered and left out are listed under `excluded` with the reason. They
-include the NonCommercial or NoDerivatives theatre, press and oral-history
+include the NonCommercial or NoDerivatives theater, press and oral-history
 sets, OpenSubtitles (no license for the subtitle text), web crawls (the
 license covers the compilation, not the text), and administrative and
 legislative text whose size would dominate the mixture. The Triantafyllidis
@@ -221,6 +221,6 @@ itself.
 - The European Parliament documents are formal and largely translated. They
   are capped at 5M tokens until a comparison shows whether they help.
 - The open sources hold little casual written conversation. The best
-  candidates found (theatre dialogue, oral history, subtitles) are
+  candidates found (theater dialogue, oral history, subtitles) are
   NonCommercial, NoDerivatives or unlicensed, and OpenCouncil is disabled
   until its terms are a named open license.

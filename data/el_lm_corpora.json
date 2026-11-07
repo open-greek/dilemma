@@ -346,7 +346,7 @@
    "key": "greek_national_theatre",
    "repo": "glossAPI/greek-national-theatre-corpus",
    "license": "CC-BY-NC-ND-4.0",
-   "reason": "NonCommercial and NoDerivatives (dataset card). The best conversational candidate (theatre dialogue); usable only with a commercial license from the National Theatre archive."
+   "reason": "NonCommercial and NoDerivatives (dataset card). The best conversational candidate (theater dialogue); usable only with a commercial license from the National Theatre archive."
   },
   {
    "key": "istorima",

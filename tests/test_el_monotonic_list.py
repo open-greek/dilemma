@@ -10,7 +10,6 @@ Run with:
     python -m pytest tests/test_el_monotonic_list.py -x -v
 """
 
-import gzip
 import hashlib
 import json
 import re
