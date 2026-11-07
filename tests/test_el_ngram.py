@@ -210,6 +210,29 @@ def test_enclitic_hosts_and_sentence_capitals_count_as_the_base_spelling(tmp_pat
     assert c.outcomes["unk_not_in_word_list"] == 2     # Παπαδόπουλος, δική
 
 
+def test_the_encoding_cache_follows_every_helper_it_depends_on(monkeypatch):
+    # A cached encoding must not outlive a change to the code or constants
+    # that decide its content, or a cached run would differ from a fresh one.
+    base = N.resolver_digest()
+    monkeypatch.setattr(N.el_lexicon, "LETTERS",
+                        N.el_lexicon.LETTERS | frozenset("ϝ"))
+    assert N.resolver_digest() != base
+    monkeypatch.undo()
+    assert N.resolver_digest() == base
+    monkeypatch.setattr(N.el_lexicon, "APOSTROPHE", "'")
+    assert N.resolver_digest() != base
+    monkeypatch.undo()
+    for helper in (N.sample_bucket, N.el_corpus.cap_bucket, N.el_corpus._bucket):
+        real = N.inspect.getsource
+
+        def changed(obj, helper=helper, real=real):
+            return real(obj) + ("# changed" if obj is helper else "")
+
+        monkeypatch.setattr(N.inspect, "getsource", changed)
+        assert N.resolver_digest() != base, helper.__name__
+        monkeypatch.undo()
+
+
 def test_a_token_cap_keeps_only_documents_below_its_bucket(tmp_path):
     corpus = make_corpus(tmp_path, news_threshold=0)
     dic = make_dictionary(tmp_path)

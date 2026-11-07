@@ -247,10 +247,12 @@ def resolver_digest() -> str:
     change to it invalidates the cache."""
     src = "".join(inspect.getsource(f) for f in (
         fold_enclitic_accent, load_dictionary, Resolver, encode_shard,
+        sample_bucket, el_corpus.cap_bucket, el_corpus._bucket,
         el_lexicon.case_shape, el_lexicon.lower_el))
     src += repr((RESERVED, OUTCOME_BITS, SAMPLE_SEED, el_corpus.CAP_SEED,
                  sorted(ONE_LETTER_CAPITAL_WORDS),
-                 el_corpus.BUCKETS, sorted(el_text.PLACEHOLDERS)))
+                 el_corpus.BUCKETS, sorted(el_text.PLACEHOLDERS),
+                 el_lexicon.APOSTROPHE, sorted(el_lexicon.LETTERS)))
     return hashlib.sha256(src.encode("utf-8")).hexdigest()
 
 
