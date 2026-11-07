@@ -318,6 +318,16 @@ def write_fixture(tmp_path):
                                ("βουλής", ["genitive", "singular"])])
     paradigm("Αθήνα", "name", [("Αθήνα", ["nominative", "singular"]),
                                ("Αθήνας", ["genitive", "singular"])])
+    # a name page whose letters are also a word's: the paradigm reader
+    # drops it, and the name route admits it on its capitalized share
+    paradigm("Ρώμη", "name", [("Ρώμη", ["nominative", "singular"])])
+    paradigm("ρώμη", "noun", [("ρώμη", ["nominative", "singular"])])
+    paradigm("Σοφία", "name", [("Σοφία", ["nominative", "singular"])])
+    paradigm("σοφία", "noun", [("σοφία", ["nominative", "singular"])])
+    # a capitalized sense Wiktionary has (no name page) that text writes
+    # in lowercase
+    paradigm("Μέσα", "adv", [("Μέσα", [])])
+    paradigm("μέσα", "adv", [("μέσα", [])])
     paradigm("ζαβολιάρης", "noun", [("ζαβολιάρης", ["nominative", "singular"]),
                                     ("ζαβολιάρη", ["genitive", "singular"])])
     paradigm("γράφω", "verb", [
@@ -374,6 +384,9 @@ def write_fixture(tmp_path):
         "είναι": (2000, 0, 99), "είνα": (5, 0, 2), "είαι": (5, 0, 2),
         "επικροτεί": (25, 0, 12), "θεσπιστεί": (10, 0, 4),
         "Κηφισιά": (40, 0, 4),
+        "Ρώμη": (40, 0, 12), "ρώμη": (2, 0, 2),
+        "Σοφία": (30, 0, 12), "σοφία": (60, 0, 30),
+        "μέσα": (500, 0, 80), "Μέσα": (60, 30, 25),
         "και": (900, 50, 99), "Και": (60, 60, 40), "από": (300, 0, 90),
         "απ’": (50, 0, 10), "καλ’": (20, 0, 5), "’γραψα": (15, 0, 6),
         "π.χ.": (30, 0, 5), "σελ.": (20, 0, 4), "του.Β.": (15, 0, 3),
@@ -467,6 +480,12 @@ def test_routes_and_ratings(exported):
     # review file accepts it
     assert ratings["είναι"] == "fr:C"
     assert "είνα" not in ratings and "είαι" in ratings
+    # a name page whose letters are a word's is a name when text writes it
+    # with its capital (Ρώμη), not when it writes the word (Σοφία, a third
+    # of the time); a capitalized twin of a word that is no name and that
+    # text writes in lowercase is left out (Μέσα)
+    assert ratings["Ρώμη"] == "fr:C" and "Σοφία" not in ratings
+    assert "Μέσα" not in ratings and "μέσα" in ratings
     # names from the corpus; institutional capitals of common words are not
     assert "Κηφισιά" in ratings and "Βουλή" not in ratings
     # elisions with U+2019: a real one, an aphaeresis, not a numbering mark

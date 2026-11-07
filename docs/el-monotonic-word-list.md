@@ -111,7 +111,10 @@ route:
    form of the lemma has at least 3 tokens in one frequency source. A form no
    source has is rated X and marked `mg:generated`. A lemma's capitalized
    forms (names, months) need their own evidence: written with the capital
-   inside sentences at least 3 times, in at least 2 documents. `lookup.db`
+   inside sentences at least 3 times, in at least 2 documents. A capitalized
+   form that is no Wiktionary name, whose lowercase is a word, and that is
+   written with its capital in less than a quarter of at least 20
+   mid-sentence uses (`Μέσα`, `Αυτού`, `Νέοι`) is left out. `lookup.db`
    forms join only when `mg_pairs.json` lacks them, their lemma is lowercase,
    and they start like their lemma.
 2. **Function words.** The reviewed closed list (`και`, `ο`, `ή`, `πού`), which
@@ -136,8 +139,11 @@ route:
    catches (`ήτον`, `πολύν`, `τρίτιο`).
 4. **Names.** A capitalized spelling the lexicon lacks, written with its
    capital inside sentences at least 20 times in 3 documents, with a 95%
-   Wilson lower bound of the capitalized share of at least 0.9, and not a
-   common word some sources capitalize (`Βουλή`, `Υπουργός`).
+   Wilson lower bound of the capitalized share of at least 0.9. When its
+   lowercase is a word, it must be a form of a Wiktionary name page, which
+   the paradigm reader drops (`Ρώμη` beside `ρώμη`, `Τσίπρα` beside
+   `τσίπρα`), with a lower bound of at least 0.75; a title or an
+   institution some sources capitalize (`Υπουργός`, `Πρόεδρε`) is no name.
 5. **Elisions.** A spelling with U+2019 seen at least 10 times in 3
    documents. An elision (`απ’`, `είν’`, `κατ’`) must be an attested entry cut
    before its final α, ε, ι, ο, υ, αι or ου, accent kept, with τ, π or κ

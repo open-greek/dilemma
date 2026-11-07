@@ -38,7 +38,10 @@ under ``rejects`` in ``data/el_monotonic_review.json``.
    marked ``mg:generated``. The capitalized forms of a lemma (names, months)
    need their own evidence: one of them written with its capital inside a
    sentence ``NAME_LEMMA_MIN_TOKENS`` times in ``NAME_LEMMA_MIN_DOCS``
-   documents of the open corpus.
+   documents of the open corpus. A capitalized form that is no Wiktionary
+   name, whose lowercase is a word, and that text writes with its capital
+   in less than ``NAME_TWIN_MIN_CAPITAL_SHARE`` of its mid-sentence uses
+   (Μέσα, Αυτού, Νέοι) is left out.
 2. ``function_word``: the closed list in
    ``data/el_monotonic_function_words.json`` (και, ο, ή, ...).
 3. ``corpus_word``: a lowercase word the lexicon lacks (ρωτήσω), with at
@@ -70,7 +73,11 @@ under ``rejects`` in ``data/el_monotonic_review.json``.
    own evidence, written with its capital inside a sentence at least
    ``NAME_CORPUS_MIN_TOKENS`` times in ``NAME_CORPUS_MIN_DOCS`` documents,
    with a capitalized share of its mid-sentence uses whose 95% Wilson lower
-   bound is at least ``NAME_MIN_CAPITAL_SHARE``.
+   bound is at least ``NAME_MIN_CAPITAL_SHARE``. When its lowercase is a
+   word, it must be a form of a Wiktionary name page (Ρώμη beside ρώμη,
+   Τσίπρα beside τσίπρα), which the paradigm reader drops, with a lower
+   bound of at least ``NAME_HOMOGRAPH_MIN_CAPITAL_SHARE``; a title or an
+   institution some sources capitalize (Υπουργός, Πρόεδρε) is no name.
 5. ``elision``: a spelling with U+2019 (σ’, απ’, γι’, ’ναι) seen at least
    ``ELISION_MIN_TOKENS`` times in ``ELISION_MIN_DOCS`` documents of the
    open corpus, whose full word is an attested entry (the letters plus a
@@ -194,6 +201,17 @@ NAME_LEMMA_MIN_DOCS = 2
 NAME_CORPUS_MIN_TOKENS = 20
 NAME_CORPUS_MIN_DOCS = 3
 NAME_MIN_CAPITAL_SHARE = 0.9
+# A capitalized spelling whose lowercase is a word (Ρώμη, ρώμη; Σοφία,
+# σοφία) is a name when Wiktionary has a name page for it and the 95% Wilson
+# lower bound of its capitalized share is at least this.
+NAME_HOMOGRAPH_MIN_CAPITAL_SHARE = 0.75
+# A capitalized form of a lemma that is no Wiktionary name, whose lowercase
+# is a word, and that is written with its capital in fewer than this share
+# of at least NAME_TWIN_MIN_MID_TOKENS mid-sentence uses (Μέσα, Αυτού,
+# Νέοι) is left out: Wiktionary has the capitalized sense, but text writes
+# the lowercase word.
+NAME_TWIN_MIN_CAPITAL_SHARE = 0.25
+NAME_TWIN_MIN_MID_TOKENS = 20
 ELISION_MIN_TOKENS = 10
 ELISION_MIN_DOCS = 3
 ELISION_MIN_NEXT_VOWEL_SHARE = 0.5
@@ -328,6 +346,8 @@ class Lexicon:
     groups: dict[str, dict[str, str]]       # lemma key -> {form: origin}
     raw_forms: set[str]                     # every mg_pairs form, any cell
     origins: Counter = field(default_factory=Counter)
+    # capitalized forms of Wiktionary's name pages (pos "name")
+    name_forms: set[str] = field(default_factory=set)
 
     def forms(self) -> set[str]:
         return {f for forms in self.groups.values() for f in forms}
@@ -355,11 +375,14 @@ def load_lexicon(mg_pairs: Path = MG_PAIRS, lookup_db: Path | None = LOOKUP_DB,
     with open(mg_pairs, encoding="utf-8") as fh:
         rows = json.load(fh)
     raw_forms: set[str] = set()
+    name_forms: set[str] = set()
     headwords: dict[str, set[str]] = defaultdict(set)
     for row in rows:
         form = unicodedata.normalize("NFC", row.get("form") or "")
         if form:
             raw_forms.add(form)
+            if row.get("pos") == "name" and L.case_shape(form) == "title":
+                name_forms.add(form)
         lemma = unicodedata.normalize("NFC", row.get("lemma") or "")
         if lemma and (row.get("pos") or "") not in M.EXCLUDED_POS:
             headwords[lemma.lower()].add(lemma)
@@ -410,7 +433,7 @@ def load_lexicon(mg_pairs: Path = MG_PAIRS, lookup_db: Path | None = LOOKUP_DB,
             f"{sum(len(g) for g in groups.values()):,} forms "
             f"({', '.join(f'{k} {v:,}' for k, v in sorted(origins.items()))}), "
             f"{time.time() - t0:.0f} s")
-    return Lexicon(groups, raw_forms, origins)
+    return Lexicon(groups, raw_forms, origins, name_forms)
 
 
 # --------------------------------------------------------------------------
@@ -807,6 +830,17 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
 
     lexicon_words = lexicon.forms() | lexicon.raw_forms
 
+    def capitalized_common_word(form: str) -> bool:
+        """A capitalized lexicon form that is no Wiktionary name, whose
+        lowercase is a word that text writes far more often (Μέσα, Αυτού,
+        Νέοι; see ``NAME_TWIN_MIN_CAPITAL_SHARE``)."""
+        if (L.case_shape(form) != "title" or form in lexicon.name_forms
+                or L.lower_el(form) not in lexicon_words):
+            return False
+        cap, total = evidence.capital_share(form)
+        return (total >= NAME_TWIN_MIN_MID_TOKENS
+                and cap < NAME_TWIN_MIN_CAPITAL_SHARE * total)
+
     # 1. paradigms of attested lemmas
     t0 = time.time()
     lemmas_attested = names_attested = 0
@@ -815,6 +849,8 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
         ok_lower, ok_title = [], []
         for form in sorted(forms):
             reason = gate(form, lexicon_form=True)
+            if reason is None and capitalized_common_word(form):
+                reason = "capitalized_common_word"
             if reason:
                 sel.reject(form, reason, weight(form))
                 continue
@@ -972,14 +1008,19 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
         if mid < NAME_CORPUS_MIN_TOKENS or docs < NAME_CORPUS_MIN_DOCS:
             continue
         cap, total = evidence.capital_share(token)
-        if L.wilson_lower(cap, total) < NAME_MIN_CAPITAL_SHARE:
-            continue
+        share = L.wilson_lower(cap, total)
         low = L.lower_el(token)
         if low in lexicon_words or low in sel.entries:
             # A common word some sources capitalize as a title or an
-            # institution (Υπουργός, Βουλή, Πρόεδρε); names that share their
-            # letters with a word come from the lexicon's name pages.
-            sel.reject(token, "capitalized_common_word", mid)
+            # institution (Υπουργός, Πρόεδρε) is no name; a spelling of a
+            # Wiktionary name page that text writes with its capital is one
+            # (Ρώμη beside ρώμη, Τσίπρα beside τσίπρα).
+            if (token not in lexicon.name_forms
+                    or share < NAME_HOMOGRAPH_MIN_CAPITAL_SHARE):
+                if share >= NAME_MIN_CAPITAL_SHARE:
+                    sel.reject(token, "capitalized_common_word", mid)
+                continue
+        elif share < NAME_MIN_CAPITAL_SHARE:
             continue
         reason = gate(token)
         if reason:
