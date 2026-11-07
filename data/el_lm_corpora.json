@@ -1,0 +1,416 @@
+{
+ "schema_version": 1,
+ "description": "Pinned, openly licensed monotonic Modern Greek text for the monotonic Modern Greek next-word model and the corpus routes of the monotonic word list. Read by build/el_corpus.py and extract_el_monotonic_lm.py. Every readable source carries a license on ALLOWED_LICENSES in build/el_corpus.py; NonCommercial and NoDerivatives sources are refused, and the sources kept out are listed under excluded with the reason. Licenses were checked on the source pages on 2026-11-06.",
+ "split": {
+  "unit": "group",
+  "seed": 4242,
+  "dev_fraction": 0.02,
+  "note": "The split hashes each document's group (a sitting, a consultation, an article, an entry), so repeated text in one group stays on one side. Training sentences whose case-folded token sequence equals a dev sentence of any source are removed."
+ },
+ "max_sentence_repeats": 5,
+ "sources": [
+  {
+   "key": "parliament",
+   "title": "Greek Parliament Proceedings 1989-2020 (tell_all.csv)",
+   "enabled": true,
+   "license": "CC-BY-4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "license_evidence": "Zenodo record 7005201 metadata: license cc-by-4.0 (https://zenodo.org/records/7005201).",
+   "attribution": "Konstantina Dritsa, Kaiti Thoma, John Pavlopoulos, Panagiotis Louridas. A Greek Parliament Proceedings Dataset for Computational Linguistics and Political Analysis. Zenodo, 2022. doi:10.5281/zenodo.7005201",
+   "role": "el_lm_core",
+   "register": "spoken parliamentary debate, transcribed: first and second person, questions, interruptions, procedural exchanges by the chair",
+   "token_cap": 100000000,
+   "weight": 1,
+   "fetch": {
+    "kind": "url",
+    "url": "https://zenodo.org/api/records/7005201/files/Greek%20Parliament%20Proceedings%20Dataset_Support%20Files_Word%20Usage%20Change%20Computations.zip/content",
+    "filename": "parliament_proceedings.zip",
+    "size": 1427754875,
+    "md5": "81b2db432707334f85bd6feb44caac79",
+    "sha256": "d9c459bdf4971b9f1493320d8232fff4ca9262e94944e4c66962bf4148a0bc66"
+   },
+   "reader": {
+    "kind": "parliament_csv",
+    "member": "dataset_versions/tell_all.csv",
+    "text_column": "speech",
+    "group_columns": [
+     "sitting_date",
+     "parliamentary_period",
+     "parliamentary_session",
+     "parliamentary_sitting"
+    ],
+    "note": "tell_all.csv keeps accents; tell_all_cleaned.csv strips them and is not read. One document per speech, grouped by sitting."
+   }
+  },
+  {
+   "key": "opengov_comments",
+   "title": "OpenGov Greek public deliberations, citizen comments",
+   "enabled": true,
+   "license": "CC-BY-4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "license_evidence": "Hugging Face dataset card glossAPI/OpenGov_Deliberations: license cc-by-4.0; the same repository and revision are pinned in data/glossapi_corpora.json.",
+   "attribution": "glossAPI, GFOSS (Open Technologies Alliance). OpenGov Greek Public Deliberations, from opengov.gr.",
+   "role": "el_lm_core",
+   "register": "citizens' written comments on draft laws: first person, argument, informal typing",
+   "token_cap": null,
+   "weight": 1,
+   "fetch": {
+    "kind": "hf_dataset",
+    "repo": "glossAPI/OpenGov_Deliberations",
+    "revision": "3afe7e77b40c62e9bc63f5e1c1e1a8758dceac2e",
+    "files": [
+     {
+      "path": "archive_version.parquet",
+      "size": 232783788,
+      "sha256": "349a18edb8e0aef93195b36d0c52aa96b85054f2884e4712ac4579271ac9705e"
+     },
+     {
+      "path": "OpenGov.parquet",
+      "size": 5668307,
+      "sha256": "85e89bcf99e4e55ee018c2ed69313c80ad19d77fdb4c874fb5bd3e496e1cf81f"
+     }
+    ]
+   },
+   "reader": {
+    "kind": "opengov_comments",
+    "note": "Comments only; the article bodies are legislation and are not read. One document per comment, grouped by consultation (the same consultation in both files shares a group)."
+   }
+  },
+  {
+   "key": "wikipedia",
+   "title": "Greek Wikipedia, 2023-11-01 dump",
+   "enabled": true,
+   "license": "CC-BY-SA-4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "license_evidence": "Wikipedia text is CC BY-SA 4.0 (Wikimedia Terms of Use, since 2023-06-29); the dataset card of wikimedia/wikipedia lists cc-by-sa-3.0 and gfdl for older text, and CC BY-SA 3.0 allows adaptations under 4.0.",
+   "attribution": "Wikipedia contributors, el.wikipedia.org; Wikimedia Foundation dataset wikimedia/wikipedia.",
+   "role": "el_lm_capped",
+   "register": "encyclopedic: third person, past tense, names and dates",
+   "token_cap": 30000000,
+   "weight": 1,
+   "fetch": {
+    "kind": "hf_dataset",
+    "repo": "wikimedia/wikipedia",
+    "revision": "b04c8d1ceb2f5cd4588862100d08de323dccfbaa",
+    "files": [
+     {
+      "path": "20231101.el/train-00000-of-00003.parquet",
+      "size": 258845818,
+      "sha256": "936c2a1305ef426662ae8e0df2fa6c7bb9db4481c1cadafd7af18c19b2803005"
+     },
+     {
+      "path": "20231101.el/train-00001-of-00003.parquet",
+      "size": 191321813,
+      "sha256": "08b4083f7ce45c48cb76c7661ef6f24f5d7896e1ec80273394308fb9ec275439"
+     },
+     {
+      "path": "20231101.el/train-00002-of-00003.parquet",
+      "size": 187204858,
+      "sha256": "691862a68967f686155d3b8682b0c86b27e0292f5664b33bd6e873fb83e2b81c"
+     }
+    ]
+   },
+   "reader": {
+    "kind": "parquet_text",
+    "id_field": "id",
+    "text_field": "text",
+    "require_terminal_punctuation": true,
+    "stop_at_lines": [
+     "Παραπομπές",
+     "Εξωτερικοί σύνδεσμοι",
+     "Βιβλιογραφία",
+     "Σημειώσεις",
+     "Πηγές",
+     "Δείτε επίσης"
+    ],
+    "note": "Lines without sentence-final punctuation (headings, list items, categories) and the reference sections are dropped."
+   }
+  },
+  {
+   "key": "european_parliament",
+   "title": "Greek data of the European Parliament (documents, amendments, written questions)",
+   "enabled": true,
+   "license": "CC-BY-SA-4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "license_evidence": "Hugging Face dataset card glossAPI/ellinika_dedomena_europaikou_koinovouliou: license cc-by-sa-4.0; the card names the European Parliament Open Data Portal terms (reuse with attribution) for the source documents.",
+   "attribution": "glossAPI, GFOSS (Open Technologies Alliance); source: Open Data Portal, European Parliament.",
+   "role": "el_lm_capped",
+   "register": "formal EU documents, largely translated: amendments, reports, written questions",
+   "token_cap": 5000000,
+   "weight": 1,
+   "fetch": {
+    "kind": "hf_dataset",
+    "repo": "glossAPI/ellinika_dedomena_europaikou_koinovouliou",
+    "revision": "6fd5e8031ed9cd7e011516751d55baf7cdf2dfcb",
+    "files": [
+     {
+      "path": "ellhnika_dedomena_europaikou_koinovouliou.parquet",
+      "size": 1172008146,
+      "sha256": "9dc1f3018be26d3f625516bda8d26ef815b13541ea9a863c7662621cb0d5f59e"
+     }
+    ]
+   },
+   "reader": {
+    "kind": "parquet_text",
+    "id_field": "row_id",
+    "text_field": "section",
+    "group_field": "filename",
+    "line_breaks": "wrap",
+    "require_terminal_punctuation": true,
+    "note": "One document per section, grouped by source document."
+   }
+  },
+  {
+   "key": "eellak_articles",
+   "title": "EELLAK network articles",
+   "enabled": true,
+   "license": "CC-BY-SA-4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "license_evidence": "Hugging Face dataset card glossAPI/eellak-articles: license cc-by-sa-4.0; pinned in data/glossapi_corpora.json.",
+   "attribution": "glossAPI; articles of the EELLAK (Greek Free/Open Source Software Society) site network, ellak.gr.",
+   "role": "el_lm_capped",
+   "register": "blog and news articles on open technology",
+   "token_cap": null,
+   "weight": 1,
+   "fetch": {
+    "kind": "hf_dataset",
+    "repo": "glossAPI/eellak-articles",
+    "revision": "053f92c5a9d796007980ab810add684ba3d9e658",
+    "files": [
+     {
+      "path": "eellak.parquet",
+      "size": 26312988,
+      "sha256": "7a22756102fe1f04c8896331e641343b1c82472822c45e612849b272c9af3619"
+     }
+    ]
+   },
+   "reader": {
+    "kind": "parquet_text",
+    "id_field": "id",
+    "text_field": "content",
+    "group_field": "id",
+    "require_terminal_punctuation": true
+   }
+  },
+  {
+   "key": "wikisource_monotonic",
+   "title": "Greek Wikisource, monotonic modern texts",
+   "enabled": true,
+   "license": "CC-BY-SA-3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "license_evidence": "Hugging Face dataset card glossAPI/Wikisource_Greek_texts: license cc-by-sa-3.0 (most texts are themselves in the public domain).",
+   "attribution": "Wikisource contributors, el.wikisource.org; glossAPI dataset Wikisource_Greek_texts.",
+   "role": "el_lm_capped",
+   "register": "literary prose and verse, mostly older",
+   "token_cap": null,
+   "weight": 1,
+   "fetch": {
+    "kind": "hf_dataset",
+    "repo": "glossAPI/Wikisource_Greek_texts",
+    "revision": "5590ddc5476c6d272eda114639d1e9952e20a1d8",
+    "files": [
+     {
+      "path": "wikisource_greek_deduped.parquet",
+      "size": 122014016,
+      "sha256": "b9fc0e06abb916e07b91f9fc1cfef3087f86129ac8de46136ade6238bc8b2be2"
+     }
+    ]
+   },
+   "reader": {
+    "kind": "parquet_text",
+    "id_field": "url",
+    "text_field": "text",
+    "skip_if_field_matches": {
+     "author_year": "π\\.Χ"
+    },
+    "note": "The document filter keeps the monotonic texts; authors dated BCE are skipped. The revision is the one train_lm.py reads for the polytonic slice."
+   }
+  },
+  {
+   "key": "tatoeba",
+   "title": "Tatoeba, Modern Greek sentences",
+   "enabled": true,
+   "license": "CC-BY-2.0-FR",
+   "license_url": "https://creativecommons.org/licenses/by/2.0/fr/",
+   "license_evidence": "tatoeba.org/terms_of_use: sentences are CC BY 2.0 FR, some CC0. The per-language export is replaced weekly; this pin is the export of 2026-10-31 (Last-Modified header).",
+   "attribution": "Tatoeba contributors, tatoeba.org.",
+   "role": "el_lm_conversational",
+   "register": "short everyday sentences and dialogue, many translated",
+   "token_cap": null,
+   "weight": 10,
+   "dev_fraction": 0.05,
+   "fetch": {
+    "kind": "url",
+    "url": "https://downloads.tatoeba.org/exports/per_language/ell/ell_sentences.tsv.bz2",
+    "filename": "ell_sentences.tsv.bz2",
+    "size": 525072,
+    "sha256": "5875e4fa51bbec43c50825af9c87b084a606c1ba763b786f6b058237e2c71e0d"
+   },
+   "reader": {
+    "kind": "tatoeba_tsv_bz2"
+   }
+  },
+  {
+   "key": "common_voice",
+   "title": "Common Voice sentence collection, Greek",
+   "enabled": true,
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "license_evidence": "common-voice/common-voice README: the sentence text in server/data is released under CC0.",
+   "attribution": "Mozilla Common Voice contributors.",
+   "role": "el_lm_conversational",
+   "register": "read-aloud sentences, partly literary dialogue",
+   "token_cap": null,
+   "weight": 2,
+   "dev_fraction": 0.05,
+   "fetch": {
+    "kind": "url",
+    "url": "https://raw.githubusercontent.com/common-voice/common-voice/01c8d7db710b1f1476184b1ee36fc9fc77b941d2/server/data/el/sentence-collector.txt",
+    "filename": "el-sentence-collector.txt",
+    "size": 462485,
+    "sha256": "de2e862f1c909b8001347bdd6a09fbc2992d8f0929c70cc3bad621c0e97c8d8a"
+   },
+   "reader": {
+    "kind": "text_lines"
+   }
+  },
+  {
+   "key": "wiktionary_examples",
+   "title": "Wiktionary usage examples of Modern Greek entries (Greek and English editions)",
+   "enabled": true,
+   "license": "CC-BY-SA-4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+   "license_evidence": "Wiktionary text is CC BY-SA 4.0 (older revisions CC BY-SA 3.0, which allows adaptations under 4.0); the dumps are the kaikki.org extractions build_data.py reads, pinned by sha256.",
+   "attribution": "Wiktionary contributors (el.wiktionary.org, en.wiktionary.org), extracted by kaikki.org (Tatu Ylonen, Wiktextract).",
+   "role": "el_lm_conversational",
+   "register": "short example sentences, partly conversational, some literary quotations",
+   "token_cap": null,
+   "weight": 5,
+   "dev_fraction": 0.05,
+   "fetch": {
+    "kind": "local",
+    "base": "kaikki",
+    "files": [
+     {
+      "path": "kaikki.org-el-dictionary-Greek.jsonl",
+      "size": 1099068983,
+      "sha256": "d369e52869db564af860d21fb11ea430c3587f6ae908b8fa124bc7d0b2452165"
+     },
+     {
+      "path": "kaikki.org-en-dictionary-Greek.jsonl",
+      "size": 211792192,
+      "sha256": "643e3ee8b1f105b4847fcf6a3fcd8923a0a7c8bc5aeec5480d7ced5087314624"
+     }
+    ]
+   },
+   "reader": {
+    "kind": "kaikki_examples",
+    "lang_code": "el"
+   }
+  },
+  {
+   "key": "opencouncil",
+   "title": "OpenCouncil municipal council transcripts",
+   "enabled": false,
+   "disabled_reason": "No named open license: the OpenCouncil terms (https://opencouncil.gr/terms, section 7) allow free use and redistribution of the transcripts but name no license and do not address commercial use. Needs the owner's review and written confirmation from OpenCouncil. The Hugging Face repository is also gated and access has not been granted to this account.",
+   "license": "LicenseRef-OpenCouncil-Terms",
+   "license_url": "https://opencouncil.gr/terms",
+   "license_evidence": "Hugging Face dataset card glossAPI/OpenCouncil: license other, 'Redistribution permitted according to OpenCouncil Terms of Use'.",
+   "attribution": "OpenCouncil.gr; glossAPI.",
+   "role": "el_lm_conversational",
+   "register": "spoken municipal council meetings (speech recognition plus human checking)",
+   "token_cap": null,
+   "weight": 2,
+   "fetch": {
+    "kind": "hf_dataset",
+    "repo": "glossAPI/OpenCouncil",
+    "revision": "99c2fa86cbd29dd80f0abf6a0a98391e2dfbfcc3",
+    "files": [
+     {
+      "path": "open_council_20260603.parquet",
+      "size": 74156225,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+     }
+    ]
+   },
+   "reader": {
+    "kind": "opencouncil",
+    "note": "Reader not written: the file could not be read (gated). The sha256 is a placeholder until access is granted."
+   }
+  }
+ ],
+ "excluded": [
+  {
+   "key": "greek_national_theatre",
+   "repo": "glossAPI/greek-national-theatre-corpus",
+   "license": "CC-BY-NC-ND-4.0",
+   "reason": "NonCommercial and NoDerivatives (dataset card). The best conversational candidate (theatre dialogue); usable only with a commercial license from the National Theatre archive."
+  },
+  {
+   "key": "istorima",
+   "repo": "glossAPI/istorima",
+   "license": "CC-BY-NC-ND-4.0",
+   "reason": "NonCommercial and NoDerivatives (dataset card)."
+  },
+  {
+   "key": "amna_press",
+   "repo": "glossAPI/amna-press",
+   "license": "CC-BY-NC-ND-4.0",
+   "reason": "NonCommercial and NoDerivatives (dataset card body; front matter says other)."
+  },
+  {
+   "key": "ert_press",
+   "repo": "glossAPI/ert-press",
+   "license": "CC-BY-NC-ND-4.0",
+   "reason": "NonCommercial and NoDerivatives (dataset card)."
+  },
+  {
+   "key": "greek_political_parties",
+   "repo": "glossAPI/greek-political-parties",
+   "license": "CC-BY-NC-SA-4.0",
+   "reason": "NonCommercial (dataset card)."
+  },
+  {
+   "key": "opensubtitles",
+   "url": "https://opus.nlpl.eu/OpenSubtitles.php",
+   "license": "NOASSERTION",
+   "reason": "No license for the subtitle text, which transcribes and translates copyrighted films. Its unigram counts (FrequencyWords, data/mg_freq.txt, CC BY-SA 4.0 asserted) may rate the word list; its text is never read."
+  },
+  {
+   "key": "web_crawls",
+   "url": "OSCAR, CulturaX, FineWeb-2, HPLT, mC4",
+   "license": "NOASSERTION",
+   "reason": "Their licenses (ODC-By, CC0) cover the compilation, not the crawled text."
+  },
+  {
+   "key": "diavgeia",
+   "repo": "glossAPI/diavgeia",
+   "license": "CC-BY-4.0",
+   "reason": "Register: administrative decisions (38 GB) would dominate any mixture and are far from everyday writing."
+  },
+  {
+   "key": "eurlex",
+   "repo": "glossAPI/eurlex-greek-legislation",
+   "license": "EUPL-1.2",
+   "reason": "Register: legislation."
+  },
+  {
+   "key": "hellenic_parliament_legislative_work",
+   "repo": "glossAPI/hellenic-parliament-legislative-work",
+   "license": "LicenseRef-Hellenic-Parliament-Terms",
+   "reason": "License other (Parliament terms of use); legislative analysis register."
+  },
+  {
+   "key": "mitos",
+   "repo": "glossAPI/mitos",
+   "license": "CC-BY-SA-4.0",
+   "reason": "Register: structured administrative procedure records (JSON fields), not running text."
+  },
+  {
+   "key": "triantafyllidis",
+   "url": "https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/triantafyllides/",
+   "license": "CC-BY-NC-ND-4.0",
+   "reason": "NonCommercial and NoDerivatives. Its headwords (data/triantafyllidis_headwords.json) may be used for evaluation only, never to admit words or as text."
+  }
+ ]
+}
