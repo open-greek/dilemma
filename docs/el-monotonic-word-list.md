@@ -196,7 +196,9 @@ well (`π.Χ.`, before Christ, beside `π.χ.`, for example; `υπ.` beside
 `Υπ.`), unless it is a listed spelling with a capital first letter (`Παρ.`
 at the start of a sentence). A single letter with a tonos or a final
 sigma, and a dotted token with a word of three or more letters inside
-(`του.Β.`, a missing space), are not abbreviations.
+(`του.Β.`, a missing space), are not abbreviations. Shorter pairs written
+without the space between them (`κλπ.Β.`, `βλ.Π.Δ.`) are rejected by name
+in `data/el_monotonic_review.json`.
 
 Acronyms are all-capital tokens of two or more letters with at least 20
 tokens in 5 documents, no tonos on a capital, a 95% Wilson lower bound of at
@@ -205,8 +207,9 @@ spellings of the same letters, and letters that are no entry of the list.
 
 ## Recorded export
 
-Export of 2026-11-07, commit 489336b, version 1.3.15 (sha256 of the
-`.dic` `abef641c`):
+Export of 2026-11-07, commit e2315cd, version 1.3.15 (sha256 of the
+`.dic` `abef641c`; the export at commit 489336b, which the next-word model
+was trained from, wrote the same `.dic`):
 
 | Measure | Value |
 |---|---|
@@ -214,7 +217,7 @@ Export of 2026-11-07, commit 489336b, version 1.3.15 (sha256 of the
 | C, M, R, X | 7,613, 39,353, 365,531, 219,199 |
 | Attested, generated | 412,497, 219,199 |
 | Paradigm, corpus word, name, elision, function word | 607,247, 6,605, 17,645, 195, 4 |
-| Abbreviations, acronyms | 226, 1,691 |
+| Abbreviations, acronyms | 219, 1,691 |
 | Compiled size estimate | 34.9 MB (34,930,430 bytes), 55.3 bytes per entry |
 | Lexicon read | 187,846 lemmas, 1.10M forms; 53,811 lemmas attested |
 
@@ -310,12 +313,12 @@ elisions, recent technical words (`ανοιχτότητα`) and dialect or older
   μεταξύ`, which make up most of their uses, but they are also slips of
   `τις`, `της`, `τους` and `το`. In the typing-slip simulation of
   [monotonic keyboard data](monotonic-keyboard-data.md), `το` typed `τω`
-  is 64 of 795 o and ω slips; a keyboard can accept the two only where the
+  is 594 of 6,490 ο and ω slips; a keyboard can accept the two only where the
   next-word model expects them.
 - Monotonic Wikisource is a rating source of its own, so 979 entries, some
   of them older literary forms (`ψυχήν`, `όλην`, `ώραν`, `οπού`), are
   rated C on its counts.
-- X entries (219,007) are Wiktionary forms no source has. Rare legitimate
+- X entries (219,199) are Wiktionary forms no source has. Rare legitimate
   forms and Wiktionary's dialectal or colloquial variants are among them.
 - Acronyms whose letters are an entry (`ΝΑΤΟ` beside `νάτο`) are left out of
   the acronym list.
