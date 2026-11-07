@@ -3,6 +3,12 @@
 mmap-friendly binary artifact ``build/lm/grc_ngram.bin`` consumed by
 an iOS keyboard extension.
 
+``--lang el`` compiles the monotonic Modern Greek model instead: the
+intermediates ``train_lm.py --lang el`` writes to ``build/lm_el`` become
+``build/lm/el_ngram.bin`` and ``build/lm/el_ngram.version``, with the
+out-of-vocabulary table chosen against ``build/hunspell/el_monotonic.dic``
+(see ``docs/el-monotonic-lm.md``). The format is the same.
+
 This is the on-disk contract with the Swift reader. Once a keyboard ships a
 reader against this, bumping the file format requires a version bump.
 
@@ -354,6 +360,25 @@ OOV_UNIGRAM_MIN_COUNT = 1
 OOV_UNIGRAM_MAGIC = b"GNUO"
 OOV_COUNT_CAP = 255
 DEFAULT_OOV_DICTIONARY = SCRIPT_DIR / "build" / "hunspell" / "grc_polytonic.dic"
+# --lang el: the monotonic Modern Greek model. Intermediates come from
+# ``train_lm.py --lang el`` (build/el_ngram.py); the artifact and its
+# sidecar go next to the grc ones under build/lm.
+LANG_DEFAULTS = {
+    "grc": {
+        "in_dir": BUILD_DIR,
+        "out": BUILD_DIR / "grc_ngram.bin",
+        "version_out": BUILD_DIR / "grc_ngram.version",
+        "oov_dictionary": DEFAULT_OOV_DICTIONARY,
+        "drop_unknown_contexts": False,
+    },
+    "el": {
+        "in_dir": SCRIPT_DIR / "build" / "lm_el",
+        "out": BUILD_DIR / "el_ngram.bin",
+        "version_out": BUILD_DIR / "el_ngram.version",
+        "oov_dictionary": SCRIPT_DIR / "build" / "hunspell" / "el_monotonic.dic",
+        "drop_unknown_contexts": True,
+    },
+}
 FNV64_OFFSET = 0xCBF29CE484222325
 FNV64_PRIME = 0x100000001B3
 
@@ -559,7 +584,7 @@ def load_type_counts(path: Path):
 
 def select_oov_unigrams(
     type_counts, vocab: set[str], min_count: int,
-    lookup_keys: set[str] | None,
+    lookup_keys: set[str] | None, stats: dict | None = None,
 ) -> list[tuple[int, int]]:
     """(hash, count) entries of the out-of-vocabulary unigram table,
     sorted by hash. Training types a reader resolves to a vocabulary id
@@ -567,7 +592,10 @@ def select_oov_unigrams(
     their :func:`table_spelling`, and a spelling is kept when its count
     is at least ``min_count`` and its :func:`lookup_key` is in
     ``lookup_keys`` (every spelling when it is None). Counts are capped
-    at 255. Two spellings with one hash raise ValueError."""
+    at 255; ``stats``, when given, receives how many were
+    (``saturated``). Two spellings with one hash raise ValueError."""
+    if stats is not None:
+        stats["saturated"] = 0
     if min_count <= 0:
         return []
     summed: dict[str, int] = defaultdict(int)
@@ -586,6 +614,8 @@ def select_oov_unigrams(
             raise ValueError(
                 f"FNV-1a collision: {table[h][0]!r} and {spelling!r}")
         table[h] = (spelling, min(c, OOV_COUNT_CAP))
+        if stats is not None and c > OOV_COUNT_CAP:
+            stats["saturated"] += 1
     return sorted((h, c) for h, (_, c) in table.items())
 
 
@@ -882,13 +912,101 @@ def write_binary(
         f"Size mismatch: planned {total_size}, wrote {out_path.stat().st_size}"
 
 
+def prepruned_refusal(prepruned: dict | None, keep_min: int,
+                      context_min: int) -> str | None:
+    """Why intermediates pruned for the cuts in ``prepruned`` (the
+    ``prepruned_for`` of a ``stats.json``) cannot give the rows these export
+    settings would keep, or None when they can (or were not pre-pruned)."""
+    if not prepruned:
+        return None
+    problems = []
+    if prepruned.get("top_k_bi") != TOP_K_BI or prepruned.get("top_k_tri") != TOP_K_TRI:
+        problems.append(f"top-K {prepruned.get('top_k_bi')}/"
+                        f"{prepruned.get('top_k_tri')}, export cuts at "
+                        f"{TOP_K_BI}/{TOP_K_TRI}")
+    for name, value in (("keep_homograph_min_count", keep_min),
+                        ("homograph_context_min_count", context_min)):
+        floor = prepruned.get(name, 0)
+        if 0 < value < floor:
+            problems.append(f"{name} {floor}, export asks for {value}")
+    if not problems:
+        return None
+    return ("The intermediates were pruned for " + "; ".join(problems)
+            + ". Rerun train_lm.py with --no-preprune, or export with the "
+            "settings they were pruned for.")
+
+
+def el_version_fields(train_stats: dict, out: Path, saturated: int,
+                      drop_unknown: bool) -> dict:
+    """Sidecar fields of the monotonic Modern Greek model: provenance of
+    its corpus and vocabulary, its training counts and the artifact's own
+    sha256 (so the sidecar changes whenever the binary does)."""
+    digest = hashlib.sha256(out.read_bytes()).hexdigest()
+    per_source = {
+        name: {k: v for k, v in d.items()
+               if k in ("train_tokens", "weighted_tokens", "weight")}
+        for name, d in sorted(train_stats.get("per_source", {}).items())
+    }
+    return {
+        "lang": "el",
+        "dilemma_commit": get_full_commit(),
+        "train_commit": train_stats.get("commit"),
+        "artifact_sha256": digest,
+        "corpus_manifest_sha256": train_stats.get("corpus_manifest_sha256"),
+        "el_lm_corpora_sha256": train_stats.get("el_lm_corpora_sha256"),
+        "vocab_dictionary_sha256": train_stats.get("dictionary_sha256"),
+        "vocab_size_requested": train_stats.get("vocab_size_requested"),
+        "vocab_added_for_oov_cap": train_stats.get("vocab_added_for_oov_cap"),
+        "seen_spellings": train_stats.get("n_seen_spellings"),
+        "train_words_weighted": train_stats.get("n_train_words_weighted"),
+        "in_vocab_word_share": train_stats.get("in_vocab_word_share"),
+        "unk_word_share": train_stats.get("unk_word_share"),
+        "caps": train_stats.get("caps"),
+        "sample_fraction": train_stats.get("sample_fraction"),
+        "min_count_bi": train_stats.get("min_count_bi"),
+        "min_count_tri": train_stats.get("min_count_tri"),
+        "min_bigram_for_tri": train_stats.get("min_bigram_for_tri"),
+        "drop_unknown_contexts": drop_unknown,
+        "oov_count_cap": OOV_COUNT_CAP,
+        "oov_counts_saturated": saturated,
+        "per_source": per_source,
+    }
+
+
+def get_full_commit() -> str:
+    """HEAD (40 hex), marked ``-dirty`` when tracked files differ."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=SCRIPT_DIR,
+            stderr=subprocess.DEVNULL).decode().strip()
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=SCRIPT_DIR, stderr=subprocess.DEVNULL).decode()
+    except Exception:
+        return "unknown"
+    return f"{commit}-dirty" if status.strip() else commit
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--in", dest="in_dir", default=str(BUILD_DIR),
-                    help="Intermediate directory from train_lm.py")
-    ap.add_argument("--out", default=str(BUILD_DIR / "grc_ngram.bin"))
-    ap.add_argument("--version-out",
-                    default=str(BUILD_DIR / "grc_ngram.version"))
+    ap.add_argument("--lang", choices=sorted(LANG_DEFAULTS), default="grc",
+                    help="grc (default): the polytonic model, build/lm/"
+                         "grc_ngram.bin. el: the monotonic Modern Greek "
+                         "model from build/lm_el into build/lm/el_ngram.bin, "
+                         "its table chosen against "
+                         "build/hunspell/el_monotonic.dic.")
+    ap.add_argument("--in", dest="in_dir", default=None,
+                    help="Intermediate directory from train_lm.py "
+                         "(default: build/lm, or build/lm_el for el)")
+    ap.add_argument("--out", default=None)
+    ap.add_argument("--version-out", default=None)
+    ap.add_argument("--drop-unknown-contexts", default=None,
+                    action=argparse.BooleanOptionalAction,
+                    help="Leave out the rows headed by <UNK> (the bigram row "
+                         "of <UNK>, trigram rows with <UNK> in their "
+                         "context), which a reader never reaches because "
+                         "it resolves no context word to <UNK> (default: "
+                         "on for el, off for grc).")
     ap.add_argument("--keep-homograph-min-count", type=int,
                     default=KEEP_HOMOGRAPH_MIN_COUNT,
                     help="Keep a homograph spelling past a context's "
@@ -911,15 +1029,19 @@ def main():
                          "letters, when seen at least this often "
                          f"(default {OOV_UNIGRAM_MIN_COUNT}); 0 leaves "
                          "the table out.")
-    ap.add_argument("--oov-dictionary", default=str(DEFAULT_OOV_DICTIONARY),
+    ap.add_argument("--oov-dictionary", default=None,
                     help="Hunspell .dic (with its .aff beside it) whose "
                          "spellings the out-of-vocabulary table serves "
-                         "(default: the grc export of export_hunspell.py).")
+                         "(default: the grc export of export_hunspell.py, "
+                         "or el_monotonic.dic for el).")
     ap.add_argument("--check-dictionary", action="store_true",
                     help="Export nothing; exit 1 when the LM at "
                          "--version-out was exported against another "
                          "--oov-dictionary than the one on disk.")
     args = ap.parse_args()
+    for key, value in LANG_DEFAULTS[args.lang].items():
+        if getattr(args, key) is None:
+            setattr(args, key, str(value) if isinstance(value, Path) else value)
 
     if args.check_dictionary:
         drift = dictionary_drift(Path(args.version_out),
@@ -945,6 +1067,27 @@ def main():
                     f"No {need}: the out-of-vocabulary unigram table needs "
                     f"it ({how}). --oov-min-count 0 exports without the "
                     f"table.")
+
+    train_stats = {}
+    if (in_dir / "stats.json").exists():
+        train_stats = json.loads(
+            (in_dir / "stats.json").read_text(encoding="utf-8"))
+    keep_min = max(0, args.keep_homograph_min_count)
+    context_min = max(0, args.homograph_context_min_count)
+    refusal = prepruned_refusal(train_stats.get("prepruned_for"),
+                                keep_min, context_min)
+    if refusal:
+        raise SystemExit(refusal)
+    if args.lang == "el" and oov_min:
+        counted = train_stats.get("dictionary_sha256")
+        table = hashlib.sha256(oov_dictionary.read_bytes()).hexdigest()
+        if counted != table:
+            raise SystemExit(
+                f"{in_dir} was counted against a word list with sha256 "
+                f"{str(counted)[:12]}, and --oov-dictionary {oov_dictionary} "
+                f"has {table[:12]}. Rerun train_lm.py --lang el so the "
+                f"vocabulary and the out-of-vocabulary table come from the "
+                f"same list.")
 
     t0 = time.time()
     id2tok = load_vocab(in_dir / "vocab.json")
@@ -1000,11 +1143,15 @@ def main():
     # uses less memory than recomputing.
     w1_totals = uni_by_new
 
+    unk_id = reserved_ids["<UNK>"]
+    drop_unknown = bool(args.drop_unknown_contexts)
     remapped_bigrams = []
     for old_a, old_b, c in load_bigrams(in_dir / "bigrams.tsv.gz"):
         a = remap[old_a]
         b = remap[old_b]
         bigram_counts[(a, b)] = c
+        if drop_unknown and a == unk_id:
+            continue
         remapped_bigrams.append((a, b, c))
     print(f"  loaded {len(remapped_bigrams):,} bigrams", flush=True)
 
@@ -1018,8 +1165,6 @@ def main():
         reserved_ids["</s>"],
     }
 
-    keep_min = max(0, args.keep_homograph_min_count)
-    context_min = max(0, args.homograph_context_min_count)
     homograph_ids = (homograph_spelling_ids(sorted_vocab)
                      if keep_min or context_min else set())
     keep_ids = homograph_ids if keep_min else set()
@@ -1051,6 +1196,8 @@ def main():
         a = remap[old_a]
         b = remap[old_b]
         c = remap[old_c]
+        if drop_unknown and (a == unk_id or b == unk_id):
+            continue
         remapped_trigrams.append((a, b, c, k))
     print(f"  loaded {len(remapped_trigrams):,} trigrams", flush=True)
 
@@ -1063,12 +1210,17 @@ def main():
 
     oov_unigrams: list[tuple[int, int]] = []
     oov_dictionary_sha256 = None
+    oov_stats: dict[str, int] = {"saturated": 0}
     if oov_min:
         dictionary_words = read_hunspell_words(oov_dictionary)
         oov_unigrams = select_oov_unigrams(
             load_type_counts(type_counts_path), set(sorted_vocab), oov_min,
-            contested_lookup_keys(dictionary_words),
+            contested_lookup_keys(dictionary_words), oov_stats,
         )
+        if oov_stats["saturated"]:
+            print(f"  WARNING: {oov_stats['saturated']:,} out-of-vocabulary "
+                  f"counts exceed {OOV_COUNT_CAP} and are stored as "
+                  f"{OOV_COUNT_CAP}", flush=True)
         oov_dictionary_sha256 = hashlib.sha256(
             oov_dictionary.read_bytes()).hexdigest()
         print(f"  {len(oov_unigrams):,} out-of-vocabulary spellings in the "
@@ -1110,6 +1262,9 @@ def main():
         "total_tokens": total_tokens,
         "artifact_size_bytes": out.stat().st_size,
     }
+    if args.lang == "el":
+        version_info.update(el_version_fields(
+            train_stats, out, oov_stats["saturated"], drop_unknown))
     Path(args.version_out).write_text(
         json.dumps(version_info, ensure_ascii=False, indent=2),
         encoding="utf-8"
