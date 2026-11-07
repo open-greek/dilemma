@@ -6,6 +6,13 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Add a pinned, openly licensed corpus of monotonic Modern Greek
+  (`data/el_lm_corpora.json`) and `extract_el_monotonic_lm.py`, which
+  normalizes, filters and tokenizes it the way a keyboard segments words and
+  writes a document-level train/dev split under `build/el_corpus/`. The
+  manifest refuses NonCommercial and NoDerivatives sources.
+
 ## [1.3.15] - 2026-11-05
 
 ### Fixed
