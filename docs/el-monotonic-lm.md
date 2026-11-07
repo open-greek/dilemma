@@ -100,12 +100,12 @@ the word-list spelling the keyboard would look up, or to `<UNK>`:
 
 `fold_enclitic_accent` keeps the first tonos of a word with two. In the
 full training run, of the 195,658,122 training tokens under the caps
-(before weighting), 167,743,023 were list
-spellings as written, 8,942,146 were lowercased at the start of a
-sentence and 7,839,832 inside one, 514,365 lost an enclitic's
-second accent, and 11,133,121 became `<UNK>` (5,426,891
+(before weighting), 167,732,478 were list
+spellings as written, 8,941,770 were lowercased at the start of a
+sentence and 7,839,470 inside one, 514,365 lost an enclitic's
+second accent, and 11,144,404 became `<UNK>` (5,426,891
 placeholders, 1,244,119 abbreviations, 1,673,681 words in capitals,
-2,788,430 not in the list).
+2,799,713 not in the list).
 
 ## Counting
 
@@ -152,7 +152,7 @@ Export uses the Ancient Greek settings: rows of the 30 most likely
 continuations after a word and the 15 most likely after two, 10 global
 fallbacks, homograph spellings seen at least 3 times kept in a row past
 that cut, and the bigram row of a homograph spelling completed with every
-continuation seen at least 3 times. In this vocabulary 6,087
+continuation seen at least 3 times. In this vocabulary 6,079
 spellings share their letters with another (`που` and `πού`, `πότε` and
 `ποτέ`, `όρος` and `ορός`).
 
@@ -291,26 +291,33 @@ in proportion to its size; see [Known limitations](#known-limitations).
 
 ## Recorded model
 
-Built at commit fead20e on 2026-11-07, from the corpus extracted at
-7be7f22 and the word list with sha256 `9e042a9f` (630,688 entries):
+Built at commit f08cf8f on 2026-11-07, from the corpus extracted at
+7be7f22 and the word list with sha256 `d27e8336` (630,463 entries); the
+binary's sha256 is `9eeaf85c`:
 
 | Part | Measure |
 |---|---|
-| Size | 60,419,599 bytes (57.6 MiB), 20.7 MB under `xz -6` |
+| Size | 60,409,429 bytes (57.6 MiB), 20.7 MB under `xz -6` |
 | Vocabulary | 150,000 types (4.0 MB with counts and the 10 global fallbacks) |
-| Bigram rows | 147,465 rows (1.8 MB), 2,191,275 entries (13.1 MB) |
-| Trigram rows | 1,255,748 rows (20.1 MB), 3,544,743 entries (21.3 MB) |
-| Homograph spellings | 6,087 kept past the cut; 1,182 bigram rows completed with 263,887 entries |
-| Out-of-vocabulary table | 13,015 counts (0.1 MB), none capped |
-| Training words | 200.7M weighted (195.7M tokens under the caps); 93.96% vocabulary spellings, 5.68% `<UNK>`, 0.37% list spellings outside the vocabulary |
+| Bigram rows | 147,456 rows (1.8 MB), 2,190,349 entries (13.1 MB) |
+| Trigram rows | 1,255,513 rows (20.1 MB), 3,544,387 entries (21.3 MB) |
+| Homograph spellings | 6,079 kept past the cut; 1,182 bigram rows completed with 263,856 entries |
+| Out-of-vocabulary table | 12,989 counts (0.1 MB), none capped |
+| Training words | 200.7M weighted (195.7M tokens under the caps); 93.95% vocabulary spellings, 5.68% `<UNK>`, 0.37% list spellings outside the vocabulary |
 | Distinct n-grams counted | 13.7M bigrams, 58.2M trigrams |
 
+The pruning and vocabulary tables above were measured with the word list
+of commit 2951b0e (630,688 entries). The list of this build differs from it
+in 229 rare entries (see
+[Monotonic keyboard data](monotonic-keyboard-data.md#changes-to-the-word-list));
+the evaluation below is of this build.
+
 Training took 24 s with the encoded shards cached (11.5 GB peak memory) and
-export 14 s, on an Apple M5 Max. `build/gnlm_reader.py` finds no
-structural problem in the file, and its answers match those of the
-keyboard's Swift reader on the same file (`suggest`, `score` and
-`suggestCompletions`, with context words in capitals and with ASCII
-apostrophes).
+export 13 s, on an Apple M5 Max. `build/gnlm_reader.py` finds no
+structural problem in the file. On the build of commit fead20e, the same
+format and settings, its answers matched those of the keyboard's Swift
+reader on the same file (`suggest`, `score` and `suggestCompletions`, with
+context words in capitals and with ASCII apostrophes).
 
 ## Evaluation
 
@@ -344,22 +351,27 @@ Whole dev split, 449,676 sentences (`python eval/eval_el_ngram.py`, about
 | Set | Word targets | In vocabulary | Top-1 | Top-3 | Top-1, vocabulary targets | Top-3, vocabulary targets | Pseudo-perplexity | Completion after 2 letters, top-1 | top-3 | After 3 letters, top-1 | top-3 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Common Voice | 2,087 | 95.64 | 9.39 | 17.63 | 9.82 | 18.44 | 4109 | 36.74 | 50.15 | 36.68 | 49.57 |
-| EELLAK articles | 56,126 | 90.03 | 15.53 | 26.63 | 17.25 | 29.58 | 1118 | 47.56 | 58.60 | 42.81 | 56.36 |
-| European Parliament | 1,904,930 | 94.61 | 22.25 | 34.59 | 23.52 | 36.56 | 502 | 53.46 | 64.27 | 49.72 | 61.51 |
-| OpenGov comments | 1,856,140 | 91.70 | 17.44 | 28.78 | 19.02 | 31.39 | 758 | 50.47 | 62.50 | 48.42 | 60.99 |
-| Parliament | 3,775,597 | 96.47 | 19.62 | 32.20 | 20.34 | 33.38 | 489 | 55.18 | 67.69 | 54.51 | 68.02 |
-| Tatoeba | 12,304 | 98.16 | 15.57 | 27.24 | 15.86 | 27.74 | 1445 | 44.38 | 56.96 | 45.36 | 61.24 |
-| Wikipedia | 1,924,450 | 88.77 | 14.68 | 25.50 | 16.54 | 28.73 | 1928 | 43.62 | 55.86 | 42.04 | 54.96 |
-| Wikisource | 108,149 | 72.65 | 4.38 | 9.97 | 6.03 | 13.72 | 9720 | 28.47 | 42.07 | 24.17 | 39.06 |
-| Wiktionary examples | 43,538 | 87.99 | 11.99 | 20.72 | 13.63 | 23.55 | 3693 | 38.06 | 49.25 | 36.32 | 48.83 |
-| All, pooled | 9,683,321 | 93.32 | 18.50 | 30.34 | 19.83 | 32.51 | 721 | 51.38 | 63.40 | 49.63 | 62.51 |
-| Conversational, pooled | 57,929 | 90.42 | 12.66 | 21.99 | 14.00 | 24.32 | 2986 | 39.39 | 50.97 | 38.26 | 51.50 |
+| EELLAK articles | 56,126 | 90.03 | 15.53 | 26.63 | 17.25 | 29.58 | 1119 | 47.56 | 58.60 | 42.81 | 56.36 |
+| European Parliament | 1,904,930 | 94.61 | 22.25 | 34.59 | 23.52 | 36.56 | 502 | 53.46 | 64.27 | 49.73 | 61.51 |
+| OpenGov comments | 1,856,140 | 91.70 | 17.44 | 28.78 | 19.02 | 31.39 | 758 | 50.47 | 62.50 | 48.43 | 60.99 |
+| Parliament | 3,775,597 | 96.46 | 19.62 | 32.20 | 20.34 | 33.38 | 489 | 55.18 | 67.69 | 54.52 | 68.03 |
+| Tatoeba | 12,304 | 98.16 | 15.57 | 27.24 | 15.86 | 27.74 | 1444 | 44.38 | 56.98 | 45.39 | 61.26 |
+| Wikipedia | 1,924,450 | 88.77 | 14.69 | 25.50 | 16.54 | 28.73 | 1927 | 43.62 | 55.86 | 42.05 | 54.96 |
+| Wikisource | 108,149 | 72.40 | 4.38 | 9.94 | 6.04 | 13.72 | 9540 | 28.56 | 42.25 | 24.30 | 39.27 |
+| Wiktionary examples | 43,538 | 87.96 | 11.99 | 20.71 | 13.63 | 23.55 | 3690 | 38.06 | 49.26 | 36.32 | 48.83 |
+| All, pooled | 9,683,321 | 93.31 | 18.50 | 30.34 | 19.83 | 32.52 | 721 | 51.39 | 63.41 | 49.63 | 62.51 |
+| Conversational, pooled | 57,929 | 90.41 | 12.66 | 21.99 | 14.00 | 24.32 | 2984 | 39.39 | 50.97 | 38.26 | 51.51 |
 
 Completion after 3 letters can score below completion after 2 letters
 because it is measured over words of more than 3 letters, a harder set
 than words of more than 2. The tuning tables above use 3,000 dev sentences
 per source, which gives the small sources more weight, so their pooled
 numbers are lower than these.
+
+[Monotonic keyboard data](monotonic-keyboard-data.md) measures the model
+together with the word list the way a keyboard uses them: choosing between
+spellings that differ only in accents, and the keystrokes a three-slot
+suggestion bar saves.
 
 ### Predictions after common contexts
 
@@ -434,7 +446,7 @@ refusals of malformed files.
   format does not carry one.
 - **Pooled numbers.** Parliament has 39% of the dev word targets, so it
   dominates the pooled results; the per-source rows are the better guide.
-- **Wikisource.** Only 72.65% of its dev words are vocabulary spellings:
+- **Wikisource.** Only 72.40% of its dev words are vocabulary spellings:
   literary and dialect text, much of it older, that the list and the
   model cover poorly.
 - **Pseudo-perplexity.** Stupid backoff scores are not normalized, so the

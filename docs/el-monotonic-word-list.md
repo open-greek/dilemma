@@ -123,13 +123,22 @@ route:
    with the accent elsewhere (`έιναι`, `ποίος`), or its pronunciation with the
    same stressed syllable (`κάθησε`, `νοιώθεις`, `βαθειά`). A Katharevousa
    ending that sounds like a modern one (`εν γνώσει`, `εν καιρώ`) is kept.
+   It is also rejected when a known word one typing slip away (a letter left
+   out, added, replaced, or swapped with the next one) is at least 300 times
+   as common in both the open corpus and FrequencyWords: misspellings
+   (`είνα`, `πρέπε`, `συγκεριμένα`) and Katharevousa endings of common
+   words (`έχειν`, `χώραν`), which would hide a slip of the common word
+   from correction. The review file accepts the Modern Greek words this
+   catches (`ήτον`, `πολύν`, `τρίτιο`).
 4. **Names.** A capitalized spelling the lexicon lacks, written with its
    capital inside sentences at least 20 times in 3 documents, with a 95%
    Wilson lower bound of the capitalized share of at least 0.9, and not a
    common word some sources capitalize (`Βουλή`, `Υπουργός`).
 5. **Elisions.** A spelling with U+2019 seen at least 10 times in 3
    documents. An elision (`απ’`, `είν’`, `κατ’`) must be an attested entry cut
-   before its final α, ε, ι, ο, υ, αι or ου, accent kept, and must stand
+   before its final α, ε, ι, ο, υ, αι or ου, accent kept, with τ, π or κ
+   written θ, φ or χ before a word that had a rough breathing (`μεθ’` from
+   `μετά`, `υφ’` from `υπό`), and must stand
    before a vowel or, colloquially, before an article or weak pronoun
    (`πάρ’ το`) in most of its uses; that rejects numbering marks (`αβ’`, `ββ’`).
    An aphaeresis (`’ναι`, `’χει`, `’κει`) must be an attested entry without
@@ -175,15 +184,16 @@ spellings of the same letters, and letters that are no entry of the list.
 
 ## Recorded export
 
-Export of 2026-11-07, commit 2951b0e, version 1.3.15:
+Export of 2026-11-07, commit f08cf8f, version 1.3.15 (sha256 of the
+`.dic` `d27e8336`):
 
 | Measure | Value |
 |---|---|
-| Entries | 630,688 |
-| C, M, R, X | 7,703, 39,852, 364,126, 219,007 |
-| Attested, generated | 411,681, 219,007 |
-| Paradigm, corpus word, name, elision, function word | 607,522, 6,831, 16,141, 193, 1 |
-| Abbreviations, acronyms | 210, 1,697 |
+| Entries | 630,463 |
+| C, M, R, X | 7,690, 39,791, 363,975, 219,007 |
+| Attested, generated | 411,456, 219,007 |
+| Paradigm, corpus word, name, elision, function word | 607,522, 6,604, 16,141, 195, 1 |
+| Abbreviations, acronyms | 210, 1,699 |
 | Compiled size estimate | 34.9 MB, 55.3 bytes per entry |
 | Lexicon read | 192,529 lemmas, 1.80M forms; 53,836 lemmas attested |
 
@@ -202,13 +212,13 @@ documents the exporter never read):
 |---|---|---|
 | Word tokens accepted as spelled | 98.34% | 97.20% |
 | Lowercase tokens accepted as spelled | 98.87% | 98.68% |
-| Accepted with accents ignored | 98.67% | 97.49% |
-| Capitalized tokens accepted | 94.87% | |
-| All-capital tokens accepted | 94.27% | |
+| Accepted with accents ignored | 98.66% | 97.49% |
+| Capitalized tokens accepted | 94.86% | |
+| All-capital tokens accepted | 94.26% | |
 | Abbreviation tokens in the abbreviation list | 60.3% | |
 
 Per source, exact coverage is 99.2% for Parliament, 99.3% for the European
-Parliament, 98.1% for OpenGov comments, 97.0% for Wikipedia and 78.9% for
+Parliament, 98.1% for OpenGov comments, 97.0% for Wikipedia and 78.6% for
 monotonic Wikisource, whose older literary spelling the list does not
 accept. A token with an enclitic's second accent counts as accepted when
 the entry without it is one. The commonest misses are the Katharevousa
@@ -219,11 +229,17 @@ the entry without it is one. The commonest misses are the Katharevousa
 False accepts: of 34 reviewed misspellings (unaccented, accented
 monosyllables, double accents, Latin look-alikes, wrong accents, wrong or
 missing dialytika, old spellings, ASCII apostrophes), the list accepts one,
-`νοιώθω`, which Wiktionary lists as a form of `νιώθω`. Of the 121,387
-spellings made by moving the tonos of a C or M entry to another vowel, 3,160
+`νοιώθω`, which Wiktionary lists as a form of `νιώθω`. Of the 121,274
+spellings made by moving the tonos of a C or M entry to another vowel, 3,151
 (2.6%) are entries, most of them other words (`πότε`, `ποτέ`). Triantafyllidis
 headwords: 81.9% of 44,396 single-word headwords are entries; the missing ones
 are mostly rare derived adjectives no source attests (`άβαλτος`, `άγλωσσος`).
+
+[Monotonic keyboard data](monotonic-keyboard-data.md) measures the list
+together with the next-word model the way a keyboard uses them: accent
+restoration, typing slips, the enclitic second accent and keystroke
+savings. Its slip simulation found the misspellings the typing-slip rule
+of the corpus-word route now rejects.
 
 ## The LibreOffice Greek dictionary
 
@@ -233,13 +249,13 @@ the evaluation script) is licensed MPL 1.1, GPL 2.0 or LGPL 2.1. GPL and LGPL
 terms cannot be met by an app distributed through the App Store, and MPL 1.1
 keeps the covered file under MPL, which a list that also carries CC BY-SA
 content cannot satisfy. So it is used only to evaluate the list, never to
-admit words. On the dev split, it accepts 8,742 token types (39,544 tokens)
+admit words. On the dev split, it accepts 8,781 token types (39,771 tokens)
 that the list rejects, mostly single letters, Katharevousa words (`εις`,
 `τοις`, `διά`, `τω`), old accented monosyllables (`τού`, `τούς`, `μάς`),
 abbreviations written without their period (`κλπ`, `πχ`) and formal
-participles (`καταταγέντων`). The list accepts 21,699 types (145,774 tokens)
+participles (`καταταγέντων`). The list accepts 21,606 types (145,421 tokens)
 it rejects, mostly acronyms, elisions, names, recent words (`πάροχοι`,
-`οικοτόπων`) and old spellings Wiktionary lists (`καμμία`). It lacks 184 C
+`οικοτόπων`) and old spellings Wiktionary lists (`καμμία`). It lacks 175 C
 entries of the list: names, elisions, recent technical words (`ιστότοπο`,
 `μεταδεδομένα`) and dialect or older forms (`ήτο`, `απάνου`).
 
@@ -254,7 +270,10 @@ entries of the list: names, elisions, recent technical words (`ιστότοπο`
   pass with their own ratings. Corpus words are also an imperfect filter for
   merged spellings and misspellings; `data/el_monotonic_review.json` rejects
   the ones found (`γιαυτό`, `τιδήποτε`).
-- X entries (219,008) are Wiktionary forms no source has. Rare legitimate
+- The typing-slip rule also rejects older forms of common words that
+  Wiktionary lacks (`ήκουσα`, `είδον`, `ταύτης`), so older literary text
+  has more words the list rejects.
+- X entries (219,007) are Wiktionary forms no source has. Rare legitimate
   forms and Wiktionary's dialectal or colloquial variants are among them.
 - Acronyms whose letters are an entry (`ΝΑΤΟ` beside `νάτο`) are left out of
   the acronym list.

@@ -16,7 +16,9 @@ All notable changes to Dilemma are documented here. The format follows
   list `build/hunspell/el_monotonic.{dic,aff,version}` with abbreviation and
   acronym lists: Wiktionary paradigms of attested lemmas, reviewed function
   words, corpus words, names and elisions, rated by their rate per million in
-  FrequencyWords and the open corpus. `eval/eval_el_monotonic.py` measures it
+  FrequencyWords and the open corpus. Corpus words one typing slip from a
+  far commoner word (`είνα`, `πρέπε`, `συγκεριμένα`) are rejected, since
+  they would hide a slip of that word. `eval/eval_el_monotonic.py` measures it
   on the corpus's held-out dev split (98.34% of word tokens accepted as
   spelled), with false-accept checks and a cross-check against the
   LibreOffice Greek dictionary, which its licenses limit to evaluation.
@@ -30,6 +32,13 @@ All notable changes to Dilemma are documented here. The format follows
   and `eval/tune_el_ngram.py` compares pruning and vocabulary sizes.
   `export_lm.py` gains `--lang` and `--drop-unknown-contexts`; the Ancient
   Greek export is unchanged.
+- Add `build/el_accent.py`, which restores accents to words typed without
+  them using only the monotonic word list and next-word model, and
+  `eval/eval_el_accent_restoration.py`, which measures it on the dev split
+  (98.69% of listed spellings restored, 0.012% of words that were right as
+  typed changed), together with typing slips, the enclitic second accent
+  and the keystrokes a three-slot suggestion bar saves. See
+  `docs/monotonic-keyboard-data.md`.
 
 ## [1.3.15] - 2026-11-05
 
