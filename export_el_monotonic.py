@@ -44,7 +44,11 @@ under ``rejects`` in ``data/el_monotonic_review.json``.
 3. ``corpus_word``: a lowercase word the lexicon lacks (ρωτήσω), with at
    least ``CORPUS_WORD_MIN_SUBTITLE_TOKENS`` tokens in the FrequencyWords
    counts and ``CORPUS_WORD_MIN_OPEN_TOKENS`` lowercase tokens in
-   ``CORPUS_WORD_MIN_OPEN_DOCS`` documents of the open corpus. It must
+   ``CORPUS_WORD_MIN_OPEN_DOCS`` documents of the open corpus, or, for the
+   formal words subtitles rarely have (επικροτεί, θεσπιστεί), at least
+   ``CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS`` FrequencyWords tokens and
+   ``CORPUS_WORD_FORMAL_MIN_OPEN_TOKENS`` open tokens in
+   ``CORPUS_WORD_FORMAL_MIN_OPEN_DOCS`` documents. It must
    have exactly one tonos (the monosyllables are a closed class) and be
    written in lowercase in most of its mid-sentence uses. Unless
    Wiktionary has the spelling or ``corpus_accepts`` in the review file
@@ -157,6 +161,11 @@ SUBTITLES = "subtitles"
 CORPUS_WORD_MIN_SUBTITLE_TOKENS = 50
 CORPUS_WORD_MIN_OPEN_TOKENS = 5
 CORPUS_WORD_MIN_OPEN_DOCS = 2
+# A word that is rarer in FrequencyWords, as formal words are (επικροτεί,
+# θεσπιστεί), qualifies with wider spread in the open corpus.
+CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS = 3
+CORPUS_WORD_FORMAL_MIN_OPEN_TOKENS = 20
+CORPUS_WORD_FORMAL_MIN_OPEN_DOCS = 10
 NAME_LEMMA_MIN_TOKENS = 3
 NAME_LEMMA_MIN_DOCS = 2
 NAME_CORPUS_MIN_TOKENS = 20
@@ -815,12 +824,16 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
 
     corpus_words = []
     for form, n in sorted(evidence.subtitles.items()):
-        if n < CORPUS_WORD_MIN_SUBTITLE_TOKENS or form in sel.entries:
+        if n < CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS or form in sel.entries:
             continue
         if L.case_shape(form) != "lower":
             continue
         tokens, _, docs = evidence.exact(form)
-        if tokens < CORPUS_WORD_MIN_OPEN_TOKENS or docs < CORPUS_WORD_MIN_OPEN_DOCS:
+        if n >= CORPUS_WORD_MIN_SUBTITLE_TOKENS:
+            if tokens < CORPUS_WORD_MIN_OPEN_TOKENS or docs < CORPUS_WORD_MIN_OPEN_DOCS:
+                continue
+        elif (tokens < CORPUS_WORD_FORMAL_MIN_OPEN_TOKENS
+              or docs < CORPUS_WORD_FORMAL_MIN_OPEN_DOCS):
             continue
         reason = gate(form)
         if reason is None and L.tonos_count(form) != 1:

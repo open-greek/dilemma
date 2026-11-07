@@ -316,7 +316,7 @@ def write_fixture(tmp_path):
     freq = tmp_path / "mg_freq.txt"
     freq.write_text("\n".join([
         "zzzz 999000", "καλός 500", "σπίτι 5000", "ρωτάω 500", "σπιτί 60",
-        "και 400", "γράφουμε 20", "απ 10",
+        "και 400", "γράφουμε 20", "απ 10", "επικροτεί 5", "θεσπιστεί 5",
     ]) + "\n", encoding="utf-8")
 
     function_words = tmp_path / "function_words.json"
@@ -343,6 +343,7 @@ def write_fixture(tmp_path):
         "Αθήνα": (40, 0, 5), "Αθήνας": (3, 0, 2),
         "γράφω": (40, 0, 10), "έγραψα": (4, 0, 2), "γράφοντάς": (10, 0, 3),
         "ρωτάω": (20, 0, 4), "σπιτί": (6, 0, 2),
+        "επικροτεί": (25, 0, 12), "θεσπιστεί": (10, 0, 4),
         "Κηφισιά": (40, 0, 4),
         "και": (900, 50, 99), "Και": (60, 60, 40), "από": (300, 0, 90),
         "απ’": (50, 0, 10), "καλ’": (20, 0, 5), "’γραψα": (15, 0, 6),
@@ -421,8 +422,10 @@ def test_routes_and_ratings(exported):
     # function words
     assert "και" in ratings and "ή" in ratings and "από" in ratings
     assert "Και" not in ratings
-    # corpus word attested in both sources
+    # corpus word attested in both sources; a formal word rare in subtitles
+    # needs wider spread in the open corpus
     assert "ρωτάω" in ratings
+    assert "επικροτεί" in ratings and "θεσπιστεί" not in ratings
     # a misplaced accent of a far commoner word is no corpus word
     assert "σπιτί" not in ratings
     # names from the corpus; institutional capitals of common words are not
