@@ -1,17 +1,17 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-03T22:40:10Z",
+  "generated": "2026-11-08T21:04:28Z",
   "files": {
     "data/lookup.db": {
-      "size": 1214173184,
-      "sha256": "f94c1deb85fe352f8e48290eed00d9fbd32cd4536cf02a77629303d37f952285",
-      "git_sha1": "dafd6ee861b0ed62aa355b56bb6c5bea3fabe259"
+      "size": 1224245248,
+      "sha256": "c5f44ef5a526f4e1d526e5f3ec4ce54d99bb7dbd5d529044fd96feeb9ab46ff7",
+      "git_sha1": "6d4d3a18f70a6d15ce0452ffa41df8cffa0720cf"
     },
     "data/spell_index.db": {
-      "size": 602959872,
-      "sha256": "525933cbf6740121730612e6a29824c204df4a3e624661c087c6c81520c78404",
-      "git_sha1": "16550ff27952ab032069fd22f388b8790ce2b7dd"
+      "size": 611491840,
+      "sha256": "efca7fb6d096e9f616b92d339a366a9bc40dc95c9d410d3e00fb14f6afa13672",
+      "git_sha1": "ad0be716f88893b09ae81d5f5db8f5034de15a68"
     },
     "data/lemma_attestation.json": {
       "size": 48258266,
@@ -53,6 +53,11 @@
       "sha256": "8931c492cd6e3295af920a63fb5385be3036fe498472192d06ee3af8b3d79cd5",
       "git_sha1": "766b1a95bb574bde5fd1aeac360170b16d2a9c45"
     },
+    "data/changes/el_present_completion.json": {
+      "size": 13543733,
+      "sha256": "31dc7c2bb284010625e0e74e1b436c7931644b5c2e3ef4ed56d6c7ef243f04fd",
+      "git_sha1": "2f2fa9a3fa953d1f665337a827e949d0359ed0fa"
+    },
     "data/ag_noun_generation_audit.json": {
       "size": 8939171,
       "sha256": "fcb47545704708d3b6d95a1fcf585e36cf943e96d4000f9af823a7ddf14f9cd6",
@@ -64,14 +69,14 @@
       "git_sha1": "d25810ca53207af3bc0ef89cf77bca23338db25b"
     },
     "data/mg_pairs.json": {
-      "size": 527367582,
-      "sha256": "ff23eca67a748e4115de6cacc2d082ba3aa20eb13514950d1e6f8cf1a9c874f0",
-      "git_sha1": "bdeabcb6648ba9796f3e50895b4a7315ad5d2a85"
+      "size": 529762542,
+      "sha256": "2c8fbb50f9de9a7d8fa9e9ebe9075dc344f84a724cb74b7d287c5c7aed2dbdf9",
+      "git_sha1": "b8fce9bb6839f887e1a1b40b5f49c294d3c22e61"
     },
     "data/mg_lookup.json": {
-      "size": 130387645,
-      "sha256": "35cac9d0b480e1ce83fe69014173c14ba27bfe5a869bb60b26188c621e9c3b7d",
-      "git_sha1": "7b5315ef91e42827bde23ed0132cc370e18f82f3"
+      "size": 131210143,
+      "sha256": "e747760421f5bea8c292841b1eb92daa06a1376e95df93b3b23753e751dd312e",
+      "git_sha1": "1de23f590128b0bf64c5e10e04047938fb06a1f8"
     },
     "data/el_participles.json": {
       "size": 5832774,
