@@ -6,48 +6,24 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
-### Added
-- Add a pinned, openly licensed corpus of monotonic Modern Greek
-  (`data/el_lm_corpora.json`) and `extract_el_monotonic_lm.py`, which
-  normalizes, filters and tokenizes it the way a keyboard segments words and
-  writes a document-level train/dev split under `build/el_corpus/`. The
-  manifest refuses NonCommercial and NoDerivatives sources. The editorial
-  notes filed among Wiktionary's usage examples are skipped.
-- Add `export_el_monotonic.py`, which writes the monotonic Modern Greek word
-  list `build/hunspell/el_monotonic.{dic,aff,version}` with abbreviation and
-  acronym lists: Wiktionary paradigms of attested lemmas, reviewed function
-  words, corpus words, names and elisions, rated by their rate per million in
-  FrequencyWords and the open corpus. Corpus words one typing slip from a
-  far commoner word (`είνα`, `πρέπε`, `συγκεριμένα`) are rejected, since
-  they would hide a slip of that word. A name whose letters are also a word
-  keeps its capital when Wiktionary has a name page for it (`Ρώμη`,
-  `Τσίπρα`), a capitalized twin of a word that text writes in lowercase is
-  left out (`Μέσα`), a C or M rating needs evidence from 10 or 3 documents
-  of its source, and the stripped aliases of `lookup.db` are not read.
-  `eval/eval_el_monotonic.py` measures it on the corpus's held-out dev split
-  (98.36% of word tokens accepted as spelled), with false-accept checks and
-  a cross-check against the LibreOffice Greek dictionary, which its
-  licenses limit to evaluation.
-- Add a monotonic Modern Greek next-word model: `train_lm.py --lang el`
-  counts the capped training split of that corpus with numpy, resolving
-  every token to the monotonic word-list spelling a keyboard looks up, and
-  `export_lm.py --lang el` writes `build/lm/el_ngram.bin` (GNLM v2) and
-  `el_ngram.version`, with the corpus manifest and word-list hashes.
-  `eval/eval_el_ngram.py` measures next-word and completion hit rates on
-  the dev split with a Python reader that answers as the Swift reader does,
-  and `eval/tune_el_ngram.py` compares pruning and vocabulary sizes.
-  `export_lm.py` gains `--lang` and `--drop-unknown-contexts`; the Ancient
-  Greek export is unchanged. Since the model takes its vocabulary from the
-  word list, `export_el_monotonic.py` prints a note when the model in
-  `build/lm` was built from another list, and
-  `export_lm.py --lang el --check-dictionary` exits 1 in that case.
-- Add `build/el_accent.py`, which restores accents to words typed without
-  them using only the monotonic word list and next-word model, and
-  `eval/eval_el_accent_restoration.py`, which measures it on the dev split
-  (98.69% of listed spellings restored, 0.012% of words that were right as
-  typed changed), together with typing slips, the enclitic second accent
-  and the keystrokes a three-slot suggestion bar saves. See
-  `docs/monotonic-keyboard-data.md`.
+Dilemma can now build a monotonic Modern Greek keyboard bundle: a rated word
+list, abbreviation and acronym lists, and a contextual next-word model.
+Corpus inputs are openly licensed, pinned and split by document. Archived
+Tatoeba and Wiktionary examples can be downloaded from an immutable Hub
+revision, preserving the original train/dev split.
+
+The exporters admit independently attested formal words and acronyms, retain
+rare words with metadata for common accent alternatives, and restrict
+lowercase accent restoration to common or medium-frequency names when no
+lowercase word matches. Evaluations cover held-out coverage, predictions,
+completion, accent restoration, typing slips, enclitic accents and keystroke
+savings, with Python and Swift reader checks.
+
+Complete missing present-active cells beneath independently defined Modern
+Greek verb heads, preserving source-supplied forms and existing lookup
+readings. The refreshed data adds 9,397 pairs across 1,902 heads with
+reversible provenance. The older Modern Greek Hunspell export now refuses
+missing or empty form-frequency data instead of writing an empty dictionary.
 
 ## [1.3.15] - 2026-11-05
 
