@@ -51,7 +51,7 @@ Under `build/hunspell/`:
 
 | File | Contents |
 |---|---|
-| `el_monotonic.dic` | The entry count, then `form<TAB>fr:C\|M\|R\|X` lines sorted by UTF-8 bytes; `fr:X mg:generated` for a paradigm form no frequency source has. No affix flags. |
+| `el_monotonic.dic` | The entry count, then `form<TAB>fr:C\|M\|R\|X` lines sorted by UTF-8 bytes; `fr:X mg:generated` for a paradigm form no frequency source has. `ac:spelling` records a much commoner accent alternative without deleting the entry. No affix flags. |
 | `el_monotonic.aff` | `SET UTF-8`, `LANG el`, `FLAG num`, and `TRY` with the lowercase monotonic letters by their frequency in open text. |
 | `el_monotonic.version` | `version`, `commit` (with `-dirty` when tracked files differ from it), `variant: el`, `entries`, bucket counts and edges, route counts, frequency sources, the sha256 of the four outputs and of every input. Any change of input, code or output changes it. |
 | `el_monotonic_abbreviations.txt` | Abbreviations with their periods (`π.χ.`, `κ.λπ.`, `σελ.`). |
@@ -128,7 +128,12 @@ route:
    documents, or, for formal words subtitles rarely have (`επικροτεί`,
    `θεσπιστεί`, forms Wiktionary's tables lack), at least 3 FrequencyWords
    tokens and 20 open-corpus tokens in 10 documents. It must have one tonos
-   and be written in lowercase in most of its mid-sentence uses. Unless Wiktionary has it (Katharevousa datives such as
+   and be written in lowercase in most of its mid-sentence uses. Without
+   subtitle evidence, it needs at least 100 open-corpus tokens in 20
+   documents, with at least 20 tokens in 5 documents in each of two
+   independent sources. This route rejects Katharevousa markers and uses
+   the same spelling, variant, typing-slip and joined-word checks.
+   Unless Wiktionary has it (Katharevousa datives such as
    `εν μέρει`, which the paradigm reader drops), it is rejected when a far
    commoner known word has its letters without the dialytika (`προυπόθεση`) or
    with the accent elsewhere (`έιναι`, `ποίος`), or its pronunciation with the
@@ -206,6 +211,17 @@ common word:
 
 ## Frequency ratings
 
+A rare entry with a much commoner accent alternative can still be a real
+word: `πινάκες` is also a plural of `πινάκα`, and `κάνονες` of `κάνονας`.
+The exporter keeps it and adds `ac:πίνακες` or `ac:κανόνες` when the other
+spelling is rated C or M and has at least 50 times its count (plus one)
+in both the open corpus and FrequencyWords. All qualifying alternatives
+are recorded. Forms of the same lemma and distinct lemmas with their own
+C/M form stay unmarked; a cell shared with the common lemma is not
+independent evidence. Consumers may offer the alternative, but must not
+treat the metadata as proof that the rare word is wrong. Existing readers
+that ignore unknown metadata continue to accept it.
+
 A form's rating is the highest of its rates per million words in the
 frequency sources: C at 37 and above, M at 3.7, R below, X when no source has
 it. These are the edges of the polytonic Modern Greek list. The sources are
@@ -252,6 +268,11 @@ unless the acronym is at least 10 times as common in capitals as the
 letters are in lowercase in the open corpus, and at least 10 times as
 common, per million words, as the entry is in FrequencyWords (`ΣΥΡΙΖΑ`
 beside the adverb `σύριζα`, `ΑΕΙ`, `ΑΠΕ`, `ΧΥΤΑ`).
+The FrequencyWords test can also be satisfied by two independent open
+sources, each with 20 capital tokens in 5 documents, a 95% Wilson lower
+bound of at least 0.9 and at least 10 times as many capitals as other
+spellings. Subtitle counts fold case, so they cannot veto that evidence
+(`ΝΑΤΟ` beside the spoken `νάτο`). The audit names the confirming sources.
 
 ## Recorded export
 

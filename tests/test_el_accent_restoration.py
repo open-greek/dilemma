@@ -74,6 +74,29 @@ def test_a_lowercase_word_never_takes_a_names_accents(index):
     assert [o.lower for o in index.options("μαρια")] == ["μαρία"]
 
 
+@pytest.mark.parametrize("rating", ["R", "X"])
+def test_lowercase_slips_do_not_take_the_accents_of_a_rare_name(rating):
+    index = A.AccentIndex([("Μάι", rating)])
+    assert index.options("μαι") == ()
+    assert A.decide("μαι", index.options("μαι"), None, margin=1).output == "μαι"
+    # A deliberately capitalized name remains available, even when rare.
+    assert [o.lower for o in index.options("Μαι")] == ["μάι"]
+    assert A.decide("Μαι", index.options("Μαι"), None, margin=1).output == "Μάι"
+    restorer = E.Restorer(index, None, margin=1, policy="keep")
+    assert restorer.decide("μαι", [], 0).kind == "none"
+
+
+@pytest.mark.parametrize("rating", ["C", "M"])
+def test_common_names_can_restore_lowercase_input(rating):
+    index = A.AccentIndex([("Μαρία", rating)])
+    assert A.decide("μαρια", index.options("μαρια"), None, margin=1).output == "μαρία"
+
+
+def test_rare_lowercase_words_keep_their_accents_and_exclude_common_names():
+    index = A.AccentIndex([("αγωνιά", "R"), ("Αγωνία", "C")])
+    assert [o.lower for o in index.options("αγωνια")] == ["αγωνιά"]
+
+
 def fixed(scores):
     return lambda option: scores.get(option.lower, -math.inf)
 

@@ -141,6 +141,83 @@ def test_rate_per_million():
     assert L.bucket_for_rate(L.rate_per_million(36, 1_000_000)) == "M"
 
 
+@pytest.mark.parametrize("form,twin,lemma,twin_lemma,shared,distinct", [
+    ("πινάκες", "πίνακες", "πινάκα", "πίνακας", "πινάκων", None),
+    ("κάνονες", "κανόνες", "κάνονας", "κανόνας", "κανόνων", None),
+    ("σχεδία", "σχέδια", "σχεδία", "σχέδιο", None, "σχεδίες"),
+    ("οροί", "όροι", "ορός", "όρος", None, "ορός"),
+    ("αγωνιά", "αγωνία", "αγωνιώ", "αγωνία", None, "αγωνιώ"),
+    ("πολίτικων", "πολιτικών", "πολίτικος", "πολιτικός", None, "πολίτικη"),
+])
+def test_accent_alternatives_keep_valid_rare_words(form, twin, lemma, twin_lemma,
+                                                  shared, distinct):
+    groups = {lemma: {form: "wiktionary"}, twin_lemma: {twin: "wiktionary"}}
+    rows = {form: (30, 0, 30), twin: (5000, 0, 100)}
+    sel = ex.Selection()
+    sel.entries[form] = ex.Entry(form, "paradigm", "R", "test")
+    sel.entries[twin] = ex.Entry(twin, "paradigm", "C", "test")
+    if shared:
+        groups[lemma][shared] = groups[twin_lemma][shared] = "wiktionary"
+        sel.entries[shared] = ex.Entry(shared, "paradigm", "C", "test")
+    if distinct:
+        groups[lemma][distinct] = "wiktionary"
+        sel.entries[distinct] = ex.Entry(distinct, "paradigm", "M", "test")
+    lexicon = ex.Lexicon(groups, set(sel.entries))
+    evidence = ex.Evidence({form: 1, twin: 5000}, [table("open", rows)])
+    marked = ex.accent_alternatives_to_mark(sel, evidence, lexicon)
+    assert (marked.get(form) == (twin,)) is (distinct is None)
+    assert form in sel.entries     # metadata must never delete a valid spelling
+    if form in marked:
+        sel.entries[form].accent_alternatives = marked[form]
+        assert f"{form}\tfr:R ac:{twin}" in ex.dic_lines(sel.entries)
+
+
+def test_accent_alternatives_keep_every_common_reading():
+    sel = ex.Selection(entries={w: ex.Entry(w, "paradigm", bucket, "test")
+                               for w, bucket in [("αδικά", "R"), ("άδικα", "C"),
+                                                  ("αδίκα", "C")]})
+    evidence = ex.Evidence({"αδικά": 1, "άδικα": 1000, "αδίκα": 1000},
+                          [table("open", {w: (n, 0, 30) for w, n in
+                                           [("αδικά", 1), ("άδικα", 1000),
+                                            ("αδίκα", 1000)]})])
+    assert ex.accent_alternatives_to_mark(sel, evidence, ex.Lexicon({}, set())) == {
+        "αδικά": ("άδικα", "αδίκα")}
+
+
+def test_subtitles_do_not_veto_acronyms_confirmed_by_two_sources():
+    # Subtitle counts fold case, so they cannot separate an acronym from a
+    # spoken word. Two independently cased sources supply that evidence.
+    rows = {"ΝΑΤΟ": (200, 0, 100), "νάτο": (1, 0, 1)}
+    tables = [table("wiki", rows), table("parl", rows)]
+    evidence = ex.Evidence({"νάτο": 900_000}, tables)
+    kept, audit = ex.select_acronyms(evidence, {"νάτο"}, {})
+    assert kept == ["ΝΑΤΟ"]
+    assert audit[0]["capitalized_sources"] == ["parl", "wiki"]
+    # One source (even repeated) is not independent corroboration.
+    for weaker in ([tables[0]], [tables[0], tables[0]]):
+        kept, _ = ex.select_acronyms(ex.Evidence({"νάτο": 900_000}, weaker), {"νάτο"}, {})
+        assert kept == []
+
+
+def test_open_corpus_words_need_independent_spread_and_spelling_filters():
+    words = ("φυτοπροστατευτικών", "καταταγέντων", "έχειν", "πρέπεινα")
+    rows = {w: (50, 0, 12) for w in words}
+    rows["πρέπει"] = (1000, 0, 100)
+    rows["μονοπωλιακών"] = (100, 0, 30)
+    second = {w: v for w, v in rows.items() if w != "μονοπωλιακών"}
+    evidence = ex.Evidence({}, [table("wiki", rows), table("parl", second)])
+    lexicon = ex.Lexicon({"πρέπει": {"πρέπει": "wiktionary"}}, {"πρέπει"})
+    sel = ex.select(lexicon, evidence, function_words={"να": "fixture"}, review={"rejects": {}},
+                    reviewed_loanwords=[])
+    assert {"φυτοπροστατευτικών", "καταταγέντων"} <= set(sel.entries)
+    assert not {"έχειν", "πρέπεινα", "μονοπωλιακών"} & set(sel.entries)
+    assert sel.rejected["open_corpus_katharevousa"] == 1
+    assert sel.rejected["run_together_words"] == 1
+    assert ex.open_corpus_candidates(ex.Evidence({}, [table("wiki", rows)])) == set()
+    assert ex.open_corpus_candidates(ex.Evidence({}, [table("wiki", rows),
+                                                      table("wiki", rows)])) == set()
+
+
 def test_wilson_lower_bound():
     assert L.wilson_lower(0, 0) == 0.0
     assert 0.80 < L.wilson_lower(24, 25) < 0.81

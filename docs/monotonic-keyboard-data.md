@@ -123,6 +123,10 @@ then restored word by word, left to right, with `el_accent.decide`:
    605,371 keys, and 22,806 of them have two or more spellings. When the
    word is typed in lowercase and a lowercase candidate exists,
    capitalized candidates (names) are left out.
+   When only names have the letters, a lowercase typed word can take
+   accents only from names rated C or M. R and X names are excluded;
+   deliberately capitalized input can match names of every rating. This
+   keeps the slip `μαι` from becoming `μάι` through the rare name `Μάι`.
 2. No candidate: the word stays as typed (*no candidate*).
 3. One candidate: its accents are applied (*unique*).
 4. Several candidates: the model scores each after the two restored words
@@ -483,6 +487,10 @@ prediction of what people save.
   rule.
 - **Check slip corrections against frequency and context.** 12.5% of
   simulated slips land on another entry, often a rare one.
+- **Read accent alternatives as suggestions.** An entry's `ac:spelling`
+  metadata points to a much commoner accent alternative. The rare entry
+  remains a valid word, so this is evidence for a proposal, not permission
+  to discard the typed reading.
 
 ## Changes to the word list
 

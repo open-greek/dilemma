@@ -201,6 +201,7 @@ from pathlib import Path
 
 from dilemma_build import el_lexicon as L
 from dilemma_build import el_type_counts as TC
+from dilemma_build import el_text as T
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
@@ -244,6 +245,13 @@ CORPUS_WORD_MIN_OPEN_DOCS = 2
 CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS = 3
 CORPUS_WORD_FORMAL_MIN_OPEN_TOKENS = 20
 CORPUS_WORD_FORMAL_MIN_OPEN_DOCS = 10
+# Subtitles cannot attest every technical or formal word. Without their
+# evidence, require substantial spread in at least two independent sources.
+CORPUS_WORD_OPEN_MIN_TOKENS = 100
+CORPUS_WORD_OPEN_MIN_DOCS = 20
+CORPUS_WORD_OPEN_MIN_SOURCES = 2
+CORPUS_WORD_OPEN_MIN_SOURCE_TOKENS = 20
+CORPUS_WORD_OPEN_MIN_SOURCE_DOCS = 5
 NAME_LEMMA_MIN_TOKENS = 3
 NAME_LEMMA_MIN_DOCS = 2
 NAME_CORPUS_MIN_TOKENS = 20
@@ -346,6 +354,7 @@ ACRONYM_RUN_TOGETHER_MIN_HEAD = 5
 # (ΣΥΡΙΖΑ beside σύριζα, ΝΑΤΟ beside Νάτο); otherwise the entry wins (ΠΕ
 # beside πε), so that a word typed in capitals still gets its accent.
 ACRONYM_OVER_WORD_RATIO = 10.0
+ACRONYM_MIN_CAPITALIZED_SOURCES = 2
 # Bytes of the keyboard's compiled dictionary (TONOSDIC v5): a 56-byte
 # header, three u32 tables, the raw and stripped string pools and one
 # frequency byte per entry.
@@ -752,6 +761,7 @@ class Entry:
     source: str
     generated: bool = False
     lemma: str = ""
+    accent_alternatives: tuple[str, ...] = ()
 
 
 @dataclass
@@ -1085,19 +1095,26 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
         return None
 
     corpus_words = []
-    for form, n in sorted(evidence.subtitles.items()):
-        if n < CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS or form in sel.entries:
+    open_candidates = open_corpus_candidates(evidence)
+    for form in sorted(set(evidence.subtitles) | open_candidates):
+        n = evidence.subtitles.get(form, 0)
+        open_only = n < CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS
+        if (open_only and form not in open_candidates) or form in sel.entries:
             continue
         if L.case_shape(form) != "lower":
             continue
         tokens, _, docs = evidence.exact(form)
-        if n >= CORPUS_WORD_MIN_SUBTITLE_TOKENS:
+        if open_only:
+            pass       # open_corpus_candidates checked counts and source spread
+        elif n >= CORPUS_WORD_MIN_SUBTITLE_TOKENS:
             if tokens < CORPUS_WORD_MIN_OPEN_TOKENS or docs < CORPUS_WORD_MIN_OPEN_DOCS:
                 continue
         elif (tokens < CORPUS_WORD_FORMAL_MIN_OPEN_TOKENS
               or docs < CORPUS_WORD_FORMAL_MIN_OPEN_DOCS):
             continue
         reason = gate(form)
+        if reason is None and open_only and T.is_katharevousa_marker(form):
+            reason = "open_corpus_katharevousa"
         if reason is None and L.tonos_count(form) != 1:
             # Monosyllables are a closed class the lexicon and the function
             # words cover; the corpus ones are fragments (λι, ντι, εντ).
@@ -1126,6 +1143,12 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
     corpus_words.sort(key=lambda r: (-r[0], r[1]))
     audit_routes["corpus_word"] = {
         "count": len(corpus_words),
+        "without_subtitle_evidence": sum(r[2] < CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS
+                                         for r in corpus_words),
+        "without_subtitle_evidence_examples": [
+            {"form": r[1], "subtitles": r[2], "open": r[3], "docs": r[4]}
+            for r in corpus_words if r[2] < CORPUS_WORD_FORMAL_MIN_SUBTITLE_TOKENS
+        ][:AUDIT_LIST_LIMIT],
         "in_mg_pairs_but_dropped_by_load_paradigms": sum(1 for r in corpus_words if r[5]),
         "top": [{"form": r[1], "subtitles": r[2], "open": r[3], "docs": r[4]}
                 for r in corpus_words[:AUDIT_LIST_LIMIT]]}
@@ -1329,8 +1352,75 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
     audit_routes["paradigm"]["rare_short_slips_examples"] = [
         list(d) for d in short[:AUDIT_LIST_LIMIT]]
 
+    alternatives = accent_alternatives_to_mark(sel, evidence, lexicon)
+    for form, twins in alternatives.items():
+        sel.entries[form].accent_alternatives = twins
+    audit_routes["paradigm"]["accent_alternatives_marked"] = len(alternatives)
+    audit_routes["paradigm"]["accent_alternatives_examples"] = [
+        [form, list(twins)] for form, twins in alternatives.items()][:AUDIT_LIST_LIMIT]
+
     sel.audit["route_details"] = audit_routes
     return sel
+
+
+def open_corpus_candidates(evidence: Evidence) -> set[str]:
+    """Formal words corroborated independently, without subtitle counts."""
+    sources: dict[str, set[str]] = defaultdict(set)
+    for table in evidence.tables:
+        for form, count in table.count.items():
+            if (count >= CORPUS_WORD_OPEN_MIN_SOURCE_TOKENS
+                    and table.docs.get(form, 0) >= CORPUS_WORD_OPEN_MIN_SOURCE_DOCS
+                    and L.case_shape(form) == "lower"):
+                sources[form].add(table.source)
+    return {form for form, votes in sources.items()
+            if len(votes) >= CORPUS_WORD_OPEN_MIN_SOURCES
+            and evidence.exact(form)[0] >= CORPUS_WORD_OPEN_MIN_TOKENS
+            and evidence.exact(form)[2] >= CORPUS_WORD_OPEN_MIN_DOCS}
+
+
+def accent_alternatives_to_mark(sel: Selection, evidence: Evidence,
+                                lexicon: Lexicon) -> dict[str, tuple[str, ...]]:
+    """Keep valid rare words, but expose much commoner accent alternatives.
+
+    A dictionary head is not proof that the rare reading is a typing error:
+    πινάκες is also a plural of πινάκα, and κάνονες of κάνονας. Mark rather
+    than delete these entries. Shared paradigm cells (πινάκων) are not
+    independent evidence for the rare reading. Genuine grammatical variants
+    of one lemma, and distinct lemmas with their own C/M form, stay unmarked.
+    """
+    lemmas_of: dict[str, set[str]] = defaultdict(set)
+    for lemma, forms in lexicon.groups.items():
+        for form in forms:
+            lemmas_of[form].add(lemma)
+    common: dict[str, list[str]] = defaultdict(list)
+    for form, entry in sorted(sel.entries.items()):
+        if (entry.bucket in ("C", "M") and L.case_shape(form) == "lower"
+                and L.APOSTROPHE not in form):
+            common[L.bare_key(form)].append(form)
+    out = {}
+    for form, entry in sorted(sel.entries.items()):
+        if (entry.bucket not in ("R", "X") or L.case_shape(form) != "lower"
+                or L.APOSTROPHE in form or entry.route in ("function_word", "reviewed")):
+            continue
+        twins = []
+        for twin in common.get(L.bare_key(form), ()):
+            if (sum(evidence.lower_counts(twin).values()) + 1
+                    < ACCENT_TWIN_RATIO * (sum(evidence.lower_counts(form).values()) + 1)
+                    or evidence.subtitles.get(twin, 0) + 1
+                    < ACCENT_TWIN_RATIO * (evidence.subtitles.get(form, 0) + 1)):
+                continue
+            lemmas, twin_lemmas = lemmas_of[form], lemmas_of[twin]
+            if lemmas & twin_lemmas:
+                continue
+            twin_forms = {f for lemma in twin_lemmas for f in lexicon.groups[lemma]}
+            if any(other != form and other not in twin_forms and other in sel.entries
+                   and sel.entries[other].bucket in ("C", "M")
+                   for lemma in lemmas for other in lexicon.groups[lemma]):
+                continue
+            twins.append(twin)
+        if twins:
+            out[form] = tuple(sorted(twins, key=lambda s: s.encode("utf-8")))
+    return out
 
 
 def short_slips_to_drop(sel: Selection, evidence: Evidence) -> list[tuple[str, str]]:
@@ -1602,8 +1692,11 @@ def select_acronyms(evidence: Evidence, entries: set[str],
     others: Counter = Counter()          # bare key -> tokens not in capitals
     caps: Counter = Counter()
     caps_docs: Counter = Counter()
-    for pool in evidence.pools:
-        for token, n in pool.count.items():
+    independent: dict[str, set[str]] = defaultdict(set)
+    for table in evidence.tables:
+        source_caps: Counter = Counter()
+        source_others: Counter = Counter()
+        for token, n in table.count.items():
             if token.endswith(".") or L.APOSTROPHE in token:
                 continue
             if any(c not in L.LETTERS for c in token):
@@ -1611,9 +1704,17 @@ def select_acronyms(evidence: Evidence, entries: set[str],
             shape = L.case_shape(token)
             if shape == "upper" and len(token) >= 2:
                 caps[token] += n
-                caps_docs[token] += pool.docs.get(token, 0)
+                caps_docs[token] += table.docs.get(token, 0)
+                source_caps[token] += n
             elif shape in ("lower", "title"):
                 others[L.bare_key(token)] += n
+                source_others[L.bare_key(token)] += n
+        for token, n in source_caps.items():
+            other = source_others[L.bare_key(token)]
+            if (n >= ACRONYM_MIN_TOKENS and table.docs.get(token, 0) >= ACRONYM_MIN_DOCS
+                    and n >= ACRONYM_OVER_WORD_RATIO * other
+                    and L.wilson_lower(n, n + other) >= ACRONYM_MIN_SHARE):
+                independent[token].add(table.source)
     bare_entries: Counter = Counter()    # bare key -> subtitle tokens
     for w in entries:
         if L.APOSTROPHE not in w:
@@ -1631,11 +1732,13 @@ def select_acronyms(evidence: Evidence, entries: set[str],
         if L.wilson_lower(n, n + other) < ACRONYM_MIN_SHARE:
             continue
         row = {"acronym": token, "tokens": n, "docs": caps_docs[token],
-               "not_in_capitals": other}
+               "not_in_capitals": other,
+               "capitalized_sources": sorted(independent[token])}
         if key in bare_entries and not (
                 n >= ACRONYM_OVER_WORD_RATIO * other
-                and n * evidence.subtitle_words
-                >= ACRONYM_OVER_WORD_RATIO * bare_entries[key] * evidence.open_words):
+                and (n * evidence.subtitle_words
+                     >= ACRONYM_OVER_WORD_RATIO * bare_entries[key] * evidence.open_words
+                     or len(independent[token]) >= ACRONYM_MIN_CAPITALIZED_SOURCES)):
             row["rejected"] = "its letters are an entry of the word list"
             row["subtitle_tokens_of_the_entry"] = bare_entries[key]
         elif (split := run_together_split(key, common_keys)) is not None:
@@ -1726,6 +1829,7 @@ def stale_model_note(dic_path: Path, version_path: Path | None = None) -> str | 
 
 def dic_lines(entries: dict[str, Entry]) -> list[str]:
     lines = [f"{e.form}\tfr:{e.bucket}" + (" mg:generated" if e.generated else "")
+             + "".join(f" ac:{twin}" for twin in e.accent_alternatives)
              for e in entries.values()]
     return sorted(lines, key=lambda s: s.encode("utf-8"))
 
@@ -1775,6 +1879,7 @@ def write_outputs(sel: Selection, out_dir: Path, *, evidence: Evidence,
         + "\n"
         f"abbreviations: {len(abbreviations)}\n"
         f"acronyms: {len(acronyms)}\n"
+        f"accent_alternatives: {sum(bool(e.accent_alternatives) for e in entries)}\n"
         f"compiled_size_estimate_bytes: {size}\n"
         f"aff_rules: 0\n"
         f"dic_sha256: {dic_sha}\n"

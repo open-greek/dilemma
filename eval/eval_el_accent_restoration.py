@@ -1173,7 +1173,12 @@ def main(argv=None):
                                    1 for v in index.by_key.values()
                                    if len({L.lower_el(s) for s, _ in v}) > 1)},
                     "margin": args.margin, "word_margin": json_float(args.word_margin),
-                    "policy": args.policy}
+                    "policy": args.policy,
+                    "candidate_policy": {
+                        "lowercase_candidates_exclude_names": True,
+                        "name_only_key_for_lowercase_min_rating": "M",
+                        "rare_name_ratings_excluded_for_lowercase": ["R", "X"],
+                        "capitalized_input_keeps_all_name_ratings": True}}
 
     # Margin sweeps on the tune half.
     if args.tune_sentences:

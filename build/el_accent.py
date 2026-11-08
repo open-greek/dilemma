@@ -22,7 +22,9 @@ The decision (:func:`decide`)
    restored word keeps the case that was typed (:func:`transfer_marks`
    copies the candidate's marks onto the typed letters). When the typed word
    is lowercase and some candidate is lowercase, capitalized candidates
-   (names) are left out, so a lowercase word never takes a name's accents.
+   (names) are left out. With no lowercase candidate, only names rated C
+   or M may supply accents; rare names rated R or X stay out. A capitalized
+   typed word can still match a name of any rating.
 2. No candidate: the word stays as typed.
 3. One candidate: its marks are applied. When the typed letters are that
    candidate (a monosyllable such as ``και``), nothing changes.
@@ -151,8 +153,11 @@ class AccentIndex:
         if cached is not None:
             return cached
         found = self.by_key.get(key, ())
-        if lower_typed and any(el_lexicon.case_shape(s) == "lower" for s, _ in found):
-            found = [(s, r) for s, r in found if el_lexicon.case_shape(s) == "lower"]
+        if lower_typed:
+            has_lower = any(el_lexicon.case_shape(s) == "lower" for s, _ in found)
+            found = [(s, r) for s, r in found
+                     if el_lexicon.case_shape(s) == "lower"
+                     or (not has_lower and r >= el_lexicon.BUCKET_RANK["M"])]
         groups: dict[str, list[tuple[str, int]]] = {}
         for s, r in found:
             groups.setdefault(el_lexicon.lower_el(s), []).append((s, r))
