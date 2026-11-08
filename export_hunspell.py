@@ -3280,6 +3280,13 @@ def run_export(sanity: int | None, variants: list[str],
               file=sys.stderr)
         sys.exit(1)
 
+    if "el" in variants and not MG_FORM_FREQ.is_file():
+        print(f"ERROR: {MG_FORM_FREQ} is required for the Modern Greek export. "
+              "Download it with `hf download open-greek/dilemma-data "
+              "mg_form_freq.json --repo-type dataset --local-dir data`. "
+              "No dictionary was written.", file=sys.stderr)
+        sys.exit(1)
+
     OUT.mkdir(parents=True, exist_ok=True)
     commit = get_git_commit()
     version = read_version_file()
@@ -3293,6 +3300,10 @@ def run_export(sanity: int | None, variants: list[str],
 
     print("Loading frequency maps...")
     mg_freq, ag_freq = load_freq_maps()
+    if "el" in variants and not mg_freq:
+        print(f"ERROR: {MG_FORM_FREQ} contains no Modern Greek frequencies. "
+              "Refusing to write an empty dictionary.", file=sys.stderr)
+        sys.exit(1)
     profile = (
         load_form_profile_freq() if "grc" in variants
         else FormProfileEvidence({}, {}, {}, {})
