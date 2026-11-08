@@ -251,6 +251,15 @@ def test_open_only_route_excludes_obsolete_inflections_but_keeps_modern_words():
         assert not ex.open_corpus_archaic_form(form, known), form
 
 
+def test_formal_corpus_fragments_do_not_become_words():
+    rows = {form: (100, 0, 50) for form in ("θέσιο", "βάθμιας", "βάθμια", "παράγρ")}
+    evidence = ex.Evidence({}, [table("opengov", rows), table("parl", rows)])
+    selection = ex.select(ex.Lexicon({}, set()), evidence, function_words={},
+                          review=ex.load_review(ex.REVIEW), reviewed_loanwords=[])
+    assert not set(rows) & set(selection.entries)
+    assert selection.rejected["reviewed_reject"] == 4
+
+
 def test_wilson_lower_bound():
     assert L.wilson_lower(0, 0) == 0.0
     assert 0.80 < L.wilson_lower(24, 25) < 0.81
