@@ -176,7 +176,7 @@ for tokenization, model sources, and device settings.
 | [Data](https://github.com/open-greek/dilemma/blob/main/docs/data.md) | Sources, merge rules, confidence tiers, and validation |
 | [Development](https://github.com/open-greek/dilemma/blob/main/docs/development.md) | Setup, training, tests, data publication, and releases |
 | [Lexicon expansion](https://github.com/open-greek/dilemma/blob/main/docs/lexicon-expansion.md) | LSJ/Sophocles paradigms and form selection |
-| [Word lists](https://github.com/open-greek/dilemma/blob/main/docs/word-lists.md) | Frequency-ranked forms, Hunspell dictionaries, and morphology exports |
+| [Word lists](https://github.com/open-greek/dilemma/blob/main/docs/word-lists.md) | Frequency inputs, ranked forms, Hunspell dictionaries, and morphology exports |
 | [Polytonic Modern Greek](https://github.com/open-greek/dilemma/blob/main/docs/modern-greek.md) | Modern word-list construction and validation |
 | [Next-word prediction](https://github.com/open-greek/dilemma/blob/main/docs/language-model.md) | Training, evaluation, and binary export |
 

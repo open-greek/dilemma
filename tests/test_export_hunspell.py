@@ -132,6 +132,48 @@ def test_export_creates_output_directory_before_audit(tmp_path, monkeypatch):
     assert {p.name: p.read_bytes() for p in output.iterdir()} == files
 
 
+@pytest.mark.parametrize("variants", [["el"], ["grc", "el"]])
+def test_modern_export_refuses_missing_frequency_input(tmp_path, monkeypatch, capsys,
+                                                       variants):
+    import export_hunspell as exporter
+
+    lookup = tmp_path / "lookup.db"
+    sqlite3.connect(lookup).close()
+    output = tmp_path / "hunspell"
+    monkeypatch.setattr(exporter, "LOOKUP_DB", lookup)
+    monkeypatch.setattr(exporter, "MG_FORM_FREQ", tmp_path / "missing.json")
+    monkeypatch.setattr(exporter, "OUT", output)
+    with pytest.raises(SystemExit) as exc:
+        exporter.run_export(None, variants)
+    assert exc.value.code == 1
+    assert "open-greek/dilemma-data" in capsys.readouterr().err
+    assert not output.exists()
+
+
+def test_modern_export_refuses_empty_frequencies_without_replacing_outputs(
+        tmp_path, monkeypatch, capsys):
+    import export_hunspell as exporter
+
+    lookup = tmp_path / "lookup.db"
+    sqlite3.connect(lookup).close()
+    frequencies = tmp_path / "mg_form_freq.json"
+    frequencies.write_text("{}")
+    output = tmp_path / "hunspell"
+    output.mkdir()
+    dictionary = output / "el_GR_monotonic.dic"
+    dictionary.write_text("1\nλέξη\tfr:C\n")
+    original = dictionary.read_bytes()
+    monkeypatch.setattr(exporter, "LOOKUP_DB", lookup)
+    monkeypatch.setattr(exporter, "MG_FORM_FREQ", frequencies)
+    monkeypatch.setattr(exporter, "CORPUS_FREQ", tmp_path / "absent-corpus.json")
+    monkeypatch.setattr(exporter, "OUT", output)
+    with pytest.raises(SystemExit) as exc:
+        exporter.run_export(None, ["el"])
+    assert exc.value.code == 1
+    assert "no Modern Greek frequencies" in capsys.readouterr().err
+    assert dictionary.read_bytes() == original
+
+
 def test_editorial_forms_resolve_only_optional_final_nu():
     assert resolve_editorial_form("καθᾶσι(ν") == ("καθᾶσι", "καθᾶσιν")
     assert resolve_editorial_form("καθᾶσι(ν)") == ("καθᾶσι", "καθᾶσιν")
