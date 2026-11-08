@@ -32,8 +32,11 @@ python -m pytest tests/test_el_text.py tests/test_el_corpus.py -q
 
 Hugging Face inputs come from the Hugging Face cache at the pinned revision.
 URL inputs are kept in `data/raw/<source>/` (ignored by git), or in
-`$DILEMMA_EL_RAW_DIR`. The Wiktionary examples are read from the kaikki.org
-dumps that `build_data.py` uses (`kaikki/`, or `$DILEMMA_KAIKKI_DIR`); the
+`$DILEMMA_EL_RAW_DIR`. The original Tatoeba export and Wiktionary usage examples
+are archived on `ciscoriordan/dilemma`, at the full Hub revision in the manifest.
+`--download` fetches these exact bytes on a new machine without local kaikki
+dumps or a newer weekly Tatoeba export. The example archive preserves the
+original text, document ids and groups. During extraction from the dumps, the
 editorial notes both editions file among the examples (alternative forms
 and spellings, synonym lists, links to Wikipedia or a category, quotation
 headers, `→ χρειάζεται παράθεμα`) are skipped. Every
@@ -220,15 +223,14 @@ itself.
 - `εντάξει` is also a form of the verb `εντάσσω` (`να εντάξει`). After `να`,
   `θα`, `μην` or `δεν` it is about 5% of the Parliament occurrences, 24% in
   OpenGov and 29% in Wikipedia, so its rate is not a pure register measure.
-- Tatoeba replaces its per-language export every week and keeps no older
-  copies. The pinned export of 2026-10-31 was already replaced by
-  2026-11-07, so it exists only in `data/raw/tatoeba/` of the machine that
-  built the corpus, and `--download` elsewhere stops at the sha256 check.
-  To re-pin: download the current file, put its size, sha256 and date in
-  the `tatoeba` entry of `data/el_lm_corpora.json`, and rebuild the corpus,
-  the word list and the model. The Wiktionary pins likewise depend on the
-  local kaikki.org dumps: refreshing them for `build_data.py` changes the
-  sha256, and the old dumps must be kept to rebuild this corpus.
+- Tatoeba replaces its weekly export, and kaikki dumps also change. Their
+  pinned copies are now archived, so a rebuild does not follow those changes.
+  To refresh intentionally, stage the original pinned inputs with
+  `python scripts/archive_el_corpus_inputs.py`, publish the three files in
+  `data/el_lm_inputs/` with `python scripts/hf_data.py push`, and run the
+  archive script with `--pin-revision FULL_HUB_COMMIT`. Review NOTICE and the
+  provenance, then rebuild the corpus, word list and model. Retain the original
+  document ids and groups unless a changed split is intended and reported.
 - The European Parliament documents are formal and largely translated. They
   are capped at 5M tokens until a comparison shows whether they help.
 - The open sources hold little casual written conversation. The best

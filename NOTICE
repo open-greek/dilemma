@@ -161,7 +161,12 @@ openly licensed corpora below. Each is pinned (revision, size, sha256) in
 data/el_lm_corpora.json, which also records the excluded corpora and why;
 extract_el_monotonic_lm.py refuses NonCommercial and NoDerivatives licenses.
 "Derived" means n-gram and word counts computed from normalized, tokenized
-sentences; the sentences themselves are not distributed.
+sentences. The keyboard bundle distributes counts rather than sentences.
+For reproducible builds, data/el_lm_inputs/ on the public ciscoriordan/dilemma
+Hub repository also preserves the original Tatoeba export and unmodified
+Wiktionary usage examples under their source licenses below. Its provenance.json
+records attribution, original source pins and checksums; document ids and groups
+are preserved. Those archived source documents are separate from the bundle.
 
 - Greek Parliament Proceedings 1989-2020 (tell_all.csv), Konstantina Dritsa,
   Kaiti Thoma, John Pavlopoulos, Panagiotis Louridas. A Greek Parliament

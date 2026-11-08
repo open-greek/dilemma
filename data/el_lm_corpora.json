@@ -242,14 +242,31 @@
    "weight": 10,
    "dev_fraction": 0.05,
    "fetch": {
-    "kind": "url",
-    "url": "https://downloads.tatoeba.org/exports/per_language/ell/ell_sentences.tsv.bz2",
-    "filename": "ell_sentences.tsv.bz2",
-    "size": 525072,
-    "sha256": "5875e4fa51bbec43c50825af9c87b084a606c1ba763b786f6b058237e2c71e0d"
+    "kind": "hf_model",
+    "repo": "ciscoriordan/dilemma",
+    "revision": "58138019d8d8dc379c9835291d42a6dfef9e43e6",
+    "files": [
+     {
+      "path": "data/el_lm_inputs/tatoeba_ell_sentences.tsv.bz2",
+      "size": 525072,
+      "sha256": "5875e4fa51bbec43c50825af9c87b084a606c1ba763b786f6b058237e2c71e0d"
+     }
+    ]
    },
    "reader": {
     "kind": "tatoeba_tsv_bz2"
+   },
+   "archive_source": {
+    "fetch": {
+     "filename": "ell_sentences.tsv.bz2",
+     "kind": "url",
+     "sha256": "5875e4fa51bbec43c50825af9c87b084a606c1ba763b786f6b058237e2c71e0d",
+     "size": 525072,
+     "url": "https://downloads.tatoeba.org/exports/per_language/ell/ell_sentences.tsv.bz2"
+    },
+    "reader": {
+     "kind": "tatoeba_tsv_bz2"
+    }
    }
   },
   {
@@ -290,24 +307,42 @@
    "weight": 5,
    "dev_fraction": 0.05,
    "fetch": {
-    "kind": "local",
-    "base": "kaikki",
+    "kind": "hf_model",
+    "repo": "ciscoriordan/dilemma",
+    "revision": "58138019d8d8dc379c9835291d42a6dfef9e43e6",
     "files": [
      {
-      "path": "kaikki.org-el-dictionary-Greek.jsonl",
-      "size": 1099068983,
-      "sha256": "d369e52869db564af860d21fb11ea430c3587f6ae908b8fa124bc7d0b2452165"
-     },
-     {
-      "path": "kaikki.org-en-dictionary-Greek.jsonl",
-      "size": 211792192,
-      "sha256": "643e3ee8b1f105b4847fcf6a3fcd8923a0a7c8bc5aeec5480d7ced5087314624"
+      "path": "data/el_lm_inputs/wiktionary_examples.jsonl.gz",
+      "size": 4155458,
+      "sha256": "cd58fd28e4bedd604c9170c8897411b1641d835c1c3fd932dec1062d7d82c265"
      }
     ]
    },
    "reader": {
-    "kind": "kaikki_examples",
-    "lang_code": "el"
+    "kind": "archived_documents",
+    "note": "Unmodified usage examples, original document ids and groups"
+   },
+   "archive_source": {
+    "fetch": {
+     "base": "kaikki",
+     "files": [
+      {
+       "path": "kaikki.org-el-dictionary-Greek.jsonl",
+       "sha256": "d369e52869db564af860d21fb11ea430c3587f6ae908b8fa124bc7d0b2452165",
+       "size": 1099068983
+      },
+      {
+       "path": "kaikki.org-en-dictionary-Greek.jsonl",
+       "sha256": "643e3ee8b1f105b4847fcf6a3fcd8923a0a7c8bc5aeec5480d7ced5087314624",
+       "size": 211792192
+      }
+     ],
+     "kind": "local"
+    },
+    "reader": {
+     "kind": "kaikki_examples",
+     "lang_code": "el"
+    }
    }
   },
   {

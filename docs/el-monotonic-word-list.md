@@ -77,8 +77,9 @@ takes the `.dic`, `.aff`, `.version` and the two companion lists. The
 | LibreOffice el_GR dictionary | Evaluation only | MPL 1.1, GPL 2.0 or LGPL 2.1 |
 | `data/triantafyllidis_headwords.json` | Evaluation only | CC BY-NC-ND 4.0 |
 
-No sentence of the corpus is distributed: the list holds words and ratings
-derived from counts. The dev split is never read by the exporter.
+The list holds words and ratings derived from counts, not corpus sentences.
+The source archives used to reproduce the corpus are distributed separately
+under their source licenses. The dev split is never read by the exporter.
 
 ## Spelling rules
 

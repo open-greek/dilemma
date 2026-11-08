@@ -57,11 +57,11 @@ python export_lm.py --lang el --check-dictionary
 ```
 
 The word list refuses Hugging Face inputs whose sha256 differs from
-`data/hf_manifest.json`. The Wiktionary usage examples of the corpus are
-read from the kaikki.org dumps that `build_data.py` uses (`kaikki/`, or
-`$DILEMMA_KAIKKI_DIR`), and the Tatoeba export is replaced upstream every
-week, so a machine without the pinned copies needs new pins first (see the
-corpus page's [known limitations](el-monotonic-corpus.md#known-limitations)).
+`data/hf_manifest.json`. The original Tatoeba export and unmodified Wiktionary
+usage examples are archived at an immutable Hub revision; the corpus extractor's
+`--download` fetches them without local kaikki dumps or changing source pins.
+Their original document ids and groups preserve the held-out split (see the
+corpus page's [build instructions](el-monotonic-corpus.md#build)).
 The model takes its vocabulary from the word list, so steps 3 and 4 follow
 every export of the list; `export_el_monotonic.py` prints a note when the
 model in `build/lm` was built from another list.

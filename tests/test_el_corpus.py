@@ -83,6 +83,71 @@ def test_the_repository_manifest_validates():
     assert {"opensubtitles", "triantafyllidis"} <= excluded
 
 
+def test_archives_preserve_source_text_document_ids_and_split(tmp_path, monkeypatch):
+    from scripts import archive_el_corpus_inputs as archive
+
+    tatoeba = tmp_path / "ell_sentences.tsv.bz2"
+    tatoeba.write_bytes(bz2.compress("1\tell\tΤο σπίτι είναι μικρό.\n".encode()))
+    wiktionary = tmp_path / "kaikki.org-en-dictionary-Greek.jsonl"
+    wiktionary.write_text(json.dumps({"word": "Σπίτι", "lang_code": "el", "senses": [
+        {"examples": [{"text": "Το σπίτι είναι μικρό.", "type": "example"}]}]},
+        ensure_ascii=False) + "\n", encoding="utf-8")
+    sources = [url_source("tatoeba", tatoeba, {"kind": "tatoeba_tsv_bz2"},
+                          attribution="Fixture authors"),
+               url_source("wiktionary_examples", wiktionary, {"kind": "kaikki_examples"},
+                          attribution="Fixture authors")]
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps(manifest_of(*sources)), encoding="utf-8")
+    monkeypatch.setattr(C, "resolve_inputs", lambda src: [
+        tatoeba if src["key"] == "tatoeba" else wiktionary])
+    original = list(C.iter_documents(sources[1], [wiktionary]))
+    assert len(original) == 1
+    output = tmp_path / "archive"
+    first = archive.stage(manifest, output)
+    bytes_first = {p.name: p.read_bytes() for p in output.iterdir()}
+    assert archive.stage(manifest, output) == first
+    assert {p.name: p.read_bytes() for p in output.iterdir()} == bytes_first
+    assert (output / archive.FILES["tatoeba"]).read_bytes() == tatoeba.read_bytes()
+    pinned = archive.pin_revision(manifest, output, "f" * 40)
+    source = next(s for s in pinned["sources"] if s["key"] == "wiktionary_examples")
+    restored = list(C.iter_documents(source, [output / archive.FILES["wiktionary_examples"]]))
+    assert restored == original
+    assert [C.split_of(d.group, .05) for d in restored] == [
+        C.split_of(d.group, .05) for d in original]
+    assert source["fetch"]["kind"] == "hf_model"
+    assert source["fetch"]["revision"] == "f" * 40
+    assert source["archive_source"]["fetch"] == sources[1]["fetch"]
+
+
+def test_model_archive_download_uses_the_exact_hub_revision(tmp_path, monkeypatch):
+    import huggingface_hub
+
+    path = tmp_path / "pinned.bin"
+    path.write_bytes(b"pinned")
+    source = {"key": "x", "fetch": {"kind": "hf_model", "repo": "owner/archive",
+              "revision": "a" * 40, "files": [{"path": "data/input.bin", **pin(path)}]}}
+    calls = []
+
+    def download(**kwargs):
+        calls.append(kwargs)
+        return str(path)
+
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", download)
+    assert C.resolve_inputs(source, download=True) == [path]
+    assert calls[0]["repo_type"] == "model"
+    assert calls[0]["revision"] == "a" * 40
+    assert calls[0]["filename"] == "data/input.bin"
+    assert calls[0]["local_files_only"] is False
+
+
+def test_archived_document_rejects_a_changed_source_group(tmp_path):
+    path = tmp_path / "bad.jsonl.gz"
+    with gzip.open(path, "wt", encoding="utf-8") as fh:
+        fh.write(json.dumps({"id": "wiki:1", "group": "other:entry", "text": "λέξη"}) + "\n")
+    with pytest.raises(C.CorpusError, match="invalid archived document"):
+        list(C.iter_documents({"key": "wiki", "reader": {"kind": "archived_documents"}}, [path]))
+
+
 def _good_manifest():
     return manifest_of({
         "key": "demo", "role": "el_lm_core", "license": "CC-BY-4.0",

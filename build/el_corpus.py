@@ -83,7 +83,7 @@ def license_refusal(license_id: str) -> str | None:
 
 def _validate_fetch(key: str, fetch: dict) -> None:
     kind = fetch.get("kind")
-    if kind == "hf_dataset":
+    if kind in ("hf_dataset", "hf_model"):
         if not fetch.get("repo"):
             raise CorpusError(f"{key}: hf_dataset needs a repo")
         if not _COMMIT_RE.fullmatch(fetch.get("revision", "")):
@@ -245,7 +245,7 @@ def resolve_inputs(src: dict, *, download: bool = False,
     """
     fetch = src["fetch"]
     paths: list[Path] = []
-    if fetch["kind"] == "hf_dataset":
+    if fetch["kind"] in ("hf_dataset", "hf_model"):
         os.environ.pop("HF_HUB_ENABLE_HF_TRANSFER", None)
         from huggingface_hub import hf_hub_download
 
@@ -253,7 +253,8 @@ def resolve_inputs(src: dict, *, download: bool = False,
             try:
                 p = Path(hf_hub_download(
                     repo_id=fetch["repo"], filename=pin["path"],
-                    repo_type="dataset", revision=fetch["revision"],
+                    repo_type="dataset" if fetch["kind"] == "hf_dataset" else "model",
+                    revision=fetch["revision"],
                     local_files_only=not download))
             except Exception as exc:
                 raise CorpusError(
@@ -458,6 +459,20 @@ def _iter_kaikki_examples(src: dict, paths: list[Path]) -> Iterator[Document]:
                             f"{key}:{word}", text)
 
 
+def _iter_archived_documents(src: dict, paths: list[Path]) -> Iterator[Document]:
+    """Read source documents archived before normalization, with their old ids."""
+    prefix = src["key"] + ":"
+    for path in paths:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            for line in fh:
+                row = json.loads(line)
+                if (not all(isinstance(row.get(k), str) for k in ("id", "group", "text"))
+                        or not row["id"].startswith(prefix)
+                        or not row["group"].startswith(prefix)):
+                    raise CorpusError(f"{path}: invalid archived document")
+                yield Document(row["id"], row["group"], row["text"])
+
+
 READERS = {
     "parliament_csv": _iter_parliament_csv,
     "opengov_comments": _iter_opengov_comments,
@@ -465,6 +480,7 @@ READERS = {
     "tatoeba_tsv_bz2": _iter_tatoeba,
     "text_lines": _iter_text_lines,
     "kaikki_examples": _iter_kaikki_examples,
+    "archived_documents": _iter_archived_documents,
 }
 
 
