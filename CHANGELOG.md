@@ -21,7 +21,7 @@ savings, with Python and Swift reader checks.
 
 Complete missing present-active cells beneath independently defined Modern
 Greek verb heads, preserving source-supplied forms and existing lookup
-readings. The refreshed data adds 9,397 pairs across 1,902 heads with
+readings. The refreshed data adds 9,450 pairs across 1,904 heads with
 reversible provenance. The older Modern Greek Hunspell export now refuses
 missing or empty form-frequency data instead of writing an empty dictionary.
 
