@@ -215,6 +215,13 @@ short sentences from the repeat rules raised the Parliament rate of
 `εντάξει` from 58.8 to 79.7 per million, because it is often a sentence by
 itself.
 
+The clean-checkout rebuild at commit `c4dace2` on 2026-11-08 fetched
+the archived Tatoeba and Wiktionary inputs and reused verified caches for the
+other pinned sources. All 36 shards and all side tables matched the preceding
+corpus byte for byte. Document ids, groups, caps and the train/dev split did not
+change. The extraction took about 20 minutes under shared machine load;
+the timing above was measured on an idle machine.
+
 ## Known limitations
 
 - The duplicate rules match exact case-folded token sequences. OpenGov

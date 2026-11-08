@@ -27,7 +27,7 @@ evidence.
 python extract_el_monotonic_lm.py                 # the corpus, once (see el-monotonic-corpus.md)
 python export_el_monotonic.py --max-lemmas 5000 --out-dir /tmp/el_check
                                                   # sanity run, about 1 minute
-python export_el_monotonic.py                     # build/hunspell, about 2.5 minutes
+python export_el_monotonic.py                     # build/hunspell, several minutes
 python eval/eval_el_monotonic.py --download       # first run fetches the pinned elspell files
 python eval/eval_el_monotonic.py                  # build/el_monotonic/eval.json, about 30 s
 python -m pytest tests/test_el_monotonic_list.py -q
@@ -203,13 +203,13 @@ common word:
   Function words, elisions and reviewed loanwords stay, and so does a form
   of the commoner spelling's own lemma (the colloquial `ακούσαν` beside
   `άκουσαν`) or of a lemma with a C or M form (`τροπών` beside `τρόπων`):
-  those are words, not misplaced accents. That removed 537 entries.
+  those are words, not misplaced accents. The 2026-11-07 review removed 537 entries.
 - A paradigm form of at most three letters, rated R or X and in fewer
   than 10 documents, is dropped when its letters are a same-sound
   spelling or a neighboring-key slip on the same keyboard row of a word
   at least 300 times as common in both sources (`μάι` for `με`, `ξάι`
   for `και`, `άε` for `σε`). A letter left out or added does not count
-  here, since a short word is one letter away from many others. That
+  here, since a short word is one letter away from many others. The 2026-11-07 review
   removed 27 entries.
 
 ## Frequency ratings
@@ -231,7 +231,7 @@ it. These are the edges of the polytonic Modern Greek list. The sources are
 FrequencyWords (262.8M words) and each open-corpus source with at least 1M
 training words (Parliament, OpenGov comments, Wikipedia, European Parliament,
 EELLAK articles, monotonic Wikisource); Tatoeba, Common Voice and the
-Wiktionary examples are pooled (0.95M words). FrequencyWords lowercases and
+Wiktionary examples are pooled (932,062 words). FrequencyWords lowercases and
 strips apostrophes, so it rates lowercase words only, and a name only when
 its lowercase is no word. In the open corpus, a sentence-initial capital is
 shared between a word and its capitalized twin in proportion to their
@@ -242,7 +242,7 @@ character's name (`Κατίγκω`) or one article repeating a term does not mak
 a word common. A source of fewer than 10M words (EELLAK articles,
 Wikisource and the pooled small sources) rates C only when a larger source
 or FrequencyWords also reaches C; otherwise its rate is held just under
-the C edge. That moved 1,411 entries from C to M, mostly words that a few
+the C edge. In the 2026-11-07 export this moved 1,411 entries from C to M, mostly words that a few
 thousand Tatoeba sentences repeat. An elided word written without its mark (`απ` for `απ’`,
 which FrequencyWords counts) is never an entry.
 
@@ -280,140 +280,113 @@ so they cannot veto that evidence
 
 ## Recorded export
 
-Export of 2026-11-07, commit cc4cdaa, version 1.3.15 (sha256 of the
-`.dic` `b21c4047`), which the next-word model was trained from:
+Built at commit `6cb8d11` on 2026-11-08. The dictionary's sha256 is
+`ef508ecffe7cf3a2b9696e8de3edea791fd3b81f28b7977146479a427948464f`. The build reads the source-backed present-tense completion
+of 9,450 pairs across 1,904 heads, while preserving prior analyses and preferred
+lookups. The corpus's documents and train/dev split are unchanged.
 
 | Measure | Value |
 |---|---|
-| Entries | 631,330 |
-| C, M, R, X | 6,253, 40,862, 365,100, 219,115 |
-| Attested, generated | 412,215, 219,115 |
-| Paradigm, corpus word, name, elision, function word | 606,690, 6,585, 17,859, 191, 5 |
-| Abbreviations, acronyms | 219, 1,723 |
-| Compiled size estimate | 34.9 MB (34,918,054 bytes), 55.3 bytes per entry |
-| Lexicon read | 187,846 lemmas, 1.10M forms; 53,811 lemmas attested |
+| Entries | 637,216 |
+| C, M, R, X | 6,255, 41,061, 368,750, 221,150 |
+| Attested, generated | 416,066, 221,150 |
+| Corpus words | 7,053 |
+| Elisions | 189 |
+| Function words | 5 |
+| Names | 17,859 |
+| Paradigm entries | 612,110 |
+| Abbreviations, acronyms | 219, 1,732 |
+| Compiled dictionary | 35,251,000 bytes |
+| Entries with common accent alternatives | 81 |
+| Lexicon lemmas read | 187,894 |
 
-Against the export before (631,696 entries, sha256 `abef641c`), 618
-entries left and 252 joined, and 1,411 moved from C to M (the cap on small
-sources). The ones that left: 537 rare spellings beside a commoner one
-with another accent, 27 rare short slips, 25 names beside a commoner
-spelling of the same letters (`Προέδρε`, `Βρετάνια`, `Γουϊνέα`), 20 words
-run together, 4 elisions without their tonos, and capitals that only one
-source uses (`Βουλευτή`, `Αίθουσα`). Most that joined are names that two
-sources write with their capital (`Ένωση`, `Εθνών`, `Ηνωμένων`,
-`Επιτροπή`, `Δημοκρατίας`); 32 acronyms joined (`ΣΥΡΙΖΑ`, `ΑΕΙ`, `ΑΠΕ`,
-`ΧΥΤΑ`, `ΟΛΜΕ`).
+The native Swift compiler produced the dictionary above and its reader found
+every entry, frequency bucket and generated-form marker. The model reader also
+matched every vocabulary id, reserved id and out-of-vocabulary count, and all
+18,000 answers across 6,000 dev queries. The query set includes capitalized
+contexts and ASCII apostrophes. These checks establish format and reader
+agreement; they do not establish how a keyboard ranks corrections.
 
-The compiled size follows the keyboard's dictionary format (raw and stripped
-string pools with offsets, a stripped index, one frequency byte per entry).
-For the earlier exports at commit f08cf8f (630,463 entries) and e2315cd
-(631,696 entries), the keyboard's Swift dictionary compiler produced a file
-of exactly the estimated size (34,881,785 and 34,930,430 bytes) in about
-5 s on an Apple M5 Max, and its reader found every entry with the bucket of
-its `fr:` field and the `mg:generated` mark of the generated forms; the
-format of this export is the same.
-The largest rejections were unattested capitalized forms (246,100), forms
-of unattested lemmas (215,678) and unaccented polysyllables (10,676). The
-lexicon no longer reads the 698,350 accent-stripped aliases of `lookup.db`
-(see route 1), which the spelling check used to reject one by one.
+This export took about six minutes under shared machine load. Runtime depends
+on the available CPU and whether corpus type counts are cached.
 
 ## Evaluation
 
-`eval/eval_el_monotonic.py` on the dev split (9.30M word tokens in 49,310
-documents the exporter never read):
+`eval/eval_el_monotonic.py` reads 9,300,478 dev word tokens
+in 49,310 documents held out from the exporter. A word with
+an enclitic's second accent counts as accepted when its host spelling is an entry.
 
 | Measure | List | elspell |
 |---|---|---|
-| Word tokens accepted as spelled | 98.39% | 97.20% |
-| Lowercase tokens accepted as spelled | 98.92% | 98.68% |
-| Accepted with accents ignored | 98.69% | 97.46% |
-| Capitalized tokens accepted | 94.95% | |
-| All-capital tokens accepted | 93.94% | |
-| Abbreviation tokens in the abbreviation list | 61.6% | |
+| Word tokens accepted as spelled | 98.51% | 97.20% |
+| Lowercase tokens accepted as spelled | 99.06% | 98.68% |
+| Accepted with accents ignored | 98.79% | 97.46% |
+| Capitalized tokens accepted | 95.00% | 89.76% |
+| All-capital tokens accepted | 93.95% | 65.52% |
 
-Per source, exact coverage is 99.3% for Parliament, 99.3% for the European
-Parliament, 98.1% for OpenGov comments, 97.0% for Wikipedia and 79.5% for
-monotonic Wikisource, whose older literary spelling the list does not
-accept. A token with an enclitic's second accent counts as accepted when
-the entry without it is one. The commonest misses are numbering letters
-(`β`, `γ`, `δ`, and the capital `Ι` of Roman numerals, which the letter `ι`
-no longer covers), the old accented monosyllable `τού`, the misspelling
-`απο`, `διά`, technical words FrequencyWords lacks (`φυτοπροστατευτικών`),
-`κλπ` without its period and mixed-case acronyms (`ΣτΕ`). `ό,τι` is one
-token and one entry (2,732 dev tokens).
+Abbreviations are evaluated separately: 61.55%
+of abbreviation tokens are in the companion list.
 
-False accepts: of 34 reviewed misspellings (unaccented, accented
-monosyllables, double accents, Latin look-alikes, wrong accents, wrong or
-missing dialytika, old spellings, ASCII apostrophes), the list accepts one,
-`νοιώθω`, which Wiktionary lists as a form of `νιώθω`. Of the 119,687
-spellings made by moving the tonos of a C or M entry to another vowel, 2,910
-(2.4%) are entries, most of them other words (`πότε`, `ποτέ`). Triantafyllidis
-headwords: 81.8% of 44,396 single-word headwords are entries; the missing ones
-are mostly rare derived adjectives no source attests (`άβαλτος`, `άγλωσσος`).
+| Source | Exact coverage |
+|---|---|
+| Common Voice | 97.99% |
+| EELLAK articles | 99.47% |
+| European Parliament | 99.46% |
+| OpenGov comments | 98.27% |
+| Parliament | 99.41% |
+| Tatoeba | 99.17% |
+| Wikipedia | 97.01% |
+| Wikisource | 79.68% |
+| Wiktionary examples | 96.30% |
 
-[Monotonic keyboard data](monotonic-keyboard-data.md) measures the list
-together with the next-word model the way a keyboard uses them: accent
-restoration, typing slips, the enclitic second accent and keystroke
-savings. Its slip simulation found the misspellings the typing-slip rule
-of the corpus-word route now rejects.
+Of 34 reviewed misspellings, the accepted spellings are
+`νοιώθω`.
+Wiktionary lists the old spelling `νοιώθω` as a form of `νιώθω`.
+Moving the tonos of a C or M entry to another vowel produces
+120,435 spellings, of which
+3,001 (2.49%)
+are entries; many are distinct real words such as `πότε` and `ποτέ`.
+The list covers 82.05% of
+44,396 single-word
+Triantafyllidis headwords, an evaluation-only source.
+
+[Monotonic keyboard data](monotonic-keyboard-data.md) measures restoration,
+typing slips, the enclitic second accent and keystroke savings on the same data.
 
 ## The LibreOffice Greek dictionary
 
-The el_GR dictionary of LibreOffice (elspell 0.9, 828,806 fully expanded
-words, pinned at commit `74d8e82` of LibreOffice/dictionaries with sha256 in
-the evaluation script) is licensed MPL 1.1, GPL 2.0 or LGPL 2.1. GPL and LGPL
-terms cannot be met by an app distributed through the App Store, and MPL 1.1
-keeps the covered file under MPL, which a list that also carries CC BY-SA
-content cannot satisfy. So it is used only to evaluate the list, never to
-admit words. On the dev split, it accepts 8,689 token types (37,451 tokens)
-that the list rejects, mostly single letters, old accented monosyllables
-(`τού`, `τούς`, `μάς`), `διά`, abbreviations written without their period
-(`κλπ`, `πχ`) and formal participles (`καταταγέντων`). The list accepts
-21,570 types (148,203 tokens) it rejects, mostly acronyms, elisions, `ό,τι`,
-names, recent words (`πάροχοι`, `οικοτόπων`) and old spellings Wiktionary
-lists (`καμμία`). It lacks 60 C entries of the list: names (`Τσίπρα`,
-`Σένγκεν`), recent technical words (`διαλειτουργικότητα`, `ενωσιακή`,
-`μοριοδότηση`), the abbreviations `κα` and `κου` written without their
-period, and `καμμία`.
+The el_GR dictionary of LibreOffice (elspell 0.9,
+828,806 fully expanded words, pinned at commit
+`74d8e826359dbf38224fac1b9c02254b7fe0186a`) is evaluation-only. Its
+MPL 1.1, GPL 2.0 or LGPL 2.1 license is separate from this word list's
+source licenses; it supplies no words to the exporter.
+
+On dev, elspell accepts 7,560
+types (29,328 tokens)
+that this list rejects. This list accepts
+21,823 types
+(151,175 tokens) that
+elspell rejects. The JSON report includes the most frequent differences and
+comparisons by frequency bucket. Neither dictionary is a gold spelling reference.
 
 ## Known limitations
 
-- `ό,τι` is one token and one entry, but the keyboard must not split it at
-  its comma, since `ό` alone is not an entry.
-- The corpus-word route needs at least 3 FrequencyWords tokens, so technical
-  words seen only in open text (`φυτοπροστατευτικών`, 682 dev tokens) are
-  missing unless Wiktionary has their form.
-- Wiktionary lists some old spellings as forms (`νοιώθω`, `καμμία`), and they
-  pass with their own ratings. Corpus words are also an imperfect filter for
-  merged spellings and misspellings; `data/el_monotonic_review.json` rejects
-  the ones found (`γιαυτό`, `τιδήποτε`).
-- The typing-slip rule also rejects older forms of common words that
-  Wiktionary lacks (`ήκουσα`, `είδον`, `ταύτης`), so older literary text
-  has more words the list rejects.
-- A capitalized spelling whose lowercase is a word is a name when the
-  sources agree on its capital. `Όρος` of `Άγιο Όρος` stays out, because
-  text mostly writes it as the word `όρος`. Names of institutions that two
-  sources capitalize (`Επιτροπή`, `Ναυτιλίας`) are entries, so a keyboard
-  can propose them with their capital where the lowercase word is meant.
-- A name rarer than a spelling of the same letters with the accent
-  elsewhere is kept unless the other is 100 times as common, so a few
-  misplaced accents remain (`Αρκαδιά`, 16 documents, beside `Αρκαδία`, 19
-  times as common): a lower ratio would drop transliterated names such as
-  `Ίσαακ`. The other way round, the cleanup of rare spellings beside a
-  commoner one with another accent drops a few real names that text
-  writes far less often than their twin: `Μάρια` beside `Μαρία`, `Χρύσης`
-  (the priest of the Iliad) beside `Χρυσής`.
-- `τοις` and `τω` are function words for `τοις εκατό` and `εν τω
-  μεταξύ`, which make up most of their uses, but they are also slips of
-  `τις`, `της`, `τους` and `το`. In the typing-slip simulation of
-  [monotonic keyboard data](monotonic-keyboard-data.md), `το` typed `τω`
-  is 594 of 6,490 ο and ω slips; a keyboard can accept the two only where the
-  next-word model expects them.
-- Monotonic Wikisource is a rating source of its own, so older literary
-  forms (`ψυχήν`, `όλην`, `ώραν`, `οπού`) are rated M on its counts; it
-  rates C only what a larger source also rates C.
-- X entries (219,199) are Wiktionary forms no source has. Rare legitimate
-  forms and Wiktionary's dialectal or colloquial variants are among them.
-- Acronyms whose letters are an entry are left out of the acronym list
-  unless they are far commoner than the entry; `ΝΑΤΟ` stays out, because
-  FrequencyWords counts `νάτο` (here it is) 1,480 times.
+- The keyboard must keep `ό,τι` together at its comma, and treat the companion
+  abbreviation and acronym lists separately from ordinary dictionary entries.
+- Open-only formal words need evidence in two independent sources. A word found
+  only in one source remains out even when frequent; subtitle counts cannot
+  supply missing evidence for it.
+- Wiktionary retains some older spellings (`νοιώθω`, `καμμία`), and the
+  corpus filters do not catch every misspelling. The reviewed reject file records
+  the exceptions found so far. Older literary and dialect text remains less covered.
+- Capitalized institution names can be proposed where a lowercase word is meant.
+  A lowercase restoration must apply the case and frequency policy documented in
+  [monotonic keyboard data](monotonic-keyboard-data.md#accent-restoration).
+- A rare word can share letters with a common one with a different accent.
+  `ac:` metadata supports a proposal; it does not invalidate the rare spelling.
+- `τοις` and `τω`, used in `τοις εκατό` and `εν τω μεταξύ`, are also plausible
+  slips of common words. Correction needs frequency and context checks.
+- 221,150 X entries are generated forms unseen in the frequency
+  sources. A dictionary hit alone is weak evidence that one was intended.
+- Acronyms colliding with a word need strong capitalized evidence. Two independent
+  open sources can confirm them even when case-folded subtitle counts cannot.

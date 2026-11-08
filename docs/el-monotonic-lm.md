@@ -102,7 +102,7 @@ A double-accented token is kept as it is when it is the form the keyboard
 writes before an enclitic for a list spelling (`el_accent.enclitic_twin`:
 one tonos, stressed on the third syllable from the end with or without
 synizesis, the second tonos on the last vowel), resolved like the
-spelling it doubles. The list has 265,200 such forms. One seen at least 3
+spelling it doubles. The list has 267,461 such forms. One seen at least 3
 times whose host is in the vocabulary joins the vocabulary, outside its
 150,000 types, with its id after the list spellings; a host ranks by its
 count plus its twin's. A rarer one is counted as its host. These forms
@@ -112,14 +112,25 @@ as predictions or completions (the evaluations hide every vocabulary
 token with two tonos, `GNLMReader.hide_double_accented`). Any other
 double-accented token keeps only its first tonos (`fold_enclitic_accent`).
 
-In the full training run, of the 195,633,147 training tokens under the
-caps (before weighting), 169,505,613 were list spellings or their
-double-accented forms as written, 8,948,242 were lowercased at the start
-of a sentence and 6,163,654 inside one, and 11,015,638 became `<UNK>`
-(5,425,695 placeholders, 1,244,243 abbreviations, 1,670,885 words in
-capitals, 2,674,815 not in the list). 474,750 tokens were double-accented
-forms of list spellings, and 39,774 other double-accented tokens lost
-their second accent. The vocabulary holds 5,784 double-accented forms.
+The recorded run resolves 195,633,147 tokens under the corpus caps,
+before source weighting and without sentence boundaries. Its resolution counts
+are below; the two enclitic rows are subsets of the other outcomes.
+
+| Resolution | Tokens |
+|---|---|
+| exact | 169,678,270 |
+| lowered sentence initial | 8,951,394 |
+| lowered inside sentence | 6,168,060 |
+| unk placeholder | 5,425,695 |
+| unk abbreviation | 1,244,243 |
+| unk capitals | 1,670,885 |
+| unk not in word list | 2,494,600 |
+| enclitic folded | 39,642 |
+| enclitic twin | 474,882 |
+
+After weighting and sentence boundaries, training counts
+221,240,505 tokens. The vocabulary holds
+5,791 double-accented forms.
 
 ## Counting
 
@@ -167,7 +178,7 @@ Export uses the Ancient Greek settings: rows of the 30 most likely
 continuations after a word and the 15 most likely after two, 10 global
 fallbacks, homograph spellings seen at least 3 times kept in a row past
 that cut, and the bigram row of a homograph spelling completed with every
-continuation seen at least 3 times. In this vocabulary 6,058
+continuation seen at least 3 times. In this vocabulary 6,270
 spellings share their letters with another (`που` and `πού`, `πότε` and
 `ποτέ`, `όρος` and `ορός`).
 
@@ -199,6 +210,10 @@ Three things differ from the Ancient Greek export:
   unchanged.
 
 ## Pruning
+
+These tuning experiments use the earlier word list of commit `2951b0e`,
+before the double-accented vocabulary was added. They explain the defaults;
+current results appear under [Evaluation](#evaluation).
 
 Three knobs, the same as for Ancient Greek, decide the size:
 
@@ -315,129 +330,84 @@ in proportion to its size; see [Known limitations](#known-limitations).
 
 ## Recorded model
 
-Built at commit cc4cdaa on 2026-11-07, from the corpus extracted at
-commit 3a45179 and the word list with sha256 `b21c4047` (631,330 entries);
-the binary's sha256 is `8f62be97`:
+Built at commit `6cb8d11` on 2026-11-08 from the dictionary with sha256
+`ef508ecffe7cf3a2b9696e8de3edea791fd3b81f28b7977146479a427948464f`. The binary's sha256 is
+`46564a1f26beaa83f90ef569563b3dfeab479df2053aac85553a8e7afcc0fe0e`.
 
 | Part | Measure |
 |---|---|
-| Size | 61,065,151 bytes (58.2 MiB), 20.8 MB under `xz -6` |
-| Vocabulary | 155,784 types: 150,000 plus 5,784 double-accented forms (4.2 MB with counts and the 10 global fallbacks) |
-| Bigram rows | 153,020 rows (1.8 MB), 2,218,343 entries (13.3 MB) |
-| Trigram rows | 1,263,685 rows (20.2 MB), 3,567,076 entries (21.4 MB) |
-| Homograph spellings | 6,058 kept past the cut; 1,156 bigram rows completed with 263,637 entries |
-| Host and double-accented form pairs | 5,784 |
-| Out-of-vocabulary table | 12,831 counts (0.1 MB), none capped |
-| Training words | 200.5M weighted (195.6M tokens under the caps); 94.02% vocabulary spellings, 5.61% `<UNK>`, 0.37% list spellings outside the vocabulary |
-| Distinct n-grams counted | 13.8M bigrams, 58.5M trigrams |
+| Size | 61,308,873 bytes |
+| Vocabulary | 155,791 types, including 5,791 double-accented forms |
+| Bigram rows | 153,141 |
+| Trigram rows | 1,269,046 |
+| Homograph spellings | 6,270 |
+| Out-of-vocabulary counts | 12,945, 0 saturated |
+| Weighted training words | 200,543,373 |
+| Training vocabulary share | 94.10% |
+| Training unknown share | 5.52% |
+| Distinct bigrams counted | 13,890,568 |
+| Distinct trigrams counted | 58,653,612 |
 
-The pruning and vocabulary tables above were measured with the word list
-of commit 2951b0e (630,688 entries) and without the double-accented forms.
-The list of this build differs from it in about 3,000 entries, most of
-them names and rare forms (see
-[Monotonic keyboard data](monotonic-keyboard-data.md#changes-to-the-word-list)),
-and the corpus has since dropped Wiktionary's editorial notes and keeps
-`ό,τι` as one token; the evaluation below is of this build. The previous
-build (sha256 `227240c4`, 60,428,378 bytes, 150,000 types) scored 18.52%
-top-1 and 30.36% top-3 on its dev sentences, which split `ό,τι`.
-
-Training took 31 s with the encoded shards cached (56 s when the new list
-made it encode them again) and export 16 s, on an Apple M5 Max. `build/gnlm_reader.py`
-finds no structural problem in the file, and `export_lm.py --lang el
---check-dictionary` confirms the out-of-vocabulary table matches the list.
-The format is unchanged: the double-accented forms are ordinary vocabulary
-tokens. The keyboard's Swift `LMReader` was last checked on the previous
-build (sha256 `227240c4`): it resolved each of its 150,000 vocabulary
-entries to its own id and the four reserved tokens to the ids the header
-names, found a count for each list word outside the vocabulary that the
-table covers, and gave the same answers as `build/gnlm_reader.py` on
-6,000 queries drawn from the dev sentences (`suggest`, `score` and
-`suggestCompletions`, with context words in capitals and with ASCII
-apostrophes).
+Corpus shards and side tables match the previous build byte for byte; the
+held-out split is unchanged. The word list changed, so the counts and model
+were rebuilt in order.
+`export_lm.py --lang el --check-dictionary` passes, and the Python reader
+reports no structural problem. The native Swift reader resolved every vocabulary
+entry and reserved id, checked all dictionary words outside the vocabulary, and
+matched Python on all 18,000 method answers from 6,000 dev queries, including
+capitalized contexts and ASCII apostrophes. These checks cover the GNLM v2
+format without requiring a keyboard or a simulator.
 
 ## Evaluation
 
-`eval/eval_el_ngram.py` reads the binary with `build/gnlm_reader.py`, a
-Python reader that validates a file the way `LMReader` does and answers
-`suggest`, `score` and `suggestCompletions` step for step as it does, and
-replays the dev sentences of `build/lm_el` (held out by document group,
-never counted):
+`eval/eval_el_ngram.py` replays the whole dev split, held out by document group.
+Next-word top-1 and top-3 include unknown and out-of-vocabulary targets as misses.
+Completion takes the first two or three letters without accents and is measured
+over listed word targets longer than that prefix. A double-accented target counts
+as its host, and suggestions hide double-accented forms.
 
-- **Next word.** After every word of a sentence, and after `<s>`, the first
-  1 and 3 suggestions with the two previous words as context, against the
-  word that follows. `</s>` is never a target. *All words* counts every
-  word target, so `<UNK>` and spellings outside the vocabulary are misses;
-  *in vocabulary* counts only targets the model can propose.
-- **Completion recall.** For every word target longer than k letters
-  (k = 2, 3), the first k letters typed in lowercase without accents, then
-  the first 1 and 3 completions, against the word. Over word-list targets.
-- **Pseudo-perplexity.** exp of the mean negative `LMReader.score` over
-  vocabulary targets. The score is stupid backoff over the rows the file
-  holds, so a word cut from a row is scored at a lower tier, as on the
-  keyboard. The scores are not normalized probabilities, so the value only
-  compares models of this format with each other.
+The score uses stupid backoff, so pseudo-perplexity compares files of this format;
+it is not a normalized language-model probability. Pooled results weight sources
+by their targets. Conversational pools Tatoeba, Common Voice and Wiktionary examples.
 
-The pooled results weight sources by their dev word targets, so
-Parliament dominates them; *conversational* pools Tatoeba, Common Voice and the
-Wiktionary examples.
+| Set | Word targets | In vocabulary, % | Top-1, % | Top-3, % | Completion after 2 letters, top-3, % | After 3 letters, top-3, % | Pseudo-perplexity |
+|---|---|---|---|---|---|---|---|
+| Common Voice | 2,086 | 95.73 | 9.44 | 17.50 | 50.12 | 49.32 | 4156 |
+| EELLAK articles | 56,120 | 90.08 | 15.57 | 26.75 | 58.65 | 56.29 | 1119 |
+| European Parliament | 1,904,781 | 94.80 | 22.35 | 34.74 | 64.17 | 61.33 | 505 |
+| OpenGov comments | 1,856,015 | 91.90 | 17.56 | 28.96 | 62.48 | 60.89 | 762 |
+| Parliament | 3,773,347 | 96.63 | 19.77 | 32.40 | 67.67 | 67.90 | 489 |
+| Tatoeba | 12,295 | 98.19 | 15.68 | 27.34 | 57.01 | 61.14 | 1437 |
+| Wikipedia | 1,924,319 | 88.79 | 14.71 | 25.57 | 55.82 | 54.80 | 1940 |
+| Wikisource | 107,987 | 73.31 | 4.41 | 10.05 | 41.86 | 38.89 | 9494 |
+| Wiktionary examples | 42,202 | 88.51 | 11.99 | 20.93 | 49.72 | 49.08 | 3601 |
+| All, pooled | 9,679,152 | 93.47 | 18.61 | 30.50 | 63.37 | 62.38 | 723 |
+| Conversational, pooled | 56,583 | 90.88 | 12.70 | 22.20 | 51.36 | 51.73 | 2919 |
 
-Whole dev split, 449,360 sentences (`python eval/eval_el_ngram.py`, about
-7 minutes on an idle machine). Double-accented forms are hidden from the
-suggestions as on the keyboard, and a double-accented target counts as its
-host:
+The three-letter completion set has longer and harder words than the two-letter
+set, so its recall can be lower. The pruning experiments above use smaller dev
+samples and a different historical vocabulary; their pooled scores are not
+the current scores in this table.
 
-| Set | Word targets | In vocabulary | Top-1 | Top-3 | Top-1, vocabulary targets | Top-3, vocabulary targets | Pseudo-perplexity | Completion after 2 letters, top-1 | top-3 | After 3 letters, top-1 | top-3 |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| Common Voice | 2,086 | 95.69 | 9.44 | 17.50 | 9.87 | 18.29 | 4164 | 36.96 | 50.24 | 36.51 | 49.48 |
-| EELLAK articles | 56,120 | 90.05 | 15.56 | 26.74 | 17.28 | 29.69 | 1116 | 47.64 | 58.71 | 42.92 | 56.33 |
-| European Parliament | 1,904,781 | 94.62 | 22.28 | 34.65 | 23.55 | 36.62 | 503 | 53.37 | 64.19 | 49.62 | 61.34 |
-| OpenGov comments | 1,856,015 | 91.72 | 17.50 | 28.88 | 19.08 | 31.48 | 760 | 50.45 | 62.55 | 48.40 | 60.98 |
-| Parliament | 3,773,347 | 96.55 | 19.74 | 32.37 | 20.44 | 33.52 | 488 | 55.18 | 67.72 | 54.47 | 67.95 |
-| Tatoeba | 12,295 | 98.22 | 15.68 | 27.35 | 15.97 | 27.85 | 1439 | 44.39 | 57.05 | 44.84 | 61.17 |
-| Wikipedia | 1,924,319 | 88.79 | 14.71 | 25.56 | 16.57 | 28.79 | 1940 | 43.58 | 55.84 | 41.95 | 54.84 |
-| Wikisource | 107,987 | 73.17 | 4.40 | 10.04 | 6.02 | 13.72 | 9397 | 28.49 | 42.01 | 24.19 | 39.09 |
-| Wiktionary examples | 42,202 | 88.51 | 11.99 | 20.93 | 13.55 | 23.65 | 3601 | 38.36 | 49.77 | 36.52 | 49.15 |
-| All, pooled | 9,679,152 | 93.37 | 18.57 | 30.45 | 19.89 | 32.62 | 722 | 51.36 | 63.41 | 49.57 | 62.43 |
-| Conversational, pooled | 56,583 | 90.89 | 12.70 | 22.20 | 13.97 | 24.43 | 2920 | 39.65 | 51.41 | 38.34 | 51.79 |
-
-Completion after 3 letters can score below completion after 2 letters
-because it is measured over words of more than 3 letters, a harder set
-than words of more than 2. The tuning tables above use 3,000 dev sentences
-per source, which gives the small sources more weight, so their pooled
-numbers are lower than these.
-
-[Monotonic keyboard data](monotonic-keyboard-data.md) measures the model
-together with the word list the way a keyboard uses them: choosing between
-spellings that differ only in accents, and the keystrokes a three-slot
-suggestion bar saves.
+[Monotonic keyboard data](monotonic-keyboard-data.md) measures accent restoration,
+typing slips, enclitics and a three-slot suggestion bar using these same files.
 
 ### Predictions after common contexts
 
-The first six suggestions (`suggest`):
+The first six suggestions:
 
 | Context | Suggestions |
 |---|---|
-| `θα` | πρέπει, είναι, ήθελα, έπρεπε, σας, το |
-| `δεν` | είναι, θα, μπορεί, έχει, υπάρχει, έχουν |
-| `να` | μην, είναι, το, γίνει, σας, έχει |
-| `είναι` | η, το, ο, ένα, ότι, και |
-| `καλή` | διάθεση, επιτυχία, η, και, χρονιά, γνώση |
-| `τι κάνεις` | εδώ, εκεί, στον, απόψε, και, στη |
-| `ευχαριστώ πολύ` | κύριε, κυρία, για, και, τον, που |
-| `θα` at the start of a sentence | πρέπει, ήθελα, σας, το, μου, ήταν |
-| `σας` | πω, ευχαριστώ, παρακαλώ, και, το, είπα |
-| `καλημέρα` at the start of a sentence | σας, σε, και, κύριε, τι, θα |
-
-The first three completions (`suggestCompletions`) of a stem typed without accents:
-
-| Context | Stem | Completions |
-|---|---|---|
-| `θα ήθελα` | `να` | να, ναι, Ναυτιλίας |
-| `τι κάνεις` | `σ` | στον, στη, συνήθως |
-| `ευχαριστώ` at the start of a sentence | `π` | πολύ, πάρα, που |
-| start of a sentence | `καλ` | καλό, καλά, καλύτερα |
-| `να σας` | `ευχ` | ευχαριστώ, ευχαριστούμε, εύχομαι |
-| `δεν` | `ξ` | ξέρω, ξέρετε, ξεχνά |
+| θα | πρέπει, είναι, ήθελα, έπρεπε, σας, το |
+| δεν | είναι, θα, μπορεί, έχει, υπάρχει, έχουν |
+| να | μην, είναι, το, γίνει, σας, έχει |
+| είναι | η, το, ο, ένα, ότι, και |
+| καλή | διάθεση, επιτυχία, η, και, χρονιά, γνώση |
+| τι κάνεις | εδώ, εκεί, στον, απόψε, και, στη |
+| ευχαριστώ πολύ | κύριε, κυρία, για, και, τον, που |
+| θα at the start of a sentence | πρέπει, ήθελα, σας, το, μου, ήταν |
+| σας | πω, ευχαριστώ, παρακαλώ, και, το, είπα |
+| καλημέρα at the start of a sentence | σας, σε, και, κύριε, τι, θα |
 
 ## Tests
 
@@ -459,48 +429,19 @@ hidden from the reader's suggestions.
 
 ## Known limitations
 
-- **Register.** Parliament, OpenGov and Wikipedia make up most of the
-  training text. The conversational sets score far lower (top-1 12.70%
-  against 18.57% pooled), and some predictions show the Parliament
-  register: after `ευχαριστώ πολύ` the first suggestions are `κύριε` and
-  `κυρία`. The open sources hold little casual conversation (see the
-  corpus's limitations).
-- **Capitals, acronyms and abbreviations.** Words in capitals are never
-  counted, so the model never proposes `ΗΠΑ` or `ΕΣΥ`, and abbreviations
-  with their period (`π.χ.`) are `<UNK>`. The word list's companion lists
-  hold them.
-- **Context typed in capitals.** The reader lowercases a context word but
-  has no accent-insensitive lookup. `ΘΑ` finds `θα`, but a word typed in
-  capitals without its tonos (`ΕΙΝΑΙ`) resolves to nothing unless the
-  keyboard restores the accent first.
-- **Capitalized names of institutions.** Spellings that two sources
-  write with their capital inside sentences are list entries of their own
-  (`Ένωση`, `Ναυτιλίας` of `Υπουργείο Ναυτιλίας`), so the model counts
-  them apart from the lowercase word and can propose them in their
-  capitalized form: after `θα ήθελα` the third completion of `να` is
-  `Ναυτιλίας`.
-- **Rare double-accented forms.** A double-accented form seen fewer than
-  3 times in training is counted as its host, so for it the keyboard has
-  no evidence and falls back to the syllable rule.
-- **Trigram entries first.** The reader lists a trigram row before the
-  bigram row, so a weakly attested trigram entry outranks a strong bigram
-  entry. The minimum trigram count of 4 removes the weakest; ranking the
-  two tiers together by backoff score may do better.
-- **Completion cost grows with the vocabulary.** For a Greek stem the
-  reader scans the whole vocabulary, which is sorted by its accented
-  bytes. The first version of the keyboard's Swift reader decoded every
-  entry and stripped its diacritics: on an Apple M5 Max a completion took a
-  median 150, 230, 288 and 385 ms at 80,000, 120,000, 150,000 and 200,000
-  types, over the 50 ms its comments allow. Its current version folds each
-  entry's letters in place and rejects most entries at the first letter; on
-  the same machine a completion takes 0.7 ms on average at 150,000 types
-  (4,000 stems of two and three letters from the Parliament dev
-  sentences). The scan is still linear in the vocabulary size, but the
-  format needs no index.
-- **Pooled numbers.** Parliament has 39% of the dev word targets, so it
-  dominates the pooled results; the per-source rows are the better guide.
-- **Wikisource.** Only 73.17% of its dev words are vocabulary spellings:
-  literary and dialect text, much of it older, that the list and the
-  model cover poorly.
-- **Pseudo-perplexity.** Stupid backoff scores are not normalized, so the
-  value compares models of this format with each other and nothing else.
+- Parliament, OpenGov and Wikipedia dominate training. Conversational results are
+  lower, and suggestions can favor the formal register (`κύριε` after `ευχαριστώ πολύ`).
+- Acronyms and abbreviations remain in companion lists. The model does not propose
+  them; a keyboard needs a separate path for those suggestions.
+- The reader lowercases context but does not restore its accents. A keyboard must
+  restore an unaccented capitalized context before lookup when needed.
+- Capitalized institution names have entries of their own and can appear where a
+  lowercase word is intended.
+- A double-accented twin seen fewer than three times has no model token. Enclitic
+  decisions for it fall back to the documented syllable and context rules.
+- Trigram suggestions precede bigram suggestions. A weak trigram can outrank a
+  stronger bigram; the pruning threshold removes only the weakest counts.
+- Prefix completion scans the vocabulary, so cost grows with its size. This
+  validation establishes reader agreement, not worst-case latency on every device.
+- Older literary and dialect text in Wikisource remains less covered than the
+  contemporary sources. Pseudo-perplexity is not comparable to normalized models.
