@@ -4,6 +4,10 @@
   "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling or typing-slip rules of the corpus route would refuse because a far commoner word shares its letters or its sound, or is one typing slip away; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version.",
   "rejects": [
     {
+      "form": "παράγρ",
+      "reason": "An abbreviation of παράγραφος written without its period, not a complete word."
+    },
+    {
       "form": "κι’",
       "reason": "κι is already the shortened form of και and takes no elision mark in standard spelling (κι αν, κι εγώ)."
     },

@@ -216,6 +216,39 @@ def test_open_corpus_words_need_independent_spread_and_spelling_filters():
     assert ex.open_corpus_candidates(ex.Evidence({}, [table("wiki", rows)])) == set()
     assert ex.open_corpus_candidates(ex.Evidence({}, [table("wiki", rows),
                                                       table("wiki", rows)])) == set()
+    # A formal word can be concentrated in one register, but it still needs
+    # independent occurrences in at least five documents of another source.
+    primary = table("opengov", {"καταταγέντων": (423, 0, 298)})
+    secondary = table("parliament", {"καταταγέντων": (6, 0, 6)})
+    assert "καταταγέντων" in ex.open_corpus_candidates(ex.Evidence({}, [primary, secondary]))
+    weak = table("parliament", {"καταταγέντων": (4, 0, 4)})
+    assert "καταταγέντων" not in ex.open_corpus_candidates(ex.Evidence({}, [primary, weak]))
+
+
+def test_acronym_confidence_is_pooled_after_independent_source_confirmation():
+    # ΝΕΤ has a 10:1 majority in two sources, and strong pooled confidence.
+    # A separate Wilson test on each source would incorrectly reject it.
+    evidence = ex.Evidence({"νετ": 129}, [
+        table("wiki", {"ΝΕΤ": (145, 0, 111), "Νετ": (6, 0, 4), "νετ": (4, 0, 4)}),
+        table("parl", {"ΝΕΤ": (225, 0, 176)})])
+    kept, audit = ex.select_acronyms(evidence, {"νετ"}, {})
+    assert kept == ["ΝΕΤ"]
+    assert audit[0]["capitalized_sources"] == ["parl", "wiki"]
+
+
+def test_open_only_route_excludes_obsolete_inflections_but_keeps_modern_words():
+    known = {L.bare_key(w): [w] for w in ("κατάσταση", "μάχη", "αρμοδιότητας",
+                                         "μίσθωσης", "πατρίδας", "γλώσσας",
+                                         "ρυπαίνω", "απώλεσα", "απάρτιζα",
+                                         "ορίσθηκα", "επικαιροποιήσου")}
+    for form in ("κατάστασιν", "μάχην", "αρμοδιότητος", "μισθώσεως",
+                 "πατρίδος", "γλώσσης", "νομοθετείν", "συνεταιρίζεσθαι",
+                 "αποφασίζομεν", "αντιλαμβανόμεθα"):
+        assert ex.open_corpus_archaic_form(form, known), form
+    for form in ("καταταγέντων", "φυτοπροστατευτικών", "παρόν", "προϊόν",
+                 "εντούτοις", "γνώσει", "νομικώς", "ρυπαίνων", "απώλεσαν",
+                 "απάρτιζαν", "ορίσθηκαν", "επικαιροποιήσουν"):
+        assert not ex.open_corpus_archaic_form(form, known), form
 
 
 def test_wilson_lower_bound():

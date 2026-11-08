@@ -250,7 +250,7 @@ CORPUS_WORD_FORMAL_MIN_OPEN_DOCS = 10
 CORPUS_WORD_OPEN_MIN_TOKENS = 100
 CORPUS_WORD_OPEN_MIN_DOCS = 20
 CORPUS_WORD_OPEN_MIN_SOURCES = 2
-CORPUS_WORD_OPEN_MIN_SOURCE_TOKENS = 20
+CORPUS_WORD_OPEN_MIN_SOURCE_TOKENS = 5
 CORPUS_WORD_OPEN_MIN_SOURCE_DOCS = 5
 NAME_LEMMA_MIN_TOKENS = 3
 NAME_LEMMA_MIN_DOCS = 2
@@ -1113,7 +1113,7 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
               or docs < CORPUS_WORD_FORMAL_MIN_OPEN_DOCS):
             continue
         reason = gate(form)
-        if reason is None and open_only and T.is_katharevousa_marker(form):
+        if reason is None and open_only and open_corpus_archaic_form(form, known_bare):
             reason = "open_corpus_katharevousa"
         if reason is None and L.tonos_count(form) != 1:
             # Monosyllables are a closed class the lexicon and the function
@@ -1361,6 +1361,32 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
 
     sel.audit["route_details"] = audit_routes
     return sel
+
+
+def open_corpus_archaic_form(form: str, known_bare: dict) -> bool:
+    """Restrict the new subtitle-free route without changing corpus splits.
+
+    Formal participles remain useful Modern Greek. Obsolete infinitives and
+    personal endings do not qualify on formal-corpus counts alone. Older
+    case endings are excluded only when the corresponding Modern spelling
+    is already known; this leaves words such as παρόν and προϊόν intact.
+    """
+    bare = L.bare_key(form)
+    if T.is_katharevousa_marker(form) or bare.endswith(
+            ("ειν", "εσθαι", "ουσι", "ουσιν", "ωσι", "ωσιν",
+             "ομεν", "ομεθα", "ουμεθα", "εσθε")):
+        return True
+    # A blanket final-ν comparison also matches different verb cells:
+    # ρυπαίνων / ρυπαίνω, απώλεσαν / απώλεσα, απάρτιζαν / απάρτιζα.
+    if (bare.endswith(("ον", "ην")) or form.endswith("ίαν")) and bare[:-1] in known_bare:
+        return True
+    for old, modern in (("εως", "ης"), ("οτητος", "οτητας"),
+                        ("υτητος", "υτητας"), ("ιδος", "ιδας"),
+                        ("αδος", "αδας"), ("σσης", "σσας"), ("σιν", "ση")):
+        old, modern = L.bare_key(old), L.bare_key(modern)
+        if bare.endswith(old) and bare[:-len(old)] + modern in known_bare:
+            return True
+    return False
 
 
 def open_corpus_candidates(evidence: Evidence) -> set[str]:
@@ -1712,8 +1738,7 @@ def select_acronyms(evidence: Evidence, entries: set[str],
         for token, n in source_caps.items():
             other = source_others[L.bare_key(token)]
             if (n >= ACRONYM_MIN_TOKENS and table.docs.get(token, 0) >= ACRONYM_MIN_DOCS
-                    and n >= ACRONYM_OVER_WORD_RATIO * other
-                    and L.wilson_lower(n, n + other) >= ACRONYM_MIN_SHARE):
+                    and n >= ACRONYM_OVER_WORD_RATIO * other):
                 independent[token].add(table.source)
     bare_entries: Counter = Counter()    # bare key -> subtitle tokens
     for w in entries:

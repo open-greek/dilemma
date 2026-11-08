@@ -131,8 +131,10 @@ route:
    tokens and 20 open-corpus tokens in 10 documents. It must have one tonos
    and be written in lowercase in most of its mid-sentence uses. Without
    subtitle evidence, it needs at least 100 open-corpus tokens in 20
-   documents, with at least 20 tokens in 5 documents in each of two
-   independent sources. This route rejects Katharevousa markers and uses
+   documents, with at least 5 tokens in 5 documents in each of two
+   independent sources. This route rejects Katharevousa markers, obsolete
+   infinitives and personal endings, and older case endings when their
+   Modern equivalent is already known. It keeps formal participles and uses
    the same spelling, variant, typing-slip and joined-word checks.
    Unless Wiktionary has it (Katharevousa datives such as
    `εν μέρει`, which the paradigm reader drops), it is rejected when a far
@@ -270,9 +272,10 @@ letters are in lowercase in the open corpus, and at least 10 times as
 common, per million words, as the entry is in FrequencyWords (`ΣΥΡΙΖΑ`
 beside the adverb `σύριζα`, `ΑΕΙ`, `ΑΠΕ`, `ΧΥΤΑ`).
 The FrequencyWords test can also be satisfied by two independent open
-sources, each with 20 capital tokens in 5 documents, a 95% Wilson lower
-bound of at least 0.9 and at least 10 times as many capitals as other
-spellings. Subtitle counts fold case, so they cannot veto that evidence
+sources, each with 20 capital tokens in 5 documents and at least 10 times
+as many capitals as other spellings. The 95% Wilson lower bound of at
+least 0.9 is measured over the full corpus. Subtitle counts fold case,
+so they cannot veto that evidence
 (`ΝΑΤΟ` beside the spoken `νάτο`). The audit names the confirming sources.
 
 ## Recorded export
