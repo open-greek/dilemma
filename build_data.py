@@ -651,6 +651,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   closed_class_form_refs: dict = None,
                   adjective_heads: set = None, adjective_head_records: list = None,
                   exact_source_references: dict = None,
+                  present_head_records: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -909,6 +910,9 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # A verb-tagged inflection/alternate page is not an
                 # independent lexical verb parent for another participle.
                 verb_heads.add(lemma)
+                if present_head_records is not None:
+                    present_head_records.setdefault(lemma, []).append(
+                        verb_head_evidence(entry, wikt_source))
             hw_confidence = 1 if is_form_of_page else 3
             # A page that only gives another spelling of a word (γιός, the
             # Greek Wiktionary's "πολυτονική γραφή του γιος") is no lemma:
@@ -2925,6 +2929,7 @@ def main():
         adjective_heads, adjective_head_records = set(), []
         participle_roots, unresolved_verbs = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
+        present_head_records = {}
 
         # Per-source form_of_targets, kept separately so we can prefer
         # EN's resolution when a key is a real lemma headword in EN but
@@ -2960,7 +2965,8 @@ def main():
                 typed_references=typed_references,
                 canonical_references=canonical_references,
                 exact_source_references=exact_source_references,
-                closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
+                closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
+                present_head_records=present_head_records if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -3002,7 +3008,8 @@ def main():
                 typed_references=typed_references,
                 canonical_references=canonical_references,
                 exact_source_references=exact_source_references,
-                closed_class_form_refs=closed_class_form_refs if lang == "el" else None)
+                closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
+                present_head_records=present_head_records if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -3231,6 +3238,19 @@ def main():
             head_path.write_text(json.dumps(inventory, ensure_ascii=False, indent=2) + "\n",
                                  encoding="utf-8")
             print(f"Independent non-flat Ancient reading heads: {len(inventory['heads']):,}")
+
+        if lang == "el":
+            from dilemma.el_present_paradigms import complete_present_pairs
+            completion = complete_present_pairs(unique_pairs, all_lookup, present_head_records)
+            completion["source_sha256"] = noun_source_hashes
+            change_dir = DATA_DIR / "changes"
+            change_dir.mkdir(exist_ok=True)
+            (change_dir / "el_present_completion.json").write_text(
+                json.dumps(completion, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            for change in completion["changes"]:
+                row = change["corrected"]
+                _add_pos_map(all_pos_map, row["form"], row["lemma"], "verb")
+            print(f"Completed Modern Greek present cells: {len(completion['changes']):,}")
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"

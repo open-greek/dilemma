@@ -173,7 +173,7 @@ for tokenization, model sources, and device settings.
 | [Tagging and parsing](https://github.com/open-greek/dilemma/blob/main/docs/tagger.md) | Sentence annotation, models, and performance |
 | [How it works](https://github.com/open-greek/dilemma/blob/main/docs/design.md) | Lookup order, rules, normalization, and model architecture |
 | [Evaluation](https://github.com/open-greek/dilemma/blob/main/docs/evaluation.md) | Benchmark methods, recorded results, and limitations |
-| [Data](https://github.com/open-greek/dilemma/blob/main/docs/data.md) | Sources, merge rules, confidence tiers, and validation |
+| [Data](https://github.com/open-greek/dilemma/blob/main/docs/data.md) | Sources, merge rules, present-tense completion, confidence tiers, and validation |
 | [Development](https://github.com/open-greek/dilemma/blob/main/docs/development.md) | Setup, training, tests, data publication, and releases |
 | [Lexicon expansion](https://github.com/open-greek/dilemma/blob/main/docs/lexicon-expansion.md) | LSJ/Sophocles paradigms and form selection |
 | [Word lists](https://github.com/open-greek/dilemma/blob/main/docs/word-lists.md) | Frequency inputs, ranked forms, Hunspell dictionaries, and morphology exports |
