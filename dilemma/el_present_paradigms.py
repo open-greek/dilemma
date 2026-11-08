@@ -132,8 +132,6 @@ def complete_present_pairs(pairs: list[dict], lookup: dict, heads: dict) -> dict
             if (form, lemma, "verb") in known or (lemma, person) in source_cells:
                 continue
             previous = lookup.get(form)
-            if previous is not None and previous[0] != lemma:
-                continue
             row = {"form": form, "lemma": lemma, "pos": "verb",
                    "tags": ["present", "active", "indicative", *person],
                    "generated_by": RULE}
@@ -141,9 +139,13 @@ def complete_present_pairs(pairs: list[dict], lookup: dict, heads: dict) -> dict
             known.add((form, lemma, "verb"))
             for key in dict.fromkeys((form, stripped(form))):
                 if key not in lookup:
-                    lookup[key] = (lemma, 1)
-                    lookup_additions.append({"form": key, "lemma": lemma,
-                                             "original": None, "corrected": [lemma, 1]})
+                    # A spelling may already prefer another legitimate
+                    # reading. Keep that preference and its stripped alias;
+                    # the new pair records the additional verb analysis.
+                    preferred = lookup.get(form, (lemma, 1))
+                    lookup[key] = preferred
+                    lookup_additions.append({"form": key, "lemma": preferred[0],
+                                             "original": None, "corrected": list(preferred)})
             changes.append({"original": None, "corrected": row, "pattern": pattern,
                             "rule_evidence": EVIDENCE[pattern],
                             "lookup_before": list(previous) if previous is not None else None,

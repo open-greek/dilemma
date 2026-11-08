@@ -45,12 +45,29 @@ def test_completion_requires_a_real_self_mapped_head_and_preserves_existing_read
     audit = complete_present_pairs(pairs, lookup, heads)
     assert lookup["συλλαμβάνει"] == ("συλλαμβάνω", 1)
     assert lookup["συλλαμβάνεις"] == ("existing reading", 5)
+    assert lookup["συλλαμβανεις"] == ("existing reading", 5)
+    assert any(r["form"] == "συλλαμβάνεις" and r["lemma"] == "συλλαμβάνω" for r in pairs)
     assert not any(r["lemma"] == "διαβιβάζω" for r in pairs)
     assert all("present" in c["corrected"]["tags"] for c in audit["changes"])
     assert all(c["original"] is None and c["rule_evidence"] for c in audit["changes"])
     assert complete_present_pairs(pairs, lookup, heads)["changes"] == []
     unapply_present_pairs(pairs, lookup, audit)
     assert pairs == before_pairs and lookup == before_lookup
+
+
+def test_existing_impersonal_preference_keeps_a_separate_personal_verb_analysis():
+    pairs = [{"form": "προκύπτει", "lemma": "προκύπτει", "pos": "verb",
+              "tags": ["impersonal"]}]
+    lookup = {"προκύπτω": ("προκύπτω", 5), "προκύπτει": ("προκύπτει", 5),
+              "προκυπτει": ("προκύπτει", 5)}
+    before = copy.deepcopy((pairs, lookup))
+    report = complete_present_pairs(pairs, lookup, {"προκύπτω": [{"source": "el"}]})
+    assert lookup["προκύπτει"] == lookup["προκυπτει"] == ("προκύπτει", 5)
+    assert any(r["form"] == "προκύπτει" and r["lemma"] == "προκύπτω"
+               and "present" in r["tags"] for r in pairs)
+    assert pairs[0] == before[0][0]
+    unapply_present_pairs(pairs, lookup, report)
+    assert (pairs, lookup) == before
 
 
 def test_undo_refuses_unrelated_edits_before_removing_anything():
@@ -106,7 +123,7 @@ def test_extractor_collects_defined_heads_without_form_or_participle_pages(tmp_p
     assert records["συλλαμβάνω"][0]["source"] == "el"
 
 
-def test_snapshot_completion_preserves_all_old_rows_and_can_be_unapplied(tmp_path):
+def test_snapshot_completion_preserves_all_old_rows_and_can_be_unapplied(tmp_path, monkeypatch):
     from scripts.complete_el_present_snapshot import refresh, sha, unapply
 
     base = tmp_path / "base"
@@ -132,6 +149,12 @@ def test_snapshot_completion_preserves_all_old_rows_and_can_be_unapplied(tmp_pat
     with sqlite3.connect(output / "lookup.db") as db:
         assert db.execute("SELECT src,lang FROM lookup WHERE form='γράφει'").fetchall() == [
             ("grc", "all"), ("el", "el")]
+    import dilemma.core as core
+    monkeypatch.setattr(core, "SPELL_INDEX_PATH", output / "spell_index.db")
+    for language in ("el", "all"):
+        reader = core.LookupDB(output / "lookup.db", lang=language)
+        assert reader.get("γράφει") == "γράφω"
+        assert reader.get("γράφουμε") == "γράφω"
     assert report["changes"] and report["lookup_rows"] and report["spell_rows"]
     unapply(output, report)
     assert json.loads((output / "mg_pairs.json").read_text()) == pairs

@@ -307,9 +307,12 @@ present"). These are propagated to every form in that table section:
 Some independently defined verbs have no conjugation table in either pinned
 Wiktionary dump. `build_data.py` completes their missing present-active
 indicative cells with `dilemma/el_present_paradigms.py`. It requires a defined,
-self-mapped head, preserves existing pairs and lookup readings, and handles
-regular -ω, contracted -άω and the reviewed ακούω, καίω, κλαίω, φταίω, λέω and
-τρώω families separately. It does not infer a past, passive or imperative.
+self-mapped head and preserves existing pairs and lookup preferences. A form
+that already prefers another head can gain a separate verb analysis; the
+preferred reading and its stripped alias stay intact. It handles
+regular -ω, contracted -άω, the reviewed ακούω, καίω, κλαίω, φταίω, λέω and
+τρώω families, and monosyllabic δρω and ζω separately. It does not infer a
+past, passive or imperative.
 Unsupported classes are listed rather than guessed.
 
 Every added pair and lookup key is recorded in
@@ -324,6 +327,8 @@ python scripts/complete_el_present_snapshot.py --base BASE --output OUTPUT --kai
 Its audit also records the exact inserted SQLite rows and each spelling-index
 value before and after. Pass `--undo AUDIT --output OUTPUT` to restore the
 original logical rows; the command refuses files modified after the refresh.
+
+### Other controls
 
 - **Greek-only filter**. All forms must contain only Greek Unicode
   characters (U+0370-03FF, U+1F00-1FFF, U+0300-036F). Removes Latin
