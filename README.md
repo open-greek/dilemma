@@ -90,6 +90,14 @@ are handled by `grc`. Katharevousa often benefits from the combined lookup.
 See [language coverage](https://github.com/open-greek/dilemma/blob/main/docs/coverage.md)
 for the distinction between period, dialect, and lookup language.
 
+Modern Greek lookup keeps the dialect conjunction `τσαι` separate from the
+noun `τσάι`. Missing active imperfect cells use source-recorded past stems,
+including both `συλλάμβανε` and `συνελάμβανε`; the builder does not guess past
+stems from present forms. An explicit noun POS tag can select `τσάι` while a
+conjunction tag retains `τσαι`. See the [data guide](docs/data.md#modern-greek-verb-repairs)
+for the rules, evidence, and reversible rebuild. Present/future alternatives
+are separate analyses; imperfective aspect does not imply imperfect past tense.
+
 ```python
 modern = Dilemma(lang="el", convention="triantafyllidis")
 modern.lemmatize("εργαλεία", guess=False)  # "εργαλείο"

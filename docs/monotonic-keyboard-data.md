@@ -9,7 +9,11 @@ recognizing typing slips, adding the enclitic second accent and saving keystroke
 It reads the bundle alone, except for an explicitly labeled comparison that reads
 the training text for enclitic evidence.
 
-The current word list contains
+The measurements on this page describe the 1.3.16 reference bundle. Later
+verb-data repairs use the same corpus and document split; regenerate the bundle
+from the current pinned inputs before comparing new measurements.
+
+The reference word list contains
 637,216 dictionary entries (sha256 `a9d955ed10d7301f228065faf028977a18d2c65d755fee7fd476b5dcfd81fe93`), with model sha256
 `46564a1f26beaa83f90ef569563b3dfeab479df2053aac85553a8e7afcc0fe0e`. The corpus and document-level train/dev split are
 unchanged from the prior bundle. The word list and model were rebuilt after the

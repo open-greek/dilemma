@@ -6,6 +6,21 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+Keep explicit verb-cell tenses ahead of a table's heading, so imperfect forms
+do not acquire present-tense analyses. Preserve independently supported
+readings rather than merging their tense tags.
+Present/future alternatives remain separate analyses, and imperfective future
+labels no longer become imperfect past tense. Pooled head-line labels do not
+assign every listed tense to each spelling.
+
+Complete missing active imperfect cells from source-recorded past stems,
+retaining both augment variants of συλλαμβάνω. Form-of pages and unknown past
+stems are not used to infer new paradigms. Keep the dialect conjunction τσαι
+separate from the noun τσάι without changing canonical spelling variants such
+as δυο/δύο. Explicit Modern Greek POS tags select the corresponding accented
+owner when both readings are recorded. The published snapshot includes reversible corrections, archived
+source evidence, and exact input hashes.
+
 ## [1.3.16] - 2026-11-08
 
 Dilemma can now build a monotonic Modern Greek keyboard bundle: a rated word

@@ -3417,9 +3417,19 @@ class Dilemma:
         return checked
 
     def _prefer_exact_pos_citation(self, word, upos, candidate, pos_lemma):
+        if self.lang == "el" and word.lower() == candidate.lower():
+            readings = (getattr(self, "_pos_lookup", {}).get(word)
+                        or getattr(self, "_pos_lookup", {}).get(word.lower()) or {})
+            # An independently defined conjunction can share its bare
+            # spelling with an accented noun. Honor an explicit noun tag
+            # when the table records both owners, rather than treating
+            # their accents as interchangeable citations.
+            if (readings.get(upos) == pos_lemma
+                    and any(pos != upos and lemma.lower() == candidate.lower()
+                            for pos, lemma in readings.items())):
+                return pos_lemma
         # An exact lookup self-map can be an independent word rather than an
         # inflection of the differently accented POS target (οὖ versus οὐ).
-        # Modern POS behavior is unchanged by the Ancient target safeguard.
         if (self._ancient_pos_context(word, upos)
                 and grave_to_acute(word).lower() != grave_to_acute(candidate).lower()
                 and grave_to_acute(word).lower() != grave_to_acute(pos_lemma).lower()):
