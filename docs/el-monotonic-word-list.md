@@ -51,7 +51,7 @@ Under `build/hunspell/`:
 
 | File | Contents |
 |---|---|
-| `el_monotonic.dic` | The entry count, then `form<TAB>fr:C\|M\|R\|X` lines sorted by UTF-8 bytes; `fr:X mg:generated` for a paradigm form no frequency source has. `ac:spelling` records a much commoner accent alternative without deleting the entry. No affix flags. |
+| `el_monotonic.dic` | The entry count, then `form<TAB>fr:C\|M\|R\|X` lines sorted by UTF-8 bytes; `fr:X mg:generated` for a paradigm form no frequency source has. `ac:spelling` records a preferred accent alternative, `sp:spelling` an alternative with different letters, and `us:label` a reviewed usage restriction. No affix flags. |
 | `el_monotonic.aff` | `SET UTF-8`, `LANG el`, `FLAG num`, and `TRY` with the lowercase monotonic letters by their frequency in open text. |
 | `el_monotonic.version` | `version`, `commit` (with `-dirty` when tracked files differ from it), `variant: el`, `entries`, bucket counts and edges, route counts, frequency sources, the sha256 of the four outputs and of every input. Any change of input, code or output changes it. |
 | `el_monotonic_abbreviations.txt` | Abbreviations with their periods (`π.χ.`, `κ.λπ.`, `σελ.`). |
@@ -225,6 +225,16 @@ independent evidence. Consumers may offer the alternative, but must not
 treat the metadata as proof that the rare word is wrong. Existing readers
 that ignore unknown metadata continue to accept it.
 
+Reviewed preferences also cover source-listed variants that frequency alone
+cannot distinguish: dialectal `τσαι` beside `τσάι`, rare `γινεί` beside
+`γίνει`, and the archaizing spelling `διευκρίνηση` beside standard
+`διευκρίνιση`. Each decision in `data/el_monotonic_review.json` records its
+sources and reason. The exporter keeps the observed frequency and the real
+reading, adding `ac:`, `sp:` and `us:` metadata only when the preferred form
+has C/M evidence. The [reference proposal filter](monotonic-keyboard-data.md#consumer-requirements)
+keeps these out of routine alternatives unless the typed marks or real context
+support them.
+
 A form's rating is the highest of its rates per million words in the
 frequency sources: C at 37 and above, M at 3.7, R below, X when no source has
 it. These are the edges of the polytonic Modern Greek list. The sources are
@@ -242,7 +252,10 @@ character's name (`Κατίγκω`) or one article repeating a term does not mak
 a word common. A source of fewer than 10M words (EELLAK articles,
 Wikisource and the pooled small sources) rates C only when a larger source
 or FrequencyWords also reaches C; otherwise its rate is held just under
-the C edge. In the 2026-11-07 export this moved 1,411 entries from C to M, mostly words that a few
+the C edge. A capitalized name additionally needs C evidence from a case-preserving
+open source of at least 10M words: case-folded subtitles and a small set of
+sentence examples cannot establish that `Τομ` is common in general text.
+In the 2026-11-07 export the small-source rule moved 1,411 entries from C to M, mostly words that a few
 thousand Tatoeba sentences repeat. An elided word written without its mark (`απ` for `απ’`,
 which FrequencyWords counts) is never an entry.
 
@@ -250,7 +263,7 @@ which FrequencyWords counts) is never an entry.
 
 Abbreviations are the tokens the corpus tokenizer kept with their period
 inside sentences, at least 10 times in 3 documents, with a lowercase letter
-(all-capital dotted acronyms are left out), written with the period more
+or at least two dotted initials (`Ε.Ε.`), written with the period more
 often than without when they have one period and two or more letters; plus
 words a lowercase word follows after a period. Spellings that differ only in
 case are counted together and the commonest is listed; another spelling
@@ -262,6 +275,9 @@ sigma, and a dotted token with a word of three or more letters inside
 (`του.Β.`, a missing space), are not abbreviations. Shorter pairs written
 without the space between them (`κλπ.Β.`, `βλ.Π.Δ.`) are rejected by name
 in `data/el_monotonic_review.json`.
+Dotted initialisms also receive a lowercase recognition alias (`ε.ε.`),
+so a lowercase abbreviation does not force the following word into capitals.
+Single capital initials remain excluded.
 
 Acronyms are all-capital tokens of two or more letters with at least 20
 tokens in 5 documents, no tonos on a capital, a 95% Wilson lower bound of at
@@ -277,6 +293,11 @@ as many capitals as other spellings. The 95% Wilson lower bound of at
 least 0.9 is measured over the full corpus. Subtitle counts fold case,
 so they cannot veto that evidence
 (`ΝΑΤΟ` beside the spoken `νάτο`). The audit names the confirming sources.
+Reviewed dual readings such as `ΕΚ`/`εκ` and `ΠΑ`/`πα` need not dominate
+their lowercase words. Their source-identified acronym entries still require
+20 capital tokens in five documents from each of two independent sources.
+The review file records the institution's own usage; rejects and the guard
+against two words run together still apply. Lowercase words remain entries.
 
 ## Recorded export
 

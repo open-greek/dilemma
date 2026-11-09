@@ -21,6 +21,12 @@ lowercase word matches. Evaluations cover held-out coverage, predictions,
 completion, accent restoration, typing slips, enclitic accents and keystroke
 savings, with Python and Swift reader checks.
 
+Retain source-listed dialect and older spellings with explicit preferences for
+standard proposals. Restore uppercase dialytika (`ΤΣΑΪ`, `ΜΑΪΟΣ`), recognize
+lowercase dotted initialisms (`ε.ε.`), and preserve acronyms that are also
+lowercase words (`ΕΚ`/`εκ`, `ΠΑ`/`πα`). Common ratings for capitalized names
+require corroboration from a large source that preserves case.
+
 Complete missing present-active cells beneath independently defined Modern
 Greek verb heads, preserving source-supplied forms and existing lookup
 readings. The refreshed data adds 9,450 pairs across 1,904 heads with

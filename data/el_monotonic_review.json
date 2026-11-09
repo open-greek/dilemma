@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "language": "el",
-  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling or typing-slip rules of the corpus route would refuse because a far commoner word shares its letters or its sound, or is one typing slip away; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version.",
+  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling or typing-slip rules of the corpus route would refuse because a far commoner word shares its letters or its sound, or is one typing slip away; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version. Preferred spellings retain real dialectal, rare and older readings, recording their standard alternatives and sources without changing observed frequency. Reviewed acronym accepts still require independent capitalized corpus evidence; they allow genuine acronyms whose lowercase letters are also words.",
   "rejects": [
     {
       "form": "θέσιο",
@@ -209,6 +209,54 @@
     {
       "form": "ΧΧΧ",
       "reason": "A Roman numeral (XXX) written with Greek capitals, or a placeholder for withheld text, not an acronym."
+    }
+  ],
+  "preferred_spellings": [
+    {
+      "form": "τσαι",
+      "preferred": "τσάι",
+      "usage": "dialectal",
+      "reason": "τσαι is also a dialect conjunction meaning και, not an unaccented spelling of tea. Keep that reading, but prefer τσάι in general-purpose proposals. Uppercase tea is ΤΣΑΪ.",
+      "sources": [
+        "https://el.wiktionary.org/wiki/τσαι",
+        "https://el.wiktionary.org/wiki/τσάι",
+        "https://pekes.pdekritis.gr/wp-content/uploads/2020/02/6_ORTHOGRAFIKOS_ODHGOS_ME-ASKHSEIS-%CE%91%CE%BD%CF%84%CE%B9%CE%B3%CF%81%CE%B1%CF%86%CE%AE.pdf"
+      ]
+    },
+    {
+      "form": "διευκρίνηση",
+      "preferred": "διευκρίνιση",
+      "usage": "archaic_spelling",
+      "reason": "The spelling διευκρίνηση is archaizing, derived from διευκρίνησις. The standard Modern spelling is διευκρίνιση. Preserve the older reading without routinely offering it beside the standard form.",
+      "sources": [
+        "https://el.wiktionary.org/wiki/διευκρίνηση",
+        "https://www.greek-language.gr/certification/sites/greeklanguage.gr.certification/files/KLIK_B2_Glossary.pdf"
+      ]
+    },
+    {
+      "form": "γινεί",
+      "preferred": "γίνει",
+      "usage": "rare",
+      "reason": "γινεί is a source-listed rare dependent and nonfinite form of γίνομαι. Keep it valid, with γίνει as the standard proposal unless real context supports the rare variant.",
+      "sources": [
+        "https://en.wiktionary.org/wiki/γίνομαι"
+      ]
+    }
+  ],
+  "acronym_accepts": [
+    {
+      "form": "ΕΚ",
+      "reason": "Ευρωπαϊκό Κοινοβούλιο, used by the institution itself. The preposition εκ remains a separate lowercase reading.",
+      "sources": [
+        "https://www.europarl.europa.eu/about-parliament/el/organisation-and-rules/organisation/members"
+      ]
+    },
+    {
+      "form": "ΠΑ",
+      "reason": "Πολεμική Αεροπορία, used by the service itself. The lowercase word πα remains valid.",
+      "sources": [
+        "https://www.haf.gr/structure/"
+      ]
     }
   ]
 }

@@ -227,6 +227,19 @@ the reader on all 400 sampled queries.
   `κάνονες` also have legitimate rare readings; metadata does not invalidate them.
   A compiler that ignores unknown fields remains compatible but cannot use this
   metadata until it explicitly preserves it.
+- Preserve `sp:spelling` preferences with different letters and `us:label` usage
+  restrictions too. `el_accent.proposal_options` excludes a marked variant from
+  routine proposals when its preferred form is available, while keeping a
+  separate typed-as-is choice. Explicitly typed marks or a contextual lead of
+  3.0 natural log units retain the variant. Pass actual left-context scores to
+  this filter, never context-free unigram scores. Do not filter genuine
+  unmarked ambiguities such as `σχεδία`/`σχέδια` by this rule.
+- Format uppercase words with Greek uppercase spelling rules: `τσάι` becomes
+  `ΤΣΑΪ`, `Μάιος` becomes `ΜΑΪΟΣ`, and `είναι` becomes `ΕΙΝΑΙ`. Preserve the
+  disjunctive one-letter `Ή`. `transfer_marks` implements these rules.
+- Recognize both cases of dotted abbreviations, including `Ε.Ε.` and `ε.ε.`.
+  Acronym membership preserves an all-capital reading such as `ΕΚ`; it does
+  not turn lowercase `εκ` into an acronym.
 - Look up a double-accented context word as typed when the model knows it, but
   hide every double-accented vocabulary item from predictions and completions.
 - Treat `ό,τι` as one word and U+2019 as part of an elided word. Do not restore

@@ -100,13 +100,24 @@ def transfer_marks(typed: str, spelling: str) -> str:
     """The typed letters with the marks of ``spelling`` and no others. The
     two must share their :func:`el_lexicon.bare_key`, so they have the same
     length in NFC (every marked letter of the Greek block is one code
-    point). Case and final sigma follow ``typed``."""
+    point). Case and final sigma follow ``typed``. All-capital words lose
+    tonos but retain dialytika, including hiatus previously shown by the
+    first vowel's tonos (τσάι -> ΤΣΑΪ). The one-letter ή keeps its tonos.
+    """
     if len(typed) != len(spelling):
         raise ValueError(f"{typed!r} and {spelling!r} differ in length")
     out = []
-    for t, s in zip(typed, spelling):
+    capitals = typed.isupper() and sum(c.isalpha() for c in typed) > 1
+    for i, (t, s) in enumerate(zip(typed, spelling)):
         base = strip_marks(t)
         marks = marks_of(s)
+        if capitals:
+            marks = marks.replace(TONOS, "")
+            if (i and TONOS in marks_of(spelling[i - 1])
+                    and strip_marks(spelling[i - 1:i + 1]).lower() in el_lexicon.DIGRAPHS
+                    and strip_marks(s).lower() in {"ι", "υ"}
+                    and DIALYTIKA not in marks):
+                marks += DIALYTIKA
         out.append(nfc(base + marks) if marks else base)
     return "".join(out)
 
@@ -167,6 +178,42 @@ class AccentIndex:
             key=lambda o: (-o.rank, o.lower)))
         self._cache[(key, lower_typed)] = opts
         return opts
+
+
+def proposal_options(typed: str, options: Iterable[Option],
+                     preferred: dict[str, tuple[str, ...]], *,
+                     contextual_score: Callable[[Option], float] | None = None,
+                     context_margin: float = 3.0) -> tuple[Option, ...]:
+    """Filter default proposals without changing dictionary acceptance.
+
+    ``preferred`` combines the dictionary's ac/sp targets, keyed by lowercase
+    spelling. A marked rare or older variant is not a routine alternative
+    when its preferred form is available. Keep it when the person explicitly
+    typed its marks, or context favors it over every available preferred
+    reading by ``context_margin`` natural log units. Only pass a score based
+    on actual preceding text, never a context-free unigram score.
+
+    Keep the typed-as-is choice separately. This filter does not reject a
+    deliberately typed dialect word, and unmarked genuine ambiguities are
+    unaffected. Candidate generation and ordering belong to the caller.
+    """
+    options = tuple(options)
+    by_lower = {option.lower: option for option in options}
+    typed_lower = el_lexicon.lower_el(typed)
+    kept = []
+    for option in options:
+        targets = [by_lower[target] for target in preferred.get(option.lower, ())
+                   if target in by_lower]
+        explicit = has_marks(typed) and typed_lower == option.lower
+        if not targets or explicit:
+            kept.append(option)
+            continue
+        if contextual_score is not None:
+            score = contextual_score(option)
+            target_score = max(contextual_score(target) for target in targets)
+            if score > -math.inf and score - target_score >= context_margin:
+                kept.append(option)
+    return tuple(kept)
 
 
 # --------------------------------------------------------------------------
