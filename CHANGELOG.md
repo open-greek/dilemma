@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.17] - 2026-11-09
+
 Keep explicit verb-cell tenses ahead of a table's heading, so imperfect forms
 do not acquire present-tense analyses. Preserve independently supported
 readings rather than merging their tense tags.
@@ -1513,6 +1515,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.17]: https://github.com/open-greek/dilemma/releases/tag/1.3.17
 [1.3.16]: https://github.com/open-greek/dilemma/releases/tag/1.3.16
 [1.3.15]: https://github.com/open-greek/dilemma/releases/tag/1.3.15
 [1.3.14]: https://github.com/open-greek/dilemma/releases/tag/1.3.14
