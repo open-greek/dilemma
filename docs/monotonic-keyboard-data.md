@@ -9,11 +9,15 @@ recognizing typing slips, adding the enclitic second accent and saving keystroke
 It reads the bundle alone, except for an explicitly labeled comparison that reads
 the training text for enclitic evidence.
 
-The current files were built at `6cb8d11` on 2026-11-08:
-637,216 dictionary entries (sha256 `ef508ecffe7cf3a2b9696e8de3edea791fd3b81f28b7977146479a427948464f`), with model sha256
+The current word list contains
+637,216 dictionary entries (sha256 `a9d955ed10d7301f228065faf028977a18d2c65d755fee7fd476b5dcfd81fe93`), with model sha256
 `46564a1f26beaa83f90ef569563b3dfeab479df2053aac85553a8e7afcc0fe0e`. The corpus and document-level train/dev split are
 unchanged from the prior bundle. The word list and model were rebuilt after the
 source-backed present-tense completion.
+The follow-up spelling preferences do not change lexical acceptance, and the
+model remains byte-identical to `6cb8d11`. The measurements below cover reference
+restoration and raw model proposals. The preferred-form proposal filter is
+tested separately; its effect on a finished app's suggestion bar is not included.
 
 ## Reproduce
 
@@ -227,6 +231,21 @@ the reader on all 400 sampled queries.
   `κάνονες` also have legitimate rare readings; metadata does not invalidate them.
   A compiler that ignores unknown fields remains compatible but cannot use this
   metadata until it explicitly preserves it.
+- Preserve `sp:spelling` preferences with different letters and `us:label` usage
+  restrictions too. `el_accent.proposal_options` excludes a marked variant from
+  routine proposals when its preferred form is available, while keeping a
+  separate typed-as-is choice. Explicitly typed marks or a contextual lead of
+  3.0 natural log units retain the variant. Pass actual left-context scores to
+  this filter, never context-free unigram scores. Do not filter genuine
+  unmarked ambiguities such as `σχεδία`/`σχέδια` by this rule.
+- Format uppercase words with Greek uppercase spelling rules: `τσάι` becomes
+  `ΤΣΑΪ`, `Μάιος` becomes `ΜΑΪΟΣ`, and `είναι` becomes `ΕΙΝΑΙ`. Preserve the
+  disjunctive one-letter `Ή`. `transfer_marks` implements these rules.
+- Match dotted abbreviations against their listed lowercase spellings,
+  including `ε.ε.`; do not capitalize a following word just because the
+  uppercase spelling occurs more often in the corpus.
+  Acronym membership preserves an all-capital reading such as `ΕΚ`; it does
+  not turn lowercase `εκ` into an acronym.
 - Look up a double-accented context word as typed when the model knows it, but
   hide every double-accented vocabulary item from predictions and completions.
 - Treat `ό,τι` as one word and U+2019 as part of an elided word. Do not restore

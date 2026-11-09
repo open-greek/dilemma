@@ -51,7 +51,7 @@ Under `build/hunspell/`:
 
 | File | Contents |
 |---|---|
-| `el_monotonic.dic` | The entry count, then `form<TAB>fr:C\|M\|R\|X` lines sorted by UTF-8 bytes; `fr:X mg:generated` for a paradigm form no frequency source has. `ac:spelling` records a much commoner accent alternative without deleting the entry. No affix flags. |
+| `el_monotonic.dic` | The entry count, then `form<TAB>fr:C\|M\|R\|X` lines sorted by UTF-8 bytes; `fr:X mg:generated` for a paradigm form no frequency source has. `ac:spelling` records a preferred accent alternative, `sp:spelling` an alternative with different letters, and `us:label` a reviewed usage restriction. No affix flags. |
 | `el_monotonic.aff` | `SET UTF-8`, `LANG el`, `FLAG num`, and `TRY` with the lowercase monotonic letters by their frequency in open text. |
 | `el_monotonic.version` | `version`, `commit` (with `-dirty` when tracked files differ from it), `variant: el`, `entries`, bucket counts and edges, route counts, frequency sources, the sha256 of the four outputs and of every input. Any change of input, code or output changes it. |
 | `el_monotonic_abbreviations.txt` | Abbreviations with their periods (`π.χ.`, `κ.λπ.`, `σελ.`). |
@@ -225,6 +225,16 @@ independent evidence. Consumers may offer the alternative, but must not
 treat the metadata as proof that the rare word is wrong. Existing readers
 that ignore unknown metadata continue to accept it.
 
+Reviewed preferences also cover source-listed variants that frequency alone
+cannot distinguish: dialectal `τσαι` beside `τσάι`, rare `γινεί` beside
+`γίνει`, and the archaizing spelling `διευκρίνηση` beside standard
+`διευκρίνιση`. Each decision in `data/el_monotonic_review.json` records its
+sources and reason. The exporter keeps the observed frequency and the real
+reading, adding `ac:`, `sp:` and `us:` metadata only when the preferred form
+has C/M evidence. The [reference proposal filter](monotonic-keyboard-data.md#consumer-requirements)
+keeps these out of routine alternatives unless the typed marks or real context
+support them.
+
 A form's rating is the highest of its rates per million words in the
 frequency sources: C at 37 and above, M at 3.7, R below, X when no source has
 it. These are the edges of the polytonic Modern Greek list. The sources are
@@ -242,7 +252,10 @@ character's name (`Κατίγκω`) or one article repeating a term does not mak
 a word common. A source of fewer than 10M words (EELLAK articles,
 Wikisource and the pooled small sources) rates C only when a larger source
 or FrequencyWords also reaches C; otherwise its rate is held just under
-the C edge. In the 2026-11-07 export this moved 1,411 entries from C to M, mostly words that a few
+the C edge. A capitalized name additionally needs C evidence from a case-preserving
+open source of at least 10M words: case-folded subtitles and a small set of
+sentence examples cannot establish that `Τομ` is common in general text.
+In the 2026-11-07 export the small-source rule moved 1,411 entries from C to M, mostly words that a few
 thousand Tatoeba sentences repeat. An elided word written without its mark (`απ` for `απ’`,
 which FrequencyWords counts) is never an entry.
 
@@ -250,7 +263,7 @@ which FrequencyWords counts) is never an entry.
 
 Abbreviations are the tokens the corpus tokenizer kept with their period
 inside sentences, at least 10 times in 3 documents, with a lowercase letter
-(all-capital dotted acronyms are left out), written with the period more
+(all-capital spellings are left out), written with the period more
 often than without when they have one period and two or more letters; plus
 words a lowercase word follows after a period. Spellings that differ only in
 case are counted together and the commonest is listed; another spelling
@@ -262,6 +275,10 @@ sigma, and a dotted token with a word of three or more letters inside
 (`του.Β.`, a missing space), are not abbreviations. Shorter pairs written
 without the space between them (`κλπ.Β.`, `βλ.Π.Δ.`) are rejected by name
 in `data/el_monotonic_review.json`.
+When the commonest spelling is uppercase (`Ε.Ε.`), a reviewed lowercase variant
+with its own 10 tokens in three documents is still listed (`ε.ε.`). The review
+distinguishes actual abbreviations from enumeration letters. No spellings are
+inferred from uppercase use. Single capital initials remain excluded.
 
 Acronyms are all-capital tokens of two or more letters with at least 20
 tokens in 5 documents, no tonos on a capital, a 95% Wilson lower bound of at
@@ -277,27 +294,35 @@ as many capitals as other spellings. The 95% Wilson lower bound of at
 least 0.9 is measured over the full corpus. Subtitle counts fold case,
 so they cannot veto that evidence
 (`ΝΑΤΟ` beside the spoken `νάτο`). The audit names the confirming sources.
+Reviewed dual readings such as `ΕΚ`/`εκ` and `ΠΑ`/`πα` need not dominate
+their lowercase words. Their source-identified acronym entries still require
+20 capital tokens in five documents from each of two independent sources.
+The review file records the institution's own usage; rejects and the guard
+against two words run together still apply. Lowercase words remain entries.
 
 ## Recorded export
 
-Built at commit `6cb8d11` on 2026-11-08. The dictionary's sha256 is
-`ef508ecffe7cf3a2b9696e8de3edea791fd3b81f28b7977146479a427948464f`. The build reads the source-backed present-tense completion
+The exporter retains all 637,216 accepted spellings from
+the `6cb8d11` build, add preferred-spelling metadata, and move 35 capitalized
+names from C to M. The dictionary's sha256 is
+`a9d955ed10d7301f228065faf028977a18d2c65d755fee7fd476b5dcfd81fe93`. The build reads the present-tense completion
 of 9,450 pairs across 1,904 heads, while preserving prior analyses and preferred
 lookups. The corpus's documents and train/dev split are unchanged.
 
 | Measure | Value |
 |---|---|
 | Entries | 637,216 |
-| C, M, R, X | 6,255, 41,061, 368,750, 221,150 |
+| C, M, R, X | 6,220, 41,096, 368,750, 221,150 |
 | Attested, generated | 416,066, 221,150 |
 | Corpus words | 7,053 |
 | Elisions | 189 |
 | Function words | 5 |
 | Names | 17,859 |
 | Paradigm entries | 612,110 |
-| Abbreviations, acronyms | 219, 1,732 |
+| Acronyms | 1,734 |
 | Compiled dictionary | 35,251,000 bytes |
-| Entries with common accent alternatives | 81 |
+| Entries with common accent alternatives | 83 |
+| Entries with preferred spellings of different letters | 1 |
 | Lexicon lemmas read | 187,894 |
 
 The native Swift compiler produced the dictionary above and its reader found

@@ -184,6 +184,64 @@ def test_accent_alternatives_keep_every_common_reading():
         "αδικά": ("άδικα", "αδίκα")}
 
 
+def test_reviewed_variants_keep_frequency_and_acceptance_with_preferred_spellings():
+    forms = {"τσαι": "R", "τσάι": "C", "γινεί": "R", "γίνει": "C",
+             "διευκρίνηση": "M", "διευκρίνιση": "M"}
+    selection = ex.Selection(entries={form: ex.Entry(form, "paradigm", bucket, "test")
+                                      for form, bucket in forms.items()})
+    reviewed = ex.load_review(ex.REVIEW)["preferred_spellings"]
+    audit = ex.apply_preferred_spellings(selection, reviewed)
+    assert {form: entry.bucket for form, entry in selection.entries.items()} == forms
+    lines = ex.dic_lines(selection.entries)
+    assert "τσαι\tfr:R ac:τσάι us:dialectal" in lines
+    assert "γινεί\tfr:R ac:γίνει us:rare" in lines
+    assert "διευκρίνηση\tfr:M sp:διευκρίνιση us:archaic_spelling" in lines
+    assert len(audit) == 3 and all(row["sources"] for row in audit)
+    del selection.entries["γίνει"]
+    row = next(row for row in ex.apply_preferred_spellings(selection, reviewed)
+               if row["form"] == "γινεί")
+    assert row["not_applied"] == "preferred spelling lacks C/M evidence"
+
+
+def test_reviewed_dual_reading_acronyms_need_two_independent_sources():
+    rows = {"ΕΚ": (100, 0, 50), "εκ": (1000, 0, 100),
+            "ΠΑ": (30, 0, 15), "πα": (1000, 0, 100),
+            "ΤΟ": (100, 0, 50), "το": (10000, 0, 100)}
+    first, second = table("parl", rows), table("wiki", rows)
+    accepts = ex.load_review(ex.REVIEW)["acronym_accepts"]
+    entries = {"εκ", "πα", "το"}
+    kept, audit = ex.select_acronyms(ex.Evidence({}, [first, second]), entries, {},
+                                     accepts=accepts)
+    assert kept == ["ΕΚ", "ΠΑ"]
+    assert all(row["attested_sources"] == ["parl", "wiki"] for row in audit)
+    for weaker in ([first], [first, first]):
+        kept, _ = ex.select_acronyms(ex.Evidence({}, weaker), entries, {}, accepts=accepts)
+        assert kept == []
+    kept, _ = ex.select_acronyms(ex.Evidence({}, [first, second]), entries,
+                                {"ΕΚ": "fixture reject"}, accepts=accepts)
+    assert kept == ["ΠΑ"]
+
+
+def test_uppercase_frequency_does_not_hide_attested_lowercase_abbreviations():
+    rows = {"Ε.Ε.": (100, 0, 50), "ε.ε.": (20, 0, 10),
+            "Α.Ε.": (20, 0, 10), "α.ε.": (2, 0, 2),
+            "Δ.Σ.": (100, 0, 50), "δ.σ.": (15, 0, 5),
+            "Α.": (100, 0, 50), "α.": (20, 0, 10),
+            "Γ.": (100, 0, 50), "Ξ.Ω.": (9, 0, 9)}
+    evidence = ex.Evidence({}, [table("parl", rows)])
+    accepts = ex.load_review(ex.REVIEW)["abbreviation_accepts"]
+    kept, audit = ex.select_abbreviations(evidence, Counter(), set(), {}, accepts=accepts)
+    assert kept == ["δ.σ.", "ε.ε."]
+    assert not any("ς" in abbreviation for abbreviation in kept)
+    row = next(row for row in audit if row["abbreviation"] == "ε.ε.")
+    assert row["spelling_tokens"] == 20 and row["spelling_docs"] == 10
+    kept, _ = ex.select_abbreviations(evidence, Counter(), set(),
+                                      {"ε.ε.": "fixture reject"}, accepts=accepts)
+    assert kept == ["δ.σ."]
+    weak = ex.Evidence({}, [table("parl", {"Ε.Ε.": (100, 0, 50), "ε.ε.": (9, 0, 9)})])
+    assert ex.select_abbreviations(weak, Counter(), set(), {}, accepts=accepts)[0] == []
+
+
 def test_subtitles_do_not_veto_acronyms_confirmed_by_two_sources():
     # Subtitle counts fold case, so they cannot separate an acronym from a
     # spoken word. Two independently cased sources supply that evidence.
@@ -279,7 +337,8 @@ def test_review_file_loads_and_explains_every_entry():
     data = json.loads(ex.REVIEW.read_text(encoding="utf-8"))
     review = ex.load_review(ex.REVIEW)
     assert set(review) == {"rejects", "corpus_accepts", "elision_accepts",
-                           "abbreviation_rejects", "acronym_rejects"}
+                           "abbreviation_rejects", "acronym_rejects",
+                           "abbreviation_accepts", "acronym_accepts", "preferred_spellings"}
     for key in review:
         for entry in data.get(key, []):
             assert entry["reason"].strip(), entry
@@ -725,6 +784,18 @@ def test_small_pools_rate_c_only_when_confirmed():
     # the rule is off when no pool counts as small
     assert ex.Evidence(subtitles, [small, large],
                        c_confirm_min_words=0).rating("Κηφισιά")[0] == "C"
+
+
+def test_names_need_large_case_preserving_corroboration_for_c():
+    subtitles = {"τομ": 500, "μαρία": 500, "λόγος": 500, "filler": 998_500}
+    small = table("tatoeba", {"Τομ": (100, 0, 50), "Μαρία": (100, 0, 50)},
+                  words=1_000_000)
+    large = table("wikipedia", {"Τομ": (400, 0, 200), "Μαρία": (900, 0, 400)},
+                  words=20_000_000)
+    evidence = ex.Evidence(subtitles, [small, large])
+    assert evidence.rating("Τομ")[0] == "M"
+    assert evidence.rating("Μαρία")[0] == "C"
+    assert evidence.rating("λόγος")[0] == "C"
 
 
 def test_a_test_rating_rule_is_refused_in_the_shipping_directory(exported):

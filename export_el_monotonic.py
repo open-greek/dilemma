@@ -426,18 +426,32 @@ def load_function_words(path: Path) -> dict[str, str]:
     return out
 
 
-def load_review(path: Path) -> dict[str, dict[str, str]]:
+def load_review(path: Path) -> dict[str, dict]:
     """``{"rejects": {form: reason}, "corpus_accepts": ...,
-    "elision_accepts": ..., "abbreviation_rejects": ...,
-    "acronym_rejects": ...}``."""
+    "elision_accepts": ..., "abbreviation_rejects": ..., "abbreviation_accepts": ...,
+    "acronym_rejects": ..., "acronym_accepts": ..., "preferred_spellings": ...}``.
+    Preferred spellings retain their usage and source records.
+    """
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if data.get("schema_version") != 1:
         raise ExportError(f"{path}: unsupported schema")
     out = {}
     for key in ("rejects", "corpus_accepts", "elision_accepts",
-                "abbreviation_rejects", "acronym_rejects"):
+                "abbreviation_rejects", "abbreviation_accepts",
+                "acronym_rejects", "acronym_accepts"):
         out[key] = {unicodedata.normalize("NFC", e["form"]): e["reason"]
                     for e in data.get(key, [])}
+    out["preferred_spellings"] = {}
+    for entry in data.get("preferred_spellings", []):
+        form = unicodedata.normalize("NFC", entry["form"])
+        preferred = unicodedata.normalize("NFC", entry["preferred"])
+        if (not form or form == preferred or not entry.get("reason")
+                or not entry.get("sources")
+                or entry.get("usage") not in {"dialectal", "rare", "archaic_spelling"}
+                or L.orthography_reason(preferred) is not None):
+            raise ExportError(f"{path}: invalid preferred spelling for {form!r}")
+        out["preferred_spellings"][form] = {
+            **entry, "form": form, "preferred": preferred}
     return out
 
 
@@ -700,6 +714,15 @@ class Evidence:
             for name in small:
                 if out[name] >= L.C_PER_MILLION:
                     out[name] = math.nextafter(L.C_PER_MILLION, 0.0)
+        # FrequencyWords folds names to lowercase, while sentence-example
+        # collections repeatedly use a few names. Neither alone establishes
+        # that a capitalized name is C in general text.
+        if title and not any(out[p.name] >= L.C_PER_MILLION
+                             for p in self.pools
+                             if p.words >= self.c_confirm_min_words):
+            for name in out:
+                if out[name] >= L.C_PER_MILLION:
+                    out[name] = math.nextafter(L.C_PER_MILLION, 0.0)
         return out
 
     def raw_counts(self, form: str, *, subtitles: bool = True) -> dict[str, float]:
@@ -762,6 +785,8 @@ class Entry:
     generated: bool = False
     lemma: str = ""
     accent_alternatives: tuple[str, ...] = ()
+    spelling_alternatives: tuple[str, ...] = ()
+    usage: str = ""
 
 
 @dataclass
@@ -930,7 +955,7 @@ def elision_reason(form: str, attested: set[str], after_vowels: dict[str, str],
 
 
 def select(lexicon: Lexicon, evidence: Evidence, *,
-           function_words: dict[str, str], review: dict[str, dict[str, str]],
+           function_words: dict[str, str], review: dict[str, dict],
            reviewed_loanwords: list[str], log=print) -> Selection:
     """Run the routes of the module docstring."""
     sel = Selection()
@@ -1355,12 +1380,43 @@ def select(lexicon: Lexicon, evidence: Evidence, *,
     alternatives = accent_alternatives_to_mark(sel, evidence, lexicon)
     for form, twins in alternatives.items():
         sel.entries[form].accent_alternatives = twins
+    preferred_audit = apply_preferred_spellings(sel, review.get("preferred_spellings", {}))
+    alternatives = {form: entry.accent_alternatives
+                    for form, entry in sorted(sel.entries.items())
+                    if entry.accent_alternatives}
     audit_routes["paradigm"]["accent_alternatives_marked"] = len(alternatives)
     audit_routes["paradigm"]["accent_alternatives_examples"] = [
         [form, list(twins)] for form, twins in alternatives.items()][:AUDIT_LIST_LIMIT]
+    audit_routes["paradigm"]["reviewed_preferred_spellings"] = preferred_audit
 
     sel.audit["route_details"] = audit_routes
     return sel
+
+
+def apply_preferred_spellings(sel: Selection, reviewed: dict[str, dict]) -> list[dict]:
+    """Annotate real dialect, rare or older spellings without deleting them.
+
+    The target must itself have C/M evidence. Counts and lexical acceptance
+    stay unchanged; proposal generators use the preference and usage fields.
+    """
+    audit = []
+    for form, decision in sorted(reviewed.items()):
+        if form not in sel.entries:
+            continue
+        preferred = decision["preferred"]
+        row = dict(decision)
+        target = sel.entries.get(preferred)
+        if target is None or target.bucket not in ("C", "M"):
+            row["not_applied"] = "preferred spelling lacks C/M evidence"
+        else:
+            entry = sel.entries[form]
+            entry.usage = decision["usage"]
+            field = ("accent_alternatives" if L.bare_key(form) == L.bare_key(preferred)
+                     else "spelling_alternatives")
+            values = set(getattr(entry, field)) | {preferred}
+            setattr(entry, field, tuple(sorted(values, key=lambda s: s.encode("utf-8"))))
+        audit.append(row)
+    return audit
 
 
 def open_corpus_archaic_form(form: str, known_bare: dict) -> bool:
@@ -1598,15 +1654,17 @@ def abbreviation_shape_reason(spelling: str, words: set[str]) -> str | None:
 
 def select_abbreviations(evidence: Evidence, candidates: Counter,
                          lexicon_words: set[str],
-                         rejects: dict[str, str]) -> tuple[list[str], list[dict]]:
+                         rejects: dict[str, str], *, accepts: dict[str, str] | None = None
+                         ) -> tuple[list[str], list[dict]]:
     """Abbreviations with their periods (see the module docstring).
 
-    Only abbreviations with a lowercase letter are listed (π.χ., κ.λπ.,
-    δισ., Δρ., μ.Χ.): those are where a keyboard must keep σ before the
-    period and must not end the sentence. All-capital dotted acronyms
-    (Α.Ε., Η.Π.Α.) end in capitals and are left out, as are capital single
-    letters, which are initials (Γ. Παπανδρέου), and the shapes
-    :func:`abbreviation_shape_reason` refuses.
+    Abbreviations with a lowercase letter (π.χ., κ.λπ., δισ., Δρ., μ.Χ.)
+    must not end the sentence. All-capital spellings and single capital
+    initials are left out. When the commonest spelling is uppercase (Ε.Ε.),
+    a reviewed lowercase variant still qualifies with its own token and
+    document evidence (ε.ε.). Review distinguishes abbreviations from
+    enumeration letters. No variants are inferred from uppercase use.
+    The shapes :func:`abbreviation_shape_reason` refuses are excluded too.
 
     A one-period abbreviation of two or more letters must be written with
     its period more often than without (95% Wilson lower bound of the share
@@ -1632,16 +1690,27 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
             letters = token.replace(".", "")
             if not letters or any(c not in L.LETTERS for c in letters):
                 continue
-            by_key[L.lower_el(token)][token] += n
-            docs[L.lower_el(token)] += pool.docs.get(token, 0)
+            key = L.lower_el(token)
+            by_key[key][token] += n
+            docs[key] += pool.docs.get(token, 0)
             spelling_docs[token] += pool.docs.get(token, 0)
     rows = []
     for key, spellings in by_key.items():
         n = sum(spellings.values())
         spelling = max(sorted(spellings), key=lambda s: spellings[s])
+        reviewed = False
+        if not _has_lowercase(spelling):
+            # Do not discard a genuinely attested lowercase abbreviation
+            # merely because its uppercase counterpart occurs more often.
+            lower = [s for s in spellings if s in (accepts or {}) and _has_lowercase(s)
+                     and spellings[s] >= ABBREVIATION_MIN_TOKENS
+                     and spelling_docs[s] >= ABBREVIATION_MIN_DOCS]
+            if not lower:
+                continue
+            spelling = max(sorted(lower), key=lambda s: spellings[s])
+            reviewed = True
         letters = spelling.replace(".", "")
-        if (n < ABBREVIATION_MIN_TOKENS or docs[key] < ABBREVIATION_MIN_DOCS
-                or not _has_lowercase(spelling)):
+        if n < ABBREVIATION_MIN_TOKENS or docs[key] < ABBREVIATION_MIN_DOCS:
             continue
         plain = sum(evidence.exact(v)[0] for v in {letters, L.lower_el(letters),
                                                    titlecase(L.lower_el(letters))})
@@ -1652,6 +1721,10 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
         rows.append({"abbreviation": spelling, "tokens": n, "docs": docs[key],
                      "without_period": plain, "share": round(share, 4),
                      "route": "tokenizer"})
+        if reviewed:
+            rows[-1].update(reviewed_reason=accepts[spelling],
+                            spelling_tokens=spellings[spelling],
+                            spelling_docs=spelling_docs[spelling])
         variants = [s for s in sorted(spellings, key=lambda s: (-spellings[s], s))
                     if s != spelling and _has_lowercase(s)
                     and spellings[s] >= ABBREVIATION_MIN_TOKENS
@@ -1666,7 +1739,8 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
                          "share": round(share, 4), "route": "case_variant"})
     for word, n in candidates.items():
         abbr = word + "."
-        if (L.lower_el(abbr) in by_key or n < ABBREVIATION_CANDIDATE_MIN_TOKENS
+        if (L.lower_el(abbr) in by_key
+                or n < ABBREVIATION_CANDIDATE_MIN_TOKENS
                 or any(c not in L.LETTERS for c in word)
                 or L.case_shape(word) not in ("lower", "title")):
             continue
@@ -1705,7 +1779,8 @@ def run_together_split(key: str, common_keys: set[str]) -> tuple[str, str] | Non
 
 def select_acronyms(evidence: Evidence, entries: set[str],
                     rejects: dict[str, str],
-                    common_entries: set[str] = frozenset()
+                    common_entries: set[str] = frozenset(), *,
+                    accepts: dict[str, str] | None = None
                     ) -> tuple[list[str], list[dict]]:
     """All-capital acronyms (see the module docstring). The letters of an
     acronym must not be those of an entry of the word list (ΠΕ, πε), so
@@ -1714,11 +1789,15 @@ def select_acronyms(evidence: Evidence, entries: set[str],
     (``ACRONYM_OVER_WORD_RATIO``: ΣΥΡΙΖΑ beside σύριζα). A name the lexicon has but the list does not, because text
     writes it in capitals (Σύριζα), leaves its acronym (ΣΥΡΙΖΑ) in.
     ``common_entries`` are the entries rated C or M, whose letters make up
-    two words run together (``run_together_split``)."""
+    two words run together (``run_together_split``). Reviewed ``accepts``
+    allow source-identified dual readings such as ΕΚ/εκ, still requiring
+    20 capital tokens in five documents of each of two independent sources.
+    """
     others: Counter = Counter()          # bare key -> tokens not in capitals
     caps: Counter = Counter()
     caps_docs: Counter = Counter()
     independent: dict[str, set[str]] = defaultdict(set)
+    attested: dict[str, set[str]] = defaultdict(set)
     for table in evidence.tables:
         source_caps: Counter = Counter()
         source_others: Counter = Counter()
@@ -1737,9 +1816,10 @@ def select_acronyms(evidence: Evidence, entries: set[str],
                 source_others[L.bare_key(token)] += n
         for token, n in source_caps.items():
             other = source_others[L.bare_key(token)]
-            if (n >= ACRONYM_MIN_TOKENS and table.docs.get(token, 0) >= ACRONYM_MIN_DOCS
-                    and n >= ACRONYM_OVER_WORD_RATIO * other):
-                independent[token].add(table.source)
+            if n >= ACRONYM_MIN_TOKENS and table.docs.get(token, 0) >= ACRONYM_MIN_DOCS:
+                attested[token].add(table.source)
+                if n >= ACRONYM_OVER_WORD_RATIO * other:
+                    independent[token].add(table.source)
     bare_entries: Counter = Counter()    # bare key -> subtitle tokens
     for w in entries:
         if L.APOSTROPHE not in w:
@@ -1754,12 +1834,20 @@ def select_acronyms(evidence: Evidence, entries: set[str],
             continue        # a tonos on a capital: a word, not an acronym
         key = L.bare_key(token)
         other = others.get(key, 0)
-        if L.wilson_lower(n, n + other) < ACRONYM_MIN_SHARE:
+        reviewed = token in (accepts or {})
+        confirmed_review = reviewed and len(attested[token]) >= ACRONYM_MIN_CAPITALIZED_SOURCES
+        if not reviewed and L.wilson_lower(n, n + other) < ACRONYM_MIN_SHARE:
             continue
         row = {"acronym": token, "tokens": n, "docs": caps_docs[token],
                "not_in_capitals": other,
                "capitalized_sources": sorted(independent[token])}
-        if key in bare_entries and not (
+        if reviewed:
+            row.update(reviewed_reason=accepts[token], attested_sources=sorted(attested[token]))
+        if token in rejects:
+            row["rejected"] = rejects[token]
+        elif reviewed and not confirmed_review:
+            row["rejected"] = "reviewed acronym lacks independent corpus evidence"
+        elif not confirmed_review and key in bare_entries and not (
                 n >= ACRONYM_OVER_WORD_RATIO * other
                 and (n * evidence.subtitle_words
                      >= ACRONYM_OVER_WORD_RATIO * bare_entries[key] * evidence.open_words
@@ -1768,8 +1856,6 @@ def select_acronyms(evidence: Evidence, entries: set[str],
             row["subtitle_tokens_of_the_entry"] = bare_entries[key]
         elif (split := run_together_split(key, common_keys)) is not None:
             row["rejected"] = f"two words run together: {split[0]} + {split[1]}"
-        elif token in rejects:
-            row["rejected"] = rejects[token]
         else:
             kept.append(token)
         audit.append(row)
@@ -1855,6 +1941,8 @@ def stale_model_note(dic_path: Path, version_path: Path | None = None) -> str | 
 def dic_lines(entries: dict[str, Entry]) -> list[str]:
     lines = [f"{e.form}\tfr:{e.bucket}" + (" mg:generated" if e.generated else "")
              + "".join(f" ac:{twin}" for twin in e.accent_alternatives)
+             + "".join(f" sp:{twin}" for twin in e.spelling_alternatives)
+             + (f" us:{e.usage}" if e.usage else "")
              for e in entries.values()]
     return sorted(lines, key=lambda s: s.encode("utf-8"))
 
@@ -1905,6 +1993,7 @@ def write_outputs(sel: Selection, out_dir: Path, *, evidence: Evidence,
         f"abbreviations: {len(abbreviations)}\n"
         f"acronyms: {len(acronyms)}\n"
         f"accent_alternatives: {sum(bool(e.accent_alternatives) for e in entries)}\n"
+        f"spelling_alternatives: {sum(bool(e.spelling_alternatives) for e in entries)}\n"
         f"compiled_size_estimate_bytes: {size}\n"
         f"aff_rules: 0\n"
         f"dic_sha256: {dic_sha}\n"
@@ -2019,10 +2108,11 @@ def run(args) -> dict:
     candidates = _read_candidates(corpus_dir, [t.source for t in counts])
     abbreviations, abbr_audit = select_abbreviations(
         evidence, candidates, lexicon_words | set(sel.entries),
-        review["abbreviation_rejects"])
+        review["abbreviation_rejects"], accepts=review["abbreviation_accepts"])
     acronyms, acr_audit = select_acronyms(
         evidence, set(sel.entries), review["acronym_rejects"],
-        {f for f, e in sel.entries.items() if e.bucket in ("C", "M")})
+        {f for f, e in sel.entries.items() if e.bucket in ("C", "M")},
+        accepts=review["acronym_accepts"])
     paths = {"mg_pairs": Path(args.mg_pairs), "mg_freq": Path(args.mg_freq),
              "function_words": Path(args.function_words), "review": Path(args.review),
              "corpus_manifest": corpus_dir / "manifest.json"}

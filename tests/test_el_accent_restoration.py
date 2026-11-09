@@ -39,6 +39,11 @@ def test_stripping_removes_tonos_and_dialytika_and_keeps_case(word, bare):
     ("Οταν", "όταν", "Όταν"), ("προιον", "προϊόν", "προϊόν"),
     ("ταιζω", "ταΐζω", "ταΐζω"), ("αθηνα", "Αθήνα", "αθήνα"),
     ("ποτε", "ποτέ", "ποτέ"),
+    ("ΤΣΑΙ", "τσάι", "ΤΣΑΪ"), ("ΜΑΙΟΣ", "Μάιος", "ΜΑΪΟΣ"),
+    ("ΑΥΛΟΣ", "άυλος", "ΑΫΛΟΣ"), ("ΚΕΙΚ", "κέικ", "ΚΕΪΚ"),
+    ("ΠΡΟΙΟΝ", "προϊόν", "ΠΡΟΪΟΝ"), ("ΜΑΙΟΥ", "Μαΐου", "ΜΑΪΟΥ"),
+    ("ΕΙΝΑΙ", "είναι", "ΕΙΝΑΙ"), ("ΑΥΤΟ", "αυτό", "ΑΥΤΟ"),
+    ("Η", "ή", "Ή"), ("Τσαι", "τσάι", "Τσάι"),
 ])
 def test_marks_move_onto_the_typed_letters(typed, spelling, out):
     assert A.transfer_marks(typed, spelling) == out
@@ -99,6 +104,37 @@ def test_rare_lowercase_words_keep_their_accents_and_exclude_common_names():
 
 def fixed(scores):
     return lambda option: scores.get(option.lower, -math.inf)
+
+
+def test_default_proposals_prefer_standard_forms_without_losing_rare_words():
+    index = A.AccentIndex([("οι", "C"), ("όι", "R"),
+                           ("γίνει", "C"), ("γινεί", "R"),
+                           ("τσάι", "C"), ("τσαι", "R")])
+    preferred = {"όι": ("οι",), "γινεί": ("γίνει",), "τσαι": ("τσάι",)}
+    for typed, expected in [("οι", "οι"), ("γινει", "γίνει"), ("τσαι", "τσάι")]:
+        options = index.options(typed)
+        assert len(options) == 2
+        assert [o.lower for o in A.proposal_options(typed, options, preferred)] == [expected]
+    # Explicit marks retain the rare reading; a typed-as-is choice remains
+    # separate from proposals, so dialect τσαι is never rejected either.
+    assert {o.lower for o in A.proposal_options("όι", index.options("όι"), preferred)} == {
+        "οι", "όι"}
+    # Only genuine contextual evidence can put an untyped rare variant back.
+    scores = fixed({"γίνει": -5.0, "γινεί": -1.0})
+    assert len(A.proposal_options("γινει", index.options("γινει"), preferred,
+                                  contextual_score=scores)) == 2
+    assert len(A.proposal_options("γινει", index.options("γινει"), preferred,
+                                  contextual_score=fixed({}))) == 1
+
+
+def test_proposal_filter_handles_spelling_changes_and_preserves_other_ambiguity():
+    index = A.AccentIndex([("διευκρίνηση", "M"), ("διευκρίνιση", "M"),
+                           ("σχεδία", "R"), ("σχέδια", "C")])
+    candidates = index.options("διευκρινηση") + index.options("διευκρινιση")
+    preferred = {"διευκρίνηση": ("διευκρίνιση",)}
+    assert [o.lower for o in A.proposal_options("διευκρινηση", candidates, preferred)] == [
+        "διευκρίνιση"]
+    assert len(A.proposal_options("σχεδια", index.options("σχεδια"), preferred)) == 2
 
 
 def test_no_candidate_and_one_candidate(index):
