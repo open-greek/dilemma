@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.18] - 2026-11-09
+
 Correct the source form-page reading that labeled άχθηκα as imperfect. It now
 uses the aorist, while the original source gloss and correction evidence remain
 in the audit. Other readings, including the shared imperfect and aorist of
@@ -1521,6 +1523,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.18]: https://github.com/open-greek/dilemma/releases/tag/1.3.18
 [1.3.17]: https://github.com/open-greek/dilemma/releases/tag/1.3.17
 [1.3.16]: https://github.com/open-greek/dilemma/releases/tag/1.3.16
 [1.3.15]: https://github.com/open-greek/dilemma/releases/tag/1.3.15
