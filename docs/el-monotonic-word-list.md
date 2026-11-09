@@ -301,24 +301,27 @@ against two words run together still apply. Lowercase words remain entries.
 
 ## Recorded export
 
-Built at commit `6cb8d11` on 2026-11-08. The dictionary's sha256 is
-`ef508ecffe7cf3a2b9696e8de3edea791fd3b81f28b7977146479a427948464f`. The build reads the source-backed present-tense completion
+The follow-up rules in `1139bde` retain all 637,216 accepted spellings from
+the `6cb8d11` build, add preferred-spelling metadata, and move 35 capitalized
+names from C to M. The dictionary's sha256 is
+`a9d955ed10d7301f228065faf028977a18d2c65d755fee7fd476b5dcfd81fe93`. The build reads the present-tense completion
 of 9,450 pairs across 1,904 heads, while preserving prior analyses and preferred
 lookups. The corpus's documents and train/dev split are unchanged.
 
 | Measure | Value |
 |---|---|
 | Entries | 637,216 |
-| C, M, R, X | 6,255, 41,061, 368,750, 221,150 |
+| C, M, R, X | 6,220, 41,096, 368,750, 221,150 |
 | Attested, generated | 416,066, 221,150 |
 | Corpus words | 7,053 |
 | Elisions | 189 |
 | Function words | 5 |
 | Names | 17,859 |
 | Paradigm entries | 612,110 |
-| Abbreviations, acronyms | 219, 1,732 |
+| Acronyms | 1,734 |
 | Compiled dictionary | 35,251,000 bytes |
-| Entries with common accent alternatives | 81 |
+| Entries with common accent alternatives | 83 |
+| Entries with preferred spellings of different letters | 1 |
 | Lexicon lemmas read | 187,894 |
 
 The native Swift compiler produced the dictionary above and its reader found

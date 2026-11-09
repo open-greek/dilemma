@@ -331,7 +331,12 @@ in proportion to its size; see [Known limitations](#known-limitations).
 ## Recorded model
 
 Built at commit `6cb8d11` on 2026-11-08 from the dictionary with sha256
-`ef508ecffe7cf3a2b9696e8de3edea791fd3b81f28b7977146479a427948464f`. The binary's sha256 is
+`ef508ecffe7cf3a2b9696e8de3edea791fd3b81f28b7977146479a427948464f`.
+Recounting and exporting against the follow-up word list with sha256
+`a9d955ed10d7301f228065faf028977a18d2c65d755fee7fd476b5dcfd81fe93`
+produces the same binary byte for byte: spelling preferences and C-to-M name
+ratings do not change the model's vocabulary or counts. The current version
+file records the new dictionary digest. The binary's sha256 is
 `46564a1f26beaa83f90ef569563b3dfeab479df2053aac85553a8e7afcc0fe0e`.
 
 | Part | Measure |
