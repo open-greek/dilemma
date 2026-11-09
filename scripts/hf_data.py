@@ -71,6 +71,7 @@ TRACKED = [
     # Base tables checked by the real Modern Greek training-evidence test.
     "data/mg_pairs.json",
     "data/mg_lookup.json",
+    "data/mg_pos_lookup.json",
     # Source-backed participial cells used by the Modern Greek exporter.
     "data/el_participles.json",
     # Independent noun heads retained beside flat-lookup homographs.

@@ -383,6 +383,8 @@ python scripts/repair_el_verb_pos_snapshot.py --base BASE/mg_pos_lookup.json \
 
 The POS repair preserves the noun and proper-name alternatives beside the
 independent conjunction. Its `--undo` restores the recorded original fields.
+The resulting `mg_pos_lookup.json` remains tracked here and is also pinned on
+the Hub, so package downloads receive the same overrides as a source checkout.
 
 Undo refuses output files that have changed after the repair. To intentionally
 refresh the source archive, use `--kaikki KAIKKI` with a new output directory
