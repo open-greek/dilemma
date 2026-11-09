@@ -263,7 +263,7 @@ which FrequencyWords counts) is never an entry.
 
 Abbreviations are the tokens the corpus tokenizer kept with their period
 inside sentences, at least 10 times in 3 documents, with a lowercase letter
-or at least two dotted initials (`Ε.Ε.`), written with the period more
+(all-capital spellings are left out), written with the period more
 often than without when they have one period and two or more letters; plus
 words a lowercase word follows after a period. Spellings that differ only in
 case are counted together and the commonest is listed; another spelling
@@ -275,9 +275,9 @@ sigma, and a dotted token with a word of three or more letters inside
 (`του.Β.`, a missing space), are not abbreviations. Shorter pairs written
 without the space between them (`κλπ.Β.`, `βλ.Π.Δ.`) are rejected by name
 in `data/el_monotonic_review.json`.
-Dotted initialisms also receive a lowercase recognition alias (`ε.ε.`),
-so a lowercase abbreviation does not force the following word into capitals.
-Single capital initials remain excluded.
+When the commonest spelling is uppercase (`Ε.Ε.`), a lowercase variant with
+its own 10 tokens in three documents is still listed (`ε.ε.`). No lowercase
+spellings are inferred from uppercase use. Single capital initials remain excluded.
 
 Acronyms are all-capital tokens of two or more letters with at least 20
 tokens in 5 documents, no tonos on a capital, a 95% Wilson lower bound of at

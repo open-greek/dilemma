@@ -222,15 +222,15 @@ def test_reviewed_dual_reading_acronyms_need_two_independent_sources():
     assert kept == ["ΠΑ"]
 
 
-def test_dotted_initialisms_have_lowercase_recognition_aliases():
-    rows = {"Ε.Ε.": (100, 0, 50), "ε.ε.": (2, 0, 2),
-            "Α.Ε.": (20, 0, 10), "Γ.": (100, 0, 50),
-            "Ξ.Ω.": (9, 0, 9)}
+def test_uppercase_frequency_does_not_hide_attested_lowercase_abbreviations():
+    rows = {"Ε.Ε.": (100, 0, 50), "ε.ε.": (20, 0, 10),
+            "Α.Ε.": (20, 0, 10), "α.ε.": (2, 0, 2),
+            "Δ.Σ.": (100, 0, 50), "δ.σ.": (15, 0, 5),
+            "Γ.": (100, 0, 50), "Ξ.Ω.": (9, 0, 9)}
     kept, audit = ex.select_abbreviations(ex.Evidence({}, [table("parl", rows)]),
                                          Counter(), set(), {})
-    assert set(kept) == {"Ε.Ε.", "ε.ε.", "Α.Ε.", "α.ε."}
-    alias = next(row for row in audit if row["abbreviation"] == "ε.ε.")
-    assert alias["route"] == "lowercase_initialism_alias" and alias["alias_of"] == "Ε.Ε."
+    assert set(kept) == {"ε.ε.", "δ.σ."}
+    assert not any("ς" in abbreviation for abbreviation in kept)
 
 
 def test_subtitles_do_not_veto_acronyms_confirmed_by_two_sources():

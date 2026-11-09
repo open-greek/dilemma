@@ -237,7 +237,9 @@ the reader on all 400 sampled queries.
 - Format uppercase words with Greek uppercase spelling rules: `τσάι` becomes
   `ΤΣΑΪ`, `Μάιος` becomes `ΜΑΪΟΣ`, and `είναι` becomes `ΕΙΝΑΙ`. Preserve the
   disjunctive one-letter `Ή`. `transfer_marks` implements these rules.
-- Recognize both cases of dotted abbreviations, including `Ε.Ε.` and `ε.ε.`.
+- Match dotted abbreviations against their listed lowercase spellings,
+  including `ε.ε.`; do not capitalize a following word just because the
+  uppercase spelling occurs more often in the corpus.
   Acronym membership preserves an all-capital reading such as `ΕΚ`; it does
   not turn lowercase `εκ` into an acronym.
 - Look up a double-accented context word as typed when the model knows it, but

@@ -1657,9 +1657,10 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
     """Abbreviations with their periods (see the module docstring).
 
     Abbreviations with a lowercase letter (π.χ., κ.λπ., δισ., Δρ., μ.Χ.)
-    and dotted initialisms (Α.Ε., Η.Π.Α.) must not end the sentence.
-    The latter also receive a lowercase recognition alias (ε.ε.). Capital
-    single letters are left out because they are initials (Γ. Παπανδρέου).
+    must not end the sentence. All-capital spellings and single capital
+    initials are left out. When the commonest spelling is uppercase (Ε.Ε.),
+    a lowercase variant still qualifies with its own token and document
+    evidence (ε.ε.). No lowercase variants are inferred from uppercase use.
     The shapes :func:`abbreviation_shape_reason` refuses are excluded too.
 
     A one-period abbreviation of two or more letters must be written with
@@ -1686,18 +1687,25 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
             letters = token.replace(".", "")
             if not letters or any(c not in L.LETTERS for c in letters):
                 continue
-            by_key[L.lower_el(token)][token] += n
-            docs[L.lower_el(token)] += pool.docs.get(token, 0)
+            key = L.lower_el(token).replace("ς", "σ")  # σ before the period
+            by_key[key][token] += n
+            docs[key] += pool.docs.get(token, 0)
             spelling_docs[token] += pool.docs.get(token, 0)
     rows = []
     for key, spellings in by_key.items():
         n = sum(spellings.values())
         spelling = max(sorted(spellings), key=lambda s: spellings[s])
+        if not _has_lowercase(spelling):
+            # Do not discard a genuinely attested lowercase abbreviation
+            # merely because its uppercase counterpart occurs more often.
+            lower = [s for s in spellings if _has_lowercase(s)
+                     and spellings[s] >= ABBREVIATION_MIN_TOKENS
+                     and spelling_docs[s] >= ABBREVIATION_MIN_DOCS]
+            if not lower:
+                continue
+            spelling = max(sorted(lower), key=lambda s: spellings[s])
         letters = spelling.replace(".", "")
-        parts = spelling.rstrip(".").split(".")
-        initialism = len(parts) >= 2 and all(len(part) == 1 for part in parts)
-        if (n < ABBREVIATION_MIN_TOKENS or docs[key] < ABBREVIATION_MIN_DOCS
-                or (not _has_lowercase(spelling) and not initialism)):
+        if n < ABBREVIATION_MIN_TOKENS or docs[key] < ABBREVIATION_MIN_DOCS:
             continue
         plain = sum(evidence.exact(v)[0] for v in {letters, L.lower_el(letters),
                                                    titlecase(L.lower_el(letters))})
@@ -1720,14 +1728,10 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
             rows.append({"abbreviation": variant, "tokens": spellings[variant],
                          "docs": spelling_docs[variant], "without_period": plain,
                          "share": round(share, 4), "route": "case_variant"})
-        if initialism and key not in listed:
-            rows.append({"abbreviation": key, "tokens": n, "docs": docs[key],
-                         "without_period": plain, "share": round(share, 4),
-                         "route": "lowercase_initialism_alias",
-                         "alias_of": spelling})
     for word, n in candidates.items():
         abbr = word + "."
-        if (L.lower_el(abbr) in by_key or n < ABBREVIATION_CANDIDATE_MIN_TOKENS
+        if (L.lower_el(abbr).replace("ς", "σ") in by_key
+                or n < ABBREVIATION_CANDIDATE_MIN_TOKENS
                 or any(c not in L.LETTERS for c in word)
                 or L.case_shape(word) not in ("lower", "title")):
             continue
@@ -1744,9 +1748,8 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
         shape = abbreviation_shape_reason(row["abbreviation"], lexicon_words)
         if shape:
             row["rejected"] = shape
-        elif row["abbreviation"] in rejects or row.get("alias_of") in rejects:
-            row["rejected"] = rejects.get(row["abbreviation"],
-                                           rejects.get(row.get("alias_of")))
+        elif row["abbreviation"] in rejects:
+            row["rejected"] = rejects[row["abbreviation"]]
         else:
             kept.append(row["abbreviation"])
         audit.append(row)
