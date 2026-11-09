@@ -6,6 +6,25 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+Dilemma can now build a monotonic Modern Greek keyboard bundle: a rated word
+list, abbreviation and acronym lists, and a contextual next-word model.
+Corpus inputs are openly licensed, pinned and split by document. Archived
+Tatoeba and Wiktionary examples can be downloaded from an immutable Hub
+revision, preserving the original train/dev split.
+
+The exporters admit independently attested formal words and acronyms, retain
+rare words with metadata for common accent alternatives, and restrict
+lowercase accent restoration to common or medium-frequency names when no
+lowercase word matches. Evaluations cover held-out coverage, predictions,
+completion, accent restoration, typing slips, enclitic accents and keystroke
+savings, with Python and Swift reader checks.
+
+Complete missing present-active cells beneath independently defined Modern
+Greek verb heads, preserving source-supplied forms and existing lookup
+readings. The refreshed data adds 9,450 pairs across 1,904 heads with
+reversible provenance. The older Modern Greek Hunspell export now refuses
+missing or empty form-frequency data instead of writing an empty dictionary.
+
 ## [1.3.15] - 2026-11-05
 
 ### Fixed

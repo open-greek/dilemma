@@ -179,6 +179,10 @@ for tokenization, model sources, and device settings.
 | [Word lists](https://github.com/open-greek/dilemma/blob/main/docs/word-lists.md) | Frequency inputs, ranked forms, Hunspell dictionaries, and morphology exports |
 | [Polytonic Modern Greek](https://github.com/open-greek/dilemma/blob/main/docs/modern-greek.md) | Modern word-list construction and validation |
 | [Next-word prediction](https://github.com/open-greek/dilemma/blob/main/docs/language-model.md) | Training, evaluation, and binary export |
+| [Monotonic Modern Greek corpus](https://github.com/open-greek/dilemma/blob/main/docs/el-monotonic-corpus.md) | Pinned source archives, normalization, tokenization, and split for monotonic text |
+| [Monotonic Modern Greek word list](https://github.com/open-greek/dilemma/blob/main/docs/el-monotonic-word-list.md) | Admission routes, spelling rules, ratings, accent alternatives, and held-out evaluation of the monotonic list |
+| [Monotonic Modern Greek next-word model](https://github.com/open-greek/dilemma/blob/main/docs/el-monotonic-lm.md) | Counting, pruning, vocabulary size, and held-out evaluation of the monotonic model |
+| [Monotonic keyboard data](https://github.com/open-greek/dilemma/blob/main/docs/monotonic-keyboard-data.md) | Accent restoration, typing slips, the enclitic second accent, and keystroke savings with the monotonic list and model |
 
 Benchmark results depend on the text, citation convention, available context,
 and artifact version. Recognition of a spelling and selection of the correct

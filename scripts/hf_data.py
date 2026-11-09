@@ -86,6 +86,10 @@ TRACKED = [
     "data/grc_reading_heads.json",
     # Explicit, sense-scoped dictionary evidence for optional verb exports.
     "data/verb_subjects.json",
+    # Immutable source copies for reproducible monotonic corpus extraction.
+    "data/el_lm_inputs/tatoeba_ell_sentences.tsv.bz2",
+    "data/el_lm_inputs/wiktionary_examples.jsonl.gz",
+    "data/el_lm_inputs/provenance.json",
     # Source-merged capital name owners and exact corpus target audit.
     "data/treebank_pos_lookup.audit.json",
     # Integrity checks exercise both exported and PyTorch model backends.

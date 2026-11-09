@@ -44,6 +44,7 @@ data/lsj9_pos_lookup.json
 data/el_closed_class_heads.json
 data/grc_reading_heads.json
 data/verb_subjects.json
+data/el_lm_inputs/
 # PROIEL is CC BY-NC-SA; never ingested, kept out of the openly-licensed repo
 data/proiel_pairs.json
 data/spell_index.db
@@ -99,6 +100,10 @@ data/treebanks/UD_Greek-Messinian/
 
 # Kaikki dumps
 kaikki/
+
+# Pinned raw downloads of data/el_lm_corpora.json (extract_el_monotonic_lm.py
+# --download); verified by sha256, never committed
+data/raw/
 
 # Model artifacts (stored on HuggingFace: hf.co/ciscoriordan/dilemma)
 model/

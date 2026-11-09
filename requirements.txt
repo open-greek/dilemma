@@ -9,3 +9,9 @@
 # Greek corpus builders and polytonic next-word LM:
 # betacode          # TLG beta-code to Unicode conversion
 # beta-code         # Diorisis pair and quotation-evidence conversion
+#
+# Monotonic Modern Greek corpus, word list and next-word model
+# (extract_el_monotonic_lm.py, export_el_monotonic.py, train_lm.py --lang el):
+# numpy             # counting, and the Python copy of the model reader
+# pyarrow           # Parquet sources of data/el_lm_corpora.json
+# huggingface_hub   # pinned dataset downloads (already a package dependency)
