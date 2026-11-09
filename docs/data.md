@@ -334,6 +334,10 @@ An explicit tense on a verb cell takes precedence over a table heading. The
 English Wiktionary's table headed `present` can also contain imperfect cells;
 adding the heading to those cells would incorrectly give each both tenses.
 Separate source readings remain separate, including genuinely ambiguous forms.
+An explicit present/future alternative becomes two analyses. Greek labels for
+the imperfective future describe aspect, so they produce `future` with
+`imperfective`, not the past tense `imperfect`. Labels pooled across a head line
+do not assign all those tenses to every spelling on that line.
 
 `dilemma/el_imperfect_paradigms.py` completes missing active imperfect cells
 from source-recorded first-person singular or plural stems. It does not infer
@@ -354,6 +358,11 @@ than rebuilding unrelated languages. Its archived source fields identify both
 Wiktionary editions and their checksums; it records all original and corrected
 pairs, lookup values, SQLite rows, and spelling-index values in `data/changes/`.
 The archive also pins the original Hub revision for the base files:
+
+The repair matches tables after their headwords have been canonicalized, keeping
+the original owner records as evidence. For older rows whose extra heading no
+longer appears in the source, an exact current table cell must confirm the tense,
+lemma, person, and number. Unsupported readings are not silently removed.
 
 ```bash
 hf download ciscoriordan/dilemma data/el_verb_repair_sources.json.gz --local-dir .

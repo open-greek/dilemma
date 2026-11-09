@@ -26,6 +26,20 @@ INPUTS = ("mg_pairs.json", "mg_lookup.json", "lookup.db", "spell_index.db")
 SOURCE_FILE = "el_verb_repair_sources.json.gz"
 AUDIT_FILE = "el_verb_data_repairs.json"
 
+# These old English table rows are absent from the pinned Kaikki dump.
+# The rendered, revision-pinned tables explicitly label the cells below.
+# Preserve the snapshot's canonical lemma; only remove its extra heading.
+REVIEWED_TABLE_READINGS = (
+    ('present', ('εξασθενίζομε', 'εξασθενίζοντας'),
+     'https://en.wiktionary.org/w/index.php?title=εξασθενίζω&oldid=91814395'),
+    ('present', ('εξασθενώ', 'εξασθενείς', 'εξασθενεί', 'εξασθενούμε',
+                 'εξασθενείτε', 'εξασθενούν', 'εξασθενούνε', 'εξασθενώντας'),
+     'https://en.wiktionary.org/w/index.php?title=εξασθενώ&oldid=93555953'),
+    ('imperfect', ('εξασθενούσα', 'εξασθενούσες', 'εξασθενούσε', 'εξασθενούσαμε',
+                   'εξασθενούσατε', 'εξασθενούσαν', 'εξασθενούσανε'),
+     'https://en.wiktionary.org/w/index.php?title=εξασθενώ&oldid=93555953'),
+)
+
 
 def sha(p):
     h = hashlib.sha256()
@@ -40,12 +54,15 @@ def save(p, value):
     p.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def archive_sources(kaikki, destination, pins, base_revision):
+def archive_sources(kaikki, destination, pins, base_revision, base_pairs=()):
+    specific = set(B.VERB_TENSE_LABELS.values())
+    affected = {r['form'] for r in base_pairs if r.get('pos') == 'verb'
+                and len(set(r.get('tags', ())) & specific) > 1}
     result = {"schema_version": 1, "language": "el", "base_repo": "ciscoriordan/dilemma",
               "base_revision": base_revision,
               "input_sha256": {name: pins["data/" + name]["sha256"] for name in INPUTS},
               "source_sha256": {}, "heads": {}, "unaccented_heads": {},
-              "lemma_pos": {}, "tense_cells": []}
+              "lemma_pos": {}, "tense_cells": [], "tense_witnesses": []}
     for source, filename in B.DUMPS["el"].items():
         path = B.resolve_dump(filename, kaikki)
         result["source_sha256"][source] = sha(path)
@@ -68,6 +85,17 @@ def archive_sources(kaikki, destination, pins, base_revision):
                                    for s in e.get("senses") or []]})
                 if pos != "verb":
                     continue
+                for sense in e.get("senses", []):
+                    original = sorted(set(e.get("tags", [])) | set(sense.get("tags", [])) | {"form-of"})
+                    corrected = B.modern_verb_source_tags(original, sense)
+                    if (set(original) == set(corrected)
+                            and len(B.separate_modern_verb_tenses(corrected)) == 1):
+                        continue
+                    for ref in sense.get("form_of", []):
+                        result["tense_cells"].append({"source": source,
+                            "source_lemma": B.strip_length_marks(ref.get("word", "")),
+                            "form": word, "table_header": "", "source_sense": sense,
+                            "original_tags": original})
                 page_dialect = next((t for s in e.get("senses", []) for t in s.get("tags", [])
                                      if t in B.DIALECT_PREFIXES), "")
                 header, dialect = "", page_dialect
@@ -82,11 +110,16 @@ def archive_sources(kaikki, destination, pins, base_revision):
                     original = [t for t in tags if t != "canonical"]
                     if dialect and dialect not in original:
                         original.append(dialect)
-                    corrected = B.verb_cell_tense_tags(original, header)
-                    if not (header and header not in original and B._VERB_AXES.intersection(tags)):
-                        continue
-                    original.append(header)
-                    if set(original) == set(corrected):
+                    corrected = B.verb_cell_tense_tags(B.modern_verb_source_tags(original, cell), header)
+                    form = B.strip_length_marks(cell.get("form", ""))
+                    if (form in affected and cell.get('source') == 'conjugation'
+                            and len(set(corrected) & specific) == 1):
+                        result['tense_witnesses'].append({'source':source, 'source_lemma':word,
+                            'form':form, 'source_cell':cell, 'corrected_tags':corrected})
+                    if header and header not in original and B._VERB_AXES.intersection(tags):
+                        original.append(header)
+                    if (set(original) == set(corrected)
+                            and len(B.separate_modern_verb_tenses(corrected)) == 1):
                         continue
                     form = B.strip_length_marks(cell.get("form", ""))
                     forms = [form]
@@ -113,26 +146,92 @@ def pair_key(r):
 
 def repair_pairs(pairs, lookup, sources, head_changes):
     index = {}
+    raw_keys = {(p['form'], tuple(sorted(set(p['original_tags'])))) for p in sources['tense_cells']}
+    matching_rows = {}
+    for row in pairs:
+        key = (row['form'], tuple(sorted(set(row.get('tags', [])))))
+        if row.get('pos') == 'verb' and key in raw_keys:
+            matching_rows.setdefault(key, []).append(row)
+    source_owners = {}
+    for proof in sources['tense_cells']:
+        key = (proof['form'], tuple(sorted(set(proof['original_tags']))))
+        for row in matching_rows.get(key, ()):
+            source_owners.setdefault(proof['source_lemma'], {}).setdefault(row['lemma'], row)
+    head_readings = {}
+    for row in pairs:
+        if (row.get("pos") == "verb"
+                and {"first-person", "singular"} <= set(row.get("tags", []))):
+            head_readings.setdefault(row["form"], {}).setdefault(row["lemma"], row)
     for proof in sources["tense_cells"]:
         # The archive preserves input evidence; current code determines
         # the correction when replaying it.
-        explicit = [t for t in proof["original_tags"] if t != proof["table_header"]]
-        proof = {**proof, "corrected_tags": B.verb_cell_tense_tags(explicit, proof["table_header"])}
+        record = proof.get("source_sense") or proof.get("source_cell") or {}
+        if "source_sense" in proof:
+            corrected = B.modern_verb_source_tags(proof["original_tags"], record)
+        else:
+            explicit = [t for t in proof["original_tags"] if t != proof["table_header"]]
+            corrected = B.verb_cell_tense_tags(B.modern_verb_source_tags(explicit, record), proof["table_header"])
+        proof = {**proof, "corrected_readings": B.separate_modern_verb_tenses(corrected)}
         lemma = proof["source_lemma"]
-        for target in {lemma, lookup.get(lemma, (lemma,))[0]}:
+        # The published pairs have already canonicalized spelling and voice
+        # variants. Retain that owner, with its original first-person row as
+        # evidence, when matching the source page's table.
+        agreed_owner = source_owners.get(lemma, {})
+        if len(agreed_owner) != 1:
+            agreed_owner = {}
+        for target in {lemma, lookup.get(lemma, (lemma,))[0], *head_readings.get(lemma, {}), *agreed_owner}:
+            evidence = proof
+            if target in head_readings.get(lemma, {}):
+                evidence = {**proof, "published_head_reading": head_readings[lemma][target]}
+            elif target in agreed_owner:
+                evidence = {**proof, "published_table_owner": agreed_owner[target]}
             key = (proof["form"], target, "verb", tuple(sorted(set(proof["original_tags"]))))
-            index.setdefault(key, []).append(proof)
+            index.setdefault(key, []).append(evidence)
     recovered = {c["form"]: c for c in head_changes}
+    witnesses = {}
+    for proof in sources.get('tense_witnesses', []):
+        witnesses.setdefault(proof['form'], []).append(proof)
+    specific = set(B.VERB_TENSE_LABELS.values())
+    axes = ({'first-person','second-person','third-person'}, {'singular','plural','dual'},
+            {'indicative','subjunctive','imperative','optative'}, {'active','passive','middle'})
     changes = {}
     for i, row in enumerate(pairs):
         corrected = dict(row); evidence = []
         if pair_key(row) in index:
             proofs = index[pair_key(row)]
-            variants = {tuple(p["corrected_tags"]) for p in proofs}
-            if len({frozenset(v) for v in variants}) != 1:
+            variants = {tuple(sorted(tuple(sorted(t)) for t in p["corrected_readings"])) for p in proofs}
+            if len(variants) != 1:
                 raise ValueError("Conflicting source tense corrections: " + row["form"])
-            corrected["tags"] = list(sorted(next(iter(variants))))
+            tags = next(iter(variants))
+            corrected["tags"] = list(tags[0])
             evidence.extend(proofs)
+            extra = [{**row, "tags": list(t)} for t in tags[1:]]
+        else:
+            extra = []
+            old_tags = set(row.get('tags', []))
+            if row.get('pos') == 'verb' and len(old_tags & specific) > 1:
+                votes = {}
+                for proof in witnesses.get(row['form'], []):
+                    tags = set(proof['corrected_tags'])
+                    if (proof['source_lemma'] != row['lemma']
+                            or not (tags & axes[0]) or not (tags & axes[1])
+                            or any(tags & a and old_tags & a and tags & a != old_tags & a for a in axes)):
+                        continue
+                    tense = tags & specific & old_tags
+                    if len(tense) == 1:
+                        votes.setdefault(next(iter(tense)), []).append(proof)
+                if votes:
+                    readings = [{**row,'tags':sorted((old_tags - specific) | {t})} for t in sorted(votes)]
+                    corrected = readings[0]; extra = readings[1:]
+                    evidence.extend(p for v in votes.values() for p in v)
+                elif row['lemma'] == 'εξασθενίζω':
+                    for tense, forms, url in REVIEWED_TABLE_READINGS:
+                        if row['form'] in forms and old_tags & specific == {tense, 'perfect'}:
+                            corrected['tags'] = sorted(old_tags - {'perfect'})
+                            evidence.append({'source':'en', 'revision_url':url,
+                                'source_lemma':'εξασθενώ' if '93555953' in url else 'εξασθενίζω',
+                                'form':row['form'], 'confirmed_tense':tense,
+                                'evidence':'Reviewed exact cell in the conjugation table; perfect is periphrastic.'})
         recovery = recovered.get(row["form"])
         if (recovery and row["lemma"] == recovery["original"][0]
                 and row.get("pos") in {p["pos"] for p in recovery["evidence"]}
@@ -140,16 +239,23 @@ def repair_pairs(pairs, lookup, sources, head_changes):
             corrected["lemma"] = row["form"]
             evidence.extend(recovery["evidence"])
         if corrected != row:
-            changes[i] = {"index": i, "original": row, "corrected": corrected, "evidence": evidence}
+            changes[i] = {"index": i, "original": row, "corrected": corrected,
+                          "additional_readings": extra, "evidence": evidence}
     seen = {pair_key(row) for i, row in enumerate(pairs) if i not in changes}
     result = []
     for i, row in enumerate(pairs):
         if i in changes:
-            c = changes[i]; key = pair_key(c["corrected"])
-            if key in seen:
-                c["corrected"] = None
-                continue
-            seen.add(key); row = c["corrected"]
+            c = changes[i]
+            readings = [c["corrected"], *c["additional_readings"]]
+            kept = []
+            for reading in readings:
+                key = pair_key(reading)
+                if key not in seen:
+                    seen.add(key); kept.append(reading)
+            c["corrected"] = kept[0] if kept else None
+            c["additional_readings"] = kept[1:]
+            result.extend(kept)
+            continue
         result.append(row)
     return result, list(changes.values())
 
@@ -235,8 +341,8 @@ def unapply(output, audit, imperfect):
     for i in range(audit["original_pair_count"]):
         c = changes.get(i)
         if c:
-            if c["corrected"] is not None:
-                if pairs[cursor] != c["corrected"]:
+            for reading in ([c["corrected"]] if c["corrected"] is not None else []) + c.get("additional_readings", []):
+                if pairs[cursor] != reading:
                     raise ValueError("Pair changed after repair")
                 cursor += 1
             restored.append(c["original"])
@@ -281,7 +387,8 @@ def main():
             raise ValueError("Refusing to replace an existing source archive")
         from huggingface_hub import HfApi
         archive_sources(args.kaikki, source_path, json.loads((ROOT / "data/hf_manifest.json").read_text())["files"],
-                        HfApi().repo_info("ciscoriordan/dilemma").sha)
+                        HfApi().repo_info("ciscoriordan/dilemma").sha,
+                        json.loads((args.base / 'mg_pairs.json').read_text()))
     else:
         pin = json.loads((ROOT / "data/hf_manifest.json").read_text())["files"].get("data/" + SOURCE_FILE)
         if pin and sha(source_path) != pin["sha256"]:

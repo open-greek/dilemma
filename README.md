@@ -95,7 +95,8 @@ noun `τσάι`. Missing active imperfect cells use source-recorded past stems,
 including both `συλλάμβανε` and `συνελάμβανε`; the builder does not guess past
 stems from present forms. An explicit noun POS tag can select `τσάι` while a
 conjunction tag retains `τσαι`. See the [data guide](docs/data.md#modern-greek-verb-repairs)
-for the rules, evidence, and reversible rebuild.
+for the rules, evidence, and reversible rebuild. Present/future alternatives
+are separate analyses; imperfective aspect does not imply imperfect past tense.
 
 ```python
 modern = Dilemma(lang="el", convention="triantafyllidis")

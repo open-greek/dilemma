@@ -153,6 +153,33 @@ def verb_cell_tense_tags(tags, header):
         result.append(header)
     return result
 
+
+def modern_verb_source_tags(tags, source_record):
+    """Distinguish imperfective aspect and unassigned head-line labels."""
+    result = set(tags)
+    raw = source_record.get("raw_tags") or []
+    glosses = source_record.get("glosses") or []
+    if ("future" in result and "imperfect" in result
+            and any(t in {"Εξ. Μέλλ.", "Εξακολουθητικοί χρόνοι"} for t in raw)
+            or "present" in result and "imperfect" in result
+            and any("present imperfect" in g for g in glosses)):
+        result.remove("imperfect")
+        result.add("imperfective")
+    tenses = result & set(VERB_TENSE_LABELS.values())
+    if source_record.get("source") == "header" and len(tenses) > 1:
+        # These are labels pooled across a head line, not a table cell.
+        # Keep its spelling without assigning every listed tense to it.
+        result -= tenses
+    return sorted(result)
+
+
+def separate_modern_verb_tenses(tags):
+    """An explicit present/future alternative is two analyses, not one."""
+    tenses = set(tags) & set(VERB_TENSE_LABELS.values())
+    if len(tenses) < 2:
+        return [list(tags)]
+    return [sorted((set(tags) - tenses) | {tense}) for tense in sorted(tenses)]
+
 # Wiktionary POS field -> UPOS mapping (for POS-indexed lookup tables)
 WIKT_TO_UPOS = {
     "noun": "NOUN", "verb": "VERB", "adj": "ADJ", "name": "PROPN",
@@ -1118,7 +1145,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                         # gloss can still resolve through its existing POS.
                         for target in named_verbs & explicit_refs:
                             lemma_pos.setdefault(target, set()).add("verb")
-                form_of_rows.extend((ref, set(entry.get("tags", [])) | set(sense.get("tags", [])),
+                sense_tags = set(entry.get("tags", [])) | set(sense.get("tags", []))
+                if modern_greek and pos == "verb":
+                    sense_tags = set(modern_verb_source_tags(sense_tags, sense))
+                form_of_rows.extend((ref, sense_tags,
                                      sense_verb) for ref in sense.get("form_of", []))
             verb_target = next(iter(named_verb_roots)) if len(named_verb_roots) == 1 else None
             form_of_refs = sense_form_of + list(top_form_of_for_detection)
@@ -1445,7 +1475,8 @@ def extract_pairs(jsonl_path: Path, lang: str,
 
                 if pos == "verb":
                     if modern_greek:
-                        morph_tags = verb_cell_tense_tags(morph_tags, current_tense)
+                        morph_tags = verb_cell_tense_tags(
+                            modern_verb_source_tags(morph_tags, f_entry), current_tense)
                     elif (current_tense and current_tense not in morph_tags
                           and _VERB_AXES.intersection(tags)):
                         # Historical tables can use a generic past tag and
@@ -2714,6 +2745,11 @@ def clean_training_pairs(pairs: list, lookup: dict, preserve_cells=False,
             result.append({"form": pair["form"], "lemma": resolved,
                            "pos": pair.get("pos", ""), "tags": pair.get("tags", [])})
             break
+    if preserve_cells:
+        result = [{**pair, "tags": tags}
+                  for pair in result
+                  for tags in (separate_modern_verb_tenses(pair.get("tags", []))
+                               if pair.get("pos") == "verb" else [pair.get("tags", [])])]
     return deduplicate_pairs(result, True) if preserve_readings else result
 
 

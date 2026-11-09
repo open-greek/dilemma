@@ -9,6 +9,9 @@ All notable changes to Dilemma are documented here. The format follows
 Keep explicit verb-cell tenses ahead of a table's heading, so imperfect forms
 do not acquire present-tense analyses. Preserve independently supported
 readings rather than merging their tense tags.
+Present/future alternatives remain separate analyses, and imperfective future
+labels no longer become imperfect past tense. Pooled head-line labels do not
+assign every listed tense to each spelling.
 
 Complete missing active imperfect cells from source-recorded past stems,
 retaining both augment variants of συλλαμβάνω. Form-of pages and unknown past
