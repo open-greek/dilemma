@@ -226,11 +226,20 @@ def test_uppercase_frequency_does_not_hide_attested_lowercase_abbreviations():
     rows = {"Ε.Ε.": (100, 0, 50), "ε.ε.": (20, 0, 10),
             "Α.Ε.": (20, 0, 10), "α.ε.": (2, 0, 2),
             "Δ.Σ.": (100, 0, 50), "δ.σ.": (15, 0, 5),
+            "Α.": (100, 0, 50), "α.": (20, 0, 10),
             "Γ.": (100, 0, 50), "Ξ.Ω.": (9, 0, 9)}
-    kept, audit = ex.select_abbreviations(ex.Evidence({}, [table("parl", rows)]),
-                                         Counter(), set(), {})
-    assert set(kept) == {"ε.ε.", "δ.σ."}
+    evidence = ex.Evidence({}, [table("parl", rows)])
+    accepts = ex.load_review(ex.REVIEW)["abbreviation_accepts"]
+    kept, audit = ex.select_abbreviations(evidence, Counter(), set(), {}, accepts=accepts)
+    assert kept == ["ε.ε."]
     assert not any("ς" in abbreviation for abbreviation in kept)
+    row, = audit
+    assert row["spelling_tokens"] == 20 and row["spelling_docs"] == 10
+    kept, _ = ex.select_abbreviations(evidence, Counter(), set(),
+                                      {"ε.ε.": "fixture reject"}, accepts=accepts)
+    assert kept == []
+    weak = ex.Evidence({}, [table("parl", {"Ε.Ε.": (100, 0, 50), "ε.ε.": (9, 0, 9)})])
+    assert ex.select_abbreviations(weak, Counter(), set(), {}, accepts=accepts)[0] == []
 
 
 def test_subtitles_do_not_veto_acronyms_confirmed_by_two_sources():
@@ -329,7 +338,7 @@ def test_review_file_loads_and_explains_every_entry():
     review = ex.load_review(ex.REVIEW)
     assert set(review) == {"rejects", "corpus_accepts", "elision_accepts",
                            "abbreviation_rejects", "acronym_rejects",
-                           "acronym_accepts", "preferred_spellings"}
+                           "abbreviation_accepts", "acronym_accepts", "preferred_spellings"}
     for key in review:
         for entry in data.get(key, []):
             assert entry["reason"].strip(), entry

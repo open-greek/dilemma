@@ -428,7 +428,7 @@ def load_function_words(path: Path) -> dict[str, str]:
 
 def load_review(path: Path) -> dict[str, dict]:
     """``{"rejects": {form: reason}, "corpus_accepts": ...,
-    "elision_accepts": ..., "abbreviation_rejects": ...,
+    "elision_accepts": ..., "abbreviation_rejects": ..., "abbreviation_accepts": ...,
     "acronym_rejects": ..., "acronym_accepts": ..., "preferred_spellings": ...}``.
     Preferred spellings retain their usage and source records.
     """
@@ -437,7 +437,8 @@ def load_review(path: Path) -> dict[str, dict]:
         raise ExportError(f"{path}: unsupported schema")
     out = {}
     for key in ("rejects", "corpus_accepts", "elision_accepts",
-                "abbreviation_rejects", "acronym_rejects", "acronym_accepts"):
+                "abbreviation_rejects", "abbreviation_accepts",
+                "acronym_rejects", "acronym_accepts"):
         out[key] = {unicodedata.normalize("NFC", e["form"]): e["reason"]
                     for e in data.get(key, [])}
     out["preferred_spellings"] = {}
@@ -1653,14 +1654,16 @@ def abbreviation_shape_reason(spelling: str, words: set[str]) -> str | None:
 
 def select_abbreviations(evidence: Evidence, candidates: Counter,
                          lexicon_words: set[str],
-                         rejects: dict[str, str]) -> tuple[list[str], list[dict]]:
+                         rejects: dict[str, str], *, accepts: dict[str, str] | None = None
+                         ) -> tuple[list[str], list[dict]]:
     """Abbreviations with their periods (see the module docstring).
 
     Abbreviations with a lowercase letter (π.χ., κ.λπ., δισ., Δρ., μ.Χ.)
     must not end the sentence. All-capital spellings and single capital
     initials are left out. When the commonest spelling is uppercase (Ε.Ε.),
-    a lowercase variant still qualifies with its own token and document
-    evidence (ε.ε.). No lowercase variants are inferred from uppercase use.
+    a reviewed lowercase variant still qualifies with its own token and
+    document evidence (ε.ε.). Review distinguishes abbreviations from
+    enumeration letters. No variants are inferred from uppercase use.
     The shapes :func:`abbreviation_shape_reason` refuses are excluded too.
 
     A one-period abbreviation of two or more letters must be written with
@@ -1687,7 +1690,7 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
             letters = token.replace(".", "")
             if not letters or any(c not in L.LETTERS for c in letters):
                 continue
-            key = L.lower_el(token).replace("ς", "σ")  # σ before the period
+            key = L.lower_el(token)
             by_key[key][token] += n
             docs[key] += pool.docs.get(token, 0)
             spelling_docs[token] += pool.docs.get(token, 0)
@@ -1695,15 +1698,17 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
     for key, spellings in by_key.items():
         n = sum(spellings.values())
         spelling = max(sorted(spellings), key=lambda s: spellings[s])
+        reviewed = False
         if not _has_lowercase(spelling):
             # Do not discard a genuinely attested lowercase abbreviation
             # merely because its uppercase counterpart occurs more often.
-            lower = [s for s in spellings if _has_lowercase(s)
+            lower = [s for s in spellings if s in (accepts or {}) and _has_lowercase(s)
                      and spellings[s] >= ABBREVIATION_MIN_TOKENS
                      and spelling_docs[s] >= ABBREVIATION_MIN_DOCS]
             if not lower:
                 continue
             spelling = max(sorted(lower), key=lambda s: spellings[s])
+            reviewed = True
         letters = spelling.replace(".", "")
         if n < ABBREVIATION_MIN_TOKENS or docs[key] < ABBREVIATION_MIN_DOCS:
             continue
@@ -1716,6 +1721,10 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
         rows.append({"abbreviation": spelling, "tokens": n, "docs": docs[key],
                      "without_period": plain, "share": round(share, 4),
                      "route": "tokenizer"})
+        if reviewed:
+            rows[-1].update(reviewed_reason=accepts[spelling],
+                            spelling_tokens=spellings[spelling],
+                            spelling_docs=spelling_docs[spelling])
         variants = [s for s in sorted(spellings, key=lambda s: (-spellings[s], s))
                     if s != spelling and _has_lowercase(s)
                     and spellings[s] >= ABBREVIATION_MIN_TOKENS
@@ -1730,7 +1739,7 @@ def select_abbreviations(evidence: Evidence, candidates: Counter,
                          "share": round(share, 4), "route": "case_variant"})
     for word, n in candidates.items():
         abbr = word + "."
-        if (L.lower_el(abbr).replace("ς", "σ") in by_key
+        if (L.lower_el(abbr) in by_key
                 or n < ABBREVIATION_CANDIDATE_MIN_TOKENS
                 or any(c not in L.LETTERS for c in word)
                 or L.case_shape(word) not in ("lower", "title")):
@@ -2099,7 +2108,7 @@ def run(args) -> dict:
     candidates = _read_candidates(corpus_dir, [t.source for t in counts])
     abbreviations, abbr_audit = select_abbreviations(
         evidence, candidates, lexicon_words | set(sel.entries),
-        review["abbreviation_rejects"])
+        review["abbreviation_rejects"], accepts=review["abbreviation_accepts"])
     acronyms, acr_audit = select_acronyms(
         evidence, set(sel.entries), review["acronym_rejects"],
         {f for f, e in sel.entries.items() if e.bucket in ("C", "M")},

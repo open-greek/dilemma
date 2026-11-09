@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "language": "el",
-  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling or typing-slip rules of the corpus route would refuse because a far commoner word shares its letters or its sound, or is one typing slip away; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version. Preferred spellings retain real dialectal, rare and older readings, recording their standard alternatives and sources without changing observed frequency. Reviewed acronym accepts still require independent capitalized corpus evidence; they allow genuine acronyms whose lowercase letters are also words.",
+  "description": "Reviewed decisions for the monotonic Modern Greek word list (export_el_monotonic.py) that its rules cannot make. A form under rejects never enters the list, whichever route admits it. A form under corpus_accepts is a corpus word that the variant-spelling or typing-slip rules of the corpus route would refuse because a far commoner word shares its letters or its sound, or is one typing slip away; it still needs the corpus evidence of that route. A form under elision_accepts is an elision whose letters without the mark are also a word, which the elision rule otherwise refuses (εξ’, εν’ and εκ’ are misspellings, since εκ, εξ and εν do not elide); it still needs the corpus evidence of the elision route. An abbreviation or acronym under the matching rejects never enters its companion list. Each entry says why. The exporter records the sha256 of this file in el_monotonic.version. Preferred spellings retain real dialectal, rare and older readings, recording their standard alternatives and sources without changing observed frequency. Reviewed acronym accepts still require independent capitalized corpus evidence; they allow genuine acronyms whose lowercase letters are also words. Reviewed abbreviation accepts distinguish attested lowercase abbreviations from enumeration letters when an uppercase spelling dominates their case group.",
   "rejects": [
     {
       "form": "θέσιο",
@@ -256,6 +256,17 @@
       "reason": "Πολεμική Αεροπορία, used by the service itself. The lowercase word πα remains valid.",
       "sources": [
         "https://www.haf.gr/structure/"
+      ]
+    }
+  ],
+  "abbreviation_accepts": [
+    {
+      "form": "ε.ε.",
+      "reason": "An attested lowercase dotted abbreviation, hidden because Ε.Ε. is the commonest spelling of the case-folded group. Require the lowercase form itself in at least 10 training tokens and three documents; do not treat enumeration letters as abbreviations.",
+      "sources": [
+        "OpenGov training type counts: 111 ε.ε. tokens in 83 documents",
+        "Parliament training type counts: 8 tokens in 7 documents",
+        "European Parliament training type counts: 2 tokens in 2 documents"
       ]
     }
   ]

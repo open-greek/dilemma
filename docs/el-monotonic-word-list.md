@@ -275,9 +275,10 @@ sigma, and a dotted token with a word of three or more letters inside
 (`του.Β.`, a missing space), are not abbreviations. Shorter pairs written
 without the space between them (`κλπ.Β.`, `βλ.Π.Δ.`) are rejected by name
 in `data/el_monotonic_review.json`.
-When the commonest spelling is uppercase (`Ε.Ε.`), a lowercase variant with
-its own 10 tokens in three documents is still listed (`ε.ε.`). No lowercase
-spellings are inferred from uppercase use. Single capital initials remain excluded.
+When the commonest spelling is uppercase (`Ε.Ε.`), a reviewed lowercase variant
+with its own 10 tokens in three documents is still listed (`ε.ε.`). The review
+distinguishes actual abbreviations from enumeration letters. No spellings are
+inferred from uppercase use. Single capital initials remain excluded.
 
 Acronyms are all-capital tokens of two or more letters with at least 20
 tokens in 5 documents, no tonos on a capital, a 95% Wilson lower bound of at
@@ -301,7 +302,7 @@ against two words run together still apply. Lowercase words remain entries.
 
 ## Recorded export
 
-The follow-up rules in `1139bde` retain all 637,216 accepted spellings from
+The exporter retains all 637,216 accepted spellings from
 the `6cb8d11` build, add preferred-spelling metadata, and move 35 capitalized
 names from C to M. The dictionary's sha256 is
 `a9d955ed10d7301f228065faf028977a18d2c65d755fee7fd476b5dcfd81fe93`. The build reads the present-tense completion
