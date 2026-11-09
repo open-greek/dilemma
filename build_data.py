@@ -139,6 +139,20 @@ _VERB_AXES = {
     "first-person", "second-person", "third-person",
 }
 
+
+def verb_cell_tense_tags(tags, header):
+    """Use a table heading only when the cell does not name its own tense.
+
+    The English Modern Greek present table also contains imperfect cells.
+    Those explicit column readings take precedence over the table heading.
+    Separate source cells remain separate analyses, including homographs.
+    """
+    result = list(tags)
+    explicit = set(VERB_TENSE_LABELS.values()) | {"past"}
+    if header and not explicit.intersection(tags) and _VERB_AXES.intersection(tags):
+        result.append(header)
+    return result
+
 # Wiktionary POS field -> UPOS mapping (for POS-indexed lookup tables)
 WIKT_TO_UPOS = {
     "noun": "NOUN", "verb": "VERB", "adj": "ADJ", "name": "PROPN",
@@ -652,6 +666,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   adjective_heads: set = None, adjective_head_records: list = None,
                   exact_source_references: dict = None,
                   present_head_records: dict = None,
+                  unaccented_heads: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -872,6 +887,16 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # across both Greek and Ancient Greek dumps), so this only
             # filters EL data.
             wikt_source = lang.split("-", 1)[1] if "-" in lang else lang
+            if (modern_greek and unaccented_heads is not None
+                    and lemma == strip_accents(lemma.lower())
+                    and is_independent_lexical_entry(entry, wikt_source)):
+                unaccented_heads.setdefault(lemma, []).append({
+                    "source": wikt_source, "headword": lemma, "pos": pos,
+                    "tags": entry.get("tags") or [],
+                    "senses": [{k: s.get(k) or [] for k in
+                                ("glosses", "tags", "form_of", "alt_of")}
+                               for s in entry.get("senses") or []],
+                })
             if wikt_source == "el":
                 top_form_of_for_detection = []
                 top_alt_of_for_detection = []
@@ -1418,10 +1443,14 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     morph_tags.append(current_dialect)
                     dialect_tagged += 1
 
-                if (pos == "verb" and current_tense
-                        and current_tense not in morph_tags
-                        and any(tag in _VERB_AXES for tag in tags)):
-                    morph_tags.append(current_tense)
+                if pos == "verb":
+                    if modern_greek:
+                        morph_tags = verb_cell_tense_tags(morph_tags, current_tense)
+                    elif (current_tense and current_tense not in morph_tags
+                          and _VERB_AXES.intersection(tags)):
+                        # Historical tables can use a generic past tag and
+                        # rely on the heading for the specific tense.
+                        morph_tags.append(current_tense)
 
                 # An isolated εἰμί auxiliary in a periphrastic table is not
                 # a form of the table's main verb. Filter before producing
@@ -2861,6 +2890,44 @@ def resolve_cross_source(all_lookup: dict, en_form_of_targets: dict,
     return cross_resolved
 
 
+def recover_unaccented_heads(lookup: dict, heads: dict, lemma_pos: dict,
+                             pos_map: dict = None) -> list:
+    """Keep a defined other-POS word ahead of an accentless alias.
+
+    Same-POS spellings such as δυο/δύο retain their established canonical
+    preference. A separate conjunction cannot become a form of a tea noun.
+    """
+    changes = []
+    for word, evidence in sorted(heads.items()):
+        previous = lookup.get(word)
+        if (not previous or previous[0] == word
+                or word != strip_accents(word.lower())
+                or strip_accents(previous[0].lower()) != word):
+            continue
+        if not evidence or not all(
+                record.get("headword") == word
+                and is_independent_lexical_entry(
+                    {"word": word, **record}, record["source"])
+                and spelling_target(word, record.get("senses") or []) is None
+                for record in evidence):
+            continue
+        own_pos = {record["pos"] for record in evidence}
+        target_pos = set(lemma_pos.get(previous[0], ()))
+        if not target_pos or own_pos & target_pos:
+            continue
+        corrected = (word, max(3, previous[1]))
+        lookup[word] = corrected
+        if pos_map is not None:
+            readings = pos_map.setdefault(word, {})
+            for record in evidence:
+                upos = WIKT_TO_UPOS[record["pos"]]
+                if readings.get(upos) in {None, previous[0]}:
+                    readings[upos] = word
+        changes.append({"form": word, "original": list(previous),
+                        "corrected": list(corrected), "evidence": evidence})
+    return changes
+
+
 def published_pos_readings(resolved: dict, previous: dict, scalar_target: str,
                            closed_target_differs: bool = False,
                            adjective_heads: set = frozenset()) -> dict:
@@ -2930,6 +2997,7 @@ def main():
         participle_roots, unresolved_verbs = {}, set()
         source_lookups = []  # (wikt_lang, lookup, headwords)
         present_head_records = {}
+        unaccented_heads = {}
 
         # Per-source form_of_targets, kept separately so we can prefer
         # EN's resolution when a key is a real lemma headword in EN but
@@ -2966,7 +3034,8 @@ def main():
                 canonical_references=canonical_references,
                 exact_source_references=exact_source_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
-                present_head_records=present_head_records if lang == "el" else None)
+                present_head_records=present_head_records if lang == "el" else None,
+                unaccented_heads=unaccented_heads if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -3009,7 +3078,8 @@ def main():
                 canonical_references=canonical_references,
                 exact_source_references=exact_source_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
-                present_head_records=present_head_records if lang == "el" else None)
+                present_head_records=present_head_records if lang == "el" else None,
+                unaccented_heads=unaccented_heads if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -3140,6 +3210,18 @@ def main():
         if exact_resolved:
             print(f"Exact source-reference resolutions: {exact_resolved:,}")
 
+        if lang == "el":
+            changes = recover_unaccented_heads(all_lookup, unaccented_heads,
+                                                all_lemma_pos, all_pos_map)
+            change_dir = DATA_DIR / "changes"
+            change_dir.mkdir(exist_ok=True)
+            (change_dir / "el_exact_head_keys.json").write_text(json.dumps({
+                "schema_version": 1, "language": "el",
+                "rule": "exact_defined_head_before_stripped_alias_v1",
+                "source_sha256": noun_source_hashes, "changes": changes,
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"Exact unaccented heads recovered: {len(changes):,}")
+
         # Break chained lookups: if form->lemma->X, the mapping is suspect.
         headwords = {k for k, (v, _) in all_lookup.items() if k == v}
         chains_broken = 0
@@ -3251,6 +3333,15 @@ def main():
                 row = change["corrected"]
                 _add_pos_map(all_pos_map, row["form"], row["lemma"], "verb")
             print(f"Completed Modern Greek present cells: {len(completion['changes']):,}")
+            from dilemma.el_imperfect_paradigms import complete_imperfect_pairs
+            imperfect = complete_imperfect_pairs(unique_pairs, all_lookup, present_head_records)
+            imperfect["source_sha256"] = noun_source_hashes
+            (change_dir / "el_imperfect_completion.json").write_text(
+                json.dumps(imperfect, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            for change in imperfect["changes"]:
+                row = change["corrected"]
+                _add_pos_map(all_pos_map, row["form"], row["lemma"], "verb")
+            print(f"Completed source-anchored imperfect cells: {len(imperfect['changes']):,}")
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"

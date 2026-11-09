@@ -158,3 +158,24 @@ def test_shipped_data_blocks_undefined_target_and_preserves_known_pos_readings()
     assert instance.lemmatize_pos("Ὦρα", "NOUN", guess=False) == "ὥρα"
     assert instance.lemmatize_pos("Ὦρα", "PROPN", guess=False) == "Ὥρα"
     assert instance.lemmatize_pos("ψυχῇ", "NOUN", guess=False) == "ψυχή"
+
+
+@pytest.mark.parametrize('word,upos,expected', [
+    ('τσαι','NOUN','τσάι'), ('τσαι','CCONJ','τσαι'),
+    ('που','ADV','πού'), ('που','CCONJ','που'),
+])
+def test_modern_explicit_pos_keeps_independently_recorded_accent_owners(word, upos, expected):
+    readings={'τσαι':{'NOUN':'τσάι','CCONJ':'τσαι'},
+              'που':{'ADV':'πού','CCONJ':'που'}}
+    instance=model([word],lang='el')
+    instance._pos_lookup=readings
+    instance._pos_table_lookup=lambda token,tag: readings[token].get(tag)
+    assert instance.lemmatize_pos(word,upos,guess=False)==expected
+    assert instance.lemmatize_batch_pos([word],[upos],guess=False)==[expected]
+
+
+def test_modern_self_map_does_not_move_without_an_independent_other_pos_owner():
+    instance=model(['τσαι'],'τσάι',lang='el')
+    instance._pos_lookup={'τσαι':{'NOUN':'τσάι'}}
+    assert instance.lemmatize_pos('τσαι','NOUN',guess=False)=='τσαι'
+    assert instance.lemmatize_batch_pos(['τσαι'],['NOUN'],guess=False)==['τσαι']

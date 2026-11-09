@@ -60,6 +60,11 @@ TRACKED = [
     # Reversible, source-backed completion of sparse Modern paradigms.
     "data/changes/el_paradigm_completion.json",
     "data/changes/el_present_completion.json",
+    # Source-scoped tense/lemma repairs and independently anchored past cells.
+    "data/el_verb_repair_sources.json.gz",
+    "data/changes/el_verb_data_repairs.json",
+    "data/changes/el_imperfect_completion.json",
+    "data/changes/el_verb_pos_repairs.json",
     # Input-pinned provenance for the generated noun expansion layer.
     "data/ag_noun_generation_audit.json",
     "data/ag_sophocles_noun_generation_audit.json",

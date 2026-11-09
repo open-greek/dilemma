@@ -328,6 +328,58 @@ Its audit also records the exact inserted SQLite rows and each spelling-index
 value before and after. Pass `--undo AUDIT --output OUTPUT` to restore the
 original logical rows; the command refuses files modified after the refresh.
 
+### Modern Greek verb repairs
+
+An explicit tense on a verb cell takes precedence over a table heading. The
+English Wiktionary's table headed `present` can also contain imperfect cells;
+adding the heading to those cells would incorrectly give each both tenses.
+Separate source readings remain separate, including genuinely ambiguous forms.
+
+`dilemma/el_imperfect_paradigms.py` completes missing active imperfect cells
+from source-recorded first-person singular or plural stems. It does not infer
+an augment or stress from the present. The singular stem supplies singular
+cells and the third plural; the first plural supplies the second plural.
+Existing cells keep their source spellings. Reviewed stems additionally
+preserve `συλλάμβανα` and `συνελάμβανα`, with the unaugmented plural
+`συλλαμβάναμε`. Form-of pages, passive forms, defective or impersonal-only
+heads, and unsupported past stems do not authorize an expansion.
+
+Exact unaccented words can share keys with another word's accentless alias.
+An independently defined word of a different part of speech keeps its own
+key: the conjunction `τσαι` does not become a form of the noun `τσάι`.
+Same-POS spelling preferences such as `δυο` → `δύο` are preserved.
+
+The bounded repair uses the same builder rules on four pinned inputs rather
+than rebuilding unrelated languages. Its archived source fields identify both
+Wiktionary editions and their checksums; it records all original and corrected
+pairs, lookup values, SQLite rows, and spelling-index values in `data/changes/`.
+The archive also pins the original Hub revision for the base files:
+
+```bash
+hf download ciscoriordan/dilemma data/el_verb_repair_sources.json.gz --local-dir .
+python scripts/repair_el_verb_snapshot.py --sources data/el_verb_repair_sources.json.gz \
+    --download-base --base BASE --output OUTPUT
+python scripts/repair_el_verb_snapshot.py --base BASE --output OUTPUT --undo
+```
+
+The tracked POS overrides are regenerated separately from the same audits:
+
+```bash
+git show 1.3.16:data/mg_pos_lookup.json > BASE/mg_pos_lookup.json
+python scripts/repair_el_verb_pos_snapshot.py --base BASE/mg_pos_lookup.json \
+    --base-ref 1.3.16 --repairs OUTPUT/changes/el_verb_data_repairs.json \
+    --imperfect OUTPUT/changes/el_imperfect_completion.json \
+    --output OUTPUT/mg_pos_lookup.json --audit OUTPUT/changes/el_verb_pos_repairs.json
+```
+
+The POS repair preserves the noun and proper-name alternatives beside the
+independent conjunction. Its `--undo` restores the recorded original fields.
+
+Undo refuses output files that have changed after the repair. To intentionally
+refresh the source archive, use `--kaikki KAIKKI` with a new output directory
+and a manifest matching the original base. Publish changed artifacts through
+`scripts/hf_data.py push` before pushing the accompanying code and manifest.
+
 ### Other controls
 
 - **Greek-only filter**. All forms must contain only Greek Unicode
