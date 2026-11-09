@@ -97,6 +97,7 @@ stems from present forms. An explicit noun POS tag can select `τσάι` while a
 conjunction tag retains `τσαι`. See the [data guide](docs/data.md#modern-greek-verb-repairs)
 for the rules, evidence, and reversible rebuild. Present/future alternatives
 are separate analyses; imperfective aspect does not imply imperfect past tense.
+Source-tag corrections record the original reading and the evidence for the change.
 
 ```python
 modern = Dilemma(lang="el", convention="triantafyllidis")

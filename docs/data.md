@@ -391,6 +391,38 @@ refresh the source archive, use `--kaikki KAIKKI` with a new output directory
 and a manifest matching the original base. Publish changed artifacts through
 `scripts/hf_data.py push` before pushing the accompanying code and manifest.
 
+#### Reviewed source-sense corrections
+
+The English form page for `άχθηκα` incorrectly calls it imperfect. The school
+grammar and the `άγω` conjugation table identify it as aorist; `αγόμουν` is
+imperfect. `dilemma/el_source_tenses.py` corrects that specific first-person
+singular reading of `άγομαι` before extraction. It does not infer tense from
+word endings or rewrite the original source gloss. Other source editions,
+headwords, grammatical persons, and valid shared readings remain unchanged.
+
+The builder records source changes in
+`data/changes/el_source_tense_corrections.json`. Its published snapshot audit
+also contains the original and corrected pair, source contexts and checksums,
+supporting table cells, review timestamp, and generator hashes. Reproduce the
+repair from the pinned 1.3.17 input, then restore its exact original bytes:
+
+```bash
+hf download ciscoriordan/dilemma data/changes/el_source_tense_corrections.json --local-dir .
+python scripts/repair_el_source_tenses.py --download-base \
+    --input BASE/mg_pairs.json --output OUTPUT/mg_pairs.json \
+    --source-audit data/changes/el_source_tense_corrections.json \
+    --audit OUTPUT/changes/el_source_tense_corrections.json
+python scripts/repair_el_source_tenses.py --undo \
+    --input OUTPUT/mg_pairs.json --output RESTORED/mg_pairs.json \
+    --audit OUTPUT/changes/el_source_tense_corrections.json
+```
+
+For the initial source review, use `--kaikki KAIKKI` instead of `--source-audit`.
+That archives the matching original context and supporting readings from both
+Wiktionary editions. The snapshot tool refuses a different base or a corrected
+file changed after the repair. It changes only `mg_pairs.json` and its audit;
+lemma lookup, spelling indexes, and model weights are preserved.
+
 ### Other controls
 
 - **Greek-only filter**. All forms must contain only Greek Unicode

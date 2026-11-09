@@ -6,6 +6,12 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+Correct the source form-page reading that labeled άχθηκα as imperfect. It now
+uses the aorist, while the original source gloss and correction evidence remain
+in the audit. Other readings, including the shared imperfect and aorist of
+παρέσυρα, are unchanged. The pinned snapshot can be repaired and restored
+without rebuilding unrelated data.
+
 ## [1.3.17] - 2026-11-09
 
 Keep explicit verb-cell tenses ahead of a table's heading, so imperfect forms
