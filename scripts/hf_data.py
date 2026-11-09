@@ -65,6 +65,7 @@ TRACKED = [
     "data/changes/el_verb_data_repairs.json",
     "data/changes/el_imperfect_completion.json",
     "data/changes/el_verb_pos_repairs.json",
+    "data/changes/el_source_tense_corrections.json",
     # Input-pinned provenance for the generated noun expansion layer.
     "data/ag_noun_generation_audit.json",
     "data/ag_sophocles_noun_generation_audit.json",

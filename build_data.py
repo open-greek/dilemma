@@ -694,6 +694,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   exact_source_references: dict = None,
                   present_head_records: dict = None,
                   unaccented_heads: dict = None,
+                  source_tense_corrections: list = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -1148,6 +1149,11 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 sense_tags = set(entry.get("tags", [])) | set(sense.get("tags", []))
                 if modern_greek and pos == "verb":
                     sense_tags = set(modern_verb_source_tags(sense_tags, sense))
+                    from dilemma.el_source_tenses import correct_sense_tense
+                    sense_tags, correction = correct_sense_tense(lemma, wikt_source, sense, sense_tags)
+                    sense_tags = set(sense_tags)
+                    if correction is not None and source_tense_corrections is not None:
+                        source_tense_corrections.append(correction)
                 form_of_rows.extend((ref, sense_tags,
                                      sense_verb) for ref in sense.get("form_of", []))
             verb_target = next(iter(named_verb_roots)) if len(named_verb_roots) == 1 else None
@@ -3034,6 +3040,7 @@ def main():
         source_lookups = []  # (wikt_lang, lookup, headwords)
         present_head_records = {}
         unaccented_heads = {}
+        source_tense_corrections = []
 
         # Per-source form_of_targets, kept separately so we can prefer
         # EN's resolution when a key is a real lemma headword in EN but
@@ -3071,7 +3078,8 @@ def main():
                 exact_source_references=exact_source_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
                 present_head_records=present_head_records if lang == "el" else None,
-                unaccented_heads=unaccented_heads if lang == "el" else None)
+                unaccented_heads=unaccented_heads if lang == "el" else None,
+                source_tense_corrections=source_tense_corrections if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -3115,7 +3123,8 @@ def main():
                 exact_source_references=exact_source_references,
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
                 present_head_records=present_head_records if lang == "el" else None,
-                unaccented_heads=unaccented_heads if lang == "el" else None)
+                unaccented_heads=unaccented_heads if lang == "el" else None,
+                source_tense_corrections=source_tense_corrections if lang == "el" else None)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -3378,6 +3387,11 @@ def main():
                 row = change["corrected"]
                 _add_pos_map(all_pos_map, row["form"], row["lemma"], "verb")
             print(f"Completed source-anchored imperfect cells: {len(imperfect['changes']):,}")
+            (change_dir / "el_source_tense_corrections.json").write_text(
+                json.dumps({"schema_version": 1, "language": "el", "kind": "source-extraction",
+                            "source_sha256": noun_source_hashes,
+                            "source_changes": source_tense_corrections},
+                           ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
         # Save training pairs (after cleanup)
         pairs_path = DATA_DIR / f"{prefix}_pairs.json"
