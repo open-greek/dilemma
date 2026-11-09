@@ -231,13 +231,13 @@ def test_uppercase_frequency_does_not_hide_attested_lowercase_abbreviations():
     evidence = ex.Evidence({}, [table("parl", rows)])
     accepts = ex.load_review(ex.REVIEW)["abbreviation_accepts"]
     kept, audit = ex.select_abbreviations(evidence, Counter(), set(), {}, accepts=accepts)
-    assert kept == ["ε.ε."]
+    assert kept == ["δ.σ.", "ε.ε."]
     assert not any("ς" in abbreviation for abbreviation in kept)
-    row, = audit
+    row = next(row for row in audit if row["abbreviation"] == "ε.ε.")
     assert row["spelling_tokens"] == 20 and row["spelling_docs"] == 10
     kept, _ = ex.select_abbreviations(evidence, Counter(), set(),
                                       {"ε.ε.": "fixture reject"}, accepts=accepts)
-    assert kept == []
+    assert kept == ["δ.σ."]
     weak = ex.Evidence({}, [table("parl", {"Ε.Ε.": (100, 0, 50), "ε.ε.": (9, 0, 9)})])
     assert ex.select_abbreviations(weak, Counter(), set(), {}, accepts=accepts)[0] == []
 
