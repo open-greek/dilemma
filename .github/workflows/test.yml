@@ -9,7 +9,9 @@ on:
 jobs:
   package-smoke:
     name: Wheel smoke (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    # Ubuntu 26 downloads Python 3.10 on each run; that archive has repeatedly
+    # returned HTTP 504. Use the established image for the compatibility matrix.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
