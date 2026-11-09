@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.16] - 2026-11-08
+
 Dilemma can now build a monotonic Modern Greek keyboard bundle: a rated word
 list, abbreviation and acronym lists, and a contextual next-word model.
 Corpus inputs are openly licensed, pinned and split by document. Archived
@@ -1490,6 +1492,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.16]: https://github.com/open-greek/dilemma/releases/tag/1.3.16
 [1.3.15]: https://github.com/open-greek/dilemma/releases/tag/1.3.15
 [1.3.14]: https://github.com/open-greek/dilemma/releases/tag/1.3.14
 [1.3.13]: https://github.com/open-greek/dilemma/releases/tag/1.3.13
