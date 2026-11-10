@@ -112,6 +112,11 @@ a positional grave becomes acute (`τὸ` → `τό`). Set `resolve_articles=Tru
 for canonical article and pronoun lemmas such as `ὁ` and `ἐγώ`, as used in
 many treebanks. The `triantafyllidis` convention enables its Modern Greek
 closed-class mappings automatically.
+With Ancient Greek article resolution enabled, marked article forms retain
+their canonical lemma in both POS APIs even when the tagger labels them as
+nouns or proper nouns. This does not override independent pronoun readings,
+unmarked homographs, or the Modern Greek convention. Input attestation and
+rejected-target checks still apply.
 
 ## Work with ambiguous or damaged text
 

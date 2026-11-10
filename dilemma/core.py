@@ -2014,7 +2014,13 @@ class Dilemma:
                 or to_monotonic(lower) in _MONOTONIC_ARTICLE_FORMS)
 
     def _article_pos_lemma(self, word: str, upos: str) -> str | None:
-        """Correct only a known tagged article with a noncanonical target."""
+        """Preserve requested marked articles despite a nominal tagging error."""
+        if (self._resolve_articles and self.lang in ("all", "grc")
+                and self._convention_name != "triantafyllidis"
+                and upos in ("NOUN", "PROPN") and word):
+            normalized = to_standard_sigma(unicodedata.normalize("NFC", word)).lower()
+            if normalized in _MARKED_ARTICLE_FORMS:
+                return _ARTICLE_LEMMA
         if upos != "DET" or not self._is_ancient_article_form(word):
             return None
         if not self._resolve_articles:
@@ -3796,6 +3802,7 @@ class Dilemma:
                    for rejected, lemma in zip(rejected_baselines, results)]
 
         # Step 2: For each word, check if POS could improve the result
+        resolved_articles = set()
         for i, (word, upos) in enumerate(zip(words, upos_tags)):
             # Don't resurrect a gated-out (None) result via POS correction.
             # (A guess=False None is different: a curated POS-table entry is
@@ -3808,6 +3815,7 @@ class Dilemma:
             article_lemma = self._article_pos_lemma(word, upos)
             if article_lemma is not None:
                 results[i] = self._apply_convention(article_lemma)
+                resolved_articles.add(i)
                 continue
             pos_lemma = self._checked_pos_table_lookup(word, upos)
             if pos_lemma is not None:
@@ -3907,6 +3915,8 @@ class Dilemma:
         # tokens whose result disagrees in case with the form/POS pay
         # for the candidate list.
         for i, (word, upos) in enumerate(zip(words, upos_tags)):
+            if i in resolved_articles:
+                continue  # A requested canonical article is not a name twin.
             res = results[i]
             if not res or not word:
                 continue

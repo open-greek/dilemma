@@ -6,6 +6,7 @@ def model(candidates,baseline,pos,*,gate=True,convention=lambda lemma: lemma):
     result=core.Dilemma.__new__(core.Dilemma)
     result.lang='grc'
     result._convention_name=None
+    result._pos_rejected_targets=frozenset()  # This fixture supplies no vetoed targets.
     result._lemmatize_verbose_impl=lambda word,guess: list(candidates)
     result._pos_table_lookup=lambda word,upos: pos
     result._apply_convention=convention
