@@ -157,6 +157,7 @@ def pos_model(lemmas, pos_lemma):
     model = core.Dilemma.__new__(core.Dilemma)
     model.lang = "grc"
     model._convention_name = None
+    model._pos_rejected_targets = frozenset()  # This fixture supplies no vetoed targets.
     candidates = [core.LemmaCandidate(lemma=value, source="lookup",
                   proper=value[:1].isupper()) for value in lemmas]
     model._lemmatize_verbose_impl = lambda word, guess: candidates
