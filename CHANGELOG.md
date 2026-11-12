@@ -46,6 +46,15 @@ are now published with the downloaded data. The wheel carries no data files,
 so an install with only the download had no headword lists and a lemma
 convention such as `lsj` or `triantafyllidis` loaded an empty headword set.
 
+`build/expand_lbg.py` refuses to write a Byzantine pairs file whose forms are
+mostly unaccented, and `build_lookup_db.py` warns when it reads one. The pairs
+file behind recent databases had lost its accents (807 of 1,561,683 keys
+carried a diacritic), so about 41,000 Byzantine lemmas have only accentless
+inflections in the lookup. Lemmatization is unaffected, because lookups fall
+back to the accentless key, but a reader that lists a lemma's forms gets none
+that match polytonic text. The current expansion code produces accented forms;
+the fix reaches the data with the next `lbg_pairs.json` and lookup rebuild.
+
 ## [1.3.19] - 2026-11-11
 
 When Ancient Greek article resolution is enabled, a noun or proper noun tag

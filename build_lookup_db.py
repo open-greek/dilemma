@@ -26,7 +26,9 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from dilemma.form_sanitize import has_editorial_sigla, sanitize_form  # noqa: E402
+from dilemma.form_sanitize import (  # noqa: E402
+    MIN_POLYTONIC_SHARE, has_editorial_sigla, polytonic_share, sanitize_form,
+)
 from dilemma.citation import malformed_tonal_reason  # noqa: E402
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
@@ -967,12 +969,18 @@ def build():
     #   (b) frequency ceiling: drop ultra-common surface forms (function-word
     #       collisions like ποτε), via corpus_freq.
     lbg_forms_added = 0
+    lbg_bare_added = 0
     lbg_pair_grave_normalized = 0
     lbg_pair_grave_dropped = 0
     lbg_pair_artifact_dropped = {}
     if LBG_PAIRS_PATH.exists():
         with open(LBG_PAIRS_PATH, encoding="utf-8") as f:
             lbg_pairs = json.load(f)
+        lbg_share = polytonic_share(lbg_pairs)
+        if lbg_share < MIN_POLYTONIC_SHARE:
+            print(f"  WARNING: only {lbg_share:.1%} of {LBG_PAIRS_PATH.name}'s "
+                  f"{len(lbg_pairs):,} forms carry a diacritic; its lemmas will "
+                  "have no accented inflections. Rerun build/expand_lbg.py.")
         cf = {}
         if CORPUS_FREQ_PATH.exists():
             cf = json.load(open(CORPUS_FREQ_PATH, encoding="utf-8")).get(
@@ -1020,8 +1028,18 @@ def build():
                 continue  # (b) ultra-common surface -> function-word collision
             combined[form] = lemma
             lbg_forms_added += 1
+            # The pairs are polytonic. Unaccented input reaches a form
+            # through its accentless key, so keep that too where it is free.
+            # A capitalized form also answers lowercase input, and the
+            # headword gets its own accentless key the same way.
+            bare = strip_accents(form)
+            for key in (bare, bare.lower(), strip_accents(lemma),
+                        strip_accents(lemma).lower()):
+                if key not in combined:
+                    combined[key] = lemma
+                    lbg_bare_added += 1
         print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gated "
-              f"gap-fill pairs (lang=all)")
+              f"gap-fill pairs (lang=all), +{lbg_bare_added:,} accentless keys")
         if lbg_pair_grave_normalized:
             print(f"  Byzantine inflected forms: normalized "
                   f"{lbg_pair_grave_normalized:,} grave citation lemmas")

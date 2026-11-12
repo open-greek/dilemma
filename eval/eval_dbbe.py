@@ -147,6 +147,7 @@ def evaluate(tokens, dilemma_instance, greedy=True, use_pos=None):
     results = []
     for t, pred in zip(tokens, predicted):
         gold = t["gold_lemma"]
+        pred = pred or ""   # a token the lemmatizer declines counts as wrong
         strict = (pred == gold)
         mono = (to_monotonic(pred).lower() == to_monotonic(gold).lower())
         stripped = (strip_accents(pred.lower()) == strip_accents(gold.lower()))
