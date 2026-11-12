@@ -16,6 +16,7 @@ Usage:
 """
 
 import csv
+import hashlib
 import json
 import sqlite3
 import sys
@@ -277,6 +278,47 @@ def drop_corpus_word_tails(tables, *, is_attested, record):
                   f"{listed}")
         dropped[name] = tails
     return dropped
+
+
+LOOKUP_SCHEMA_VERSION = 2
+
+
+def lookup_content_sha256(conn) -> str:
+    """Hash the lookup's logical rows: form, lemma, src, lang in key order.
+
+    Independent of page layout, row order and indexes, so two files with
+    the same readings share it and a consumer can pin the content instead
+    of the file bytes.
+    """
+    digest = hashlib.sha256()
+    for row in conn.execute(
+            "SELECT l.form, m.text, l.src, l.lang FROM lookup l "
+            "JOIN lemmas m ON m.id = l.lemma_id "
+            "ORDER BY l.form, l.lang, m.text, l.src"):
+        digest.update("\t".join(row).encode("utf-8") + b"\n")
+    return digest.hexdigest()
+
+
+def write_lookup_meta(conn) -> dict:
+    """Stamp lookup.db with what built it and what it holds.
+
+    ``meta(key, value)`` carries the schema version, the Dilemma version of
+    the checkout that built the file, the row counts and the content hash.
+    It has no clock time or commit, so equal inputs still give equal bytes.
+    """
+    version_path = SCRIPT_DIR / "VERSION"
+    meta = {
+        "schema_version": str(LOOKUP_SCHEMA_VERSION),
+        "dilemma_version": (version_path.read_text(encoding="utf-8").strip()
+                            if version_path.exists() else "unknown"),
+        "lemmas": str(conn.execute("SELECT COUNT(*) FROM lemmas").fetchone()[0]),
+        "lookup_rows": str(conn.execute("SELECT COUNT(*) FROM lookup").fetchone()[0]),
+        "lookup_sha256": lookup_content_sha256(conn),
+    }
+    conn.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) "
+                 "WITHOUT ROWID")
+    conn.executemany("INSERT INTO meta VALUES (?, ?)", sorted(meta.items()))
+    return meta
 
 
 def build():
@@ -1210,6 +1252,9 @@ def build():
     print(f"  el-only (differs from combined): {mg_extra:,} rows")
 
     conn.execute("CREATE INDEX idx_lookup_form_lang ON lookup (form, lang)")
+    # Every form of a lemma without scanning the table (inflection indexes
+    # for e-readers and apps read the lookup lemma-first).
+    conn.execute("CREATE INDEX idx_lookup_lemma ON lookup (lemma_id)")
     conn.execute("CREATE INDEX idx_lemmas_text ON lemmas (text)")
 
     # Etymology bridges: MG lemma -> AG ancestor lemma
@@ -1318,6 +1363,7 @@ def build():
         (form, json.dumps(reviewed_verb_readings(form), ensure_ascii=False,
                           sort_keys=True, separators=(",", ":")))
         for form in reviewed_verb_forms()))
+    write_lookup_meta(conn)
     conn.commit()
     conn.close()
 

@@ -99,6 +99,20 @@ builder.build()
             assert all(rows[word] == word for word in sources[name])
         assert all(rows[row["lemma"]] == row["lemma"]
                    for row in sources["lbg_headwords.json"])
+        # The file says what built it and what it holds, and a lemma's
+        # forms are read through an index.
+        import build_lookup_db
+        meta = dict(conn.execute("SELECT key, value FROM meta"))
+        assert meta["schema_version"] == str(build_lookup_db.LOOKUP_SCHEMA_VERSION)
+        assert meta["dilemma_version"] == (ROOT / "VERSION").read_text().strip()
+        assert int(meta["lookup_rows"]) == conn.execute(
+            "SELECT count(*) FROM lookup").fetchone()[0]
+        assert int(meta["lemmas"]) == conn.execute(
+            "SELECT count(*) FROM lemmas").fetchone()[0]
+        assert meta["lookup_sha256"] == build_lookup_db.lookup_content_sha256(conn)
+        plan = " ".join(row[3] for row in conn.execute(
+            "EXPLAIN QUERY PLAN SELECT form FROM lookup WHERE lemma_id = 1"))
+        assert "idx_lookup_lemma" in plan
         assert conn.execute("SELECT count(*) FROM bridges").fetchone()[0] == 2
         assert conn.execute("SELECT count(*) FROM related_lemmas").fetchone()[0] == 1
         assert conn.execute(

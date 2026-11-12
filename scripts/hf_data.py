@@ -83,6 +83,9 @@ TRACKED = [
     "data/el_verb_heads.json",
     # Expanded lexical POS coverage exceeds GitHub's regular-file size limit.
     "data/lsj9_pos_lookup.json",
+    # Wiktionary-derived Ancient headwords, for consumers of the downloaded
+    # data that validate lemmas without a source checkout.
+    "data/ag_headwords.json",
     # Independent lexical heads for sparse Ancient corpus admission.
     "data/grc_lexical_heads.json",
     # Explicit citation references consumed by sparse-form export admission.

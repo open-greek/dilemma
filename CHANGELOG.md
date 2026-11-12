@@ -6,6 +6,15 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+`build_lookup_db.py` now stamps `lookup.db` with a `meta(key, value)` table:
+`schema_version`, the `dilemma_version` that built it, the `lemmas` and
+`lookup_rows` counts, and `lookup_sha256`, a hash of the logical rows that a
+consumer can pin instead of the file's bytes. It also indexes `lookup` by
+`lemma_id`, so every form of a lemma is read without a table scan. Both appear
+with the next published database; files built earlier have neither.
+
+`data/ag_headwords.json` is now published with the downloaded data.
+
 ## [1.3.19] - 2026-11-11
 
 When Ancient Greek article resolution is enabled, a noun or proper noun tag
