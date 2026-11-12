@@ -927,6 +927,7 @@ def build():
     #   (b) frequency ceiling: drop ultra-common surface forms (function-word
     #       collisions like ποτε), via corpus_freq.
     lbg_forms_added = 0
+    lbg_bare_added = 0
     lbg_pair_grave_normalized = 0
     lbg_pair_grave_dropped = 0
     lbg_pair_artifact_dropped = {}
@@ -985,8 +986,14 @@ def build():
                 continue  # (b) ultra-common surface -> function-word collision
             combined[form] = lemma
             lbg_forms_added += 1
+            # The pairs are polytonic. Unaccented input reaches a form
+            # through its accentless key, so keep that too where it is free.
+            bare = strip_accents(form)
+            if bare != form and bare not in combined:
+                combined[bare] = lemma
+                lbg_bare_added += 1
         print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gated "
-              f"gap-fill pairs (lang=all)")
+              f"gap-fill pairs (lang=all), +{lbg_bare_added:,} accentless keys")
         if lbg_pair_grave_normalized:
             print(f"  Byzantine inflected forms: normalized "
                   f"{lbg_pair_grave_normalized:,} grave citation lemmas")
