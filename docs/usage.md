@@ -422,6 +422,27 @@ targets and stores every reviewed analysis in a separate
 `grammatical_readings(form, readings)` table, with JSON in `readings`.
 Ambiguous forms retain their existing flat lookup preference.
 
+### Reading `lookup.db` directly
+
+A database built by this version or later describes itself in
+`meta(key, value)`: `schema_version`, `dilemma_version`, `lemmas`,
+`lookup_rows` and `lookup_sha256`. The last is a SHA-256 of the rows
+(`form`, lemma, `src`, `lang`) in key order, independent of the file's bytes,
+so it is the value to pin for a reproducible build. An older file has no
+`meta` table.
+
+```sql
+SELECT value FROM meta WHERE key = 'lookup_sha256';
+
+-- every form of a lemma, through idx_lookup_lemma
+SELECT form, lang FROM lookup
+WHERE lemma_id = (SELECT id FROM lemmas WHERE text = 'λύω');
+```
+
+`src` is `grc` or `el`, the dictionary the row came from. It does not name
+the individual source, so it cannot be mapped to a license; see NOTICE for
+the sources.
+
 Run the passage regression audit from a checkout with downloaded data:
 
 ```sh

@@ -6,6 +6,46 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+Generator changes for Modern Greek headwords. The published
+artifacts are unchanged until the next rebuild.
+
+A dictionary headword list now comes before the other head rules: every
+headword of the Triantafyllidis list has a key that ends at a headword, with no
+page or table required. A lowercase headword whose key ended at a capitalized
+word is its own lemma again (`κλέφτης` was under the name `Κλέφτης`, `θεότητα`
+under `Θεός`). Any other key that already ends at a headword keeps its
+Wiktionary lemma.
+
+Read the Cretan and Cypriot sections of Greek Wiktionary, which the extract
+files outside the Greek language file. `build/extract_el_dialect_sections.py`
+collects them from the edition's raw extract. A dialect entry fills a gap only
+and its pairs are tagged with the dialect.
+
+Restore headwords whose Greek Wiktionary page the extract omits. `χιονόνερο`
+has a malformed noun heading and `μπαλωθιά` is headed as Cretan, so neither is
+in the Greek language file. Reviewed records of the cited page revisions supply
+the definition and declension, and retire when the extract has the page again.
+A reference from an inflection page alone still defines no headword.
+
+Keep `ατσίδας` as a noun headword. A noun given as the other gender of another
+noun, with its own declension, no longer becomes a form of that noun, and a
+defined noun keeps its key when one of its senses names a word that has no
+entry. The feminine genitive `ατσίδας` remains under `ατσίδα`, and the surname
+`Ατσίδας` is unchanged.
+
+`build_lookup_db.py` now stamps `lookup.db` with a `meta(key, value)` table:
+`schema_version`, the `dilemma_version` that built it, the `lemmas` and
+`lookup_rows` counts, and `lookup_sha256`, a hash of the logical rows that a
+consumer can pin instead of the file's bytes. It also indexes `lookup` by
+`lemma_id`, so every form of a lemma is read without a table scan. Both appear
+with the next published database; files built earlier have neither.
+
+`data/ag_headwords.json` and the headword lists and small tables the runtime
+reads (LSJ, Cunliffe, DGE, LBG, Triantafyllidis and the others under `data/`)
+are now published with the downloaded data. The wheel carries no data files,
+so an install with only the download had no headword lists and a lemma
+convention such as `lsj` or `triantafyllidis` loaded an empty headword set.
+
 `build/expand_lbg.py` refuses to write a Byzantine pairs file whose forms are
 mostly unaccented, and `build_lookup_db.py` warns when it reads one. The pairs
 file behind recent databases had lost its accents (807 of 1,561,683 keys
