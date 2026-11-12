@@ -18,6 +18,7 @@ Usage:
 import csv
 import hashlib
 import json
+import os
 import sqlite3
 import sys
 import time
@@ -53,6 +54,16 @@ CITATION_REJECTIONS_PATH = DATA_DIR / "citation_hygiene_rejections.tsv"
 AG_PATH = DATA_DIR / "ag_lookup.json"
 LOOKUP_SOURCES_PATH = DATA_DIR / "lookup_sources.json"
 GRC_IKOS_ADJECTIVES_PATH = DATA_DIR / "grc_ikos_adjectives.json"
+# Inputs that say which layer of a merged file supplied a reading.
+AG_WIKTIONARY_BASE_PATH = DATA_DIR / "ag_lookup_wikt.json"
+AG_EXPANSION_MANIFEST_PATH = DATA_DIR / "ag_expansion_reference.json"
+AG_EXPANSION_REFERENCE_ENV = "DILEMMA_AG_EXPANSION_REFERENCE"
+CHANGES_DIR = DATA_DIR / "changes"
+EL_RULE_PARADIGM_RECORDS = ("el_present_completion.json",
+                            "el_imperfect_completion.json")
+AG_WIKTIONARY_LAYER = "ag_lookup.json#wiktionary"
+AG_EXPANSION_LAYER = "ag_lookup.json#expansion"
+EL_RULE_PARADIGM_LAYER = "mg_lookup.json#rule-paradigms"
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
 AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
@@ -329,6 +340,69 @@ def load_lookup_sources(path: Path = None) -> tuple[list[dict], dict[str, str]]:
     return sources, by_input
 
 
+def ag_reading_layers(ag: dict, base: dict, reference: dict) -> dict[str, str]:
+    """The layer of ag_lookup.json that recorded each reading, where known.
+
+    ag_lookup.json merges Wiktionary's inflection tables with paradigms
+    generated from dictionary headwords. Two byte-pinned files tell the layers
+    apart (data/ag_expansion_reference.json): the Wiktionary-only base and the
+    reference whose keys absent from that base are the dictionary expansion.
+    A reading equal to the base's is Wiktionary's; a reading equal to the
+    expansion layer's is the expansion's. Any other reading (a newer
+    Wiktionary revision, a regenerated paradigm, a recovered alias) keeps the
+    merged file as its source, because no pinned record says which it is.
+    """
+    layers = {}
+    for form, lemma in ag.items():
+        recorded = base.get(form)
+        if recorded is not None:
+            if recorded == lemma:
+                layers[form] = AG_WIKTIONARY_LAYER
+        elif reference.get(form) == lemma:
+            layers[form] = AG_EXPANSION_LAYER
+    return layers
+
+
+def load_ag_reading_layers(ag: dict) -> dict[str, str]:
+    """Read the pinned layer files and classify ``ag``'s readings."""
+    import overlay_lsj
+    for path in (AG_EXPANSION_MANIFEST_PATH, AG_WIKTIONARY_BASE_PATH):
+        if not path.exists():
+            raise SystemExit(f"{path.name} not found; it is needed to record "
+                             "which layer of ag_lookup.json supplied a reading")
+    manifest = overlay_lsj.load_manifest(AG_EXPANSION_MANIFEST_PATH)
+    overlay_lsj.verify_file(AG_WIKTIONARY_BASE_PATH, manifest["reference_base"],
+                            "expansion reference base")
+    explicit = os.environ.get(AG_EXPANSION_REFERENCE_ENV)
+    reference_path = overlay_lsj.resolve_reference(
+        manifest, Path(explicit) if explicit else None)
+    with open(AG_WIKTIONARY_BASE_PATH, encoding="utf-8") as handle:
+        base = json.load(handle)
+    with open(reference_path, encoding="utf-8") as handle:
+        reference = json.load(handle)
+    return ag_reading_layers(ag, base, reference)
+
+
+def el_rule_paradigm_forms(el: dict) -> set[str]:
+    """Forms whose reading a Modern Greek paradigm rule generated.
+
+    The completion records under data/changes list every form the present
+    and imperfect rules added; a form counts while the lookup still holds the
+    reading the record gave it.
+    """
+    forms = set()
+    for name in EL_RULE_PARADIGM_RECORDS:
+        path = CHANGES_DIR / name
+        if not path.exists():
+            raise SystemExit(f"changes/{name} not found; it is needed to record "
+                             "which Modern Greek forms a paradigm rule generated")
+        record = json.loads(path.read_text(encoding="utf-8"))
+        for row in record["lookup_additions"]:
+            if el.get(row["form"]) == row["corrected"][0]:
+                forms.add(row["form"])
+    return forms
+
+
 def write_lookup_sources(conn, sources: list[dict]) -> dict[str, int]:
     """Copy the registry into ``sources`` and return each code's id."""
     conn.execute("CREATE TABLE sources (id INTEGER PRIMARY KEY, "
@@ -386,18 +460,21 @@ def build():
     el_source_overrides: dict[str, str] = {}
     for cell in completed:
         el_source_overrides[cell["form"]] = "el_paradigm_gaps"
-    # Feminine and neuter-plural cells of -ικός adjectives that the pinned
-    # expansion declined as masculine nouns (dilemma/grc_adjective_gaps.py).
-    if GRC_IKOS_ADJECTIVES_PATH.exists():
-        listed = json.loads(GRC_IKOS_ADJECTIVES_PATH.read_text(encoding="utf-8"))
-        adjective_cells = complete_ikos_adjectives(
-            ag, [row["lemma"] for row in listed["lemmas"]])
-        for cell in adjective_cells:
-            ag_source_overrides[cell["form"]] = "grc_adjective_gaps"
-        print(f"  Ancient -ικός adjective cells: +{len(adjective_cells):,} keys")
-    else:
-        print(f"  NOTE: {GRC_IKOS_ADJECTIVES_PATH.name} not found; -ικός "
-              "adjectives keep only their masculine and neuter cells")
+    # A merged file names one source per layer where pinned records tell the
+    # layers apart; every other reading keeps the file itself as its source.
+    if ag_default_source == AG_PATH.name:
+        ag_source_overrides.update(load_ag_reading_layers(ag))
+        counts = {layer: 0 for layer in (AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER)}
+        for layer in ag_source_overrides.values():
+            counts[layer] += 1
+        print(f"  Ancient reading layers: {counts[AG_WIKTIONARY_LAYER]:,} Wiktionary, "
+              f"{counts[AG_EXPANSION_LAYER]:,} dictionary expansion, "
+              f"{len(ag) - len(ag_source_overrides):,} unassigned")
+    if el_default_source == MG_PATH.name:
+        generated = el_rule_paradigm_forms(el) - el_source_overrides.keys()
+        for form in generated:
+            el_source_overrides[form] = EL_RULE_PARADIGM_LAYER
+        print(f"  Modern Greek rule-generated paradigm forms: {len(generated):,}")
     citation_rejections: list[dict] = []
 
     # Merge med into el: vernacular medieval Greek is the ancestor of
@@ -929,6 +1006,21 @@ def build():
         for reason, count in sorted(artifact_dropped.items()):
             print(f"  Dropped {count:,} {name} {reason} citation artifacts")
         return out
+
+    # Feminine and neuter-plural cells of -ικός adjectives that the pinned
+    # expansion declined as masculine nouns (dilemma/grc_adjective_gaps.py).
+    # They are generated by rule, so they come after every other Ancient
+    # source and fill only the keys none of them supplied.
+    if GRC_IKOS_ADJECTIVES_PATH.exists():
+        listed = json.loads(GRC_IKOS_ADJECTIVES_PATH.read_text(encoding="utf-8"))
+        adjective_cells = complete_ikos_adjectives(
+            ag, [row["lemma"] for row in listed["lemmas"]])
+        for cell in adjective_cells:
+            ag_source_overrides[cell["form"]] = "grc_adjective_gaps"
+        print(f"  Ancient -ικός adjective cells: +{len(adjective_cells):,} keys")
+    else:
+        print(f"  NOTE: {GRC_IKOS_ADJECTIVES_PATH.name} not found; -ικός "
+              "adjectives keep only their masculine and neuter cells")
 
     print("\nSanitising form-and-lemma tables...")
     # The input that supplied each key's reading, through every later step.
