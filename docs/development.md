@@ -70,6 +70,11 @@ pip install -e ".[lm]"                       # build-data deps (lxml, betacode, 
 python build_data.py --download             # downloads + extracts (~1.5GB total)
 ```
 
+The Cretan and Cypriot sections of Greek Wiktionary are not in those dumps.
+Run `python build/extract_el_dialect_sections.py --download --kaikki KAIKKI`
+(118 MB raw extract) before `build_data.py` to include them; see
+[Modern Greek noun headwords](data.md#modern-greek-noun-headwords).
+
 ### 2. Build the lookup database
 
 After extraction, rebuild the SQLite lookup from the generated sources:

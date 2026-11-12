@@ -19,6 +19,11 @@ data/changes/el_present_completion.json
 data/changes/el_exact_head_keys.json
 data/changes/el_verb_data_repairs.json
 data/changes/el_imperfect_completion.json
+data/changes/el_source_pages.json
+data/changes/el_listed_headwords.json
+data/changes/el_dialect_sections.json
+data/changes/el_gendered_noun_heads.json
+data/changes/el_noun_heads_missing_targets.json
 data/changes/el_verb_pos_repairs.json
 data/changes/el_source_tense_corrections.json
 data/el_verb_repair_sources.json.gz
