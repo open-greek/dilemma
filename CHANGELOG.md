@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.22] - 2026-11-12
+
 `lookup.db` attributes the readings of a merged input to the layer that
 recorded them, where byte-pinned records tell the layers apart. The Ancient
 rows that all named `wiktionary_grc` now name `wiktionary_grc` (2.29M rows,
@@ -1640,6 +1642,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.22]: https://github.com/open-greek/dilemma/releases/tag/1.3.22
 [1.3.21]: https://github.com/open-greek/dilemma/releases/tag/1.3.21
 [1.3.20]: https://github.com/open-greek/dilemma/releases/tag/1.3.20
 [1.3.19]: https://github.com/open-greek/dilemma/releases/tag/1.3.19
