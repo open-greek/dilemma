@@ -39,6 +39,7 @@ from dilemma.elision_tails import (  # noqa: E402
     open_profile_attestation,
 )
 from dilemma.el_paradigm_gaps import complete_lookup  # noqa: E402
+from dilemma.grc_adjective_gaps import complete_ikos_adjectives  # noqa: E402
 from dilemma.grammatical_lemmas import (  # noqa: E402
     reviewed_verb_forms, reviewed_verb_lemmas, reviewed_verb_readings,
 )
@@ -51,6 +52,7 @@ CITATION_REJECTIONS_PATH = DATA_DIR / "citation_hygiene_rejections.tsv"
 
 AG_PATH = DATA_DIR / "ag_lookup.json"
 LOOKUP_SOURCES_PATH = DATA_DIR / "lookup_sources.json"
+GRC_IKOS_ADJECTIVES_PATH = DATA_DIR / "grc_ikos_adjectives.json"
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
 AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
@@ -384,6 +386,18 @@ def build():
     el_source_overrides: dict[str, str] = {}
     for cell in completed:
         el_source_overrides[cell["form"]] = "el_paradigm_gaps"
+    # Feminine and neuter-plural cells of -ικός adjectives that the pinned
+    # expansion declined as masculine nouns (dilemma/grc_adjective_gaps.py).
+    if GRC_IKOS_ADJECTIVES_PATH.exists():
+        listed = json.loads(GRC_IKOS_ADJECTIVES_PATH.read_text(encoding="utf-8"))
+        adjective_cells = complete_ikos_adjectives(
+            ag, [row["lemma"] for row in listed["lemmas"]])
+        for cell in adjective_cells:
+            ag_source_overrides[cell["form"]] = "grc_adjective_gaps"
+        print(f"  Ancient -ικός adjective cells: +{len(adjective_cells):,} keys")
+    else:
+        print(f"  NOTE: {GRC_IKOS_ADJECTIVES_PATH.name} not found; -ικός "
+              "adjectives keep only their masculine and neuter cells")
     citation_rejections: list[dict] = []
 
     # Merge med into el: vernacular medieval Greek is the ancestor of

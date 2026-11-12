@@ -20,7 +20,10 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
                            "ἀπῇμεν": "ἀπέρχομαι", "Ἀπῇμεν": "ἀπέρχομαι",
                            "ᾖμεν": "ἔρχομαι", "ἐξῇμεν": "ἐξέρχομαι",
                            "ᾖσαν": "ἀείδω", "ἴσθι": "εἰμί",
-                           "ἀπῆμεν": "ἄπειμι"},
+                           "ἀπῆμεν": "ἄπειμι",
+                           "μοναχικός": "μοναχικός", "μοναχικοῦ": "μοναχικός"},
+        "grc_ikos_adjectives.json": {"lemmas": [
+            {"lemma": "μοναχικός", "evidence": ["sophocles"]}]},
         "mg_lookup.json": {"λόγος": "λόγος", "λέει": "λέω", "λέγει": "λέω"},
         "med_lookup.json": {},
         "vlg_headwords.json": ["ἀρχή", "βίος", "γῆ", "δῶρον", "ἔργον"],
@@ -120,6 +123,10 @@ builder.build()
         assert conn.execute("SELECT count(*) FROM lookup WHERE source_id NOT IN "
                             "(SELECT id FROM sources)").fetchone()[0] == 0
         assert origin["ἀπῆμεν|all"] == "wiktionary_grc"
+        # A listed -ικός adjective gains its feminine cells, under their source.
+        assert rows["μοναχικήν"] == rows["μοναχικην"] == rows["μοναχικαί"] == "μοναχικός"
+        assert origin["μοναχικήν|all"] == "grc_adjective_gaps"
+        assert origin["μοναχικοῦ|all"] == "wiktionary_grc"
         assert origin["λέει|all"] == "wiktionary_el"
         assert origin["ῥόδα|all"] == origin["ροδα|all"] == "lbg_generated"
         assert origin["ῥόδον|all"] == "lbg_headwords"
