@@ -14,6 +14,15 @@ the registry does not list. The schema version is 3, and `meta` adds
 `sources_sha256`. NOTICE now also lists the Cunliffe lexicon, the headword-only
 lexica, the Byzantine headwords and the Nestle 1904 New Testament.
 
+The compound fallback no longer invents lemmas from unrelated parts. It took
+any string ending in a linking vowel as a first element and any lookup hit as
+the second, so `μοναχικὴν` gave `μοναχιεν` (`μοναχι` + `ἐν`, from the crasis
+`κἠν`). The second element must now begin like its lemma.
+
+The convention remap tables (`convention_lsj.json`, `convention_cunliffe.json`,
+`convention_triantafyllidis.json`) are published with the downloaded data.
+Without them an install with only the download applied no convention remap.
+
 ## [1.3.20] - 2026-11-12
 
 The published data now carries the Modern Greek headword fixes and the

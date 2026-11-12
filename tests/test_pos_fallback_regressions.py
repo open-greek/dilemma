@@ -135,6 +135,16 @@ def test_nominal_compound_is_not_rejected_by_verb_ending_rules(fallback_model):
     assert model._decompose_compound("πολυλόγους") == "πολυλογος"
 
 
+@pytest.mark.parametrize("word,base,base_lemma", [
+    ("μοναχικὴν", "κην", "ἐν"),        # the crasis κἠν (καὶ ἐν)
+    ("βανδίνην", "νην", "νάω"),
+])
+def test_compound_base_must_begin_like_its_lemma(fallback_model, word, base, base_lemma):
+    model = fallback_model({base: base_lemma}, {})
+    assert model._decompose_compound(word) is None
+    assert model._decompose_compound_all(word) == []
+
+
 def test_prefix_reconstruction_uses_supported_reading(fallback_model):
     model = fallback_model(
         {"λεγοντων": "λέγος", "επιλεγω": "ἐπιλέγω"},

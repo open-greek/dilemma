@@ -1,7 +1,7 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-12T05:27:08Z",
+  "generated": "2026-11-12T13:37:39Z",
   "files": {
     "data/lookup.db": {
       "size": 1500893184,
@@ -217,6 +217,21 @@
       "size": 98282,
       "sha256": "f798d75180860a46e9091e1bc90ce2cc991a734288fb1fd1ed048bcf6031202f",
       "git_sha1": "fe7df3a824a1440e97ce5197176b4eebb6b2e3b9"
+    },
+    "data/convention_cunliffe.json": {
+      "size": 1794,
+      "sha256": "24176b5228e9f531916370f4bf4cf8d74f010d2c40bfee6c43434c5b33c3406d",
+      "git_sha1": "4a67e2b707619d2da0a1ae7efe1602142ba42613"
+    },
+    "data/convention_lsj.json": {
+      "size": 607,
+      "sha256": "54cfa9aab1e44210b1750dc30ba1c55ca04d49dedde1fb8c82c67e57dc3bfbad",
+      "git_sha1": "ebaa267539b145067b9210139df393ec2eadb510"
+    },
+    "data/convention_triantafyllidis.json": {
+      "size": 3693,
+      "sha256": "87e01346c5c04c20c6b4aced2da7709de0a325492077975a3f84bb590bdecd38",
+      "git_sha1": "917e607515bc09b91e54c2a4e1bf4af91cf4e7a8"
     },
     "data/grc_lexical_heads.json": {
       "size": 43351348,

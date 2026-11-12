@@ -107,6 +107,10 @@ TRACKED = [
     "data/triantafyllidis_headwords.json",
     "data/vlg_headwords.json",
     "data/wip_headwords.json",
+    # Lemma-convention remaps (convention="lsj", "cunliffe", "triantafyllidis").
+    "data/convention_cunliffe.json",
+    "data/convention_lsj.json",
+    "data/convention_triantafyllidis.json",
     # Independent lexical heads for sparse Ancient corpus admission.
     "data/grc_lexical_heads.json",
     # Explicit citation references consumed by sparse-form export admission.
