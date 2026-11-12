@@ -73,6 +73,10 @@ TRACKED = [
     "data/mg_pairs.json",
     "data/mg_lookup.json",
     "data/mg_pos_lookup.json",
+    # The generator delta carried onto the Modern Greek snapshot, and what it
+    # changed there (scripts/refresh_el_generator_delta.py).
+    "data/changes/el_generator_refresh.json",
+    "data/changes/el_generator_refresh_audit.json",
     # Source-backed participial cells used by the Modern Greek exporter.
     "data/el_participles.json",
     # Independent noun heads retained beside flat-lookup homographs.
