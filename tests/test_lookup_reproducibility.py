@@ -28,7 +28,8 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
         "lsj10_headwords.json": ["λίθος", "μέτρον", "νόμος", "ὁδός", "πῦρ"],
         "lbg_headwords.json": [{"lemma": word} for word in
                                ("ῥόδον", "σῶμα", "τέλος", "ὕδωρ", "φῶς")],
-        "lbg_pairs.json": {"ῥόδα": "ῥόδον", "σώματος": "σῶμα"},
+        "lbg_pairs.json": {"ῥόδα": "ῥόδον", "σώματος": "σῶμα",
+                           "Ῥώμης": "Ῥώμη"},
         "etymology_bridges.json": {"λέω": ["λέγω"], "λόγος": ["λόγος"]},
         "related_lemmas.json": {"λέγω": ["λόγος"]},
     }
@@ -104,6 +105,8 @@ builder.build()
         # unaccented input.
         assert rows["ῥόδα"] == rows["ροδα"] == "ῥόδον"
         assert rows["σώματος"] == rows["σωματος"] == "σῶμα"
+        assert rows["Ῥώμης"] == rows["Ρωμης"] == rows["ρωμης"] == "Ῥώμη"
+        assert rows["Ρωμη"] == rows["ρωμη"] == "Ῥώμη"
         assert conn.execute("SELECT count(*) FROM bridges").fetchone()[0] == 2
         assert conn.execute("SELECT count(*) FROM related_lemmas").fetchone()[0] == 1
         assert conn.execute(

@@ -988,10 +988,14 @@ def build():
             lbg_forms_added += 1
             # The pairs are polytonic. Unaccented input reaches a form
             # through its accentless key, so keep that too where it is free.
+            # A capitalized form also answers lowercase input, and the
+            # headword gets its own accentless key the same way.
             bare = strip_accents(form)
-            if bare != form and bare not in combined:
-                combined[bare] = lemma
-                lbg_bare_added += 1
+            for key in (bare, bare.lower(), strip_accents(lemma),
+                        strip_accents(lemma).lower()):
+                if key not in combined:
+                    combined[key] = lemma
+                    lbg_bare_added += 1
         print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gated "
               f"gap-fill pairs (lang=all), +{lbg_bare_added:,} accentless keys")
         if lbg_pair_grave_normalized:
