@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.21] - 2026-11-12
+
 Ancient `-ικός` adjectives that the pinned Sophocles expansion declined as
 masculine nouns regain their feminine and neuter-plural forms (#95):
 `μοναχικὴν` now gives `μοναχικός`. `build_lookup_db.py` fills 8,532 absent
@@ -1618,6 +1620,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.21]: https://github.com/open-greek/dilemma/releases/tag/1.3.21
 [1.3.20]: https://github.com/open-greek/dilemma/releases/tag/1.3.20
 [1.3.19]: https://github.com/open-greek/dilemma/releases/tag/1.3.19
 [1.3.18]: https://github.com/open-greek/dilemma/releases/tag/1.3.18
