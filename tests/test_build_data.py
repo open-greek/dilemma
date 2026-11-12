@@ -2908,3 +2908,652 @@ def test_finite_definition_containing_of_is_not_an_inflection_reference():
     from build_data import is_independent_finite_entry
     assert is_independent_finite_entry({"word": "διοικώ", "pos": "verb", "senses": [
         {"glosses": ["to be in charge of a group"]}]}, "en")
+
+
+# --- #87, #88, #89: Modern Greek noun heads -------------------------------
+
+_NOUN_CELLS = [("nominative", "singular"), ("nominative", "plural"),
+               ("genitive", "singular"), ("genitive", "plural"),
+               ("accusative", "singular"), ("accusative", "plural"),
+               ("vocative", "singular"), ("vocative", "plural")]
+
+
+def _noun_table(*forms):
+    """A declension table in the extract's shape, cells in _NOUN_CELLS order."""
+    return [{"form": form, "tags": list(cell), "source": "declension"}
+            for form, cell in zip(forms, _NOUN_CELLS)]
+
+
+def _run_el_main(tmp_path, monkeypatch, en=(), el=(), dialects=None):
+    """Build Modern Greek from two tiny dumps into a temporary directory."""
+    import build_data
+    files = [("en.jsonl", en), ("el.jsonl", el)]
+    if dialects is not None:
+        files.append((build_data.EL_DIALECT_DUMP, dialects))
+    for name, entries in files:
+        (tmp_path / name).write_text(
+            "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries),
+            encoding="utf-8")
+    out = tmp_path / "out"
+    monkeypatch.setattr(build_data, "DATA_DIR", out)
+    monkeypatch.setattr(build_data, "DUMPS", {"el": {"en": "en.jsonl", "el": "el.jsonl"}})
+    monkeypatch.setattr("sys.argv", ["build_data.py", "--lang", "el", "--kaikki", str(tmp_path)])
+    build_data.main()
+
+    def load(name):
+        return json.loads((out / name).read_text(encoding="utf-8"))
+    return load("mg_pairs.json"), load("mg_lookup.json"), load("mg_pos_lookup.json"), load
+
+
+def _noun_result(form, lookup, pos_map):
+    """The noun lemma a caller gets: the typed row, else the lookup's default."""
+    return pos_map.get(form, {}).get("NOUN") or lookup.get(form)
+
+
+def _cells(pairs, lemma, pos="noun"):
+    return {(p["form"], tuple(sorted(p["tags"]))) for p in pairs
+            if p["lemma"] == lemma and p["pos"] == pos}
+
+
+def _form_page(word, target, gloss, tags, gender):
+    """A Greek Wiktionary inflection page, as the extract gives it."""
+    return {"word": word, "pos": "noun", "tags": ["form-of"],
+            "senses": [{"glosses": [gloss], "tags": tags,
+                        "form_of": [{"word": target}]}],
+            "forms": [{"form": word, "tags": [gender], "source": "header"}]}
+
+
+_CHIONONERO_FORM_PAGES = [
+    _form_page("χιονόνερου", "χιονόνερο", "γενική ενικού του χιονόνερο",
+               ["genitive", "singular"], "neuter"),
+    _form_page("χιονόνερα", "χιονόνερο",
+               "ονομαστική, αιτιατική και κλητική πληθυντικού του χιονόνερο",
+               ["accusative", "nominative", "plural", "vocative"], "neuter"),
+    _form_page("χιονόνερων", "χιονόνερο", "γενική πληθυντικού του χιονόνερο",
+               ["genitive", "plural"], "neuter"),
+]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_restores_a_headword_whose_page_the_extract_omits(tmp_path, monkeypatch, reverse):
+    """#87: the extract has χιονόνερο's inflection pages and no headword."""
+    el = _CHIONONERO_FORM_PAGES + [
+        # A target that no page and no reviewed record defines stays absent.
+        _form_page("χαρτόκουτα", "χαρτόκουτο",
+                   "ονομαστική, αιτιατική και κλητική πληθυντικού του χαρτόκουτο",
+                   ["accusative", "nominative", "plural", "vocative"], "neuter"),
+        _form_page("χαρτόκουτου", "χαρτόκουτο", "γενική ενικού του χαρτόκουτο",
+                   ["genitive", "singular"], "neuter"),
+    ]
+    pairs, lookup, pos_map, load = _run_el_main(
+        tmp_path, monkeypatch, el=el[::-1] if reverse else el)
+
+    assert lookup["χιονόνερο"] == "χιονόνερο"
+    for form in ("χιονόνερα", "χιονόνερου", "χιονόνερων",
+                 "χιονονερο", "χιονονερα", "χιονονερου", "χιονονερων"):
+        assert lookup[form] == "χιονόνερο"
+        assert _noun_result(form, lookup, pos_map) == "χιονόνερο"
+    assert _noun_result("χιονόνερο", lookup, pos_map) == "χιονόνερο"
+    cells = _cells(pairs, "χιονόνερο")
+    assert ("χιονόνερο", ("nominative", "singular")) in cells
+    assert ("χιονόνερου", ("genitive", "singular")) in cells
+    # The inflection pages' own references stay beneath the headword.
+    assert ("χιονόνερων", ("form-of", "genitive", "plural")) in cells
+    assert ("χιονόνερα", ("accusative", "form-of", "nominative", "plural", "vocative")) in cells
+
+    assert "χαρτόκουτο" not in lookup
+    assert not _cells(pairs, "χαρτόκουτο")
+
+    audit = load("changes/el_source_pages.json")
+    page = next(row for row in audit["pages"] if row["word"] == "χιονόνερο")
+    assert page["status"] == "applied"
+    assert page["revision"]["oldid"] == 7663351
+    assert page["evidence"] == [
+        "https://el.wiktionary.org/w/index.php?title=χιονόνερο&oldid=7663351"]
+    assert page["entry"]["senses"][0]["glosses"]
+    assert audit["source_sha256"]["el"]
+
+
+def test_reviewed_page_retires_when_the_extract_defines_it(tmp_path, monkeypatch):
+    """A reviewed record never competes with the extract's own entry."""
+    head = {"word": "χιονόνερο", "pos": "noun",
+            "senses": [{"glosses": ["βροχή μαζί με χιόνι"]}],
+            "forms": [{"form": "χιονόνερο", "tags": ["neuter"], "source": "header"}]}
+    pairs, lookup, _, load = _run_el_main(
+        tmp_path, monkeypatch, el=[head] + _CHIONONERO_FORM_PAGES)
+    assert lookup["χιονόνερο"] == "χιονόνερο"
+    assert lookup["χιονόνερα"] == "χιονόνερο"
+    # The record's table is not read: only the extract's entry and pages are.
+    assert ("χιονόνερο", ("nominative", "singular")) not in _cells(pairs, "χιονόνερο")
+    page = next(row for row in load("changes/el_source_pages.json")["pages"]
+                if row["word"] == "χιονόνερο")
+    assert page["status"].startswith("retired")
+    assert "entry" not in page
+
+
+def test_reviewed_page_is_read_beside_an_inflection_only_entry(tmp_path):
+    """An inflection page of the same spelling does not define the headword."""
+    from dilemma.el_source_pages import PAGES
+    form_only = {"word": "χιονόνερο", "pos": "noun", "tags": ["form-of"],
+                 "senses": [{"glosses": ["αιτιατική ενικού του χιονόνερο"],
+                             "tags": ["accusative", "singular"],
+                             "form_of": [{"word": "χιονόνερο"}]}]}
+    audit = []
+    _, lookup, *_ = extract_pairs(_write(tmp_path, [form_only]), "el-el",
+                                  source_pages=PAGES, source_page_audit=audit)
+    assert lookup["χιονόνερο"] == ("χιονόνερο", 3)
+    assert {row["word"]: row["status"] for row in audit} == {
+        "χιονόνερο": "applied", "μπαλωθιά": "applied"}
+    # Nothing is read for a dump of another edition or without the records.
+    _, lookup, *_ = extract_pairs(_write(tmp_path, [form_only]), "el-el")
+    assert "χιονόνερα" not in lookup
+
+
+def test_reviewed_source_pages_are_sourced_lexical_nouns():
+    """Each record passes the generator's own head check and cites a revision."""
+    from build_data import is_independent_lexical_entry, noun_cells
+    from dilemma.el_source_pages import LICENSE, PAGES, SOURCE
+    assert SOURCE == "el" and LICENSE == "CC BY-SA 4.0"
+    assert len({(page["entry"]["word"], page["entry"]["pos"]) for page in PAGES}) == len(PAGES)
+    for page in PAGES:
+        entry = page["entry"]
+        assert is_independent_lexical_entry(entry, SOURCE)
+        assert page["reason"] and page["revision"]["timestamp"].endswith("Z")
+        assert page["evidence"] == [
+            "https://el.wiktionary.org/w/index.php?"
+            f"title={entry['word']}&oldid={page['revision']['oldid']}"]
+        table = {cell: row["form"] for row in entry["forms"]
+                 for cell in noun_cells(row["tags"])}
+        assert set(table) == set(_NOUN_CELLS)
+        assert table["nominative", "singular"] == entry["word"]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_keeps_both_spellings_of_a_cretan_headed_page(tmp_path, monkeypatch, reverse):
+    """#88: μπαλωθιά left the Greek language file; μπαλοθιά stayed in it."""
+    el = [
+        {"word": "μπαλοθιά", "pos": "noun",
+         "senses": [{"glosses": ["ο κρητικός εθιμοτυπικός πυροβολισμός"]}],
+         "forms": _noun_table("μπαλοθιά", "μπαλοθιές", "μπαλοθιάς", "μπαλοθιών",
+                              "μπαλοθιά", "μπαλοθιές", "μπαλοθιά", "μπαλοθιές") + [
+             {"form": "μπαλοθιά", "tags": ["feminine"], "source": "header"},
+             {"form": "μπαλοτιά", "tags": ["feminine"], "source": "header"}]},
+        {"word": "μπαλωτάρω", "pos": "verb",
+         "senses": [{"glosses": ["ρίχνω μπαλωθιές"]}]},
+    ]
+    pairs, lookup, pos_map, load = _run_el_main(
+        tmp_path, monkeypatch, el=el[::-1] if reverse else el)
+
+    for form in ("μπαλωθιά", "μπαλωθιές", "μπαλωθιάς", "μπαλωθιών",
+                 "μπαλωθια", "μπαλωθιες"):
+        assert lookup[form] == "μπαλωθιά"
+        assert _noun_result(form, lookup, pos_map) == "μπαλωθιά"
+    for form in ("μπαλοθιά", "μπαλοθιές", "μπαλοθιάς", "μπαλοθιών",
+                 "μπαλοθια", "μπαλοτιά"):
+        assert lookup[form] == "μπαλοθιά"
+        assert _noun_result(form, lookup, pos_map) == "μπαλοθιά"
+    # Each spelling keeps its own cells; neither is rewritten as the other.
+    # The page is headed as Cretan, and its cells say so.
+    assert ("μπαλωθιές", ("Cretan", "nominative", "plural")) in _cells(pairs, "μπαλωθιά")
+    assert all("Cretan" in tags for _, tags in _cells(pairs, "μπαλωθιά"))
+    assert not any("Cretan" in tags for _, tags in _cells(pairs, "μπαλοθιά"))
+    assert ("μπαλοθιές", ("nominative", "plural")) in _cells(pairs, "μπαλοθιά")
+    assert ("μπαλοτιά", ("feminine",)) in _cells(pairs, "μπαλοθιά")
+    assert not any("μπαλω" in form for form, _ in _cells(pairs, "μπαλοθιά"))
+    assert not any("μπαλο" in form for form, _ in _cells(pairs, "μπαλωθιά"))
+
+    page = next(row for row in load("changes/el_source_pages.json")["pages"]
+                if row["word"] == "μπαλωθιά")
+    assert page["status"] == "applied"
+    assert page["entry"]["lang_code"] == "el-crt"
+    assert page["revision"]["oldid"] == 7363298
+
+
+def _atsidas_records(surname=True, weasel_page=False):
+    """The two Wiktionaries' pages for ατσίδας and ατσίδα, as extracted."""
+    en = [
+        {"word": "ατσίδα", "pos": "noun",
+         "senses": [{"glosses": ["quick-witted person"], "tags": ["feminine", "figuratively"]},
+                    {"glosses": ["weasel; loosely: polecat, marten, ferret, etc"],
+                     "tags": ["feminine"]}],
+         "forms": [{"form": "atsída", "tags": ["romanization"]},
+                   {"form": "ατσίδες", "tags": ["plural"]},
+                   {"form": "ατσίδας", "tags": ["masculine"]},
+                   {"form": "el-nF-α-ες-2a", "source": "declension",
+                    "tags": ["inflection-template"]}]
+         + _noun_table("ατσίδα", "ατσίδες", "ατσίδας", "ατσίδων",
+                       "ατσίδα", "ατσίδες", "ατσίδα", "ατσίδες")},
+        {"word": "ατσίδας", "pos": "noun",
+         "senses": [{"glosses": ["Masculine form of of ατσίδα (atsída)"],
+                     "tags": ["form-of", "masculine"],
+                     "form_of": [{"word": "ατσίδα", "extra": "atsída"}]}],
+         "forms": [{"form": "atsídas", "tags": ["romanization"]},
+                   {"form": "ατσίδες", "tags": ["plural"]},
+                   {"form": "el-nM-ας-ες-2a", "source": "declension",
+                    "tags": ["inflection-template"]}]
+         + _noun_table("ατσίδας", "ατσίδες", "ατσίδα", "ατσίδων",
+                       "ατσίδα", "ατσίδες", "ατσίδα", "ατσίδες")},
+        {"word": "ατσίδας", "pos": "noun",
+         "senses": [{"glosses": ["genitive/accusative/vocative singular of ατσίδας (atsídas)"],
+                     "tags": ["accusative", "form-of", "genitive", "masculine",
+                              "singular", "vocative"],
+                     "form_of": [{"word": "ατσίδας", "extra": "atsídas"}]},
+                    {"glosses": ["genitive singular of ατσίδα (atsída)"],
+                     "tags": ["feminine", "form-of", "genitive", "singular"],
+                     "form_of": [{"word": "ατσίδα", "extra": "atsída"}]}],
+         "forms": [{"form": "atsídas", "tags": ["romanization"]}]},
+        {"word": "ατσίδων", "pos": "noun",
+         "senses": [{"glosses": ["genitive plural of ατσίδα (atsída)"],
+                     "tags": ["feminine", "form-of", "genitive", "plural"],
+                     "form_of": [{"word": "ατσίδα", "extra": "atsída"}]}]},
+        {"word": "ατσίδες", "pos": "noun",
+         "senses": [{"glosses": ["nominative/accusative/vocative plural of ατσίδα (atsída)"],
+                     "tags": ["accusative", "feminine", "form-of", "nominative",
+                              "plural", "vocative"],
+                     "form_of": [{"word": "ατσίδα", "extra": "atsída"}]}]},
+    ]
+
+    def both(word, case_gloss):
+        return {"word": word, "pos": "noun", "tags": ["form-of"],
+                "senses": [{"glosses": [case_gloss + " του ατσίδας"], "tags": ["masculine"],
+                            "form_of": [{"word": "ατσίδας"}]},
+                           {"glosses": [case_gloss + " του ατσίδα"],
+                            "tags": ["feminine", "noun"], "form_of": [{"word": "ατσίδα"}]}],
+                "forms": [{"form": word, "source": "header"}]}
+    el = [
+        {"word": "ατσίδας", "pos": "noun",
+         "senses": [{"glosses": ["μορφή αρσενικού για το θηλυκό ατσίδα"],
+                     "form_of": [{"word": "ατσίδα"}]}],
+         "forms": [{"form": "ατσίδας", "tags": ["masculine"], "source": "header"}]},
+        {"word": "ατσίδας", "pos": "noun", "tags": ["form-of"],
+         "senses": [{"glosses": ["γενική ενικού του ατσίδα"],
+                     "form_of": [{"word": "ατσίδα"}]}],
+         "forms": [{"form": "ατσίδας", "tags": ["feminine"], "source": "header"}]},
+        {"word": "ατσίδα", "pos": "noun",
+         "senses": [{"glosses": ["πολύ έξυπνος άνθρωπος, καπάτσος"],
+                     "tags": ["familiar", "figuratively"]},
+                    {"glosses": ["άλλη μορφή του ατσίδι: (ζώο) η νυφίτσα"],
+                     "tags": ["idiomatic"], "form_of": [{"word": "ατσίδι"}]}],
+         "forms": [{"form": "ατσίδα", "tags": ["feminine"], "source": "header"}]},
+        {"word": "ατσίδα", "pos": "noun", "tags": ["form-of"],
+         "senses": [{"glosses": ["γενική, αιτιατική και κλητική ενικού του ατσίδας"],
+                     "form_of": [{"word": "ατσίδας"}]}],
+         "forms": [{"form": "ατσίδα", "tags": ["masculine"], "source": "header"}]},
+        both("ατσίδες", "ονομαστική, αιτιατική και κλητική πληθυντικού"),
+        both("ατσίδων", "γενική πληθυντικού"),
+    ]
+    if surname:
+        el.append({"word": "Ατσίδας", "pos": "name",
+                   "senses": [{"glosses": ["ανδρικό επώνυμο"]}],
+                   "forms": [{"form": "Ατσίδας", "tags": ["masculine"], "source": "header"}]})
+    if weasel_page:
+        el.append({"word": "ατσίδι", "pos": "noun",
+                   "senses": [{"glosses": ["η νυφίτσα"]}],
+                   "forms": [{"form": "ατσίδι", "tags": ["neuter"], "source": "header"}]})
+    return en, el
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("surname", [True, False])
+def test_main_keeps_a_declined_noun_as_the_head_of_its_gender_reference(
+        tmp_path, monkeypatch, reverse, surname):
+    """#89: ατσίδας, "masculine form of ατσίδα", is a noun with its own table."""
+    en, el = _atsidas_records(surname=surname)
+    if reverse:
+        en, el = en[::-1], el[::-1]
+    pairs, lookup, pos_map, load = _run_el_main(tmp_path, monkeypatch, en=en, el=el)
+
+    assert lookup["ατσίδας"] == "ατσίδας"
+    # With the surname the typed row is published; without it the row is
+    # redundant, omitted, and the lookup supplies the same noun.
+    assert ("ατσίδας" in pos_map) == surname
+    for form in ("ατσίδας", "ατσιδας", "ατσίδες", "ατσίδων"):
+        assert _noun_result(form, lookup, pos_map) == "ατσίδας"
+    masculine = _cells(pairs, "ατσίδας")
+    assert {("ατσίδας", ("nominative", "singular")), ("ατσίδες", ("nominative", "plural")),
+            ("ατσίδα", ("genitive", "singular")), ("ατσίδων", ("genitive", "plural")),
+            ("ατσίδα", ("accusative", "singular")), ("ατσίδα", ("singular", "vocative"))
+            } <= masculine
+    # The page's reference to its own word in cells its table gives ατσίδα.
+    assert not any(form == "ατσίδας" and "genitive" in tags for form, tags in masculine)
+
+    # The same spelling is still the genitive of the feminine noun.
+    feminine = _cells(pairs, "ατσίδα")
+    assert ("ατσίδας", ("genitive", "singular")) in feminine
+    assert ("ατσίδα", ("nominative", "singular")) in feminine
+    assert ("ατσίδες", ("nominative", "plural")) in feminine
+    assert lookup["ατσίδα"] == "ατσίδα"
+    assert "ατσίδι" not in lookup
+
+    if surname:
+        assert lookup["Ατσίδας"] == "Ατσίδας"
+        assert pos_map["ατσίδας"] == {"NOUN": "ατσίδας", "PROPN": "Ατσίδας"}
+        assert _cells(pairs, "Ατσίδας", "name") == {("Ατσίδας", ("masculine",))}
+
+    change, = load("changes/el_gendered_noun_heads.json")["changes"]
+    assert change["lemma"] == "ατσίδας" and change["counterpart"] == "ατσίδα"
+    assert change["corrected"][0] == "ατσίδας"
+    assert [row["source"] for row in change["evidence"]] == ["en"]
+    # In dump order the feminine's key had followed its one reference to
+    # ατσίδι, which has no page; reversed, its own inflection page came first.
+    kept = load("changes/el_noun_heads_missing_targets.json")["changes"]
+    assert [(row["lemma"], row["missing_target"]) for row in kept] == (
+        [] if reverse else [("ατσίδα", "ατσίδι")])
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_keeps_a_supported_reference_beside_the_gendered_head(tmp_path, monkeypatch, reverse):
+    """A word with a page of its own keeps the reading that names it."""
+    en, el = _atsidas_records(weasel_page=True)
+    if reverse:
+        en, el = en[::-1], el[::-1]
+    pairs, lookup, pos_map, load = _run_el_main(tmp_path, monkeypatch, en=en, el=el)
+    assert lookup["ατσίδι"] == "ατσίδι"
+    assert ("ατσίδα", ("form-of", "idiomatic")) in _cells(pairs, "ατσίδι")
+    assert lookup["ατσίδας"] == "ατσίδας"
+    assert _noun_result("ατσίδας", lookup, pos_map) == "ατσίδας"
+    assert ("ατσίδες", ("nominative", "plural")) in _cells(pairs, "ατσίδας")
+    assert ("ατσίδας", ("genitive", "singular")) in _cells(pairs, "ατσίδα")
+    assert not load("changes/el_noun_heads_missing_targets.json")["changes"]
+
+
+def test_gendered_noun_head_needs_its_own_declension():
+    from build_data import gendered_noun_head_evidence
+    en, el = _atsidas_records()
+    masculine, case_form = en[1], en[2]
+    evidence = gendered_noun_head_evidence(masculine, "en")
+    assert (evidence["gender"], evidence["target"]) == ("masculine", "ατσίδα")
+    assert {"form": "ατσίδας", "tags": ["nominative", "singular"]} in evidence["forms"]
+    # A case form of the other noun, with or without a table, is no head.
+    assert gendered_noun_head_evidence(case_form, "en") is None
+    assert gendered_noun_head_evidence({**case_form, "forms": masculine["forms"]}, "en") is None
+    # The reference alone, or with another word's table, is no head either.
+    assert gendered_noun_head_evidence(el[0], "el") is None
+    assert gendered_noun_head_evidence({**masculine, "forms": en[0]["forms"]}, "en") is None
+    assert gendered_noun_head_evidence({**el[0], "forms": masculine["forms"]}, "el")
+    # An alternative spelling of the other gender's noun is a spelling.
+    spelling = {"word": "δουκέσα", "pos": "noun", "forms": _noun_table(
+                    "δουκέσα", "δουκέσες", "δουκέσας", "δουκεσών",
+                    "δουκέσα", "δουκέσες", "δουκέσα", "δουκέσες"),
+                "senses": [{"glosses": ["θηλυκό του δούκας, άλλη μορφή του δούκισσα"],
+                            "form_of": [{"word": "δούκισσα"}]}]}
+    assert gendered_noun_head_evidence(spelling, "el") is None
+    assert gendered_noun_head_evidence({**masculine, "tags": ["form-of"]}, "en") is None
+    assert gendered_noun_head_evidence({**masculine, "pos": "adj"}, "en") is None
+
+
+def test_gendered_noun_head_recovery_leaves_other_claims_alone():
+    from build_data import gendered_noun_head_evidence, recover_gendered_noun_heads
+    en, _ = _atsidas_records()
+    record = {"lemma": "ατσίδας", **gendered_noun_head_evidence(en[1], "en")}
+    lemma_pos = {"ατσίδα": {"noun"}, "ατσίδας": {"noun"}}
+
+    lookup = {"ατσίδας": ("ατσίδα", 1), "ατσιδας": ("ατσίδα", 1), "ατσίδα": ("ατσίδα", 3)}
+    pos_map = {"ατσίδας": {"NOUN": "ατσίδα", "PROPN": "Ατσίδας"}}
+    change, = recover_gendered_noun_heads(lookup, [record, dict(record)], lemma_pos, pos_map)
+    assert lookup["ατσίδας"] == ("ατσίδας", 3) and lookup["ατσιδας"] == ("ατσίδας", 1)
+    assert pos_map["ατσίδας"] == {"NOUN": "ατσίδας", "PROPN": "Ατσίδας"}
+    assert pos_map["ατσιδας"] == {"NOUN": "ατσίδας"}
+    assert change["original"] == ["ατσίδα", 1] and change["aliases"] == {"ατσιδας": ["ατσίδα", 1]}
+    assert len(change["evidence"]) == 1
+
+    # Another word's claim on the key, a counterpart without a noun page,
+    # altered evidence and an existing head all leave the lookup as it is.
+    for lookup, positions, rows in (
+            ({"ατσίδας": ("Ατσίδας", 1)}, lemma_pos, [record]),
+            ({"ατσίδας": ("ατσίδα", 1)}, {"ατσίδα": {"adj"}}, [record]),
+            ({"ατσίδας": ("ατσίδα", 1)}, lemma_pos, [{**record, "forms": []}]),
+            ({"ατσίδας": ("ατσίδα", 1)}, lemma_pos, [{**record, "target": "ατσίδι"}]),
+            ({"ατσίδας": ("ατσίδας", 3)}, lemma_pos, [record])):
+        before = dict(lookup)
+        assert recover_gendered_noun_heads(lookup, rows, positions) == []
+        assert lookup == before
+
+
+def test_defined_noun_head_is_kept_only_ahead_of_a_missing_target():
+    from build_data import recover_noun_heads_from_missing_targets
+    record = {"lemma": "ατσίδα", "source": "en", "headword": "ατσίδα", "pos": "noun",
+              "tags": [], "form_of": [], "alt_of": [],
+              "senses": [{"glosses": ["quick-witted person"], "tags": [],
+                          "form_of": [], "alt_of": []}]}
+    lookup = {"ατσίδα": ("ατσίδι", 1)}
+    pos_map = {}
+    change, = recover_noun_heads_from_missing_targets(lookup, [record], pos_map)
+    assert lookup == {"ατσίδα": ("ατσίδα", 3)} and pos_map == {"ατσίδα": {"NOUN": "ατσίδα"}}
+    assert change["original"] == ["ατσίδι", 1] and change["missing_target"] == "ατσίδι"
+    # A target with a key of its own, whatever it leads to, keeps the reading.
+    for target in (("ατσίδι", 3), ("ατσίδιον", 1)):
+        lookup = {"ατσίδα": ("ατσίδι", 1), "ατσίδι": target}
+        assert recover_noun_heads_from_missing_targets(lookup, [record]) == []
+        assert lookup["ατσίδα"] == ("ατσίδι", 1)
+    assert recover_noun_heads_from_missing_targets({}, [record]) == []
+
+
+def test_noun_self_reference_must_agree_with_its_own_table(tmp_path):
+    """περίπλους is its own accusative plural; ατσίδας is not its own genitive."""
+    entries = [
+        {"word": "περίπλους", "pos": "noun", "senses": [{"glosses": ["circumnavigation"]}],
+         "forms": _noun_table("περίπλους", "περίπλοι", "περίπλου", "περίπλων",
+                              "περίπλου", "περίπλους", "περίπλου", "περίπλοι")},
+        {"word": "περίπλους", "pos": "noun",
+         "senses": [{"glosses": ["accusative plural of περίπλους"],
+                     "tags": ["accusative", "form-of", "masculine", "plural"],
+                     "form_of": [{"word": "περίπλους"}]}]},
+        # No table of its own to contradict: read as before.
+        {"word": "αμυχής", "pos": "noun",
+         "senses": [{"glosses": ["genitive singular of αμυχής"],
+                     "tags": ["feminine", "form-of", "genitive", "singular"],
+                     "form_of": [{"word": "αμυχής"}]}]},
+    ] + _atsidas_records()[0][1:3]
+    pairs, *_ = extract_pairs(_write(tmp_path, entries), "el-en")
+    references = {(p["form"], p["lemma"]) for p in pairs if "form-of" in p["tags"]}
+    assert ("περίπλους", "περίπλους") in references
+    assert ("αμυχής", "αμυχής") in references
+    assert ("ατσίδας", "ατσίδας") not in references
+    assert ("ατσίδας", "ατσίδα") in references
+
+
+def test_listed_headword_gets_a_key_that_ends_at_a_headword():
+    from build_data import keep_listed_headwords
+    lookup = {
+        "χιονόνερα": ("χιονόνερο", 1),                      # names a keyless word
+        "ατσίδα": ("ατσίδι", 5), "ατσίδας": ("ατσίδα", 5),  # one keyless step away
+        "κοπανώ": ("κοπανάω", 1), "κοπανάω": ("κοπανώ", 1),  # a loop
+        "πεινώ": ("πεινάω", 3), "πεινάω": ("πεινάω", 3),    # another word's lemma
+        "καλέ": ("καλός", 1), "καλός": ("καλός", 3),
+        "σος": ("σος", 3),
+    }
+    before = dict(lookup)
+    changes = keep_listed_headwords(lookup, [
+        "χιονόνερο", "ατσίδα", "κοπανάω", "πεινώ", "καλέ", "καλός", "ΣΟΣ", "ατσίδας"])
+    assert {row["headword"]: row["kind"] for row in changes} == {
+        "χιονόνερο": "absent", "ατσίδα": "missing_target",
+        "κοπανάω": "broken_chain", "ΣΟΣ": "absent"}
+    assert lookup["χιονόνερο"] == ("χιονόνερο", 3) and lookup["χιονονερο"] == ("χιονόνερο", 1)
+    assert lookup["ατσίδα"] == ("ατσίδα", 5) and lookup["κοπανάω"] == ("κοπανάω", 3)
+    # A reading that ends at a headword is the Wiktionary lemma and stays:
+    # ατσίδας now reaches ατσίδα, and πεινώ and καλέ keep theirs.
+    for key in ("ατσίδας", "πεινώ", "καλέ", "καλός", "κοπανώ", "χιονόνερα"):
+        assert lookup[key] == before[key]
+    # A capitalized headword takes no lowercase key that a word holds.
+    assert lookup["ΣΟΣ"] == ("ΣΟΣ", 3) and lookup["σος"] == ("σος", 3)
+    assert changes[0]["original"] is None and changes[1]["original"] == ["ατσίδι", 5]
+    assert keep_listed_headwords(lookup, ["χιονόνερο", "ατσίδα"]) == []
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_gives_a_listed_headword_its_key_before_the_other_rules(tmp_path, monkeypatch, reverse):
+    """A dictionary headword needs no page: its inflection pages follow it."""
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "triantafyllidis_headwords.json").write_text(
+        json.dumps(["ατσίδα", "ατσίδας", "πιρουέτα", "Ων"], ensure_ascii=False),
+        encoding="utf-8")
+    en, el = _atsidas_records()
+    el = el + [
+        _form_page("πιρουέτες", "πιρουέτα",
+                   "ονομαστική, αιτιατική και κλητική πληθυντικού του πιρουέτα",
+                   ["accusative", "nominative", "plural", "vocative"], "feminine"),
+        _form_page("χαρτόκουτα", "χαρτόκουτο",
+                   "ονομαστική, αιτιατική και κλητική πληθυντικού του χαρτόκουτο",
+                   ["accusative", "nominative", "plural", "vocative"], "neuter"),
+    ]
+    if reverse:
+        en, el = en[::-1], el[::-1]
+    pairs, lookup, pos_map, load = _run_el_main(tmp_path, monkeypatch, en=en, el=el)
+
+    assert lookup["πιρουέτα"] == "πιρουέτα" and lookup["πιρουέτες"] == "πιρουέτα"
+    assert lookup["πιρουετες"] == "πιρουέτα" and lookup["Ων"] == "Ων"
+    assert ("πιρουέτες", ("accusative", "form-of", "nominative", "plural", "vocative")
+            ) in _cells(pairs, "πιρουέτα")
+    assert "χαρτόκουτο" not in lookup
+    audit = load("changes/el_listed_headwords.json")
+    kinds = {row["headword"]: row["kind"] for row in audit["changes"]}
+    assert kinds["πιρουέτα"] == "absent" and kinds["Ων"] == "absent"
+    assert audit["listed"] == 4 and len(audit["headword_lists_sha256"]) == 1
+    # The list comes first: the noun rule finds ατσίδα already kept, and
+    # the declined masculine is still recovered from its own evidence.
+    assert kinds.get("ατσίδα") == (None if reverse else "missing_target")
+    assert not load("changes/el_noun_heads_missing_targets.json")["changes"]
+    assert lookup["ατσίδα"] == "ατσίδα" and lookup["ατσίδας"] == "ατσίδας"
+    assert _noun_result("ατσίδας", lookup, pos_map) == "ατσίδας"
+    assert _noun_result("ατσίδα", lookup, pos_map) == "ατσίδα"
+
+
+def _dialect_entry(word, code, pos="noun", gloss="λέξη", gender="feminine"):
+    """A dialect-section entry as the raw extract has it: the headword only."""
+    return {"word": word, "pos": pos, "lang_code": code,
+            "lang": {"el-crt": "Cretan Greek", "el-cyp": "Cypriot Greek"}[code],
+            "senses": [{"glosses": [gloss]}],
+            "forms": [{"form": word, "tags": [gender], "source": "header"}]}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_main_reads_dialect_sections_where_no_word_has_the_key(tmp_path, monkeypatch, reverse):
+    """Cretan and Cypriot sections fill gaps and displace no standard word."""
+    en = [{"word": "γάτα", "pos": "noun", "senses": [{"glosses": ["cat"]}],
+           "forms": _noun_table("γάτα", "γάτες", "γάτας", "γατών",
+                                "γάτα", "γάτες", "γάτα", "γάτες")}]
+    el = [{"word": "κουζουλός", "pos": "adj", "senses": [{"glosses": ["τρελός"]}],
+           "forms": [{"form": "κουζουλή", "tags": ["feminine"]},
+                     {"form": "κουζουλό", "tags": ["neuter"]}]}]
+    dialects = [
+        _dialect_entry("τσαέρα", "el-cyp", gloss="η καρέκλα"),
+        _dialect_entry("κουζουλός", "el-crt", pos="adj", gender="masculine"),
+        _dialect_entry("γάτες", "el-cyp"),          # a form of the English edition's γάτα
+        _dialect_entry("Κουζουλή", "el-crt", pos="name"),  # its lowercase key is taken
+        _dialect_entry("μπαλωθιά", "el-crt", gloss="πυροβολισμός, τουφεκιά"),
+        _dialect_entry("έσσω μου", "el-cyp", pos="phrase"),
+        {**_dialect_entry("πόρτα", "el-cyp"), "lang_code": "pnt"},
+    ]
+    if reverse:
+        dialects = dialects[::-1]
+    pairs, lookup, pos_map, load = _run_el_main(
+        tmp_path, monkeypatch, en=en, el=el, dialects=dialects)
+
+    assert lookup["τσαέρα"] == "τσαέρα" and lookup["τσαερα"] == "τσαέρα"
+    assert _cells(pairs, "τσαέρα") == {("τσαέρα", ("Cypriot", "feminine"))}
+    assert lookup["κουζουλός"] == "κουζουλός" and lookup["κουζουλή"] == "κουζουλός"
+    assert lookup["γάτες"] == "γάτα"
+    assert "Κουζουλή" not in lookup and "πόρτα" not in lookup
+    assert not any("Cretan" in p["tags"] or "Cypriot" in p["tags"] for p in pairs
+                   if p["lemma"] in {"κουζουλός", "γάτα"})
+    # The dialect entry has no table, so the reviewed page still supplies
+    # μπαλωθιά's, and the entry itself then finds the key taken.
+    assert lookup["μπαλωθιές"] == "μπαλωθιά"
+    page = next(row for row in load("changes/el_source_pages.json")["pages"]
+                if row["word"] == "μπαλωθιά")
+    assert page["status"] == "applied"
+
+    audit = load("changes/el_dialect_sections.json")
+    assert audit["present"] and len(audit["sha256"]) == 64
+    assert audit["headwords"] == {"Cypriot": ["τσαέρα"]}
+    assert audit["entries"] == {"Cretan: skipped: the word has a key": 3,
+                                "Cypriot: read": 1,
+                                "Cypriot: skipped: the word has a key": 1}
+
+
+def test_main_dialect_sections_leave_aliases_and_case_aliases(tmp_path, monkeypatch):
+    """A dialect word takes no accentless key and no other word's case alias."""
+    el = [{"word": "ψωμάς", "pos": "noun", "senses": [{"glosses": ["αρτοποιός"]}],
+           "forms": _noun_table("ψωμάς", "ψωμάδες", "ψωμά", "ψωμάδων",
+                                "ψωμά", "ψωμάδες", "ψωμά", "ψωμάδες")},
+          {"word": "Πότσα", "pos": "name", "senses": [{"glosses": ["επώνυμο"]}]},
+          {"word": "Γκαλίνα", "pos": "name", "senses": [{"glosses": ["γυναικείο όνομα"]}]},
+          {"word": "Γαλίνα", "pos": "name",
+           "senses": [{"glosses": ["γυναικείο όνομα, άλλη μορφή του Γκαλίνα"],
+                       "form_of": [{"word": "Γκαλίνα"}]}]}]
+    diminutive = _dialect_entry("ποτσίν", "el-cyp", gender="neuter")
+    diminutive["senses"] = [{"glosses": ["υποκοριστικό του πότσα"],
+                             "form_of": [{"word": "πότσα"}]}]
+    dialects = [_dialect_entry("ψώμα", "el-cyp", gender="neuter"),
+                _dialect_entry("πότσα", "el-cyp"), diminutive,
+                _dialect_entry("γαλίνα", "el-cyp", gloss="η γαλοπούλα")]
+    pairs, lookup, pos_map, load = _run_el_main(
+        tmp_path, monkeypatch, en=[], el=el, dialects=dialects)
+    (tmp_path / "plain").mkdir()
+    before = _run_el_main(tmp_path / "plain", monkeypatch, en=[], el=el)[1]
+
+    assert lookup["ψώμα"] == "ψώμα" and lookup["Πότσα"] == "Πότσα"
+    assert lookup["πότσα"] == "πότσα" and lookup["ποτσίν"] == "πότσα"
+    assert before.pop("πότσα") == "Πότσα"   # only the surname's case alias
+    assert lookup["γαλίνα"] == "γαλίνα"
+    assert before.pop("γαλίνα") in {"Γαλίνα", "Γκαλίνα"}   # the name's alias
+    assert before["ψωμα"] == "ψωμάς"
+    assert {key: lookup[key] for key in before} == before
+
+
+def test_reviewed_page_retires_for_a_dialect_entry_with_its_table(tmp_path):
+    from dilemma.el_source_pages import PAGES
+    record = next(page for page in PAGES if page["entry"]["word"] == "μπαλωθιά")
+    dialect = tmp_path / "dialects.jsonl"
+    dialect.write_text(json.dumps(
+        {**record["entry"], "senses": [{"glosses": ["τουφεκιά"]}]}, ensure_ascii=False) + "\n",
+        encoding="utf-8")
+    audit, sections = [], {}
+    pairs, lookup, *_ = extract_pairs(_write(tmp_path, []), "el-el", source_pages=PAGES,
+                                      source_page_audit=audit, dialect_dump=dialect,
+                                      dialect_audit=sections)
+    assert {row["word"]: row["status"].split(":")[0] for row in audit} == {
+        "χιονόνερο": "applied", "μπαλωθιά": "retired"}
+    assert lookup["μπαλωθιές"] == ("μπαλωθιά", 1)
+    assert sections["headwords"] == {"Cretan": ["μπαλωθιά"]}
+    assert all("Cretan" in p["tags"] for p in pairs if p["lemma"] == "μπαλωθιά")
+
+
+def test_main_without_the_dialect_file_reads_no_dialect_section(tmp_path, monkeypatch, capsys):
+    _, lookup, _, load = _run_el_main(tmp_path, monkeypatch, el=_CHIONONERO_FORM_PAGES)
+    audit = load("changes/el_dialect_sections.json")
+    assert audit["present"] is False and audit["headwords"] == {} and "sha256" not in audit
+    assert "Cretan and Cypriot sections are not read" in capsys.readouterr().out
+
+
+def test_dialect_section_extraction_keeps_only_section_entries(tmp_path):
+    import importlib.util
+    from pathlib import Path
+    import build_data
+    spec = importlib.util.spec_from_file_location(
+        "extract_el_dialect_sections",
+        Path(build_data.__file__).parent / "build" / "extract_el_dialect_sections.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.DIALECT_CODES == build_data.EL_DIALECT_CODES
+    assert module.OUTPUT_NAME == build_data.EL_DIALECT_DUMP
+    entries = [
+        {"word": "σπίτι", "pos": "noun", "lang_code": "el",
+         "translations": [{"lang_code": "el-cyp", "word": "σπίτιν"}]},
+        _dialect_entry("τσαέρα", "el-cyp"),
+        {"word": "ωρα", "pos": "noun", "lang_code": "grc"},
+        _dialect_entry("μπαλωθιά", "el-crt"),
+    ]
+    raw = tmp_path / "raw.jsonl"
+    raw.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries)
+                   + "not json \"lang_code\": \"el-crt\"\n", encoding="utf-8")
+    assert module.main([str(raw), "--kaikki", str(tmp_path / "dumps")]) == 0
+    output = tmp_path / "dumps" / module.OUTPUT_NAME
+    lines = output.read_text(encoding="utf-8").splitlines()
+    assert [json.loads(line)["word"] for line in lines] == ["τσαέρα", "μπαλωθιά"]
+    assert lines[0] == json.dumps(entries[1], ensure_ascii=False)
+    meta = json.loads(output.with_suffix(".meta.json").read_text(encoding="utf-8"))
+    assert meta["entries"] == {"el-crt": 1, "el-cyp": 1}
+    assert meta["source"]["sha256"] == module.sha256(raw)
+    assert meta["output"]["sha256"] == module.sha256(output)

@@ -423,6 +423,85 @@ Wiktionary editions. The snapshot tool refuses a different base or a corrected
 file changed after the repair. It changes only `mg_pairs.json` and its audit;
 lemma lookup, spelling indexes, and model weights are preserved.
 
+### Modern Greek noun headwords
+
+`build_data.py` reads the Greek-edition extract's `Greek` language file. A page
+is absent from it when the extract cannot read the page's noun section or when
+the page is filed under another language code. Its inflection pages can still
+be present, pointing at a lemma that has no key of its own.
+`dilemma/el_source_pages.py` restates such a page from one cited revision: the
+definition, the gender on the headword line, and the cells of the declension
+table that revision renders. Two pages are recorded. `χιονόνερο` has a noun
+heading that begins with a space, so the page has no noun section. `μπαλωθιά`
+is headed as Cretan (`el-crt`); it stays a headword of its own beside
+`μπαλοθιά`, because neither page names the other.
+
+A record is read only while the extract has no lexical entry for its word and
+part of speech, and it passes the same head, table and reference checks as any
+other entry. A reference from an inflection page does not make its target a
+headword: `χαρτόκουτα` names `χαρτόκουτο`, which has no page, no record and no
+entry in a headword list, and `χαρτόκουτο` stays out of the lookup. `data/changes/el_source_pages.json`
+lists every record with its revision, reason and status. A record whose page
+the extract has regained is reported as retired and changes nothing. To add a
+page, cite the revision, copy its definition and rendered table, and state
+why the extract lacks it.
+
+A dictionary headword list comes before every other head rule. For Modern
+Greek that is `data/triantafyllidis_headwords.json`, the bare headword strings
+of the Dictionary of Standard Modern Greek (`HEADWORD_LISTS` in
+`build_data.py`). A listed headword is a lemma on the list's word alone, with
+no page, table or reference required. It gets a self-mapped key when nothing
+gives it one (`χιονόνερο`), when its key names a word that has no key
+(`ατσίδα`), or when its key leads to such a word or back to itself. Its
+inflection pages then resolve to it. A key that already ends at a headword is
+left alone, so the flat lookup keeps the Wiktionary lemma (`πεινώ` under
+`πεινάω`, the vocative `καλέ` under `καλός`) and the dictionary convention is
+still applied at lookup time. Changes are recorded in
+`data/changes/el_listed_headwords.json` with the list's checksum.
+
+Greek Wiktionary heads some Modern Greek pages as Cretan (`el-crt`) or Cypriot
+(`el-cyp`). The extract files those entries as separate languages and
+publishes no file for either, so they are only in the edition's raw extract.
+Collect them once per dump set:
+
+```bash
+python build/extract_el_dialect_sections.py --download --kaikki KAIKKI
+```
+
+That writes `kaikki.org-el-dictionary-GreekDialects.jsonl` and a `.meta.json`
+with the input and output checksums beside the other dumps. `build_data.py`
+reads the file after the Greek file and prints a NOTE when it is missing. A
+dialect entry only fills a gap: it is skipped when its word already has a key
+in either dictionary, so no dialect word displaces a standard word or one of
+its forms. Its accentless and case aliases fill only keys that are free, a
+capitalized word's lowercase alias does not count as a key for the word
+(Cypriot `πότσα` is read beside the surname `Πότσα`), and a reference from a
+dialect word stands only when its target has a key and is not a capitalized
+word named by a lowercase one. Its pairs carry the tag `Cretan` or `Cypriot`. The extract gives
+these entries a headword line and no declension table, so the reviewed record
+for `μπαλωθιά` stays in force until an entry carries the table.
+`data/changes/el_dialect_sections.json` lists the counts and every headword
+read. Pontic, Italiot, Tsakonian and Cappadocian have language codes of their
+own on Wiktionary and are not read.
+
+Two further rules keep noun headwords that the source defines:
+
+- A noun that a dictionary gives as the other gender of another noun, and
+  declines in a table with the headword as nominative singular, is a headword
+  (`ατσίδας`, "masculine form of `ατσίδα`"). The reference alone, a case form,
+  or an alternative spelling does not qualify. The feminine genitive `ατσίδας`
+  remains a pair under `ατσίδα`. Changes are recorded in
+  `data/changes/el_gendered_noun_heads.json`.
+- A noun that one dictionary defines without any reference keeps its key when
+  the key would otherwise lead to a word that has no key at all (`ατσίδα`,
+  one sense of which names `ατσίδι`). A target with a page or any other key
+  keeps the reading. Changes are recorded in
+  `data/changes/el_noun_heads_missing_targets.json`.
+
+A noun page that names its own word in cells where its own table has another
+form states no reading and is skipped (`ατσίδας` as the genitive of `ατσίδας`).
+A reference that agrees with the table is kept (`περίπλους`, accusative plural).
+
 ### Other controls
 
 - **Greek-only filter**. All forms must contain only Greek Unicode

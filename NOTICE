@@ -272,4 +272,5 @@ The shipped Modern Greek POS / dependency tagger is trained on UD_Greek-GUD
 (CC BY-SA 4.0) plus the CC BY-SA dialect treebanks, NOT on UD_Greek-GDT, which
 is CC BY-NC-SA. The Modern Greek lemmatizer model is built from Wiktionary and
 the HNC Golden Corpus; the Triantafyllidis headwords affect convention
-validation/remapping only and do not train that model.
+validation/remapping and give a listed headword its own lookup key, and do
+not train that model.

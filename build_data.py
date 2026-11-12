@@ -9,6 +9,11 @@ references, and dialect-tagged paradigms. Produces:
   - data/el_noun_heads.json: source evidence for independent noun owners
   - data/el_adjective_heads.json: source evidence for independent adjective owners
   - data/el_closed_class_heads.json: POS-specific determiner/pronoun head evidence
+  - data/changes/el_source_pages.json: reviewed pages the extract omits
+  - data/changes/el_dialect_sections.json: Cretan and Cypriot sections read
+  - data/changes/el_listed_headwords.json: dictionary headwords given a key
+  - data/changes/el_gendered_noun_heads.json: recovered counterpart noun heads
+  - data/changes/el_noun_heads_missing_targets.json: nouns kept ahead of a missing target
   - data/ag_pairs.json: Ancient Greek form->lemma training pairs
   - data/mg_lookup.json: flat lookup table {form: lemma}
   - data/ag_lookup.json: flat lookup table {form: lemma}
@@ -27,6 +32,7 @@ Usage:
 """
 
 import argparse
+import itertools
 import json
 import os
 import re
@@ -68,6 +74,24 @@ DUMPS = {
 }
 
 _GENDER_TAGS = frozenset({"masculine", "feminine", "neuter"})
+
+# The Greek Wiktionary heads some Modern Greek pages as Cretan or Cypriot.
+# The extract files them as languages of their own, outside the Greek file;
+# build/extract_el_dialect_sections.py collects them into this one, which the
+# Greek-edition scan reads after the Greek file (``extract_pairs``).
+EL_DIALECT_DUMP = "kaikki.org-el-dictionary-GreekDialects.jsonl"
+EL_DIALECT_CODES = {"el-crt": "Cretan", "el-cyp": "Cypriot"}
+
+
+def tag_dialect_entry(entry: dict) -> str | None:
+    """Mark a dialect-section entry's senses and forms with its dialect, so
+    every pair it yields carries the tag, and return the dialect."""
+    dialect = EL_DIALECT_CODES.get(entry.get("lang_code"))
+    if dialect:
+        for row in (entry.get("senses") or []) + (entry.get("forms") or []):
+            if dialect not in (row.get("tags") or []):
+                row["tags"] = list(row.get("tags") or []) + [dialect]
+    return dialect
 
 # Alternate filenames/paths for the nested directory layout
 _NESTED_MAP = {
@@ -674,6 +698,101 @@ def noun_table_conflicts_with_form_page(entry: dict) -> bool:
             table_cells.update(row_cells)
     return has_nominal_table and not source_cells.intersection(table_cells)
 
+_NUMBER_TAGS = frozenset({"singular", "plural", "dual"})
+_EN_GENDER_COUNTERPART_GLOSS = re.compile(
+    r"^(masculine|feminine) (?:form|equivalent|counterpart) of(?: of)? ")
+_EL_GENDER_COUNTERPART_GLOSS = re.compile(
+    r"μορφή (αρσενικού|θηλυκού) για το (?:θηλυκό|αρσενικό) (\S+?)[.;]?")
+_EL_GENDER_NAMES = {"αρσενικού": "masculine", "θηλυκού": "feminine"}
+
+
+def noun_cells(tags) -> set:
+    """The (case, number) cells a noun table row or form sense names."""
+    tags = set(tags or [])
+    return {(case, number) for case in tags & _CASE_TAGS
+            for number in tags & _NUMBER_TAGS}
+
+
+def gender_counterpart_reference(sense: dict, entry_tags, source: str):
+    """(gender, target) of a sense that only names the other gender's noun.
+
+    ατσίδας is "the masculine form of ατσίδα": a noun of its own with its
+    own declension, as νοσοκόμα is beside νοσοκόμος, and no case form of the
+    feminine. A reference with a case or number, an alternative spelling,
+    and a gloss that says anything else are not such a sense.
+    """
+    references = sense.get("form_of") or []
+    tags = set(entry_tags or []) | set(sense.get("tags") or [])
+    if (len(references) != 1 or sense.get("alt_of")
+            or tags & (_CASE_TAGS | _NUMBER_TAGS)
+            or tags & {"alternative", "misspelling", "alt-of"}):
+        return None
+    target = strip_length_marks(references[0].get("word", ""))
+    if not target or " " in target or not _is_greek(target):
+        return None
+    gloss = (sense.get("glosses") or [""])[0].strip().lower()
+    if source == "en":
+        named = _EN_GENDER_COUNTERPART_GLOSS.match(gloss)
+        gender = named[1] if named else None
+        if gender not in tags:
+            return None
+    elif source == "el":
+        named = _EL_GENDER_COUNTERPART_GLOSS.fullmatch(gloss)
+        if not named or named[2] != target.lower():
+            return None
+        gender = _EL_GENDER_NAMES[named[1]]
+    else:
+        return None
+    return gender, target
+
+
+def gendered_noun_head_evidence(entry: dict, source: str) -> dict | None:
+    """The source record of a noun that is the other gender of another noun.
+
+    The page must say so in a sense of its own, say nothing else by
+    reference, and decline the word itself: its table has the headword as
+    the nominative singular. A page with the reference alone, or with a
+    table for another word, is no evidence of a headword.
+    """
+    word = strip_length_marks(entry.get("word", ""))
+    if (entry.get("pos") != "noun" or source not in {"en", "el"}
+            or not word or " " in word or not _is_greek(word)
+            or _NOUN_REFERENCE_TAGS.intersection(entry.get("tags") or [])
+            or entry.get("alt_of")
+            or (source != "el" and entry.get("form_of"))):
+        return None
+    counterparts = set()
+    for sense in entry.get("senses") or []:
+        if sense.get("form_of") or sense.get("alt_of"):
+            counterpart = gender_counterpart_reference(
+                sense, entry.get("tags"), source)
+            if counterpart is None:
+                return None
+            counterparts.add(counterpart)
+        elif (not sense.get("glosses")
+              or {"alternative", "misspelling"}.intersection(sense.get("tags") or [])):
+            return None
+    if len(counterparts) != 1:
+        return None
+    gender, target = next(iter(counterparts))
+    table = [{"form": strip_length_marks(row.get("form", "")),
+              "tags": sorted(set(row.get("tags") or []))}
+             for row in entry.get("forms") or [] if noun_cells(row.get("tags"))]
+    if target == word or not any(
+            row["form"] == word and ("nominative", "singular") in noun_cells(row["tags"])
+            for row in table):
+        return None
+    return {
+        "source": source, "headword": entry["word"], "pos": "noun",
+        "tags": sorted(set(entry.get("tags") or [])),
+        "gender": gender, "target": target,
+        "senses": [{key: sense.get(key) or []
+                    for key in ("glosses", "tags", "form_of", "alt_of")}
+                   for sense in entry.get("senses") or []],
+        "forms": table,
+    }
+
+
 def _numbered_etymology(entry: dict) -> int | None:
     number = str(entry.get("etymology_number", ""))
     return int(number) if number.isascii() and number.isdecimal() and int(number) > 0 else None
@@ -695,6 +814,12 @@ def extract_pairs(jsonl_path: Path, lang: str,
                   present_head_records: dict = None,
                   unaccented_heads: dict = None,
                   source_tense_corrections: list = None,
+                  gendered_noun_heads: list = None,
+                  source_pages: tuple = (),
+                  source_page_audit: list = None,
+                  dialect_dump: Path = None,
+                  claimed_keys: frozenset = frozenset(),
+                  dialect_audit: dict = None,
                   ) -> tuple[list[dict], dict, set, dict, dict, Abbreviations]:
     """Extract form->lemma pairs from a kaikki JSONL dump.
 
@@ -710,6 +835,20 @@ def extract_pairs(jsonl_path: Path, lang: str,
         skip_name_plurals: if provided, skip plural forms of proper nouns unless
             the form is in this set (filters EL template-generated garbage while
             keeping EN-corroborated plurals).
+        gendered_noun_heads: collects the source records of nouns that are
+            the other gender of another noun and decline themselves
+            (``gendered_noun_head_evidence``).
+        source_pages: reviewed records of pages this dump omits
+            (``dilemma.el_source_pages``). Each is read after the dump, and
+            only when the dump has no lexical entry for its word and part of
+            speech; ``source_page_audit`` collects what was done with each.
+        dialect_dump: the edition's Modern Greek dialect sections
+            (``EL_DIALECT_DUMP``), read last. A dialect entry only fills a
+            gap: it is skipped when its word already has a key here or in
+            ``claimed_keys``, the other dictionary's lookup, so no dialect
+            word displaces a standard word or one of its forms. Its pairs
+            carry the dialect as a tag. ``dialect_audit`` collects the counts
+            and the headwords read.
 
     Returns:
         pairs: list of {form, lemma, pos, tags} dicts (for training)
@@ -804,6 +943,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
     # An alternative spelling in one numbered etymology must not rename
     # another etymology's independently defined word and inflection table.
     lexical_etymologies = {}
+    # The cells in which a Modern Greek noun's own table has its headword.
+    # A page's reference to its own word in another cell contradicts them.
+    own_noun_cells = {}
+    wikt_source = lang.split("-", 1)[1] if "-" in lang else lang
+    reviewed_pages = {(page["entry"]["word"], page["entry"]["pos"])
+                      for page in source_pages}
+    defined_pages = set()
     with open(jsonl_path, encoding="utf-8") as f:
         for line in f:
             try:
@@ -811,6 +957,17 @@ def extract_pairs(jsonl_path: Path, lang: str,
             except json.JSONDecodeError:
                 continue
             pos = entry.get("pos", "")
+            if ((entry.get("word"), pos) in reviewed_pages
+                    and is_independent_lexical_entry(entry, wikt_source)):
+                defined_pages.add((entry["word"], pos))
+            if modern_greek and pos == "noun":
+                head = strip_length_marks(entry.get("word", ""))
+                for row in entry.get("forms") or []:
+                    cells = noun_cells(row.get("tags"))
+                    if cells:
+                        own = own_noun_cells.setdefault(head, set())
+                        if strip_length_marks(row.get("form", "")) == head:
+                            own.update(cells)
             etymology = _numbered_etymology(entry)
             if (lang.startswith("grc-") and etymology is not None
                     and is_independent_lexical_entry(entry, lang.split("-", 1)[1])):
@@ -854,6 +1011,46 @@ def extract_pairs(jsonl_path: Path, lang: str,
         article_forms.add(to_monotonic(f).lower())
         article_forms.add(strip_accents(f.lower()))
 
+    def has_noun_table(entry):
+        return any(noun_cells(row.get("tags")) for row in entry.get("forms") or [])
+
+    # The dialect sections: few, and without tables in the extract.
+    dialect_entries = []
+    if dialect_dump is not None and dialect_dump.exists():
+        with open(dialect_dump, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if entry.get("lang_code") not in EL_DIALECT_CODES:
+                    continue
+                key = (entry.get("word"), entry.get("pos", ""))
+                # A dialect entry's headword alone does not replace a
+                # reviewed record that also has the page's table.
+                if (key in reviewed_pages and has_noun_table(entry)
+                        and is_independent_lexical_entry(entry, wikt_source)):
+                    defined_pages.add(key)
+                entry["_dialect"] = tag_dialect_entry(entry)
+                dialect_entries.append(json.dumps(entry, ensure_ascii=False))
+    dialect_counts = Counter()
+    dialect_headwords = {}
+    before_dialects = None
+
+    # A reviewed page is read only while the dump does not define its word.
+    supplement = []
+    for page in source_pages:
+        entry = json.loads(json.dumps(page["entry"]))
+        present = (entry["word"], entry["pos"]) in defined_pages
+        if not present:
+            tag_dialect_entry(entry)
+            supplement.append(json.dumps(entry, ensure_ascii=False))
+        if source_page_audit is not None:
+            from dilemma.el_source_pages import audit_row
+            source_page_audit.append(audit_row(
+                page, "retired: the extract defines this page" if present
+                else "applied"))
+
     scanned = 0
     entries_with_data = 0
     form_of_count = 0
@@ -861,7 +1058,7 @@ def extract_pairs(jsonl_path: Path, lang: str,
     dialect_tagged = 0
 
     with open(jsonl_path, encoding="utf-8") as f:
-        for line in f:
+        for line in itertools.chain(f, supplement, dialect_entries):
             scanned += 1
             try:
                 entry = json.loads(line)
@@ -880,6 +1077,27 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # Skip multi-word entries (phrases) from lookup
             if " " in lemma:
                 continue
+
+            dialect = entry.get("_dialect")
+            if dialect:
+                # A dialect section fills a gap and displaces nothing.
+                if before_dialects is None:
+                    before_dialects = dict(lookup)
+                # A capitalized word's lowercase alias is no claim: πότσα
+                # is not the surname Πότσα.
+                def claims(key):
+                    held = lookup.get(key)
+                    return key in claimed_keys or (held is not None and not (
+                        held[1] == 0 and key == key.lower()
+                        and held[0] != held[0].lower()))
+                claimed = any(claims(key) for key in (
+                    lemma, lemma.lower(), to_monotonic(lemma),
+                    to_monotonic(lemma).lower()))
+                dialect_counts[dialect, "skipped: the word has a key"
+                               if claimed else "read"] += 1
+                if claimed:
+                    continue
+                dialect_headwords.setdefault(dialect, set()).add(lemma)
 
             if lemma_pos is not None:
                 lemma_pos.setdefault(lemma, set()).add(pos)
@@ -914,7 +1132,6 @@ def extract_pairs(jsonl_path: Path, lang: str,
             # EN Wiktionary never uses entry-level top form_of (0 entries
             # across both Greek and Ancient Greek dumps), so this only
             # filters EL data.
-            wikt_source = lang.split("-", 1)[1] if "-" in lang else lang
             if (modern_greek and unaccented_heads is not None
                     and lemma == strip_accents(lemma.lower())
                     and is_independent_lexical_entry(entry, wikt_source)):
@@ -1006,6 +1223,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if closed_head_records is not None:
                     closed_head_records.append({"lemma": lemma,
                                                 **closed_class_head_evidence(entry, wikt_source)})
+            if modern_greek and pos == "noun" and gendered_noun_heads is not None:
+                gendered = gendered_noun_head_evidence(entry, wikt_source)
+                if gendered is not None:
+                    gendered_noun_heads.append({"lemma": lemma, **gendered})
             if noun_owner and noun_heads is not None:
                 noun_heads.append({
                     "lemma": lemma, "source": wikt_source,
@@ -1166,6 +1387,17 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 if not ref_word or not _is_greek(ref_word.replace(" ", "")):
                     continue
                 if " " in ref_word:  # skip multi-word
+                    continue
+                if (modern_greek and pos == "noun" and ref_word == lemma
+                        and noun_cells(source_tags)
+                        and lemma in own_noun_cells
+                        and not noun_cells(source_tags) & own_noun_cells[lemma]):
+                    # A page that names its own word in cells its own table
+                    # gives other forms (the English Wiktionary's ατσίδας,
+                    # "genitive/accusative/vocative singular of ατσίδας",
+                    # whose table has ατσίδα there) states no reading of
+                    # that word. περίπλους, the accusative plural of
+                    # περίπλους, agrees with its table and is kept.
                     continue
                 if exact_source_references is not None and lemma != ref_word:
                     exact_source_references.setdefault(lemma, {}).setdefault(pos, set()).add(ref_word)
@@ -1565,6 +1797,13 @@ def extract_pairs(jsonl_path: Path, lang: str,
                     _add_pos_map(pos_map, extra_form, pair.get("via", form_lemma), pos)
                     pairs.append({**pair, "form": extra_form})
 
+    # A dialect entry's accentless and case aliases give way too: every key
+    # that stood before the first dialect entry keeps its reading.
+    dialect_words = {w for words in dialect_headwords.values() for w in words}
+    for key, value in (before_dialects or {}).items():
+        if lookup.get(key) != value and key not in dialect_words:
+            lookup[key] = value
+
     # --- Pass 2: resolve self-map artifacts using form_of/alt_of targets ---
     # For each lookup entry that is BOTH a self-map AND was detected as a
     # form-of page (confidence 1), replace it with the form_of/alt_of target.
@@ -1623,6 +1862,29 @@ def extract_pairs(jsonl_path: Path, lang: str,
         lookup[key] = (target, lookup[key][1])
         selfmap_resolved += 1
 
+    # A dialect word's reference stands only when it names a word that has
+    # a key. A lowercase word does not become a form of a capitalized one
+    # (ποτσίν of the surname Πότσα): it stays its own head.
+    for word in sorted(dialect_words):
+        target = lookup.get(word, (word,))[0]
+        if target != word and (target not in lookup or (
+                word == word.lower() and target != target.lower())):
+            lookup[word] = (word, lookup[word][1])
+        # Nor does it inherit the reference a capitalized page left on its
+        # lowercase key (γαλίνα from the name Γαλίνα, a form of Γκαλίνα).
+        named = form_of_targets.get(word)
+        if (lookup[word][0] == word and word == word.lower()
+                and isinstance(named, str) and named != named.lower()):
+            del form_of_targets[word]
+
+    if dialect_audit is not None and dialect_dump is not None:
+        dialect_audit.update({
+            "file": dialect_dump.name, "present": dialect_dump.exists(),
+            "entries": {f"{dialect}: {status}": count for (dialect, status), count
+                        in sorted(dialect_counts.items())},
+            "headwords": {dialect: sorted(words)
+                          for dialect, words in sorted(dialect_headwords.items())},
+        })
     print(f"  {lang}: scanned {scanned:,} entries, "
           f"{entries_with_data:,} with data, "
           f"{len(pairs):,} pairs, {len(lookup):,} lookup entries")
@@ -2970,6 +3232,191 @@ def recover_unaccented_heads(lookup: dict, heads: dict, lemma_pos: dict,
     return changes
 
 
+# Dictionary headword lists, by language. A listed headword is a lemma on
+# the list's word alone (``keep_listed_headwords``).
+HEADWORD_LISTS = {"el": ("triantafyllidis_headwords.json",)}
+
+
+def load_headword_lists(lang: str, data_dir: Path) -> tuple[list, dict]:
+    """The listed headwords of a language, in list order, and each list
+    file's sha256. A list that is not on disk contributes nothing."""
+    import hashlib
+    headwords, hashes = {}, {}
+    for name in HEADWORD_LISTS.get(lang, ()):
+        path = data_dir / name
+        if not path.exists():
+            print(f"  headword list not found, skipped: {path}")
+            continue
+        raw = path.read_bytes()
+        hashes[name] = hashlib.sha256(raw).hexdigest()
+        for word in json.loads(raw.decode("utf-8")):
+            if isinstance(word, str) and word and " " not in word and _is_greek(word):
+                headwords.setdefault(word, None)
+    return list(headwords), hashes
+
+
+def keep_listed_headwords(lookup: dict, headwords: list) -> list:
+    """Give every listed headword a key that ends at a headword.
+
+    A dictionary's headword is a lemma whatever the Wiktionary extract says
+    of it, and this rule comes before the other head rules: it needs no
+    page, table or reference. Three states are corrected, each to a
+    self-map of the exact key:
+
+    * ``absent``: nothing gives the word a key (χιονόνερο, whose page the
+      extract cannot read while its inflection pages name it);
+    * ``missing_target``: its key names a word that has no key (ατσίδα,
+      one sense of which is "another form of ατσίδι");
+    * ``broken_chain``: its key leads, through other keys, to a word with
+      no key or back to itself, which chain-breaking would delete.
+
+    A key that already ends at a headword is left alone, the listed word's
+    own or another's: the flat lookup keeps the Wiktionary lemma (πεινώ
+    under πεινάω, the vocative καλέ under καλός), and the dictionary
+    convention is applied to it when a caller asks for one. Accentless and
+    lowercase keys are filled only where nothing claims them. Returns one
+    change per corrected headword.
+    """
+    def state(word):
+        seen, current = set(), word
+        while True:
+            entry = lookup.get(current)
+            if entry is None:
+                return ("absent" if current == word else
+                        "missing_target" if len(seen) == 1 else "broken_chain")
+            if entry[0] == current:
+                return None
+            if current in seen:
+                return "broken_chain"
+            seen.add(current)
+            current = entry[0]
+
+    changes = []
+    for word in headwords:
+        kind = state(word)
+        if kind is None:
+            continue
+        previous = lookup.get(word)
+        corrected = (word, max(3, previous[1]) if previous else 3)
+        lookup[word] = corrected
+        aliases = []
+        for key in sorted({word.lower(), to_monotonic(word), to_monotonic(word).lower(),
+                           strip_accents(word.lower())} - {word, ""}):
+            if key not in lookup:
+                # As a capitalized page's lowercase keys: the weakest claim.
+                lookup[key] = (word, 0 if word != word.lower() else 1)
+                aliases.append(key)
+        changes.append({"headword": word, "kind": kind,
+                        "original": list(previous) if previous else None,
+                        "corrected": list(corrected), "aliases": aliases})
+    return changes
+
+
+def recover_noun_heads_from_missing_targets(lookup: dict, records: list,
+                                            pos_map: dict = None) -> list:
+    """Keep a defined noun whose key leads to a word nothing defines.
+
+    One sense of a noun's page can name another word ("another form of
+    ατσίδι", beside the page's own meaning), and the page's key then follows
+    that reference. When no page, table or reference gives that word a key
+    of its own, the noun's key points at nothing, and every form that
+    resolves through the noun is deleted as a broken chain. Which of the two
+    happened depended on the order of the source records.
+
+    ``records`` are the noun-head evidence of ``extract_pairs``: pages of
+    one dictionary that define the noun and refer to nothing. A missing
+    target does not outrank such a page. A target with any key of its own
+    is left as it is. Returns one change per recovered head.
+    """
+    grouped = {}
+    for record in records:
+        evidence = {key: value for key, value in record.items() if key != "lemma"}
+        key = json.dumps(evidence, ensure_ascii=False, sort_keys=True)
+        grouped.setdefault(record["lemma"], {})[key] = evidence
+    changes = []
+    for lemma, rows in sorted(grouped.items()):
+        previous = lookup.get(lemma)
+        if previous is None or previous[0] == lemma or previous[0] in lookup:
+            continue
+        target = previous[0]
+        corrected = (lemma, max(3, previous[1]))
+        lookup[lemma] = corrected
+        if pos_map is not None:
+            readings = pos_map.setdefault(lemma, {})
+            if readings.get("NOUN") in {None, target}:
+                readings["NOUN"] = lemma
+        changes.append({"lemma": lemma, "original": list(previous),
+                        "corrected": list(corrected), "missing_target": target,
+                        "evidence": [rows[key] for key in sorted(rows)]})
+    return changes
+
+
+def recover_gendered_noun_heads(lookup: dict, records: list, lemma_pos: dict,
+                                pos_map: dict = None) -> list:
+    """Keep a noun that declines itself ahead of its other-gender reference.
+
+    A dictionary gives the masculine ατσίδας as "masculine form of ατσίδα"
+    and declines it in full. Read as a form-of page it became a form of the
+    feminine, and where the feminine's own key led to a word with no page
+    (ατσίδα, "another form of ατσίδι") the chain was deleted with the
+    headword's key, leaving the plural ατσίδες under a lemma that had none
+    and the noun reading of ατσίδας under ατσίδι.
+
+    A head is recovered only from a source record that names one noun of
+    the other gender and has the headword as the nominative singular of its
+    own table (``gendered_noun_head_evidence``), only when that other noun
+    has a noun page, and only where the key is absent or still holds that
+    reference. A key another word claims is left alone. Returns one change
+    per recovered head, with the evidence.
+    """
+    grouped = {}
+    for record in records:
+        evidence = {key: value for key, value in record.items() if key != "lemma"}
+        key = json.dumps(evidence, ensure_ascii=False, sort_keys=True)
+        grouped.setdefault(record["lemma"], {})[key] = evidence
+    changes = []
+    for lemma, rows in sorted(grouped.items()):
+        evidence = [rows[key] for key in sorted(rows)]
+        previous = lookup.get(lemma)
+        if previous is not None and previous[0] == lemma:
+            continue
+        if not all(strip_length_marks(record["headword"]) == lemma
+                   and gendered_noun_head_evidence(
+                       {"word": record["headword"], **record},
+                       record["source"]) == record
+                   for record in evidence):
+            continue
+        targets = {record["target"] for record in evidence}
+        if len(targets) != 1:
+            continue
+        target = next(iter(targets))
+        if ("noun" not in lemma_pos.get(target, ())
+                or (previous is not None and previous[0] != target)):
+            continue
+        corrected = (lemma, max(3, previous[1]) if previous else 3)
+        lookup[lemma] = corrected
+        aliases = {}
+        for key in sorted({lemma.lower(), to_monotonic(lemma),
+                           to_monotonic(lemma).lower(),
+                           strip_accents(lemma.lower())} - {lemma, ""}):
+            alias = lookup.get(key)
+            if alias is not None and alias[0] == target:
+                aliases[key] = list(alias)
+                lookup[key] = (lemma, alias[1])
+        if pos_map is not None:
+            for key in {lemma, lemma.lower(), to_monotonic(lemma),
+                        to_monotonic(lemma).lower(),
+                        strip_accents(lemma.lower())} - {""}:
+                readings = pos_map.setdefault(key, {})
+                if readings.get("NOUN") in {None, target}:
+                    readings["NOUN"] = lemma
+        changes.append({"lemma": lemma,
+                        "original": list(previous) if previous else None,
+                        "corrected": list(corrected), "counterpart": target,
+                        "aliases": aliases, "evidence": evidence})
+    return changes
+
+
 def published_pos_readings(resolved: dict, previous: dict, scalar_target: str,
                            closed_target_differs: bool = False,
                            adjective_heads: set = frozenset()) -> dict:
@@ -3041,6 +3488,9 @@ def main():
         present_head_records = {}
         unaccented_heads = {}
         source_tense_corrections = []
+        gendered_noun_heads = []
+        source_page_audit = []
+        dialect_audit = {}
 
         # Per-source form_of_targets, kept separately so we can prefer
         # EN's resolution when a key is a real lemma headword in EN but
@@ -3079,7 +3529,8 @@ def main():
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
                 present_head_records=present_head_records if lang == "el" else None,
                 unaccented_heads=unaccented_heads if lang == "el" else None,
-                source_tense_corrections=source_tense_corrections if lang == "el" else None)
+                source_tense_corrections=source_tense_corrections if lang == "el" else None,
+                gendered_noun_heads=gendered_noun_heads if lang == "el" else None)
             en_form_of_targets.update(fot)
             en_abbreviations = abbr
             all_pairs.extend(pairs)
@@ -3104,6 +3555,19 @@ def main():
                 continue  # already processed
             path = resolve_dump(filename, dump_dir)
             print(f"\nScanning {wikt_lang} Wiktionary: {path.name}")
+            source_pages, dialect_dump, claimed_keys = (), None, frozenset()
+            if lang == "el":
+                from dilemma import el_source_pages
+                if wikt_lang == el_source_pages.SOURCE:
+                    source_pages = el_source_pages.PAGES
+                    dialect_dump = resolve_dump(EL_DIALECT_DUMP, dump_dir)
+                    claimed_keys = frozenset(
+                        key for source, lookup, _ in source_lookups
+                        if source == "en" for key in lookup)
+                    if not dialect_dump.exists():
+                        print(f"  NOTE: {EL_DIALECT_DUMP} not found; the Cretan and "
+                              "Cypriot sections are not read "
+                              "(build/extract_el_dialect_sections.py)")
             pairs, lookup, headwords, pos_map, fot, abbr = extract_pairs(
                 path, f"{lang}-{wikt_lang}",
                 skip_name_plurals=en_name_forms if en_name_forms else None,
@@ -3124,7 +3588,12 @@ def main():
                 closed_class_form_refs=closed_class_form_refs if lang == "el" else None,
                 present_head_records=present_head_records if lang == "el" else None,
                 unaccented_heads=unaccented_heads if lang == "el" else None,
-                source_tense_corrections=source_tense_corrections if lang == "el" else None)
+                source_tense_corrections=source_tense_corrections if lang == "el" else None,
+                gendered_noun_heads=gendered_noun_heads if lang == "el" else None,
+                source_pages=source_pages,
+                source_page_audit=source_page_audit,
+                dialect_dump=dialect_dump, claimed_keys=claimed_keys,
+                dialect_audit=dialect_audit)
             for k, v in fot.items():
                 if k not in el_form_of_targets:
                     el_form_of_targets[k] = v
@@ -3266,6 +3735,64 @@ def main():
                 "source_sha256": noun_source_hashes, "changes": changes,
             }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(f"Exact unaccented heads recovered: {len(changes):,}")
+            listed_headwords, list_hashes = load_headword_lists(lang, DATA_DIR)
+            listed_changes = keep_listed_headwords(all_lookup, listed_headwords)
+            for change in listed_changes:
+                readings = all_pos_map.get(change["headword"], {})
+                original = change["original"]
+                for upos, lemma in list(readings.items()):
+                    if original and lemma == original[0] and lemma not in all_lookup:
+                        readings[upos] = change["headword"]
+            (change_dir / "el_listed_headwords.json").write_text(json.dumps({
+                "schema_version": 1, "language": "el",
+                "rule": "listed_headword_has_a_key_v1",
+                "source_sha256": noun_source_hashes,
+                "headword_lists_sha256": list_hashes,
+                "listed": len(listed_headwords), "changes": listed_changes,
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"Listed headwords given a key: {len(listed_changes):,} "
+                  f"of {len(listed_headwords):,}")
+            missing_target_changes = recover_noun_heads_from_missing_targets(
+                all_lookup, noun_heads, all_pos_map)
+            (change_dir / "el_noun_heads_missing_targets.json").write_text(json.dumps({
+                "schema_version": 1, "language": "el",
+                "rule": "defined_noun_head_before_missing_target_v1",
+                "source_sha256": noun_source_hashes,
+                "changes": missing_target_changes,
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print("Noun heads kept ahead of a missing target: "
+                  f"{len(missing_target_changes):,}")
+            gendered_changes = recover_gendered_noun_heads(
+                all_lookup, gendered_noun_heads, all_lemma_pos, all_pos_map)
+            (change_dir / "el_gendered_noun_heads.json").write_text(json.dumps({
+                "schema_version": 1, "language": "el",
+                "rule": "gender_counterpart_noun_head_v1",
+                "source_sha256": noun_source_hashes, "changes": gendered_changes,
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"Other-gender noun heads recovered: {len(gendered_changes):,}")
+            from dilemma import el_source_pages
+            (change_dir / "el_source_pages.json").write_text(json.dumps({
+                "schema_version": 1, "language": "el",
+                "rule": el_source_pages.RULE,
+                "reviewed_at": el_source_pages.REVIEWED_AT,
+                "extract": el_source_pages.EXTRACT,
+                "source_sha256": noun_source_hashes, "pages": source_page_audit,
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            dialect_path = resolve_dump(EL_DIALECT_DUMP, dump_dir)
+            if dialect_path.exists():
+                import hashlib
+                dialect_audit["sha256"] = hashlib.sha256(
+                    dialect_path.read_bytes()).hexdigest()
+            (change_dir / "el_dialect_sections.json").write_text(json.dumps({
+                "schema_version": 1, "language": "el",
+                "rule": "el_dialect_sections_fill_gaps_v1",
+                "language_codes": EL_DIALECT_CODES,
+                "source_sha256": noun_source_hashes, **dialect_audit,
+            }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print("Dialect-section headwords read: "
+                  f"{sum(len(w) for w in dialect_audit.get('headwords', {}).values()):,}")
+            applied = sum(row["status"] == "applied" for row in source_page_audit)
+            print(f"Reviewed source pages read: {applied:,} of {len(source_page_audit):,}")
 
         # Break chained lookups: if form->lemma->X, the mapping is suspect.
         headwords = {k for k, (v, _) in all_lookup.items() if k == v}
