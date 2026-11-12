@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "description": "Sources of the readings in lookup.db. build_lookup_db.py copies this table into lookup.db as `sources` and records on every lookup row the source that supplied its reading (`source_id`). An input not listed under some source's `inputs` stops the build. `share_alike` is true when any component's license requires derived data to carry the same license. The wording follows NOTICE, which remains the authoritative statement of the licenses.",
+  "sources": [
+    {
+      "code": "wiktionary_grc",
+      "name": "Wiktionary Ancient Greek entries, with generated paradigms of LSJ, Sophocles and Cunliffe headwords",
+      "inputs": ["ag_lookup.json", "raw_lookups.db:ag"],
+      "share_alike": true,
+      "components": [
+        {"name": "English Wiktionary and Greek Wiktionary (Wikimedia community), via kaikki.org", "url": "https://kaikki.org/", "license": "CC BY-SA 4.0 (older revisions CC BY-SA 3.0)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "forms and lemmas extracted from entries and inflection tables; Wiktionary's grc-decl and grc-conj modules also generate the paradigms below"},
+        {"name": "A Greek-English Lexicon (LSJ), 9th ed., Liddell, Scott, Jones", "url": "https://github.com/ciscoriordan/lsj9", "license": "public domain", "use": "headwords and principal parts expanded into paradigms"},
+        {"name": "Greek Lexicon of the Roman and Byzantine Periods, E. A. Sophocles", "url": "https://archive.org/details/pateres", "license": "public domain", "use": "headwords expanded into paradigms"},
+        {"name": "A Lexicon of the Homeric Dialect, R. J. Cunliffe", "license": "public domain", "use": "headwords expanded into paradigms"}
+      ],
+      "attribution": "Wiktionary contributors (CC BY-SA); LSJ, Sophocles and Cunliffe (public domain)"
+    },
+    {
+      "code": "wiktionary_el",
+      "name": "Wiktionary Modern Greek entries, including Cretan and Cypriot sections",
+      "inputs": ["mg_lookup.json", "raw_lookups.db:mg"],
+      "share_alike": true,
+      "components": [
+        {"name": "English Wiktionary and Greek Wiktionary (Wikimedia community), via kaikki.org", "url": "https://kaikki.org/", "license": "CC BY-SA 4.0 (older revisions CC BY-SA 3.0)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "forms and lemmas extracted from entries and inflection tables"},
+        {"name": "Dictionary of Standard Modern Greek (Triantafyllidis), headword strings", "url": "https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/triantafyllides/", "license": "factual headword strings only; the dictionary's content is not used", "use": "a listed headword keeps its own key"}
+      ],
+      "attribution": "Wiktionary contributors (CC BY-SA)"
+    },
+    {
+      "code": "wiktionary_med",
+      "name": "Greek Wiktionary Medieval Greek entries",
+      "inputs": ["med_lookup.json", "raw_lookups.db:med"],
+      "share_alike": true,
+      "components": [
+        {"name": "Greek Wiktionary (Wikimedia community), via kaikki.org", "url": "https://kaikki.org/", "license": "CC BY-SA 4.0 (older revisions CC BY-SA 3.0)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "forms and lemmas extracted from entries"}
+      ],
+      "attribution": "Wiktionary contributors (CC BY-SA)"
+    },
+    {
+      "code": "el_paradigm_gaps",
+      "name": "Reviewed Modern Greek paradigm cells (dilemma/el_paradigm_gaps.py)",
+      "inputs": ["el_paradigm_gaps"],
+      "share_alike": false,
+      "components": [
+        {"name": "Dilemma reviewed paradigm cells", "url": "https://github.com/open-greek/dilemma", "license": "reviewed factual cells under an existing headword; see dilemma/el_paradigm_gaps.py for their sources", "use": "missing cells of reviewed Modern Greek paradigms"}
+      ],
+      "attribution": "Dilemma"
+    },
+    {
+      "code": "dilemma_corrections",
+      "name": "Reviewed lookup corrections (build_lookup_db.py)",
+      "inputs": ["lookup_overrides"],
+      "share_alike": false,
+      "components": [
+        {"name": "Dilemma reviewed corrections", "url": "https://github.com/open-greek/dilemma", "license": "reviewed factual corrections", "use": "a reviewed lemma replaces a known wrong reading"}
+      ],
+      "attribution": "Dilemma"
+    },
+    {
+      "code": "hnc",
+      "name": "HNC Golden Corpus, CLARIN:EL",
+      "inputs": ["hnc_pairs.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "HNC Golden Corpus, CLARIN:EL", "url": "https://inventory.clarin.gr/corpus/870", "license": "openUnderPSI", "use": "gold Modern Greek form-lemma pairs, gap-fill only"}
+      ],
+      "attribution": "HNC Golden Corpus, CLARIN:EL"
+    },
+    {
+      "code": "agdt",
+      "name": "Ancient Greek Dependency Treebank (AGDT), Perseus Project",
+      "inputs": ["perseus_pairs.json"],
+      "share_alike": true,
+      "components": [
+        {"name": "Ancient Greek Dependency Treebank, Perseus Project", "url": "https://github.com/PerseusDL/treebank_data", "license": "CC BY-SA 3.0 US", "license_url": "https://creativecommons.org/licenses/by-sa/3.0/us/", "use": "form-lemma pairs"}
+      ],
+      "attribution": "Perseus Project, Ancient Greek Dependency Treebank (CC BY-SA 3.0 US)"
+    },
+    {
+      "code": "vlg_headwords",
+      "name": "Vocabolario della Lingua Greca, headword strings",
+      "inputs": ["vlg_headwords.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "Vocabolario della Lingua Greca (F. Montanari)", "license": "factual headword strings only; the dictionary's content is not used", "use": "headword self-maps"}
+      ],
+      "attribution": "Vocabolario della Lingua Greca (headwords)"
+    },
+    {
+      "code": "wip_headwords",
+      "name": "Words in Progress (Aristarchus), headword strings",
+      "inputs": ["wip_headwords.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "Words in Progress, Aristarchus (F. Montanari, S. Perrone)", "license": "factual headword strings only; the lexicon's content is not used", "use": "headword self-maps"}
+      ],
+      "attribution": "Words in Progress (headwords)"
+    },
+    {
+      "code": "lsj10_headwords",
+      "name": "LSJ 10th edition, headword strings",
+      "inputs": ["lsj10_headwords.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "A Greek-English Lexicon, 10th ed. (Liddell, Scott, Jones)", "license": "factual headword strings only; the lexicon's content is not used", "use": "headword self-maps"}
+      ],
+      "attribution": "LSJ, 10th ed. (headwords)"
+    },
+    {
+      "code": "glaux",
+      "name": "GLAUx",
+      "inputs": ["glaux_pairs.json"],
+      "share_alike": true,
+      "components": [
+        {"name": "GLAUx, Alek Keersmaekers", "url": "https://github.com/alekkeersmaekers/glaux", "license": "CC BY-SA 4.0 (NonCommercial and PROIEL-derived texts excluded at build time)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "corpus form-lemma pairs"}
+      ],
+      "attribution": "GLAUx, Alek Keersmaekers (CC BY-SA 4.0)"
+    },
+    {
+      "code": "diorisis",
+      "name": "The Diorisis Ancient Greek Corpus",
+      "inputs": ["diorisis_pairs.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "The Diorisis Ancient Greek Corpus, A. Vatri and B. McGillivray", "url": "https://figshare.com/articles/dataset/The_Diorisis_Ancient_Greek_Corpus/6187256", "license": "CC BY 4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/", "use": "corpus form-lemma pairs"}
+      ],
+      "attribution": "Diorisis Ancient Greek Corpus, Vatri and McGillivray (CC BY 4.0)"
+    },
+    {
+      "code": "nt_nestle1904",
+      "name": "Nestle 1904 Greek New Testament (lowfat)",
+      "inputs": ["nt_pairs.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "Nestle 1904 Greek New Testament, lowfat syntax trees", "license": "CC BY 4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/", "use": "Koine form-lemma pairs, gap-fill only"}
+      ],
+      "attribution": "Nestle 1904 Greek New Testament, lowfat (CC BY 4.0)"
+    },
+    {
+      "code": "ptnk",
+      "name": "UD_Ancient_Greek-PTNK",
+      "inputs": ["ptnk_pairs.json"],
+      "share_alike": true,
+      "components": [
+        {"name": "UD_Ancient_Greek-PTNK (Septuagint: Genesis, Ruth)", "url": "https://github.com/UniversalDependencies/UD_Ancient_Greek-PTNK", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "train-split form-lemma pairs, gap-fill only"}
+      ],
+      "attribution": "UD_Ancient_Greek-PTNK (CC BY-SA 4.0)"
+    },
+    {
+      "code": "tagnt",
+      "name": "STEPBible TAGNT",
+      "inputs": ["tagnt_pairs.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "Translators Amalgamated Greek New Testament, Tyndale House Cambridge / STEPBible", "url": "https://github.com/STEPBible/STEPBible-Data", "license": "CC BY 4.0", "license_url": "https://creativecommons.org/licenses/by/4.0/", "use": "form-lemma pairs, gap-fill only"}
+      ],
+      "attribution": "STEPBible TAGNT, Tyndale House Cambridge (CC BY 4.0), https://www.STEPBible.org"
+    },
+    {
+      "code": "pedalion",
+      "name": "Pedalion Trees",
+      "inputs": ["pedalion_pairs.json"],
+      "share_alike": true,
+      "components": [
+        {"name": "Pedalion Trees", "url": "https://github.com/perseids-publications/pedalion-trees", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "form-lemma pairs, gap-fill only (Gorman-provenance rows excluded)"}
+      ],
+      "attribution": "Pedalion Trees (CC BY-SA 4.0)"
+    },
+    {
+      "code": "lbg_headwords",
+      "name": "Byzantine Greek lexicon, headword strings",
+      "inputs": ["lbg_headwords.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "Byzantine Greek lexicon headwords (9th-12th c. literary vocabulary)", "license": "factual headword strings only; the lexicon's content is not used", "use": "headword self-maps, gap-fill only"}
+      ],
+      "attribution": "Byzantine Greek lexicon (headwords)"
+    },
+    {
+      "code": "lbg_generated",
+      "name": "Generated paradigms of Byzantine Greek headwords (build/expand_lbg.py)",
+      "inputs": ["lbg_pairs.json"],
+      "share_alike": true,
+      "components": [
+        {"name": "Byzantine Greek lexicon headwords and genders", "license": "factual headword strings only; the lexicon's content is not used", "use": "headwords to expand"},
+        {"name": "Wiktionary grc-decl and grc-conj modules (Wikimedia community)", "url": "https://en.wiktionary.org/wiki/Module:grc-decl", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "paradigm generation"}
+      ],
+      "attribution": "Wiktionary contributors (CC BY-SA), Byzantine Greek lexicon (headwords)"
+    }
+  ]
+}

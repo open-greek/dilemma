@@ -299,7 +299,7 @@ def refresh(base, output, sources):
                 continue
             language = "el" if any(lang == "all" for _, _, lang in rows) else "all"
             new = [form, lemma_id(lemma), "el", language]
-            db.execute("INSERT INTO lookup VALUES (?,?,?,?)", new)
+            db.execute("INSERT INTO lookup (form, lemma_id, src, lang) VALUES (?,?,?,?)", new)
             sql_changes.append({"original": None, "corrected": new})
         for c in imperfect["changes"]:
             form = c["corrected"]["form"];key = stripped(form)
@@ -356,7 +356,7 @@ def unapply(output, audit, imperfect):
         for c in reversed(audit["lookup_rows"]):
             db.execute("DELETE FROM lookup WHERE form=? AND lemma_id=? AND src=? AND lang=?", c["corrected"])
             if c["original"] is not None:
-                db.execute("INSERT INTO lookup VALUES (?,?,?,?)", c["original"])
+                db.execute("INSERT INTO lookup (form, lemma_id, src, lang) VALUES (?,?,?,?)", c["original"])
         for row in reversed(audit["added_lemmas"]):
             db.execute("DELETE FROM lemmas WHERE id=? AND text=?", row)
         for c in reversed(audit["spell_rows"]):

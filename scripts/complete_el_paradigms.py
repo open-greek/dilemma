@@ -55,7 +55,7 @@ def refresh(base, output, manifest):
             if any(src == "el" and lang in {"el", "all"} for _, src, lang in rows):
                 continue
             language = "el" if any(lang == "all" for _, _, lang in rows) else "all"
-            db.execute("INSERT INTO lookup VALUES (?,?,?,?)", (form, lemma_row[0], "el", language))
+            db.execute("INSERT INTO lookup (form, lemma_id, src, lang) VALUES (?,?,?,?)", (form, lemma_row[0], "el", language))
             key = stripped(form)
             old = spell.execute("SELECT forms FROM spell WHERE stripped=?", (key,)).fetchone()
             entries = old[0].splitlines() if old else []

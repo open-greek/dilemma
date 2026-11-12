@@ -35,6 +35,8 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
     }
     for name, value in sources.items():
         (data / name).write_text(json.dumps(value, ensure_ascii=False))
+    (data / "lookup_sources.json").write_bytes(
+        (ROOT / "data" / "lookup_sources.json").read_bytes())
 
     # Run the real builder with only the small fixture available. Redirect
     # all its inputs, outputs and audit report; no production data is read
@@ -110,7 +112,27 @@ builder.build()
         # The file says what built it and what it holds, and a lemma's
         # forms are read through an index.
         import build_lookup_db
+        # Every row names the source of its reading, and the registry rides
+        # along with each source's licenses.
+        origin = dict(conn.execute(
+            "SELECT form || '|' || lang, s.code FROM lookup l "
+            "JOIN sources s ON s.id = l.source_id"))
+        assert conn.execute("SELECT count(*) FROM lookup WHERE source_id NOT IN "
+                            "(SELECT id FROM sources)").fetchone()[0] == 0
+        assert origin["ἀπῆμεν|all"] == "wiktionary_grc"
+        assert origin["λέει|all"] == "wiktionary_el"
+        assert origin["ῥόδα|all"] == origin["ροδα|all"] == "lbg_generated"
+        assert origin["ῥόδον|all"] == "lbg_headwords"
+        assert {origin[f"{word}|all"] for word in sources["vlg_headwords.json"]
+                if f"{word}|all" in origin} <= {"vlg_headwords", "wiktionary_grc"}
+        registry, _ = build_lookup_db.load_lookup_sources(data / "lookup_sources.json")
+        stored = {code: (share, json.loads(parts)) for code, share, parts in conn.execute(
+            "SELECT code, share_alike, components FROM sources")}
+        assert set(stored) == {source["code"] for source in registry}
+        assert stored["diorisis"][0] == 0 and stored["wiktionary_grc"][0] == 1
+        assert all(part["license"] for _, parts in stored.values() for part in parts)
         meta = dict(conn.execute("SELECT key, value FROM meta"))
+        assert len(meta["sources_sha256"]) == 64
         assert meta["schema_version"] == str(build_lookup_db.LOOKUP_SCHEMA_VERSION)
         assert meta["dilemma_version"] == (ROOT / "VERSION").read_text().strip()
         assert int(meta["lookup_rows"]) == conn.execute(
@@ -128,3 +150,40 @@ builder.build()
             "ON lookup.lemma_id = lemmas.id WHERE form = ? AND lang = 'el'",
             ("λέγει",),
         ).fetchone() == ("λέω",)
+
+    # A reading from an input the registry does not list stops the build, so
+    # no row ships without a recorded source and license.
+    registry = json.loads((data / "lookup_sources.json").read_text(encoding="utf-8"))
+    for source in registry["sources"]:
+        source["inputs"] = [label for label in source["inputs"]
+                            if label != "mg_lookup.json"]
+    (data / "lookup_sources.json").write_text(json.dumps(registry, ensure_ascii=False))
+    result = subprocess.run([sys.executable, "-c", script, str(data)], cwd=ROOT,
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode != 0
+    assert "mg_lookup.json" in result.stderr and "not in lookup_sources.json" in result.stderr
+
+
+def test_lookup_source_registry_is_complete_and_unambiguous(tmp_path):
+    import build_lookup_db
+    sources, by_input = build_lookup_db.load_lookup_sources()
+    assert {"ag_lookup.json", "mg_lookup.json", "lbg_pairs.json",
+            "lookup_overrides", "el_paradigm_gaps"} <= by_input.keys()
+    for source in sources:
+        assert source["components"] and source["attribution"]
+
+    def broken(change):
+        registry = json.loads((ROOT / "data" / "lookup_sources.json").read_text())
+        change(registry["sources"])
+        path = tmp_path / "sources.json"
+        path.write_text(json.dumps(registry, ensure_ascii=False))
+        try:
+            build_lookup_db.load_lookup_sources(path)
+        except ValueError as error:
+            return str(error)
+        return None
+
+    assert "twice" in broken(lambda s: s.append(dict(s[0])))
+    assert "license" in broken(lambda s: s[0]["components"].append({"name": "x"}))
+    assert "two sources" in broken(
+        lambda s: s.append({**s[1], "code": "other", "inputs": ["ag_lookup.json"]}))
