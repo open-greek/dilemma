@@ -6,6 +6,14 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+`lookup.db` names the source of every reading. Each row's `source_id` refers
+to a new `sources` table with the source's name, components, licenses,
+share-alike flag and attribution, copied from the reviewed registry
+`data/lookup_sources.json`; the build stops if a reading comes from an input
+the registry does not list. The schema version is 3, and `meta` adds
+`sources_sha256`. NOTICE now also lists the Cunliffe lexicon, the headword-only
+lexica, the Byzantine headwords and the Nestle 1904 New Testament.
+
 ## [1.3.20] - 2026-11-12
 
 The published data now carries the Modern Greek headword fixes and the

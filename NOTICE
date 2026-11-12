@@ -62,6 +62,28 @@ Lexica and dictionaries
   `lemma` column; it does not read or redistribute definitions, examples,
   pronunciation, grammatical information, etymology, or source-page content.
 
+- A Lexicon of the Homeric Dialect, R.J. Cunliffe. Public domain. Headwords
+  and grammatical information expanded into paradigms with Wiktionary's
+  grc-decl and grc-conj modules.
+
+- Vocabolario della Lingua Greca (F. Montanari), Words in Progress
+  (Aristarchus; F. Montanari, S. Perrone), and A Greek-English Lexicon,
+  10th ed. (Liddell, Scott, Jones): bare headword strings only, used as
+  lookup self-maps. Definitions and other dictionary content are not read
+  or redistributed.
+
+- A lexicon of Byzantine Greek (literary vocabulary of the 9th-12th c.):
+  bare headword strings and genders only. The headwords are lookup
+  self-maps, and their paradigms are generated with Wiktionary's grc-decl and
+  grc-conj modules (build/expand_lbg.py). Definitions and other lexicon
+  content are not read or redistributed.
+
+- Nestle 1904 Greek New Testament, lowfat syntax trees. License: CC BY 4.0.
+  Koine form-lemma pairs, lookup gap-fill only.
+
+data/lookup_sources.json maps every input of lookup.db to the sources above
+and their licenses; each lookup.db row names its source (see docs/usage.md).
+
 
 Treebanks and annotated corpora
 -------------------------------
@@ -215,6 +237,7 @@ Evaluation data
 
 - HNC Golden Corpus, CLARIN:EL. License: openUnderPSI.
   https://inventory.clarin.gr/corpus/870
+  Its gold Modern Greek form-lemma pairs also fill gaps in the lookup.
 
 - DBBE datasets, Swaelens et al. License: CC BY 4.0.
   https://github.com/coswaele/ByzantineGreekDatasets
