@@ -6,6 +6,13 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+Ancient `-ικός` adjectives that the pinned Sophocles expansion declined as
+masculine nouns regain their feminine and neuter-plural forms (#95):
+`μοναχικὴν` now gives `μοναχικός`. `build_lookup_db.py` fills 8,532 absent
+keys for the 507 lemmas listed in `data/grc_ikos_adjectives.json`, each with
+independent evidence that it is a three-ending adjective, and the Sophocles
+parser now recognizes the OCR's renderings of `ή, όν`.
+
 `lookup.db` names the source of every reading. Each row's `source_id` refers
 to a new `sources` table with the source's name, components, licenses,
 share-alike flag and attribution, copied from the reviewed registry

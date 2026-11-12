@@ -378,8 +378,8 @@
       "guess": false,
       "metrics": {
         "tokens": 318,
-        "strict_correct": 295,
-        "equiv_correct": 300
+        "strict_correct": 296,
+        "equiv_correct": 301
       },
       "predictions": [
         "γεννάω",
@@ -436,7 +436,7 @@
         "καταρτίζω",
         "ἐπί",
         "ὁ",
-        null,
+        "μοναχικός",
         "πολιτεία",
         ".",
         "ὁ",
