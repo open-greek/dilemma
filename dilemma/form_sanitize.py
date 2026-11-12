@@ -171,3 +171,24 @@ def sanitize_form(s: str) -> str:
     if out.endswith("σ"):
         out = out[:-1] + "ς"
     return out
+
+
+def polytonic_share(forms) -> float:
+    """Share of ``forms`` that carry at least one diacritic.
+
+    A generated paradigm file is polytonic throughout: the accentless keys
+    are derived from it when the lookup is built. A file whose forms are
+    almost all bare (the Byzantine pairs of 2026-06-29: 807 of 1,561,683)
+    has lost its accents, and every lemma it feeds then has no accented
+    inflection to give a reader that lists a lemma's forms.
+    """
+    import unicodedata
+    total = marked = 0
+    for form in forms:
+        total += 1
+        marked += any(unicodedata.combining(ch)
+                      for ch in unicodedata.normalize("NFD", form))
+    return marked / total if total else 1.0
+
+
+MIN_POLYTONIC_SHARE = 0.9

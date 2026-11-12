@@ -25,7 +25,9 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from dilemma.form_sanitize import has_editorial_sigla, sanitize_form  # noqa: E402
+from dilemma.form_sanitize import (  # noqa: E402
+    MIN_POLYTONIC_SHARE, has_editorial_sigla, polytonic_share, sanitize_form,
+)
 from dilemma.citation import malformed_tonal_reason  # noqa: E402
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
@@ -931,6 +933,11 @@ def build():
     if LBG_PAIRS_PATH.exists():
         with open(LBG_PAIRS_PATH, encoding="utf-8") as f:
             lbg_pairs = json.load(f)
+        lbg_share = polytonic_share(lbg_pairs)
+        if lbg_share < MIN_POLYTONIC_SHARE:
+            print(f"  WARNING: only {lbg_share:.1%} of {LBG_PAIRS_PATH.name}'s "
+                  f"{len(lbg_pairs):,} forms carry a diacritic; its lemmas will "
+                  "have no accented inflections. Rerun build/expand_lbg.py.")
         cf = {}
         if CORPUS_FREQ_PATH.exists():
             cf = json.load(open(CORPUS_FREQ_PATH, encoding="utf-8")).get(

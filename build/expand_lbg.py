@@ -41,7 +41,9 @@ sys.path[:0] = [str(ROOT / "build"), str(ROOT)]
 import lupa.lua53  # noqa: F401  force Lua 5.3 before expand_lsj imports the sandbox
 import expand_lsj as E  # applies the 8 idempotent Lua-sandbox fixes on import
 from dilemma.form_sanitize import (  # noqa: E402
+    MIN_POLYTONIC_SHARE,
     has_editorial_sigla,
+    polytonic_share,
     resolve_editorial_form,
 )
 
@@ -117,6 +119,10 @@ def main():
                   f"skip={n_skip:,} pairs={len(pairs):,} ({time.time()-t0:.0f}s)",
                   flush=True)
 
+    share = polytonic_share(pairs)
+    if share < MIN_POLYTONIC_SHARE:
+        sys.exit(f"refusing to write {LBG_PAIRS.name}: only {share:.1%} of "
+                 f"{len(pairs):,} generated forms carry a diacritic")
     json.dump(pairs, open(LBG_PAIRS, "w", encoding="utf-8"), ensure_ascii=False)
     print(f"\nDONE: declined {n_noun:,} nouns + conjugated {n_verb:,} verbs, "
           f"skipped {n_skip:,}; wrote {len(pairs):,} inflected pairs to "
