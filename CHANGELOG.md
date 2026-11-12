@@ -13,7 +13,11 @@ consumer can pin instead of the file's bytes. It also indexes `lookup` by
 `lemma_id`, so every form of a lemma is read without a table scan. Both appear
 with the next published database; files built earlier have neither.
 
-`data/ag_headwords.json` is now published with the downloaded data.
+`data/ag_headwords.json` and the headword lists and small tables the runtime
+reads (LSJ, Cunliffe, DGE, LBG, Triantafyllidis and the others under `data/`)
+are now published with the downloaded data. The wheel carries no data files,
+so an install with only the download had no headword lists and a lemma
+convention such as `lsj` or `triantafyllidis` loaded an empty headword set.
 
 ## [1.3.19] - 2026-11-11
 

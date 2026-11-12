@@ -86,6 +86,23 @@ TRACKED = [
     # Wiktionary-derived Ancient headwords, for consumers of the downloaded
     # data that validate lemmas without a source checkout.
     "data/ag_headwords.json",
+    # Headword lists and small tables the runtime reads. The wheel carries
+    # no data, so an install that has only the downloaded files needs them
+    # here: without the lists a lemma convention loads an empty headword set.
+    "data/cunliffe_headwords.json",
+    "data/dge_headwords.json",
+    "data/lbg_headwords.json",
+    "data/lemma_equivalences.json",
+    "data/lgpn_names.json",
+    "data/lsj10_headwords.json",
+    "data/lsj9_frequency.json",
+    "data/lsj9_indeclinables.json",
+    "data/lsj_headwords.json",
+    "data/mg_headwords.json",
+    "data/pd_headwords.json",
+    "data/triantafyllidis_headwords.json",
+    "data/vlg_headwords.json",
+    "data/wip_headwords.json",
     # Independent lexical heads for sparse Ancient corpus admission.
     "data/grc_lexical_heads.json",
     # Explicit citation references consumed by sparse-form export admission.

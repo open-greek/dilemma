@@ -1,7 +1,7 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-12T01:21:27Z",
+  "generated": "2026-11-12T03:21:30Z",
   "files": {
     "data/lookup.db": {
       "size": 1224253440,
@@ -137,6 +137,76 @@
       "size": 5061093,
       "sha256": "f394a8759a7e94aa17ab710b52f1033e0e90206d66a0eeb021e47e30a3da1a77",
       "git_sha1": "df19ec2193309431a175d088b899c29f2ae077d2"
+    },
+    "data/cunliffe_headwords.json": {
+      "size": 241110,
+      "sha256": "7b4ddc2d7ba135bbf45a99544492f472c1c78a048be27b02bc6e7ed4dd04233e",
+      "git_sha1": "6684ec360d571a1b59bef129dec05858c45e5609"
+    },
+    "data/dge_headwords.json": {
+      "size": 1240203,
+      "sha256": "8159190c95c046b7f6a2f0f1492b113d1360a026357133671b3c16d3b54e6f66",
+      "git_sha1": "d0dd2b9c68982982fcc269e55f9cb3e763355f68"
+    },
+    "data/lbg_headwords.json": {
+      "size": 4485317,
+      "sha256": "d4abfda095c75ff89b2430f3491fed145cf161ac48780dedba813e74f05dee3f",
+      "git_sha1": "ad2822a3e10c6fe4181fc6ce40fe97ed3d0e4672"
+    },
+    "data/lemma_equivalences.json": {
+      "size": 10423,
+      "sha256": "1a11185844761e9d021bdf9f5f74def545d474436507eff9b64409d0e21443e3",
+      "git_sha1": "b5a8c6a13385a03c9960410ef927f3566ccad66b"
+    },
+    "data/lgpn_names.json": {
+      "size": 885532,
+      "sha256": "6ae7b4776ca44e61a22c2225eb9c253a8624918293c2dd8cac81e7d86da904cf",
+      "git_sha1": "f58f765d6dbdaeb5e701f0bcff8db7c37dde487c"
+    },
+    "data/lsj10_headwords.json": {
+      "size": 2740967,
+      "sha256": "d90d63d5dac12e58172df86147ddcb29f3c57298209384da7ef1e3f87551fafa",
+      "git_sha1": "4212af384727fe144162b165d5d9ec6a825e3ee0"
+    },
+    "data/lsj9_frequency.json": {
+      "size": 1538429,
+      "sha256": "21e80038cf909ce36db784429dcea7dc3dbb18aa0c08e11c61df9aa1bcd09686",
+      "git_sha1": "3b77cd4498c2823803e8d37d442fc5ab77d8720c"
+    },
+    "data/lsj9_indeclinables.json": {
+      "size": 74250,
+      "sha256": "a7c10bc6cadf498af5b8db029161b285f79284784e16a7881818c50b94fe3e63",
+      "git_sha1": "928c688c83ad944665559de40b08d9c51bd0617b"
+    },
+    "data/lsj_headwords.json": {
+      "size": 2691884,
+      "sha256": "b0686ceecf689d754a7b3f8d10c77a7bc1a482edf07f025926ba37f65046cb9a",
+      "git_sha1": "dddce70f2e22426ad9e0a6c42226b22e6994988b"
+    },
+    "data/mg_headwords.json": {
+      "size": 11303529,
+      "sha256": "0bfac633e457212efdd93ac389e202919d4e2d1fd33642398d125ac645c5dd66",
+      "git_sha1": "5de72ae74bdc9605b7343c90643314f983db1dc1"
+    },
+    "data/pd_headwords.json": {
+      "size": 4150977,
+      "sha256": "7c59bf5501905d9f75927f9cd3098c47d1003fa370c16e5929db735b61117a32",
+      "git_sha1": "0071efeb88f85a51823cb42ca226f318602216b0"
+    },
+    "data/triantafyllidis_headwords.json": {
+      "size": 1005595,
+      "sha256": "e67908f1822e9d4319af174115b6e46b9f7e904cb5cc6b702caddbbe36ec97a1",
+      "git_sha1": "40319c98a26954b6f00832a1ed430c334c4ea4ab"
+    },
+    "data/vlg_headwords.json": {
+      "size": 3111483,
+      "sha256": "6e638f46f71799bdb7b849b9b0e36bb890695f02cd8c2016358fcb052d3c04ce",
+      "git_sha1": "e1d55dd51d2180a2c852570133a42d6130107b93"
+    },
+    "data/wip_headwords.json": {
+      "size": 98282,
+      "sha256": "f798d75180860a46e9091e1bc90ce2cc991a734288fb1fd1ed048bcf6031202f",
+      "git_sha1": "fe7df3a824a1440e97ce5197176b4eebb6b2e3b9"
     },
     "data/grc_lexical_heads.json": {
       "size": 43351348,
