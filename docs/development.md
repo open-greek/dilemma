@@ -180,6 +180,29 @@ exact refresh with `--undo PATH_TO_AUDIT` restores the original logical rows;
 it refuses files changed by subsequent work. A full rebuild remains the
 standard path when other lexical inputs change.
 
+A change to the Modern Greek generator reaches the published snapshot the same
+way. Run the old and the new `build_data.py --lang el` over the same dumps into
+two separate directories, then record and apply their difference:
+
+```bash
+python scripts/refresh_el_generator_delta.py diff OLD/data NEW/data \
+    --dumps KAIKKI_DIR --old-commit OLD_SHA --new-commit NEW_SHA \
+    --input triantafyllidis_headwords.json \
+    --out data/changes/el_generator_refresh.json
+python scripts/refresh_el_generator_delta.py apply --base BASE_DATA \
+    --manifest data/hf_manifest.json \
+    --delta data/changes/el_generator_refresh.json --output OUT
+```
+
+The delta records both commits, the dumps' checksums, and each changed lookup
+key, POS reading, pair, head and participle cell. `apply` checks the base files
+against the manifest and makes a change only where the base still holds the
+old generator's value; anything else is reported as a conflict and left as
+published. Its audit, `el_generator_refresh_audit.json`, lists every change
+with the input and output hashes, and `undo --data OUT --audit AUDIT` restores
+the base's content. Rebuild `lookup.db` and `spell_index.db` from the refreshed
+`mg_lookup.json` afterwards.
+
 The artifacts CI tests against (including `lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, `form_profile.db`, and the ONNX/PyTorch files in
 `model/combined-s3/`) live on HuggingFace, not in git, and must match

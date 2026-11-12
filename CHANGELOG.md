@@ -6,6 +6,20 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+The published data now carries the Modern Greek headword fixes and the
+accented Byzantine forms. `χιονόνερο` and `μπαλωθιά` are headwords again, with
+their inflections, and `lemmatize_pos("ατσίδας", "NOUN")` gives `ατσίδας`
+(#87, #88, #89). The generator change reached the pinned Modern Greek snapshot
+as a bounded refresh: `scripts/refresh_el_generator_delta.py` recorded the old
+and new generators' difference on the Wiktionary dumps of 2026-10-30 and
+2026-11-03 and applied all 6,748 lookup keys, 360 POS readings and 2,132 pair
+changes without a conflict (`data/changes/el_generator_refresh*.json`).
+`lookup.db` was then rebuilt in full, so it also gains the `meta` table, the
+`lemma_id` index, about a million accented Byzantine forms with their
+accentless keys, and the reviewed grammatical readings, and drops repair-era
+rows that repeated the combined reading. The file grows from 1.22 GB to
+1.50 GB.
+
 Generator changes for Modern Greek headwords. The published
 artifacts are unchanged until the next rebuild.
 
