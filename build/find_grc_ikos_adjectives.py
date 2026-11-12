@@ -9,7 +9,11 @@ least one independent source calls it an adjective:
   * sophocles: Sophocles' entry gives three endings (μοναχικός, ή, όν),
     read from data/sophocles/chunks with build/expand_sophocles.py's parser;
   * lsj9: the LSJ 9 POS table has an ADJ reading for the headword;
-  * corpus: the corpus attestation's dominant POS for the lemma is adjective.
+  * corpus: the corpus attestation's dominant POS for the lemma is adjective;
+  * review: data/grc_ikos_review.json decides it is one, with a reason. The
+    review covers the heads no other source settles, and is the only way a
+    capitalized head (Πλατωνικός) is listed. Its `exclude` decisions keep a
+    lemma out whatever the other sources say.
 
 A lemma whose Sophocles entry gives only two endings is left out, and so is
 one with characters other than Greek letters (OCR debris such as *σχολαστικός
@@ -34,6 +38,7 @@ from dilemma.grc_adjective_gaps import SUFFIX  # noqa: E402
 
 DATA = ROOT / "data"
 OUTPUT = DATA / "grc_ikos_adjectives.json"
+REVIEW = "grc_ikos_review.json"
 FEMININE = ("ικη", "ικης", "ικην", "ικαι", "ικας")
 
 
@@ -73,10 +78,13 @@ def find(data: Path = DATA) -> dict:
     attested = json.loads((data / "lemma_attestation.json").read_text(
         encoding="utf-8"))["lemmas"]
     sophocles = sophocles_endings(data / "sophocles" / "chunks")
+    review = {entry["lemma"]: entry["decision"] for entry in json.loads(
+        (data / REVIEW).read_text(encoding="utf-8"))["entries"]}
 
     listed, two_ending = [], 0
     for lemma in sorted(keys):
-        if (lemma != lemma.lower() or not lemma.endswith(SUFFIX)
+        if ((lemma != lemma.lower() and review.get(lemma) != "adjective")
+                or review.get(lemma) == "exclude" or not lemma.endswith(SUFFIX)
                 or not is_greek_word(lemma)
                 or lookup.get(lemma) != lemma
                 or any(bare(form).endswith(FEMININE) for form in keys[lemma])):
@@ -91,10 +99,13 @@ def find(data: Path = DATA) -> dict:
             evidence.append("lsj9")
         if attested.get(lemma, {}).get("dominant_pos") in ("adj", "adjective"):
             evidence.append("corpus")
+        if review.get(lemma) == "adjective":
+            evidence.append("review")
         if evidence:
             listed.append({"lemma": lemma, "evidence": evidence})
     inputs = {name: sha256(data / name) for name in
-              ("ag_lookup.json", "lsj9_pos_lookup.json", "lemma_attestation.json")}
+              ("ag_lookup.json", "lsj9_pos_lookup.json", "lemma_attestation.json",
+               REVIEW)}
     inputs["sophocles/chunks"] = hashlib.sha256(b"".join(
         sha256(path).encode() for path in
         sorted((data / "sophocles" / "chunks").glob("*.xml")))).hexdigest()

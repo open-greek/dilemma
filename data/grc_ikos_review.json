@@ -1,0 +1,481 @@
+{
+ "schema_version": 1,
+ "description": "Hand review of -ικός heads that lack feminine cells and have no automatic evidence of being three-ending adjectives. build/find_grc_ikos_adjectives.py lists a lemma decided `adjective` with evidence `review`; `exclude` keeps it out. Every entry has a reason.",
+ "entries": [
+  {
+   "lemma": "Βακχικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (19 tokens) and attests its feminine 7 times"
+  },
+  {
+   "lemma": "Βιθυνικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (8 tokens) and attests its feminine 2 times"
+  },
+  {
+   "lemma": "Βρεττανικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (69 tokens) and attests its feminine 36 times"
+  },
+  {
+   "lemma": "Κιμβρικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (6 tokens) and attests its feminine 4 times"
+  },
+  {
+   "lemma": "Κορυβαντικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (3 tokens) and attests its feminine 2 times"
+  },
+  {
+   "lemma": "Λιβυρνικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (2 tokens) and attests its feminine once"
+  },
+  {
+   "lemma": "Πλατωνικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (117 tokens) and attests its feminine 39 times"
+  },
+  {
+   "lemma": "Φαληρικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (20 tokens) and attests its feminine 5 times"
+  },
+  {
+   "lemma": "Φοινικικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (30 tokens) and attests its feminine 13 times"
+  },
+  {
+   "lemma": "Φωκικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (52 tokens) and attests its feminine 15 times"
+  },
+  {
+   "lemma": "Χαλκιδικός",
+   "decision": "adjective",
+   "reason": "ethnic or proper adjective; the corpus tags it an adjective (55 tokens) and attests its feminine 21 times"
+  },
+  {
+   "lemma": "βεραιδαρικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG"
+  },
+  {
+   "lemma": "βιολογικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10"
+  },
+  {
+   "lemma": "βουκελλαρικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG"
+  },
+  {
+   "lemma": "δαρεικός",
+   "decision": "exclude",
+   "reason": "the daric, a coin; the corpus tags it a noun"
+  },
+  {
+   "lemma": "δοξολογικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG, DGE"
+  },
+  {
+   "lemma": "δυσερωτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in public-domain lexica"
+  },
+  {
+   "lemma": "εἰσοδικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG, public-domain lexica"
+  },
+  {
+   "lemma": "εὐωχιαστικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "θριαμβευτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "καθαριστικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG; feminine forms attested 5 times"
+  },
+  {
+   "lemma": "καθαρουργικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "κανονιστικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LBG, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "καταγωγικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG, public-domain lexica"
+  },
+  {
+   "lemma": "κηρωματικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "κιστικός",
+   "decision": "exclude",
+   "reason": "in no headword list; class not verified"
+  },
+  {
+   "lemma": "κλασματικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG"
+  },
+  {
+   "lemma": "κοινοβουλευτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "κοσμολογικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "κυρωτικός",
+   "decision": "exclude",
+   "reason": "the corpus tags it a noun"
+  },
+  {
+   "lemma": "λιμενητικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; Sophocles cross-reference to a variant spelling"
+  },
+  {
+   "lemma": "λινηφικός",
+   "decision": "exclude",
+   "reason": "spelling variant of λινυφικός, a masculine noun in LBG"
+  },
+  {
+   "lemma": "λινικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "λινοϋφικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "λινυφικός",
+   "decision": "exclude",
+   "reason": "LBG gives it as a masculine noun (linen weaver)"
+  },
+  {
+   "lemma": "μεγαλοεργικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, public-domain lexica"
+  },
+  {
+   "lemma": "μεταπλαστικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, public-domain lexica"
+  },
+  {
+   "lemma": "μυλωνικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "ναυλωτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "ομαδικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ομαλυντικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ομοτικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ομωνυμικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "οπλομαχικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ορκωμοτικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ορφανικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "οἰωνοσκοπητικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, public-domain lexica"
+  },
+  {
+   "lemma": "παθικός",
+   "decision": "exclude",
+   "reason": "Latin pathicus, used as a noun"
+  },
+  {
+   "lemma": "παρακολουθικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; Sophocles cross-reference to a variant spelling"
+  },
+  {
+   "lemma": "παροικικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LBG, LSJ 10, VLG, public-domain lexica; feminine forms attested once"
+  },
+  {
+   "lemma": "περιπολιστικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "πινακογραφικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "πολυχρονικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG"
+  },
+  {
+   "lemma": "πρατικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LBG, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "πρωτοποιητικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG"
+  },
+  {
+   "lemma": "πρῳρατικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "πτερωτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "ραπτικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ρευστικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ριπταστικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ρωπικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "ρωστικός",
+   "decision": "exclude",
+   "reason": "headword lacks its breathing; the correctly spelled lemma carries the forms"
+  },
+  {
+   "lemma": "σαπωναρικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "σουβρικός",
+   "decision": "exclude",
+   "reason": "Latin loanword naming a garment; class not verified"
+  },
+  {
+   "lemma": "τεχνητικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "τομωτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG"
+  },
+  {
+   "lemma": "φιλογερμανικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "φιλοφυσικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "φορνικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; Sophocles cross-reference to a variant spelling"
+  },
+  {
+   "lemma": "φουρνικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG; feminine forms attested once"
+  },
+  {
+   "lemma": "φρουρικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "χναυστικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "χορηγητικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG, VLG; feminine forms attested 2 times"
+  },
+  {
+   "lemma": "ἀβδηριτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; Wiktionary headword; feminine forms attested once"
+  },
+  {
+   "lemma": "ἀγαθοεργικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG, DGE, WiP"
+  },
+  {
+   "lemma": "ἀλφηστικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "ἀμφικτιονικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; Wiktionary headword"
+  },
+  {
+   "lemma": "ἀμφοδευτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in public-domain lexica"
+  },
+  {
+   "lemma": "ἀντεπισταλτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LBG, LSJ 10, VLG, DGE, public-domain lexica; feminine forms attested 2 times"
+  },
+  {
+   "lemma": "ἀποληπτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LBG, LSJ 10, VLG, DGE, public-domain lexica"
+  },
+  {
+   "lemma": "ἀποχωριστικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG, DGE"
+  },
+  {
+   "lemma": "ἀρχιμηχανικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "ἁβρυντικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; Wiktionary headword"
+  },
+  {
+   "lemma": "ἁμαρτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG, DGE, public-domain lexica; feminine forms attested once"
+  },
+  {
+   "lemma": "ἐκπυρωτικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, DGE, public-domain lexica"
+  },
+  {
+   "lemma": "ἐνθρονιαστικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in DGE, public-domain lexica"
+  },
+  {
+   "lemma": "ἐπιβληματικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "ἐπιστητικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in VLG, public-domain lexica; feminine forms attested 2 times"
+  },
+  {
+   "lemma": "ἰδανικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, VLG, public-domain lexica"
+  },
+  {
+   "lemma": "ἰνδαλματικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in public-domain lexica"
+  },
+  {
+   "lemma": "ἰσχιορρωγικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LSJ, LSJ 10, public-domain lexica"
+  },
+  {
+   "lemma": "ἱκετηρικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG, VLG"
+  },
+  {
+   "lemma": "ὀπωρικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "ὑποπλατωνικός",
+   "decision": "exclude",
+   "reason": "the LSJ 9 part-of-speech table gives a noun"
+  },
+  {
+   "lemma": "ῥασικός",
+   "decision": "adjective",
+   "reason": "regular -ικός derivative; headword in LBG"
+  }
+ ]
+}

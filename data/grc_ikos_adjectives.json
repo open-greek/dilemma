@@ -5,9 +5,92 @@
   "ag_lookup.json": "32143a8766e6c891e1f284970a7caccb1f56f54bcacc509dd9dc8e726e53e9cd",
   "lsj9_pos_lookup.json": "7927a45da3e2b239ca553f1fe185e827c35e265dcb01fc70d6dc9eab153c5b1b",
   "lemma_attestation.json": "76416437af3112586a8635aa414dd7aabb50b7f98f8f467035fbc2bfa7826261",
+  "grc_ikos_review.json": "720c787f3f9fd6fc9f27b1895dbf6d46582b2c198f4853badd835be7f58aa7f1",
   "sophocles/chunks": "294893541e72fbe39c8a10f81e5158d832729d70ec3b5ee69b54975e812efc79"
  },
  "lemmas": [
+  {
+   "lemma": "Βακχικός",
+   "evidence": [
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Βιθυνικός",
+   "evidence": [
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Βρεττανικός",
+   "evidence": [
+    "sophocles",
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Κιμβρικός",
+   "evidence": [
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Κορυβαντικός",
+   "evidence": [
+    "sophocles",
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Λιβυρνικός",
+   "evidence": [
+    "sophocles",
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Πλατωνικός",
+   "evidence": [
+    "sophocles",
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Φαληρικός",
+   "evidence": [
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Φοινικικός",
+   "evidence": [
+    "sophocles",
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Φωκικός",
+   "evidence": [
+    "corpus",
+    "review"
+   ]
+  },
+  {
+   "lemma": "Χαλκιδικός",
+   "evidence": [
+    "corpus",
+    "review"
+   ]
+  },
   {
    "lemma": "αἰγιλωπικός",
    "evidence": [
@@ -57,6 +140,12 @@
    ]
   },
   {
+   "lemma": "βεραιδαρικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "βησαλικός",
    "evidence": [
     "corpus"
@@ -66,6 +155,12 @@
    "lemma": "βησσαλικός",
    "evidence": [
     "sophocles"
+   ]
+  },
+  {
+   "lemma": "βιολογικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -122,6 +217,12 @@
    "lemma": "βουβωνοκηλικός",
    "evidence": [
     "sophocles"
+   ]
+  },
+  {
+   "lemma": "βουκελλαρικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -272,9 +373,21 @@
    ]
   },
   {
+   "lemma": "δοξολογικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "δραπετικός",
    "evidence": [
     "corpus"
+   ]
+  },
+  {
+   "lemma": "δυσερωτικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -334,6 +447,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "εἰσοδικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -440,6 +559,12 @@
    ]
   },
   {
+   "lemma": "θριαμβευτικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "καββαλικός",
    "evidence": [
     "sophocles",
@@ -447,10 +572,28 @@
    ]
   },
   {
+   "lemma": "καθαριστικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "καθαρουργικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "καιρικός",
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "κανονιστικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -471,6 +614,12 @@
    "lemma": "καταγορευτικός",
    "evidence": [
     "corpus"
+   ]
+  },
+  {
+   "lemma": "καταγωγικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -560,6 +709,18 @@
    "lemma": "κιννυρικός",
    "evidence": [
     "sophocles"
+   ]
+  },
+  {
+   "lemma": "κλασματικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "κοινοβουλευτικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -709,6 +870,12 @@
    ]
   },
   {
+   "lemma": "λιμενητικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "λυπικός",
    "evidence": [
     "sophocles"
@@ -725,6 +892,12 @@
    "lemma": "μαρτυρικός",
    "evidence": [
     "corpus"
+   ]
+  },
+  {
+   "lemma": "μεγαλοεργικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -758,6 +931,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "μεταπλαστικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -871,6 +1050,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "ναυλωτικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -1112,6 +1297,12 @@
    ]
   },
   {
+   "lemma": "οἰωνοσκοπητικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "οἱητικός",
    "evidence": [
     "sophocles"
@@ -1199,6 +1390,12 @@
    ]
   },
   {
+   "lemma": "παρακολουθικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "παραμονητικός",
    "evidence": [
     "sophocles"
@@ -1221,6 +1418,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "παροικικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -1306,6 +1509,12 @@
    ]
   },
   {
+   "lemma": "περιπολιστικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "περισυλληπτικός",
    "evidence": [
     "corpus"
@@ -1339,6 +1548,12 @@
    ]
   },
   {
+   "lemma": "πινακογραφικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "πιστοποιητικός",
    "evidence": [
     "sophocles",
@@ -1368,6 +1583,18 @@
    "lemma": "πολυποδικός",
    "evidence": [
     "sophocles"
+   ]
+  },
+  {
+   "lemma": "πολυχρονικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "πρατικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -1430,9 +1657,27 @@
    ]
   },
   {
+   "lemma": "πρωτοποιητικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "πρῳρατικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "πρῳρικός",
    "evidence": [
     "corpus"
+   ]
+  },
+  {
+   "lemma": "πτερωτικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -1457,6 +1702,12 @@
    "lemma": "σαββατικός",
    "evidence": [
     "corpus"
+   ]
+  },
+  {
+   "lemma": "σαπωναρικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -1700,6 +1951,12 @@
    ]
   },
   {
+   "lemma": "τεχνητικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "τηκτικός",
    "evidence": [
     "sophocles",
@@ -1717,6 +1974,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "τομωτικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -1868,6 +2131,18 @@
    ]
   },
   {
+   "lemma": "φορνικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "φουρνικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "φρατριατικός",
    "evidence": [
     "sophocles",
@@ -1879,6 +2154,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "φρουρικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -1943,6 +2224,12 @@
    "lemma": "χορδοποιικός",
    "evidence": [
     "corpus"
+   ]
+  },
+  {
+   "lemma": "χορηγητικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -2017,10 +2304,22 @@
    ]
   },
   {
+   "lemma": "ἀβδηριτικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "ἀβυσσικός",
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀγαθοεργικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -2139,6 +2438,18 @@
    "lemma": "ἀμφιαστικός",
    "evidence": [
     "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀμφικτιονικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "ἀμφοδευτικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -2304,6 +2615,12 @@
    ]
   },
   {
+   "lemma": "ἀντεπισταλτικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "ἀνωτερικός",
    "evidence": [
     "sophocles",
@@ -2360,6 +2677,12 @@
    ]
   },
   {
+   "lemma": "ἀποληπτικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "ἀπολιτικός",
    "evidence": [
     "sophocles"
@@ -2413,6 +2736,12 @@
    "lemma": "ἀποχειροβιωτικός",
    "evidence": [
     "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀποχωριστικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -2500,6 +2829,12 @@
    ]
   },
   {
+   "lemma": "ἁβρυντικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "ἁγιαστικός",
    "evidence": [
     "sophocles",
@@ -2510,6 +2845,12 @@
    "lemma": "ἁλουργικός",
    "evidence": [
     "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἁμαρτικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -2604,6 +2945,12 @@
    ]
   },
   {
+   "lemma": "ἐκπυρωτικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "ἐκφραστικός",
    "evidence": [
     "sophocles",
@@ -2681,6 +3028,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐνθρονιαστικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -2857,6 +3210,12 @@
    ]
   },
   {
+   "lemma": "ἐπιβληματικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "ἐπιβλητικός",
    "evidence": [
     "sophocles",
@@ -2941,6 +3300,12 @@
    "evidence": [
     "sophocles",
     "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιστητικός",
+   "evidence": [
+    "review"
    ]
   },
   {
@@ -3108,6 +3473,30 @@
    ]
   },
   {
+   "lemma": "ἰδανικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "ἰνδαλματικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "ἰσχιορρωγικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
+   "lemma": "ἱκετηρικός",
+   "evidence": [
+    "review"
+   ]
+  },
+  {
    "lemma": "ἱξευτικός",
    "evidence": [
     "sophocles"
@@ -3264,6 +3653,12 @@
    "lemma": "ὡροσκοπικός",
    "evidence": [
     "corpus"
+   ]
+  },
+  {
+   "lemma": "ῥασικός",
+   "evidence": [
+    "review"
    ]
   },
   {
