@@ -2801,6 +2801,16 @@ class Dilemma:
     _COMPOUND_LINK_VOWELS = set("οιυ")
     _MIN_COMPOUND_PREFIX = 2   # e.g. εὐ-, τρι-
     _MIN_COMPOUND_BASE = 3     # need enough for inflection
+    # The second element and its lemma begin alike (προφήτου, προφήτης;
+    # ἡγουμένην, ἡγέομαι). A base that resolves to an unrelated word, such as
+    # the crasis κἠν (καὶ ἐν) or a stray verb form, is not a compound's head:
+    # μοναχικὴν is not μοναχι- + ἐν and Βανδίνην is not βανδι- + νάω.
+    _MIN_COMPOUND_SHARED_START = 2
+
+    @classmethod
+    def _compound_base_matches(cls, base: str, base_lemma: str) -> bool:
+        n = cls._MIN_COMPOUND_SHARED_START
+        return len(base) >= n and base[:n] == base_lemma[:n]
 
     def _decompose_compound(self, word: str) -> str | None:
         """Try to lemmatize an unknown compound by splitting at linking vowels.
@@ -2850,6 +2860,9 @@ class Dilemma:
             if len(base_lemma_s) > len(base) + 2:
                 continue
 
+            if not self._compound_base_matches(base, base_lemma_s):
+                continue
+
             # Reconstruct compound lemma
             return prefix + base_lemma_s
 
@@ -2889,6 +2902,8 @@ class Dilemma:
             if base_lemma_s == base or len(base_lemma_s) < 2:
                 continue
             if len(base_lemma_s) > len(base) + 2:
+                continue
+            if not self._compound_base_matches(base, base_lemma_s):
                 continue
 
             compound = prefix + base_lemma_s
