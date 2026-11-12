@@ -11,7 +11,9 @@ artifacts are unchanged until the next rebuild.
 
 A dictionary headword list now comes before the other head rules: every
 headword of the Triantafyllidis list has a key that ends at a headword, with no
-page or table required. A key that already ends at a headword keeps its
+page or table required. A lowercase headword whose key ended at a capitalized
+word is its own lemma again (`κλέφτης` was under the name `Κλέφτης`, `θεότητα`
+under `Θεός`). Any other key that already ends at a headword keeps its
 Wiktionary lemma.
 
 Read the Cretan and Cypriot sections of Greek Wiktionary, which the extract

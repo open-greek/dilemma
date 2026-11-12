@@ -452,8 +452,10 @@ of the Dictionary of Standard Modern Greek (`HEADWORD_LISTS` in
 `build_data.py`). A listed headword is a lemma on the list's word alone, with
 no page, table or reference required. It gets a self-mapped key when nothing
 gives it one (`χιονόνερο`), when its key names a word that has no key
-(`ατσίδα`), or when its key leads to such a word or back to itself. Its
-inflection pages then resolve to it. A key that already ends at a headword is
+(`ατσίδα`), when its key leads to such a word or back to itself, or when it is
+lowercase and its key ends at a capitalized word, which is another word
+(`κλέφτης` under the name `Κλέφτης`, `θεότητα` under `Θεός`). Its inflection
+pages then resolve to it. Any other key that already ends at a headword is
 left alone, so the flat lookup keeps the Wiktionary lemma (`πεινώ` under
 `πεινάω`, the vocative `καλέ` under `καλός`) and the dictionary convention is
 still applied at lookup time. Changes are recorded in

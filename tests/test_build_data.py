@@ -3362,13 +3362,20 @@ def test_listed_headword_gets_a_key_that_ends_at_a_headword():
         "πεινώ": ("πεινάω", 3), "πεινάω": ("πεινάω", 3),    # another word's lemma
         "καλέ": ("καλός", 1), "καλός": ("καλός", 3),
         "σος": ("σος", 3),
+        # a lowercase headword under a capitalized word, directly or not
+        "κλέφτης": ("Κλέφτης", 5), "Κλέφτης": ("Κλέφτης", 3),
+        "θεότητα": ("θεός", 5), "θεός": ("Θεός", 1), "Θεός": ("Θεός", 3),
     }
     before = dict(lookup)
     changes = keep_listed_headwords(lookup, [
-        "χιονόνερο", "ατσίδα", "κοπανάω", "πεινώ", "καλέ", "καλός", "ΣΟΣ", "ατσίδας"])
+        "χιονόνερο", "ατσίδα", "κοπανάω", "πεινώ", "καλέ", "καλός", "ΣΟΣ", "ατσίδας",
+        "κλέφτης", "θεότητα", "Θεός"])
     assert {row["headword"]: row["kind"] for row in changes} == {
         "χιονόνερο": "absent", "ατσίδα": "missing_target",
-        "κοπανάω": "broken_chain", "ΣΟΣ": "absent"}
+        "κοπανάω": "broken_chain", "ΣΟΣ": "absent",
+        "κλέφτης": "capitalized_owner", "θεότητα": "capitalized_owner"}
+    assert lookup["κλέφτης"] == ("κλέφτης", 5) and lookup["θεότητα"] == ("θεότητα", 5)
+    assert lookup["Κλέφτης"] == before["Κλέφτης"] and lookup["θεός"] == before["θεός"]
     assert lookup["χιονόνερο"] == ("χιονόνερο", 3) and lookup["χιονονερο"] == ("χιονόνερο", 1)
     assert lookup["ατσίδα"] == ("ατσίδα", 5) and lookup["κοπανάω"] == ("κοπανάω", 3)
     # A reading that ends at a headword is the Wiktionary lemma and stays:

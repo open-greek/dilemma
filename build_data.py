@@ -3260,7 +3260,7 @@ def keep_listed_headwords(lookup: dict, headwords: list) -> list:
 
     A dictionary's headword is a lemma whatever the Wiktionary extract says
     of it, and this rule comes before the other head rules: it needs no
-    page, table or reference. Three states are corrected, each to a
+    page, table or reference. Four states are corrected, each to a
     self-map of the exact key:
 
     * ``absent``: nothing gives the word a key (χιονόνερο, whose page the
@@ -3268,9 +3268,12 @@ def keep_listed_headwords(lookup: dict, headwords: list) -> list:
     * ``missing_target``: its key names a word that has no key (ατσίδα,
       one sense of which is "another form of ατσίδι");
     * ``broken_chain``: its key leads, through other keys, to a word with
-      no key or back to itself, which chain-breaking would delete.
+      no key or back to itself, which chain-breaking would delete;
+    * ``capitalized_owner``: its lowercase key ends at a capitalized word
+      (κλέφτης under the name Κλέφτης, θεότητα under Θεός), which is
+      another word.
 
-    A key that already ends at a headword is left alone, the listed word's
+    Any other key that already ends at a headword is left alone, the listed word's
     own or another's: the flat lookup keeps the Wiktionary lemma (πεινώ
     under πεινάω, the vocative καλέ under καλός), and the dictionary
     convention is applied to it when a caller asks for one. Accentless and
@@ -3285,7 +3288,8 @@ def keep_listed_headwords(lookup: dict, headwords: list) -> list:
                 return ("absent" if current == word else
                         "missing_target" if len(seen) == 1 else "broken_chain")
             if entry[0] == current:
-                return None
+                return ("capitalized_owner" if word == word.lower()
+                        and current != current.lower() else None)
             if current in seen:
                 return "broken_chain"
             seen.add(current)
