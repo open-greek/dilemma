@@ -50,6 +50,7 @@ RAW_DB_PATH = DATA_DIR / "raw_lookups.db"
 CITATION_REJECTIONS_PATH = DATA_DIR / "citation_hygiene_rejections.tsv"
 
 AG_PATH = DATA_DIR / "ag_lookup.json"
+LOOKUP_SOURCES_PATH = DATA_DIR / "lookup_sources.json"
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 CUNLIFFE_HEADWORDS_PATH = DATA_DIR / "cunliffe_headwords.json"
 AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
@@ -282,23 +283,64 @@ def drop_corpus_word_tails(tables, *, is_attested, record):
     return dropped
 
 
-LOOKUP_SCHEMA_VERSION = 2
+LOOKUP_SCHEMA_VERSION = 3
 
 
 def lookup_content_sha256(conn) -> str:
-    """Hash the lookup's logical rows: form, lemma, src, lang in key order.
+    """Hash the lookup's logical rows: form, lemma, src, lang and source code.
 
-    Independent of page layout, row order and indexes, so two files with
-    the same readings share it and a consumer can pin the content instead
-    of the file bytes.
+    Independent of page layout, row order, ids and indexes, so two files with
+    the same readings and provenance share it and a consumer can pin the
+    content instead of the file bytes.
     """
     digest = hashlib.sha256()
     for row in conn.execute(
-            "SELECT l.form, m.text, l.src, l.lang FROM lookup l "
+            "SELECT l.form, m.text, l.src, l.lang, s.code FROM lookup l "
             "JOIN lemmas m ON m.id = l.lemma_id "
-            "ORDER BY l.form, l.lang, m.text, l.src"):
+            "JOIN sources s ON s.id = l.source_id "
+            "ORDER BY l.form, l.lang, m.text, l.src, s.code"):
         digest.update("\t".join(row).encode("utf-8") + b"\n")
     return digest.hexdigest()
+
+
+def load_lookup_sources(path: Path = None) -> tuple[list[dict], dict[str, str]]:
+    """The reviewed source registry and the map from build input to source code."""
+    registry = json.loads((path or LOOKUP_SOURCES_PATH).read_text(encoding="utf-8"))
+    sources = registry["sources"]
+    by_input: dict[str, str] = {}
+    codes = set()
+    for source in sources:
+        code = source["code"]
+        if code in codes:
+            raise ValueError(f"lookup source {code!r} is listed twice")
+        codes.add(code)
+        for missing in {"name", "inputs", "share_alike", "components",
+                        "attribution"} - source.keys():
+            raise ValueError(f"lookup source {code!r} has no {missing!r}")
+        for component in source["components"]:
+            if not component.get("license"):
+                raise ValueError(f"lookup source {code!r} has a component "
+                                 "without a license")
+        for label in source["inputs"]:
+            if by_input.setdefault(label, code) != code:
+                raise ValueError(f"input {label!r} belongs to two sources")
+    return sources, by_input
+
+
+def write_lookup_sources(conn, sources: list[dict]) -> dict[str, int]:
+    """Copy the registry into ``sources`` and return each code's id."""
+    conn.execute("CREATE TABLE sources (id INTEGER PRIMARY KEY, "
+                 "code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, "
+                 "share_alike INTEGER NOT NULL, attribution TEXT NOT NULL, "
+                 "components TEXT NOT NULL)")
+    ids = {}
+    for index, source in enumerate(sources, start=1):
+        conn.execute("INSERT INTO sources VALUES (?, ?, ?, ?, ?, ?)", (
+            index, source["code"], source["name"], int(bool(source["share_alike"])),
+            source["attribution"],
+            json.dumps(source["components"], ensure_ascii=False, sort_keys=True)))
+        ids[source["code"]] = index
+    return ids
 
 
 def write_lookup_meta(conn) -> dict:
@@ -316,6 +358,11 @@ def write_lookup_meta(conn) -> dict:
         "lemmas": str(conn.execute("SELECT COUNT(*) FROM lemmas").fetchone()[0]),
         "lookup_rows": str(conn.execute("SELECT COUNT(*) FROM lookup").fetchone()[0]),
         "lookup_sha256": lookup_content_sha256(conn),
+        "sources_sha256": hashlib.sha256(json.dumps(
+            [list(row) for row in conn.execute(
+                "SELECT code, name, share_alike, attribution, components "
+                "FROM sources ORDER BY id")],
+            ensure_ascii=False).encode("utf-8")).hexdigest(),
     }
     conn.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) "
                  "WITHOUT ROWID")
@@ -332,8 +379,11 @@ def build():
     completed = complete_lookup(el)
     print(f"  Reviewed Modern Greek paradigm gaps: +{len(completed)} keys")
     med, med_default_source = _load_lookup("med", MED_PATH, "Med")
+    lookup_sources, source_of_input = load_lookup_sources()
     ag_source_overrides: dict[str, str] = {}
     el_source_overrides: dict[str, str] = {}
+    for cell in completed:
+        el_source_overrides[cell["form"]] = "el_paradigm_gaps"
     citation_rejections: list[dict] = []
 
     # Merge med into el: vernacular medieval Greek is the ancestor of
@@ -778,7 +828,8 @@ def build():
         })
 
     def _sanitize_table(name: str, table: dict, *, default_source: str,
-                        source_overrides: dict[str, str]) -> dict:
+                        source_overrides: dict[str, str],
+                        sources_out: dict[str, str]) -> dict:
         out: dict = {}
         changed = 0
         dropped_elided = 0
@@ -848,6 +899,7 @@ def build():
             # (the tables are already merged by priority upstream).
             if sk not in out:
                 out[sk] = sv
+                sources_out[sk] = source
         if changed:
             print(f"  Sanitised {changed:,} {name} forms "
                   f"(misplaced breathing marks)")
@@ -865,25 +917,30 @@ def build():
         return out
 
     print("\nSanitising form-and-lemma tables...")
+    # The input that supplied each key's reading, through every later step.
+    ag_sources: dict[str, str] = {}
+    el_sources: dict[str, str] = {}
+    combined_sources: dict[str, str] = {}
     ag = _sanitize_table(
         "AG", ag, default_source=ag_default_source,
-        source_overrides=ag_source_overrides)
+        source_overrides=ag_source_overrides, sources_out=ag_sources)
     el = _sanitize_table(
         "EL", el, default_source=el_default_source,
-        source_overrides=el_source_overrides)
+        source_overrides=el_source_overrides, sources_out=el_sources)
 
     # Build combined lookup (AG-first priority)
     print("\nBuilding combined lookup (AG-first)...")
     combined = {}
     ag_protected = 0
     article_excluded = 0
-    for data in [ag, el]:
+    for data, data_sources in [(ag, ag_sources), (el, el_sources)]:
         for k, v in data.items():
             if _is_article_map(k, v):
                 article_excluded += 1
                 continue
             if k not in combined:
                 combined[k] = v
+                combined_sources[k] = data_sources[k]
             elif _is_self_map(k, combined[k]) and not _is_self_map(k, v):
                 # EL non-self-map overrides AG self-map, UNLESS the AG
                 # self-map is a known AG headword (correct citation form).
@@ -891,10 +948,12 @@ def build():
                     ag_protected += 1
                 else:
                     combined[k] = v
+                    combined_sources[k] = data_sources[k]
             elif (_is_self_map(k, combined[k])
                   and _is_self_map(k, v) and v == k
                   and combined[k] != k):
                 combined[k] = v
+                combined_sources[k] = data_sources[k]
     if article_excluded:
         print(f"  Article forms excluded (controlled by resolve_articles): {article_excluded:,}")
     if ag_protected:
@@ -946,6 +1005,7 @@ def build():
                     lbg_grave_normalized += 1
             if h not in combined:
                 combined[h] = h
+                combined_sources[h] = LBG_HEADWORDS_PATH.name
                 lbg_added += 1
         print(f"  Byzantine headwords: +{lbg_added:,} gap-fill self-maps (lang=all)")
         if lbg_grave_normalized:
@@ -1027,6 +1087,7 @@ def build():
             if fv and fv[0] >= LBG_FREQ_CEILING:
                 continue  # (b) ultra-common surface -> function-word collision
             combined[form] = lemma
+            combined_sources[form] = LBG_PAIRS_PATH.name
             lbg_forms_added += 1
             # The pairs are polytonic. Unaccented input reaches a form
             # through its accentless key, so keep that too where it is free.
@@ -1037,6 +1098,7 @@ def build():
                         strip_accents(lemma).lower()):
                 if key not in combined:
                     combined[key] = lemma
+                    combined_sources[key] = LBG_PAIRS_PATH.name
                     lbg_bare_added += 1
         print(f"  Byzantine inflected forms: +{lbg_forms_added:,} gated "
               f"gap-fill pairs (lang=all), +{lbg_bare_added:,} accentless keys")
@@ -1191,16 +1253,19 @@ def build():
     for form, lemma in _LOOKUP_OVERRIDES.items():
         if form in combined and combined[form] != lemma:
             combined[form] = lemma
+            combined_sources[form] = "lookup_overrides"
             override_count += 1
         elif form == "μήτ" and form not in combined:
             # The citation-hygiene sanitizer drops the dirty μὴτ value before
             # overrides run. Keep the clean bare elided stem as an explicit
             # bridge to μήτε, matching the other apostrophe-tokenized stems.
             combined[form] = lemma
+            combined_sources[form] = "lookup_overrides"
             override_count += 1
         # Also fix in ag dict for the grc-only table
         if form in ag and ag[form] != lemma:
             ag[form] = lemma
+            ag_sources[form] = "lookup_overrides"
     if override_count:
         print(f"  Lookup overrides applied: {override_count:,}")
 
@@ -1235,8 +1300,20 @@ def build():
         lemma_id INTEGER NOT NULL,
         src TEXT NOT NULL,
         lang TEXT NOT NULL DEFAULT 'all',
-        FOREIGN KEY (lemma_id) REFERENCES lemmas(id)
+        source_id INTEGER NOT NULL,
+        FOREIGN KEY (lemma_id) REFERENCES lemmas(id),
+        FOREIGN KEY (source_id) REFERENCES sources(id)
     )""")
+    source_ids = write_lookup_sources(conn, lookup_sources)
+    unlisted: dict[str, list[str]] = {}
+
+    def source_id(label: str | None, form: str) -> int:
+        """The registry id of the input that supplied a row's reading."""
+        code = source_of_input.get(label)
+        if code is None:
+            unlisted.setdefault(str(label), []).append(form)
+            return 0
+        return source_ids[code]
 
     # Track which source provided each combined entry
     src_map = {}
@@ -1247,16 +1324,20 @@ def build():
             elif _is_self_map(k, combined.get(k, '')) and not _is_self_map(k, data[k]):
                 src_map[k] = src_label
 
-    conn.executemany("INSERT INTO lookup (form, lemma_id, src, lang) VALUES (?, ?, ?, 'all')",
-                     ((k, lemma_to_id[v], src_map.get(k, 'grc')) for k, v in combined.items()))
+    conn.executemany(
+        "INSERT INTO lookup (form, lemma_id, src, lang, source_id) "
+        "VALUES (?, ?, ?, 'all', ?)",
+        ((k, lemma_to_id[v], src_map.get(k, 'grc'),
+          source_id(combined_sources.get(k), k)) for k, v in combined.items()))
     print(f"  combined: {len(combined):,} rows")
 
     # AG-only entries where AG differs from combined (for polytonic-first lookup)
     ag_extra = 0
     for k, v in ag.items():
         if combined.get(k) != v and not _is_article_map(k, v):
-            conn.execute("INSERT INTO lookup (form, lemma_id, src, lang) VALUES (?, ?, 'grc', 'grc')",
-                         (k, lemma_to_id[v]))
+            conn.execute("INSERT INTO lookup (form, lemma_id, src, lang, source_id) "
+                         "VALUES (?, ?, 'grc', 'grc', ?)",
+                         (k, lemma_to_id[v], source_id(ag_sources.get(k), k)))
             ag_extra += 1
     print(f"  grc-only (differs from combined): {ag_extra:,} rows")
 
@@ -1264,10 +1345,20 @@ def build():
     mg_extra = 0
     for k, v in el.items():
         if combined.get(k) != v and not _is_article_map(k, v):
-            conn.execute("INSERT INTO lookup (form, lemma_id, src, lang) VALUES (?, ?, 'el', 'el')",
-                         (k, lemma_to_id[v]))
+            conn.execute("INSERT INTO lookup (form, lemma_id, src, lang, source_id) "
+                         "VALUES (?, ?, 'el', 'el', ?)",
+                         (k, lemma_to_id[v], source_id(el_sources.get(k), k)))
             mg_extra += 1
     print(f"  el-only (differs from combined): {mg_extra:,} rows")
+    if unlisted:
+        detail = "; ".join(f"{label}: {len(forms):,} rows, e.g. {forms[0]}"
+                           for label, forms in sorted(unlisted.items()))
+        raise SystemExit(f"lookup rows from inputs not in {LOOKUP_SOURCES_PATH.name}: "
+                         f"{detail}")
+    for code, count in conn.execute(
+            "SELECT s.code, COUNT(*) FROM lookup l JOIN sources s ON s.id = l.source_id "
+            "GROUP BY s.code ORDER BY COUNT(*) DESC"):
+        print(f"  source {code}: {count:,} rows")
 
     conn.execute("CREATE INDEX idx_lookup_form_lang ON lookup (form, lang)")
     # Every form of a lemma without scanning the table (inflection indexes

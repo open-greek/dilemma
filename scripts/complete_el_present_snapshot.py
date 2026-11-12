@@ -74,7 +74,7 @@ def refresh(base, output, manifest, heads, source_hashes):
                 continue
             language = "el" if any(lang == "all" for _, _, lang in existing) else "all"
             row = [form, lemma_row[0], "el", language]
-            db.execute("INSERT INTO lookup VALUES (?,?,?,?)", row)
+            db.execute("INSERT INTO lookup (form, lemma_id, src, lang) VALUES (?,?,?,?)", row)
             db_rows.append({"original": None, "corrected": row})
         for change in audit["changes"]:
             form = change["corrected"]["form"]
