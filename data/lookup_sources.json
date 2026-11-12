@@ -1,19 +1,16 @@
 {
   "schema_version": 1,
-  "description": "Sources of the readings in lookup.db. build_lookup_db.py copies this table into lookup.db as `sources` and records on every lookup row the source that supplied its reading (`source_id`). An input not listed under some source's `inputs` stops the build. `share_alike` is true when any component's license requires derived data to carry the same license. The wording follows NOTICE, which remains the authoritative statement of the licenses.",
+  "description": "Sources of the readings in lookup.db. build_lookup_db.py copies this table into lookup.db as `sources` and records on every lookup row the source that supplied its reading (`source_id`). A merged file is split into one source per layer where byte-pinned records tell its layers apart (`ag_lookup.json#wiktionary`, `ag_lookup.json#expansion`, `mg_lookup.json#rule-paradigms`); a reading no record assigns keeps the file itself as its input. An input not listed under some source's `inputs` stops the build. `share_alike` is true when any component's license requires derived data to carry the same license. The wording follows NOTICE, which remains the authoritative statement of the licenses.",
   "sources": [
     {
       "code": "wiktionary_grc",
-      "name": "Wiktionary Ancient Greek entries, with generated paradigms of LSJ, Sophocles and Cunliffe headwords",
-      "inputs": ["ag_lookup.json", "raw_lookups.db:ag"],
+      "name": "Wiktionary Ancient Greek entries",
+      "inputs": ["ag_lookup.json#wiktionary", "raw_lookups.db:ag"],
       "share_alike": true,
       "components": [
-        {"name": "English Wiktionary and Greek Wiktionary (Wikimedia community), via kaikki.org", "url": "https://kaikki.org/", "license": "CC BY-SA 4.0 (older revisions CC BY-SA 3.0)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "forms and lemmas extracted from entries and inflection tables; Wiktionary's grc-decl and grc-conj modules also generate the paradigms below"},
-        {"name": "A Greek-English Lexicon (LSJ), 9th ed., Liddell, Scott, Jones", "url": "https://github.com/ciscoriordan/lsj9", "license": "public domain", "use": "headwords and principal parts expanded into paradigms"},
-        {"name": "Greek Lexicon of the Roman and Byzantine Periods, E. A. Sophocles", "url": "https://archive.org/details/pateres", "license": "public domain", "use": "headwords expanded into paradigms"},
-        {"name": "A Lexicon of the Homeric Dialect, R. J. Cunliffe", "license": "public domain", "use": "headwords expanded into paradigms"}
+        {"name": "English Wiktionary and Greek Wiktionary (Wikimedia community), via kaikki.org", "url": "https://kaikki.org/", "license": "CC BY-SA 4.0 (older revisions CC BY-SA 3.0)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "forms and lemmas extracted from entries and inflection tables"}
       ],
-      "attribution": "Wiktionary contributors (CC BY-SA); LSJ, Sophocles and Cunliffe (public domain)"
+      "attribution": "Wiktionary contributors (CC BY-SA)"
     },
     {
       "code": "wiktionary_el",
@@ -198,6 +195,43 @@
         {"name": "Wiktionary grc-decl and grc-conj modules (Wikimedia community)", "url": "https://en.wiktionary.org/wiki/Module:grc-decl", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "paradigm generation"}
       ],
       "attribution": "Wiktionary contributors (CC BY-SA), Byzantine Greek lexicon (headwords)"
+    },
+    {
+      "code": "grc_merged",
+      "name": "Ancient Greek readings of the merged lookup that no pinned layer record assigns: newer Wiktionary revisions, regenerated dictionary paradigms and recovered spellings",
+      "inputs": ["ag_lookup.json"],
+      "share_alike": true,
+      "components": [
+        {"name": "English Wiktionary and Greek Wiktionary (Wikimedia community), via kaikki.org", "url": "https://kaikki.org/", "license": "CC BY-SA 4.0 (older revisions CC BY-SA 3.0)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "forms and lemmas extracted from entries and inflection tables; Wiktionary's grc-decl and grc-conj modules also generate the paradigms below"},
+        {"name": "A Greek-English Lexicon (LSJ), 9th ed., Liddell, Scott, Jones", "url": "https://github.com/ciscoriordan/lsj9", "license": "public domain", "use": "headwords and principal parts expanded into paradigms"},
+        {"name": "Greek Lexicon of the Roman and Byzantine Periods, E. A. Sophocles", "url": "https://archive.org/details/pateres", "license": "public domain", "use": "headwords expanded into paradigms"},
+        {"name": "A Lexicon of the Homeric Dialect, R. J. Cunliffe", "license": "public domain", "use": "headwords expanded into paradigms"}
+      ],
+      "attribution": "Wiktionary contributors (CC BY-SA); LSJ, Sophocles and Cunliffe (public domain)"
+    },
+    {
+      "code": "grc_lexicon_expansion",
+      "name": "Generated paradigms of LSJ, Sophocles and Cunliffe headwords",
+      "inputs": ["ag_lookup.json#expansion"],
+      "share_alike": true,
+      "components": [
+        {"name": "A Greek-English Lexicon (LSJ), 9th ed., Liddell, Scott, Jones", "url": "https://github.com/ciscoriordan/lsj9", "license": "public domain", "use": "headwords and principal parts expanded into paradigms"},
+        {"name": "Greek Lexicon of the Roman and Byzantine Periods, E. A. Sophocles", "url": "https://archive.org/details/pateres", "license": "public domain", "use": "headwords expanded into paradigms"},
+        {"name": "A Lexicon of the Homeric Dialect, R. J. Cunliffe", "license": "public domain", "use": "headwords expanded into paradigms"},
+        {"name": "Wiktionary grc-decl and grc-conj modules (Wikimedia community)", "url": "https://en.wiktionary.org/wiki/Module:grc-decl", "license": "CC BY-SA 4.0", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "generate the paradigms from each headword"}
+      ],
+      "attribution": "LSJ, Sophocles and Cunliffe (public domain), declined and conjugated by Wiktionary's modules (CC BY-SA)"
+    },
+    {
+      "code": "el_rule_paradigms",
+      "name": "Modern Greek present and imperfect forms generated by rule under a Wiktionary verb",
+      "inputs": ["mg_lookup.json#rule-paradigms"],
+      "share_alike": true,
+      "components": [
+        {"name": "Dilemma, regular present-active and imperfect rules", "license": "cells generated by rule under an existing headword; see dilemma/el_present_paradigms.py and data/changes/el_imperfect_completion.json", "use": "the generated forms"},
+        {"name": "English Wiktionary and Greek Wiktionary (Wikimedia community), via kaikki.org", "url": "https://kaikki.org/", "license": "CC BY-SA 4.0 (older revisions CC BY-SA 3.0)", "license_url": "https://creativecommons.org/licenses/by-sa/4.0/", "use": "the verb, its conjugation class and the stems the rules start from"}
+      ],
+      "attribution": "Dilemma; Wiktionary contributors (CC BY-SA)"
     }
   ]
 }

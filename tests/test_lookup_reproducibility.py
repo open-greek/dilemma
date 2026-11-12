@@ -40,6 +40,27 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
         (data / name).write_text(json.dumps(value, ensure_ascii=False))
     (data / "lookup_sources.json").write_bytes(
         (ROOT / "data" / "lookup_sources.json").read_bytes())
+    # The pinned layer records: a Wiktionary-only base, and a reference whose
+    # keys absent from that base are the dictionary expansion.
+    base = data / "ag_lookup_wikt.json"
+    base.write_text(json.dumps({"λόγος": "λόγος", "ἀπῆμεν": "ἄπειμι",
+                                "ἴσθι": "οἶδα"}, ensure_ascii=False))
+    reference = tmp_path / "expansion_reference.json"
+    reference.write_text(json.dumps({
+        "λόγος": "λόγος", "μοναχικός": "μοναχικός", "μοναχικοῦ": "μοναχικός",
+        "ᾖσαν": "εἰμί"}, ensure_ascii=False))
+    pin = lambda path: {"size": path.stat().st_size,
+                        "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    (data / "ag_expansion_reference.json").write_text(json.dumps({
+        "schema_version": 1, "reference": pin(reference), "reference_base": pin(base)}))
+    (data / "changes").mkdir()
+    (data / "changes" / "el_present_completion.json").write_text(json.dumps({
+        "lookup_additions": [{"form": "λέει", "corrected": ["λέω", 1]},
+                             {"form": "λέγει", "corrected": ["λέγω", 1]}]},
+        ensure_ascii=False))
+    (data / "changes" / "el_imperfect_completion.json").write_text(
+        json.dumps({"lookup_additions": []}))
+    environment = {**os.environ, "DILEMMA_AG_EXPANSION_REFERENCE": str(reference)}
 
     # Run the real builder with only the small fixture available. Redirect
     # all its inputs, outputs and audit report; no production data is read
@@ -71,7 +92,7 @@ builder.build()
     for seed in (1, 17, 73):
         result = subprocess.run(
             [sys.executable, "-c", script, str(data)], cwd=ROOT,
-            env={**os.environ, "PYTHONHASHSEED": str(seed)},
+            env={**environment, "PYTHONHASHSEED": str(seed)},
             capture_output=True, text=True, timeout=30,
         )
         assert result.returncode == 0, result.stdout + result.stderr
@@ -126,8 +147,17 @@ builder.build()
         # A listed -ικός adjective gains its feminine cells, under their source.
         assert rows["μοναχικήν"] == rows["μοναχικην"] == rows["μοναχικαί"] == "μοναχικός"
         assert origin["μοναχικήν|all"] == "grc_adjective_gaps"
-        assert origin["μοναχικοῦ|all"] == "wiktionary_grc"
-        assert origin["λέει|all"] == "wiktionary_el"
+        # A merged file names one source per pinned layer: a reading the
+        # Wiktionary base records, one the dictionary expansion records, and
+        # one neither records (also when a layer has the key under another
+        # lemma).
+        assert origin["λόγος|all"] == "wiktionary_grc"
+        assert origin["μοναχικοῦ|all"] == "grc_lexicon_expansion"
+        assert origin["ἴσθι|all"] == origin["ᾖσαν|all"] == "grc_merged"
+        # A rule-generated Modern Greek form, while the lookup keeps the
+        # reading its record gave it.
+        assert origin["λέει|all"] == "el_rule_paradigms"
+        assert origin["λέγει|el"] == "wiktionary_el"
         assert origin["ῥόδα|all"] == origin["ροδα|all"] == "lbg_generated"
         assert origin["ῥόδον|all"] == "lbg_headwords"
         assert {origin[f"{word}|all"] for word in sources["vlg_headwords.json"]
@@ -166,16 +196,24 @@ builder.build()
                             if label != "mg_lookup.json"]
     (data / "lookup_sources.json").write_text(json.dumps(registry, ensure_ascii=False))
     result = subprocess.run([sys.executable, "-c", script, str(data)], cwd=ROOT,
-                            capture_output=True, text=True, timeout=30)
+                            env=environment, capture_output=True, text=True, timeout=30)
     assert result.returncode != 0
     assert "mg_lookup.json" in result.stderr and "not in lookup_sources.json" in result.stderr
+
+    # A changed layer record no longer matches its pin, and the build stops.
+    base.write_text("{}")
+    result = subprocess.run([sys.executable, "-c", script, str(data)], cwd=ROOT,
+                            env=environment, capture_output=True, text=True, timeout=30)
+    assert result.returncode != 0 and "expansion reference base" in result.stderr
 
 
 def test_lookup_source_registry_is_complete_and_unambiguous(tmp_path):
     import build_lookup_db
     sources, by_input = build_lookup_db.load_lookup_sources()
     assert {"ag_lookup.json", "mg_lookup.json", "lbg_pairs.json",
-            "lookup_overrides", "el_paradigm_gaps"} <= by_input.keys()
+            "lookup_overrides", "el_paradigm_gaps", build_lookup_db.AG_WIKTIONARY_LAYER,
+            build_lookup_db.AG_EXPANSION_LAYER,
+            build_lookup_db.EL_RULE_PARADIGM_LAYER} <= by_input.keys()
     for source in sources:
         assert source["components"] and source["attribution"]
 
