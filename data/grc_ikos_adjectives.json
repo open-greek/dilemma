@@ -1,0 +1,3276 @@
+{
+ "schema_version": 1,
+ "rule": "grc_ikos_feminine_cells_v1",
+ "inputs": {
+  "ag_lookup.json": "32143a8766e6c891e1f284970a7caccb1f56f54bcacc509dd9dc8e726e53e9cd",
+  "lsj9_pos_lookup.json": "7927a45da3e2b239ca553f1fe185e827c35e265dcb01fc70d6dc9eab153c5b1b",
+  "lemma_attestation.json": "76416437af3112586a8635aa414dd7aabb50b7f98f8f467035fbc2bfa7826261",
+  "sophocles/chunks": "294893541e72fbe39c8a10f81e5158d832729d70ec3b5ee69b54975e812efc79"
+ },
+ "lemmas": [
+  {
+   "lemma": "αἰγιλωπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "αἱματοδεκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "αὐτογενικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "αὐτοκρατητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "αὐτουργικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "βαπτιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βελικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βελουλκικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βησαλικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "βησσαλικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βιοποριστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βλεπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "βληχητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βοητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βολιστικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "βουβαλικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βουβαστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "βουβωνικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βουβωνοκηλικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "βρεφικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "βρογχοκηλικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "βρυκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "γενετικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "γεωπονικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "γεωργητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "γυμνασιαρχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "γυμνητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "γυναικικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "δαφνηφορικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "δημιουργητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "δημολογικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διαβλητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διαδοχικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διακοπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διακυβερνητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "διαλλακτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διαρθρωτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διατριβικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διατριπτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "δικαιοκριτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "δικαιοπρακτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "διοριστικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "δραπετικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "δυσροητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "δυστροπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "δυσχεραντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "δωρηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "εἰδοποιητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "εἰδωλοποιητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "εἰκονιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "εἰκονομαχικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "εἰκοσαετηρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "εὐδιακριτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "εὐλογιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "εὐνοητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "εὑρηματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ζηλωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ζωαρχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ζῳογονητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ζῳογονικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "θελητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "θεομητορικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "θεομητρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "θεριστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "θηριοδηκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "θικτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "θλιπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "θολωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "καββαλικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "καιρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "καπνικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "καταγγελτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "καταγορευτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "καταληκτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "καταναλωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κατανυκτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κατασκεναστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κατευναστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κατοχωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κατωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "καυτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "καυχηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κελλαρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κεραστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κηλοτομικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κηπευτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κιννυρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κομητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κομματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κοπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κορικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κουρητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κρακτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κρατυντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κραυγαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κρονικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κρουσματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κτηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κτηνικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κτιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κυβευτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κυητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κυλιστικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "κυοφορικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "κυριαρχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "λαγνικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "λαικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "λαιμαργικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "λακτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ληξιαρχικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "λυπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "μαγγανικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μαρτυρικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μελῳδικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μεμπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μεριστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μεσονυκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "μετανοητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μεταφορητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μεταχειριστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "μετωσκοπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "μηκυντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μητατωρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "μητροπολιτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μοιχοζευκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "μοναστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μοναχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μονογαμικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "μονοστροφικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μουσικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μουσουργικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μοχλευτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μυκητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "μωμητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ναυκρατητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "νεκρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "νηπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "νηστευτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "νοηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "νοταπηλιωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "νοταρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "νουθετικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "νυμφοστολικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ολικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ομοιωματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ομοιωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ονειροκριτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ονειροπολικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οξυβελικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οξυδερκικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οξυτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οπισθοτονικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οπλομαχητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οπλοποιητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ορατικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ορειβατικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ορθοδοξαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οριστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ορκικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ορνεοσκοπητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ορνεοσκοπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ορνιθικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οσφρητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ουλωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ουρητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οχλικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οχλοκοπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οχυρωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οψαρτυτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "οἰητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "οἰκοδεσποτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "οἰκουρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "οἰνοτροπικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "οἱητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "παθοκρατορικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "πακτιωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "παλινωδικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "παλματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "παλμικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παλμωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "πανδεκτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πανουργικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παντουργικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παππικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "παραβολικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "παραγγελτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παραθετικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παραμονητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "παρασημαντικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παρασυναπτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παρεκβατικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "παταγητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πατερικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "πατριμωναλικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "πατριωτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πεζοθηρικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πεινατικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πενθερικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πενταγωνικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πεντετηρικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "περατικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "περατωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "περιβλητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "περιουσιαστικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "περισυλληπτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "περιφορητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "περιῳδικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πηκτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πιθανολογικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "πιστοποιητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πλευστικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ποδαλγικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πολιχνιωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "πολυποδικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "πραϋντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "προαναρχικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "προβλητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "προδρομικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "προκαταγγελτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "προκελευσματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "προσαγωγικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "προσοδικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πρυμνητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πρῳρικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πτητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "πτωματικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ρεπτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σαββατικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σατανικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σκευοπλαστικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σκιλλιτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σκιρτητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σπαρακτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "σπερμολογικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σταθμητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σταλακτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "σταυρικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "στειρωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "στερεομετρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "στερεωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "στοιχειωματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "στρατοπεδευτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "στρεβλωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "στωικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "συγκαταβατικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "συγκεκαθικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "συγκραματικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "συμβιβαστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "συμπαραπληρωματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "συμπτυκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "συνανθρωπιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "συναρμοστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "συνδοκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "συνερειστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "συνοχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "συψηρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "σφαιρητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "σχεδογραφικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "σωρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "σωφρονιστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ταυρογαστρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "τειχομαχικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "τελεσιουργικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τελεωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "τετανικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τετραρχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τηκτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τιρωνικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "τοιχωρυχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τραχυντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τραχωματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τριαδικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τριπολιτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τρισσικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "τρωκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "τυπωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τυραννοκτονικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τυροποιικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "τυφλωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "υἱικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "φαιδρυντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φαμιλιαρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "φασιανικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φευκτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φιλεριστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "φιλοπονικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "φλεβικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φοβητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φοιδερατικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "φοιτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "φονευτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φορβαδικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φρατριατικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φρουρητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φυλλικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φυσητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φυσιολογικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φωνασκικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "φωστηρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "φωταγωγικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "χαυνωτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χερουβικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χηρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χορδοποιικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χρεμετιστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χρηματοφθορικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χρησμῳδικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χριστιανικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "χριστιανοκατηγορικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "χρυσοκλαβαρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "χυμευτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ψαλμικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ψιλωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ψυχογονικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ψυχοχωριστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀβυσσικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀγαλματοποιητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀγανακτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀγγελτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀδικητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀερικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀθροιστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀκουσματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀκριτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀκροβολιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀλεαντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀληκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀλητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀλυταρχικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀμαζονικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀμαυρωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀμειπτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀμητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀμφιαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀμφοιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀναβατικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀναβρωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀναγεννητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀναγνωριστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀναγωγικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀναδεκτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνακεφαλαιωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνακινητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀνακολληνικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνακτητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνακτορικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνακυκλευματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀνακυκλευτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀναπαυτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀναπληρωματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνασκητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀνατμητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀναχαλαστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνδριαντοπλαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀνδριαντοποιικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀνθευτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀνορθοπεριπατητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀνταγωνιστικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνταναιρετικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀνωτερικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀπαθηστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀπαρακλητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀπεικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀπιστητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀποβλητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀποιητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀποκληρωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀπολαυτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀπολιτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀπονυχιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀποπτωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀπορηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀποστρατηγικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀποτακτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀποτελεσματικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀποτροπιαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀποχειροβιωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀπωμοτικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀργυρογνωμονικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀργυροπρατικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀρτυματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀρχαιολογικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀρχιεπισκοπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀσματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀσπιδοφορικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀστυγειτονικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀσφαλιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀτραβατικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἀφηλιωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἀφηνιαστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἁγιαστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἁλουργικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐγκαυστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐγκλιματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐγκοπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐγκοτητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐγκρατητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐγκυμονικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐγκωμιολογικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐκβιαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐκδοτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐκκαυστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐκκλυστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐκκοπρωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐκπληρωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐκπορευτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐκφραστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐλατικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐμβαδικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐμβαδομετρικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐμπληκτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐμπυηματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐναλλακτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐνανθρωπικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐναντιωματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐναποσκηπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐνδιατριπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐνεδρευτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐνθρονιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐννοηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐνοικικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐντατικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐντελικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐντεροκηλικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐντευκτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐντρεπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξαγγελτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξακτορικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐξαλειπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξαναλωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξελαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐξιλαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐξοδιαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐξοιστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξολοθρευτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξονειδιστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξουθενητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐξυπνιαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπαιτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπακμαστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπανασωστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπαναφορικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπαπορητικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπαρχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιβλητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιγεννηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιγνωστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιδημητικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιδρομικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπικελευστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιλογικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιλωρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπινοητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιξηραντικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπιπεδικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπισκεπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπισκοπικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιστολικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιστυπτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπιτατικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιτρεπτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιφθεγματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιφορικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐπιφωνηματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπιχαρικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἐπιωνικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐρημικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐρημωτικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐφετικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἐφορμητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἑδραστικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἑναδικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἑναρχικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἑρμογλυφικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἑσπερικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἑτεροκρανικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἑτοιμαστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἠπποτροφικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἠχητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἡμιαμβικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἡμικρανικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ἰατροσοφιστικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἱξευτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἱστοριογραφικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ἱστουργικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὀπισθοβατικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑδροκηλικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑδρομαστευτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ὑδροσκοπικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑδροφαντικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑδροφοβικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑλογραφικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ὑμνικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑμνολογικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ὑπαγορευτικός",
+   "evidence": [
+    "sophocles",
+    "lsj9",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑπαντητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑπερμαχητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑπερμαχικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ὑπεροχικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑποδειγματικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ὑπομνηματικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑποτυπωτικός",
+   "evidence": [
+    "sophocles"
+   ]
+  },
+  {
+   "lemma": "ὑπουργικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑποφητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὑποχωρητικός",
+   "evidence": [
+    "sophocles",
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ὡροσκοπικός",
+   "evidence": [
+    "corpus"
+   ]
+  },
+  {
+   "lemma": "ῥωπικός",
+   "evidence": [
+    "corpus"
+   ]
+  }
+ ]
+}

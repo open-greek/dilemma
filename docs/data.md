@@ -568,6 +568,20 @@ headwords are a subset of LSJ and already covered by the LSJ expansion
 plus the GLAUx Homeric corpus (557K pairs). See
 [LSJ/Sophocles expansion](lexicon-expansion.md#lsj-and-sophocles-paradigm-expansion) for the build step.
 
+The pinned Sophocles expansion declined many three-ending adjectives as
+masculine nouns: its parser read the text after a headword from the wrong
+offset and missed the OCR's renderings of the endings (`ή, όν`, `ἦ, ov`,
+`ή, 6v`), so an entry like `μοναχικός, ή, όν` fell to the `-ος` masculine
+rule. The parser now reads both (`adjective_endings` in
+`build/expand_sophocles.py`). For the pinned layer,
+`build/find_grc_ikos_adjectives.py` lists the oxytone `-ικός` heads with no
+feminine key whose adjective status is independently supported (Sophocles'
+three endings, an LSJ 9 ADJ reading, or the corpora's dominant POS) in
+`data/grc_ikos_adjectives.json`, and `build_lookup_db.py` fills their absent
+feminine and neuter-plural keys by the regular `-ικός, -ική, -ικόν` pattern
+(`dilemma/grc_adjective_gaps.py`, source `grc_adjective_gaps`): 507 lemmas
+and 8,532 keys as of 1.3.21. It never overwrites a reading.
+
 Verb expansion rejects source entries explicitly identified as prefixes,
 imperative forms of another verb, or defective verbs whose entry explicitly
 limits the available persons. Those restrictions preserve source-attested

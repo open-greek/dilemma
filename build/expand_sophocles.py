@@ -151,6 +151,25 @@ def clean_headword(raw):
     return hw
 
 
+# The entry text after a headword, folded for the OCR: accents, breathings and
+# case are dropped, and the Latin look-alikes the OCR gives for ο and ν are
+# mapped back (ἀγγελτικός, ή, όν; ἀδικητικός, ἦ, ov; ἀβυσσικός, ή, 6v).
+_OCR_LOOKALIKES = str.maketrans({"o": "ο", "v": "ν", "6": "ο", "d": "ο",
+                                 "e": "ε", "s": "ς", "a": "α"})
+_THREE_ENDINGS = re.compile(r"^\s*,\s*[ηα]\s*,\s*ο?ν\b")
+_TWO_ENDINGS = re.compile(r"^\s*,\s*(ον|ες)\b")
+
+
+def adjective_endings(after_headword: str) -> str | None:
+    """'three' or 'two' when the entry gives an adjective's endings, else None."""
+    folded = strip_diacritics(after_headword[:24]).lower().translate(_OCR_LOOKALIKES)
+    if _THREE_ENDINGS.match(folded):
+        return "three"
+    if _TWO_ENDINGS.match(folded):
+        return "two"
+    return None
+
+
 def parse_sophocles_entries():
     """Parse all Sophocles XML chunks, extract headwords + grammatical info."""
     entries = {}
@@ -178,8 +197,9 @@ def parse_sophocles_entries():
 
             # Get full entry text (after the headword)
             full_text = ET.tostring(entry_elem, encoding="unicode", method="text")
-            # Strip the headword from the beginning
-            after_hw = full_text[len(orth.text):] if orth.text in full_text else full_text
+            # The text right after the headword (it need not open the entry)
+            at = full_text.find(orth.text)
+            after_hw = full_text[at + len(orth.text):] if at >= 0 else full_text
 
             # Try to extract genitive + gender from inline text
             gender = ""
@@ -201,7 +221,8 @@ def parse_sophocles_entries():
                     gender = GENDER_MAP.get(article_m.group(1), "")
 
             # Check for adjective markers
-            is_adj = bool(re.match(r'^[,\s]*(ές|όν|ον|ή)\b', after_hw))
+            endings = adjective_endings(after_hw)
+            is_adj = endings is not None
             # Check for "see X" cross-references
             is_xref = bool(re.match(r'^[,\s]*(see|v\.|=)\s', after_hw))
             # Check for indeclinable
@@ -214,6 +235,7 @@ def parse_sophocles_entries():
                     "genitive": genitive,
                     "supplied_genitive": genitive,
                     "is_adj": is_adj,
+                    "adjective_endings": endings,
                     "is_xref": is_xref,
                     "is_indecl": is_indecl,
                 }
