@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.23] - 2026-11-13
+
 With `lang="all"`, POS-aware lemmatization no longer turns polytonic Ancient
 forms into monotonic Modern Greek headwords (`ἄλλην` PRON gave `άλλος`,
 `Ἑλλήνων` PROPN gave `Έλληνας`). For input with breathings or polytonic
@@ -1657,6 +1659,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.23]: https://github.com/open-greek/dilemma/releases/tag/1.3.23
 [1.3.22]: https://github.com/open-greek/dilemma/releases/tag/1.3.22
 [1.3.21]: https://github.com/open-greek/dilemma/releases/tag/1.3.21
 [1.3.20]: https://github.com/open-greek/dilemma/releases/tag/1.3.20
