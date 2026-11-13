@@ -6,6 +6,21 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+With `lang="all"`, POS-aware lemmatization no longer turns polytonic Ancient
+forms into monotonic Modern Greek headwords (`ἄλλην` PRON gave `άλλος`,
+`Ἑλλήνων` PROPN gave `Έλληνας`). For input with breathings or polytonic
+accents only the Ancient POS entries are read; when they have no reading the
+lookup candidates decide, as with `lang="grc"`. Monotonic input still reads
+the Modern Greek entries (#100).
+
+Compound analysis returns accented citation forms. The reconstruction joined
+accent-stripped pieces (`ὀλεθροτόκον` gave `ολεθροτοκος`); it now takes the
+spelling of the matching headword from LSJ, LSJ10, Cunliffe, DGE, LBG or
+Wiktionary (`ὀλεθροτόκος`), Modern Greek headword lists for monotonic input.
+Monotonic Modern Greek input without a headword keeps the accent of its base
+lemma (`μονοακόρεστα` gives `μονοακόρεστος`). Otherwise the compound
+abstains, so `guess=False` returns `None` (#101).
+
 ## [1.3.22] - 2026-11-12
 
 `lookup.db` attributes the readings of a merged input to the layer that

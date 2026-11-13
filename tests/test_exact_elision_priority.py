@@ -87,7 +87,10 @@ def test_unmatched_pos_does_not_replace_exact_name(model, upos):
 
 
 def test_matching_pos_can_still_select_another_reading(model):
+    # An Ancient POS entry sits in both tables; with lang="all" polytonic
+    # input reads only the AG-only one (issue #100).
     model._pos_lookup = {"σικυών": {"NOUN": "σικύωνος"}}
+    model._pos_ag_lookup = model._pos_lookup
     assert model.lemmatize_pos("Σικυῶν̓", "NOUN", guess=False) == "σικύωνος"
     assert model.lemmatize_batch_pos(["Σικυῶν̓"], ["NOUN"], guess=False) == ["σικύωνος"]
     assert model.lemmatize_verbose("Σικυῶν̓", guess=False)[0].lemma == "Σικυών"

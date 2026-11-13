@@ -123,16 +123,59 @@ def test_compound_uses_verbal_reading_of_independent_noun_homograph(fallback_mod
         {"ἡγουμένην": {"VERB": "ἡγέομαι"},
          "ἡγούμενος": {"NOUN": "ἡγούμενος", "VERB": "ἡγέομαι"}},
     )
-    assert model._decompose_compound("διηγουμένην") == "διηγεομαι"
+    _headwords(model, "διηγέομαι")
+    assert model._decompose_compound("διηγουμένην") == "διηγέομαι"
     assert model._decompose_compound_all("διηγουμένην") == [
-        ("διηγεομαι", "ἡγέομαι", "δι")]
+        ("διηγέομαι", "ἡγέομαι", "δι")]
     assert model._lookup_word("ἡγούμενος") == "ἡγούμενος"
 
 
 def test_nominal_compound_is_not_rejected_by_verb_ending_rules(fallback_model):
     model = fallback_model({"λογους": "λόγος"},
                            {"λόγους": {"NOUN": "λόγος"}})
-    assert model._decompose_compound("πολυλόγους") == "πολυλογος"
+    _headwords(model, "πολύλογος")
+    assert model._decompose_compound("πολυλόγους") == "πολύλογος"
+
+
+def _headwords(model, *headwords, source="lsj"):
+    """Give the compound accenting step a small dictionary of its own."""
+    index = {}
+    for h in headwords:
+        index.setdefault(core.strip_accents(h.lower()), []).append(h)
+    model._compound_headword_indexes = {
+        s: (index if s == source else {})
+        for s in (model._COMPOUND_AG_HEADWORD_SOURCES
+                  + model._COMPOUND_MG_HEADWORD_SOURCES)}
+
+
+def test_compound_lemma_is_accented_from_a_headword(fallback_model):
+    # Issue #101: ολεθρο + τόκος was returned as the bare skeleton.
+    model = fallback_model({"τοκον": "τόκος"}, {"τόκον": {"NOUN": "τόκος"}})
+    _headwords(model, "ὀλεθροτόκος", source="lbg")
+    assert model._decompose_compound("ὀλεθροτόκον") == "ὀλεθροτόκος"
+    assert model._decompose_compound_all("ὀλεθροτόκον") == [
+        ("ὀλεθροτόκος", "τόκος", "ολεθρο")]
+
+
+def test_compound_without_a_headword_abstains(fallback_model):
+    model = fallback_model({"τοκον": "τόκος"}, {"τόκον": {"NOUN": "τόκος"}})
+    _headwords(model)
+    assert model._decompose_compound("ὀλεθροτόκον") is None
+    assert model._decompose_compound_all("ὀλεθροτόκον") == []
+
+
+def test_compound_prefers_the_earlier_dictionary(fallback_model):
+    model = fallback_model({"σωσει": "σῴζω"}, {"σώσει": {"VERB": "σῴζω"}})
+    _headwords(model)
+    model._compound_headword_indexes["lsj"] = {"αποσωζω": ["ἀποσῴζω"]}
+    model._compound_headword_indexes["ag"] = {"αποσωζω": ["ἀποσώζω"]}
+    assert model._decompose_compound("ἀποσώσει") == "ἀποσῴζω"
+
+
+def test_lowercase_compound_does_not_take_a_proper_noun_headword(fallback_model):
+    model = fallback_model({"τοκον": "τόκος"}, {"τόκον": {"NOUN": "τόκος"}})
+    _headwords(model, "Ὀλεθροτόκος")
+    assert model._decompose_compound("ὀλεθροτόκον") is None
 
 
 @pytest.mark.parametrize("word,base,base_lemma", [
@@ -218,9 +261,9 @@ def test_shipped_noun_homographs_and_supported_fallbacks(shipped_models, normali
         # The old augment path returned the noun πίνη. The normalizer may
         # still resolve ἐπεῖναι, an attested infinitive of ἔπειμι.
         assert model.lemmatize("ἔπιναι", guess=False) == "ἔπειμι"
-        assert model.lemmatize("διηγουμένην", guess=False) == "διηγεομαι"
+        assert model.lemmatize("διηγουμένην", guess=False) == "διηγέομαι"
         assert model.lemmatize_batch(["φάσκονται", "διηγουμένην"], guess=False) == [
-            None, "διηγεομαι"]
+            None, "διηγέομαι"]
         assert model.lemmatize("πίναι", guess=False) == "πίνη"
         assert model.lemmatize("ἡγούμενος", guess=False) == "ἡγούμενος"
         assert model._strip_verb_morphology("ἐποίησεν") == "ποιέω"
@@ -257,3 +300,60 @@ def test_shipped_explicit_verbs_preserve_independent_names(shipped_models):
         assert model.lemmatize_pos(word, "VERB", guess=False) == lemma
     assert model.lemmatize("Λάμπε", guess=False) == "Λάμπος"
     assert model.lemmatize("Λήθειν", guess=False) == "Ληθώ"
+
+
+def test_polytonic_form_does_not_take_a_modern_pos_reading(fallback_model):
+    # Issue #100: with lang="all" the combined POS table matched the
+    # monotonic variant of a polytonic form and returned a Modern Greek
+    # headword (ἄλλην -> άλλος).
+    model = fallback_model({}, {})
+    model.lang = "all"
+    model._pos_ag_lookup = {"ἀπαστράπτων": {"VERB": "ἀπαστράπτω"}}
+    model._pos_lookup = {"άλλην": {"PRON": "άλλος"},
+                         "απαστράπτων": {"VERB": "απαστράπτω"},
+                         "ἀπαστράπτων": {"VERB": "ἀπαστράπτω"}}
+    assert model._pos_table_lookup("ἄλλην", "PRON") is None
+    assert model._pos_table_lookup("ἀπαστράπτων", "VERB") == "ἀπαστράπτω"
+    # Monotonic input still reads the Modern Greek entries.
+    assert model._pos_table_lookup("άλλην", "PRON") == "άλλος"
+
+
+@pytest.fixture(scope="module")
+def shipped_all_model():
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    return core.Dilemma(lang="all", resolve_articles=True)
+
+
+def test_shipped_all_keeps_ancient_headwords_for_polytonic_pos(shipped_all_model):
+    forms = ["ἄλλην", "εἰμι", "ἀπαστράπτων", "ἐργαζομένους", "ὁποῖον",
+             "Ἑλλήνων", "Ἀρκάδας"]
+    tags = ["PRON", "VERB", "VERB", "VERB", "PRON", "PROPN", "PROPN"]
+    assert shipped_all_model.lemmatize_batch_pos(forms, tags, guess=False) == [
+        "ἄλλος", "εἰμί", "ἀπαστράπτω", "ἐργάζομαι", "ὁποῖος", "Ἕλλην", "Ἀρκάς"]
+
+
+@pytest.mark.parametrize("form,lemma", [
+    ("ὀλεθροτόκον", "ὀλεθροτόκος"), ("ἡδύφθογγον", "ἡδύφθογγος"),
+    ("ἐξύφανας", "ἐξυφαίνω"), ("γλυκίου", "γλύκιος"),
+    ("προδειχθεὶς", "προδείκνυμι"), ("νοοτρόφους", "νοοτρόφος"),
+    ("ἀποσώσῃ", "ἀποσῴζω"), ("προλάμψαν", "προλάμπω"), ("πονεόντι", "πονέω"),
+])
+def test_shipped_compound_lemmas_are_accented(shipped_all_model, form, lemma):
+    # Issue #101: the compound fallback returned accent-stripped skeletons.
+    assert shipped_all_model.lemmatize(form, guess=False) == lemma
+    assert all(c.lemma == lemma for c in
+               shipped_all_model.lemmatize_verbose(form, guess=False)
+               if c.source == "compound")
+
+
+def test_monotonic_compound_keeps_its_base_accent_without_a_headword(
+        fallback_model):
+    model = fallback_model({"ακορεστα": "ακόρεστος"}, {})
+    model.lang = "el"
+    _headwords(model)
+    assert model._decompose_compound("μονοακόρεστα") == "μονοακόρεστος"
+    # Polytonic input has no such fallback: the prefix lacks its breathing.
+    model.lang = "all"
+    model._lookup = model._ag_lookup = {"τοκον": "τόκος"}
+    assert model._decompose_compound("ὀλεθροτόκον") is None
