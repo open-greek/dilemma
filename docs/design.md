@@ -60,7 +60,10 @@ contain errors and do not replace independent lexical evidence.
 - **Elision and crasis:** expand abbreviated forms such as `δ’` or recover the
   components of `κἀγώ`. Multiple supported readings can remain ambiguous.
 - **Compounds:** try supported prefixes and linking vowels, then look up the
-  base. Reconstruction must retain the grammatical reading of that base.
+  base. Reconstruction must retain the grammatical reading of that base,
+  and the result takes its accented spelling from a dictionary headword.
+  Monotonic Modern Greek input without one keeps the accent of its base
+  lemma; otherwise the compound abstains.
 
 ## Dialect normalization
 
