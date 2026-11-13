@@ -536,9 +536,10 @@ from six sources in priority order: AGDT originals and licensed corpus votes, LS
 indeclinables (2.2K adverbs, prepositions, conjunctions, particles,
 interjections with unambiguous POS), GLAUx corpus (8.7K entries), MG
 Wiktionary, AG Wiktionary, LSJ9 grammar. For polytonic input (breathing
-marks, circumflex), the AG-only POS entries are checked first to avoid
-MG lemma overrides on Ancient Greek text, mirroring the main lookup's
-AG-first logic.
+marks, circumflex), only the AG-only POS entries are read, so Ancient Greek
+text never gets a Modern Greek lemma from the POS tables; when they have no
+reading for the tag, the lookup candidates decide. Monotonic input reads the
+combined table.
 
 Rebuild the corpus POS table after a source refresh with
 `python build/build_treebank_pos_lookup.py --kaikki PATH_TO_KAIKKI`.

@@ -1181,6 +1181,9 @@ class Dilemma:
         # Canonical AG headword inventory for repair_lemma():
         # (all_headwords, stripped_index, lsj_only). Lazy-loaded.
         self._canonical_hw: tuple[set, dict, set] | None = None
+        # Accent-stripped skeleton -> headword spellings, one index per
+        # dictionary, for accenting compound reconstructions. Lazy-loaded.
+        self._compound_headword_indexes: dict[str, dict[str, list[str]]] = {}
         self._trusted_grave_targets: set[str] | None = None
         self._elision_lexical_heads: set[str] | None = None
         self._fallback_readings = None
@@ -2812,6 +2815,86 @@ class Dilemma:
         n = cls._MIN_COMPOUND_SHARED_START
         return len(base) >= n and base[:n] == base_lemma[:n]
 
+    # Dictionaries that can accent a reconstructed compound, in priority
+    # order. Ancient lists serve polytonic or Ancient input; Modern Greek
+    # lists serve monotonic input when Modern Greek is enabled.
+    _COMPOUND_AG_HEADWORD_SOURCES = ("lsj", "lsj10", "cunliffe", "dge",
+                                     "lbg", "ag")
+    _COMPOUND_MG_HEADWORD_SOURCES = ("triantafyllidis", "mg")
+
+    def _compound_headword_index(self, source: str) -> dict[str, list[str]]:
+        idx = self._compound_headword_indexes.get(source)
+        if idx is not None:
+            return idx
+        path = DATA_DIR / f"{source}_headwords.json"
+        idx = {}
+        if path.exists():
+            with open(path, encoding="utf-8") as f:
+                raw = json.load(f)
+            for entry in raw:
+                if isinstance(entry, dict):
+                    entry = entry.get("lemma")
+                if not isinstance(entry, str) or not entry:
+                    continue
+                entry = unicodedata.normalize("NFC", entry)
+                spellings = idx.setdefault(strip_accents(entry.lower()), [])
+                if entry not in spellings:
+                    spellings.append(entry)
+        self._compound_headword_indexes[source] = idx
+        return idx
+
+    def _compound_headword(self, skeleton: str, word: str,
+                           base_lemma: str | None = None) -> str | None:
+        """Accent a reconstructed compound skeleton from a dictionary.
+
+        Compound reconstruction joins accent-stripped pieces
+        (ολεθρο + τοκος), which is not a citation form. The skeleton is
+        matched against the accent-stripped headword lists, and the first
+        dictionary that has it supplies the accented spelling
+        (ὀλεθροτόκος). Without a headword, monotonic Modern Greek input
+        keeps the accent of its monotonic base lemma (μονο + ακόρεστος ->
+        μονοακόρεστος); otherwise the reconstruction abstains (issue #101),
+        since an Ancient prefix would lack its breathing.
+        """
+        def _polytonic(s: str) -> bool:
+            return any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+                       for ch in unicodedata.normalize("NFD", s))
+        polytonic = _polytonic(word)
+        if self.lang == "grc" or (self.lang == "all" and polytonic):
+            sources = self._COMPOUND_AG_HEADWORD_SOURCES
+        elif self.lang == "el":
+            sources = self._COMPOUND_MG_HEADWORD_SOURCES
+        else:
+            sources = (self._COMPOUND_MG_HEADWORD_SOURCES
+                       + self._COMPOUND_AG_HEADWORD_SOURCES)
+        upper = is_capitalized(word)
+        for source in sources:
+            spellings = self._compound_headword_index(source).get(skeleton)
+            if not spellings:
+                continue
+            # A common word's compound is lowercase; only a capitalized
+            # input may take a proper-noun headword.
+            matching = [h for h in spellings if is_capitalized(h) == upper]
+            if not matching and upper:
+                matching = spellings
+            if not matching:
+                continue
+            if len(matching) == 1:
+                return matching[0]
+
+            def _count(h):
+                info = self.attestation(h) or {}
+                return info.get("total", 0) or 0
+            return min(matching, key=lambda h: (-_count(h), h))
+        if (self.lang in ("el", "all") and not polytonic and base_lemma
+                and skeleton.isalpha() and not _polytonic(base_lemma)
+                and not is_capitalized(base_lemma)):
+            base = unicodedata.normalize("NFC", base_lemma.lower())
+            stripped_base = strip_accents(base)
+            if skeleton.endswith(stripped_base) and base != stripped_base:
+                return skeleton[:len(skeleton) - len(stripped_base)] + base
+        return None
+
     def _decompose_compound(self, word: str) -> str | None:
         """Try to lemmatize an unknown compound by splitting at linking vowels.
 
@@ -2863,8 +2946,12 @@ class Dilemma:
             if not self._compound_base_matches(base, base_lemma_s):
                 continue
 
-            # Reconstruct compound lemma
-            return prefix + base_lemma_s
+            # Reconstruct the compound and accent it from a dictionary
+            # headword; an unaccented skeleton is not a citation form.
+            compound = self._compound_headword(prefix + base_lemma_s, word,
+                                               base_lemma)
+            if compound:
+                return compound
 
         return None
 
@@ -2906,8 +2993,9 @@ class Dilemma:
             if not self._compound_base_matches(base, base_lemma_s):
                 continue
 
-            compound = prefix + base_lemma_s
-            if compound not in seen:
+            compound = self._compound_headword(prefix + base_lemma_s, word,
+                                               base_lemma)
+            if compound and compound not in seen:
                 seen.add(compound)
                 results.append((compound, base_lemma, prefix))
 
@@ -3493,12 +3581,18 @@ class Dilemma:
         nfd = unicodedata.normalize("NFD", word)
         has_poly = any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
                        for ch in nfd)
-        if has_poly and self.lang == "all" and self._pos_ag_lookup:
+        if has_poly and self.lang == "all":
             for variant in variants:
                 pos_entry = self._pos_ag_lookup.get(variant)
                 if pos_entry and upos in pos_entry \
                         and _usable(pos_entry[upos]):
                     return _target(pos_entry[upos])
+            # The combined table adds only Modern Greek entries to the
+            # AG-only one, and its monotonic and stripped variants would
+            # turn polytonic Ancient forms into monotonic headwords
+            # (ἄλλην -> άλλος, Ἑλλήνων -> Έλληνας; issue #100). Leave the
+            # choice to the lookup candidates instead.
+            return None
 
         # Combined POS lookup
         for variant in variants:
