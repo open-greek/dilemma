@@ -1,0 +1,5758 @@
+{
+ "cells": [
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ο",
+   "lemma": "βάτος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "του",
+   "lemma": "βάτος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "τον",
+   "lemma": "βάτος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "τους",
+   "lemma": "βάτος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "όνων",
+   "lemma": "αιθεροβάμων",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ος",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ο",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "οι",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ες",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ου",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ας",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ων",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ους",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ε",
+   "lemma": "αισώπειος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "masculine",
+    "singular",
+    "vocative"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μηχανή",
+   "lemma": "κρεατομηχανή",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μηχανές",
+   "lemma": "κρεατομηχανή",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μηχανής",
+   "lemma": "κρεατομηχανή",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μηχανών",
+   "lemma": "κρεατομηχανή",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "παίχτης",
+   "lemma": "καμπόσος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "παίχτες",
+   "lemma": "καμπόσος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "παίχτη",
+   "lemma": "καμπόσος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "παιχτών",
+   "lemma": "καμπόσος",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "Ρουαντέζος",
+   "lemma": "Νοτιοαφρικάνος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "Ρουαντέζοι",
+   "lemma": "Νοτιοαφρικάνος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "Ρουαντέζου",
+   "lemma": "Νοτιοαφρικάνος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "Ρουαντέζων",
+   "lemma": "Νοτιοαφρικάνος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "Ρουαντέζο",
+   "lemma": "Νοτιοαφρικάνος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "Ρουαντέζους",
+   "lemma": "Νοτιοαφρικάνος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "Ρουαντέζε",
+   "lemma": "Νοτιοαφρικάνος",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "singular",
+    "vocative"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "όνων",
+   "lemma": "απράγμων",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ός",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ά",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "οί",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ού",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "άς",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ών",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ούς",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "έ",
+   "lemma": "αριός",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "masculine",
+    "singular",
+    "vocative"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ούσης",
+   "lemma": "αρχαΐζων",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "όντων",
+   "lemma": "αρχαΐζων",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "ουσών",
+   "lemma": "αρχαΐζων",
+   "pos": "adj",
+   "source": "declension",
+   "tags": [
+    "feminine",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μιμητής",
+   "lemma": "αττικιστής",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μιμητές",
+   "lemma": "αττικιστής",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μιμητή",
+   "lemma": "αττικιστής",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "μιμητών",
+   "lemma": "αττικιστής",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-en-dictionary-Greek.jsonl",
+   "form": "καλυβών",
+   "lemma": "αχυροκαλύβα",
+   "pos": "noun",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ος",
+   "lemma": "Άρης",
+   "pos": "name",
+   "source": "declension",
+   "tags": [
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "νεκρός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ιά",
+   "lemma": "φαρδύς",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "γωνιακός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "συμβουλή",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "αδύνατος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ιρλανδικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "νεαρός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αντισημιτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αναλογικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "όλος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ομαλός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αγωνιστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ελικωτός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "καθησυχαστικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "μουσικομανής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "οικτρός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ψεσινός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "καθαρεύουσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "καθαρεύουσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "καθαρεύουσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "καθαρεύουσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ωχρός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "ωκυτόκιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "εθνοφθόρος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "κατεβατός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ιο",
+   "lemma": "ακέριος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ής",
+   "lemma": "ολομελής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "ολομελής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "εδαφολογικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "μεταπλαστός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "συνεκδοχικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "απογευματινός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "πρωινός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "πριγκίπισσα",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "χυδαϊστής",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "θαμπερός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ιλαρός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "υλικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "ιωδιούχος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "νευρωτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "παθογόνος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "θεληματικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "υποχρεωτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "ευχετήριος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "εφήμερος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "λιτός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ιο",
+   "lemma": "βοϊδίσιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ής",
+   "lemma": "φωτογενής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "φωτογενής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ους",
+   "lemma": "περίνους",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "γ",
+   "lemma": "βρόντημα",
+   "pos": "noun",
+   "source": "header",
+   "tags": [
+    "neuter"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "καισαρικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "αγροδίαιτος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ούν",
+   "lemma": "οκταπλούς",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ής",
+   "lemma": "καινοφανής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "καινοφανής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "ολιγοστός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "πολιός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "σοφολογιώτατος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "μύχιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ον",
+   "lemma": "μύχιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "γλωσσολογικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ής",
+   "lemma": "αφανής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "αφανής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "π",
+   "lemma": "κακόγνωμος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "διαβατάρης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ικο",
+   "lemma": "διαβατάρης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "φωσφορικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "φωσφορούχος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "διαβατικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "φυρός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "φυσιολογικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ους",
+   "lemma": "πορφυρόχρους",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ής",
+   "lemma": "φυλλοειδής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "φυλλοειδής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ενθουσιαστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ανδρωνυμικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "φυσιογνωστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ης",
+   "lemma": "φυλλώδης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ες",
+   "lemma": "φυλλώδης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "φυματικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ης",
+   "lemma": "φυματιώδης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ες",
+   "lemma": "φυματιώδης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ουν",
+   "lemma": "κρυψίνους",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ος",
+   "lemma": "φιλόπτωχος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ων",
+   "lemma": "φιλοπράγμων",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ον",
+   "lemma": "φιλοπράγμων",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ον",
+   "lemma": "αειπάρθενος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αδυνατιστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "αδόκιμος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "παλαιός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "μαγνητοστατικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "έκπαγλος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "οσφραντικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "ελευσίνιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "αισχροκερδής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "σωσίβιος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "δραστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "ερίτιμος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ος",
+   "lemma": "μαστιχοφόρος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ουν",
+   "lemma": "αμβλύνους",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αναδρομικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "κομματικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "τραχωματικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σεξιστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "τρισόλβιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "αναξιόχρεος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σιβηρικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σφαλερός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ής",
+   "lemma": "ανεπιτυχής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "ανεπιτυχής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ικο",
+   "lemma": "απλοχέρης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σταυρικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σπογγαλιευτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "στρεπτός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ής",
+   "lemma": "αμφικλινής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αλφαριθμητικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ραιτορομανικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "δακτυλογραφικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ασυμπτωματικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "Κρητιδικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "φιλολακωνικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ψυχωσικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "φρικιαστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ές",
+   "lemma": "εμπροσθογεμής",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "υ",
+   "lemma": "ένδακρυς",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "ἔκφρασις",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αντιψυχωσικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σειριακός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "μεταψυχροπολεμικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "κρατικοθεσμικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "χυδαῖος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "κο",
+   "lemma": "ασχημούλης",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "χρυσωτός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "μακροκοσμικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "εψεσινός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "εφίστιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "εξαγωγός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "περιπρωκτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σχετικιστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "προσεξουαλικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αστικομεταφυσικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "υποατομικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ς",
+   "lemma": "Δρυάδες",
+   "pos": "noun",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "δίκορος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "γληνός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "αποκρυφιστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ομοσκεδαστικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "υποουλικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "υπερσυμπαντικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "πιθανικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "δυτικόφρων",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "δενδρικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "χυδαιόγλωσσος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "εκκεντροφόρος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "εξαθλιωτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "λανθανίδες",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ος",
+   "lemma": "αείζωος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "νοσοφοβικός",
+   "pos": "noun",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "εθνωνυμικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "γῆ",
+   "lemma": "τριπολῖτις",
+   "pos": "noun",
+   "source": "header",
+   "tags": [
+    "feminine"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ον",
+   "lemma": "ασυνάρμοστος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "παγετών",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "διασπορικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ΧΧΧ",
+   "lemma": "Καραβίτης",
+   "pos": "name",
+   "source": "header",
+   "tags": [
+    "feminine"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "μονομορφηματικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "προκοσμικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "οξφορδιανός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ος",
+   "lemma": "βαμβακοφόρος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "παραρρήνιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "α",
+   "lemma": "παραρρίνιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "εγωτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "κυτταροπροστατευτικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ους",
+   "lemma": "σοκολατόχρους",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "αουστριακός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "ἀουστριακός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "ἀϊεϊαουουοϊουϊσμός",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "στοματοφαρυγγικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σχολαρικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "σλαυϊκός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "σλαυϊκός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "μονόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "διπλόθεμος",
+   "pos": "adj",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "ψευδολογικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ό",
+   "lemma": "βαθύβιος",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "με",
+   "lemma": "Βινσάντο",
+   "pos": "name",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "Χ",
+   "lemma": "Χ''Κωνσταντή",
+   "pos": "name",
+   "source": "header",
+   "tags": [
+    "feminine"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "μισογεμᾶτος",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "ἑλληνικά",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "ἑλληνικά",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "ἑλληνικά",
+   "pos": "noun",
+   "source": "inflection",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "ἀφυγραντήρ",
+   "pos": "noun",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ὁ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ἡ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῦ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῆς",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "genitive",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῷ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῇ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὸν",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὴν",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "singular"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "οἱ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "masculine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "αἱ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "feminine",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰ",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "neuter",
+    "nominative",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τῶν",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "genitive",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοῖς",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ταῖς",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "dative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τοὺς",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "masculine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "τὰς",
+   "lemma": "χυδαιοελληνικός",
+   "pos": "adj",
+   "source": "conjugation",
+   "tags": [
+    "Katharevousa",
+    "accusative",
+    "feminine",
+    "plural"
+   ]
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ξή",
+   "lemma": "διαειδικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  },
+  {
+   "dump": "kaikki.org-el-dictionary-Greek.jsonl",
+   "form": "ν",
+   "lemma": "ἰαπωνικός",
+   "pos": "adj",
+   "source": "header",
+   "tags": []
+  }
+ ],
+ "dumps": {
+  "kaikki.org-el-dictionary-Greek.jsonl": "d369e52869db564af860d21fb11ea430c3587f6ae908b8fa124bc7d0b2452165",
+  "kaikki.org-en-dictionary-Greek.jsonl": "643e3ee8b1f105b4847fcf6a3fcd8923a0a7c8bc5aeec5480d7ced5087314624"
+ },
+ "files": {
+  "mg_lookup.json": {
+   "set": {
+    "ΧΧΧ": [
+     "Καραβίτης",
+     null
+    ],
+    "άς": [
+     "αραιός",
+     null
+    ],
+    "έ": [
+     "αραιός",
+     null
+    ],
+    "ές": [
+     "μουσικομανής",
+     null
+    ],
+    "ής": [
+     "ολομελής",
+     null
+    ],
+    "γή": [
+     "τριπολῖτις",
+     null
+    ],
+    "γῆ": [
+     "τριπολῖτις",
+     null
+    ],
+    "ες": [
+     "μουσικομανής",
+     null
+    ],
+    "ης": [
+     "ολομελής",
+     null
+    ],
+    "ιά": [
+     "φαρδύς",
+     null
+    ],
+    "ια": [
+     "φαρδύς",
+     null
+    ],
+    "ικο": [
+     "διαβατάρης",
+     null
+    ],
+    "κο": [
+     "ασχημούλης",
+     null
+    ],
+    "ξή": [
+     "διαειδικός",
+     null
+    ],
+    "ξη": [
+     "διαειδικός",
+     null
+    ],
+    "ος": [
+     "αισώπειος",
+     null
+    ],
+    "ουν": [
+     "οκταπλούς",
+     null
+    ],
+    "ουσης": [
+     "αρχαΐζω",
+     null
+    ],
+    "ουσων": [
+     "αρχαΐζω",
+     null
+    ],
+    "ουσών": [
+     "αρχαΐζω",
+     null
+    ],
+    "ού": [
+     "αραιός",
+     null
+    ],
+    "ούν": [
+     "οκταπλούς",
+     null
+    ],
+    "ούσης": [
+     "αρχαΐζω",
+     null
+    ],
+    "χχχ": [
+     "Καραβίτης",
+     null
+    ],
+    "ός": [
+     "αραιός",
+     null
+    ],
+    "ών": [
+     "αραιός",
+     null
+    ]
+   }
+  },
+  "mg_pos_lookup.json": {
+   "set": {
+    "ά": [
+     {
+      "ADJ": "αριός",
+      "ADV": "αλλιώς",
+      "NOUN": "άρθρο"
+     },
+     {
+      "ADV": "αλλιώς",
+      "NOUN": "άρθρο"
+     }
+    ],
+    "άς": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "έ": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ές": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ας": [
+     {
+      "ADJ": "αισώπειος",
+      "PART": "ας"
+     },
+     {
+      "PART": "ας"
+     }
+    ],
+    "γ": [
+     {
+      "NOUN": "βρόντημα",
+      "VERB": "εισακούω"
+     },
+     {
+      "VERB": "εισακούω"
+     }
+    ],
+    "ε": [
+     {
+      "ADJ": "αισώπειος",
+      "INTJ": "ε",
+      "VERB": "αποδεικνύω"
+     },
+     {
+      "INTJ": "ε",
+      "VERB": "αποδεικνύω"
+     }
+    ],
+    "ες": [
+     {
+      "ADJ": "αισώπειος",
+      "ADP": "εις",
+      "PROPN": "Ες"
+     },
+     {
+      "ADP": "εις",
+      "PROPN": "Ες"
+     }
+    ],
+    "ια": [
+     {
+      "ADJ": "φαρδύς",
+      "NOUN": "ίο",
+      "PROPN": "Ία"
+     },
+     {
+      "NOUN": "ίο",
+      "PROPN": "Ία"
+     }
+    ],
+    "ιο": [
+     {
+      "ADJ": "ακέραιος",
+      "NOUN": "ιός",
+      "PROPN": "Ίος"
+     },
+     {
+      "NOUN": "ιός",
+      "PROPN": "Ίος"
+     }
+    ],
+    "κο": [
+     {
+      "ADJ": "ασχημούλης",
+      "PROPN": "Κο"
+     },
+     {
+      "PROPN": "Κο"
+     }
+    ],
+    "ον": [
+     {
+      "ADJ": "μύχιος",
+      "NOUN": "ων"
+     },
+     {
+      "NOUN": "ων"
+     }
+    ],
+    "οντων": [
+     {
+      "ADJ": "αρχαΐζων",
+      "NOUN": "ων"
+     },
+     {
+      "NOUN": "ων"
+     }
+    ],
+    "ονων": [
+     {
+      "ADJ": "αιθεροβάμων",
+      "NOUN": "όνος"
+     },
+     {
+      "NOUN": "όνος"
+     }
+    ],
+    "ος": [
+     {
+      "ADJ": "αισώπειος",
+      "PROPN": "Ος"
+     },
+     {
+      "PROPN": "Ος"
+     }
+    ],
+    "ου": [
+     {
+      "ADJ": "αισώπειος",
+      "NOUN": "ου",
+      "PART": "ου",
+      "PROPN": "Ου"
+     },
+     {
+      "NOUN": "ου",
+      "PART": "ου",
+      "PROPN": "Ου"
+     }
+    ],
+    "ουν": [
+     {
+      "ADJ": "οκταπλούς",
+      "PROPN": "Ουν",
+      "VERB": "σαλπάρω"
+     },
+     {
+      "PROPN": "Ουν",
+      "VERB": "σαλπάρω"
+     }
+    ],
+    "ους": [
+     {
+      "ADJ": "αισώπειος",
+      "NOUN": "ους",
+      "PRON": "ους",
+      "PROPN": "Ους"
+     },
+     {
+      "NOUN": "ους",
+      "PRON": "ους",
+      "PROPN": "Ους"
+     }
+    ],
+    "ουσης": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "ουσων": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "ουσών": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "ού": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ούν": [
+     {
+      "ADJ": "οκταπλούς",
+      "VERB": "σαλπάρω"
+     },
+     {
+      "VERB": "σαλπάρω"
+     }
+    ],
+    "ούς": [
+     {
+      "ADJ": "αριός",
+      "NOUN": "ους"
+     },
+     {
+      "NOUN": "ους"
+     }
+    ],
+    "ούσης": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "π": [
+     {
+      "ADJ": "κακόγνωμος"
+     },
+     null
+    ],
+    "παίχτες": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "παίχτη": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "παίχτης": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "παιχτες": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "παιχτη": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "παιχτης": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "παιχτων": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "παιχτών": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     {
+      "NOUN": "παίκτης"
+     }
+    ],
+    "ων": [
+     {
+      "ADJ": "αισώπειος"
+     },
+     null
+    ],
+    "όντων": [
+     {
+      "ADJ": "αρχαΐζων",
+      "NOUN": "ων"
+     },
+     {
+      "NOUN": "ων"
+     }
+    ],
+    "όνων": [
+     {
+      "ADJ": "αιθεροβάμων",
+      "NOUN": "όνος"
+     },
+     {
+      "NOUN": "όνος"
+     }
+    ],
+    "ός": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ών": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ]
+   }
+  }
+ },
+ "generator_sha256": "636077e552a087eab21d1cae9d01bfe084657ca6489d254d45e698e117432a4c",
+ "inputs": {
+  "mg_lookup.json": "d40b55cc6b1142e7670f8ed062c15a8bc4008ad8a71d21634d865972457feeb7",
+  "mg_pos_lookup.json": "fd7ae81efa90c9886cf646b603c570fa6b52448d610e6c1b1e784a48fc7b56b9"
+ },
+ "language": "el",
+ "rule": "el_nominal_fragment_repair_v1",
+ "schema_version": 1
+}

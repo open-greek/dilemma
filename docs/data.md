@@ -521,6 +521,17 @@ A reference that agrees with the table is kept (`περίπλους`, accusative
   for proper nouns via templates (413K junk entries like `Αχιλλείς`).
   These are skipped unless EN Wiktionary also lists them (which
   indicates a human editor intentionally added them, e.g. `Έλληνες`).
+- **Modern table fragments**. Some Modern Greek noun and adjective tables
+  lose a stem: `αρχαΐζων` lists the participle endings `ούσης`, `όντων`,
+  `ουσών`, `αισώπειος` lists `ος`, `ε`, `ους`, and a headword line can end
+  in a stray letter (`βρόντημα` `γ`). A case cell or headword form whose
+  letters are shorter than the word's is skipped when it is a bare ending
+  (at most three letters, two fewer than the word) or, for a case cell of a
+  common noun or adjective, starts with another letter (`μηχανή` in
+  `κρεατομηχανή`'s table). Longer suppletive cells (`χειρότερος`), short
+  name forms (`Δία`) and headword alternatives (`αργιλές`) are kept
+  (`is_modern_nominal_fragment`). The published snapshot carries the change
+  as the recorded removal `data/changes/el_nominal_fragments.json`.
 - **Training pair validation**. Lemmas must resolve to supported lexical
   heads. Independently defined homographs can retain separate paradigms even
   when the flat lookup chooses another reading. The `el_*_heads.json` and
