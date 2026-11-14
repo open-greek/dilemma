@@ -76,12 +76,14 @@ class NoInferenceImports(importlib.abc.MetaPathFinder):
             raise AssertionError('Lookup-only use imported ' + fullname)
 
 sys.meta_path.insert(0, NoInferenceImports())
-from dilemma import Dilemma
+from dilemma import Dilemma, DilemmaDataWarning
 
 def exercise():
     for skip_pos in (False, True):
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter('always')
+            # The fixture directory holds no headword lists (issue #118).
+            warnings.filterwarnings('ignore', category=DilemmaDataWarning)
             engine = Dilemma(lang='grc', device='cpu', skip_pos=skip_pos)
             assert engine.lemmatize('λόγοι', guess=False) == 'λόγος'
             assert engine.lemmatize('μάκαπ', guess=False) is None
