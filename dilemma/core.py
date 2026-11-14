@@ -206,6 +206,27 @@ _TRUSTED_AG_HEADWORD_PATHS = (
 )
 
 
+@lru_cache(maxsize=2)
+def _lexical_head_lists(path, size, mtime):
+    """The lexical heads of grc_lexical_heads.json, by language, parsed once."""
+    with Path(path).open(encoding="utf-8") as stream:
+        evidence = json.load(stream)
+    ancient = frozenset(evidence["heads"])
+    vernacular = frozenset(evidence.get("vernacular_heads", ()))
+    return {"grc": ancient, "el": vernacular, "all": ancient | vernacular}
+
+
+def _lexical_heads(lang: str) -> frozenset[str]:
+    """Ancient ("grc"), vernacular ("el") or all lexical heads; none without the file."""
+    try:
+        stat = GRC_LEXICAL_HEADS_PATH.stat()
+    except OSError:
+        return frozenset()
+    return _lexical_head_lists(
+        str(GRC_LEXICAL_HEADS_PATH), stat.st_size, stat.st_mtime_ns
+    ).get(lang, frozenset())
+
+
 def _without_quantity_marks(word: str) -> str:
     nfd = unicodedata.normalize("NFD", word)
     return unicodedata.normalize("NFC", "".join(
@@ -1185,7 +1206,8 @@ class Dilemma:
         # dictionary, for accenting compound reconstructions. Lazy-loaded.
         self._compound_headword_indexes: dict[str, dict[str, list[str]]] = {}
         self._trusted_grave_targets: set[str] | None = None
-        self._elision_lexical_heads: set[str] | None = None
+        self._elision_lexical_heads: frozenset[str] | None = None
+        self._ancient_lexical_heads: frozenset[str] | None = None
         self._fallback_readings = None
         self._fallback_exact_readings = None
         self._fallback_verb_lemmas = None
@@ -2082,7 +2104,8 @@ class Dilemma:
             return _PRONOUN_LEMMAS[normalized]
         return _MONOTONIC_PRONOUN_LEMMAS.get(to_monotonic(normalized))
 
-    def _lookup_word(self, word: str) -> str | None:
+    def _lookup_word(self, word: str, *,
+                     prefer_modern: bool | None = None) -> str | None:
         """Try lookup cascade: exact -> lowercase -> grave_to_acute -> monotonic -> stripped.
 
         Grave-to-acute is tried before monotonic because it preserves
@@ -2098,6 +2121,10 @@ class Dilemma:
         Skips mono/stripped matches that are trivially short (1-2 chars)
         and map to themselves - these are usually false positives from
         accent stripping on elided or particle forms.
+
+        *prefer_modern* overrides whether the MG-specific entries are
+        checked first; a caller that wants the Ancient reading whatever
+        the convention passes False.
         """
         if self.lang in ("all", "grc"):
             grammar = reviewed_verb_grammar(word)
@@ -2108,9 +2135,10 @@ class Dilemma:
         # lookup first. MG entries take priority over AG when there's a
         # conflict (e.g. χρήσης -> χρήση in MG vs χράω in AG, or
         # κοντά -> κοντά in MG vs κοντός in AG).
-        _prefer_mg = (self.lang == "el"
-                      or self._convention_name == "triantafyllidis")
-        if _prefer_mg and self._mg_lookup:
+        if prefer_modern is None:
+            prefer_modern = (self.lang == "el"
+                             or self._convention_name == "triantafyllidis")
+        if prefer_modern and self._mg_lookup:
             tbl = self._mg_lookup
             hit = tbl.get(word) or tbl.get(word.lower())
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
@@ -2175,15 +2203,7 @@ class Dilemma:
     def _positive_elision_target(self, lemma: str) -> bool:
         """Whether merged lexical definitions support an exact elision target."""
         if self._elision_lexical_heads is None:
-            heads = set()
-            if GRC_LEXICAL_HEADS_PATH.exists():
-                with GRC_LEXICAL_HEADS_PATH.open(encoding="utf-8") as stream:
-                    evidence = json.load(stream)
-                if self.lang in ("all", "grc"):
-                    heads.update(evidence["heads"])
-                if self.lang in ("all", "el"):
-                    heads.update(evidence.get("vernacular_heads", {}))
-            self._elision_lexical_heads = heads
+            self._elision_lexical_heads = _lexical_heads(self.lang)
         normalized = _without_quantity_marks(sanitize_form(lemma)).replace("-", "")
         return normalized in self._elision_lexical_heads
 
@@ -2851,10 +2871,15 @@ class Dilemma:
         (ολεθρο + τοκος), which is not a citation form. The skeleton is
         matched against the accent-stripped headword lists, and the first
         dictionary that has it supplies the accented spelling
-        (ὀλεθροτόκος). Without a headword, monotonic Modern Greek input
-        keeps the accent of its monotonic base lemma (μονο + ακόρεστος ->
-        μονοακόρεστος); otherwise the reconstruction abstains (issue #101),
-        since an Ancient prefix would lack its breathing.
+        (ὀλεθροτόκος). Without a headword the reconstruction abstains
+        (issue #101), since no dictionary vouches for the spelling and an
+        Ancient prefix would lack its breathing.
+
+        A caller that is allowed to guess passes *base_lemma*: monotonic
+        Modern Greek input then keeps the accent of its monotonic base
+        lemma (μονο + ακόρεστος -> μονοακόρεστος). That spelling is
+        unverified, and more often a non-word than a word (βραβευ + σός,
+        issue #103), so a no-guess caller leaves *base_lemma* out.
         """
         def _polytonic(s: str) -> bool:
             return any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
@@ -2895,7 +2920,8 @@ class Dilemma:
                 return skeleton[:len(skeleton) - len(stripped_base)] + base
         return None
 
-    def _decompose_compound(self, word: str) -> str | None:
+    def _decompose_compound(self, word: str, *,
+                            guess: bool = True) -> str | None:
         """Try to lemmatize an unknown compound by splitting at linking vowels.
 
         Greek compounds: first-stem + linking-vowel (ο/ι/υ) + second-element.
@@ -2903,7 +2929,8 @@ class Dilemma:
         at each linking vowel (left to right, preferring longer bases), look
         up the base, and reconstruct prefix + base_lemma.
 
-        Returns the reconstructed compound lemma, or None.
+        Returns the reconstructed compound lemma, or None. With
+        ``guess=False`` only a lemma that a dictionary lists is returned.
         """
         lower = word.lower()
         stripped = strip_accents(lower)
@@ -2948,19 +2975,21 @@ class Dilemma:
 
             # Reconstruct the compound and accent it from a dictionary
             # headword; an unaccented skeleton is not a citation form.
-            compound = self._compound_headword(prefix + base_lemma_s, word,
-                                               base_lemma)
+            compound = self._compound_headword(
+                prefix + base_lemma_s, word, base_lemma if guess else None)
             if compound:
                 return compound
 
         return None
 
-    def _decompose_compound_all(self, word: str) -> list[tuple[str, str, str]]:
+    def _decompose_compound_all(self, word: str, *, guess: bool = True
+                                ) -> list[tuple[str, str, str]]:
         """Return ALL valid compound decompositions.
 
         Returns list of (compound_lemma, base_lemma, prefix) triples,
         ordered by base length descending (longest base = most specific).
-        Used by lemmatize_verbose for multi-candidate output.
+        Used by lemmatize_verbose for multi-candidate output. With
+        ``guess=False`` only lemmas that a dictionary lists are returned.
         """
         lower = word.lower()
         stripped = strip_accents(lower)
@@ -2993,8 +3022,8 @@ class Dilemma:
             if not self._compound_base_matches(base, base_lemma_s):
                 continue
 
-            compound = self._compound_headword(prefix + base_lemma_s, word,
-                                               base_lemma)
+            compound = self._compound_headword(
+                prefix + base_lemma_s, word, base_lemma if guess else None)
             if compound and compound not in seen:
                 seen.add(compound)
                 results.append((compound, base_lemma, prefix))
@@ -3388,8 +3417,9 @@ class Dilemma:
             if byz:
                 return self._apply_convention(byz)
 
-            # 2. Compound decomposition (linking vowel split)
-            compound = self._decompose_compound(word)
+            # 2. Compound decomposition (linking vowel split). Without a
+            #    dictionary headword the reconstruction is a guess.
+            compound = self._decompose_compound(word, guess=guess)
             if compound:
                 return self._apply_convention(compound)
 
@@ -3545,6 +3575,194 @@ class Dilemma:
             return pos_lemma
         return candidate
 
+    # Tags one Ancient lemma can carry across tagsets and POS sources: a
+    # proper noun or substantivized adjective beside NOUN, a pronominal
+    # adjective (ἄλλος, σός) or a numeral (εἷς) beside PRON or DET, an
+    # adverbial neuter beside ADJ, a particle beside ADV, the two kinds of
+    # conjunction, an auxiliary beside VERB.
+    _POS_COMPATIBLE_TAGS = (
+        frozenset({"NOUN", "PROPN", "ADJ"}),
+        frozenset({"ADJ", "PRON", "DET", "NUM"}),
+        frozenset({"ADJ", "ADV"}),
+        frozenset({"ADV", "PART"}),
+        frozenset({"CCONJ", "SCONJ"}),
+        frozenset({"VERB", "AUX"}),
+    )
+    # Tags of the small closed word classes. Modern Greek function words
+    # (να, με, σε, σαν, ας, στους) carry them, and no verb form does.
+    _CLOSED_CLASS_TAGS = frozenset(
+        {"PRON", "DET", "ADP", "CCONJ", "SCONJ", "PART", "INTJ"})
+    _TONAL_ACCENTS = frozenset({0x0301, 0x0300, 0x0342})
+
+    @classmethod
+    def _pos_tags_compatible(cls, first: str, second: str) -> bool:
+        return first == second or any(
+            first in group and second in group
+            for group in cls._POS_COMPATIBLE_TAGS)
+
+    def _is_ancient_headword(self, lemma: str) -> bool:
+        """Whether an Ancient dictionary or lexical-head list has *lemma*."""
+        if lemma in self._get_headword_set("lsj"):
+            return True
+        if self._ancient_lexical_heads is None:
+            self._ancient_lexical_heads = _lexical_heads("grc")
+        normalized = _without_quantity_marks(sanitize_form(lemma)).replace("-", "")
+        return normalized in self._ancient_lexical_heads
+
+    def _ancient_lookup_has_spelling(self, word: str) -> bool:
+        """Whether the Ancient lookup holds *word* with its own accents.
+
+        A reading reached only through the monotonic or accent-stripped
+        variant, or only in the combined lookup, is a reading of some
+        other spelling. The shipped SQLite lookup serves its Ancient view
+        from rows stored for both languages as well, some of Modern
+        origin, so a vernacular spelling held there counts as known and
+        keeps the lookup's answer.
+        """
+        if reviewed_verb_grammar(word) is not None:
+            return True
+        table = self._ag_lookup
+        if not table:
+            return False
+        acute = grave_to_acute(word)
+        return any(
+            self._normalize_grave_citation_lemma(table.get(variant) or "")
+            for variant in dict.fromkeys(
+                (word, word.lower(), acute, acute.lower())))
+
+    _VOWEL_RUN = re.compile("[αεηιουω]+")
+    _SYLLABLE_NUCLEUS = re.compile("[αεο]ι|υι|[αεηο]υ|[αεηιουω]")
+
+    @classmethod
+    def _without_enclitic_accent(cls, word: str) -> str:
+        """Drop the second accent a following enclitic adds (ἄνθρωπός τις).
+
+        Only the two patterns an enclitic produces count: an acute on the
+        final syllable of a word accented on the antepenult, or of one
+        with a circumflex on the penult (δῶρόν). In ἄεί the second accent
+        is the word's own.
+        """
+        nfd = unicodedata.normalize("NFD", word)
+        accents = [index for index, ch in enumerate(nfd)
+                   if ord(ch) in cls._TONAL_ACCENTS]
+        if len(accents) != 2 or nfd[accents[1]] != "\u0301":
+            return word
+        first, last = accents
+        syllables_after = {"\u0301": 2, "\u0342": 1}.get(nfd[first])
+
+        def nuclei(text: str) -> int:
+            return len(cls._SYLLABLE_NUCLEUS.findall("".join(
+                ch for ch in text.lower() if not unicodedata.combining(ch))))
+
+        if nuclei(nfd[first + 1:last]) != syllables_after \
+                or nuclei(nfd[last + 1:]):
+            return word
+        return unicodedata.normalize("NFC", nfd[:last] + nfd[last + 1:])
+
+    def _modern_pos_entry_keeps_accent(self, word: str, upos: str,
+                                       modern: str) -> bool:
+        """Whether the Modern reading is recorded for the word's accent.
+
+        Monotonic spelling writes no accent on a monosyllable, so there the
+        bare key is the word's own spelling (νὰ is να, μιὰ is μια). A word
+        counts as one when its vowels form a single group; that admits
+        synizesis (ποιὸς) and, with it, the few longer words whose vowels
+        all stand together (προϊόν).
+        """
+        lower = word.lower()
+        stripped = strip_accents(lower)
+        if len(self._VOWEL_RUN.findall(stripped)) <= 1:
+            return True
+        return any(
+            variant != stripped
+            and (self._pos_lookup.get(variant) or {}).get(upos) == modern
+            for variant in (word, lower, grave_to_acute(lower),
+                            to_monotonic(lower)))
+
+    def _modern_pos_reading_applies(self, word: str, upos: str,
+                                    modern: str) -> bool:
+        """Whether a Modern Greek POS reading may stand for polytonic input.
+
+        Polytonic spelling does not make a word Ancient: vernacular
+        Byzantine and pre-1982 Modern Greek are written the same way. The
+        Modern reading stands only when the Ancient side offers nothing of
+        the requested kind:
+
+        * no reading at all, from the lookup or any structured resolver;
+        * an unaccented echo of the input that is no Ancient headword (the
+          misaccented ἀλλην);
+        * a reading the Ancient POS tables record for the form only under
+          a conflicting part of speech (νὰ as νή when a conjunction is
+          requested, κυροῦ as the verb κυρόω when a noun is). For an
+          open-class tag the Ancient side must also not know the spelling
+          itself (as a headword, or as an accented key of the Ancient POS
+          tables), so a mistagged Ancient form keeps its lemma (ὄντων ADJ
+          stays εἰμί);
+        * a reading with no recorded part of speech, of a spelling the
+          Ancient side does not know, that was found only by discarding
+          the form's accents while the Modern reading is recorded for
+          them (ὧρες, matched to ὄρνυμι through ώρες, is ώρες), or that
+          the lookup holds under the form's own accents but that has a
+          verb ending when a closed-class tag is requested (σεῖς PRON is
+          not a form of σέω);
+        * a capitalized name with no recorded part of speech, when the
+          word and the Modern lemma are lowercase and the tag is not a
+          noun's (κακὸ ADJ is not the name Κακό, nor πιὰ ADV Πῖα).
+
+        Once an Ancient reading exists, the Modern one never stands when
+        it is the same word in monotonic spelling (ἄλλος, άλλος), when the
+        Ancient reading's part of speech is compatible (Ἑλλήνων PROPN
+        keeps Ἕλλην, not Έλληνας), or when it is a capitalized name for a
+        lowercase word. A second accent from a following enclitic is not
+        part of the spelling: ἄνθρωπός is judged as ἄνθρωπος.
+        """
+        word = self._without_enclitic_accent(
+            unicodedata.normalize("NFC", word))
+        # The Ancient reading, whatever the convention prefers.
+        ancient = self._lookup_word(word, prefer_modern=False)
+        if not ancient:
+            # The article, elision and crasis resolvers read forms the
+            # lookup does not hold (οἱ); their reading is an Ancient one.
+            return not self._lemmatize_verbose_impl(word, guess=False)
+        ancient_key = strip_accents(ancient.lower())
+        name_only = (is_capitalized(ancient) and not is_capitalized(word)
+                     and not is_capitalized(modern)
+                     and upos not in ("PROPN", "NOUN"))
+        if ancient_key == strip_accents(modern.lower()) and not name_only:
+            return False
+        if is_capitalized(modern) and not is_capitalized(word):
+            return False
+        lower = word.lower()
+        accented = (word, lower, grave_to_acute(lower))
+        table = self._pos_ag_lookup
+        tags = {tag
+                for variant in (*accented, to_monotonic(lower),
+                                strip_accents(lower))
+                for tag, lemma in (table.get(variant) or {}).items()
+                if lemma and strip_accents(lemma.lower()) == ancient_key}
+        if any(self._pos_tags_compatible(upos, tag) for tag in tags):
+            return False
+        echo = ancient_key == strip_accents(lower)
+        headword = echo and self._is_ancient_headword(ancient)
+        if echo and not headword and not any(
+                ord(ch) in self._TONAL_ACCENTS
+                for ch in unicodedata.normalize("NFD", word)):
+            return True
+        known = headword or any(table.get(variant) for variant in accented)
+        closed_class = upos in self._CLOSED_CLASS_TAGS
+        if tags:
+            return closed_class or not known
+        if name_only:
+            return True
+        if known:
+            return False
+        if not self._ancient_lookup_has_spelling(word):
+            # Neither reading is one of this spelling. A Modern entry
+            # reached the same way, under the bare key, is no better
+            # evidence than the Ancient one (ἐφη VERB stays φημί).
+            return self._modern_pos_entry_keeps_accent(word, upos, modern)
+        return closed_class and ancient_key.endswith(("ω", "μι", "μαι"))
+
     def _pos_table_lookup(self, word: str, upos: str) -> str | None:
         """Look up POS-specific lemma from POS disambiguation tables.
 
@@ -3590,8 +3808,19 @@ class Dilemma:
             # The combined table adds only Modern Greek entries to the
             # AG-only one, and its monotonic and stripped variants would
             # turn polytonic Ancient forms into monotonic headwords
-            # (ἄλλην -> άλλος, Ἑλλήνων -> Έλληνας; issue #100). Leave the
-            # choice to the lookup candidates instead.
+            # (ἄλλην -> άλλος, Ἑλλήνων -> Έλληνας; issue #100). Only the
+            # first Modern entry for the tag is considered, and it stands
+            # only where _modern_pos_reading_applies finds no Ancient
+            # reading of the requested kind (νὰ CCONJ -> να, κυροῦ NOUN
+            # -> κυρός); otherwise the lookup candidates decide.
+            for variant in variants:
+                pos_entry = self._pos_lookup.get(variant)
+                if pos_entry and upos in pos_entry \
+                        and _usable(pos_entry[upos]):
+                    if self._modern_pos_reading_applies(
+                            word, upos, pos_entry[upos]):
+                        return _target(pos_entry[upos])
+                    break
             return None
 
         # Combined POS lookup
@@ -3991,9 +4220,11 @@ class Dilemma:
 
             if pos_lemma is None:
                 # Compare structured readings even without a POS entry. Do
-                # not repeat model inference for unresolved batch words.
+                # not repeat model inference for unresolved batch words;
+                # the compound step still follows the caller's guess.
                 candidates = self._checked_pos_candidates(
-                    word, upos, self._lemmatize_verbose_impl(word, guess=False))
+                    word, upos, self._lemmatize_verbose_impl(
+                        word, guess=False, compound_guess=guess))
                 if (len(candidates) == 1 and results[i] is not None
                         and strip_accents(candidates[0].lemma.lower())
                         == strip_accents(results[i].lower())):
@@ -4014,7 +4245,8 @@ class Dilemma:
         for i, (word, upos) in enumerate(zip(words, upos_tags)):
             if rejected_baselines[i] and results[i] is None:
                 candidates = self._checked_pos_candidates(
-                    word, upos, self._lemmatize_verbose_impl(word, guess=False))
+                    word, upos, self._lemmatize_verbose_impl(
+                        word, guess=False, compound_guess=guess))
                 if candidates:
                     results[i] = self._prefer_case_twin(
                         word, upos, candidates[0].lemma, candidates)
@@ -4134,8 +4366,15 @@ class Dilemma:
     def _lemmatize_verbose_impl(self, word: str,
                                 prev_word: str | None = None,
                                 *, guess: bool = True,
+                                compound_guess: bool | None = None,
                                 ) -> list[LemmaCandidate]:
-        """Build the candidate list (no attestation gate); see lemmatize_verbose."""
+        """Build the candidate list (no attestation gate); see lemmatize_verbose.
+
+        *compound_guess* decides whether the compound step may return a
+        lemma no dictionary lists; it follows *guess* unless given. A
+        caller that skips the model with ``guess=False`` on behalf of a
+        guessing caller passes its own caller's setting.
+        """
         candidates = []
         seen = set()  # Citation, language, and grammatical identity.
         supported_elisions = set()
@@ -4375,7 +4614,8 @@ class Dilemma:
 
         # 8. Model fallback (if no candidates yet). With guess=False the
         #    transformer is skipped; the identity-fallback heuristics below
-        #    (steps 9-12, all lookup-anchored) still run.
+        #    (steps 9-12) still run, limited to what the lookup or a
+        #    dictionary headword supports.
         model_identity = False
         if not candidates:
             if not guess:
@@ -4399,7 +4639,9 @@ class Dilemma:
 
         # 10. Compound decomposition (only when model returned identity)
         if model_identity:
-            for compound, base_lemma, prefix in self._decompose_compound_all(word):
+            for compound, base_lemma, prefix in self._decompose_compound_all(
+                    word, guess=(guess if compound_guess is None
+                                 else compound_guess)):
                 _add(compound, source="compound",
                      via=f"{prefix}+{base_lemma}", score=0.65)
 
@@ -4641,7 +4883,8 @@ class Dilemma:
                     if byz:
                         pred = byz
                     # 2. Compound decomposition (linking vowel split)
-                    elif (compound := self._decompose_compound(word)):
+                    elif (compound := self._decompose_compound(
+                            word, guess=guess)):
                         pred = compound
                     # 3. Prefix stripping (known prefixes + base)
                     elif (pfx := self._prefix_strip_lookup(word)):

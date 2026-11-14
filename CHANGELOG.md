@@ -6,6 +6,73 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+With `lang="all"`, vernacular Greek written with polytonic accents keeps its
+Modern Greek POS reading again. 1.3.23 stopped reading the Modern Greek POS
+entries for every polytonic form, so `νὰ` tagged CCONJ gave `νή`, `κυροῦ`
+tagged NOUN gave the verb `κυρόω`, `σεῖς` tagged PRON gave `σέω`, and the
+misaccented `ἀλλην` came back unchanged. A Modern Greek entry now stands for
+polytonic input when the Ancient side offers nothing of the requested kind:
+nothing Ancient reads the form; the reading is an unaccented echo that is no
+Ancient headword; the Ancient POS tables record it only under a conflicting
+part of speech, and the tag is a closed class or the accented spelling is
+unknown to them; the reading is a capitalized name for a lowercase word not
+tagged as a noun (`κακὸ` ADJ gave the name `Κακό`, `πιὰ` ADV gave `Πῖα`); or
+the Ancient side records nothing, and either the reading was found only by
+discarding the form's accents while the Modern Greek entry is recorded for
+them, or the lookup holds the spelling but its reading has a verb ending
+under a closed-class tag. `docs/usage.md` states the rule and its known
+gaps.
+
+The 1.3.23 cases are unchanged: the same word in monotonic spelling gives the
+Ancient headword (`ἄλλην` PRON gives `ἄλλος`), an Ancient reading of a
+compatible part of speech is kept (`Ἑλλήνων` PROPN gives `Ἕλλην`), an
+open-class tag does not displace a spelling the Ancient side knows (`ὄντων`
+ADJ gives `εἰμί`), and an Ancient form written without its accent, or with
+the second accent of a following enclitic, is not read through an
+accent-stripped Modern Greek entry (`ἐφη` VERB gives `φημί`, `Πᾶνά` PROPN
+gives `Πάν`). The rule weighs the same Ancient evidence under every
+`convention`. With `lang="all"` and `convention="triantafyllidis"`, though, a
+Modern Greek entry it lets stand is often not returned, as in 1.3.22: `νὰ`
+CCONJ gives `νά`, but `σεῖς` PRON still gives `σέω` and `κυροῦ` NOUN `κυρώ`.
+`lang="el"` is not affected.
+
+Measured against 1.3.23 on 521,484 polytonic (form, tag) pairs from the
+Diorisis and AGDT annotations and the Ancient and Katharevousa benchmark
+forms (build sources, not held out): under a form's annotated tag one answer
+reaches the annotated lemma and none leaves it; under the other tags a tagger
+may give that annotation nothing changes; under every other tag the POS
+tables offer for the form, 84 answers leave it and 2 reach it. 1.3.22 left it
+on 88, 431 and 1,794 of those pairs. On the DBBE gold standard with gold POS
+this restores 7 of 8,342 tokens. Vernacular forms that are also plausible
+Ancient spellings still get the Ancient reading (`σᾶς` PRON gives `σός`,
+`Νὰ` CCONJ gives `ἵνα`, `στὸν` DET gives `ἀστός`), and `στὸ` DET still gives
+no lemma. `νὰ` is restored under CCONJ and PART only: no Modern Greek entry
+carries SCONJ, so `νὰ` SCONJ gives `νή` as before. An Ancient form whose
+spelling the lookup lacks, through an accent slip or a gap, can take a Modern
+Greek headword when Modern Greek records a word with that accent (`ἄπαν`
+NOUN gives `άπαν`).
+
+With `guess=False` the compound fallback returns only a lemma that a
+dictionary lists. 1.3.23 let monotonic Modern Greek input without a headword
+keep the accent of its base lemma, and that reconstruction joins unrelated
+pieces as readily as real ones: `βράβευσον` gave `βραβευσός` (`βραβευ` +
+`σός`) and `σελίδεσιν` gave `σελιδέσις`. Among the 291,613 most frequent
+Modern Greek forms, 3,270 `guess=False` answers were such reconstructions,
+and most of a 70-form sample were non-words. Of the 3,266 answers that
+change, 2,861 now come back as `None`, or as no candidates; the other 405
+are answered by the fallbacks that `guess=False` keeps, Byzantine
+normalization and prefix stripping, which the reconstruction used to
+pre-empt. `repair_lemma` reads the same candidates and follows. With
+`guess=True` nothing changes: the reconstruction still replaces a form the
+transformer leaves unresolved (`μονοακόρεστα` gives `μονοακόρεστος`). In the
+deterministic benchmark gate, which runs with `guess=False`, Demotic loses
+that one token (383 of 400 equivalent, from 384) and the Katharevousa
+`Νικέρωνα` no longer gives `νικερώνω`; the reviewed baseline is refreshed to
+match (#103). The refresh also takes in two answers 1.3.23 changed without
+refreshing it: Katharevousa `θρυλλουμένου` gives `θρυλέω` (297 strict and 302
+equivalent of 318, from 296 and 301), and the hyphenated
+`Παλαιοανθρωπολογίας-Σπηλαιολογίας` gives no lemma.
+
 ## [1.3.23] - 2026-11-13
 
 With `lang="all"`, POS-aware lemmatization no longer turns polytonic Ancient
