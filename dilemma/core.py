@@ -3124,6 +3124,54 @@ class Dilemma:
         "ηι": ["αι"],         # ηι- augment of αι-initial stems (rare)
     }
 
+    # An oblique case of a -μενος participle (accent-stripped), and the
+    # thematic or contract vowel that marks a present, future or aorist
+    # middle participle. Neither kind ever carries an augment.
+    _PARTICIPLE_OBLIQUE = re.compile(
+        r"μεν(?:ου|ω|ον|ε|οι|ων|οις|ους|η|ης|ην|αι|αις|ας|α|οιν|αιν)$")
+    _UNAUGMENTED_PARTICIPLE = re.compile(
+        r"(?:ο|ου|ω|α)μεν(?:ος|ου|ω|ον|ε|οι|ων|οις|ους|η|ης|ην|αι|αις|ας|α|οιν|αιν)$")
+
+    def _participle_nominative_lemma(self, word: str) -> str | None:
+        """Resolve an oblique -μενος participle through its nominative.
+
+        Participles are usually listed in the masculine nominative singular
+        only, so ἐλευσομένῳ has no row while ἐλευσόμενος maps to ἔρχομαι.
+        The nominative is rebuilt with the recessive accent (ἐλευσόμενος),
+        then with the perfect's -μένος (ἐσταλμένος). It must be an exact
+        lookup key whose reading is a verb; a self-map is not evidence.
+        """
+        lower = word.lower()
+        stripped = strip_accents(lower)
+        match = self._PARTICIPLE_OBLIQUE.search(stripped)
+        if not match or len(stripped) < 7:
+            return None
+        nfd = unicodedata.normalize("NFD", lower)
+        letters = [i for i, ch in enumerate(nfd) if not unicodedata.combining(ch)]
+        if len(letters) != len(stripped):
+            return None
+        # Cut before μεν, keeping breathings and subscripts but no accent.
+        stem = "".join(ch for ch in nfd[:letters[len(stripped) - len(match.group(0))]]
+                       if ch not in "\u0301\u0300\u0342")
+        nominatives = []
+        for i in range(len(stem) - 1, -1, -1):
+            if stem[i] in "αεηιουω":
+                j = i + 1
+                while j < len(stem) and unicodedata.combining(stem[j]):
+                    j += 1
+                nominatives.append(stem[:j] + "\u0301" + stem[j:] + "μενος")
+                break
+        nominatives.append(stem + "μένος")
+        for nominative in nominatives:
+            nominative = unicodedata.normalize("NFC", nominative)
+            if (self._lookup.get(nominative) is None
+                    and self._ag_lookup.get(nominative) is None):
+                continue
+            lemma = self._lookup_grammatical_word(nominative, verb_only=True)
+            if lemma and not _is_self_map(nominative, lemma):
+                return lemma
+        return None
+
     def _strip_verb_morphology(self, word: str) -> str | None:
         """Try decomposing unknown verb forms by stripping augment or reduplication.
 
@@ -3143,12 +3191,16 @@ class Dilemma:
         if len(stripped) < 4:
             return None
 
+        # A present, future or aorist participle has no augment (ἐλευσομένῳ
+        # is not an augmented λευσομένῳ); only reduplication can apply.
+        participle = bool(self._UNAUGMENTED_PARTICIPLE.search(stripped))
+
         # 1. Syllabic augment: strip leading ε- (most common augment)
         # The augmented form starts with ε and the unaugmented stem
         # should be a recognizable verb form.
         nfd = unicodedata.normalize("NFD", lower)
         base_chars = [ch for ch in nfd if unicodedata.category(ch) != "Mn"]
-        if base_chars and base_chars[0] == "ε":
+        if not participle and base_chars and base_chars[0] == "ε":
             # Strip the initial epsilon (with any diacritics)
             # Find the end of the first character cluster (base + combiners)
             idx = 0
@@ -3170,7 +3222,7 @@ class Dilemma:
         # with the original stem vowel(s)
         for augmented, originals in self._TEMPORAL_AUGMENT.items():
             aug_stripped = strip_accents(augmented)
-            if not stripped.startswith(aug_stripped):
+            if participle or not stripped.startswith(aug_stripped):
                 continue
             remainder_stripped = stripped[len(aug_stripped):]
             if len(remainder_stripped) < 3:
@@ -3178,7 +3230,10 @@ class Dilemma:
             for original in originals:
                 candidate = original + remainder_stripped
                 lemma = self._lookup_grammatical_word(candidate, verb_only=True)
-                if lemma and not _is_self_map(candidate, lemma):
+                # The lemma must begin with the restored vowel: εἰκόνισεν
+                # is not ἐκόνισεν, itself an augmented form of κονίω.
+                if (lemma and not _is_self_map(candidate, lemma)
+                        and strip_accents(lemma.lower()).startswith(original)):
                     return lemma
 
         # 3. Reduplication: perfect forms have consonant+vowel prefix
@@ -3368,7 +3423,8 @@ class Dilemma:
 
         # Verb morphology stripping (augment, reduplication - after
         # particle stripping, before model)
-        verb_morph_lemma = self._strip_verb_morphology(word)
+        verb_morph_lemma = (self._participle_nominative_lemma(word)
+                            or self._strip_verb_morphology(word))
         if verb_morph_lemma:
             return self._apply_convention(verb_morph_lemma)
 
@@ -4567,7 +4623,14 @@ class Dilemma:
                 _add(particle_lemma, lang=lang, source="particle_strip",
                      via="suffix_strip", score=0.9)
 
-        # 6. Verb morphology stripping (augment, reduplication)
+        # 6. Verb morphology: an oblique participle through its nominative,
+        # then augment and reduplication stripping
+        if not candidates:
+            participle_lemma = self._participle_nominative_lemma(word)
+            if participle_lemma:
+                lang = self._lang_of(participle_lemma) or "grc"
+                _add(participle_lemma, lang=lang, source="verb_morphology",
+                     via="participle_nominative", score=0.85)
         if not candidates:
             verb_morph_lemma = self._strip_verb_morphology(word)
             if verb_morph_lemma:
@@ -4831,8 +4894,10 @@ class Dilemma:
                 results.append(particle_lemma)
                 continue
 
-            # Verb morphology stripping (augment, reduplication)
-            verb_morph_lemma = self._strip_verb_morphology(word)
+            # Verb morphology stripping (participle nominative, augment,
+            # reduplication)
+            verb_morph_lemma = (self._participle_nominative_lemma(word)
+                                or self._strip_verb_morphology(word))
             if verb_morph_lemma:
                 results.append(verb_morph_lemma)
                 continue
