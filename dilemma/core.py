@@ -397,6 +397,29 @@ _MARKED_ARTICLE_FORMS = {
            for char in unicodedata.normalize("NFD", form))
 }
 
+# A bare letter tagged NOUN or ADJ is a numeral, siglum or list label
+# (#116). The POS tables carry one-letter keys from dictionary abbreviations
+# and stray corpus tokens (α ADJ -> Λητογενής, ι NOUN -> ζευγίτης), so
+# those tags return the letter itself instead of trusting a cell.
+_BARE_LETTER_UPOS = frozenset({"NOUN", "ADJ"})
+
+
+def _bare_letter_nominal(word: str, upos: str | None) -> str | None:
+    """Return ``word`` (NFC) when it is one unmarked Greek letter tagged
+    NOUN or ADJ, else None. Accented or breathed letters (ἡ, ὁ, ά) are not
+    bare and keep the article and pronoun logic."""
+    if upos not in _BARE_LETTER_UPOS or not word:
+        return None
+    nfd = unicodedata.normalize("NFD", word)
+    if len(nfd) != 1:
+        return None
+    code = ord(nfd)
+    if (0x0391 <= code <= 0x03A9 or 0x03B1 <= code <= 0x03C9
+            or 0x03D8 <= code <= 0x03E1 or code in (0x03F2, 0x03F9)):
+        return unicodedata.normalize("NFC", word)
+    return None
+
+
 _PRONOUN_LEMMAS = {
     # 1st person -> ἐγώ
     "μοι": "ἐγώ", "μοί": "ἐγώ", "μου": "ἐγώ", "με": "ἐγώ",
@@ -4466,6 +4489,9 @@ class Dilemma:
         article_lemma = self._article_pos_lemma(word, upos)
         if article_lemma is not None:
             return checked(self._apply_convention(article_lemma))
+        letter = _bare_letter_nominal(word, upos)
+        if letter is not None:
+            return checked(letter)
 
         # Get all candidates from regular lookup
         candidates = self._checked_pos_candidates(
@@ -4622,6 +4648,11 @@ class Dilemma:
             article_lemma = self._article_pos_lemma(word, upos)
             if article_lemma is not None:
                 results[i] = self._apply_convention(article_lemma)
+                resolved_articles.add(i)
+                continue
+            letter = _bare_letter_nominal(word, upos)
+            if letter is not None:
+                results[i] = letter
                 resolved_articles.add(i)
                 continue
             pos_lemma = self._checked_pos_table_lookup(word, upos)

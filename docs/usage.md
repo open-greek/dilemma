@@ -533,6 +533,13 @@ d.lemmatize_pos("λευκόν", "ADJ")   # "λευκός" (adjective: white)
 Curated POS entries can select among regular lookup candidates or override
 a single candidate when the dictionaries and corpus evidence support a
 different lemma for that part of speech.
+A single unaccented Greek letter tagged NOUN or ADJ (a numeral, siglum or
+list label) lemmatizes to itself, even with `guess=False`, instead of a
+one-letter table cell (`α` ADJ gives `α`, not `Λητογενής`; `ι` NOUN gives
+`ι`, not `ζευγίτης`). With `lang="grc"` a letter the treebank audit rejects
+as a target gives `None` (`α`). Other tags (`η` DET gives `ὁ`, `κ` X gives
+`Κ`) and accented or breathed letters (`ἡ` NOUN gives `ὁ`) are unchanged,
+as is untagged lookup (`ε` gives `ἔ` with `lang="grc"`).
 An explicit verb tag also overrides a single competing reading represented
 by lowercase and capitalized candidates, such as `Λάμπε` selecting `λάμπω`
 instead of the independent name `Λάμπος`. Untagged name readings remain
