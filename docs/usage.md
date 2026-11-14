@@ -243,11 +243,16 @@ lemma (a guessed headword puts a false definition in front of the reader), and
 an echoed input is indistinguishable from a successful identity lemmatization.
 All five lemmatization entry points therefore take `guess=False`, which skips
 the transformer and returns `None` (or an empty candidate list) instead of a
-guess or an echo:
+guess or an echo. A compound lemma that no dictionary lists is a guess too:
+the compound fallback can join a prefix to an unrelated base (`βράβευσον` as
+`βραβευ` + `σός`), so `guess=False` returns a reconstructed compound only
+when it is a headword:
 
 ```python
-d.lemmatize("μάκαπ")                         # "μάκαπ" (echo - OCR junk, unresolvable)
+d.lemmatize("μάκαπ")                         # "μάκα" (a model guess - OCR junk, unresolvable)
 d.lemmatize("μάκαπ", guess=False)            # None ("I don't know")
+d.lemmatize("ὀλεθροτόκον", guess=False)      # "ὀλεθροτόκος" (an LBG headword)
+d.lemmatize("βράβευσον", guess=False)        # None, not "βραβευσός"
 d.lemmatize_batch(words, guess=False)        # None at unresolvable positions
 d.lemmatize_verbose("μάκαπ", guess=False)    # [] - no identity/model candidates
 ```
@@ -531,15 +536,91 @@ citation form (-ος, -ής, -ύς) is preferred. When POS is VERB, the
 infinitive/1sg form (-ω, -ώ, -μαι) is preferred. Adverbs and nouns keep
 their MG self-maps unchanged.
 
-The POS lookup tables (~1.82M AG-only entries, ~1.86M combined) are built
+The POS lookup tables (~2.05M AG-only forms, ~2.10M combined) are built
 from six sources in priority order: AGDT originals and licensed corpus votes, LSJ9
 indeclinables (2.2K adverbs, prepositions, conjunctions, particles,
 interjections with unambiguous POS), GLAUx corpus (8.7K entries), MG
-Wiktionary, AG Wiktionary, LSJ9 grammar. For polytonic input (breathing
-marks, circumflex), only the AG-only POS entries are read, so Ancient Greek
-text never gets a Modern Greek lemma from the POS tables; when they have no
-reading for the tag, the lookup candidates decide. Monotonic input reads the
-combined table.
+Wiktionary, AG Wiktionary, LSJ9 grammar. Monotonic input reads the combined
+table. For polytonic input (breathing marks, circumflex), the AG-only POS
+entries are read first.
+
+Polytonic spelling does not make a word Ancient: vernacular Byzantine and
+pre-1982 Modern Greek are written the same way. A Modern Greek entry is
+therefore still used for polytonic input, but only when the Ancient side
+offers nothing of the requested kind:
+
+- nothing Ancient reads the form, neither the lookup nor the article,
+  elision and crasis resolvers;
+- the Ancient reading only echoes the input, which carries no accent and is
+  no Ancient headword (the misaccented `ἀλλην` PRON gives `άλλος`);
+- the Ancient POS tables record the reading for the form only under a
+  conflicting part of speech, and either the requested tag is a closed class
+  (PRON, DET, ADP, CCONJ, SCONJ, PART, INTJ: `νὰ` CCONJ gives `να`, not `νή`)
+  or the Ancient side does not know the accented spelling (`κυροῦ` NOUN gives
+  `κυρός`, not the verb `κυρόω`);
+- the Ancient reading is a capitalized name that the Ancient POS tables do
+  not record for the form, while the word and the Modern Greek lemma are
+  lowercase and the requested tag is neither NOUN nor PROPN (`κακὸ` ADJ gives
+  `κακός`, not the name `Κακό`; `πιὰ` ADV gives `πια`);
+- the Ancient side records nothing (no POS-table entry for the reading or the
+  spelling, and the form is no headword), and either the reading was found
+  only by discarding the form's accents while the Modern Greek entry is
+  recorded for them (`ὧρες` NOUN gives `ώρα`), or the lookup holds the
+  spelling itself but its reading has a verb ending (-ω, -μι, -μαι) and the
+  requested tag is a closed class (`σεῖς` PRON gives `εσείς`, not `σέω`).
+
+The Ancient side knows a spelling when the form is itself a headword (its
+reading has the same letters and is listed in LSJ or in the merged
+`grc_lexical_heads.json` inventory), or when the Ancient POS tables have an
+entry under the form's own accents. A Modern Greek entry is recorded for a
+form's accents when it is keyed by the form's monotonic spelling. A
+monosyllable has no accent there, so the bare key counts for a word whose
+vowels form a single group (`νὰ`, `μιὰ`, `ποιὸς`; `στοὺς` DET gives `ο`).
+The second accent that a following enclitic adds is not part of the
+spelling: `Πᾶνά` is judged as `Πᾶνα`. Parts of speech are compatible
+when they are equal or share one of the groups NOUN/PROPN/ADJ,
+ADJ/PRON/DET/NUM, ADJ/ADV, ADV/PART, CCONJ/SCONJ and VERB/AUX, which cover the
+tags one Ancient lemma carries across tagsets.
+
+In every other case the lookup candidates decide, as they do for all polytonic
+input in 1.3.23: the same word in monotonic spelling gives the Ancient
+headword (`ἄλλην` PRON gives `ἄλλος`), a compatible part of speech keeps the
+Ancient reading (`Ἑλλήνων` PROPN gives `Ἕλλην`), an open-class tag does not
+displace a spelling the Ancient side knows (`ὄντων` ADJ gives `εἰμί`), an
+accented word that maps to itself keeps its lemma (`Σολομὼν` PROPN gives
+`Σολομών`), and an Ancient form written without its accent is not read
+through an accent-stripped Modern Greek entry (`ἐφη` VERB gives `φημί`).
+Once an Ancient reading exists, a lowercase word does not take a capitalized
+Modern Greek name. The rule weighs the same Ancient evidence under every
+`convention` (when nothing in the Ancient lookup reads the form, it follows
+the configured resolvers), and the lemma is then mapped as usual (`νὰ` CCONJ
+gives `νά` with `convention="triantafyllidis"`).
+
+The rule reads the recorded evidence, not the surrounding text, so it has
+known gaps in both directions:
+
+- A vernacular form whose spelling is also a plausible Ancient one keeps the
+  Ancient reading (`σᾶς` PRON gives `σός`, `Νὰ` CCONJ gives `ἵνα`, `κρασὶ`
+  NOUN gives `κάρη`, `στὸν` DET gives `ἀστός`), or gets none when that
+  reading fails the part-of-speech check (`στὸ` DET).
+- The Modern Greek entries carry no SCONJ tag, so a Modern conjunction is
+  restored under CCONJ and PART only: `νὰ` SCONJ gives `νή`. The package's
+  own tagger gives `νὰ` PART or SCONJ.
+- With `lang="all"` and `convention="triantafyllidis"`, a Modern Greek entry
+  the rule lets stand is often not returned: the lookup then offers the same
+  lemma from its Modern and its Ancient side, and a POS entry that matches
+  none of several candidates is not trusted (`σεῖς` PRON gives `σέω`, `κυροῦ`
+  NOUN gives `κυρώ`). 1.3.22 did the same.
+- An Ancient form tagged with a part of speech it never has can take a Modern
+  Greek headword. So can a form under its own part of speech when the lookup
+  lacks its spelling, through an accent slip or a gap in the lookup, and
+  Modern Greek records a word with that accent (`ἄπαν` NOUN gives `άπαν`,
+  not `ἅπας`; `συνῃρημένῃ` VERB gives `συναιρώ`). A misaccented word whose
+  vowels all stand together counts as a monosyllable (`προῖὸν` NOUN gives
+  `προϊών`).
+
+Pass `lang="grc"` for text known to be Ancient and `lang="el"` for text known
+to be Modern.
 
 Rebuild the corpus POS table after a source refresh with
 `python build/build_treebank_pos_lookup.py --kaikki PATH_TO_KAIKKI`.

@@ -7,7 +7,7 @@ def model(candidates,baseline,pos,*,gate=True,convention=lambda lemma: lemma):
     result.lang='grc'
     result._convention_name=None
     result._pos_rejected_targets=frozenset()  # This fixture supplies no vetoed targets.
-    result._lemmatize_verbose_impl=lambda word,guess: list(candidates)
+    result._lemmatize_verbose_impl=lambda word,guess,compound_guess=None: list(candidates)
     result._pos_table_lookup=lambda word,upos: pos
     result._apply_convention=convention
     result._article_pos_lemma=lambda word,upos: None
@@ -97,7 +97,7 @@ def test_absent_pos_keeps_scalar_single_citation(word,baseline,citation):
 
 def test_absent_pos_does_not_repeat_batch_model_inference():
     m=model([], 'model_guess',None)
-    def structured_only(word,*,guess):
+    def structured_only(word,*,guess,compound_guess=None):
         assert guess is False
         return []
     m._lemmatize_verbose_impl=structured_only

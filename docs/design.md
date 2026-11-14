@@ -30,8 +30,9 @@ previous steps have not resolved a word and `guess=True`.
 
 Compound decomposition and additional Byzantine normalization can also run
 when the model leaves a form unresolved. These fallbacks remain available
-with `guess=False`; that setting skips neural inference and suppresses the
-final unchanged-word result. Scalar, batch, and verbose methods share these
+with `guess=False`; that setting skips neural inference, keeps a compound
+only when a dictionary lists its lemma, and suppresses the final
+unchanged-word result. Scalar, batch, and verbose methods share these
 rules but return different amounts of candidate metadata.
 
 Spelling suggestions use the separate `suggest_spelling()` API. They are not
@@ -62,8 +63,11 @@ contain errors and do not replace independent lexical evidence.
 - **Compounds:** try supported prefixes and linking vowels, then look up the
   base. Reconstruction must retain the grammatical reading of that base,
   and the result takes its accented spelling from a dictionary headword.
-  Monotonic Modern Greek input without one keeps the accent of its base
-  lemma; otherwise the compound abstains.
+  Without one the compound abstains. The exception is a guess: with
+  `guess=True`, monotonic Modern Greek input keeps the accent of its base
+  lemma (`μονοακόρεστα` gives `μονοακόρεστος`). No dictionary vouches for
+  that spelling, and the same step joins unrelated pieces (`βράβευσον` as
+  `βραβευ` + `σός`), so `guess=False` never returns it.
 
 ## Dialect normalization
 
