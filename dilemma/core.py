@@ -763,6 +763,17 @@ def _psili_is_diphthong_breathing(nfd: str, base_idx: int, mark_idx: int) -> boo
     return (nfd[base_idx - 1].lower() + nfd[base_idx].lower()) in _DIPHTHONGS
 
 
+_SMOOTH_BREATHING = "\u0313"
+_ROUGH_BREATHING = "\u0314"
+
+
+def _has_bare_initial_rho(lemma: str | None) -> bool:
+    """Whether *lemma* opens with a rho that has no breathing (ρῆσις)."""
+    nfd = unicodedata.normalize("NFD", lemma or "")
+    return nfd[:1] in ("ρ", "Ρ") and nfd[1:2] not in (
+        _SMOOTH_BREATHING, _ROUGH_BREATHING)
+
+
 def _strip_elision(word: str) -> str | None:
     """Strip trailing elision mark from an elided word form.
 
@@ -3872,6 +3883,18 @@ class Dilemma:
                 return correct_grammatical_lemma(word, lemma)
             return lemma
 
+        # The Ancient corpus tables hold spellings from texts that write an
+        # initial rho without its breathing (ρήσεις NOUN -> ρῆσις, VERB ->
+        # ρέω). For Ancient input such a target is skipped and the lookup
+        # candidates decide (ῥήσεις NOUN -> ῥῆσις; #107). Modern entries
+        # (ρε) are not affected.
+        ancient_context = self._ancient_pos_context(word, upos)
+
+        def _breathingless_ancient(variant, lemma):
+            return (ancient_context and _has_bare_initial_rho(lemma)
+                    and (getattr(self, "_pos_ag_lookup", {}).get(variant)
+                         or {}).get(upos) == lemma)
+
         # For polytonic input, try AG-only POS first
         nfd = unicodedata.normalize("NFD", word)
         has_poly = any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
@@ -3880,7 +3903,8 @@ class Dilemma:
             for index, variant in enumerate(variants):
                 pos_entry = self._pos_ag_lookup.get(variant)
                 if pos_entry and upos in pos_entry \
-                        and _usable(pos_entry[upos]):
+                        and _usable(pos_entry[upos]) \
+                        and not _breathingless_ancient(variant, pos_entry[upos]):
                     return _target(pos_entry[upos]), index
             # The combined table adds only Modern Greek entries to the
             # AG-only one, and its monotonic and stripped variants would
@@ -3893,7 +3917,8 @@ class Dilemma:
             for index, variant in enumerate(variants):
                 pos_entry = self._pos_lookup.get(variant)
                 if pos_entry and upos in pos_entry \
-                        and _usable(pos_entry[upos]):
+                        and _usable(pos_entry[upos]) \
+                        and not _breathingless_ancient(variant, pos_entry[upos]):
                     if self._modern_pos_reading_applies(
                             word, upos, pos_entry[upos]):
                         return _target(pos_entry[upos]), index
@@ -3904,7 +3929,8 @@ class Dilemma:
         for index, variant in enumerate(variants):
             pos_entry = self._pos_lookup.get(variant)
             if pos_entry and upos in pos_entry \
-                    and _usable(pos_entry[upos]):
+                    and _usable(pos_entry[upos]) \
+                    and not _breathingless_ancient(variant, pos_entry[upos]):
                 return _target(pos_entry[upos]), index
 
         return None, None

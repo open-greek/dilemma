@@ -544,6 +544,11 @@ reason and evidence for each row, and are applied when the tables load
 (`μάκαρ` ADJ is `μάκαρ`, not the AGDT typo `μάκαπ`; numerals have no
 multiplicative-adverb ADV cell). A row applies only while the table still
 holds its target, so a rebuilt table that fixed a cell leaves the row inert.
+Some corpus texts write an initial rho without its breathing, so the Ancient
+corpus POS tables hold targets such as `ρῆσις` and `ρέω` under `ρήσεις`. For
+Ancient input such a target is skipped and the lookup candidates decide
+(`ῥήσεις` NOUN gives `ῥῆσις`, `ῥυήσονται` VERB `ῥέω`); Modern Greek entries
+with a bare rho (`ρε`) are unaffected.
 
 Batch POS calls apply the same overrides when all candidates are case or
 accent variants of the input. Agreement with a self-map still compares the
