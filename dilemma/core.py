@@ -332,7 +332,7 @@ _ARTICLE_FORMS = {
     "ὁ", "ἡ", "τό", "τοῦ", "τῆς", "τῶν", "τόν", "τήν",
     "τά", "τοῖς", "ταῖς", "τῷ", "τῇ", "τούς", "τάς", "τοῖν", "ταῖν",
     "οἱ", "αἱ", "τώ",
-    # Grave variants
+    # Grave variants, plus αἵ and οἵ (the article accented before an enclitic)
     "τὸ", "τοὺς", "τὰ", "τὸν", "τὴν", "τὰς", "αἵ", "οἵ",
     # Monotonic
     "ο", "η", "το", "του", "της", "των", "τον", "την",
@@ -2033,9 +2033,14 @@ class Dilemma:
     def _is_ancient_article_form(word: str) -> bool:
         # Accent stripping would confuse ἤ "or" with the article ἡ.
         lower = word.lower()
-        return (word in _ARTICLE_FORMS
-                or lower in _ARTICLE_FORMS
-                or to_monotonic(word) in _MONOTONIC_ARTICLE_FORMS
+        if word in _ARTICLE_FORMS or lower in _ARTICLE_FORMS:
+            return True
+        # Every vowel-initial article (ὁ ἡ οἱ αἱ) has a rough breathing, so a
+        # smooth breathing marks another word (αἴ, αἶ, οἴ), even though the
+        # monotonic projection drops the breathing and matches αἵ/οἵ.
+        if "\u0313" in unicodedata.normalize("NFD", word):
+            return False
+        return (to_monotonic(word) in _MONOTONIC_ARTICLE_FORMS
                 or to_monotonic(lower) in _MONOTONIC_ARTICLE_FORMS)
 
     def _article_pos_lemma(self, word: str, upos: str) -> str | None:
