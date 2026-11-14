@@ -4120,6 +4120,32 @@ class Dilemma:
 
         return None, None
 
+    def _one_reading_against_modern_entry(self, word: str, upos: str,
+                                          candidates) -> bool:
+        """Whether several candidates are one lemma facing a Modern POS entry.
+
+        True when every candidate names the same lemma and the POS-table
+        entry for (word, upos) came from the Modern Greek side of
+        _pos_table_hit (polytonic input with lang="all" and no usable
+        Ancient-only entry for the tag), i.e. the polytonic rule already
+        judged the Modern reading against that Ancient one (#119). VERB
+        is left to the case-twin rule, which already treats one lemma as
+        one reading.
+        """
+        if self.lang != "all" or upos == "VERB" or len(candidates) < 2 \
+                or len({c.lemma for c in candidates}) != 1:
+            return False
+        nfd = unicodedata.normalize("NFD", word)
+        if not any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+                   for ch in nfd):
+            return False
+        lower = word.lower()
+        variants = (word, lower, grave_to_acute(lower), to_monotonic(lower),
+                    strip_accents(lower))
+        table = getattr(self, "_pos_ag_lookup", None) or {}
+        return not any((table.get(variant) or {}).get(upos)
+                       for variant in variants)
+
     # Lookup matches made under the form's own spelling (see
     # _lemmatize_verbose_impl); "+case_alt" twins count with their match.
     _EXACT_LOOKUP_VIAS = frozenset({"exact", "lower", "reviewed_inflection",
@@ -4446,7 +4472,12 @@ class Dilemma:
                 # lookup maps to a different headword). For an explicit verb
                 # tag, two case twins still represent one competing lexical
                 # reading, so they cannot block the supported verb target.
-                if len(candidates) == 1:
+                # Under convention="triantafyllidis" the Modern and Ancient
+                # lookups read one row, so a Modern entry the polytonic rule
+                # let stand meets the same lemma twice (σεῖς PRON: σέω from
+                # both sides); that is one competing reading (#119).
+                if len(candidates) == 1 or self._one_reading_against_modern_entry(
+                        word, upos, candidates):
                     if not self._pos_override_blocked(word, upos, pos_lemma,
                                                       candidates):
                         return checked(pos_lemma_conv)
@@ -4585,15 +4616,20 @@ class Dilemma:
                                     word, upos, c.lemma, pos_lemma_conv)
                             matched = True
                             break
-                if not matched and (len(candidates) <= 1
+                one_reading = not matched and self._one_reading_against_modern_entry(
+                    word, upos, candidates)
+                if not matched and (len(candidates) <= 1 or one_reading
                         or (upos == "VERB"
                             and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
                     # supported explicit verb tag selects a different lemma.
+                    # So is one lemma met from both sides of the lookup
+                    # under a Modern entry (#119; as in lemmatize_pos).
                     # A loose entry leaves the candidates to decide (#105).
                     if candidates and self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
-                            case_twin_family=len(candidates) > 1):
+                            case_twin_family=len(candidates) > 1
+                            and not one_reading):
                         loose_blocked.add(i)
                     else:
                         results[i] = pos_lemma_conv
