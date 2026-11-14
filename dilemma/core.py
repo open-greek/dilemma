@@ -3829,10 +3829,27 @@ class Dilemma:
         For polytonic input, checks the AG-only POS table first to avoid
         MG lemma overrides on Ancient Greek text. Returns None if no match.
         """
+        return self._pos_table_hit(word, upos)[0]
+
+    # Index of the loose variant in _pos_table_hit's key cascade (word,
+    # lower, grave folded to acute, monotonic, accent-stripped). The
+    # monotonic key keeps the accent's place, so a misspelt breathing or
+    # accent type still finds its word there (ἰδῶν VERB -> ὁράω through
+    # ιδών); the accent-stripped key is shared by other words (#105).
+    _LOOSE_POS_VARIANT = 4
+
+    def _pos_table_hit(self, word: str, upos: str) -> tuple[str | None, int | None]:
+        """The POS-table lemma and the index of the key variant it was found at.
+
+        Variants 0-2 are the form's own spelling (as written, lowercased,
+        grave folded to acute), 3 its monotonic key and 4 its accent-stripped
+        key, which other words share (see _pos_entry_is_loose). A reviewed
+        verb grammar counts as the form's own spelling.
+        """
         if self.lang in ("all", "grc") and upos in ("VERB", "AUX"):
             grammar = reviewed_verb_grammar(word)
             if grammar is not None:
-                return grammar["lemma"]
+                return grammar["lemma"], 0
         lower = word.lower()
         acute = grave_to_acute(lower)
         mono = to_monotonic(lower)
@@ -3860,11 +3877,11 @@ class Dilemma:
         has_poly = any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
                        for ch in nfd)
         if has_poly and self.lang == "all":
-            for variant in variants:
+            for index, variant in enumerate(variants):
                 pos_entry = self._pos_ag_lookup.get(variant)
                 if pos_entry and upos in pos_entry \
                         and _usable(pos_entry[upos]):
-                    return _target(pos_entry[upos])
+                    return _target(pos_entry[upos]), index
             # The combined table adds only Modern Greek entries to the
             # AG-only one, and its monotonic and stripped variants would
             # turn polytonic Ancient forms into monotonic headwords
@@ -3873,24 +3890,116 @@ class Dilemma:
             # only where _modern_pos_reading_applies finds no Ancient
             # reading of the requested kind (νὰ CCONJ -> να, κυροῦ NOUN
             # -> κυρός); otherwise the lookup candidates decide.
-            for variant in variants:
+            for index, variant in enumerate(variants):
                 pos_entry = self._pos_lookup.get(variant)
                 if pos_entry and upos in pos_entry \
                         and _usable(pos_entry[upos]):
                     if self._modern_pos_reading_applies(
                             word, upos, pos_entry[upos]):
-                        return _target(pos_entry[upos])
+                        return _target(pos_entry[upos]), index
                     break
-            return None
+            return None, None
 
         # Combined POS lookup
-        for variant in variants:
+        for index, variant in enumerate(variants):
             pos_entry = self._pos_lookup.get(variant)
             if pos_entry and upos in pos_entry \
                     and _usable(pos_entry[upos]):
-                return _target(pos_entry[upos])
+                return _target(pos_entry[upos]), index
 
-        return None
+        return None, None
+
+    # Lookup matches made under the form's own spelling (see
+    # _lemmatize_verbose_impl); "+case_alt" twins count with their match.
+    _EXACT_LOOKUP_VIAS = frozenset({"exact", "lower", "reviewed_inflection",
+                                    "elision-exact"})
+    # Tags under which a loose POS entry may not replace an exact nominal
+    # reading (#105). Other tags keep the override: Byzantine misspellings
+    # rely on it (οῦν PART, τῆδε PRON, μᾶλα ADV).
+    _LOOSE_OVERRIDE_BLOCKED_TAGS = frozenset({"NOUN", "PROPN"})
+
+    def _pos_entry_is_loose(self, word: str, upos: str, pos_lemma: str) -> bool:
+        """Whether *pos_lemma* was found only under the accent-stripped key.
+
+        The accent-stripped key of ὄρους holds ὀρός, a reading of ὀροῦς;
+        such an entry is evidence about the letters, not about this
+        spelling. An entry this method cannot trace back to the
+        tables (a substituted reading, a model without tables) is treated
+        as exact, so it keeps its previous authority.
+        """
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        return (lemma is not None and lemma == pos_lemma and index is not None
+                and index >= self._LOOSE_POS_VARIANT)
+
+    @classmethod
+    def _is_exact_lookup_row(cls, candidate) -> bool:
+        via = (getattr(candidate, "via", "") or "").split("+")[0]
+        return (getattr(candidate, "source", "") == "lookup"
+                and via in cls._EXACT_LOOKUP_VIAS)
+
+    @staticmethod
+    def _is_closed_class_reading(candidate) -> bool:
+        return getattr(candidate, "source", "") in ("article", "crasis")
+
+    def _candidate_owns_spelling(self, word: str, candidate) -> bool:
+        """Whether *candidate* reads the form's own spelling.
+
+        True for an article or crasis reading and for a lookup row found
+        under the form as written. A row that only re-accents the input's
+        letters (Ὦρα -> ὤρα) is itself a guess about the diacritics and
+        does not count.
+        """
+        if self._is_closed_class_reading(candidate):
+            return True
+        if not self._is_exact_lookup_row(candidate):
+            return False
+        own = grave_to_acute(self._without_enclitic_accent(
+            unicodedata.normalize("NFC", word))).lower()
+        lemma = grave_to_acute(unicodedata.normalize("NFC", candidate.lemma)).lower()
+        return lemma == own or strip_accents(lemma) != strip_accents(own)
+
+    def _is_verb_shaped_lemma(self, lemma: str) -> bool:
+        self._load_fallback_readings()
+        return (lemma in self._fallback_verb_lemmas
+                or strip_accents(lemma.lower()).endswith(("ω", "μαι", "μι")))
+
+    def _pos_respell_blocked(self, word: str, upos: str, pos_lemma: str,
+                             candidate) -> bool:
+        """A loose POS entry may not respell a reading of the form's own
+        spelling (ὄρους NOUN keeps ὄρος, not the ὀρός of ὀρους; #105)."""
+        return (self._candidate_owns_spelling(word, candidate)
+                and self._pos_entry_is_loose(word, upos, pos_lemma))
+
+    def _pos_override_blocked(self, word: str, upos: str, pos_lemma: str,
+                              candidates, *, case_twin_family: bool = False) -> bool:
+        """Whether a loose POS entry may not replace the candidates (#105).
+
+        It may not replace an article or crasis reading, nor, under NOUN or
+        PROPN, exact lookup rows that inflect to lemmas without a verb
+        shape (ὅλων NOUN keeps ὅλος, Ἄργους PROPN keeps Ἄργος). An exact
+        verb row still yields to a nominal tag (the Byzantine μοχθῶ NOUN ->
+        μόχθος). Under the VERB case-twin rule (#42) a loose entry may not
+        replace an exact case-twin family (πόθῳ VERB keeps πόθος, not the
+        πίνω of ποθῶ).
+        """
+        if any(self._is_closed_class_reading(c) for c in candidates):
+            return self._pos_entry_is_loose(word, upos, pos_lemma)
+        exact = [c for c in candidates if self._is_exact_lookup_row(c)]
+        if not exact:
+            return False
+        if not case_twin_family:
+            if upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS:
+                return False
+            stripped = strip_accents(word.lower())
+            inflected = [c for c in exact
+                         if strip_accents(c.lemma.lower()) != stripped]
+            if not inflected or any(self._is_verb_shaped_lemma(c.lemma)
+                                    for c in inflected):
+                return False
+        return self._pos_entry_is_loose(word, upos, pos_lemma)
 
     @staticmethod
     def _prefer_case_twin(word: str, upos: str | None, lemma: str,
@@ -4114,6 +4223,9 @@ class Dilemma:
                 pos_stripped = strip_accents(pos_lemma_conv.lower())
                 for c in candidates:
                     if strip_accents(c.lemma.lower()) == pos_stripped:
+                        if self._pos_respell_blocked(word, upos, pos_lemma, c):
+                            return checked(self._prefer_case_twin(
+                                word, upos, c.lemma, candidates))
                         preferred = self._prefer_exact_pos_citation(
                             word, upos, c.lemma, pos_lemma_conv)
                         return checked(self._prefer_case_twin(
@@ -4123,9 +4235,15 @@ class Dilemma:
                 # lookup maps to a different headword). For an explicit verb
                 # tag, two case twins still represent one competing lexical
                 # reading, so they cannot block the supported verb target.
-                if (len(candidates) == 1
-                        or (upos == "VERB"
-                            and len({c.lemma.lower() for c in candidates}) == 1)):
+                if len(candidates) == 1:
+                    if not self._pos_override_blocked(word, upos, pos_lemma,
+                                                      candidates):
+                        return checked(pos_lemma_conv)
+                elif (upos == "VERB"
+                        and len({c.lemma.lower() for c in candidates}) == 1
+                        and not self._pos_override_blocked(
+                            word, upos, pos_lemma, candidates,
+                            case_twin_family=True)):
                     return checked(pos_lemma_conv)
                 # Also trust the POS table when every candidate is just a
                 # case/accent variant of the input form (i.e. nothing in
@@ -4136,7 +4254,8 @@ class Dilemma:
                 # got hidden under it.
                 word_stripped = strip_accents(word.lower())
                 if all(strip_accents(c.lemma.lower()) == word_stripped
-                       for c in candidates):
+                       for c in candidates) and not self._pos_override_blocked(
+                           word, upos, pos_lemma, candidates):
                     return checked(pos_lemma_conv)
 
         if len(candidates) == 1:
@@ -4201,6 +4320,9 @@ class Dilemma:
 
         # Step 2: For each word, check if POS could improve the result
         resolved_articles = set()
+        # Words whose loose POS entry was kept from respelling or replacing
+        # the candidates (#105); step 3 must not offer it as a case twin.
+        loose_blocked = set()
         for i, (word, upos) in enumerate(zip(words, upos_tags)):
             # Don't resurrect a gated-out (None) result via POS correction.
             # (A guess=False None is different: a curated POS-table entry is
@@ -4244,8 +4366,12 @@ class Dilemma:
                     # Try accent-stripped comparison
                     for c in candidates:
                         if strip_accents(c.lemma.lower()) == pos_stripped:
-                            results[i] = self._prefer_exact_pos_citation(
-                                word, upos, c.lemma, pos_lemma_conv)
+                            if self._pos_respell_blocked(word, upos, pos_lemma, c):
+                                results[i] = c.lemma
+                                loose_blocked.add(i)
+                            else:
+                                results[i] = self._prefer_exact_pos_citation(
+                                    word, upos, c.lemma, pos_lemma_conv)
                             matched = True
                             break
                 if not matched and (len(candidates) <= 1
@@ -4253,15 +4379,24 @@ class Dilemma:
                             and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
                     # supported explicit verb tag selects a different lemma.
-                    results[i] = pos_lemma_conv
-                    matched = True
+                    # A loose entry leaves the candidates to decide (#105).
+                    if candidates and self._pos_override_blocked(
+                            word, upos, pos_lemma, candidates,
+                            case_twin_family=len(candidates) > 1):
+                        loose_blocked.add(i)
+                    else:
+                        results[i] = pos_lemma_conv
+                        matched = True
                 if not matched and all(
                         strip_accents(c.lemma.lower()) == strip_accents(word.lower())
                         for c in candidates):
                     # Match the scalar POS override when the candidates only
                     # repeat the input with case or accent variations.
-                    results[i] = pos_lemma_conv
-                    matched = True
+                    if self._pos_override_blocked(word, upos, pos_lemma, candidates):
+                        loose_blocked.add(i)
+                    else:
+                        results[i] = pos_lemma_conv
+                        matched = True
                 if matched:
                     continue
 
@@ -4329,7 +4464,8 @@ class Dilemma:
                 continue
             candidates = self._checked_pos_candidates(
                 word, upos, self._lemmatize_verbose_impl(word, guess=guess))
-            pos_lemma = self._checked_pos_table_lookup(word, upos)
+            pos_lemma = (None if i in loose_blocked
+                         else self._checked_pos_table_lookup(word, upos))
             extra_lemma = (self._apply_convention(pos_lemma)
                            if pos_lemma is not None else None)
             extra = (extra_lemma,) if extra_lemma is not None else ()

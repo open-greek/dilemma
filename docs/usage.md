@@ -521,6 +521,30 @@ by lowercase and capitalized candidates, such as `Λάμπε` selecting `λάμ�
 instead of the independent name `Λάμπος`. Untagged name readings remain
 available.
 
+An entry found only under the form's accent-stripped key is evidence about
+its letters, not about its spelling: `ορους` holds `ὀρός` (the reading of
+`ὀροῦς`), not a reading of `ὄρους`. Such an entry does not respell a
+reading the lookup holds for the form as written (`ὄρους` NOUN stays
+`ὄρος`), does not replace an article or crasis reading (`αὐτή` NOUN stays
+`αὐτός`), and under NOUN or PROPN does not replace exact lookup readings
+that are not verbs (`ὅλων` NOUN stays `ὅλος`, `Ἄργους` PROPN `Ἄργος`).
+It still replaces an exact verb reading under a nominal tag, as Byzantine
+misspellings need (`μοχθῶ` NOUN gives `μόχθος`), and keeps its effect under
+the other tags. The verb rule for case twins above likewise needs an entry
+under the form's own or monotonic spelling (`πόθῳ` VERB stays `πόθος`).
+Entries under the monotonic key keep their authority, since that key keeps
+the accent's place (`ἰδῶν` VERB gives `ὁράω`). Under tags other than VERB,
+a POS entry does not override a lookup reading together with its
+capitalized twin, so tagged results for genuine homographs such as `ἀξίαν`
+(`ἄξιος`) and `ἱερὰ` (`ἱερόν`) follow the single lookup reading.
+
+Reviewed corrections to individual cells of the treebank, GLAUx and
+Wiktionary POS tables are kept in `data/pos_cell_corrections.json`, with a
+reason and evidence for each row, and are applied when the tables load
+(`μάκαρ` ADJ is `μάκαρ`, not the AGDT typo `μάκαπ`; numerals have no
+multiplicative-adverb ADV cell). A row applies only while the table still
+holds its target, so a rebuilt table that fixed a cell leaves the row inert.
+
 Batch POS calls apply the same overrides when all candidates are case or
 accent variants of the input. Agreement with a self-map still compares the
 available citation spellings. If no POS entry matches, case twins retain
