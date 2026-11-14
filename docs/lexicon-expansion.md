@@ -45,6 +45,13 @@ Dilemma's nonlexical classifier. Its generator is
 `build/build_ag_expansion_exclusions.py`.
 Running it without `--reference` downloads and verifies that exact artifact.
 
+`build_lookup_db.py` checks the readings this layer supplies once more: a
+lemma without any diacritic that no list in `grc_lexical_heads.json` has
+(transliterated Latin such as `αελιυς`, OCR such as `λαβλυμι`, hyphenated
+compounds such as `προ-ανακηρυσσω`) is dropped, or moved to the single
+Ancient head with the same letters (`συνοχος` → `σύνοχος`). Each such reading
+is listed in `data/citation_hygiene_rejections.tsv`.
+
 After withholding approximate irregular-compound paradigms, the overlay
 separately preserves actual source cells and their original, monotonic, and
 unaccented lookup aliases within the historically represented families. This

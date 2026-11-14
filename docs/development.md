@@ -203,6 +203,24 @@ with the input and output hashes, and `undo --data OUT --audit AUDIT` restores
 the base's content. Rebuild `lookup.db` and `spell_index.db` from the refreshed
 `mg_lookup.json` afterwards.
 
+A rule that only removes readings can be recorded without running the
+generator twice. `build_data.py` skips Modern Greek noun and adjective table
+cells that have no stem of their word (`is_modern_nominal_fragment` in
+`dilemma/nominal_header_forms.py`: αρχαΐζων's `ούσης`, `όντων`, `ουσών`,
+αισώπειος's `ος` and `ε`, βρόντημα's header letter `γ`).
+`scripts/derive_el_nominal_fragment_delta.py` applies that rule to the dumps'
+cells and writes `data/changes/el_nominal_fragments.json` in the same delta
+format: it removes a fragment's key from `mg_lookup.json` and its POS reading
+from `mg_pos_lookup.json` only where the pinned value is the fragment's
+headword (or what that headword resolves to), and adds nothing. Apply it with
+`refresh_el_generator_delta.py apply` as above.
+
+```bash
+python scripts/derive_el_nominal_fragment_delta.py --dumps KAIKKI_DIR \
+    --base data --manifest data/hf_manifest.json \
+    --out data/changes/el_nominal_fragments.json
+```
+
 The artifacts CI tests against (including `lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, `form_profile.db`, and the ONNX/PyTorch files in
 `model/combined-s3/`) live on HuggingFace, not in git, and must match

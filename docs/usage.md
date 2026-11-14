@@ -216,6 +216,18 @@ lookup rebuild also writes `data/citation_hygiene_rejections.tsv`, whose
 entries retain the source input, table, form, lemma, and rejection reason for
 every citation value removed by the build-time gate.
 
+The gate also checks the dictionary-expansion layer (`grc_lexicon_expansion`)
+for lemmas with no diacritic at all, which are source-text artefacts rather
+than citation forms: Latin words read as Beta Code (`αελιυς`), OCR garble
+(`λαβλυμι`, which `λαβηι` used to return), hyphenated composition lemmas
+(`προ-ανακηρυσσω`) and unaccented doublets (`συνοχος`). A lemma that
+`grc_lexical_heads.json` lists (`τε`, `που`) is kept. Otherwise the reading is
+moved to the single Ancient head with the same letters, recorded as
+`unaccented_expansion_lemma_repaired_to_<head>` (`σύνοχα` → `σύνοχος`), or
+dropped as `unaccented_expansion_lemma_unlisted`. Wiktionary, corpus and
+merged readings are not checked this way, so real unaccented LBG and LSJ10
+headwords stay.
+
 One rejection cannot be made per pair. A corpus tokenizer that splits a
 printed word at its elision mark and gives the second half the whole word's
 lemma leaves an ending that looks exactly like an elided word - `νοντ᾽` under
@@ -475,7 +487,12 @@ the same license), `attribution`, and `components`, a JSON list of each
 component's name, URL, license and use. The table is copied from the reviewed
 registry `data/lookup_sources.json`, and the build stops if a reading comes
 from an input the registry does not list. `meta` adds `sources_sha256`, and
-`lookup_sha256` then covers each row's source code as well.
+`lookup_sha256` then covers each row's source code as well. Rows Dilemma adds
+itself, by rule or by review, have their own codes, so they can be
+audited or left out: `grc_adjective_gaps` (-ικός feminines),
+`grc_noun_gaps` (-σις nouns and contracted s-stem neuter cells, from 1.3.25),
+`el_rule_paradigms` (Modern Greek present and imperfect forms) and
+`el_paradigm_gaps` (reviewed Modern Greek cells).
 
 ```sql
 SELECT value FROM meta WHERE key = 'lookup_sha256';
