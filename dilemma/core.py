@@ -2035,10 +2035,12 @@ class Dilemma:
         lower = word.lower()
         if word in _ARTICLE_FORMS or lower in _ARTICLE_FORMS:
             return True
-        # Every vowel-initial article (ὁ ἡ οἱ αἱ) has a rough breathing, so a
-        # smooth breathing marks another word (αἴ, αἶ, οἴ), even though the
-        # monotonic projection drops the breathing and matches αἵ/οἵ.
-        if "\u0313" in unicodedata.normalize("NFD", word):
+        # The plural articles οἱ/αἱ have a rough breathing, so a smooth one on
+        # αι/οι marks another word (αἴ, αἰ, αἶ, οἴ), even though the monotonic
+        # projection drops the breathing and matches αἵ/οἵ. Byzantine ὀ for
+        # ὁ and τἠς for τῆς are scribal breathings and stay articles.
+        if (strip_accents(lower) in ("αι", "οι")
+                and "\u0313" in unicodedata.normalize("NFD", word)):
             return False
         return (to_monotonic(word) in _MONOTONIC_ARTICLE_FORMS
                 or to_monotonic(lower) in _MONOTONIC_ARTICLE_FORMS)

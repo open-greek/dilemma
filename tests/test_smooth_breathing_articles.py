@@ -23,6 +23,14 @@ def test_smooth_breathing_is_not_the_article(form):
     assert resolver()._resolve_closed_class(form) is None
 
 
+@pytest.mark.parametrize("form", ["ὀ", "τἠς"])
+def test_scribal_smooth_breathing_on_other_articles_is_kept(form):
+    # DBBE writes ὀ and τἠς for the article; only αι/οι have real
+    # smooth-breathing homographs.
+    assert Dilemma._is_ancient_article_form(form)
+    assert resolver()._resolve_closed_class(form) == "ὁ"
+
+
 def test_decomposed_smooth_breathing_is_not_the_article():
     form = unicodedata.normalize("NFD", "αἴ")
     assert not Dilemma._is_ancient_article_form(form)
