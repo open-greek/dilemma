@@ -122,7 +122,9 @@ rejected-target checks still apply.
 
 `lemmatize_verbose()` returns candidate lemmas with language, source, score,
 and proper-name metadata. Use `lemmatize_pos()` or `lemmatize_batch_pos()`
-when you already have part-of-speech tags. A preceding article can also help
+when you already have part-of-speech tags. A POS entry found only under
+the accent-stripped spelling does not override the reading of the form as
+written (`ὄρους` NOUN stays `ὄρος`). A preceding article can also help
 rank verbose candidates through `prev_word`.
 
 Reviewed imperfect forms such as `ἀπῇμεν` retain the grammatical lemma
