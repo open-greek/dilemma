@@ -670,6 +670,26 @@ override the AG-first defaults with MG lemma forms (ο instead of ὁ,
 είμαι instead of εἰμί). For polytonic input (breathings/circumflex),
 an additional AG-only lookup pass runs first.
 
+**Reviewed non-lemmas and capitalised corpus forms.** Some sources give a
+lemma that no dictionary heads: the Greek Wiktionary has Ancient pages for
+`Ταύτη`, `Τοῦτος` and `Ἡμων`, and GLAUx files forms of οὗτος under name
+lemmas such as `Ταύτης` and `Τοῦτης`. These spellings are listed with their
+reason and evidence in `dilemma/grc_rejected_lemmas.py`. The lookup build
+drops every reading with such a lemma (recorded in
+`citation_hygiene_rejections.tsv` as `reviewed_rejected_target`) and rejects
+corpus pairs that name one, `build/build_glaux_pos_lookup.py` skips them, and
+the runtime ignores POS-table cells that target them. The corpora also give
+some sentence-initial pronouns a capitalised name lemma that the build used to
+lowercase into another real head (`Αὕτη` → `ἄτη`, `Τούτου` → `τοῦτος`,
+`Πάντα` → `πάν`). A capitalised GLAUx or Diorisis pair is now skipped when
+the form's lowercase spelling already reads, from a non-corpus source, as a
+closed-class pronoun (οὗτος, πᾶς, ἐγώ and the others in
+`CLOSED_PRONOMINAL_LEMMAS`) and the pair names another lemma, so the
+capitalised form takes its lowercase reading. A blanket rule for every
+capitalised corpus row was measured and rejected, because about 2,200 rows of
+mixed quality would change (`Οἰκία` → `οἰκία` is right, `Βασιλέως` →
+`βασιλίς` is wrong).
+
 When the transformer handles an unseen form, beam search generates
 multiple candidates and picks the first that matches a known headword
 from the citation-safe filter. In default mode that includes validated lookup

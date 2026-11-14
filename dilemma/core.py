@@ -46,6 +46,7 @@ from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
 from .form_sanitize import is_capitalized, sanitize_form
+from .grc_rejected_lemmas import REJECTED_LEMMAS as _REJECTED_POS_LEMMAS
 from .grammatical_lemmas import (
     correct_grammatical_lemma, preferred_reviewed_lemma, reviewed_verb_grammar,
     reviewed_verb_readings,
@@ -1384,16 +1385,21 @@ class Dilemma:
             return Path(data_dir) / default.name if data_dir is not None else default
 
         def _add_to(target, source_data, overwrite=False):
-            """Merge source_data into target POS dict."""
+            """Merge source_data into target POS dict.
+
+            A cell whose lemma is a reviewed non-lemma (Ταύτη, Τοῦτος, Ἡμων;
+            dilemma/grc_rejected_lemmas.py) is skipped, so tables built
+            before the record cannot return it.
+            """
             for form, upos_lemmas in source_data.items():
-                if form not in target:
-                    target[form] = {}
-                if overwrite:
-                    target[form].update(upos_lemmas)
-                else:
-                    for upos, lemma in upos_lemmas.items():
-                        if upos not in target[form]:
-                            target[form][upos] = lemma
+                kept = {upos: lemma for upos, lemma in upos_lemmas.items()
+                        if lemma not in _REJECTED_POS_LEMMAS}
+                if not kept and upos_lemmas:
+                    continue
+                cells = target.setdefault(form, {})
+                for upos, lemma in kept.items():
+                    if overwrite or upos not in cells:
+                        cells[upos] = lemma
 
         # 1. Treebank POS lookup (gold-annotated, highest priority for AG)
         if (include_treebank and self.lang in ("all", "grc")

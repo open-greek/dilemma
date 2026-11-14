@@ -171,3 +171,79 @@ def test_missing_lexical_heads_stop_a_build_with_expansion_readings(tmp_path):
     result = _build(data, env)
     assert result.returncode != 0
     assert "grc_lexical_heads.json is missing" in result.stderr
+
+
+# #108: reviewed non-lemmas and capitalised pronoun twins -------------------
+
+def test_capitalized_pronoun_twin_rule():
+    ag = {"αὕτη": "οὗτος", "οἰκία": "οἰκία", "πάντα": "πᾶς", "τούτου": "οὗτος"}
+    corpus = {"τούτου"}
+    tables = ((ag, lambda f: f in corpus),)
+    twin = B.capitalized_pronoun_twin
+    assert twin("Αὕτη", "ἄτη", tables) == "οὗτος"
+    assert twin("Πάντα", "πάν", tables) == "πᾶς"
+    # Same lemma, a lowercase form, a name lemma: nothing to skip.
+    assert twin("Αὕτη", "οὗτος", tables) is None
+    assert twin("αὕτη", "ἄτη", tables) is None
+    assert twin("Αὕτη", "Ἄτη", tables) is None
+    # The twin is no pronoun, or its reading came from a corpus.
+    assert twin("Οἰκία", "οἶκος", tables) is None
+    assert twin("Τούτου", "τοῦτος", tables) is None
+
+
+def test_reviewed_record_lists_reason_and_evidence():
+    from dilemma.grc_rejected_lemmas import (REJECTED_LEMMA_TARGETS,
+                                             REJECTED_LEMMAS)
+    assert {"Ταύτη", "Τοῦτος", "Ἡμων", "Ταύτης"} <= REJECTED_LEMMAS
+    assert not {"τοῦτος", "ἄτη", "πάν", "οὗτος"} & REJECTED_LEMMAS
+    for entry in REJECTED_LEMMA_TARGETS.values():
+        assert entry["reason"] and entry["evidence"]
+
+
+def test_reviewed_non_lemmas_and_pronoun_twins_leave_the_lookup(tmp_path):
+    glaux = [
+        {"form": "Αὕτη", "lemma": "Ἄτη", "pos": "noun"},
+        {"form": "Οἰκία", "lemma": "οἰκία", "pos": "noun"},
+        {"form": "Ταύτῃ", "lemma": "Ταύτη", "pos": "noun"},
+        {"form": "Ταύτῃ", "lemma": "οὗτος", "pos": "pron"},
+    ]
+    diorisis = [{"form": "Ἡμῶν", "lemma": "ἡμός", "pos": "pron"}]
+    data, env = _fixture(tmp_path, {
+        "ag": {"αὕτη": "οὗτος", "οἰκία": "οἰκία", "Ταύτη": "Ταύτη",
+               "ἡμῶν": "ἐγώ", "ἄτη": "ἄτη"},
+        "ag_headwords.json": ["ἄτη", "οὗτος", "οἰκία", "ἡμός", "ἐγώ", "λόγος"],
+        "glaux_pairs.json": glaux,
+        "diorisis_pairs.json": diorisis,
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    rows = _rows(data)
+    assert "Αὕτη" not in rows and rows["αὕτη"] == "οὗτος"
+    assert "Ἡμῶν" not in rows and rows["ἄτη"] == "ἄτη"
+    assert rows["Οἰκία"] == "οἰκία"
+    assert rows["Ταύτῃ"] == "οὗτος"
+    assert "Ταύτη" not in rows
+    assert ("AG", "ag_lookup.json", "reviewed_rejected_target", "Ταύτη",
+            "Ταύτη") in _rejections(data)
+    assert "1 capitalised pronoun twins skipped" in result.stdout
+
+
+def test_glaux_pos_builder_skips_reviewed_non_lemmas(tmp_path):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "build_glaux_pos_lookup", ROOT / "build" / "build_glaux_pos_lookup.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    pairs = [
+        {"form": "ταύτην", "lemma": "Ταύτη", "pos": "noun"},
+        {"form": "ταύτην", "lemma": "οὗτος", "pos": "pron"},
+        {"form": "λόγον", "lemma": "λόγος", "pos": "noun"},
+        {"form": "λόγον", "lemma": "λέγω", "pos": "verb"},
+    ]
+    module.GLAUX_PAIRS = tmp_path / "pairs.json"
+    module.GLAUX_PAIRS.write_text(json.dumps(pairs, ensure_ascii=False),
+                                  encoding="utf-8")
+    module.OUTPUT_PATH = tmp_path / "out.json"
+    lookup = module.build_lookup()
+    assert "ταύτην" not in lookup
+    assert lookup["λόγον"] == {"NOUN": "λόγος", "VERB": "λέγω"}
