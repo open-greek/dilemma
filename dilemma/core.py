@@ -124,6 +124,7 @@ AG_POS_LOOKUP_PATH = DATA_DIR / "ag_pos_lookup.json"
 TREEBANK_POS_LOOKUP_PATH = DATA_DIR / "treebank_pos_lookup.json"
 TREEBANK_POS_AUDIT_PATH = DATA_DIR / "treebank_pos_lookup.audit.json"
 GLAUX_POS_LOOKUP_PATH = DATA_DIR / "glaux_pos_lookup.json"
+POS_CELL_CORRECTIONS_PATH = DATA_DIR / "pos_cell_corrections.json"
 GRC_LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
 
 
@@ -225,6 +226,56 @@ def _lexical_heads(lang: str) -> frozenset[str]:
     return _lexical_head_lists(
         str(GRC_LEXICAL_HEADS_PATH), stat.st_size, stat.st_mtime_ns
     ).get(lang, frozenset())
+
+
+_POS_CORRECTION_TABLES = frozenset({"treebank", "glaux", "ag"})
+
+
+@lru_cache(maxsize=4)
+def _pos_cell_correction_rows(path, size, mtime):
+    """The reviewed POS-cell corrections, by table, parsed and checked once."""
+    with Path(path).open(encoding="utf-8") as stream:
+        record = json.load(stream)
+    by_table: dict[str, dict[tuple[str, str], tuple[str, str | None]]] = {}
+    for row in record["corrections"]:
+        table, action = row["table"], row["action"]
+        corrected = row.get("corrected")
+        if (table not in _POS_CORRECTION_TABLES or action not in ("drop", "correct")
+                or not all(isinstance(row.get(field), str) and row[field]
+                           for field in ("form", "upos", "target", "reason"))
+                or (action == "correct") != isinstance(corrected, str)
+                or (action == "correct" and not corrected)):
+            raise ValueError(f"malformed POS cell correction: {row!r}")
+        by_table.setdefault(table, {})[(row["form"], row["upos"])] = (
+            row["target"], corrected)
+    return by_table
+
+
+def _apply_pos_cell_corrections(table_name: str, table: dict,
+                                path: Path | None = None) -> dict:
+    """Apply data/pos_cell_corrections.json to one freshly loaded POS table.
+
+    A row changes a cell only while the table still holds the row's target
+    for that form and tag, so a rebuilt table that fixed the cell is left
+    alone. A dropped cell lets a lower-priority table supply the tag.
+    """
+    path = POS_CELL_CORRECTIONS_PATH if path is None else path
+    try:
+        stat = path.stat()
+    except OSError:
+        return table
+    rows = _pos_cell_correction_rows(str(path), stat.st_size, stat.st_mtime_ns)
+    for (form, upos), (target, corrected) in rows.get(table_name, {}).items():
+        entry = table.get(form)
+        if not entry or entry.get(upos) != target:
+            continue
+        if corrected is None:
+            del entry[upos]
+            if not entry:
+                del table[form]
+        else:
+            entry[upos] = corrected
+    return table
 
 
 def _without_quantity_marks(word: str) -> str:
@@ -1383,6 +1434,8 @@ class Dilemma:
         def _path(default):
             return Path(data_dir) / default.name if data_dir is not None else default
 
+        corrections = _path(POS_CELL_CORRECTIONS_PATH)
+
         def _add_to(target, source_data, overwrite=False):
             """Merge source_data into target POS dict."""
             for form, upos_lemmas in source_data.items():
@@ -1400,6 +1453,7 @@ class Dilemma:
                 and _path(TREEBANK_POS_LOOKUP_PATH).exists()):
             with open(_path(TREEBANK_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 tb_pos = json.load(f)
+            _apply_pos_cell_corrections("treebank", tb_pos, corrections)
             _add_to(self._pos_ag_lookup, tb_pos, overwrite=True)
             _add_to(self._pos_lookup, tb_pos, overwrite=True)
 
@@ -1416,6 +1470,7 @@ class Dilemma:
         if self.lang in ("all", "grc") and _path(GLAUX_POS_LOOKUP_PATH).exists():
             with open(_path(GLAUX_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 glaux_pos = json.load(f)
+            _apply_pos_cell_corrections("glaux", glaux_pos, corrections)
             _add_to(self._pos_ag_lookup, glaux_pos)
             _add_to(self._pos_lookup, glaux_pos)
 
@@ -1429,6 +1484,7 @@ class Dilemma:
         if self.lang in ("all", "grc") and _path(AG_POS_LOOKUP_PATH).exists():
             with open(_path(AG_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 ag_pos = json.load(f)
+            _apply_pos_cell_corrections("ag", ag_pos, corrections)
             _add_to(self._pos_ag_lookup, ag_pos)
             _add_to(self._pos_lookup, ag_pos)
 
@@ -2511,11 +2567,15 @@ class Dilemma:
                           TREEBANK_POS_LOOKUP_PATH))
         if self.lang in ("all", "el"):
             paths.append(MG_POS_LOOKUP_PATH)
+        corrected_tables = {AG_POS_LOOKUP_PATH: "ag", GLAUX_POS_LOOKUP_PATH: "glaux",
+                            TREEBANK_POS_LOOKUP_PATH: "treebank"}
         for path in paths:
             if not path.exists():
                 continue
             with path.open(encoding="utf-8") as stream:
                 table = json.load(stream)
+            if path in corrected_tables:
+                _apply_pos_cell_corrections(corrected_tables[path], table)
             for form, by_pos in table.items():
                 key = strip_accents(form.lower())
                 entry = readings.setdefault(key, {})

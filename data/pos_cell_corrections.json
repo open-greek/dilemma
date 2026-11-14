@@ -1,0 +1,793 @@
+{
+ "schema_version": 1,
+ "description": "Reviewed corrections to cells of the POS disambiguation tables (treebank_pos_lookup.json, glaux_pos_lookup.json, ag_pos_lookup.json). Dilemma applies them when it loads the tables, so they take effect without a table rebuild. A row applies only while the table still holds its 'target' for that form and tag; a rebuilt table that already fixed the cell leaves the row a no-op. action 'drop' removes the cell, so a lower-priority table can supply the tag; 'correct' replaces the target with 'corrected'.",
+ "corrections": [
+  {
+   "table": "treebank",
+   "form": "μάκαρ",
+   "upos": "ADJ",
+   "target": "μάκαπ",
+   "action": "correct",
+   "corrected": "μάκαρ",
+   "reason": "AGDT typo: rho keyed as Latin-keyboard pi (μάκαπ is no Greek word).",
+   "evidence": "μάκαπ is in no head list of grc_lexical_heads.json; the untagged lookup, the NOUN cell and μάκαρες/ADJ all give μάκαρ (LSJ μάκαρ).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "οὗπερ",
+   "upos": "PRON",
+   "target": "ὄσπερ",
+   "action": "correct",
+   "corrected": "ὅσπερ",
+   "reason": "AGDT lemma with a smooth breathing for the relative ὅσπερ.",
+   "evidence": "ὄσπερ is in no head list; the untagged lookup gives ὅσπερ (LSJ ὅσπερ). Dropping the cell would expose GLAUx's ὅς, so the target is corrected instead.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "ούπερ",
+   "upos": "PRON",
+   "target": "ὄσπερ",
+   "action": "correct",
+   "corrected": "ὅσπερ",
+   "reason": "AGDT lemma with a smooth breathing for the relative ὅσπερ.",
+   "evidence": "ὄσπερ is in no head list; the untagged lookup gives ὅσπερ (LSJ ὅσπερ). Dropping the cell would expose GLAUx's ὅς, so the target is corrected instead.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "καί",
+   "upos": "INTJ",
+   "target": "αἴ",
+   "action": "drop",
+   "reason": "A mistagged καί voted for the interjection αἴ; καί is no form of αἴ under any tag.",
+   "evidence": "Untagged καί gives καί; the cell's only effect is to turn a tagger error (καί/INTJ) into another word.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "καί",
+   "upos": "VERB",
+   "target": "φαίνω",
+   "action": "drop",
+   "reason": "A mistagged καί voted for φαίνω; καί is no form of φαίνω.",
+   "evidence": "Untagged καί gives καί.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "και",
+   "upos": "ADV",
+   "target": "παι",
+   "action": "drop",
+   "reason": "Corrupt AGDT target παι for an adverb-tagged και/ται; παι is no adverb lemma of either form.",
+   "evidence": "Untagged και gives καί and ται gives ὁ; παι is a bare string, not the lemma of either.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "ται",
+   "upos": "ADV",
+   "target": "παι",
+   "action": "drop",
+   "reason": "Corrupt AGDT target παι for an adverb-tagged και/ται; παι is no adverb lemma of either form.",
+   "evidence": "Untagged και gives καί and ται gives ὁ; παι is a bare string, not the lemma of either.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "τούν",
+   "upos": "PRON",
+   "target": "τού",
+   "action": "drop",
+   "reason": "τούν (crasis/article form) is no form of the interrogative/enclitic τού.",
+   "evidence": "Untagged τούν gives ὁ.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "μία",
+   "upos": "NUM",
+   "target": "εἶς",
+   "action": "correct",
+   "corrected": "εἷς",
+   "reason": "AGDT numeral lemma with a smooth breathing and circumflex (εἶς is the 2sg of εἰμί); the numeral is εἷς.",
+   "evidence": "The ADJ cell of the same key is εἷς; untagged μία gives εἷς; μίαν/NUM gives εἷς.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "Μία",
+   "upos": "NUM",
+   "target": "εἶς",
+   "action": "correct",
+   "corrected": "εἷς",
+   "reason": "AGDT numeral lemma with a smooth breathing and circumflex (εἶς is the 2sg of εἰμί); the numeral is εἷς.",
+   "evidence": "The ADJ cell of the same key is εἷς; untagged μία gives εἷς; μίαν/NUM gives εἷς.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "κλήσει",
+   "upos": "NOUN",
+   "target": "κλῇσις",
+   "action": "drop",
+   "reason": "Projection of the AGDT cell κλῄσει/κλῄσεις -> κλῇσις ('closing') onto the monotonic key, which is itself the polytonic spelling of κλῆσις ('calling').",
+   "evidence": "Untagged κλήσει/κλήσεις give κλῆσις; lsj9 has κλήσει/κλήσεις NOUN -> κλῆσις, which surfaces once the projected cell is gone; κλήσεως/NOUN gives κλῆσις. The real κλῄσει/κλῄσεις keys keep κλῇσις.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "κλήσεις",
+   "upos": "NOUN",
+   "target": "κλῇσις",
+   "action": "drop",
+   "reason": "Projection of the AGDT cell κλῄσει/κλῄσεις -> κλῇσις ('closing') onto the monotonic key, which is itself the polytonic spelling of κλῆσις ('calling').",
+   "evidence": "Untagged κλήσει/κλήσεις give κλῆσις; lsj9 has κλήσει/κλήσεις NOUN -> κλῆσις, which surfaces once the projected cell is gone; κλήσεως/NOUN gives κλῆσις. The real κλῄσει/κλῄσεις keys keep κλῇσις.",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερά",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεράν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεράς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερή",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερήν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερής",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερήσι",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερήσιν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεραίς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεραὶ",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεραῖς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροίο",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροίς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροίσι",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροίσιν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερού",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροῖο",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροῖς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροῖσι",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροῖσιν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκεροῦ",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερό",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερόν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερός",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερώ",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερών",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερώτερος",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερὰν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερὴν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερὸ",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερὸς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερᾶς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερῆς",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερῇ",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερῇσι",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερῇσιν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερῶν",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "treebank",
+   "form": "γλυκερῷ",
+   "upos": "ADJ",
+   "target": "γλυκύς",
+   "action": "drop",
+   "reason": "AGDT lemmatizes the epic/poetic γλυκερός under γλυκύς; the lexica (LSJ, Cunliffe, DGE) and the untagged lookup keep γλυκερός as its own adjective, so the tag should not switch words.",
+   "evidence": "γλυκερός is an LSJ/Cunliffe headword and the target of 90 lookup forms; untagged γλυκερός/γλυκερόν give γλυκερός. Owner decision recorded in #106 (one lemma for the adjective).",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "και",
+   "upos": "ADV",
+   "target": "παι",
+   "action": "drop",
+   "reason": "Corrupt GLAUx target παι for an adverb-tagged και/ται.",
+   "evidence": "Same corrupt target as the treebank cell; untagged και gives καί, ται gives ὁ.",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "ται",
+   "upos": "ADV",
+   "target": "παι",
+   "action": "drop",
+   "reason": "Corrupt GLAUx target παι for an adverb-tagged και/ται.",
+   "evidence": "Same corrupt target as the treebank cell; untagged και gives καί, ται gives ὁ.",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "τούς",
+   "upos": "ADJ",
+   "target": "τού",
+   "action": "drop",
+   "reason": "The article accusative τούς (and its misaccented τοῦς) is no form of τού.",
+   "evidence": "Untagged τούς resolves to the article (ὁ with resolve_articles=True); the DET cells are the article.",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "τοῦς",
+   "upos": "ADJ",
+   "target": "τού",
+   "action": "drop",
+   "reason": "The article accusative τούς (and its misaccented τοῦς) is no form of τού.",
+   "evidence": "Untagged τούς resolves to the article (ὁ with resolve_articles=True); the DET cells are the article.",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "καί",
+   "upos": "VERB",
+   "target": "εἰμί",
+   "action": "drop",
+   "reason": "A mistagged καί voted for εἰμί; καί is no form of εἰμί.",
+   "evidence": "Untagged καί gives καί; surfaces once the treebank καί/VERB cell is dropped.",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "καὶ",
+   "upos": "VERB",
+   "target": "εἰμί",
+   "action": "drop",
+   "reason": "A mistagged καί voted for εἰμί; καί is no form of εἰμί.",
+   "evidence": "Untagged καί gives καί; surfaces once the treebank καί/VERB cell is dropped.",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "αυτον",
+   "upos": "ADJ",
+   "target": "αὐτος",
+   "action": "correct",
+   "corrected": "αὐτός",
+   "reason": "GLAUx target without its accent; the pronoun-adjective is αὐτός.",
+   "evidence": "αὐτος is in no head list; untagged αὐτόν gives αὐτός.",
+   "issue": 106
+  },
+  {
+   "table": "glaux",
+   "form": "αὐτον",
+   "upos": "ADJ",
+   "target": "αὐτος",
+   "action": "correct",
+   "corrected": "αὐτός",
+   "reason": "GLAUx target without its accent; the pronoun-adjective is αὐτός.",
+   "evidence": "αὐτος is in no head list; untagged αὐτόν gives αὐτός.",
+   "issue": 106
+  },
+  {
+   "table": "ag",
+   "form": "έβδομος",
+   "upos": "ADV",
+   "target": "ἑπτάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged έβδομος gives a numeral (or ἐκτός via the accent-stripped key), never ἑπτάκις; only the -άκις keys themselves are forms of ἑπτάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "έκτος",
+   "upos": "ADV",
+   "target": "ἑξάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged έκτος gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "έξ",
+   "upos": "ADV",
+   "target": "ἑξάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged έξ gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "εβδομος",
+   "upos": "ADV",
+   "target": "ἑπτάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged εβδομος gives a numeral (or ἐκτός via the accent-stripped key), never ἑπτάκις; only the -άκις keys themselves are forms of ἑπτάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "εκτος",
+   "upos": "ADV",
+   "target": "ἑξάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged εκτος gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "εξ",
+   "upos": "ADV",
+   "target": "ἑξάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged εξ gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "εξήκοντα",
+   "upos": "ADV",
+   "target": "ἑξηκοντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged εξήκοντα gives a numeral (or ἐκτός via the accent-stripped key), never ἑξηκοντάκις; only the -άκις keys themselves are forms of ἑξηκοντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "εξηκοντα",
+   "upos": "ADV",
+   "target": "ἑξηκοντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged εξηκοντα gives a numeral (or ἐκτός via the accent-stripped key), never ἑξηκοντάκις; only the -άκις keys themselves are forms of ἑξηκοντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "εξηκοστος",
+   "upos": "ADV",
+   "target": "ἑξηκοντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged εξηκοστος gives a numeral (or ἐκτός via the accent-stripped key), never ἑξηκοντάκις; only the -άκις keys themselves are forms of ἑξηκοντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "εξηκοστός",
+   "upos": "ADV",
+   "target": "ἑξηκοντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged εξηκοστός gives a numeral (or ἐκτός via the accent-stripped key), never ἑξηκοντάκις; only the -άκις keys themselves are forms of ἑξηκοντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "επτά",
+   "upos": "ADV",
+   "target": "ἑπτάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged επτά gives a numeral (or ἐκτός via the accent-stripped key), never ἑπτάκις; only the -άκις keys themselves are forms of ἑπτάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "επτα",
+   "upos": "ADV",
+   "target": "ἑπτάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged επτα gives a numeral (or ἐκτός via the accent-stripped key), never ἑπτάκις; only the -άκις keys themselves are forms of ἑπτάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "πέμπτος",
+   "upos": "ADV",
+   "target": "πεντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged πέμπτος gives a numeral (or ἐκτός via the accent-stripped key), never πεντάκις; only the -άκις keys themselves are forms of πεντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "πεμπτος",
+   "upos": "ADV",
+   "target": "πεντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged πεμπτος gives a numeral (or ἐκτός via the accent-stripped key), never πεντάκις; only the -άκις keys themselves are forms of πεντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "ἑξήκοντα",
+   "upos": "ADV",
+   "target": "ἑξηκοντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged ἑξήκοντα gives a numeral (or ἐκτός via the accent-stripped key), never ἑξηκοντάκις; only the -άκις keys themselves are forms of ἑξηκοντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "ἑξηκοστός",
+   "upos": "ADV",
+   "target": "ἑξηκοντάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged ἑξηκοστός gives a numeral (or ἐκτός via the accent-stripped key), never ἑξηκοντάκις; only the -άκις keys themselves are forms of ἑξηκοντάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "ἑπτά",
+   "upos": "ADV",
+   "target": "ἑπτάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged ἑπτά gives a numeral (or ἐκτός via the accent-stripped key), never ἑπτάκις; only the -άκις keys themselves are forms of ἑπτάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "ἕβδομος",
+   "upos": "ADV",
+   "target": "ἑπτάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged ἕβδομος gives a numeral (or ἐκτός via the accent-stripped key), never ἑπτάκις; only the -άκις keys themselves are forms of ἑπτάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "ἕκτος",
+   "upos": "ADV",
+   "target": "ἑξάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged ἕκτος gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
+   "issue": 105
+  },
+  {
+   "table": "ag",
+   "form": "ἕξ",
+   "upos": "ADV",
+   "target": "ἑξάκις",
+   "action": "drop",
+   "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
+   "evidence": "Untagged ἕξ gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
+   "issue": 105
+  }
+ ]
+}
