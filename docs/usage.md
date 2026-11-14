@@ -70,6 +70,9 @@ their lookup entries are absent or conflicting. They keep their own forms
 with the `DET` tag. Strict citation-headword checks still apply.
 The opt-in mode also recognizes monotonic projections of polytonic articles,
 such as `τών` from `τῶν`, without removing accents from unrelated words.
+A smooth breathing on `αι` or `οι` is never the article's: `αἴ`, `αἰ`, `αἶ`
+and `οἴ` keep their own readings, while `αί`, `αἵ` and `Αἱ` still resolve to
+`ὁ`.
 The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
@@ -257,6 +260,19 @@ d.lemmatize_batch(words, guess=False)        # None at unresolvable positions
 d.lemmatize_verbose("μάκαπ", guess=False)    # [] - no identity/model candidates
 ```
 
+The deterministic fallbacks that run before the transformer are not guesses
+in this sense: each must land on an existing lookup key. An oblique case of a
+`-μενος` participle with no row of its own is resolved through its masculine
+nominative singular, rebuilt with the recessive accent and then with the
+perfect's `-μένος`, when that nominative is a verb form (`ἐλευσομένῳ` gives
+`ἔρχομαι` through `ἐλευσόμενος`, with `via="participle_nominative"`). The
+augment strip that follows never applies to a present, future or aorist
+participle (so `ἐλευσομένῳ` is not read as `λευσομένῳ` of `λεύσσω`), and a
+temporal augment is accepted only when the lemma begins with the restored
+vowel (`εἰκόνισεν` is not `ἐκόνισεν` of `κονίω`). `εἰκόνισεν` currently gives
+the Modern Greek `εικονίζω`, because no source lists the Ancient aorist of
+`εἰκονίζω`.
+
 Non-Greek and NON-LEXICAL tokens (see `classify_nonlexical`) still pass through
 unchanged: those are classifications, not lemma guesses. For a per-candidate
 confidence signal, use `lemmatize_verbose()` - each candidate's `score` (1.0
@@ -359,7 +375,7 @@ Each `LemmaCandidate` has:
 - `lang` - `"el"` (MG, including medieval), `"grc"` (AG), `"med"` (medieval provenance label in output)
 - `proper` - `True` if lemma is a proper noun (capitalized headword)
 - `source` - `"lookup"`, `"elision"`, `"crasis"`, `"particle_strip"`, `"verb_morphology"`, `"compound"`, `"article"`, `"normalize"`, `"byzantine_norm"`, `"prefix_strip"`, `"model"`, `"identity"`, `"nonlexical"`
-- `via` - how it matched: `"exact"`, `"lower"`, `"elision:ε"`, `"suffix_strip"`, `"augment_strip"`, `"θεο+φθόγγος"`, `"+case_alt"`, etc. For a non-lexical token, the non-lexical class label.
+- `via` - how it matched: `"exact"`, `"lower"`, `"elision:ε"`, `"suffix_strip"`, `"participle_nominative"`, `"augment_strip"`, `"θεο+φθόγγος"`, `"+case_alt"`, etc. For a non-lexical token, the non-lexical class label.
 - `score` - `1.0` for lookup, `0.5` for model, `0.0` for identity fallback
 - `tag` - `"X"` for a nonlexical token, `"DET"` for a retained article,
   `"VERB"` for a reviewed verbal reading, or `""` when unspecified
@@ -643,7 +659,10 @@ current merged lexical-head inventory. Validation is cached for each model.
 When a POS entry supplies a distinct supported citation spelling for an
 inflection, it takes precedence over an accent-stripped lookup collision.
 An exact independent lookup entry keeps its own spelling, such as `οὖ`
-beside the differently accented adverb `οὐ`.
+beside the differently accented adverb `οὐ`. A self-map that differs from a
+NOUN or PROPN target only by an added iota subscript is that noun's dative:
+`σιγῇ` and `βίᾳ` under NOUN give `σιγή` and `βία`, while under ADV or without
+a tag they keep the adverb row.
 The audit also retains every source-supported capitalized name and ethnic
 adjective owner before the runtime table's ambiguity filter. The dictionary
 export combines those owners with exact cased corpus counts and lexical-head
