@@ -1182,10 +1182,10 @@ def test_shipped_no_guess_call_invents_no_compound(
     # closed-class tag; one the lookup holds for the spelling is not, also
     # when the lemma is a contract verb in -ῶ.
     ("ἀκούσον", "INTJ", "ἀκούω"), ("τούτῃ", "PRON", "τούτος"),
-    # Known gaps (docs/usage.md): no Modern entry carries SCONJ, and a
-    # contraction read as an Ancient form keeps that reading or gets none.
-    ("νὰ", "SCONJ", "νή"), ("νὰ", "PART", "να"),
-    ("στὸν", "DET", "ἀστός"), ("στὸ", "DET", None),
+    # An SCONJ request reads the Modern CCONJ entry (#120), and the
+    # contractions of σε with the article give the article under DET (#121).
+    ("νὰ", "SCONJ", "να"), ("νὰ", "PART", "να"),
+    ("στὸν", "DET", "ο"), ("στὸ", "DET", "ο"),
 ])
 def test_shipped_polytonic_pos_readings(shipped_all_model, form, upos, lemma):
     assert shipped_all_model.lemmatize_pos(form, upos, guess=False) == lemma
@@ -1196,9 +1196,10 @@ def test_shipped_polytonic_pos_readings(shipped_all_model, form, upos, lemma):
 @pytest.mark.parametrize("form,upos,lemma", [
     ("νὰ", "CCONJ", "νά"), ("πᾶνε", "VERB", "πηγαίνω"),
     ("καταγῆς", "ADV", "καταγής"), ("ἀλλην", "PRON", "άλλος"),
-    # Known gap: the entry the rule lets stand is not returned when the
-    # lookup offers one lemma from both its sides.
-    ("σεῖς", "PRON", "σέω"), ("κυροῦ", "NOUN", "κυρώ"),
+    # The entry the rule lets stand is returned when the lookup offers one
+    # lemma from both its sides (#119).
+    ("σεῖς", "PRON", "εσείς"), ("κυροῦ", "NOUN", "κυρός"),
+    ("σὰν", "CCONJ", "σαν"),
 ])
 def test_shipped_polytonic_pos_readings_under_triantafyllidis(form, upos, lemma):
     # The convention's lookup prefers Modern Greek entries; the rule must

@@ -632,6 +632,10 @@ spelling: `Πᾶνά` is judged as `Πᾶνα`. Parts of speech are compatible
 when they are equal or share one of the groups NOUN/PROPN/ADJ,
 ADJ/PRON/DET/NUM, ADJ/ADV, ADV/PART, CCONJ/SCONJ and VERB/AUX, which cover the
 tags one Ancient lemma carries across tagsets.
+The Modern Greek entries carry no SCONJ tag, so an SCONJ request reads the
+Modern CCONJ entry when the Ancient POS tables record no CCONJ entry for the
+form (`νὰ` SCONJ gives `να`, not `νή`; `σὰν` SCONJ gives `σαν`). Ancient
+conjunctions keep their Ancient entries (`ἐπειδὴ` SCONJ gives `ἐπεί`).
 
 In every other case the lookup candidates decide, as they do for all polytonic
 input in 1.3.23: the same word in monotonic spelling gives the Ancient
@@ -651,23 +655,26 @@ Ancient headword with the Modern lemma's letters, that headword is returned
 (`εὐήνεμός` ADJ gives `εὐήνεμος`, `ἐκδηλος` ADJ gives `ἔκδηλος`). The rule weighs the same Ancient evidence under every
 `convention` (when nothing in the Ancient lookup reads the form, it follows
 the configured resolvers), and the lemma is then mapped as usual (`νὰ` CCONJ
-gives `νά` with `convention="triantafyllidis"`).
+gives `νά` with `convention="triantafyllidis"`, as with `lang="el"`). Under
+that convention the Modern and Ancient lookups read the same row, so a Modern
+Greek entry the rule lets stand often meets one lemma from both sides; that
+counts as one competing reading, and the entry is returned as under the
+default convention (`σεῖς` PRON gives `εσείς`, `κυροῦ` NOUN gives `κυρός`;
+1.3.24 gave `σέω` and `κυρώ`).
+
+The vernacular contractions of σε with the article in polytonic spelling
+(`στὸ`, `στὸν`, `στὴ(ν)`, `στὰ`, `στοῦ`, `στῆς`, `στῶν`, `στοὺς`, `στὶς`:
+accents only, no breathing, iota subscript or diaeresis) give `ο` under DET
+and `σε` under ADP with `lang="all"`, under every convention. Under other
+tags their Ancient readings stand (`στὸν` ADJ gives `ἀστός`, `στὴν` VERB
+gives `ἵστημι`).
 
 The rule reads the recorded evidence, not the surrounding text, so it has
 known gaps in both directions:
 
 - A vernacular form whose spelling is also a plausible Ancient one keeps the
   Ancient reading (`σᾶς` PRON gives `σός`, `Νὰ` CCONJ gives `ἵνα`, `κρασὶ`
-  NOUN gives `κάρη`, `στὸν` DET gives `ἀστός`), or gets none when that
-  reading fails the part-of-speech check (`στὸ` DET).
-- The Modern Greek entries carry no SCONJ tag, so a Modern conjunction is
-  restored under CCONJ and PART only: `νὰ` SCONJ gives `νή`. The package's
-  own tagger gives `νὰ` PART or SCONJ.
-- With `lang="all"` and `convention="triantafyllidis"`, a Modern Greek entry
-  the rule lets stand is often not returned: the lookup then offers the same
-  lemma from its Modern and its Ancient side, and a POS entry that matches
-  none of several candidates is not trusted (`σεῖς` PRON gives `σέω`, `κυροῦ`
-  NOUN gives `κυρώ`). 1.3.22 did the same.
+  NOUN gives `κάρη`).
 - An Ancient form tagged with a part of speech it never has can take a Modern
   Greek headword. So can a form under its own part of speech when the lookup
   lacks its spelling, through an accent slip or a gap in the lookup, and

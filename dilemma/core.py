@@ -482,6 +482,15 @@ _LEMMA_GENDER_HINTS = {
     "ον": "n", "ος": "m", "μα": "n", "ον": "n",
 }
 
+# Vernacular contractions of σε with the article (στὸ, στὸν, στὴν, ...),
+# accent-stripped. In polytonic spelling with lang="all" they give the
+# article under DET and σε under ADP (#121); their Ancient readings (στόν
+# as ἀστός, στῆς as ἵστημι) stand under the other tags.
+_VERNACULAR_ARTICLE_CONTRACTIONS = frozenset({
+    "στο", "στον", "στη", "στην", "στα", "στου", "στης", "στων", "στους",
+    "στις",
+})
+
 _MG_CLOSED_CLASS = {
     # Preposition contractions σε + article -> σε
     "στη": "σε", "στην": "σε", "στο": "σε", "στον": "σε",
@@ -2157,6 +2166,9 @@ class Dilemma:
 
     def _article_pos_lemma(self, word: str, upos: str) -> str | None:
         """Preserve requested marked articles despite a nominal tagging error."""
+        contraction = self._vernacular_contraction_pos_lemma(word, upos)
+        if contraction is not None:
+            return contraction
         if (self._resolve_articles and self.lang in ("all", "grc")
                 and self._convention_name != "triantafyllidis"
                 and upos in ("NOUN", "PROPN") and word):
@@ -2176,6 +2188,30 @@ class Dilemma:
                 and word.lower() in _MG_ARTICLE_FORMS):
             return _MG_ARTICLE_LEMMA
         return _ARTICLE_LEMMA
+
+    def _vernacular_contraction_pos_lemma(self, word: str,
+                                          upos: str) -> str | None:
+        """The DET or ADP lemma of a polytonic contraction of σε + article.
+
+        With lang="all", a polytonic στὸ, στὸν, στὴν, στοὺς, ... tagged DET
+        gives the Modern article ο and tagged ADP gives σε, under every
+        convention (#121). The spelling must carry only accents (acute,
+        grave or circumflex): a breathing, iota subscript or diaeresis
+        is no vernacular contraction.
+        """
+        if upos not in ("DET", "ADP") or self.lang != "all" or not word:
+            return None
+        nfd = unicodedata.normalize("NFD", word)
+        marks = {ord(ch) for ch in nfd if unicodedata.combining(ch)}
+        if not marks or not marks <= {0x0300, 0x0301, 0x0342}:
+            return None
+        if not any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+                   for ch in nfd):
+            return None
+        if strip_accents(to_standard_sigma(word).lower()) \
+                not in _VERNACULAR_ARTICLE_CONTRACTIONS:
+            return None
+        return _MG_ARTICLE_LEMMA if upos == "DET" else "σε"
 
     def _resolve_closed_class(self, word: str) -> str | None:
         """Recognize Ancient articles and optionally canonicalize closed classes.
