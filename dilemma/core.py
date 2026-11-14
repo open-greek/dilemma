@@ -765,6 +765,30 @@ def _psili_is_diphthong_breathing(nfd: str, base_idx: int, mark_idx: int) -> boo
 
 _SMOOTH_BREATHING = "\u0313"
 _ROUGH_BREATHING = "\u0314"
+# Initial diphthongs that carry the breathing on their second vowel (εὐ, οἱ).
+_BREATHING_DIPHTHONGS = frozenset(
+    {"αι", "ει", "οι", "υι", "αυ", "ευ", "ηυ", "ου"})
+
+
+def _initial_breathing(word: str) -> str | None:
+    """The breathing of a word that opens with a vowel or rho.
+
+    Returns U+0313 or U+0314, "" when the opening vowel, diphthong or rho
+    has none (ευσεβής, ρῆσις), and None for a word that opens otherwise.
+    """
+    nfd = unicodedata.normalize("NFD", word.lower())
+    if not nfd or nfd[0] not in _GREEK_VOWELS + "ρ":
+        return None
+    bases = 0
+    for ch in nfd:
+        if unicodedata.combining(ch):
+            if ch in (_SMOOTH_BREATHING, _ROUGH_BREATHING):
+                return ch
+            continue
+        bases += 1
+        if bases > 2 or (bases == 2 and (nfd[0] == "ρ" or ch not in "ιυ")):
+            break
+    return ""
 
 
 def _has_bare_initial_rho(lemma: str | None) -> bool:
@@ -772,6 +796,32 @@ def _has_bare_initial_rho(lemma: str | None) -> bool:
     nfd = unicodedata.normalize("NFD", lemma or "")
     return nfd[:1] in ("ρ", "Ρ") and nfd[1:2] not in (
         _SMOOTH_BREATHING, _ROUGH_BREATHING)
+
+
+def _with_initial_breathing(lemma: str, mark: str) -> str | None:
+    """*lemma* with *mark* on its opening vowel or rho.
+
+    The breathing goes on the second vowel of an opening diphthong (εὐ-),
+    which needs an unaccented first vowel and no diaeresis on the second.
+    """
+    nfd = unicodedata.normalize("NFD", lemma)
+    bases = [index for index, ch in enumerate(nfd)
+             if not unicodedata.combining(ch)]
+    if not bases:
+        return None
+    position = bases[0]
+    low = nfd.lower()
+    if (len(bases) > 1 and low[0] != "ρ"
+            and low[bases[0]] + low[bases[1]] in _BREATHING_DIPHTHONGS
+            and "\u0308" not in nfd[bases[1]:bases[2] if len(bases) > 2 else None]
+            and not any(ord(ch) in _TONAL_ACCENT_MARKS
+                        for ch in nfd[bases[0]:bases[1]])):
+        position = bases[1]
+    return unicodedata.normalize(
+        "NFC", nfd[:position + 1] + mark + nfd[position + 1:])
+
+
+_TONAL_ACCENT_MARKS = frozenset({0x0301, 0x0300, 0x0342})
 
 
 def _strip_elision(word: str) -> str | None:
@@ -2241,6 +2291,8 @@ class Dilemma:
                                 strip_accents(word.lower())]:
                     hit = tbl.get(variant)
                     hit = self._normalize_grave_citation_lemma(hit) if hit else None
+                    # A loose key may not drop the form's breathing (#109).
+                    hit = self._restore_breathing(word, hit) if hit else None
                     if hit and not (len(variant) <= 2 and hit == variant):
                         break
                     hit = None
@@ -2263,6 +2315,9 @@ class Dilemma:
         for variant in [mono, stripped]:
             hit = self._lookup.get(variant)
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
+            if hit and not prefer_modern:
+                # A loose key may not drop the form's breathing (#109).
+                hit = self._restore_breathing(word, hit)
             if hit and not (len(variant) <= 2 and hit == variant):
                 return hit
         return None
@@ -3680,6 +3735,58 @@ class Dilemma:
         normalized = _without_quantity_marks(sanitize_form(lemma)).replace("-", "")
         return normalized in self._ancient_lexical_heads
 
+    def _restore_breathing(self, word: str, lemma: str) -> str | None:
+        """The lemma of a loose-key lookup hit, with the breathing *word* has.
+
+        A form written with a breathing that has no row of its own can
+        reach a row through its monotonic or accent-stripped key, and the
+        rows there are often Modern Greek (ευσεβεστατη -> ευσεβής). When
+        such a lemma lacks the breathing the form has, the Ancient headword
+        with the same letters is returned instead: the form's breathing
+        first, then the other one (always rough on rho), each with the
+        accent as written and with an acute turned circumflex. A spelling
+        the Ancient lookup maps to itself counts with its accent unchanged.
+        A lemma that is itself an Ancient head written without breathings
+        (the Sophocles lexicon's οφφίκιον) takes the form's breathing.
+        A capitalized lemma (a name only Modern Greek Wiktionary lists,
+        Ραχίλ) is returned as it is. Otherwise there is no Ancient lemma
+        with those letters: None.
+        A lemma that keeps a breathing, or a form without one, is returned
+        unchanged.
+        """
+        if _initial_breathing(word) not in (_SMOOTH_BREATHING, _ROUGH_BREATHING) \
+                or _initial_breathing(lemma) != "":
+            return lemma
+        if unicodedata.normalize("NFD", lemma.lower())[0] == "ρ":
+            marks = (_ROUGH_BREATHING,)
+        else:
+            own = _initial_breathing(word)
+            marks = (own, _ROUGH_BREATHING if own == _SMOOTH_BREATHING
+                     else _SMOOTH_BREATHING)
+        tried = []
+        for mark in marks:
+            base = _with_initial_breathing(lemma, mark)
+            if not base:
+                continue
+            spellings = [base]
+            nfd = unicodedata.normalize("NFD", base)
+            spellings.extend(
+                unicodedata.normalize("NFC", nfd[:index] + "\u0342" + nfd[index + 1:])
+                for index, ch in enumerate(nfd) if ch == "\u0301")
+            for spelling in spellings:
+                tried.append(spelling)
+                if self._is_ancient_headword(spelling) or (
+                        spelling == base and self._ag_lookup
+                        and self._ag_lookup.get(spelling) == spelling):
+                    return spelling
+        if tried and self._is_ancient_headword(lemma):
+            return tried[0]
+        if is_capitalized(lemma):
+            # A name has one citation form in both languages; one that
+            # only Modern Greek lists (Ραχίλ for Ῥαχὶλ) is still the name.
+            return lemma
+        return None
+
     def _ancient_lookup_has_spelling(self, word: str) -> bool:
         """Whether the Ancient lookup holds *word* with its own accents.
 
@@ -4719,6 +4826,8 @@ class Dilemma:
         if self.lang in ("all", "grc"):
             _tables.append((self._ag_lookup, "grc"))
         junk_value_seen = False
+        prefer_modern = (self.lang == "el"
+                         or self._convention_name == "triantafyllidis")
         for table, lang in _tables:
             for variant, via in variants:
                 lemma = table.get(variant)
@@ -4726,6 +4835,11 @@ class Dilemma:
                     # Skip trivial short self-mappings (accent artifacts)
                     if len(variant) <= 2 and lemma == variant and via in ("mono", "stripped"):
                         continue
+                    # A loose key may not drop the form's breathing (#109).
+                    if via in ("mono", "stripped") and not prefer_modern:
+                        lemma = self._restore_breathing(word, lemma)
+                        if not lemma:
+                            continue
                     # An elided junk VALUE (key ἡνίκ -> "ἡνίκ'") is not a
                     # headword; note it for the elided-stem bridging below
                     # and reject this table's hit, matching lemmatize().
@@ -4799,6 +4913,10 @@ class Dilemma:
                         if lemma:
                             if len(variant) <= 2 and lemma == variant and via.endswith(("mono", "stripped")):
                                 continue
+                            if via.endswith(("mono", "stripped")) and not prefer_modern:
+                                lemma = self._restore_breathing(norm_candidate, lemma)
+                                if not lemma:
+                                    continue
                             if _is_elided_junk_value(lemma):
                                 continue
                             if not self._normalization_reading_supported(

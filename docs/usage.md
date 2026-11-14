@@ -96,6 +96,23 @@ d_mg = Dilemma(convention="triantafyllidis")
 d_audit = Dilemma(lang="grc", citation_policy="strict_ag")
 ```
 
+A form with no lookup row of its own is looked up under its monotonic and
+then its accent-stripped spelling, where many rows are Modern Greek. With
+`lang="all"` or `lang="grc"` (and any convention but `triantafyllidis`), a
+lemma found that way may not drop the breathing the form is written with.
+The Ancient headword with the same letters is returned instead, with the
+form's breathing or the other one and with the accent as written or an acute
+turned circumflex (`εὐσεβεστάτῃ` gives `εὐσεβής`, not `ευσεβής`; `ἐδραία`
+gives `ἑδραῖος`). A name that only Modern Greek lists keeps its lemma
+(`Ῥαχὶλ` gives `Ραχίλ`); otherwise there is no lemma (`ἀστοχήσει` gives `None`
+with `guess=False`). `lang="el"` and `convention="triantafyllidis"` read the
+Modern rows as before. Known gaps: the Sophocles lexicon writes its omicron
+and rho heads without breathings, and the POS rejection audit is built against
+those heads, so `ὀφφικίου` gives `ὀφφίκιον` untagged but `None` with a NOUN
+tag. `διωρθωμένου` has no row of its own (the lexicon expansion has the
+participle's other cells), so the orthographic normalizer still reads it as
+the Modern participle `διορθωμένος`.
+
 ## Conventions
 
 Different dictionaries cite the same Greek word differently. LSJ uses

@@ -13,7 +13,8 @@ Ancient reading for a capitalized PROPN form (Ὀρᾷς PROPN -> ὁράω).
 import pytest
 
 from dilemma import core
-from dilemma.core import _has_bare_initial_rho
+from dilemma.core import (_has_bare_initial_rho, _initial_breathing,
+                          _with_initial_breathing)
 
 
 @pytest.fixture
@@ -97,3 +98,95 @@ def test_shipped_rho_targets_keep_the_breathing(shipped_models, lang):
     assert model.lemmatize_batch_pos(
         ["ῥῆσιν", "ῥομφαίαν", "ῥεῖ", "ῥοίζῳ"], ["NOUN", "NOUN", "VERB", "NOUN"],
         guess=False) == ["ῥῆσις", "ῥομφαία", "ῥέω", "ῥοῖζος"]
+
+
+# ---------------------------------------------------------------- #109
+
+def test_initial_breathing():
+    assert _initial_breathing("εὐσεβής") == "\u0313"
+    assert _initial_breathing("Ἑλλήνων") == "\u0314"
+    assert _initial_breathing("ῥῆσις") == "\u0314"
+    assert _initial_breathing("ευσεβής") == ""
+    assert _initial_breathing("ρῆσις") == ""
+    assert _initial_breathing("βίος") is None
+
+
+def test_breathing_goes_on_the_diphthong_second_vowel():
+    assert _with_initial_breathing("ευσύνοπτος", "\u0313") == "εὐσύνοπτος"
+    assert _with_initial_breathing("αϊδής", "\u0314") == "ἁϊδής"
+    assert _with_initial_breathing("Ραχίλ", "\u0314") == "Ῥαχίλ"
+    assert _with_initial_breathing("οφφίκιον", "\u0313") == "ὀφφίκιον"
+
+
+def test_restore_breathing_finds_the_ancient_headword(model_from):
+    model = model_from({}, headwords={
+        "ἀνεξάντλητος", "εὐσύνοπτος", "ἑδραῖος", "εὐσεβής"})
+    restore = model._restore_breathing
+    assert restore("ἀνεξάντλητον", "ανεξάντλητος") == "ἀνεξάντλητος"
+    assert restore("εὐσύνοπτον", "ευσύνοπτος") == "εὐσύνοπτος"
+    # The other breathing, with the acute turned circumflex.
+    assert restore("ἐδραία", "εδραίος") == "ἑδραῖος"
+    # No Ancient lemma with those letters.
+    assert restore("ἀστοχήσει", "αστοχώ") is None
+    # Lemmas that keep a breathing and forms without one are untouched.
+    assert restore("εὐσεβεστάτῃ", "εὐσεβής") == "εὐσεβής"
+    assert restore("ευσεβεστατη", "ευσεβής") == "ευσεβής"
+    assert restore("βίου", "βίος") == "βίος"
+
+
+def test_restore_breathing_accepts_an_ancient_self_map(model_from):
+    model = model_from({"Ἀββακούμ": "Ἀββακούμ"})
+    assert model._restore_breathing("ἀββακοὺμ", "Αββακούμ") == "Ἀββακούμ"
+
+
+def test_restore_breathing_repairs_a_breathingless_ancient_head(model_from):
+    # Sophocles' lexicon writes its omicron heads without breathings.
+    model = model_from({}, heads={"οφφίκιον"})
+    assert model._restore_breathing("ὀφφικίου", "οφφίκιον") == "ὀφφίκιον"
+
+
+def test_restore_breathing_keeps_a_modern_name(model_from):
+    model = model_from({})
+    assert model._restore_breathing("Ῥαχὶλ", "Ραχίλ") == "Ραχίλ"
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_loose_lookup_key_keeps_the_breathing(model_from, lang):
+    model = model_from({"ευσεβεστατη": "ευσεβής", "αστοχήσει": "αστοχώ"},
+                       lang=lang, headwords={"εὐσεβής"})
+    model._mg_lookup = {}
+    assert model._lookup_word("εὐσεβεστάτῃ") == "εὐσεβής"
+    assert model._lookup_word("ἀστοχήσει") is None
+    # Monotonic input reads the Modern rows as before.
+    assert model._lookup_word("αστοχήσει") == "αστοχώ"
+
+
+def test_modern_mode_keeps_the_modern_row(model_from):
+    model = model_from({"αστοχήσει": "αστοχώ"}, lang="el")
+    model._mg_lookup = {}
+    assert model._lookup_word("ἀστοχήσει") == "αστοχώ"
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_shipped_loose_keys_keep_the_breathing(shipped_models, lang):
+    model = shipped_models[lang]
+    forms = ["εὐσεβεστάτῃ", "ἀστοχήσει", "ἀνεξάντλητον", "ἀνεξαντλήτου", "ὀφφικίου"]
+    assert model.lemmatize_batch(forms, guess=False) == [
+        "εὐσεβής", None, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
+    assert [model.lemmatize(f, guess=False) for f in forms] == [
+        "εὐσεβής", None, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
+    tagged = model.lemmatize_batch_pos(forms[:4], ["ADJ", "VERB", "ADJ", "ADJ"],
+                                       guess=False)
+    assert tagged == ["εὐσεβής", None, "ἀνεξάντλητος", "ἀνεξάντλητος"]
+    assert model.lemmatize_batch(
+        ["ἀνευροῦς", "ἐδραία", "εὐσεβεστάτη"], guess=False) == [
+        "ἄνευρος", "ἑδραῖος", "εὐσεβής"]
+    assert model.lemmatize_pos("ἀστοχήσας", "VERB", guess=False) == "ἀστοχέω"
+    # A name only Modern Greek Wiktionary lists keeps its lemma.
+    assert model.lemmatize("Ῥαχὶλ", guess=False) == "Ραχίλ"
+
+
+def test_shipped_modern_mode_is_unchanged():
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    assert core.Dilemma(lang="el").lemmatize("ἀστοχήσει") == "αστοχώ"
