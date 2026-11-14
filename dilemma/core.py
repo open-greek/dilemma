@@ -4098,16 +4098,25 @@ class Dilemma:
             # only where _modern_pos_reading_applies finds no Ancient
             # reading of the requested kind (νὰ CCONJ -> να, κυροῦ NOUN
             # -> κυρός); otherwise the lookup candidates decide.
-            for index, variant in enumerate(variants):
-                pos_entry = self._pos_lookup.get(variant)
-                if pos_entry and upos in pos_entry \
-                        and _usable(pos_entry[upos]) \
-                        and not _breathingless_ancient(variant, pos_entry[upos]):
-                    if self._modern_pos_reading_applies(
-                            word, upos, pos_entry[upos]):
-                        twin = self._lowercase_ancient_twin(word, pos_entry[upos])
-                        return _target(twin or pos_entry[upos]), index
-                    break
+            # The Modern Greek entries carry no SCONJ tag, so an SCONJ
+            # request reads the Modern CCONJ entry when the Ancient table
+            # records no CCONJ entry for the form (νὰ SCONJ -> να; #120).
+            tags = (upos,)
+            if upos == "SCONJ" and not any(
+                    "CCONJ" in (self._pos_ag_lookup.get(variant) or {})
+                    for variant in variants):
+                tags = ("SCONJ", "CCONJ")
+            for tag in tags:
+                for index, variant in enumerate(variants):
+                    pos_entry = self._pos_lookup.get(variant)
+                    if pos_entry and tag in pos_entry \
+                            and _usable(pos_entry[tag]) \
+                            and not _breathingless_ancient(variant, pos_entry[tag]):
+                        if self._modern_pos_reading_applies(
+                                word, upos, pos_entry[tag]):
+                            twin = self._lowercase_ancient_twin(word, pos_entry[tag])
+                            return _target(twin or pos_entry[tag]), index
+                        return None, None
             return None, None
 
         # Combined POS lookup
