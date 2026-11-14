@@ -609,6 +609,38 @@ accented form, its lowercase, and a lowercase accentless key. Entries with
 editorial marks or hyphens (`παρα-λυτικός`), paroxytone names in `-ικος` and
 two-ending entries stay out.
 
+Two noun classes get the same treatment (`dilemma/grc_noun_gaps.py`, source
+`grc_noun_gaps`), on the final combined table, after the corpus word-tail
+filter and before the reviewed overrides:
+
+- Nouns in `-σις` known only from a headword list (`σύναρσις`, from the VLG
+  list; `ῥήτρευσις`, from the Byzantine list, whose paradigm expansion
+  skips every `-ις` noun because it cannot infer an `-ις` genitive). Every
+  lowercase, singly accented, self-mapped `-σις` head gets the regular Attic
+  cells `-εως -ει -εις -εων -εσι(ν) -έοιν -ιν`, with the acute on the stem's
+  last vowel (`συνάρσεως`, `συναρσέοιν`) and the accusative keeping the
+  headword's accent (`σύναρσιν`). The vocative `-σι` is left out, because it
+  is the one cell that meets corpus names (`Κίμωσι`, of `Κίμων`).
+- s-stem neuters in `-ος` whose tables are Ionic or epic only (`στέφεος`,
+  `στέφεα` from the dictionary expansion; `τέκεος`, `γλάγεος` from Homeric
+  Wiktionary tables). A lowercase, singly accented `-ος` lemma with an
+  accented `-εος` row and an accented neuter plural row (`-εα`, `-εσι(ν)` or
+  `-εων`) under it gets the contracted cells `-ους -ει -η -ῶν -εσι(ν) -οῖν`
+  (`στέφους`, `στέφη`, `στεφῶν`). The plural row keeps masculines with an
+  `-εος` spelling (`φῖλος`) and singular-only epic nouns (`κῦδος`, `σθένος`)
+  out.
+
+Each cell is keyed by its accented form, its lowercase and its accentless
+lowercase spelling, and fills a key only when no source supplied it and no
+other generated lemma claims it (accent doublets such as `σχετλίασις` and
+`σχετλιάσις` leave their shared keys empty). On the 1.3.24 table this adds
+about 41,100 `-σις` keys for about 3,040 lemmas and 620 s-stem keys for 138
+lemmas. A key that already reads as another word keeps it (`κινήσει` →
+`κινέω`, `δάκρυσιν` → `δάκρυον`), and the declension is the Attic one only,
+not the Ionic `-ιος` forms. Headword-only adjectives and nouns in `-ος`
+(about 16,900 lemmas, mostly Byzantine entries without a gender) are not
+generated.
+
 Verb expansion rejects source entries explicitly identified as prefixes,
 imperative forms of another verb, or defective verbs whose entry explicitly
 limits the available persons. Those restrictions preserve source-attested

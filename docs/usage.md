@@ -454,7 +454,12 @@ the same license), `attribution`, and `components`, a JSON list of each
 component's name, URL, license and use. The table is copied from the reviewed
 registry `data/lookup_sources.json`, and the build stops if a reading comes
 from an input the registry does not list. `meta` adds `sources_sha256`, and
-`lookup_sha256` then covers each row's source code as well.
+`lookup_sha256` then covers each row's source code as well. Rows Dilemma adds
+itself, by rule or by review, have their own codes, so they can be
+audited or left out: `grc_adjective_gaps` (-ικός feminines),
+`grc_noun_gaps` (-σις nouns and contracted s-stem neuter cells, from 1.3.25),
+`el_rule_paradigms` (Modern Greek present and imperfect forms) and
+`el_paradigm_gaps` (reviewed Modern Greek cells).
 
 ```sql
 SELECT value FROM meta WHERE key = 'lookup_sha256';
