@@ -3808,7 +3808,6 @@ class Dilemma:
             for variant in dict.fromkeys(
                 (word, word.lower(), acute, acute.lower())))
 
-    _VOWEL_RUN = re.compile("[αεηιουω]+")
     _SYLLABLE_NUCLEUS = re.compile("[αεο]ι|υι|[αεηο]υ|[αεηιουω]")
 
     @classmethod
@@ -3837,25 +3836,77 @@ class Dilemma:
             return word
         return unicodedata.normalize("NFC", nfd[:last] + nfd[last + 1:])
 
+    @staticmethod
+    def _monosyllable_by_synizesis(word: str) -> bool:
+        """Whether *word* is one syllable, counting synizesis.
+
+        A diphthong (αι ει οι υι αυ ευ ηυ ου) needs an unaccented first
+        vowel and no diaeresis on the second. The word is a monosyllable
+        with one nucleus, or with two adjacent nuclei of which the first is
+        an unaccented ι, υ, ει or οι that does not open the word (μιὰ,
+        ποιὸς, γριὰ). Hiatus is not synizesis: προϊόν, πρωΐας and Κάιν
+        are not monosyllables, nor ξύλα.
+        """
+        units = []
+        for ch in unicodedata.normalize("NFD", word.lower()):
+            if unicodedata.combining(ch):
+                if units:
+                    units[-1][1].add(ord(ch))
+            else:
+                units.append((ch, set()))
+        tonal = Dilemma._TONAL_ACCENTS
+        nuclei = []  # (letters, accented, first unit, last unit)
+        index = 0
+        while index < len(units):
+            base, marks = units[index]
+            if base not in _GREEK_VOWELS:
+                index += 1
+                continue
+            start, letters, accented = index, base, bool(marks & tonal)
+            if (index + 1 < len(units) and not accented
+                    and base + units[index + 1][0] in _BREATHING_DIPHTHONGS
+                    and 0x0308 not in units[index + 1][1]):
+                index += 1
+                letters += units[index][0]
+                accented = bool(units[index][1] & tonal)
+            nuclei.append((letters, accented, start, index))
+            index += 1
+        if len(nuclei) <= 1:
+            return True
+        (letters, accented, start, end), second = nuclei[0], nuclei[1]
+        return (len(nuclei) == 2 and letters in ("ι", "υ", "ει", "οι")
+                and not accented and start > 0 and second[2] == end + 1)
+
     def _modern_pos_entry_keeps_accent(self, word: str, upos: str,
                                        modern: str) -> bool:
         """Whether the Modern reading is recorded for the word's accent.
 
         Monotonic spelling writes no accent on a monosyllable, so there the
         bare key is the word's own spelling (νὰ is να, μιὰ is μια). A word
-        counts as one when its vowels form a single group; that admits
-        synizesis (ποιὸς) and, with it, the few longer words whose vowels
-        all stand together (προϊόν).
+        counts as one by _monosyllable_by_synizesis, which admits synizesis
+        (ποιὸς) but not hiatus (προϊόν, #123).
         """
         lower = word.lower()
         stripped = strip_accents(lower)
-        if len(self._VOWEL_RUN.findall(stripped)) <= 1:
+        if self._monosyllable_by_synizesis(lower):
             return True
         return any(
             variant != stripped
             and (self._pos_lookup.get(variant) or {}).get(upos) == modern
             for variant in (word, lower, grave_to_acute(lower),
                             to_monotonic(lower)))
+
+    @staticmethod
+    def _capitalized_ancient_word(word: str, upos: str, modern: str,
+                                  ancient: str) -> bool:
+        """Whether a capitalized PROPN form is a capitalized Ancient word.
+
+        A capitalized form tagged PROPN whose Ancient reading is a
+        lowercase word keeps that reading rather than a Modern name
+        (Ὀρᾷς is ὁράω, not Όρας; Γένῃ is γίγνομαι, not Γένη; #123).
+        """
+        return (upos == "PROPN" and is_capitalized(word)
+                and is_capitalized(modern) and not is_capitalized(ancient))
 
     def _modern_pos_reading_applies(self, word: str, upos: str,
                                     modern: str) -> bool:
@@ -3926,6 +3977,8 @@ class Dilemma:
                 ord(ch) in self._TONAL_ACCENTS
                 for ch in unicodedata.normalize("NFD", word)):
             return True
+        if self._capitalized_ancient_word(word, upos, modern, ancient):
+            return False
         known = headword or any(table.get(variant) for variant in accented)
         closed_class = upos in self._CLOSED_CLASS_TAGS
         if tags:
@@ -3940,6 +3993,30 @@ class Dilemma:
             # evidence than the Ancient one (ἐφη VERB stays φημί).
             return self._modern_pos_entry_keeps_accent(word, upos, modern)
         return closed_class and ancient_key.endswith(("ω", "μι", "μαι"))
+
+    def _lowercase_ancient_twin(self, word: str, modern: str) -> str | None:
+        """The lowercase Ancient headword a Modern POS reading stands for.
+
+        When the Modern reading stands against an Ancient reading that is
+        a capitalized name (εὐήνεμός, read as Εὐήνεμός through its
+        enclitic accent, gives the name Εὐήνεμος), the lowercase headword
+        with the name's spelling is the Ancient word the Modern lemma
+        spells monotonically (εὐήνεμος, not ευήνεμος; #123). The word and
+        the Modern lemma must be lowercase and the headword must have the
+        Modern lemma's letters.
+        """
+        if is_capitalized(word) or is_capitalized(modern):
+            return None
+        written = unicodedata.normalize("NFC", word)
+        for form in dict.fromkeys((written, self._without_enclitic_accent(written))):
+            ancient = self._lookup_word(form, prefer_modern=False)
+            if not ancient or not is_capitalized(ancient):
+                continue
+            twin = ancient[0].lower() + ancient[1:]
+            if (strip_accents(twin) == strip_accents(modern.lower())
+                    and self._is_ancient_headword(twin)):
+                return twin
+        return None
 
     def _pos_table_lookup(self, word: str, upos: str) -> str | None:
         """Look up POS-specific lemma from POS disambiguation tables.
@@ -4028,7 +4105,8 @@ class Dilemma:
                         and not _breathingless_ancient(variant, pos_entry[upos]):
                     if self._modern_pos_reading_applies(
                             word, upos, pos_entry[upos]):
-                        return _target(pos_entry[upos]), index
+                        twin = self._lowercase_ancient_twin(word, pos_entry[upos])
+                        return _target(twin or pos_entry[upos]), index
                     break
             return None, None
 

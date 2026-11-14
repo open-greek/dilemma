@@ -190,3 +190,60 @@ def test_shipped_modern_mode_is_unchanged():
     if not core.LOOKUP_DB_PATH.exists():
         pytest.skip("Shipped Dilemma data is not installed")
     assert core.Dilemma(lang="el").lemmatize("ἀστοχήσει") == "αστοχώ"
+
+
+# ---------------------------------------------------------------- #123
+
+@pytest.mark.parametrize("word", ["μιὰ", "ποιὸς", "γριὰ", "νὰ", "σεῖς"])
+def test_synizesis_counts_as_one_syllable(word):
+    assert core.Dilemma._monosyllable_by_synizesis(word)
+
+
+@pytest.mark.parametrize("word", ["προϊὸν", "προῖὸν", "πρωΐας", "Κάιν",
+                                  "ξὐλα", "γυρᾶ"])
+def test_hiatus_is_not_a_monosyllable(word):
+    assert not core.Dilemma._monosyllable_by_synizesis(word)
+
+
+def test_hiatus_does_not_admit_a_bare_modern_key(model_from):
+    model = model_from({"προϊὸν": "πρόειμι"}, lang="all",
+                       modern_pos={"προιον": {"NOUN": "προϊών"}})
+    assert not model._modern_pos_entry_keeps_accent("προῖὸν", "NOUN", "προϊών")
+    assert model._modern_pos_entry_keeps_accent("μιὰ", "DET", "μια")
+
+
+def test_modern_reading_against_a_name_returns_the_lowercase_headword(model_from):
+    model = model_from({"εὐήνεμος": "Εὐήνεμος"}, lang="all",
+                       modern_pos={"ευηνεμος": {"ADJ": "ευήνεμος"}},
+                       headwords={"εὐήνεμος"})
+    assert model._pos_table_lookup("εὐήνεμός", "ADJ") == "εὐήνεμος"
+    # Without the lowercase headword the Modern reading stands as before.
+    model._headword_sets["lsj"] = set()
+    assert model._pos_table_lookup("εὐήνεμός", "ADJ") == "ευήνεμος"
+
+
+def test_capitalized_propn_form_keeps_a_lowercase_ancient_reading(model_from):
+    model = model_from({"ορας": "ὁράω"}, lang="all",
+                       ancient_pos={"ορας": {"VERB": "ὁράω"}},
+                       modern_pos={"ορας": {"PROPN": "Όρας"}})
+    assert model._pos_table_lookup("Ὀρᾷς", "PROPN") is None
+    assert core.Dilemma._capitalized_ancient_word("Ὀρᾷς", "PROPN", "Όρας", "ὁράω")
+    assert not core.Dilemma._capitalized_ancient_word(
+        "Ἀλλην", "PROPN", "Αλλήνα", "Ἀλλην")
+
+
+def test_shipped_polytonic_modern_pos_rule(shipped_models):
+    model = shipped_models["all"]
+    forms = ["προῖὸν", "εὐήνεμός", "Ὀρᾷς", "Τοῦτου", "Οὕς", "Γένῃ", "ἄξυλος"]
+    tags = ["NOUN", "ADJ", "PROPN", "PROPN", "PROPN", "PROPN", "ADJ"]
+    expected = ["πρόειμι", "εὐήνεμος", "ὁράω", "οὗτος", "ὅς", "γίγνομαι", "ἄξυλος"]
+    assert model.lemmatize_batch_pos(forms, tags, guess=False) == expected
+    assert [model.lemmatize_pos(f, t, guess=False)
+            for f, t in zip(forms, tags)] == expected
+    # Kept: Modern readings of vernacular forms and Ancient names.
+    kept = [("μιὰ", "DET", "εἷς"), ("ποιὸς", "PRON", "ποιός"), ("νὰ", "CCONJ", "να"),
+            ("κυροῦ", "NOUN", "κυρός"), ("σεῖς", "PRON", "εσείς"),
+            ("ἄλλην", "PRON", "ἄλλος"), ("Ἑλλήνων", "PROPN", "Ἕλλην"),
+            ("ἐφη", "VERB", "φημί"), ("ῥα", "INTJ", "ρε")]
+    assert model.lemmatize_batch_pos([k[0] for k in kept], [k[1] for k in kept],
+                                     guess=False) == [k[2] for k in kept]

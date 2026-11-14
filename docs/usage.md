@@ -620,8 +620,13 @@ reading has the same letters and is listed in LSJ or in the merged
 `grc_lexical_heads.json` inventory), or when the Ancient POS tables have an
 entry under the form's own accents. A Modern Greek entry is recorded for a
 form's accents when it is keyed by the form's monotonic spelling. A
-monosyllable has no accent there, so the bare key counts for a word whose
-vowels form a single group (`νὰ`, `μιὰ`, `ποιὸς`; `στοὺς` DET gives `ο`).
+monosyllable has no accent there, so the bare key counts for a monosyllable:
+a word with one syllable nucleus, or with two adjacent nuclei of which the
+first is an unaccented ι, υ, ει or οι that does not open the word, which is
+synizesis (`νὰ`, `μιὰ`, `ποιὸς`; `στοὺς` DET gives `ο`). A diphthong needs an
+unaccented first vowel and no diaeresis on the second, so hiatus does not
+count: `προϊόν`, `πρωΐας` and `Κάιν` are not monosyllables (`προῖὸν` NOUN gives
+`πρόειμι`).
 The second accent that a following enclitic adds is not part of the
 spelling: `Πᾶνά` is judged as `Πᾶνα`. Parts of speech are compatible
 when they are equal or share one of the groups NOUN/PROPN/ADJ,
@@ -637,7 +642,13 @@ accented word that maps to itself keeps its lemma (`Σολομὼν` PROPN gives
 `Σολομών`), and an Ancient form written without its accent is not read
 through an accent-stripped Modern Greek entry (`ἐφη` VERB gives `φημί`).
 Once an Ancient reading exists, a lowercase word does not take a capitalized
-Modern Greek name. The rule weighs the same Ancient evidence under every
+Modern Greek name, and a capitalized form tagged PROPN whose Ancient reading
+is a lowercase word keeps that reading rather than a Modern Greek name
+(`Ὀρᾷς` PROPN gives `ὁράω`, not `Όρας`; `Γένῃ` PROPN gives `γίγνομαι`, not
+`Γένη` as in 1.3.24). When a Modern Greek entry stands against an Ancient
+reading that is a capitalized name, and the name's lowercase spelling is an
+Ancient headword with the Modern lemma's letters, that headword is returned
+(`εὐήνεμός` ADJ gives `εὐήνεμος`, `ἐκδηλος` ADJ gives `ἔκδηλος`). The rule weighs the same Ancient evidence under every
 `convention` (when nothing in the Ancient lookup reads the form, it follows
 the configured resolvers), and the lemma is then mapped as usual (`νὰ` CCONJ
 gives `νά` with `convention="triantafyllidis"`).
@@ -661,9 +672,17 @@ known gaps in both directions:
   Greek headword. So can a form under its own part of speech when the lookup
   lacks its spelling, through an accent slip or a gap in the lookup, and
   Modern Greek records a word with that accent (`ἄπαν` NOUN gives `άπαν`,
-  not `ἅπας`; `συνῃρημένῃ` VERB gives `συναιρώ`). A misaccented word whose
-  vowels all stand together counts as a monosyllable (`προῖὸν` NOUN gives
-  `προϊών`).
+  not `ἅπας`; `συνῃρημένῃ` VERB gives `συναιρώ`; `Βοῤῥᾶ` PROPN gives
+  `Βορράς`). The rule cannot tell a correctly spelled form the lookup lacks
+  from a misspelling; such forms need lookup rows, not a rule (treating an
+  iota subscript as Ancient evidence was measured mixed: `συνῃρημένῃ` was
+  fixed, `ἐνιαίᾳ` and `λαλᾷ` broke).
+- Rows of Modern Greek origin that the SQLite lookup stores for both
+  languages count as the Ancient lookup knowing a spelling, so such a
+  vernacular form keeps the lookup's answer (`ἄντρες` NOUN gives `ἄνδρας`,
+  `γριὰ` NOUN gives `γριά`). Counting only rows of Ancient origin changed
+  24 attested pairs with mixed results (`ἀγέρας` NOUN would give `αέρας`, but
+  `γριὰ` NOUN `γέρος` and `θηλυκὸ` PRON `κανείς`), so it is not done.
 
 Pass `lang="grc"` for text known to be Ancient and `lang="el"` for text known
 to be Modern.

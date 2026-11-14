@@ -572,7 +572,8 @@ def test_lowercase_word_does_not_take_a_capitalized_modern_name(fallback_model):
         {"γενη": {"PROPN": "Γένη", "NOUN": "γένι"}})
     assert model._pos_table_lookup("γένῃ", "PROPN") is None
     assert model._pos_table_lookup("γένῃ", "NOUN") == "γένι"
-    assert model._pos_table_lookup("Γένῃ", "PROPN") == "Γένη"
+    # A capitalized PROPN form keeps its lowercase Ancient reading (#123).
+    assert model._pos_table_lookup("Γένῃ", "PROPN") is None
 
 
 def test_pos_tag_compatibility():
