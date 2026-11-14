@@ -75,6 +75,25 @@ The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
 
+`Dilemma()` checks that its data directory holds the lists lemmatization
+reads: for `grc` and `all`, the nine Ancient `*_headwords.json` lists,
+`grc_lexical_heads.json` and `grc_adverb_heads.json`; for `el` and `all`,
+`triantafyllidis_headwords.json` and `mg_headwords.json`; and for a
+convention, `lemma_equivalences.json` and its `convention_{name}.json`.
+Without them compound accenting, grave-accent citation checks and convention
+mapping fall back, so lemmas differ from a full download. A missing file does
+not stop Dilemma from loading; it emits one `DilemmaDataWarning` per data
+directory naming the files. `python -m dilemma download --no-tagger` fetches
+them, and `dilemma.core.missing_data_files(lang, convention, data_dir)` lists
+what a directory lacks:
+
+```python
+import warnings
+from dilemma import DilemmaDataWarning
+
+warnings.simplefilter("error", DilemmaDataWarning)   # make a partial directory fail
+```
+
 ## Language and convention options
 
 ```python

@@ -164,6 +164,63 @@ _CONVENTION_HEADWORDS = {
 _MONOTONIC_CONVENTIONS = {"triantafyllidis"}
 
 
+class DilemmaDataWarning(UserWarning):
+    """A data file that lemmatization reads is missing from the data directory.
+
+    Dilemma still loads, but the paths that read the file (compound accenting,
+    grave-accent citation checks, convention mapping, the -ως adverb map) fall
+    back without it, so lemmas differ from those of a full download.
+    """
+
+
+# Lists the runtime reads, by language (issue #118). Every reader treats a
+# missing file as empty, so Dilemma names them once instead of answering
+# differently in silence. Keep this in step with new runtime-read lists.
+_AG_DATA_LISTS = tuple(path.name for path in (
+    LSJ_HEADWORDS_PATH, LSJ10_HEADWORDS_PATH, CUNLIFFE_HEADWORDS_PATH,
+    DGE_HEADWORDS_PATH, LBG_HEADWORDS_PATH, VLG_HEADWORDS_PATH,
+    PD_HEADWORDS_PATH, WIP_HEADWORDS_PATH, AG_HEADWORDS_PATH,
+    GRC_LEXICAL_HEADS_PATH, GRC_ADVERB_HEADS_PATH))
+_MG_DATA_LISTS = (TRIANTAFYLLIDIS_HEADWORDS_PATH.name, MG_HEADWORDS_PATH.name)
+_CONVENTION_DATA_FILES = {
+    "lsj": (LEMMA_EQUIVALENCES_PATH.name, "convention_lsj.json"),
+    "cunliffe": (LEMMA_EQUIVALENCES_PATH.name, "convention_cunliffe.json"),
+    "triantafyllidis": (LEMMA_EQUIVALENCES_PATH.name,
+                        "convention_triantafyllidis.json"),
+}
+_WARNED_MISSING_DATA: set[tuple[str, tuple[str, ...]]] = set()
+
+
+def missing_data_files(lang: str = "all", convention: str | None = None,
+                       data_dir: Path | str | None = None) -> list[str]:
+    """The data files a Dilemma(lang, convention) reads that ``data_dir`` lacks."""
+    data_dir = Path(data_dir) if data_dir is not None else DATA_DIR
+    names: list[str] = []
+    if lang in ("all", "grc"):
+        names += _AG_DATA_LISTS
+    if lang in ("all", "el"):
+        names += _MG_DATA_LISTS
+    names += _CONVENTION_DATA_FILES.get(convention, ())
+    return sorted({name for name in names if not (data_dir / name).exists()})
+
+
+def _warn_missing_data_files(lang: str, convention: str | None) -> None:
+    """Warn once per data directory and missing set (DilemmaDataWarning)."""
+    missing = missing_data_files(lang, convention)
+    key = (str(DATA_DIR), tuple(missing))
+    if not missing or key in _WARNED_MISSING_DATA:
+        return
+    _WARNED_MISSING_DATA.add(key)
+    import warnings
+    warnings.warn(
+        f"Dilemma data directory {DATA_DIR} lacks {len(missing)} file(s) that "
+        f"lemmatization reads: {', '.join(missing)}. Compound accenting, "
+        "grave-accent citation checks and convention mapping fall back without "
+        "them, so lemmas differ from a full download. Fetch them with "
+        "`python -m dilemma download --no-tagger`.",
+        DilemmaDataWarning, stacklevel=3)
+
+
 @lru_cache(maxsize=8)
 def _bound_pos_rejections(audit_path, audit_size, audit_mtime,
                           heads_path, heads_size, heads_mtime):
@@ -1241,6 +1298,7 @@ class Dilemma:
         self._load_lookups(skip_pos=skip_pos)
         self._convention_map = self._build_convention_map(convention)
         self._convention_monotonic = convention in _MONOTONIC_CONVENTIONS
+        _warn_missing_data_files(lang, convention)
 
     def _check_backend(self):
         """Check native dependencies only when model inference is requested."""

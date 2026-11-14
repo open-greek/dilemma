@@ -44,7 +44,11 @@ Download options:
 Set `DILEMMA_DATA_DIR` to select a particular `data/` directory, and
 `DILEMMA_MODEL_DIR` to select a `model/` directory. Without an override, the
 lemmatizer checks the download cache, a source checkout, and bundled data,
-using the most recently built or downloaded artifacts.
+using the most recently built or downloaded artifacts. A data directory that
+lacks a list lemmatization reads (the `*_headwords.json` lists,
+`grc_lexical_heads.json`, `grc_adverb_heads.json`, or the convention files)
+still loads, but `Dilemma()` emits a `DilemmaDataWarning` naming the missing
+files, because the lemmas then differ from those of a full download.
 
 ## Lemmatize words
 
