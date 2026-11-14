@@ -751,6 +751,37 @@ from their flat lookup target or are absent from the flat map. The training-data
 integrity check requires this evidence; an unrelated definition under another part of speech cannot
 authorize an exception.
 
+### Ancient adverbs in -ως
+
+`build/build_grc_adverb_heads.py` writes `data/grc_adverb_heads.json`, the
+map the runtime uses to cite a regular Ancient adverb under its adjective
+(`καλῶς` -> `καλός`; see [Adverbs in -ως](usage.md#adverbs-in--ως)). It runs
+after `build_lookup_db.py` and `build/build_treebank_pos_lookup.py`, and
+records the sha256 of every input: the four Ancient POS tables (`ag_pos`,
+`lsj9_pos`, `treebank_pos`, `glaux_pos`), the ag/lsj/lsj10/dge/cunliffe
+headword lists, `lookup.db` and the review file.
+
+The keys are lowercase polytonic adverbs in -ως/-ῶς from the POS tables. The
+adjective is the first cell, in the order ag_pos ADJ, lsj9_pos ADJ, treebank
+ADV, treebank ADJ, GLAUx ADV, GLAUx ADJ, whose value is a lowercase headword
+and an ADJ value somewhere, derives exactly from the adverb's stem (s+ος, s+ης,
+s+οος, s+ους; -έως from -ύς or -ής; -όνως from -ων; -έντως from -εις), and
+agrees in accent: an oxytone -ός adjective gives -ῶς and any other -ος
+adjective -ως, which keeps `ὅμως` away from `ὁμός`. Adverb lemmas of
+`lookup.db` that no POS cell covers take the single headword that passes the
+same checks among the dictionary ADJ values and the -ικός headwords
+(`ὑποτυπωτικῶς` -> `ὑποτυπωτικός`). Left out are keys that a POS table
+itself calls a noun or adjective (`σῶς`, `ἅλως`), keys under five letters,
+monotonic keys (final -ώς, or no breathing on an initial vowel or ρ),
+antepenult-accented Attic-declension words (`ἔκπλεως`), dental-stem nouns
+(`καταγέλως`, `καταγέλωτος`), and the adverbs of
+`data/grc_adverb_review.json`, a reviewed list of lexicalized adverbs that
+the references keep as headwords, each with a reason. The output repeats that
+list as `keep`; an ADV-tagged keep word is returned as itself rather than the
+adjective a treebank cell names. Equivalence groups of
+`data/lemma_equivalences.json` never resolve to a mapped adverb, so under
+`convention="cunliffe"` `ἄδικος` no longer maps back to `ἀδίκως`.
+
 ### Modern Greek homographs
 
 In the Modern Greek dumps a capitalized page (a name, an abbreviation, a

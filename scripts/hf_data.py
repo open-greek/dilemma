@@ -119,6 +119,8 @@ TRACKED = [
     "data/el_closed_class_heads.json",
     # Exact POS-specific definitions for Ancient non-flat training readings.
     "data/grc_reading_heads.json",
+    # Regular Ancient adverbs in -ως and their adjectives (issue #117).
+    "data/grc_adverb_heads.json",
     # Explicit, sense-scoped dictionary evidence for optional verb exports.
     "data/verb_subjects.json",
     # Immutable source copies for reproducible monotonic corpus extraction.

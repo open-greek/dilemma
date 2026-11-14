@@ -125,6 +125,9 @@ TREEBANK_POS_LOOKUP_PATH = DATA_DIR / "treebank_pos_lookup.json"
 TREEBANK_POS_AUDIT_PATH = DATA_DIR / "treebank_pos_lookup.audit.json"
 GLAUX_POS_LOOKUP_PATH = DATA_DIR / "glaux_pos_lookup.json"
 GRC_LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
+# Regular Ancient adverbs in -ως -> their adjective, plus the reviewed adverbs
+# kept as headwords (build/build_grc_adverb_heads.py; issue #117).
+GRC_ADVERB_HEADS_PATH = DATA_DIR / "grc_adverb_heads.json"
 
 
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
@@ -225,6 +228,24 @@ def _lexical_heads(lang: str) -> frozenset[str]:
     return _lexical_head_lists(
         str(GRC_LEXICAL_HEADS_PATH), stat.st_size, stat.st_mtime_ns
     ).get(lang, frozenset())
+
+
+@lru_cache(maxsize=2)
+def _grc_adverb_tables(path, size, mtime):
+    """The adverb -> adjective map and the kept adverbs, parsed once."""
+    with Path(path).open(encoding="utf-8") as stream:
+        record = json.load(stream)
+    return dict(record.get("heads", {})), frozenset(record.get("keep", ()))
+
+
+def _grc_adverb_data() -> tuple[dict[str, str], frozenset[str]]:
+    """grc_adverb_heads.json as (heads, keep); empty without the file."""
+    try:
+        stat = GRC_ADVERB_HEADS_PATH.stat()
+    except OSError:
+        return {}, frozenset()
+    return _grc_adverb_tables(
+        str(GRC_ADVERB_HEADS_PATH), stat.st_size, stat.st_mtime_ns)
 
 
 def _without_quantity_marks(word: str) -> str:
@@ -1477,10 +1498,18 @@ class Dilemma:
                 equiv_data = json.load(f)
 
             is_monotonic = convention in _MONOTONIC_CONVENTIONS
+            # An Ancient regular adverb is cited under its adjective (#117),
+            # so it never becomes a group's canonical member: otherwise
+            # ἄδικος would map back to ἀδίκως where neither is a headword.
+            adverbs = ({} if is_monotonic or self.lang not in ("all", "grc")
+                       else _grc_adverb_data()[0])
 
             for group in equiv_data.get("groups", []):
                 if len(group) < 2:
                     continue
+                if adverbs and any(member in adverbs for member in group):
+                    group = ([m for m in group if m not in adverbs]
+                             + [m for m in group if m in adverbs])
 
                 # Find the canonical for this convention: first member
                 # in the headword list. Fall back to the first member
@@ -1488,7 +1517,7 @@ class Dilemma:
                 canonical = group[0]
                 found = False
                 for member in group:
-                    if member in headwords:
+                    if member in headwords and member not in adverbs:
                         canonical = member
                         found = True
                         break
@@ -1680,12 +1709,23 @@ class Dilemma:
             return check
 
         lemma = check.lemma
+        adjective = self._grc_adverb_head(lemma)
+        if adjective is not None:
+            # A regular adverb in -ως is cited under its adjective in Ancient
+            # Greek (καλῶς -> καλός, issue #117). The adjective goes through
+            # the same convention and citation checks; the adverb stands when
+            # the adjective fails them.
+            converted = self._apply_convention_check(
+                adjective, lang=lang, source=source)
+            if converted.lemma is not None:
+                return _CitationLemmaCheck(
+                    converted.lemma,
+                    check.reason if check.reason != "unchanged" else "convention",
+                    normalized_from=check.normalized_from or lemma)
         convention_changed = False
         before = lemma
         if self._convention_map:
             lemma = self._convention_map.get(lemma, lemma)
-        if self._convention_name == "lsj":
-            lemma = self._lsj_adverb_neuter_remap(lemma)
         if self._convention_monotonic:
             lemma = to_monotonic(lemma)
         convention_changed = lemma != before
@@ -1713,9 +1753,10 @@ class Dilemma:
         converted to monotonic Greek after any explicit remapping, so
         polytonic lemmas like ὁ become ο automatically.
 
-        For the LSJ convention, adverbs (-ῶς/-ως) and neuter adjectives
-        (-ον/-όν) that aren't LSJ headwords are mapped to their adjective
-        headword, since LSJ files these as sub-entries under the adjective.
+        In Ancient Greek (lang "all" or "grc") under every polytonic
+        convention, a regular adverb in -ως is cited under its adjective
+        (καλῶς -> καλός, ταχέως -> ταχύς), as the annotated corpora and
+        LSJ file it; see ``_grc_adverb_head``.
         """
         return self._apply_convention_check(
             lemma, lang=lang, source=source).lemma
@@ -1738,53 +1779,22 @@ class Dilemma:
             "policy": self._citation_policy,
         }
 
-    def _lsj_adverb_neuter_remap(self, lemma: str) -> str:
-        """Map adverbs and neuter adjectives to LSJ adjective headwords.
+    def _grc_adverb_head(self, lemma: str | None) -> str | None:
+        """The adjective of a regular Ancient adverb in -ως, or None.
 
-        LSJ doesn't give adverbs (δεινῶς) or neuter forms (δεινόν) their
-        own headword entries - they appear under the adjective (δεινός).
-        This remaps them automatically using accent-stripped matching
-        against the LSJ adjective headword set.
+        Applies in Ancient Greek (lang "all" or "grc") under every polytonic
+        convention. Modern Greek (lang "el", the monotonic triantafyllidis
+        convention) keeps its adverbs as headwords, and so do the adverbs with
+        no adjective base (οὕτως, πῶς, ὄντως, πάντως) and the reviewed
+        lexicalized ones (ἴσως, ἰδίως, ἄλλως; data/grc_adverb_review.json).
         """
-        lsj_hw = self._get_headword_set("lsj")
-        if lemma in lsj_hw:
-            return lemma
-
-        # Lazy-load LSJ adjective set
-        if not hasattr(self, "_lsj_adj_stripped"):
-            lsj_pos_path = (Path(__file__).resolve().parent.parent.parent
-                            / "lsj9" / "lsj9_headword_pos.json")
-            if not lsj_pos_path.exists():
-                lsj_pos_path = DATA_DIR / "lsj9_headword_pos.json"
-            self._lsj_adj_stripped = {}
-            if lsj_pos_path.exists():
-                import json as _json
-                pos_data = _json.load(open(lsj_pos_path, encoding="utf-8"))
-                for hw, pos in pos_data.items():
-                    if pos == "ADJ":
-                        self._lsj_adj_stripped[
-                            strip_accents(hw.lower())] = hw
-
-        if not self._lsj_adj_stripped:
-            return lemma
-
-        # Adverb -ῶς/-ως -> adjective -ος/-ης/-υς
-        if lemma.endswith("ῶς") or lemma.endswith("ως"):
-            stem = strip_accents(lemma[:-2].lower())
-            for suffix in ("ος", "ης", "υς", "ων", "ις"):
-                candidate = stem + suffix
-                if candidate in self._lsj_adj_stripped:
-                    return self._lsj_adj_stripped[candidate]
-
-        # Neuter -ον/-όν -> adjective -ος/-ης
-        if lemma.endswith("ον") or lemma.endswith("όν"):
-            stem = strip_accents(lemma[:-2].lower())
-            for suffix in ("ος", "ης"):
-                candidate = stem + suffix
-                if candidate in self._lsj_adj_stripped:
-                    return self._lsj_adj_stripped[candidate]
-
-        return lemma
+        if (not lemma or self.lang not in ("all", "grc")
+                or self._convention_monotonic
+                or self._convention_name == "triantafyllidis"
+                or not lemma.endswith(("ως", "ῶς"))):
+            return None
+        adjective = _grc_adverb_data()[0].get(lemma)
+        return adjective if adjective and adjective != lemma else None
 
     def _get_headword_set(self, convention: str = "lsj") -> set[str]:
         """Lazy-load and cache the headword set for a given convention.
@@ -3773,6 +3783,12 @@ class Dilemma:
             grammar = reviewed_verb_grammar(word)
             if grammar is not None:
                 return grammar["lemma"]
+        if self.lang in ("all", "grc") and upos == "ADV":
+            # A reviewed lexicalized adverb (ἴσως, ἰδίως) is its own
+            # headword, whatever adjective a treebank cell names (#117).
+            adverb = grave_to_acute(word.lower())
+            if adverb in _grc_adverb_data()[1]:
+                return adverb
         lower = word.lower()
         acute = grave_to_acute(lower)
         mono = to_monotonic(lower)
