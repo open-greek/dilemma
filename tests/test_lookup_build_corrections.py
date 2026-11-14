@@ -247,3 +247,25 @@ def test_glaux_pos_builder_skips_reviewed_non_lemmas(tmp_path):
     lookup = module.build_lookup()
     assert "ταύτην" not in lookup
     assert lookup["λόγον"] == {"NOUN": "λόγος", "VERB": "λέγω"}
+
+
+# #110: reviewed lookup overrides --------------------------------------------
+
+def test_merged_layer_reassignments_are_overridden(tmp_path):
+    data, env = _fixture(tmp_path, {
+        "ag": {"γραφῆς": "γραφεύς", "γραφή": "γραφεύς", "γραφέα": "γραφεύς",
+               "σεῖο": "σῦς", "σύ": "σῦς", "συός": "σῦς",
+               "ἱερέων": "ἱερός", "ἄριστα": "ἄριστον", "ἀρὰν": "ἀρή"},
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    combined = _rows(data)
+    for lang in ("all", "grc"):
+        # A grc row is written only where it differs from the combined one.
+        rows = {**combined, **_rows(data, lang)}
+        assert rows["γραφῆς"] == rows["γραφή"] == "γραφή"
+        assert rows["σεῖο"] == rows["σύ"] == "σύ"
+        assert rows["ἱερέων"] == "ἱερεύς" and rows["ἄριστα"] == "ἀγαθός"
+        assert rows["ἀρὰν"] == "ἀρά"
+        # The other words' own forms are untouched.
+        assert rows["γραφέα"] == "γραφεύς" and rows["συός"] == "σῦς"

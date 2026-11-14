@@ -1496,6 +1496,24 @@ def build():
         "πλέοντας": "πλέω",      # was πολύς (verb, not adj)
         "πρόειπε": "προλέγω",    # was προαγορεύω
         "χωρῇ": "χώρα",         # was χωρέω (noun dative more common)
+        # The merged layer of ag_lookup.json gives the γραφή paradigm to
+        # γραφεύς (an Attic dual γραφή under γραφεύς) and the forms of σύ to
+        # σῦς (form-of rows σεῖο -> σῦς); the Wiktionary base, every
+        # dictionary and the treebanks have them under γραφή and σύ (#110).
+        # These are exactly the keys the base reads as γραφή or σύ that the
+        # merged layer moved to γραφεύς or σῦς.
+        **{form: "γραφή" for form in (
+            "γραφή", "γραφῆς", "γραφήν", "γραφαί", "γραφάς", "γραφαῖς",
+            "γραφῶν", "γραφά", "γραφαῖν", "γραφη", "γραφην", "γραφαι",
+            "γραφας", "γραφαις", "γραφα", "γραφαιν", "γραφαίν", "γραφαίς",
+            "γραφών")},
+        **{form: "σύ" for form in (
+            "σύ", "συ", "σοῦ", "σού", "σου", "σεῖο", "σείο", "σειο", "σέο",
+            "σεο", "σεῦ", "σεύ", "σευ", "σέθεν", "σεθεν", "τεΐν", "τειν")},
+        "ἱερέων": "ἱερεύς",      # was ἱερός (gen. pl. of ἱερεύς; ἱερός has ἱερῶν)
+        "ἄριστα": "ἀγαθός",      # was ἄριστον (as ἄριστος, ἀρίστους -> ἀγαθός)
+        "ἀρίστοις": "ἀγαθός",    # was ἄριστον
+        "ἀρὰν": "ἀρά",           # was ἀρή (expansion); ἀράν -> ἀρά
     }
     # Also fix corrupt -δήποτε lemmas from pipeline
     for k, v in list(combined.items()):

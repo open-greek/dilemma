@@ -25,6 +25,9 @@ SHIPPED_AFTER_REBUILD = [
     "test_unaccented_expansion_doublet_is_repaired",
     "test_ancient_participles_do_not_take_a_modern_fragment",
     "test_modern_participle_fragment_in_el",
+    "test_merged_layer_reassignments_are_corrected_tagged",
+    "test_merged_layer_reassignments_are_corrected_untagged",
+    "test_single_valued_lookup_corrections",
 ]
 
 _MODELS = {}
@@ -130,3 +133,46 @@ def test_modern_participle_fragment_in_el():
     model = _model("el")
     assert model.lemmatize_batch_pos(["ὄντων", "οὐσῶν"], ["ADJ", "ADJ"],
                                      guess=False) == ["εἰμί", "εἰμί"]
+
+
+# #110 ---------------------------------------------------------------------
+
+@REBUILD
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_merged_layer_reassignments_are_corrected_tagged(lang):
+    model = _model(lang)
+    forms = ["γραφῆς", "γραφήν", "γραφή", "γραφαί", "σεῖο", "σέο"]
+    tags = ["NOUN"] * 4 + ["PRON"] * 2
+    expected = ["γραφή"] * 4 + ["σύ"] * 2
+    assert model.lemmatize_batch_pos(forms, tags, guess=False) == expected
+    assert [model.lemmatize_pos(f, t, guess=False)
+            for f, t in zip(forms, tags)] == expected
+
+
+@REBUILD
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_merged_layer_reassignments_are_corrected_untagged(lang):
+    model = _model(lang)
+    forms = ["σύ", "σοῦ", "σέθεν", "γραφή"]
+    expected = ["σύ", "σύ", "σύ", "γραφή"]
+    assert model.lemmatize_batch(forms, guess=False) == expected
+    assert [model.lemmatize(f, guess=False) for f in forms] == expected
+
+
+@REBUILD
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_single_valued_lookup_corrections(lang):
+    model = _model(lang)
+    forms = ["ἱερέων", "ἄριστα", "ἀρίστοις", "ἀρὰν"]
+    tags = ["NOUN", "ADJ", "ADJ", "NOUN"]
+    assert model.lemmatize_batch_pos(forms, tags, guess=False) == [
+        "ἱερεύς", "ἀγαθός", "ἀγαθός", "ἀρά"]
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_lookup_correction_controls(lang):
+    model = _model(lang)
+    assert model.lemmatize_batch_pos(["γραφὴν", "ἀράν", "ἱερά"],
+                                     ["NOUN", "NOUN", "ADJ"], guess=False) == [
+        "γραφή", "ἀρά", "ἱερός"]
+    assert model.lemmatize_pos("Λάμπε", "VERB", guess=False) == "λάμπω"
