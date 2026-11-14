@@ -101,6 +101,9 @@ ETYMOLOGY_BRIDGES_PATH = DATA_DIR / "etymology_bridges.json"
 LSJGR_BRIDGES_PATH = DATA_DIR / "lsjgr_bridges.json"
 RELATED_LEMMAS_PATH = DATA_DIR / "related_lemmas.json"
 HNC_PAIRS_PATH = DATA_DIR / "hnc_pairs.json"
+# The lexical heads every Ancient reading is checked against (built by
+# build/build_grc_lexical_heads.py, published on the Hub).
+GRC_LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
 
 _TRUSTED_BUILD_HEADWORD_PATHS = (
     LSJ_HEADWORDS_PATH, LSJ10_HEADWORDS_PATH, LBG_HEADWORDS_PATH,
@@ -176,6 +179,54 @@ def _citation_artifact_reason(lemma: str) -> str | None:
             return f"nonlexical_{nonlexical}"
         return "final_elision_mark"
     return None
+
+
+def _bare_letters(text: str) -> str:
+    """The letters of a spelling, case kept, every combining mark removed."""
+    return unicodedata.normalize("NFC", "".join(
+        c for c in unicodedata.normalize("NFD", text)
+        if not unicodedata.combining(c)))
+
+
+def load_expansion_lemma_heads(path: Path) -> tuple[frozenset, dict]:
+    """The heads an unaccented expansion lemma may stand for.
+
+    Returns every Ancient and vernacular head of grc_lexical_heads.json,
+    and the Ancient heads indexed by their bare letters, the index
+    ``unaccented_expansion_lemma`` repairs a lemma through.
+    """
+    evidence = json.loads(path.read_text(encoding="utf-8"))
+    ancient = evidence["heads"]
+    heads = frozenset(ancient) | frozenset(evidence.get("vernacular_heads", ()))
+    by_letters: dict[str, set] = {}
+    for head in ancient:
+        by_letters.setdefault(_bare_letters(head), set()).add(head)
+    return heads, by_letters
+
+
+def unaccented_expansion_lemma(lemma: str, heads, heads_by_letters
+                               ) -> tuple[str, str | None] | None:
+    """Judge a dictionary-expansion lemma that carries no diacritic at all.
+
+    The expansion layer holds lemmas that are source-text artefacts, not
+    citation forms: Latin words read as Beta Code (αελιυς, σερvιλια), OCR
+    garble (λαβλυμι, λαβ’μι), hyphenated composition lemmas
+    (προ-ανακηρυσσω) and unaccented doublets of real heads (συνοχος). A
+    lemma with any combining mark, or one a head list has (τε, που, κρεω),
+    is kept: None. Otherwise the reading is repaired to the single Ancient
+    head with the same letters, ``("unaccented_expansion_lemma_repaired",
+    head)``, or dropped, ``("unaccented_expansion_lemma_unlisted", None)``.
+    """
+    if not isinstance(lemma, str) or not lemma:
+        return None
+    if any(unicodedata.combining(c) for c in unicodedata.normalize("NFD", lemma)):
+        return None
+    if lemma in heads:
+        return None
+    same_letters = heads_by_letters.get(lemma, ())
+    if len(same_letters) == 1:
+        return "unaccented_expansion_lemma_repaired", next(iter(same_letters))
+    return "unaccented_expansion_lemma_unlisted", None
 
 
 def _load_from_sqlite(table: str) -> dict:
@@ -894,6 +945,17 @@ def build():
 
     trusted_grave_targets = trusted_ag_citation_headwords(
         _TRUSTED_BUILD_HEADWORD_PATHS)
+    # Unaccented dictionary-expansion lemmas are checked against the lexical
+    # heads. Without them the check cannot run, and the build would ship the
+    # transliterated-Latin and OCR lemmas it exists to remove.
+    expansion_heads = expansion_heads_by_letters = None
+    if GRC_LEXICAL_HEADS_PATH.exists():
+        expansion_heads, expansion_heads_by_letters = (
+            load_expansion_lemma_heads(GRC_LEXICAL_HEADS_PATH))
+    elif AG_EXPANSION_LAYER in ag_source_overrides.values():
+        sys.exit(f"{GRC_LEXICAL_HEADS_PATH.name} is missing; it is needed to "
+                 "check the dictionary-expansion lemmas. Fetch it with "
+                 "python -m dilemma download.")
     if trusted_grave_targets:
         print(f"  Trusted citation headwords for grave repair: "
               f"{len(trusted_grave_targets):,}")
@@ -927,6 +989,7 @@ def build():
         grave_normalized = 0
         grave_dropped = 0
         artifact_dropped = {}
+        expansion_repaired = expansion_dropped = 0
         for k, v in table.items():
             source = source_overrides.get(k, default_source)
             sk = sanitize_form(k)
@@ -950,6 +1013,22 @@ def build():
                     table=name, source=source, form=k, lemma=sv,
                     reason=artifact_reason)
                 continue
+            if source == AG_EXPANSION_LAYER and expansion_heads is not None:
+                verdict = unaccented_expansion_lemma(
+                    sv, expansion_heads, expansion_heads_by_letters)
+                if verdict is not None:
+                    reason, head = verdict
+                    if head is None:
+                        expansion_dropped += 1
+                        _record_citation_rejection(
+                            table=name, source=source, form=k, lemma=sv,
+                            reason=reason)
+                        continue
+                    expansion_repaired += 1
+                    _record_citation_rejection(
+                        table=name, source=source, form=k, lemma=sv,
+                        reason=f"{reason}_to_{head}")
+                    sv = head
             if trusted_grave_targets and isinstance(sv, str) and _has_grave(sv):
                 safe = _normalize_grave_citation_lemma(
                     sv, trusted_grave_targets)
@@ -1005,6 +1084,10 @@ def build():
                   f"citation lemmas")
         for reason, count in sorted(artifact_dropped.items()):
             print(f"  Dropped {count:,} {name} {reason} citation artifacts")
+        if expansion_dropped or expansion_repaired:
+            print(f"  Unaccented dictionary-expansion lemmas: dropped "
+                  f"{expansion_dropped:,} {name} readings, repaired "
+                  f"{expansion_repaired:,} to their accented head")
         return out
 
     # Feminine and neuter-plural cells of -ικός adjectives that the pinned

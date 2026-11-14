@@ -35,6 +35,7 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
                            "Ῥώμης": "Ῥώμη"},
         "etymology_bridges.json": {"λέω": ["λέγω"], "λόγος": ["λόγος"]},
         "related_lemmas.json": {"λέγω": ["λόγος"]},
+        "grc_lexical_heads.json": {"heads": [], "vernacular_heads": []},
     }
     for name, value in sources.items():
         (data / name).write_text(json.dumps(value, ensure_ascii=False))
