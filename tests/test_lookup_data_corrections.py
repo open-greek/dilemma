@@ -28,6 +28,8 @@ SHIPPED_AFTER_REBUILD = [
     "test_merged_layer_reassignments_are_corrected_tagged",
     "test_merged_layer_reassignments_are_corrected_untagged",
     "test_single_valued_lookup_corrections",
+    "test_no_unaccented_unlisted_expansion_lemma_ships",
+    "test_no_reviewed_non_lemma_ships",
 ]
 
 _MODELS = {}
@@ -176,3 +178,35 @@ def test_lookup_correction_controls(lang):
                                      ["NOUN", "NOUN", "ADJ"], guess=False) == [
         "γραφή", "ἀρά", "ἱερός"]
     assert model.lemmatize_pos("Λάμπε", "VERB", guess=False) == "λάμπω"
+
+
+# Shipped lookup.db invariants ------------------------------------------------
+
+def _lookup_rows(sql, params=()):
+    import sqlite3
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    conn = sqlite3.connect(f"file:{core.LOOKUP_DB_PATH}?mode=ro", uri=True)
+    try:
+        return conn.execute(sql, params).fetchall()
+    finally:
+        conn.close()
+
+
+@REBUILD
+def test_no_unaccented_unlisted_expansion_lemma_ships():
+    import build_lookup_db as builder
+    heads, by_letters = builder.load_expansion_lemma_heads(core.GRC_LEXICAL_HEADS_PATH)
+    rows = _lookup_rows(
+        "SELECT DISTINCT m.text FROM lookup l JOIN lemmas m ON m.id = l.lemma_id "
+        "JOIN sources s ON s.id = l.source_id WHERE s.code = 'grc_lexicon_expansion'")
+    assert not [lemma for (lemma,) in rows
+                if builder.unaccented_expansion_lemma(lemma, heads, by_letters)]
+
+
+@REBUILD
+def test_no_reviewed_non_lemma_ships():
+    marks = ",".join("?" * len(REJECTED_LEMMAS))
+    assert _lookup_rows(
+        "SELECT l.form, m.text FROM lookup l JOIN lemmas m ON m.id = l.lemma_id "
+        f"WHERE m.text IN ({marks})", sorted(REJECTED_LEMMAS)) == []
