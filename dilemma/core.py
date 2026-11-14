@@ -3572,6 +3572,15 @@ class Dilemma:
                     and any(pos != upos and lemma.lower() == candidate.lower()
                             for pos, lemma in readings.items())):
                 return pos_lemma
+        # A self-map that differs from a nominal POS target only by an iota
+        # subscript is that noun's dative (σιγῇ beside σιγή, βίᾳ beside βία),
+        # not an independent word; the adverb row still answers under ADV.
+        if (upos in ("NOUN", "PROPN")
+                and self._ancient_pos_context(word, upos)
+                and grave_to_acute(word).lower() == grave_to_acute(candidate).lower()
+                and (unicodedata.normalize("NFD", candidate).count("\u0345")
+                     > unicodedata.normalize("NFD", pos_lemma).count("\u0345"))):
+            return pos_lemma
         # An exact lookup self-map can be an independent word rather than an
         # inflection of the differently accented POS target (οὖ versus οὐ).
         if (self._ancient_pos_context(word, upos)
