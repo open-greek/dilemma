@@ -69,6 +69,34 @@ _GENDER_TAGS = frozenset({"masculine", "feminine", "neuter"})
 EL_DIALECT_CODES = {"el-crt": "Cretan", "el-cyp": "Cypriot"}
 
 
+# The Greek edition's personal-pronoun grid (grc-προσωπική αντωνυμία, and the
+# Modern templates). Unlike the English edition's generic templates in
+# _SHARED_PERSON_TEMPLATES (grc-decl), these never decline another word.
+PERSONAL_PRONOUN_TABLE_TEMPLATES = frozenset({
+    "grc-προσωπική αντωνυμία", "προσωπική αντωνυμία", "el-προσωπική αντωνυμία",
+})
+_PERSON_HEADER = re.compile(r"^([αβγ])['΄ʹ’]\s*πρόσωπο$")
+
+
+def _person_header_cells(forms: list) -> set[str]:
+    """The persons a Greek-edition table names in its header cells
+    (``α΄ πρόσωπο``), as person tags."""
+    names = {"α": "first-person", "β": "second-person", "γ": "third-person"}
+    return {names[m[1]] for fe in forms
+            if (m := _PERSON_HEADER.match((fe.get("form") or "").strip()))}
+
+
+def personal_pronoun_table(forms: list) -> bool:
+    """Whether a forms[] list is the personal-pronoun grid: its template, or
+    header cells for more than one person."""
+    for fe in forms:
+        if "inflection-template" in (fe.get("tags") or []):
+            if fe.get("form", "") in PERSONAL_PRONOUN_TABLE_TEMPLATES:
+                return True
+            break
+    return len(_person_header_cells(forms)) > 1
+
+
 def tag_dialect_entry(entry: dict) -> str | None:
     """Mark a dialect-section entry's senses and forms with its dialect, so
     every pair it yields carries the tag, and return the dialect."""
@@ -1541,11 +1569,18 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # The grid is also told by its persons, since the dumps
                 # rename its template (EN's τα came as the generic
                 # inflection-table-top in the 2026-09 dump): a pronoun's
-                # own table has one person.
+                # own table has one person. The Greek edition names them
+                # in header cells (α΄ πρόσωπο), not tags.
                 persons = {t for fe in forms for t in fe.get("tags", [])
-                           if t in _PERSON_TAGS}
+                           if t in _PERSON_TAGS} | _person_header_cells(forms)
                 if uses_shared_person_template or len(persons) > 1:
                     continue
+            elif personal_pronoun_table(forms):
+                # Another word's page carrying the personal-pronoun grid (the
+                # Greek edition's det ὅς, 2026-11: ἡμῖν, σύ, ὑμᾶς) lists
+                # forms of ἐγώ, σύ and οὗ, not its own. Keep its headword
+                # line only.
+                forms = [fe for fe in forms if fe.get("source") == "header"]
 
             # Track current dialect from table-tags headers.
             # page_dialect is the entry-level dialect from sense tags
