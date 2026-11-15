@@ -294,6 +294,10 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     "ῥυέντα": "ῥέω", "ῥυέντας": "ῥέω",
     "ἀπόμυξαι": "ἀπομύσσω", "ἀπομύξῃ": "ἀπομύσσω",
     "Φόρκυνος": "Φόρκυς",
+    # The accusative of εὑρέτις left the expansion layer and fell to a GLAUx
+    # gap-fill row that reads the masculine εὑρετής, whose accusative is
+    # εὑρετήν.
+    "εὑρέτιν": "εὑρέτις",
     # Elided names that fell from the expansion layer to treebank gap-fill,
     # which reads them with a lowercase lemma (δωρίς, ἰλιάς; GLAUx reads
     # the Δωρίδ’ of its own text as Δωρίς 4 times). The keys end in U+1FBD,

@@ -130,6 +130,7 @@ def test_single_forms_keep_the_reading_the_treebanks_give():
     assert o["ῥυέντα"] == o["ῥυέντας"] == "ῥέω"
     assert o["ἀπόμυξαι"] == o["ἀπομύξῃ"] == "ἀπομύσσω"
     assert o["Φόρκυνος"] == "Φόρκυς"
+    assert o["εὑρέτιν"] == "εὑρέτις"
     assert o["αυλων"] == o["αυλών"] == "αὐλή" and "αὐλῶν" not in o
     assert o["Ἀπολλώνιον"] == o["Απολλώνιον"] == "Ἀπολλώνιος"
     assert _forms_of("κλῄζω") == {"κλήζεσθαι", "κληζεσθαι", "κλήζουσι",
@@ -148,7 +149,7 @@ def test_override_keys_and_lemmas_are_nfc_and_no_lemma_is_rejected():
             assert unicodedata.normalize("NFC", form) == form, form
             assert unicodedata.normalize("NFC", lemma) == lemma, lemma
             assert lemma not in REJECTED_LEMMAS, lemma
-    assert len(B.KAIKKI_2026_11_READING_OVERRIDES) == 233
+    assert len(B.KAIKKI_2026_11_READING_OVERRIDES) == 234
 
 
 # The override loop ----------------------------------------------------------
