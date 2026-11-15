@@ -45,3 +45,17 @@ def test_verb_form_header_can_retain_a_separate_lexical_sense():
     assert is_independent_finite_entry(entry, "en")
     assert is_independent_lexical_entry(entry, "en")
     assert has_definition(entry, "en")
+
+
+@pytest.mark.parametrize("word,gloss", [
+    ("ἐγώ", "first person singular personal pronoun: I, me, my"),
+    ("σύ", "second person singular personal pronoun: thou, you"),
+    ("ὑμεῖς", "second person plural personal pronoun: you, ye"),
+    ("σφέτερος", "third-person plural possessive pronoun, including reflexive"),
+])
+def test_person_pronoun_definition_is_a_lexical_head(word, gloss):
+    # The 2026-11 dumps define ἐγώ and σύ by these glosses alone; read as
+    # inflection glosses they dropped out of the Wiktionary heads (#125).
+    assert not _is_verb_inflection_gloss(gloss)
+    entry = {"word": word, "pos": "pron", "senses": [{"glosses": [gloss]}]}
+    assert has_definition(entry, "en")

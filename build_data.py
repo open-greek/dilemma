@@ -2022,12 +2022,20 @@ def noun_head_inventory(records: list, lookup: dict, source_hashes: dict) -> dic
 
 
 def _is_verb_inflection_gloss(gloss: str) -> bool:
-    """Recognize grammatical form descriptions without matching lexical 'of'."""
+    """Recognize grammatical form descriptions without matching lexical 'of'.
+
+    A person phrase starts an inflection gloss ("first-person singular
+    present"), except where it describes a pronoun: "second person singular
+    personal pronoun: thou, you" defines σύ, it is no form of another word.
+    """
     text = re.sub(
         r"^(?:(?:uncontracted|contracted|unaugmented|late|paroxytone|"
         r"prevocalic/clause-final)\s+)+", "", gloss.strip().lower())
     return bool(re.match(
-        r"^(?:(?:first|second|third)[ -]person\b|"
+        r"^(?:(?:first|second|third)[ -]person\b"
+        r"(?!(?:\s+(?:singular|plural|dual))?"
+        r"(?:\s+(?:personal|reflexive|possessive|intensive|emphatic|demonstrative))*"
+        r"\s+pronoun)|"
         r"(?:singular|plural|dual) (?:present|past|aorist|perfect|future|indicative|subjunctive|imperative)\b|"
         r"(?:inflection|conjugation|form|(?:alternative|alternate) (?:form|spelling)) of\b|"
         r"(?:active|passive|middle)(?: nonfinite form)? of\b|"
