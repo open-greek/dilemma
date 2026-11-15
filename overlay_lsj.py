@@ -734,7 +734,10 @@ def overlay_expansion(
             continue
         if form in excluded_forms:
             stats["excluded_entries"] += 1
-            if form not in released_forms:
+            # A released form with editorial notation stays excluded: the
+            # pinned counts file it under the exclusions, not the notation.
+            if (form not in released_forms or has_editorial_sigla(form)
+                    or has_editorial_sigla(lemma)):
                 continue
             stats["released_conflict_entries"] += 1
         if has_editorial_sigla(form) or has_editorial_sigla(lemma):

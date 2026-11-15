@@ -850,3 +850,17 @@ def test_unaccented_keys_return_where_every_marked_form_agrees():
     assert "τοσ" not in target
     assert stats == {"unmarked_candidates": 4, "unmarked_restored": 2,
                      "unmarked_disputed": 1, "unmarked_unbacked": 1}
+
+
+def test_released_conflict_with_editorial_notation_stays_excluded():
+    # The pinned counts file such a form under the exclusions; releasing it
+    # would count it as notation too and add nothing.
+    reference = {"ἀμέτρητ(ον)": "ἀμέτρητος", "ἀμέτρητον": "ἀμέτρητος"}
+    target = {}
+    stats = overlay_expansion(reference, {}, target,
+                              excluded_forms={"ἀμέτρητ(ον)", "ἀμέτρητον"},
+                              released_forms={"ἀμέτρητ(ον)", "ἀμέτρητον"})
+    assert target == {"ἀμέτρητον": "ἀμέτρητος"}
+    assert stats["excluded_entries"] == 2
+    assert stats["released_conflict_entries"] == 1
+    assert stats["editorial_entries"] == 0
