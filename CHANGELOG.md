@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.25] - 2026-11-14
+
 This release rebuilds the lookup and the Modern Greek tables once for all of
 its data fixes (#103, #108, #110, #114, #115, #122); the code fixes apply to
 the published data as it stands. Each measurement below was taken for its own
@@ -2177,6 +2179,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.25]: https://github.com/open-greek/dilemma/releases/tag/1.3.25
 [1.3.24]: https://github.com/open-greek/dilemma/releases/tag/1.3.24
 [1.3.23]: https://github.com/open-greek/dilemma/releases/tag/1.3.23
 [1.3.22]: https://github.com/open-greek/dilemma/releases/tag/1.3.22
