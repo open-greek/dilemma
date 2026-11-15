@@ -18,6 +18,12 @@ from dilemma_build.build_grc_lexical_heads import (
     "Delphic form of θωάζω", "Doric and Pamphylian form of σημαίνω",
     "Tragic form of ἀμφιέπω",
     "μορφή του στενάχω", "μεσοπαθητική φωνή του ρήματος αἱρέω",
+    # Nonfinite cell pages without structured form_of (2026-11 dumps).
+    "uncontracted present active infinitive of ἐπαινέω (epainéō)",
+    "uncontracted present mediopassive infinitive of ἐπαινέω (epainéō)",
+    "uncontracted future active infinitive of μένω (ménō)",
+    "uncontracted present mediopassive participle of περῐσπᾰ́ω (perĭspắō)",
+    "aorist passive participle of λύω",
 ])
 def test_grammatical_reference_is_not_a_definition(gloss):
     assert not has_definition({"pos": "verb", "senses": [{"glosses": [gloss]}]})
@@ -26,6 +32,7 @@ def test_grammatical_reference_is_not_a_definition(gloss):
 @pytest.mark.parametrize("gloss", [
     "to be in charge of the household", "a kind of fish", "the form of a thing",
     "part of a building", "αιτία ενός γεγονότος",
+    "the present participle of a verb, as a noun", "active infinitive of purpose",
 ])
 def test_lexical_definition_can_include_ordinary_of(gloss):
     assert has_definition({"pos": "noun", "senses": [{"glosses": [gloss]}]})

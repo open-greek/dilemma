@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from dilemma.form_sanitize import nonlexical_generated_lemma, sanitize_form
 from dilemma_build.kaikki_dumps import DUMPS, resolve_dump
+from dilemma_build.sophocles_breathing import correct as correct_breathing, review_heads
 from build_data import (
     _is_verb_inflection_gloss, _is_ancient_reference_gloss,
     _is_closed_class_inflection_gloss, _declared_ancient_nominal_form,
@@ -73,9 +74,24 @@ def normalize_headword(text: str) -> str | None:
     return text
 
 
+# An English nonfinite cell description naming its verb: "uncontracted present
+# active infinitive of ἐπαινέω", "present mediopassive participle of ...". Some
+# such pages carry no structured form_of (their language header is malformed),
+# so only the gloss tells them from a definition. The Greek word after "of"
+# keeps ordinary lexical "of" phrases out.
+_NONFINITE_REFERENCE_GLOSS = re.compile(
+    r"^(?:(?:uncontracted|contracted|unaugmented|late|epic|attic|ionic|doric|"
+    r"aeolic|poetic)\s+)*"
+    r"(?:(?:present|imperfect|future|aorist|perfect|pluperfect|active|middle|"
+    r"passive|mediopassive)\s+)+"
+    r"(?:infinitive|participle)\s+of\s+[\u0370-\u03ff\u1f00-\u1fff]",
+    re.IGNORECASE)
+
+
 def is_reference_gloss(gloss: str, pos: str | None = None) -> bool:
     """Reject grammatical/reference glosses without rejecting lexical 'of'."""
     return (_is_closed_class_inflection_gloss(gloss)
+            or bool(_NONFINITE_REFERENCE_GLOSS.match(gloss.strip()))
             or _is_ancient_reference_gloss(gloss, pos) or bool(re.match(
         r"^(?:(?:(?:nominative|accusative|genitive|dative|vocative|singular|plural|dual|"
         r"masculine|feminine|neuter|comparative|superlative|positive)\s+)+of\b|"
@@ -235,6 +251,7 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
     chunks = sorted((data / "sophocles" / "chunks").glob("*.xml"))
     if not chunks:
         raise FileNotFoundError("required lexical source missing: sophocles/chunks")
+    chunk_heads: dict[str, set[str]] = defaultdict(set)
     for path in chunks:
         source = f"sophocles/{path.name}"
         pin(source, path)
@@ -246,11 +263,19 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
         for entry in root.findall(".//entry"):
             orth = entry.find("orth")
             if orth is not None and orth.text:
-                add(orth.text, source)
+                add(orth.text, source, chunk_heads)
+    # The OCR lost most initial breathings of the ο and ρ chunks; restore
+    # them from the other sources' heads, or withhold the head.
+    breathing = review_heads(chunk_heads, set(heads))
+    for head, sources in chunk_heads.items():
+        fixed = correct_breathing(head, breathing)
+        if fixed is not None:
+            heads[fixed].update(sources)
 
     return {"schema_version": 2, "builder_sha256": sha256(Path(__file__)),
             "source_sha256": {name: sha256(ROOT / name) for name in
-                              ("build_data.py", "dilemma/form_sanitize.py")},
+                              ("build_data.py", "dilemma/form_sanitize.py",
+                               "build/sophocles_breathing.py")},
             "inputs": dict(sorted(inputs.items())),
             "source_head_counts": dict(sorted(counts.items())),
             "heads": {word: sorted(heads[word]) for word in sorted(heads)},
@@ -258,7 +283,8 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
                                  for word in sorted(vernacular_heads)},
             "verb_principal_quantities": {
                 word: [quantities[word][key] for key in sorted(quantities[word])]
-                for word in sorted(quantities)}}
+                for word in sorted(quantities)},
+            "sophocles_breathing": breathing}
 
 
 def main() -> None:
