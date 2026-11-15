@@ -14,6 +14,8 @@ def model(candidates,baseline,pos,*,gate=True,convention=lambda lemma: lemma):
     result._resolve_attested_form=lambda word: word if gate else None
     result.lemmatize_batch=lambda words,**kwargs: [baseline for _ in words]
     result.lemmatize=lambda word,**kwargs: baseline
+    result._using_db=False
+    result._mg_lookup={}  # No lemma is a Modern Greek citation form.
     return result
 
 def candidate(lemma,proper=False):

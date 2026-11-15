@@ -39,20 +39,50 @@ from lsj_principal_parts import (  # noqa: E402
 )
 
 DATA_DIR = SCRIPT_DIR / "data"
-LSJ9_DIR = Path.home() / "Documents" / "lsj9"
+from kaikki_dumps import DUMPS, env_dump_dir, resolve_dump  # noqa: E402
+
+# LSJ9 exports: ``$DILEMMA_LSJ9_DIR`` (or ``--lsj9-dir``), else ~/Documents/lsj9.
+LSJ9_DIR = Path(os.environ.get("DILEMMA_LSJ9_DIR")
+                or Path.home() / "Documents" / "lsj9")
 LSJ9_FORMS = LSJ9_DIR / "lsj9_forms.tsv"
 LSJ9_HEADWORDS = LSJ9_DIR / "lsj9_headwords.json"
 LSJ9_GLOSSES = LSJ9_DIR / "lsj9_glosses.jsonl"
-KAIKKI_DIR = Path(os.environ.get(
-    "KAIKKI_DIR", Path.home() / "Documents" / "kaikki"))
-# Try nested layout first (en-el/), then flat layout
-_KAIKKI_AG_NESTED = KAIKKI_DIR / "en-el" / "kaikki.org-dictionary-AncientGreek.jsonl"
-_KAIKKI_AG_FLAT = KAIKKI_DIR / "kaikki.org-en-dictionary-AncientGreek.jsonl"
-KAIKKI_AG = _KAIKKI_AG_NESTED if _KAIKKI_AG_NESTED.exists() else _KAIKKI_AG_FLAT
-_KAIKKI_AG_EL_NESTED = KAIKKI_DIR / "el" / "kaikki.org-dictionary-AncientGreek.jsonl"
-_KAIKKI_AG_EL_FLAT = KAIKKI_DIR / "kaikki.org-el-dictionary-AncientGreek.jsonl"
-KAIKKI_AG_EL = (_KAIKKI_AG_EL_NESTED if _KAIKKI_AG_EL_NESTED.exists()
-                else _KAIKKI_AG_EL_FLAT)
+# Earlier export of the same glosses, read only for principal parts.
+LSJ9_GLOSSES_SUPPLEMENT = LSJ9_DIR / "lsj9_glosses_earlier.jsonl"
+# kaikki dumps: ``--kaikki``, else ``$DILEMMA_KAIKKI_DIR`` (or the older
+# ``$KAIKKI_DIR``), else the checkout's kaikki/; flat or nested layout.
+KAIKKI_DIR = env_dump_dir() or SCRIPT_DIR / "kaikki"
+KAIKKI_AG = resolve_dump(DUMPS["grc"]["en"], KAIKKI_DIR)
+KAIKKI_AG_EL = resolve_dump(DUMPS["grc"]["el"], KAIKKI_DIR)
+
+
+def configure_inputs(kaikki: Path | None = None, lsj9_dir: Path | None = None) -> None:
+    """Point the dump and LSJ9 paths at other directories (the ``--kaikki``
+    and ``--lsj9-dir`` options of this script and expand_sophocles.py)."""
+    global KAIKKI_DIR, KAIKKI_AG, KAIKKI_AG_EL
+    global LSJ9_DIR, LSJ9_FORMS, LSJ9_HEADWORDS, LSJ9_GLOSSES
+    global LSJ9_GLOSSES_SUPPLEMENT
+    if kaikki is not None:
+        KAIKKI_DIR = Path(kaikki)
+        KAIKKI_AG = resolve_dump(DUMPS["grc"]["en"], KAIKKI_DIR)
+        KAIKKI_AG_EL = resolve_dump(DUMPS["grc"]["el"], KAIKKI_DIR)
+    if lsj9_dir is not None:
+        LSJ9_DIR = Path(lsj9_dir)
+        LSJ9_FORMS = LSJ9_DIR / "lsj9_forms.tsv"
+        LSJ9_HEADWORDS = LSJ9_DIR / "lsj9_headwords.json"
+        LSJ9_GLOSSES = LSJ9_DIR / "lsj9_glosses.jsonl"
+        LSJ9_GLOSSES_SUPPLEMENT = LSJ9_DIR / "lsj9_glosses_earlier.jsonl"
+
+
+def add_input_arguments(parser) -> None:
+    parser.add_argument("--kaikki", type=Path, default=None,
+                        help="kaikki dump directory, flat or nested layout "
+                             "(default: $DILEMMA_KAIKKI_DIR, else ./kaikki)")
+    parser.add_argument("--lsj9-dir", type=Path, default=None,
+                        help="LSJ9 export directory (default: $DILEMMA_LSJ9_DIR, "
+                             "else ~/Documents/lsj9)")
+
+
 WTP_DB = DATA_DIR / "wtp.db"
 
 # --- Lua runtime compatibility for running Wiktionary's grc modules via wtp ---
@@ -438,7 +468,7 @@ def _parse_lsj9_headwords():
     return entries
 
 
-def parse_lsj9_entries(forms_path: Path = LSJ9_FORMS) -> dict:
+def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
     """Load entries from lsj9_forms.tsv (an upstream LSJ9 export).
 
     This provides explicit grammar (ὁ/ἡ/τό/ον/ές) and pre-extracted
@@ -447,6 +477,7 @@ def parse_lsj9_entries(forms_path: Path = LSJ9_FORMS) -> dict:
     Returns same format as parse_lsj_entries(): {headword: {headword,
     orth_orig, article, gender, itype, genitive}}.
     """
+    forms_path = forms_path or LSJ9_FORMS
     if not forms_path.exists():
         print(f"  lsj9_forms.tsv not found at {forms_path}")
         return {}
@@ -913,6 +944,66 @@ _PP_CACHE: dict[tuple, set[str]] = {}
 
 
 _LSJ_HEAD_TEXTS: dict[str, str] | None = None
+_LSJ_SUPPLEMENT_HEAD_TEXTS: dict[str, str] | None = None
+
+
+LSJ9_GLOSSES_PIN = DATA_DIR / "lsj9_glosses_pin.json"
+SUPPLEMENT_PIN_KEY = "principal_parts_supplement"
+
+
+def _verify_pinned_export(path: Path, pin: dict[str, object]) -> dict[str, object]:
+    expected = {"sha256": pin["sha256"], "size": pin["size"]}
+    if not path.is_file():
+        raise SystemExit(f"{path.name} not found in {path.parent}; the verb "
+                         "pass needs the pinned LSJ9 glosses export "
+                         f"({LSJ9_GLOSSES_PIN.name})")
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+    actual = {"sha256": digest.hexdigest(), "size": path.stat().st_size}
+    if actual != expected:
+        raise SystemExit(f"{path} does not match {LSJ9_GLOSSES_PIN.name} "
+                         f"(sha256 {actual['sha256'][:12]}, {actual['size']:,} bytes; "
+                         f"pinned {expected['sha256'][:12]}, {expected['size']:,})")
+    return actual
+
+
+def verify_lsj_glosses() -> dict[str, object]:
+    """Check the LSJ9 glosses exports against their pins, or stop.
+
+    The verb pass reads principal parts and its entry rejections from each
+    headword's LSJ text, so another export (or none) silently changes
+    ag_lookup.json: an export without the ἡμι- entry's text once turned 38
+    bare endings into forms of the prefix. data/lsj9_glosses_pin.json
+    records the export's sha256 and size, and the same for the earlier
+    export that supplies principal parts the current text cuts off.
+    """
+    pin = json.loads(LSJ9_GLOSSES_PIN.read_text(encoding="utf-8"))
+    actual = _verify_pinned_export(LSJ9_GLOSSES, pin)
+    supplement = pin.get(SUPPLEMENT_PIN_KEY)
+    if supplement:
+        actual["supplement"] = _verify_pinned_export(
+            LSJ9_GLOSSES_SUPPLEMENT, supplement)
+    return actual
+
+
+def _read_head_texts(path: Path) -> dict[str, str]:
+    heads: dict[str, str] = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            hw = e.get("headword")
+            if not hw:
+                continue
+            if "level" in e or "number" in e:
+                continue
+            if hw not in heads:
+                heads[hw] = e.get("text", "")
+    return heads
 
 
 def load_lsj_head_texts() -> dict[str, str]:
@@ -930,22 +1021,54 @@ def load_lsj_head_texts() -> dict[str, str]:
         print(f"  lsj9_glosses.jsonl not found at {LSJ9_GLOSSES}")
         _LSJ_HEAD_TEXTS = heads
         return heads
-    with open(LSJ9_GLOSSES, encoding="utf-8") as f:
-        for line in f:
-            try:
-                e = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            hw = e.get("headword")
-            if not hw:
-                continue
-            if "level" in e or "number" in e:
-                continue
-            if hw not in heads:
-                heads[hw] = e.get("text", "")
+    heads = _read_head_texts(LSJ9_GLOSSES)
     print(f"  lsj9 head texts: {len(heads):,}")
     _LSJ_HEAD_TEXTS = heads
     return heads
+
+
+def load_lsj_supplement_head_texts() -> dict[str, str]:
+    """Entry heads of the earlier glosses export named in the pin.
+
+    The current export ends many verb entries' head text at the first
+    citation (κατατέμνω: "... fut. -τεμῶ Ar.Ach.301: aor."), before the
+    remaining principal parts; the earlier export keeps them and drops the
+    citations. Empty when the pin names no supplement or the file is absent.
+    """
+    global _LSJ_SUPPLEMENT_HEAD_TEXTS
+    if _LSJ_SUPPLEMENT_HEAD_TEXTS is not None:
+        return _LSJ_SUPPLEMENT_HEAD_TEXTS
+    heads: dict[str, str] = {}
+    pin = json.loads(LSJ9_GLOSSES_PIN.read_text(encoding="utf-8"))
+    if pin.get(SUPPLEMENT_PIN_KEY) and LSJ9_GLOSSES_SUPPLEMENT.exists():
+        heads = _read_head_texts(LSJ9_GLOSSES_SUPPLEMENT)
+        print(f"  lsj9 supplement head texts: {len(heads):,}")
+    _LSJ_SUPPLEMENT_HEAD_TEXTS = heads
+    return heads
+
+
+# The three aorist slots are read together (an unnumbered aorist stands for
+# the first or the second depending on which numbered one is present), so
+# the supplement fills them only as a group.
+_AORIST_PART_KEYS = frozenset({"aor", "aor1", "aor2"})
+
+
+def merged_principal_parts(headword: str, head_text: str,
+                           supplement_text: str = "") -> dict[str, str]:
+    """Principal parts of the entry text, completed from the supplement.
+
+    Every part the current text gives stands. The earlier export adds only
+    the tenses the current text lacks.
+    """
+    parts = dict(parse_principal_parts(head_text, headword)) if head_text else {}
+    if not supplement_text:
+        return parts
+    has_aorist = any(key in parts for key in _AORIST_PART_KEYS)
+    for key, form in parse_principal_parts(supplement_text, headword).items():
+        if key in _AORIST_PART_KEYS and has_aorist:
+            continue
+        parts.setdefault(key, form)
+    return parts
 
 
 def _perfect_participle_cells(table: str) -> str:
@@ -1006,14 +1129,15 @@ def _expand_principal_part(wtp, headword: str, tense_args: list[str]
     return forms
 
 
-def expand_principal_parts(wtp, headword: str, head_text: str) -> set[str]:
+def expand_principal_parts(wtp, headword: str, head_text: str,
+                           supplement_text: str = "") -> set[str]:
     """Extract LSJ principal parts and expand each into a paradigm.
 
     Returns the union of forms produced by the per-tense grc-conj
     invocations. Returns an empty set if no parts could be parsed
     (caller should fall back to present-only expansion).
     """
-    parts = parse_principal_parts(head_text, headword)
+    parts = merged_principal_parts(headword, head_text, supplement_text)
     if not parts:
         return set()
     args_by_tense = derive_grc_conj_args(parts, headword)
@@ -1401,7 +1525,7 @@ def verb_entry_rejection(head_text: str) -> str:
     return ""
 
 
-def expand_verb(wtp, headword, head_text: str = ""):
+def expand_verb(wtp, headword, head_text: str = "", supplement_text: str = ""):
     """Expand a verb using grc-conj template. Returns set of forms.
 
     Always expands the present-system paradigm. When ``head_text`` is
@@ -1409,7 +1533,9 @@ def expand_verb(wtp, headword, head_text: str = ""):
     :func:`load_lsj_head_texts`), additional principal parts (fut.,
     aor., pf., aor. p., etc.) are extracted from the entry text and
     their paradigms are unioned in. Without ``head_text`` the function
-    behaves exactly as before (present-system only).
+    behaves exactly as before (present-system only). ``supplement_text``
+    is the same entry's head in the earlier glosses export; it adds only
+    the principal parts ``head_text`` lacks.
 
     Memoizes only identical present-system requests. Other verbs of the
     same conjugation still require their own marked paradigm from Lua.
@@ -1431,6 +1557,11 @@ def expand_verb(wtp, headword, head_text: str = ""):
         if plain.endswith("μαι"):
             return set(), "unsupported-middle-ending"
         return set(), f"unknown-ending:{headword[-3:]}"
+    if not stem and conj_type != "irreg":
+        # The whole headword is the conjugation ending (the prefix ἡμι-),
+        # so there is no stem to inflect. This holds even when the source
+        # description that marks it as a prefix is missing from the export.
+        return set(), "empty-verb-stem"
 
     # Literal irregular bases use their explicit paradigms. A compound
     # requires independently supported accent, augment, and family rules;
@@ -1474,9 +1605,10 @@ def expand_verb(wtp, headword, head_text: str = ""):
     # tense via grc-conj and union the resulting forms in. Best
     # effort: any failure is silent and falls back to the present-only
     # paradigm above.
-    if head_text:
+    if head_text or supplement_text:
         try:
-            extra = expand_principal_parts(wtp, headword, head_text)
+            extra = expand_principal_parts(wtp, headword, head_text,
+                                           supplement_text)
         except Exception:
             extra = set()
         if extra:
@@ -1538,11 +1670,12 @@ def test_one(word):
     else:
         head_texts = load_lsj_head_texts()
         head_text = head_texts.get(word, "")
-        if head_text:
-            from lsj_principal_parts import parse_principal_parts as _ppp
-            parts = _ppp(head_text, word)
+        supplement_text = load_lsj_supplement_head_texts().get(word, "")
+        if head_text or supplement_text:
+            parts = merged_principal_parts(word, head_text, supplement_text)
             print(f"LSJ principal parts: {parts}")
-        forms, err = expand_verb(wtp, word, head_text=head_text)
+        forms, err = expand_verb(wtp, word, head_text=head_text,
+                                 supplement_text=supplement_text)
         print(f"\ngrc-conj result: {len(forms)} forms" + (f" (error: {err})" if err else ""))
 
     if forms:
@@ -1762,7 +1895,13 @@ def expand_verbs():
     lsj_entries = parse_lsj_entries()
     wikt = load_wiktionary_forms()
     print("Loading LSJ entry head texts (for principal-parts extraction)...")
+    pinned = verify_lsj_glosses()
+    print(f"  {LSJ9_GLOSSES.name}: sha256 {pinned['sha256'][:12]} (pinned)")
+    if "supplement" in pinned:
+        print(f"  {LSJ9_GLOSSES_SUPPLEMENT.name}: sha256 "
+              f"{pinned['supplement']['sha256'][:12]} (pinned)")
     head_texts = load_lsj_head_texts()
+    supplement_texts = load_lsj_supplement_head_texts()
 
     print(f"Loading {AG_LOOKUP}...")
     with open(AG_LOOKUP, encoding="utf-8") as f:
@@ -1789,7 +1928,7 @@ def expand_verbs():
     wtp = get_wtp()
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0,
-             "with_pp": 0}
+             "with_pp": 0, "with_supplement_pp": 0}
     failure_reasons = Counter()
     failure_examples = {}
     t0 = time.time()
@@ -1805,7 +1944,9 @@ def expand_verbs():
         if rejection:
             forms, err = set(), rejection
         else:
-            forms, err = expand_verb(wtp, hw, head_text=head_text)
+            forms, err = expand_verb(
+                wtp, hw, head_text=head_text,
+                supplement_text=supplement_texts.get(hw, ""))
 
         if err or not forms:
             stats["failed"] += 1
@@ -1817,13 +1958,16 @@ def expand_verbs():
             continue
 
         stats["expanded"] += 1
-        if head_text:
-            # Track verbs that contributed at least one extra principal
-            # part. We re-parse here rather than threading the result
-            # through expand_verb to keep that signature simple.
-            from lsj_principal_parts import parse_principal_parts as _ppp
-            if _ppp(head_text, hw):
-                stats["with_pp"] += 1
+        # Track verbs that contributed at least one extra principal
+        # part. We re-parse here rather than threading the result
+        # through expand_verb to keep that signature simple.
+        own_parts = merged_principal_parts(hw, head_text)
+        all_parts = merged_principal_parts(
+            hw, head_text, supplement_texts.get(hw, ""))
+        if all_parts:
+            stats["with_pp"] += 1
+        if len(all_parts) > len(own_parts):
+            stats["with_supplement_pp"] += 1
 
         # See sanitize_form() rationale in expand_all() above.
         hw_clean = sanitize_form(hw)
@@ -1856,6 +2000,8 @@ def expand_verbs():
     print(f"\nDone in {elapsed:.0f}s")
     print(f"  Expanded: {stats['expanded']:,} / {len(candidates):,} verbs")
     print(f"  With LSJ principal parts: {stats['with_pp']:,}")
+    print("  With principal parts from the earlier export: "
+          f"{stats['with_supplement_pp']:,}")
     print(f"  Failed: {stats['failed']:,}")
     for reason, count in failure_reasons.most_common():
         print(f"    {reason}: {count:,} ({', '.join(failure_examples[reason])})")
@@ -1884,7 +2030,9 @@ def main():
                         help="Expand LSJ-only verb entries and add to lookup")
     parser.add_argument("--dry-run", action="store_true",
                         help="With --expand, show stats but don't save")
+    add_input_arguments(parser)
     args = parser.parse_args()
+    configure_inputs(args.kaikki, args.lsj9_dir)
 
     if args.setup:
         setup_wtp()

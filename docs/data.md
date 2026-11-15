@@ -637,9 +637,10 @@ filter and before the reviewed overrides:
   (`wiktionary_grc`, `grc_merged`, `grc_lexicon_expansion`) also declines in
   the second declension, with two of `-ου -ῳ -ον -οι -οις`, is a masculine or
   an adjective and is skipped (`λόχος`, `πρᾶος`, `λάϊνος`, `ὄχθος`; this also
-  drops the genuine neuter `γάνος`), and `φῖλος`, whose `-εος` rows sit beside
-  the adjective `φίλος`, is a reviewed exclusion
-  (`NOT_SSTEM_NEUTERS`).
+  drops the genuine neuter `γάνος`), and two lemmas are reviewed exclusions
+  (`NOT_SSTEM_NEUTERS`): `φῖλος`, whose `-εος` rows sit beside the adjective
+  `φίλος`, and the adjective `ἀδράνεος`, which the dictionary expansion
+  declines as a neuter and no table declines in the second declension.
 
 Each cell is keyed by its accented form, its lowercase and its accentless
 lowercase spelling, and fills a key only when no source supplied it and no
@@ -680,6 +681,21 @@ Conflicting lengths remain separate source readings and supply no inferred
 length. Nominal headers and contradictory grammatical tags cannot supply
 verb quantities. A declared verb-form page needs a separate lexical definition;
 quantity notation is removed after accent placement.
+
+A Wiktionary page whose only gloss names a cell of another verb
+("uncontracted present active infinitive of ἐπαινέω") is not a lexical head,
+even without a structured form_of (`build/build_grc_lexical_heads.py`). The
+digitized Sophocles lexicon prints almost no initial breathings in its ο chunk
+and none on the initial rho of its ρ chunk (`οφφίκιον`, `ρῆσις`).
+`build/sophocles_breathing.py` restores each one from evidence: an initial rho
+before a vowel takes the rough breathing, and a vowel takes the breathing of
+another source's head with the same letters or, failing that, the one that
+all other heads sharing its longest initial stretch (at least four letters)
+agree on (`ὀφφίκιον` from `ὀφφικιάλιος`). A head with both breathings
+attested, no evidence, two accents or an initial diaeresis from the OCR is
+withheld rather than guessed. Every decision, with its rule and evidence, is
+recorded in `grc_lexical_heads.json` under `sophocles_breathing`, and
+`build/expand_sophocles.py` applies the same record to its headwords.
 
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)
@@ -727,7 +743,9 @@ reason and evidence in `dilemma/grc_rejected_lemmas.py`. The lookup build
 drops every reading with such a lemma (recorded in
 `citation_hygiene_rejections.tsv` as `reviewed_rejected_target`) and rejects
 corpus pairs that name one, `build/build_glaux_pos_lookup.py` skips them, and
-the runtime ignores POS-table cells that target them. The corpora also give
+the runtime ignores POS-table cells that target them, both in the POS
+tables and in the grammatical readings behind the Byzantine-normalisation
+lookups and the participle nominative fallback (#133). The corpora also give
 some sentence-initial pronouns a capitalised name lemma that the build used to
 lowercase into another real head (`Αὕτη` → `ἄτη`, `Τούτου` → `τοῦτος`,
 `Πάντα` → `πάν`). A capitalised GLAUx or Diorisis pair is now skipped when
@@ -738,6 +756,37 @@ capitalised form takes its lowercase reading. A blanket rule for every
 capitalised corpus row was measured and rejected, because about 2,200 rows of
 mixed quality would change (`Οἰκία` → `οἰκία` is right, `Βασιλέως` →
 `βασιλίς` is wrong).
+
+**Corpus lemmatizer artefacts and the reviewed readings around them.** A
+treebank's automatic annotation also builds lemmas from an augmented,
+reduplicated or misprinted form: GLAUx files `ἠμφεσβήτουν` under
+`ἀμφιαμφισβητέω` and `χρωσθήσεται` under `γιχρώσκω`. `ag_headwords.json`
+has these spellings, so headword validation lets the pairs through. The
+seven reviewed ones are listed in `dilemma/grc_rejected_lemmas.py` under the
+reason `corpus_lemmatizer_artifact`. Three reviewed tables in
+`build_lookup_db.py` go with them:
+
+- `REVIEWED_ABSENT_KEY_READINGS`. A reviewed override changes only a key the
+  tables hold. Rejecting a lemma can leave a form with no reading at all, so
+  the forms of the seven artefacts are listed here with their real lemma
+  (`ἠμφεσβήτουν` → `ἀμφισβητέω`, `πεπαρῴνηκεν` → `παροινέω`), and these
+  entries are also written when no source has the key.
+- The Ancient corpus gap-fill copies a pair into the Modern table when the
+  Ancient table agrees with it or lacks the form, and such a row answers
+  `lang="el"`. For the forms reviewed for the 2026-11 rebuild
+  (`KAIKKI_2026_11_READING_OVERRIDES`, the absent-key readings and `Μάγων`),
+  an el row that a corpus pair file supplied and that names another lemma
+  than the reviewed one is removed, so the reviewed reading answers
+  `lang="el"` too. El rows from the Modern Greek sources are never removed.
+- `MODERN_READING_OVERRIDES` is the reverse case: monotonic and unaccented
+  Modern spellings (`αυτοκινήτου`, `εστιάσεις`, `Βιέννης`) to which the
+  rebuilt Ancient layer gave an Ancient lemma. Only the combined reading
+  changes, back to the Modern lemma that 1.3.25 returned under `lang="all"`;
+  `lang="grc"` keeps the Ancient reading and `lang="el"` the Modern one.
+
+The build log reports the three counts on one line (`Lookup overrides
+applied: N readings changed, N absent keys added, N el-only corpus readings
+removed`) and the Modern readings on the next.
 
 When the transformer handles an unseen form, beam search generates
 multiple candidates and picks the first that matches a known headword
@@ -1072,3 +1121,51 @@ For individual form-to-lemma corrections where the lookup table returns
 the wrong lemma due to ambiguity (e.g., proper nouns beating common
 verbs), `build_lookup_db.py` has a `_LOOKUP_OVERRIDES` dict that
 hard-corrects specific entries in the database.
+
+### Displaced Ancient heads
+
+`build_data.py` can read a word that has an entry of its own as a form of
+another word: a second entry on the same Wiktionary page (`κλαίω` is also a
+future of `κλείω`, `ἄπειρος` a Doric spelling of `ἤπειρος`), a name page's
+lowercase key (`δῖος` -> `Δῖος`), or another word's table (`γραφή` ->
+`γραφεύς`). The cross-source form-of pass moves such a key even when one
+dump defines it, so `ag_lookup.json` loses the head's own reading. Both
+readings are real, and `ag_pos_lookup.json` keeps both where the parts of
+speech differ; the lookup holds one.
+
+`build_lookup_db.py` gives the head its reading back
+(`restore_displaced_lexical_heads`), before any corpus gap-fill:
+
+- A head that a Wiktionary extract defines (`wiktionary_en_grc` or
+  `wiktionary_el_grc` in `grc_lexical_heads.json`) takes it back when the
+  counted GLAUx pairs read the form as the head more often than as the
+  displacing lemma (`ἕως` 5,399 to 1), or when GLAUx is silent or tied and
+  the pinned Wiktionary-only base (`ag_lookup_wikt.json`) reads it as itself.
+- A head only a dictionary lists (`σπαθίον`, `κατέναντι`) is considered only
+  where the base reads it as itself, and needs the GLAUx majority of at least
+  two tokens, because those lists and the base also hold inflected forms (one
+  token, as for `ἐγώγε` or `τός`, is a lemmatizer's choice).
+- Where GLAUx prefers the other lemma (`τοῦ`, `ἴσον`, `θρόνον`), the reading
+  stays. So does a head whose own reading the article filter would drop
+  (`ὄ`, whose keys `ὄ` and `ό` keep `ὅς` instead of losing their row).
+- A case twin is not another lemma. A capitalized head never takes a key from
+  its own lowercase lemma (`Υἱός` and `Πατήρ` keep `υἱός` and `πατήρ`). A
+  lowercase head takes one from its capitalized twin only where GLAUx uses
+  the lowercase lemma at least as often overall: `ψυχή`, `τύχη`, `δῖος` and
+  `νίκη` come back, `φίλιππος` beside `Φίλιππος` (37 to 2,970 tokens) does
+  not, since its self-map would offer the adjective for every `Φιλίππου`.
+- The head's unaccented, lowercase and monotonic keys follow it when they
+  hold the same displaced lemma, are not heads themselves, no other restored
+  head claims them, and the GLAUx forms that fold to the key read it as the
+  head more often than as any other lemma (or GLAUx has no form for the key).
+  `γυναικων` stays `γυνή` beside the restored `γυναικών`, because
+  `γυναικῶν` (1,785 tokens) folds to it too, and `ρα` stays `ῥεῖα` beside
+  `ῥᾶ`, because GLAUx reads `ῥα` as `ἄρα`. A capitalized head's lowercase
+  keys never follow it, and a key that maps to itself keeps its reading.
+
+Restored rows carry the `wiktionary_grc` source, and each one is listed in
+`citation_hygiene_rejections.tsv` with the reason
+`displaced_lexical_head_restored_to_<head>` and the displaced lemma. The
+rule needs no input beyond those the build already reads. Without
+`glaux_pairs.json` it restores only the Wiktionary heads the base reads as
+themselves, and says so.

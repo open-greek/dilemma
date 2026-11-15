@@ -140,6 +140,346 @@ def _has_grave(s: str) -> bool:
     return "\u0300" in unicodedata.normalize("NFD", s)
 
 
+# Readings the 2026-11 kaikki dumps change for the worse, restored or
+# corrected from the treebanks (GLAUx form-lemma counts in parentheses). The
+# dumps are right that accented ἤν is ἐάν (GLAUx 1,045), but the unaccented
+# and monotonic keys belong to the far commoner ἦν; a new adverb page made
+# μεγάλα its own lemma; εἴσομαι and ἑψόμενα fell to εἶμι and ἕπω; τοῖ
+# (1.3.25: τέῳ, the dumps: ὁ) is Doric σοί; κἆτα is καὶ εἶτα, not ἄτη (the
+# GLAUx annotation of its two tokens is wrong; κᾆτα: εἶτα 103).
+KAIKKI_2026_11_READING_OVERRIDES = {
+    "ην": "εἰμί", "ήν": "εἰμί",                 # ἦν 29,294
+    "μεγάλα": "μέγας", "μεγαλα": "μέγας",       # 1,638
+    "εἴσομαι": "οἶδα", "είσομαι": "οἶδα", "εισομαι": "οἶδα",  # 43 (ἔρχομαι 2)
+    "ἑψόμενα": "ἕψω",                            # 42
+    "τοῖ": "σύ",                                 # 25
+    "κἆτα": "εἶτα",                              # crasis καὶ εἶτα
+    # The new page ἐπαινέειν ("uncontracted present active infinitive of
+    # ἐπαινέω") is self-mapped by the base and takes the contracted
+    # infinitive with it. GLAUx: ἐπαινεῖν -> ἐπαινέω 437, ἐπαινέειν 5.
+    "ἐπαινεῖν": "ἐπαινέω", "επαινείν": "ἐπαινέω", "επαινειν": "ἐπαινέω",
+    "ἐπαινέειν": "ἐπαινέω", "επαινέειν": "ἐπαινέω", "επαινεειν": "ἐπαινέω",
+    # The rebuilt merged layer and the regenerated LSJ verb paradigms read
+    # these forms as homographs of rare words, against the treebanks and the
+    # 1.3.25 readings: νοερῶν and νοεροῖς as the verb νοερόω (GLAUx: νοερός
+    # 11 and 5), παστάδα and παστάδος as παστός (παστάς 4 and 6), θεανθρώπου
+    # and οἰκιοῦντες as θεανθρωπόω and οἰκίον, μηνας as the name Μηνᾶς
+    # (μῆνας of μείς), ἑψομένης as ἕπω (ἕψω 5). ἠμφεσβήτησαν, which read
+    # the generated ἀμφιαμφισβητέω, is in REVIEWED_ABSENT_KEY_READINGS.
+    "νοερῶν": "νοερός", "νοεροῖς": "νοερός",
+    "παστάδα": "παστάς", "παστάδος": "παστάς",
+    "θεανθρώπου": "θεάνθρωπος", "οἰκιοῦντες": "οἰκίζω", "μηνας": "μείς",
+    "ἑψομένης": "ἕψω",
+    # Pinned 1.3.1 resolutions the expansion exclusions still hold, which
+    # the corpus gap-fill now supplies: GLAUx files ἀπεικός under ἀφίημι
+    # (LSJ ἀπεικός, of ἀπέοικα), the superlative πορρωτάτω under the
+    # comparative προσωτέρω (GLAUx: πόρρω 182) and σαλπισταῖς under σάλπιγξ.
+    "ἀπεικός": "ἀπεικός",
+    "πορρωτάτω": "πόρρω", "ποῤῥωτάτω": "πόρρω",
+    "σαλπισταῖς": "σαλπιστής",
+    # Readings that the review of the rebuilt table against 1.3.25 found
+    # changed for the worse. Unless a note says otherwise, 1.3.25 held the
+    # reading given here for every key.
+    #
+    # A lowercase genitive plural read as the name Γνάθων (GLAUx: γνάθων 40
+    # tokens, all feminine genitive plurals; Γνάθων 12 tokens). The name's
+    # own cells (γνάθωνα, γνάθωνος) keep it.
+    "γνάθων": "γνάθος", "γναθων": "γνάθος",
+    # The rest of the παστάς paradigm, read as παστός like παστάδα and
+    # παστάδος above (GLAUx: παστάς for παστάδας 8, παστάδων 5, παστάδι 4,
+    # παστάδες 4, παστάσι 2, παστάσιν 1; never παστός).
+    **{form: "παστάς" for form in (
+        "παστάδας", "παστάδων", "παστάδι", "παστάδες", "παστάσι", "παστάσιν",
+        "παστάδε", "παστάδοιν", "πασταδα", "πασταδος", "πασταδας", "πασταδων",
+        "πασταδι", "πασταδες", "παστασι", "παστασιν", "πασταδε", "πασταδοιν",
+        "παστας")},
+    # The rest of the participle of ἕψω, read as the future participle of
+    # ἕπομαι like ἑψόμενα and ἑψομένης above (GLAUx ἕψω: ἑψομένων 25,
+    # ἑψομένου 17, ἑψομένοις 11, ἑψομένῳ 5; ἕπομαι: one token in all).
+    **{form: "ἕψω" for form in (
+        "ἑψόμενοι", "ἑψόμεναι", "ἑψομένου", "ἑψομένων", "ἑψομένῳ", "ἑψομένῃ",
+        "ἑψομένοις", "ἑψομέναις", "ἑψομένην", "ἑψομένους", "ἑψομένας")},
+    # Cells of adjectives, nouns and an adverb that regenerated contract
+    # verbs took, as with νοερῶν and νοεροῖς above: the genitive, dative and
+    # nominative plural of the nominal read as an imperative, subjunctive or
+    # optative of a rare verb in -όω, -έω or -άω (GLAUx: νοεροῦ νοερός 7,
+    # ἐνάρθρου ἔναρθρος 7, ὁλοκαύτου ὁλόκαυτος 1, ὁλοκάρπου ὁλόκαρπος 1;
+    # GLAUx, Diorisis and the New Testament read ἀντιπέρα as the adverb,
+    # never as ἀντιπεράω). Only keys that moved from the nominal are
+    # listed: ἀντιπερῶν, νομομαθοῦ and νομομαθῇ are verb forms and keep the
+    # verb.
+    **{form: "νοερός" for form in (
+        "νοεροῦ", "νοερου", "νοερων", "νοεροις", "νοεροι", "νοερω")},
+    **{form: "ἔναρθρος" for form in (
+        "ἐνάρθρου", "εναρθροις", "εναρθρω", "εναρθρων")},
+    **{form: "ἀντίπερα" for form in ("ἀντιπέρα", "αντιπερα", "αντιπεραν")},
+    **{form: "χριστομάχος" for form in (
+        "χριστομαχοι", "χριστομαχοις", "χριστομαχου", "χριστομαχω",
+        "χριστομαχων")},
+    **{form: "φιλήδονος" for form in (
+        "φιληδονοι", "φιληδονοις", "φιληδονου", "φιληδονω", "φιληδονων")},
+    **{form: "δίψυχος" for form in (
+        "διψυχοι", "διψυχοις", "διψυχου", "διψυχω", "διψυχων")},
+    **{form: "νομομαθής" for form in ("νομομαθης", "νομομαθη", "νομομαθων")},
+    "ὁλοκαύτου": "ὁλόκαυτος", "ὁλοκάρπου": "ὁλόκαρπος",
+    "κατασπίλου": "κατάσπιλος",
+    **{form: "γώνιος" for form in ("γωνίου", "γωνιοις", "γωνιω")},
+    **{form: "κάστελλον" for form in (
+        "καστέλλου", "καστελλου", "καστελλοις", "καστελλω", "καστελλων")},
+    **{form: "κατάσαρκος" for form in (
+        "κατασάρκου", "κατασαρκου", "κατασαρκοι", "κατασαρκοις",
+        "κατασαρκω", "κατασαρκων")},
+    **{form: "φάλσος" for form in (
+        "φάλσου", "φαλσου", "φαλσοι", "φαλσοις", "φαλσω", "φαλσων")},
+    **{form: "χάμος" for form in (
+        "χάμου", "χαμου", "χαμοι", "χαμοις", "χαμων")},
+    **{form: "ἀπόμματος" for form in (
+        "ἀπομμάτου", "απομματου", "απομματοι", "απομματοις", "απομματω",
+        "απομματων")},
+    **{form: "ἄφηβος" for form in (
+        "ἀφήβου", "αφηβου", "αφηβοι", "αφηβοις")},
+    **{form: "ἔμμορφος" for form in (
+        "ἐμμόρφου", "εμμορφου", "εμμορφοι", "εμμορφοις", "εμμορφω",
+        "εμμορφων")},
+    **{form: "ἐνούσιος" for form in ("ἐνουσίου", "ενουσιοις", "ενουσιω")},
+    # ἀγλαΐσας read ἀγλαΐω, which no dictionary heads. The participle
+    # ἀττικίζων, the accusative plural δρύας and the accusative Ἀπολλώνιον
+    # were restored as heads on GLAUx counts that follow its lemma
+    # annotation, not the word: its 7 δρύας tokens are feminine accusative
+    # plurals (oaks; Diorisis: δρῦς), and it files the name's accusative
+    # under a neuter Ἀπολλώνιον (131 to 2), which the Wiktionary base reads
+    # as Ἀπολλώνιος.
+    "ἀγλαΐσας": "ἀγλαΐζω", "ἀττικίζων": "ἀττικίζω", "δρύας": "δρῦς",
+    "Ἀπολλώνιον": "Ἀπολλώνιος", "Απολλώνιον": "Ἀπολλώνιος",
+    # The restored head νη is the bound prefix νη- of the Greek Wiktionary,
+    # which is never a token; the oath particle is νή (GLAUx: νὴ 1,615).
+    # 1.3.25 read νή under lang="grc" and the Modern νη under lang="all",
+    # which now reads νή too; lang="el" keeps its Modern row.
+    "νη": "νή",
+    # Forms of the adjective Κορινθιακός that the expansion layer files
+    # under Κορίνθιος, as GLAUx does (Diorisis: Κορινθιακός).
+    **{form: "Κορινθιακός" for form in (
+        "Κορινθιακόν", "Κορινθιακοῦ", "Κορινθιακοῖς", "Κορινθιακῷ")},
+    # The table of οἰκιῶν, the future participle of οἰκίζω, reads οἰκίον
+    # in the merged layer, as οἰκιοῦντες above did. 21 of these keys read
+    # οἰκίζω in 1.3.25; the other 42 are new keys of the same table. The
+    # noun's own οἰκίου is not among them.
+    **{form: "οἰκίζω" for form in (
+        "οἰκιοῦν", "οἰκιοῦντα", "οἰκιοῦντας", "οἰκιοῦντε", "οἰκιοῦντι",
+        "οἰκιοῦντος", "οἰκιούντοιν", "οἰκιούντων", "οἰκιούντως", "οἰκιοῦσα",
+        "οἰκιούσα", "οἰκιοῦσαι", "οἰκιούσαιν", "οἰκιούσαις", "οἰκιοῦσαν",
+        "οἰκιούσας", "οἰκιούσης", "οἰκιούσῃ", "οἰκιοῦσι", "οἰκιοῦσιν",
+        "οἰκιουσῶν",
+        "οικιούν", "οικιούντα", "οικιούντας", "οικιούντε", "οικιούντες",
+        "οικιούντι", "οικιούντοιν", "οικιούντος", "οικιούντων", "οικιούντως",
+        "οικιούσα", "οικιούσαι", "οικιούσαιν", "οικιούσαις", "οικιούσαν",
+        "οικιούσας", "οικιούση", "οικιούσης", "οικιούσι", "οικιούσιν",
+        "οικιουσών",
+        "οικιουν", "οικιουντα", "οικιουντας", "οικιουντε", "οικιουντες",
+        "οικιουντι", "οικιουντοιν", "οικιουντος", "οικιουντων", "οικιουντως",
+        "οικιουσα", "οικιουσαι", "οικιουσαιν", "οικιουσαις", "οικιουσαν",
+        "οικιουσας", "οικιουση", "οικιουσης", "οικιουσι", "οικιουσιν",
+        "οικιουσων")},
+    # Nouns in -σις whose -σεις and -σει cells regenerated verb paradigms
+    # took (GLAUx noun to verb: ἑστιάσεις 50:0, ἑστιάσει 11:1, ἐμφράξεις
+    # 55:0, ἐμφράξει 15:7, ὀχλήσεις 9:0). Where the treebank prefers the
+    # verb (διακωλύσει: verb 4, noun 0) the new reading stays.
+    "ἑστιάσεις": "ἑστίασις", "ἑστιάσει": "ἑστίασις",
+    "ἐμφράξεις": "ἔμφραξις", "ἐμφράξει": "ἔμφραξις",
+    "ὀχλήσεις": "ὄχλησις",
+    # Cells of the first-declension paradigms generated for ῥυέντης and
+    # ἀπόμυξα, heads of Sophocles' lexicon alone, that are forms of ῥέω and
+    # ἀπομύσσω (GLAUx: ῥυέντα ῥέω 7), and the genitive Φόρκυνος read as
+    # itself (GLAUx: Φόρκυς 11).
+    "ῥυέντα": "ῥέω", "ῥυέντας": "ῥέω",
+    "ἀπόμυξαι": "ἀπομύσσω", "ἀπομύξῃ": "ἀπομύσσω",
+    "Φόρκυνος": "Φόρκυς",
+    # The accusative of εὑρέτις left the expansion layer and fell to a GLAUx
+    # gap-fill row that reads the masculine εὑρετής, whose accusative is
+    # εὑρετήν.
+    "εὑρέτιν": "εὑρέτις",
+    # Elided names that fell from the expansion layer to treebank gap-fill,
+    # which reads them with a lowercase lemma (δωρίς, ἰλιάς; GLAUx reads
+    # the Δωρίδ’ of its own text as Δωρίς 4 times). The keys end in U+1FBD,
+    # the mark every elision spelling is folded onto.
+    "Δωρίδ᾽": "Δωρίς", "Ἰλιάδ᾽": "Ἰλιάς",
+    # The unaccented and monotonic keys of αὐλῶν moved to the rarer αὐλών
+    # (αὐλῶν 386 corpus tokens, αὐλών and αὐλὼν 36); αὐλῶν itself reads αὐλή.
+    "αυλων": "αὐλή", "αυλών": "αὐλή",
+    # Monotonic and unaccented keys of κλῄζω that read the accentless
+    # dictionary head κληζω. The accented keys (κλῄζεσθαι) left the table
+    # and fold onto the monotonic ones, which read κληζω in 1.3.25 too.
+    **{form: "κλῄζω" for form in (
+        "κλήζεσθαι", "κληζεσθαι", "κλήζουσι", "κληζουσι", "κλήζομεν",
+        "κληζομεν", "κλήζων", "κληζων")},
+    # Readings that changed once the verbs of Sophocles' lexicon and the
+    # verbs whose principal parts the earlier LSJ export supplies were
+    # generated. 1.3.25 held the reading given here unless a note says
+    # otherwise.
+    #
+    # More nominal cells that regenerated contract verbs took, as with
+    # νοερῶν above: the oblique cells of νεκροποιός, σοφοποιός, φωτοποιός,
+    # συνούσιος, ὑπόστυλος and πρόπυργος read as νεκροποιέω, σοφοποιέω,
+    # φωτοποιέω, συνουσιόω, ὑποστυλόω and προπυργόω.
+    **{stem + ending: stem + "ός"
+       for stem in ("νεκροποι", "σοφοποι", "φωτοποι")
+       for ending in ("οῦ", "ου", "ῶν", "ων", "οῖς", "οις", "οι", "ω")},
+    **{form: "συνούσιος" for form in ("συνουσίου", "συνουσιοις", "συνουσιω")},
+    "ὑποστύλου": "ὑπόστυλος", "προπύργου": "πρόπυργος",
+    # Imperfects of προνοέω and παρανοέω read as uncontracted presents of
+    # προενόω and παρενόω (GLAUx: προενόει προνοοῦμαι 1, which 1.3.25
+    # returned; παρενόει παρανοέω 2).
+    "προενόει": "προνοέω", "παρενόει": "παρανοέω",
+    # The LSJ head παραθετέον read as a participle of παραθετέω, and the
+    # genitive plural of Σηρικός as the land Σηρική.
+    "παραθετέον": "παραθετέον", "Σηρικῶν": "Σηρικός",
+    # Oblique cells of ὀρνίθειος (GLAUx: 4 keys) taken by the paradigm of
+    # ὀρνιθείον, a head of Sophocles' lexicon alone.
+    **{form: "ὀρνίθειος" for form in (
+        "ὀρνιθείου", "ὀρνιθείων", "ὀρνιθείῳ", "ὀρνιθείοις")},
+    # Keys that left the expansion layer and fell to a treebank gap-fill row
+    # with a lemma no dictionary gives the form: GLAUx reads its one
+    # unaccented Ιερου as itself (1.3.25: Ἱερόν), the accusative of
+    # ἀστροάρχη as a masculine Ἀστροάρχης (1.3.25: the capitalized head of
+    # Sophocles' lexicon, now generated in lowercase), and ἔσσαν, the
+    # aorist of ἕννυμι like ἕσσαν, as the cross-reference head ἔσσα
+    # (1.3.25: ἐννύω).
+    "Ιερου": "ἱερός", "Ἀστροάρχην": "ἀστροάρχη", "ἔσσαν": "ἕννυμι",
+}
+
+# Reviewed readings that are written even when no source has the key. An
+# override changes only a key the tables hold, so a form whose single
+# reading the build rejects would otherwise be left without an answer.
+REVIEWED_ABSENT_KEY_READINGS = {
+    # The citation-hygiene sanitizer drops the dirty μὴτ value of the bare
+    # elided stem before the overrides run. The clean stem stays as an
+    # explicit bridge to μήτε, like the other apostrophe-tokenized stems.
+    "μήτ": "μήτε",
+    # Forms whose only reading named a corpus lemmatizer artefact, now a
+    # rejected lemma (dilemma/grc_rejected_lemmas.py): a GLAUx or Diorisis
+    # pair, or a dictionary-expansion reading that shut the corpus pairs
+    # out. Rejecting the lemma empties the key, so each form gets the verb
+    # it belongs to. 1.3.25 read παροινέω, χρῴζω, χειρίζω and διασμήχω for
+    # these forms, and ἀμφισβητέω for ἠμφεσβήτησεν, ἠμφεσβήτησαν and
+    # ἠμφεσβητήσαμεν; the other six ἠμφεσβητ- keys already read the artefact.
+    # πεπαρῴνηκα, a headword-list self-map, and τέθηκται, which falls to
+    # the Diorisis pair (θήγω) once GLAUx's is rejected, need no entry.
+    "πεπαρῴνηκεν": "παροινέω", "πεπαρῴνηκας": "παροινέω",
+    "πεπαρῳνήκεσαν": "παροινέω",
+    **{form: "ἀμφισβητέω" for form in (
+        "ἠμφεσβήτουν", "ἠμφεσβήτεις", "ἠμφεσβήτησεν", "ἠμφεσβήτησέ",
+        "ἠμφεσβήτησάς", "ἠμφεσβήτησαν", "ἠμφεσβητήσαμεν", "ἠμφεσβητήθη",
+        "ἠμφεσβήτηκεν")},
+    "χρωσθήσεται": "χρῴζω",
+    "κεχειρικέναι": "χειρίζω",
+    "διέσμηκται": "διασμήχω",
+    # A misprint of Ionic ἀπίκηται in a Hippocratic text (ἄχρις ἂν ἀρίκηται
+    # ἐς τοὺς ἑκατὸν σταδίους); ἀπίκηται reads ἀφικνέομαι. 1.3.25: ἐρείκω.
+    "ἀρίκηται": "ἀφικνέομαι",
+}
+
+# The input every reviewed reading is recorded under (lookup_sources.json).
+LOOKUP_OVERRIDES_INPUT = "lookup_overrides"
+
+# The Ancient corpus pair files. Their gap-fill also writes a pair into the
+# el table when the Ancient table agrees with it or lacks the form.
+ANCIENT_CORPUS_PAIR_INPUTS = frozenset(path.name for path in (
+    PERSEUS_PAIRS_PATH, GLAUX_PAIRS_PATH, DIORISIS_PAIRS_PATH, NT_PAIRS_PATH,
+    *(path for _, path in COG_GAPFILL_PATHS)))
+
+# Forms whose reviewed reading also displaces an el-only row of a corpus
+# gap-fill. The override corrects the combined and the Ancient table; the
+# corpus pair the gap-fill copied into the el table before that would
+# otherwise be written as an el row and answer lang="el" with the reading
+# the review rejected (εἴσομαι -> εἶμι, ἀπεικός -> ἀφίημι, Μάγων -> Μάγων).
+# Limited to the readings reviewed for the 2026-11 rebuild: about fifty
+# older el-only corpus rows disagree with an override too (ᾔει, ᾔδετε), and
+# the published tables answer lang="el" with those.
+EL_CORPUS_ROW_OVERRIDE_FORMS = (
+    frozenset(KAIKKI_2026_11_READING_OVERRIDES)
+    | frozenset(REVIEWED_ABSENT_KEY_READINGS) | {"Μάγων"})
+
+
+def apply_lookup_overrides(overrides: dict, *, combined: dict,
+                           combined_sources: dict, ag: dict, ag_sources: dict,
+                           el: dict, el_sources: dict,
+                           absent_keys=REVIEWED_ABSENT_KEY_READINGS,
+                           el_corpus_forms=EL_CORPUS_ROW_OVERRIDE_FORMS
+                           ) -> dict[str, int]:
+    """Write the reviewed readings into the assembled tables, in place.
+
+    A reading replaces the combined and the Ancient reading of a key the
+    tables hold. A key no table holds is added to the combined table only
+    when ``absent_keys`` lists it. For a form in ``el_corpus_forms``, an el
+    reading that an Ancient corpus gap-fill supplied and that differs from
+    the reviewed one is removed, so the combined row answers lang="el" too;
+    el readings from any other source stay. Returns how many combined
+    readings changed, how many keys were added and how many el readings
+    were removed.
+    """
+    counts = {"changed": 0, "added": 0, "el_removed": 0}
+    for form, lemma in overrides.items():
+        if form in combined:
+            if combined[form] != lemma:
+                combined[form] = lemma
+                combined_sources[form] = LOOKUP_OVERRIDES_INPUT
+                counts["changed"] += 1
+        elif form in absent_keys:
+            combined[form] = lemma
+            combined_sources[form] = LOOKUP_OVERRIDES_INPUT
+            counts["added"] += 1
+        # Also fix in ag dict for the grc-only table
+        if form in ag and ag[form] != lemma:
+            ag[form] = lemma
+            ag_sources[form] = LOOKUP_OVERRIDES_INPUT
+        if (form in el_corpus_forms and form in el and el[form] != lemma
+                and el_sources.get(form) in ANCIENT_CORPUS_PAIR_INPUTS):
+            del el[form]
+            el_sources.pop(form, None)
+            counts["el_removed"] += 1
+    return counts
+
+
+# Modern Greek spellings that the 2026-11 rebuild reads as an Ancient lemma
+# under lang="all". Fresh Wiktionary pages and the fresh dictionary expansion
+# gave these monotonic and unaccented keys an Ancient reading, and the
+# combined table is Ancient-first. 1.3.25 answered with the Modern lemma,
+# which the el table still holds. Only the combined reading changes: the
+# Ancient table keeps its own and answers lang="grc" with it. These cannot
+# join the overrides above, which rewrite the Ancient table too and name
+# Ancient lexical heads.
+MODERN_READING_OVERRIDES = {
+    "αυτοκινήτου": "αυτοκίνητο", "αυτοκινητου": "αυτοκίνητο",  # αὐτοκίνητος
+    "εστιάσεις": "εστίαση",                                   # ἑστιάω
+    "εμφράξεις": "έμφραξη",                                   # ἐμφράσσω
+    "δακτυλίδι": "δαχτυλίδι", "δακτυλιδι": "δαχτυλίδι",       # δακτυλίς
+    "Βιέννης": "Βιέννη",                                      # Βίεννα
+}
+
+
+def apply_modern_reading_overrides(readings: dict, *, combined: dict,
+                                   combined_sources: dict, el: dict,
+                                   el_sources: dict) -> list[str]:
+    """Give the combined table the reviewed Modern reading of a key it holds.
+
+    The Ancient and el tables are left as they are, so the Ancient reading
+    is still written as a grc row. The combined row is credited to the
+    source of the el reading when the el table has the same one, otherwise
+    to the reviewed corrections. Returns the forms whose reading changed;
+    their combined rows are Modern ones.
+    """
+    changed = []
+    for form, lemma in readings.items():
+        if form not in combined or combined[form] == lemma:
+            continue
+        combined[form] = lemma
+        combined_sources[form] = (el_sources[form]
+                                  if el.get(form) == lemma and form in el_sources
+                                  else LOOKUP_OVERRIDES_INPUT)
+        changed.append(form)
+    return changed
+
+
 _FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",
                         "\u1fbf", "\u0313", "\u0314"}
 _FINAL_KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
@@ -454,8 +794,8 @@ def ag_reading_layers(ag: dict, base: dict, reference: dict) -> dict[str, str]:
     return layers
 
 
-def load_ag_reading_layers(ag: dict) -> dict[str, str]:
-    """Read the pinned layer files and classify ``ag``'s readings."""
+def read_ag_layer_records() -> tuple[dict, dict]:
+    """The pinned Wiktionary-only base and expansion reference, verified."""
     import overlay_lsj
     for path in (AG_EXPANSION_MANIFEST_PATH, AG_WIKTIONARY_BASE_PATH):
         if not path.exists():
@@ -471,7 +811,196 @@ def load_ag_reading_layers(ag: dict) -> dict[str, str]:
         base = json.load(handle)
     with open(reference_path, encoding="utf-8") as handle:
         reference = json.load(handle)
+    return base, reference
+
+
+def load_ag_reading_layers(ag: dict) -> dict[str, str]:
+    """Read the pinned layer files and classify ``ag``'s readings."""
+    base, reference = read_ag_layer_records()
     return ag_reading_layers(ag, base, reference)
+
+
+# The Wiktionary extracts of grc_lexical_heads.json. A head they list has an
+# entry of its own that defines it, not only an inflection or alternative-form
+# entry (build/build_grc_lexical_heads.py).
+WIKTIONARY_HEAD_SOURCES = frozenset({"wiktionary_en_grc", "wiktionary_el_grc"})
+
+
+def lexical_heads_by_kind(path: Path) -> tuple[frozenset[str], frozenset[str]]:
+    """The Ancient heads of grc_lexical_heads.json: (Wiktionary, all).
+
+    The first set holds the heads a Wiktionary extract defines in an entry of
+    their own; the second every listed head, dictionaries included. A head
+    list without sources (older files and test fixtures) yields two empty
+    sets.
+    """
+    heads = json.loads(path.read_text(encoding="utf-8"))["heads"]
+    if not isinstance(heads, dict):
+        return frozenset(), frozenset()
+    return (frozenset(head for head, sources in heads.items()
+                      if WIKTIONARY_HEAD_SOURCES.intersection(sources)),
+            frozenset(heads))
+
+
+def displaced_head_candidates(ag: dict, wiktionary_heads, listed_heads=(),
+                              base: dict = None) -> dict[str, str]:
+    """Heads whose Ancient reading is another lemma: {head: lemma}.
+
+    Every Wiktionary head qualifies; another listed head only where the
+    pinned Wiktionary-only base reads it as itself.
+    """
+    base = base or {}
+    heads = set(wiktionary_heads) | {head for head in listed_heads
+                                     if base.get(head) == head}
+    return {head: ag[head] for head in sorted(heads)
+            if isinstance(ag.get(head), str) and ag[head] != head}
+
+
+def corpus_form_evidence(pairs, forms) -> dict[str, dict[str, int]]:
+    """Token counts by lemma of each listed form in counted corpus pairs."""
+    evidence: dict[str, dict[str, int]] = {}
+    for pair in pairs:
+        form = pair["form"]
+        if form in forms:
+            counts = evidence.setdefault(form, {})
+            counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
+    return evidence
+
+
+def head_alias_keys(head: str) -> set[str]:
+    """The looser keys of a head: lowercase, monotonic and unaccented."""
+    return {head.lower(), to_monotonic(head), to_monotonic(head).lower(),
+            strip_accents(head.lower())} - {head}
+
+
+def corpus_key_evidence(pairs, keys) -> dict[str, dict[str, int]]:
+    """Token counts by lemma of every counted form that folds to a key.
+
+    A form folds to its lowercase, monotonic and unaccented spellings, the
+    keys a displaced head's aliases use (γυναικῶν and γυναικών both fold
+    to γυναικων).
+    """
+    evidence: dict[str, dict[str, int]] = {}
+    for pair in pairs:
+        form = pair["form"]
+        for key in {form, *head_alias_keys(form)} & keys:
+            counts = evidence.setdefault(key, {})
+            counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
+    return evidence
+
+
+def corpus_lemma_totals(pairs) -> dict[str, int]:
+    """Token counts of each lemma over all counted corpus pairs."""
+    totals: dict[str, int] = {}
+    for pair in pairs:
+        totals[pair["lemma"]] = totals.get(pair["lemma"], 0) + int(pair.get("count", 1))
+    return totals
+
+
+# A head only a dictionary lists needs at least this many corpus tokens read
+# as itself: one token is a lemmatizer's choice, not evidence (ἐγώγε, τός).
+LISTED_HEAD_MIN_TOKENS = 2
+
+
+def restore_displaced_lexical_heads(ag: dict, *, wiktionary_heads, base: dict,
+                                    evidence: dict, listed_heads=(),
+                                    eligible=None, key_evidence=None,
+                                    lemma_totals=None,
+                                    rejected=None) -> list[dict]:
+    """Give a lexical head back its own reading when another lemma took it.
+
+    The merged Ancient table can read a word that has an entry of its own as
+    a form of another word: a homograph entry on the same Wiktionary page
+    (κλαίω is also a future of κλείω, ἄπειρος a Doric spelling of ἤπειρος),
+    a name page's lowercase key (δῖος -> Δῖος), or a page that lists the word
+    in its table (γραφή -> γραφεύς). Both readings are real, and the POS
+    table keeps both; the lookup holds one, so the head takes it back where
+    the evidence prefers it:
+
+    - the counted corpus pairs (GLAUx) read the form as the head more often
+      than as the lemma that displaced it (ἕως 5,399 to 1, against ἠώς), or
+    - for a head Wiktionary defines, they are silent or tied and the pinned
+      Wiktionary-only base reads the head as itself.
+
+    A head only a dictionary lists (``listed_heads``: σπαθίον, κατέναντι)
+    is considered where the base reads it as itself, and needs the corpus
+    majority of at least ``LISTED_HEAD_MIN_TOKENS`` tokens: those lists and
+    the base also hold inflected forms. Where the corpus prefers the other
+    lemma (τοῦ, ἴσον, θρόνον), or neither source supports the head, the
+    reading stays.
+
+    A case twin is no other lemma: a capitalized head never takes a key
+    from its own lowercase lemma (Υἱός, Πατήρ keep υἱός, πατήρ), and a
+    lowercase head takes one from its capitalized twin only where the
+    corpus uses the lowercase lemma at least as often overall
+    (``lemma_totals``: ψυχή, τύχη, δῖος, but not φίλιππος beside Φίλιππος,
+    whose new self-map would turn every Φιλίππου into the adjective).
+
+    A restored head's unaccented, lowercase and monotonic keys follow it
+    when they hold the same displaced lemma, are no listed head themselves,
+    no other restored head claims them, and the corpus forms that fold to
+    the key (``key_evidence``) read it as the head more often than as any
+    other lemma, or the corpus has no form for the key at all: γυναικων
+    stays γυνή beside γυναικών, because γυναικῶν folds to it too, and ρα
+    stays ῥεῖα beside ῥᾶ, because the corpus reads ῥα as ἄρα. A
+    capitalized head's lowercase keys never follow it, and a key that maps
+    to itself keeps its reading.
+
+    ``rejected(form, head)``, when given, names a reading a later step of
+    the build drops (the article filter); such a head keeps the displaced
+    lemma, so its keys are not left without a row (ὄ, ό keep ὅς).
+
+    ``eligible(form)``, when given, limits the change to keys whose reading
+    came from the merged file. Changes ``ag`` in place and returns one
+    record per key: form, displaced lemma, restored head and the counts.
+    """
+    eligible = eligible or (lambda form: True)
+    rejected = rejected or (lambda form, head: False)
+    key_evidence = key_evidence or {}
+    lemma_totals = lemma_totals or {}
+    all_heads = set(wiktionary_heads) | set(listed_heads)
+    restored = []
+    alias_claims: dict[str, set] = {}
+    for head, lemma in displaced_head_candidates(
+            ag, wiktionary_heads, listed_heads, base).items():
+        if not eligible(head) or rejected(head, head):
+            continue
+        if head.lower() == lemma.lower():
+            if not lemma[:1].isupper() or (lemma_totals.get(head, 0)
+                                           < lemma_totals.get(lemma, 0)):
+                continue
+        counts = evidence.get(head, {})
+        own, other = counts.get(head, 0), counts.get(lemma, 0)
+        if head in wiktionary_heads:
+            supported = own > other or (own == other and base.get(head) == head)
+        else:
+            supported = own > other and own >= LISTED_HEAD_MIN_TOKENS
+        if not supported:
+            continue
+        restored.append({"form": head, "lemma": lemma, "head": head,
+                         "head_count": own, "lemma_count": other})
+        for key in head_alias_keys(head):
+            if key == lemma or ag.get(key) != lemma or key in all_heads:
+                continue
+            if head[:1].isupper() and not key[:1].isupper():
+                continue
+            if not eligible(key) or rejected(key, head):
+                continue
+            folded = key_evidence.get(key)
+            if folded and folded.get(head, 0) <= max(
+                    (count for other_lemma, count in folded.items()
+                     if other_lemma != head), default=0):
+                continue
+            alias_claims.setdefault(key, set()).add((head, lemma))
+    for record in restored:
+        ag[record["form"]] = record["head"]
+    for key, claims in sorted(alias_claims.items()):
+        if len(claims) == 1:
+            head, lemma = next(iter(claims))
+            ag[key] = head
+            restored.append({"form": key, "lemma": lemma, "head": head,
+                             "head_count": None, "lemma_count": None})
+    return sorted(restored, key=lambda record: record["form"])
 
 
 def el_rule_paradigm_forms(el: dict) -> set[str]:
@@ -553,8 +1082,11 @@ def build():
         el_source_overrides[cell["form"]] = "el_paradigm_gaps"
     # A merged file names one source per layer where pinned records tell the
     # layers apart; every other reading keeps the file itself as its source.
+    ag_base = None
     if ag_default_source == AG_PATH.name:
-        ag_source_overrides.update(load_ag_reading_layers(ag))
+        ag_base, reference = read_ag_layer_records()
+        ag_source_overrides.update(ag_reading_layers(ag, ag_base, reference))
+        del reference
         counts = {layer: 0 for layer in (AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER)}
         for layer in ag_source_overrides.values():
             counts[layer] += 1
@@ -578,6 +1110,13 @@ def build():
             "lemma": lemma,
             "reason": reason,
         })
+
+    # The counted GLAUx pairs: evidence for the displaced-head rule below,
+    # then a gap-fill source of their own.
+    glaux_pairs = None
+    if GLAUX_PAIRS_PATH.exists():
+        with open(GLAUX_PAIRS_PATH, encoding="utf-8") as f:
+            glaux_pairs = json.load(f)
 
     # Merge med into el: vernacular medieval Greek is the ancestor of
     # Modern Greek, and EL Wiktionary's "Medieval Greek" category contains
@@ -694,6 +1233,41 @@ def build():
                 and not _is_article_map(form, lemma)
                 and "\u0300" in unicodedata.normalize("NFD", form)
                 and strip_accents(form.lower()) in _VOWEL_ONLY_ARTICLE_LETTERS)
+
+    # A word with an entry of its own takes back the reading another lemma's
+    # homograph entry or table took from it in the merged table, where GLAUx,
+    # or for a Wiktionary head the pinned Wiktionary-only base, prefers it
+    # (restore_displaced_lexical_heads; ἄπειρος, κλαίω, ἕως, γραφή).
+    if ag_base is not None and GRC_LEXICAL_HEADS_PATH.exists():
+        if glaux_pairs is None:
+            print(f"  NOTE: {GLAUX_PAIRS_PATH.name} not found; displaced "
+                  "heads are restored only where Wiktionary defines them and "
+                  "the pinned base reads them as themselves")
+        wiktionary_heads, listed_heads = lexical_heads_by_kind(GRC_LEXICAL_HEADS_PATH)
+        candidates = displaced_head_candidates(ag, wiktionary_heads, listed_heads,
+                                               ag_base)
+        alias_keys = set().union(*map(head_alias_keys, candidates)) if candidates else set()
+        restored_heads = restore_displaced_lexical_heads(
+            ag, wiktionary_heads=wiktionary_heads, listed_heads=listed_heads,
+            base=ag_base,
+            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys()),
+            key_evidence=corpus_key_evidence(glaux_pairs or (), alias_keys),
+            lemma_totals=corpus_lemma_totals(glaux_pairs or ()),
+            rejected=_is_article_map,
+            eligible=lambda form: ag_source_overrides.get(form) in (
+                None, AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER))
+        for record in restored_heads:
+            _record_citation_rejection(
+                table="AG", source=ag_source_overrides.get(
+                    record["form"], ag_default_source),
+                form=record["form"], lemma=record["lemma"],
+                reason=f"displaced_lexical_head_restored_to_{record['head']}")
+            ag_source_overrides[record["form"]] = AG_WIKTIONARY_LAYER
+        print(f"  Displaced lexical heads restored: "
+              f"{sum(r['head_count'] is not None for r in restored_heads):,} "
+              f"heads, {len(restored_heads):,} keys "
+              f"({len(candidates):,} heads read as another lemma)")
+    ag_base = None
 
     # Expand AG with AGDT/Perseus treebank pairs (the 33 Greek AGDT works:
     # Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch,
@@ -913,10 +1487,8 @@ def build():
     glaux_added_med = 0
     glaux_skipped_med = 0
     glaux_bad_lemma = 0
-    if GLAUX_PAIRS_PATH.exists():
+    if glaux_pairs is not None:
         t_g = time.time()
-        with open(GLAUX_PAIRS_PATH, encoding="utf-8") as f:
-            glaux_pairs = json.load(f)
         # Snapshot AG keys before GLAUx expansion, so we can check
         # whether a form had an original (Wiktionary) AG entry.
         ag_original = dict(ag)
@@ -962,6 +1534,7 @@ def build():
               f"{glaux_bad_lemma:,} bad lemmas rejected, "
               f"{glaux_twin_skipped:,} capitalised pronoun twins skipped "
               f"({time.time()-t_g:.1f}s)")
+        glaux_pairs = None
 
     # Expand AG and el with Diorisis corpus pairs (456K forms from
     # 10.2M tokens of ancient Greek texts). Lower confidence than GLAUx
@@ -1573,7 +2146,7 @@ def build():
         # possible reading is the elided function word, but the corpus pair
         # is a junk self-map or accent variant.
         "ἀλλ": "ἀλλά",           # was the self-map ἀλλ
-        "μήτ": "μήτε",           # was the grave junk μὴτ
+        # μήτ (was the grave junk μὴτ) is in REVIEWED_ABSENT_KEY_READINGS.
         # NB: do NOT "fix" corpus-derived elided entries that reflect a
         # genuine ambiguity or lemmatization convention: λίπ᾽ is BOTH the
         # adverb λίπα (λίπ᾽ ἐλαίῳ) and elided λίπε (λείπω), and treebanks
@@ -1616,6 +2189,8 @@ def build():
         "ἄριστα": "ἀγαθός",      # was ἄριστον (as ἄριστος, ἀρίστους -> ἀγαθός)
         "ἀρίστοις": "ἀγαθός",    # was ἄριστον
         "ἀρὰν": "ἀρά",           # was ἀρή (expansion); ἀράν -> ἀρά
+        **KAIKKI_2026_11_READING_OVERRIDES,
+        **REVIEWED_ABSENT_KEY_READINGS,
     }
     # Also fix corrupt -δήποτε lemmas from pipeline
     for k, v in list(combined.items()):
@@ -1623,25 +2198,18 @@ def build():
             stem = k.split("δήποτε")[0]
             if stem:
                 _LOOKUP_OVERRIDES[k] = "ὁστισδήποτε"
-    override_count = 0
-    for form, lemma in _LOOKUP_OVERRIDES.items():
-        if form in combined and combined[form] != lemma:
-            combined[form] = lemma
-            combined_sources[form] = "lookup_overrides"
-            override_count += 1
-        elif form == "μήτ" and form not in combined:
-            # The citation-hygiene sanitizer drops the dirty μὴτ value before
-            # overrides run. Keep the clean bare elided stem as an explicit
-            # bridge to μήτε, matching the other apostrophe-tokenized stems.
-            combined[form] = lemma
-            combined_sources[form] = "lookup_overrides"
-            override_count += 1
-        # Also fix in ag dict for the grc-only table
-        if form in ag and ag[form] != lemma:
-            ag[form] = lemma
-            ag_sources[form] = "lookup_overrides"
-    if override_count:
-        print(f"  Lookup overrides applied: {override_count:,}")
+    overridden = apply_lookup_overrides(
+        _LOOKUP_OVERRIDES, combined=combined, combined_sources=combined_sources,
+        ag=ag, ag_sources=ag_sources, el=el, el_sources=el_sources)
+    if any(overridden.values()):
+        print(f"  Lookup overrides applied: {overridden['changed']:,} readings "
+              f"changed, {overridden['added']:,} absent keys added, "
+              f"{overridden['el_removed']:,} el-only corpus readings removed")
+    modern_forms = apply_modern_reading_overrides(
+        MODERN_READING_OVERRIDES, combined=combined,
+        combined_sources=combined_sources, el=el, el_sources=el_sources)
+    if modern_forms:
+        print(f"  Modern readings kept under lang=all: {len(modern_forms):,}")
 
     print(f"  Combined: {len(combined):,} entries")
 
@@ -1697,6 +2265,10 @@ def build():
                 src_map[k] = src_label
             elif _is_self_map(k, combined.get(k, '')) and not _is_self_map(k, data[k]):
                 src_map[k] = src_label
+    # A reviewed Modern reading makes the combined row a Modern one, whichever
+    # table held the key first.
+    for k in modern_forms:
+        src_map[k] = 'el'
 
     conn.executemany(
         "INSERT INTO lookup (form, lemma_id, src, lang, source_id) "

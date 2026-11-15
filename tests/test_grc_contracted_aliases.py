@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from dilemma_build.build_grc_contracted_aliases import (
     SOURCES, build_aliases, contracted_verb_targets, pin,
 )
@@ -20,10 +22,12 @@ def test_explicit_references_do_not_infer_a_target_from_an_ending():
         "form_of": [{"word": "τιμάω"}]}]}) == set()
 
 
-def test_builder_pins_lexical_evidence_and_preserves_tied_references(tmp_path):
+@pytest.mark.parametrize("layout", ["flat", "nested"])
+def test_builder_pins_lexical_evidence_and_preserves_tied_references(tmp_path, layout):
+    from dilemma_build.kaikki_dumps import NESTED_MAP
     inputs = {}
-    for source, relative in SOURCES.items():
-        path = tmp_path / relative
+    for source, filename in SOURCES.items():
+        path = tmp_path / (filename if layout == "flat" else NESTED_MAP[filename])
         path.parent.mkdir(parents=True, exist_ok=True)
         rows = [{"word": "τιμῶ", "lang_code": "grc", "pos": "verb",
                  "senses": [{"glosses": ["συνηρημένη μορφή του " + target]}]}

@@ -289,26 +289,35 @@ def _lexical_heads(lang: str) -> frozenset[str]:
     ).get(lang, frozenset())
 
 
-_POS_CORRECTION_TABLES = frozenset({"treebank", "glaux", "ag"})
+_POS_CORRECTION_TABLES = frozenset({"treebank", "glaux", "ag", "mg", "lsj9"})
 
 
 @lru_cache(maxsize=4)
 def _pos_cell_correction_rows(path, size, mtime):
-    """The reviewed POS-cell corrections, by table, parsed and checked once."""
+    """The reviewed POS-cell corrections, by table, parsed and checked once.
+
+    Each row maps (form, upos) to (target, corrected): ``target`` is the
+    cell the row expects (None for an ``add`` row, which expects no cell)
+    and ``corrected`` the replacement (None for ``drop``).
+    """
     with Path(path).open(encoding="utf-8") as stream:
         record = json.load(stream)
-    by_table: dict[str, dict[tuple[str, str], tuple[str, str | None]]] = {}
+    by_table: dict[str, dict[tuple[str, str], tuple[str | None, str | None]]] = {}
     for row in record["corrections"]:
         table, action = row["table"], row["action"]
         corrected = row.get("corrected")
-        if (table not in _POS_CORRECTION_TABLES or action not in ("drop", "correct")
+        target = row.get("target")
+        if (table not in _POS_CORRECTION_TABLES
+                or action not in ("drop", "correct", "add")
                 or not all(isinstance(row.get(field), str) and row[field]
-                           for field in ("form", "upos", "target", "reason"))
-                or (action == "correct") != isinstance(corrected, str)
-                or (action == "correct" and not corrected)):
+                           for field in ("form", "upos", "reason"))
+                or (action == "add") != (target is None)
+                or (action != "add" and not (isinstance(target, str) and target))
+                or (action in ("correct", "add")) != isinstance(corrected, str)
+                or (action in ("correct", "add") and not corrected)):
             raise ValueError(f"malformed POS cell correction: {row!r}")
         by_table.setdefault(table, {})[(row["form"], row["upos"])] = (
-            row["target"], corrected)
+            target, corrected)
     return by_table
 
 
@@ -318,7 +327,10 @@ def _apply_pos_cell_corrections(table_name: str, table: dict,
 
     A row changes a cell only while the table still holds the row's target
     for that form and tag, so a rebuilt table that fixed the cell is left
-    alone. A dropped cell lets a lower-priority table supply the tag.
+    alone. A dropped cell lets a lower-priority table supply the tag. An
+    ``add`` row supplies a cell only while the table has none for that
+    form and tag (#128: a Modern reading that only a since-dropped
+    paradigm fragment kept in the table).
     """
     path = POS_CELL_CORRECTIONS_PATH if path is None else path
     try:
@@ -328,6 +340,10 @@ def _apply_pos_cell_corrections(table_name: str, table: dict,
     rows = _pos_cell_correction_rows(str(path), stat.st_size, stat.st_mtime_ns)
     for (form, upos), (target, corrected) in rows.get(table_name, {}).items():
         entry = table.get(form)
+        if target is None:
+            if not entry or upos not in entry:
+                table.setdefault(form, {})[upos] = corrected
+            continue
         if not entry or entry.get(upos) != target:
             continue
         if corrected is None:
@@ -1067,6 +1083,16 @@ def _is_marked_vowel_psili_elision(word: str) -> bool:
     return False
 
 
+def _is_bare_vowel_psili_final(word: str) -> bool:
+    """True iff ``word`` ends in a vowel whose only mark is a psili (ἐ, οὐ,
+    δἐ): a breathing, not the elision apostrophe of
+    ``_is_marked_vowel_psili_elision``. lemmatize() reads such a word in the
+    lookup before the elision expander, so lemmatize_batch() does too."""
+    nfd = unicodedata.normalize("NFD", word)
+    return (len(nfd) >= 2 and nfd.endswith("\u0313")
+            and nfd[-2] in _GREEK_VOWEL_BASES)
+
+
 def _canon_elision(word: str) -> str | None:
     """Rewrite a trailing elision mark to the canonical U+1FBD key used by lookup.db.
 
@@ -1678,6 +1704,7 @@ class Dilemma:
         if self.lang in ("all", "el") and _path(MG_POS_LOOKUP_PATH).exists():
             with open(_path(MG_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 mg_pos = json.load(f)
+            _apply_pos_cell_corrections("mg", mg_pos, corrections)
             _add_to(self._pos_lookup, mg_pos)  # combined only, not AG
 
         # 4. AG Wiktionary POS lookup (fills remaining gaps)
@@ -1693,6 +1720,7 @@ class Dilemma:
         if self.lang in ("all", "grc") and _path(LSJ9_POS_LOOKUP_PATH).exists():
             with open(_path(LSJ9_POS_LOOKUP_PATH), encoding="utf-8") as f:
                 lsj9_pos = json.load(f)
+            _apply_pos_cell_corrections("lsj9", lsj9_pos, corrections)
             _add_to(self._pos_ag_lookup, lsj9_pos)
             _add_to(self._pos_lookup, lsj9_pos)
 
@@ -2787,6 +2815,11 @@ class Dilemma:
         lookup into evidence for an augmented verb. Keep all source readings
         at a normalized form rather than choosing one homograph here. The
         full pair files and expanded nominal POS table are not needed.
+
+        Cells that target a reviewed non-lemma (Ταύτη, Τοῦτος;
+        dilemma/grc_rejected_lemmas.py) are skipped as in
+        ``_load_pos_lookups``, so the Byzantine-normalisation lookups and
+        the participle nominative fallback cannot return one either (#133).
         """
         if getattr(self, "_fallback_readings", None) is not None:
             return
@@ -2800,7 +2833,8 @@ class Dilemma:
         if self.lang in ("all", "el"):
             paths.append(MG_POS_LOOKUP_PATH)
         corrected_tables = {AG_POS_LOOKUP_PATH: "ag", GLAUX_POS_LOOKUP_PATH: "glaux",
-                            TREEBANK_POS_LOOKUP_PATH: "treebank"}
+                            TREEBANK_POS_LOOKUP_PATH: "treebank",
+                            MG_POS_LOOKUP_PATH: "mg"}
         for path in paths:
             if not path.exists():
                 continue
@@ -2809,12 +2843,20 @@ class Dilemma:
             if path in corrected_tables:
                 _apply_pos_cell_corrections(corrected_tables[path], table)
             for form, by_pos in table.items():
+                kept = {pos: lemma for pos, lemma in by_pos.items()
+                        if lemma not in _REJECTED_POS_LEMMAS}
+                if not kept and by_pos:
+                    # Like _load_pos_lookups: a form whose every cell is a
+                    # rejected non-lemma leaves no (empty) exact entry that
+                    # would hide its other accentual homographs.
+                    continue
                 key = strip_accents(form.lower())
                 entry = readings.setdefault(key, {})
                 exact = exact_readings.setdefault(grave_to_acute(form), {})
-                for pos, lemma in by_pos.items():
+                for pos, lemma in kept.items():
                     lemma = self._normalize_grave_citation_lemma(lemma)
-                    if not lemma or _is_elided_junk_value(lemma):
+                    if (not lemma or _is_elided_junk_value(lemma)
+                            or lemma in _REJECTED_POS_LEMMAS):
                         continue
                     entry.setdefault(pos, set()).add(lemma)
                     exact.setdefault(pos, set()).add(lemma)
@@ -4502,9 +4544,60 @@ class Dilemma:
         return self._pos_entry_is_loose(word, upos, pos_lemma)
 
     @staticmethod
+    def _is_name_row_family(word: str, candidates) -> bool:
+        """Whether a lowercase word reads only a capitalized lemma and its twin.
+
+        The lookup row of νῖκος reads the name Νίκη, and the lowercase head
+        νίκη joins it only as that lemma's case alternate. For a lowercase
+        word that is one reading, as it was before νίκη had a row of its
+        own, so a supported POS entry (νῖκος NOUN -> νῖκος) still decides.
+        A family whose row reads the lowercase lemma (ἐλάττονος: μικρός
+        beside Μικρός) is not one: there the lookup reading stands.
+        """
+        if len(candidates) < 2 or not word[:1].islower():
+            return False
+        if len({c.lemma.lower() for c in candidates}) != 1:
+            return False
+        direct = [c for c in candidates
+                  if not getattr(c, "via", "").endswith("+case_alt")]
+        return (0 < len(direct) < len(candidates)
+                and all(is_capitalized(c.lemma) for c in direct))
+
+    def _capital_row_decides(self, word: str, upos: str | None,
+                             candidates) -> bool:
+        """Whether a capitalized word's own row outranks its lowercase twin.
+
+        Asked only where no POS entry chose a candidate; a POS entry that
+        matched one decides by itself (Πῶς ADV -> πῶς, Χριστὸς NOUN ->
+        Χριστός). Ancient editions capitalize names, so there the row of a
+        capitalized word tagged other than PROPN stands (Εὐξένου NOUN
+        keeps Εὔξενος). Modern text capitalizes every sentence, in
+        polytonic spelling as in monotonic: under lang="el" or the
+        triantafyllidis convention a capitalized word keeps the lowercase
+        reading (Χέρι NOUN -> χέρι, Αν SCONJ -> αν, Καρδίᾳ NOUN ->
+        καρδία), as it did before the row's own reading was consulted.
+        Under the other settings a word written with polytonic marks is
+        Ancient, and a monotonic one is Modern when its lowercase twin is
+        a Modern citation form. PROPN and lowercase words never ask: the
+        tiebreak settles them before it looks at the rows.
+        """
+        if not word or upos == "PROPN" or word[:1].islower():
+            return False
+        if (self.lang == "el"
+                or getattr(self, "_convention_name", None) == "triantafyllidis"):
+            return False
+        if any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+               for ch in unicodedata.normalize("NFD", word)):
+            return True
+        return not any(c.lemma[:1].islower()
+                       and self._is_mg_citation_form(c.lemma)
+                       for c in candidates)
+
+    @staticmethod
     def _prefer_case_twin(word: str, upos: str | None, lemma: str,
                           candidates: list[LemmaCandidate],
-                          extra: tuple[str, ...] = ()) -> str:
+                          extra: tuple[str, ...] = (), *,
+                          row_decides: bool = False) -> str:
         """Capitalization-agreement tiebreak between case-twin lemmas.
 
         Many common lemmas have a capitalized proper-noun twin as a
@@ -4522,7 +4615,13 @@ class Dilemma:
             get the common-word lemma).
           * capitalized or all-caps input with a non-PROPN POS:
             ambiguous (sentence-initial, titles) - keep the incoming
-            choice, so either twin stays reachable.
+            choice, so either twin stays reachable. This is what a POS
+            entry that matched a candidate gets, in lemmatize_pos() as
+            in lemmatize_batch_pos().
+          * the same input with ``row_decides``: the reading of the
+            word's own lookup row stands against a twin that is only its
+            case alternate. The callers ask for this only where no POS
+            entry chose a candidate (see _capital_row_decides).
 
         This is a re-rank, not a filter: it can only swap ``lemma`` for
         a case twin drawn from ``candidates`` or ``extra`` (the POS
@@ -4550,6 +4649,18 @@ class Dilemma:
         if upos == "PROPN":
             return upper_twin
         if word[:1].islower():
+            return lower_twin
+        if not row_decides:
+            return lemma
+        # Capitalized input no POS entry decided: the lookup row's own
+        # reading stands against a twin that is only its case alternate
+        # (Εὐξένου NOUN keeps Εὔξενος).
+        direct = {c.lemma for c in candidates
+                  if getattr(c, "source", "") == "lookup"
+                  and not getattr(c, "via", "").endswith("+case_alt")}
+        if upper_twin in direct and lower_twin not in direct:
+            return upper_twin
+        if lower_twin in direct and upper_twin not in direct:
             return lower_twin
         return lemma
 
@@ -4737,7 +4848,12 @@ class Dilemma:
                 # POS lemma not among candidates (e.g., single candidate from
                 # lookup maps to a different headword). For an explicit verb
                 # tag, two case twins still represent one competing lexical
-                # reading, so they cannot block the supported verb target.
+                # reading, so they cannot block the supported verb target
+                # (#42). So do a name and its lowercase case alternate for a
+                # lowercase word (_is_name_row_family: νῖκος NOUN reads Νίκη
+                # and νίκη, and the treebank's νῖκος still wins, as it does
+                # against Νίκη alone). Any other twin family keeps the
+                # lookup reading under a non-verb tag.
                 # Under convention="triantafyllidis" the Modern and Ancient
                 # lookups read one row, so a Modern entry the polytonic rule
                 # let stand meets the same lemma twice (σεῖς PRON: σέω from
@@ -4747,11 +4863,12 @@ class Dilemma:
                     if not self._pos_override_blocked(word, upos, pos_lemma,
                                                       candidates):
                         return checked(pos_lemma_conv)
-                elif (upos == "VERB"
+                elif ((upos == "VERB"
+                         or self._is_name_row_family(word, candidates))
                         and len({c.lemma.lower() for c in candidates}) == 1
                         and not self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
-                            case_twin_family=True)):
+                            case_twin_family=upos == "VERB")):
                     return checked(pos_lemma_conv)
                 # Also trust the POS table when every candidate is just a
                 # case/accent variant of the input form (i.e. nothing in
@@ -4780,6 +4897,23 @@ class Dilemma:
             word, upos, candidates, pos_lemma,
             attested_only=attested_only, guess=guess))
 
+    @staticmethod
+    def _recase_disagrees(word: str, upos: str, baseline: str,
+                          candidate: str) -> bool:
+        """Whether *candidate* only re-cases *baseline* against the tag.
+
+        A single candidate that re-accents the baseline replaces it, but
+        one that differs from it only in case and whose case disagrees
+        with the form and tag does not: lowercase γ VERB keeps γ rather
+        than the capital Γ (#128), while PROPN still takes a capital.
+        """
+        if candidate == baseline or candidate.lower() != baseline.lower():
+            return False
+        if upos == "PROPN":
+            return candidate[:1].islower() and not baseline[:1].islower()
+        return (word[:1].islower() and is_capitalized(candidate)
+                and not is_capitalized(baseline))
+
     def _unmatched_pos_result(self, word: str, upos: str, candidates,
                               pos_lemma: str | None, *,
                               attested_only: bool, guess: bool) -> str | None:
@@ -4795,8 +4929,9 @@ class Dilemma:
         with the form or tag is re-ranked between case twins.
         """
         def first():
-            return self._prefer_case_twin(word, upos, candidates[0].lemma,
-                                          candidates)
+            return self._prefer_case_twin(
+                word, upos, candidates[0].lemma, candidates,
+                row_decides=self._capital_row_decides(word, upos, candidates))
 
         baseline = self.lemmatize_batch([word], attested_only=attested_only,
                                         guess=guess)[0]
@@ -4805,7 +4940,9 @@ class Dilemma:
         lemma = None if rejected else baseline
         if (pos_lemma is None and len(candidates) == 1 and lemma is not None
                 and strip_accents(candidates[0].lemma.lower())
-                == strip_accents(lemma.lower())):
+                == strip_accents(lemma.lower())
+                and not self._recase_disagrees(word, upos, lemma,
+                                               candidates[0].lemma)):
             return candidates[0].lemma
         if len(candidates) > 1 and all(
                 c.lemma.lower() == candidates[0].lemma.lower()
@@ -4932,17 +5069,20 @@ class Dilemma:
                 one_reading = not matched and self._one_reading_against_modern_entry(
                     word, upos, candidates)
                 if not matched and (len(candidates) <= 1 or one_reading
-                        or (upos == "VERB"
+                        or ((upos == "VERB"
+                             or self._is_name_row_family(word, candidates))
                             and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
-                    # supported explicit verb tag selects a different lemma.
-                    # So is one lemma met from both sides of the lookup
-                    # under a Modern entry (#119; as in lemmatize_pos).
-                    # A loose entry leaves the candidates to decide (#105).
+                    # supported explicit verb tag selects a different lemma,
+                    # and so is a name with its lowercase case alternate for
+                    # a lowercase word. So is one lemma met from both sides
+                    # of the lookup under a Modern entry (#119; as in
+                    # lemmatize_pos). A loose entry leaves the candidates to
+                    # decide (#105).
                     if candidates and self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
-                            case_twin_family=len(candidates) > 1
-                            and not one_reading):
+                            case_twin_family=upos == "VERB"
+                            and len(candidates) > 1 and not one_reading):
                         loose_blocked.add(i)
                     else:
                         results[i] = pos_lemma_conv
@@ -4982,7 +5122,9 @@ class Dilemma:
                         word, guess=False, compound_guess=guess))
                 if (len(candidates) == 1 and results[i] is not None
                         and strip_accents(candidates[0].lemma.lower())
-                        == strip_accents(results[i].lower())):
+                        == strip_accents(results[i].lower())
+                        and not self._recase_disagrees(
+                            word, upos, results[i], candidates[0].lemma)):
                     results[i] = candidates[0].lemma
                     continue
 
@@ -4993,7 +5135,9 @@ class Dilemma:
                 # case twins. Preserve the scalar API's candidate order and
                 # existing PROPN/capitalization tiebreak.
                 results[i] = self._prefer_case_twin(
-                    word, upos, candidates[0].lemma, candidates)
+                    word, upos, candidates[0].lemma, candidates,
+                    row_decides=self._capital_row_decides(
+                        word, upos, candidates))
 
         # A rejected batch baseline cannot hide a retained structured
         # candidate. Do not run the model again to recover that reading.
@@ -5004,7 +5148,9 @@ class Dilemma:
                         word, guess=False, compound_guess=guess))
                 if candidates:
                     results[i] = self._prefer_case_twin(
-                        word, upos, candidates[0].lemma, candidates)
+                        word, upos, candidates[0].lemma, candidates,
+                        row_decides=self._capital_row_decides(
+                            word, upos, candidates))
 
         # Step 3: capitalization-agreement tiebreak between case-twin
         # lemmas (θυμός vs Θυμός), mirroring lemmatize_pos(). Only
@@ -5553,6 +5699,17 @@ class Dilemma:
             if _is_explicit_numeral(word):
                 results.append(word)
                 continue
+
+            # A final vowel whose only mark is a psili carries a breathing
+            # (ἐ, δἐ), so the lookup reads it first, as in lemmatize(); the
+            # expander would read the breathing as an elision mark
+            # (δἐ -> δέω instead of δέ).
+            if (_is_bare_vowel_psili_final(word)
+                    and not _is_marked_vowel_psili_elision(word)):
+                lemma = self._lookup_word(word)
+                if lemma and not _is_elided_junk_value(lemma):
+                    results.append(lemma)
+                    continue
 
             # Exact elided entry (ὅτ᾽->ὅτε, μ᾽->ἐγώ), before the expander —
             # matches lemmatize(): the corpus-derived lemma must beat the

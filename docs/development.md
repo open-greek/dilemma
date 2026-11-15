@@ -80,6 +80,33 @@ Run `python build/extract_el_dialect_sections.py --download --kaikki KAIKKI`
 (118 MB raw extract) before `build_data.py` to include them; see
 [Modern Greek noun headwords](data.md#modern-greek-noun-headwords).
 
+#### Dump directories
+
+Every builder that reads the kaikki dumps (`build_data.py`,
+`build/build_grc_lexical_heads.py`, `build/build_grc_contracted_aliases.py`,
+`build/build_treebank_pos_lookup.py`, `build/build_el_verb_heads.py`,
+`build/build_verb_subjects.py`, `build/expand_lsj.py`,
+`build/expand_sophocles.py`, `overlay_lsj.py`,
+`scripts/build_source_alias_manifest.py`) takes `--kaikki DIR` and reads
+either layout: flat (`DIR/kaikki.org-en-dictionary-AncientGreek.jsonl`, as
+`scripts/archive_kaikki_inputs.py download` writes the pinned snapshot) or
+nested (`DIR/en-el/kaikki.org-dictionary-AncientGreek.jsonl`,
+`DIR/el/kaikki.org-dictionary-AncientGreek.jsonl`). The names live in
+`build/kaikki_dumps.py`. Without `--kaikki`, `$DILEMMA_KAIKKI_DIR` names the
+directory (the older `$KAIKKI_DIR` is still read when it is unset) for
+`build_data.py`, `build/build_el_verb_heads.py`, `build/expand_lsj.py`,
+`build/expand_sophocles.py` and `overlay_lsj.py`. The other builders do not
+read it: `build_grc_lexical_heads.py`, `build_grc_contracted_aliases.py` and
+`build_verb_subjects.py` require `--kaikki`, and
+`build_treebank_pos_lookup.py` without `--kaikki` builds without the
+Wiktionary definition check for corpus votes (a different table and audit),
+so pass it explicitly. `expand_lsj.py` and `expand_sophocles.py` also take
+`--lsj9-dir DIR` (`$DILEMMA_LSJ9_DIR`, default `~/Documents/lsj9`) for
+`lsj9_forms.tsv`, `lsj9_headwords.json`, `lsj9_glosses.jsonl` and
+`lsj9_glosses_earlier.jsonl` (the glosses file at the earlier lsj9 commit the
+pin names, read for principal parts only); the verb pass refuses either
+glosses file when it does not match `data/lsj9_glosses_pin.json`.
+
 ### 2. Build the lookup database
 
 After extraction, rebuild the SQLite lookup from the generated sources:

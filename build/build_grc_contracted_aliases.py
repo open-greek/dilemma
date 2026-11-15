@@ -11,10 +11,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from dilemma_build.build_grc_lexical_heads import normalize_headword
+from dilemma_build.kaikki_dumps import DUMPS, resolve_dump
 
 SOURCES = {
-    "wiktionary_en_grc": "en-el/kaikki.org-dictionary-AncientGreek.jsonl",
-    "wiktionary_el_grc": "el/kaikki.org-dictionary-AncientGreek.jsonl",
+    "wiktionary_en_grc": DUMPS["grc"]["en"],
+    "wiktionary_el_grc": DUMPS["grc"]["el"],
 }
 
 
@@ -46,8 +47,8 @@ def build_aliases(kaikki, lexical_path):
     lexical = json.loads(lexical_path.read_bytes())
     aliases = defaultdict(lambda: defaultdict(set))
     inputs = {}
-    for source, relative in SOURCES.items():
-        path = kaikki / relative
+    for source, filename in SOURCES.items():
+        path = resolve_dump(filename, kaikki)
         inputs[source] = pin(path)
         assert inputs[source] == lexical["inputs"][source], source
         for line in path.open(encoding="utf-8"):

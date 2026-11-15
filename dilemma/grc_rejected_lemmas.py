@@ -66,6 +66,53 @@ REJECTED_LEMMA_TARGETS: dict[str, dict[str, str]] = {
         "evidence": "GLAUx annotates τούτων as a noun with this lemma, the "
                     "genitive plural of οὗτος; no dictionary heads it (#108).",
     },
+    # Lemmas a treebank's automatic annotation built from an augmented,
+    # reduplicated or misprinted form. No head list has them, but
+    # ag_headwords.json does, so headword validation lets the corpus pairs
+    # through. The forms keep a reading of their own through
+    # REVIEWED_ABSENT_KEY_READINGS in build_lookup_db.py.
+    "παραπαροινέω": {
+        "reason": "corpus_lemmatizer_artifact",
+        "evidence": "GLAUx and Diorisis file the perfect and pluperfect of "
+                    "παροινέω under it (πεπαρῴνηκα, πεπαρῴνηκας, πεπαρῴνηκεν, "
+                    "πεπαρῳνήκεσαν), reading the reduplication as a second "
+                    "prefix; no dictionary heads it.",
+    },
+    "ἀμφιαμφισβητέω": {
+        "reason": "corpus_lemmatizer_artifact",
+        "evidence": "GLAUx files the double-augmented past tenses of "
+                    "ἀμφισβητέω under it (ἠμφεσβήτουν 4, ἠμφεσβήτησεν 4, "
+                    "ἠμφεσβήτησαν 3 and six more forms), and the dictionary "
+                    "expansion carries the same readings; no dictionary "
+                    "heads it.",
+    },
+    "γιχρώσκω": {
+        "reason": "corpus_lemmatizer_artifact",
+        "evidence": "GLAUx files χρωσθήσεται, the future passive of χρῴζω, "
+                    "under it; no dictionary heads it.",
+    },
+    "ταθήχω": {
+        "reason": "corpus_lemmatizer_artifact",
+        "evidence": "GLAUx files τέθηκται, the perfect middle of θήγω, under "
+                    "it (Diorisis: θήγω); no dictionary heads it.",
+    },
+    "χειρίω": {
+        "reason": "corpus_lemmatizer_artifact",
+        "evidence": "GLAUx files κεχειρικέναι, the perfect infinitive of "
+                    "χειρίζω, under it; no dictionary heads it.",
+    },
+    "ἀρικνέομαι": {
+        "reason": "corpus_lemmatizer_artifact",
+        "evidence": "GLAUx files ἀρίκηται under it, a misprint of Ionic "
+                    "ἀπίκηται (ἀφικνέομαι) in a Hippocratic text (ἄχρις ἂν "
+                    "ἀρίκηται ἐς τοὺς ἑκατὸν σταδίους, TLG 0627.032); no "
+                    "dictionary heads it.",
+    },
+    "διασμήγνυμι": {
+        "reason": "corpus_lemmatizer_artifact",
+        "evidence": "GLAUx files διέσμηκται, the perfect middle of διασμήχω, "
+                    "under it; no dictionary heads it.",
+    },
 }
 
 REJECTED_LEMMAS = frozenset(REJECTED_LEMMA_TARGETS)

@@ -3,6 +3,7 @@
 [README](../README.md)
 
 - [Build commands](#build-commands)
+- [Sophocles heads](#sophocles-heads)
 - [Historical expansion overlay](#historical-expansion-overlay)
 - [Corpus and lexical evidence](#corpus-and-lexical-evidence)
 - [Verb expansion](#verb-expansion)
@@ -17,17 +18,117 @@ To regenerate the expanded lookup table from LSJ and Sophocles sources:
 ```bash
 pip install --force-reinstall --no-deps git+https://github.com/tatuylonen/wikitextprocessor.git
 python build/expand_lsj.py --setup           # build Wiktionary Lua module database
-python build/expand_lsj.py --expand          # expand LSJ nouns
-python build/expand_lsj.py --expand-verbs    # expand LSJ verbs
-python build/expand_sophocles.py --expand    # expand Sophocles nouns
-python build/expand_sophocles.py --expand-verbs  # expand Sophocles verbs
-python overlay_lsj.py                        # recover pinned historical expansion gaps
+python build/expand_lsj.py --expand --kaikki kaikki --lsj9-dir LSJ9        # expand LSJ nouns
+python build/expand_lsj.py --expand-verbs --kaikki kaikki --lsj9-dir LSJ9  # expand LSJ verbs
+python build/expand_sophocles.py --expand --kaikki kaikki        # expand Sophocles nouns
+python build/expand_sophocles.py --expand-verbs --kaikki kaikki  # expand Sophocles verbs
+python overlay_lsj.py --lsj9-dir LSJ9          # recover pinned historical expansion gaps
 python build/expand_lbg.py                    # inflect Byzantine headwords (gated gap-fill)
 ```
 
 This requires LSJ9 data from [lsj9](https://github.com/ciscoriordan/lsj9)
-(included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`) and
-the Sophocles TEI data (included in `data/sophocles/`).
+(included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`; the
+exports `lsj9_forms.tsv`, `lsj9_headwords.json` and `lsj9_glosses.jsonl` are
+read from `--lsj9-dir`, `$DILEMMA_LSJ9_DIR` or `~/Documents/lsj9`), the
+Sophocles TEI data (included in `data/sophocles/`), and a current
+`data/grc_lexical_heads.json`, whose `sophocles_breathing` record supplies the
+breathings the Sophocles OCR lost (`expand_sophocles.py` refuses to run
+without it) and whose heads decide two of the [head rules](#sophocles-heads).
+`--kaikki` names the dump directory in either layout
+([Dump directories](development.md#dump-directories)).
+
+The verb pass reads each headword's LSJ text from `lsj9_glosses.jsonl` to add
+principal parts and to skip entries that are not paradigms (prefixes,
+cross-references, inflected imperatives, person-limited verbs). A glosses
+export that lacks an entry's text cannot skip it that way, so a headword that
+is all conjugation ending (the prefix `ἡμι-`, whose stem is empty) is never
+expanded, with or without its text; it would otherwise map bare endings such
+as `ῆς` and `εῖτε` to the prefix. Because the export decides which verbs are
+expanded and how, `data/lsj9_glosses_pin.json` pins its sha256 and size, and
+`expand_lsj.py --expand-verbs` stops when `lsj9_glosses.jsonl` is missing or
+differs.
+
+The current export ends many verb entries' head text at the first citation
+(`κατατέμνω`: "fut. -τεμῶ Ar.Ach.301: aor."), before the remaining principal
+parts. The pin therefore names a second file, `lsj9_glosses_earlier.jsonl`: the
+same export at an earlier lsj9 commit, which keeps those parts and drops the
+citations. The verb pass reads it only for principal parts: a tense the current
+text gives stands, a tense it lacks is taken from the earlier text, and the
+three aorist slots are filled only together. 978 verb entries gain 3,018
+principal parts this way. Entry rejections still read the current text alone.
+
+## Sophocles heads
+
+`build/expand_sophocles.py` reads each entry's head from its `<orth>` element.
+The text is OCR, so the first word is not taken as it stands: five rules
+decide what is generated, and under which head. Nouns, adverbs and verbs
+are read through the same rules.
+
+- **A phrase is not an entry.** When another Greek word follows the first
+  one inside the `<orth>`, before its first comma, the head is a phrase or a
+  word the OCR split, and nothing is generated from its first word:
+  `Νέα Ῥώμη` gives no paradigm of `Νέα`, and `κατα- φθάνω` none of `κατα`.
+  Whatever follows a full stop, colon, semicolon, dash, equals sign or run of
+  hyphens is entry text, and so is a parenthesis, a digit or a Latin word
+  (`or`, `for`, a citation); the first word then stays the head
+  (`βιοθανέω ---- βιαιοθανατέω`, `γιγαντιάω (γίγας)`,
+  `Ἱριάδιτζα or Τριαδίτζα`).
+- **A stated gender wins over the ending.** An article that is the first
+  field after the head, or that follows one field (the genitive, which the
+  OCR may garble), states the noun's gender: `καισάριης, ἡ`,
+  `ἀτρεπτότης, ητος; ἡ`. The ending classes then supply a genitive only
+  through a class of that gender (`ἀντίστροφος, ου, ἡ` is declined as a
+  feminine in -ος). Where the ending has no such class the shared genitive
+  resolver decides, and the noun is withheld when it finds no genitive
+  either: `καισάριης, ἡ` (Latin *caesaries*) used to get the masculine
+  paradigm in -ου. An article further on belongs to the definition and stays
+  a guess, as does the `ἡ` the OCR reads for an adjective's feminine ending
+  (`ἀρθρικός, ἡ. ὄν`).
+- **A malformed head is rejected.** A head with two accents (`Ἔρετριάς`,
+  `οἴηματικός`) or with a hyphen or dash inside it (`Σινα-ῖτις`,
+  `ὕπο-κατασκευή`) is not generated. The one repair is to drop the hyphens,
+  and only when the joined word has a single accent and a lexical source
+  other than Sophocles lists it in `grc_lexical_heads.json`: `καθ-ηδύνω` is
+  read as `καθηδύνω` and expanded under that head, unless the table already
+  has it.
+- **A capitalized common word goes under its lowercase head.** When the
+  other lexical sources list the lowercase spelling of a capitalized head and
+  none lists the capitalized one, the capital is the lexicon's typography:
+  the entry `᾿Αθεότης` is read as `ἀθεότης`, and generated there unless the
+  table already has that head. A breathing the OCR prints as a separate mark
+  before the capital is joined to it for this comparison. A capitalized head
+  another source lists (`Πέτρα` beside `πέτρα`), or one without a lowercase
+  twin, is a name and stays.
+- **A capitalized unaccented key does not shadow a lowercase reading.** Every
+  generated form also gets an accent-stripped key. A capitalized one is
+  withheld when its lowercase spelling already reads another lemma:
+  `Εστιας` for `Ἑστιάς` would take the unaccented reading of `ἑστία`.
+
+The noun step records the decisions in
+`data/ag_sophocles_noun_generation_audit.json`, each record with its `count`:
+
+- `head_rules.multi_word_heads`: every phrase and its first word;
+- `head_rules.stated_gender`: every noun whose stated gender is not the
+  gender of its ending's class, with both and the result (`expanded`, or the
+  reason the noun was withheld);
+- `head_rules.malformed_heads`: every rejected head and the reason
+  (`two-accents`, `inner-hyphen`);
+- `head_rules.repaired_heads` and `head_rules.lowercased_heads`: every
+  printed head and the head it is read under;
+- `withheld_capitalized_keys`: every withheld key with its lemma and the
+  lowercase reading.
+
+The head records cover verbs and adverbs as well, because every step reads
+the same heads. The verb step writes its own withheld keys to
+`data/ag_sophocles_verb_generation_audit.json`. The lexical heads the repair
+and the lowercase rule read are pinned among the noun audit's inputs
+(`input_sha256.lexical_heads`), so the overlay refuses an audit made against
+other heads.
+
+The rules change what the generator writes, not what the overlay recovers.
+`superseded_lemmas` still names a lemma as the lexicon prints it, because the
+historical layer keyed its rows that way, so a rejected or re-keyed head that
+is not superseded keeps the marked rows the pinned reference has for it.
 
 ## Historical expansion overlay
 
@@ -36,14 +137,99 @@ The final overlay is intentional. A May 2026 base-data refresh replaced the
 the June re-expansion recovered only part of the prior paradigms. The overlay
 derives only the expansion delta from the known-good, revision- and
 SHA-256-pinned March artifact in `data/ag_expansion_reference.json`; it never
-restores a historical base mapping and never overrides a current mapping.
-It restores marked surface spellings only, not the generated accent-stripped
+restores a historical base mapping and never overrides a current mapping
+(the one exception is the accent-less head rule below).
+It restores marked surface spellings first, not the generated accent-stripped
 fallback keys that can shadow unrelated analyses sharing the same bare
 skeleton. The generated `data/ag_expansion_exclusions.json` also removes
 historical rows that conflict with the pinned 1.3.1 resolved lookup or with
 Dilemma's nonlexical classifier. Its generator is
 `build/build_ag_expansion_exclusions.py`.
-Running it without `--reference` downloads and verifies that exact artifact.
+
+The table published from 1.3.7 to 1.3.25 was built on top of earlier tables,
+so it carried keys that a build from fresh dumps withholds or that no current
+generator makes. The manifest pins that table as `carried_baseline`, and the
+overlay gives such a key back only under one of the rules below. Each rule
+states its own condition; there is no general "carry every published key"
+rule, because part of the published readings were wrong and the rebuild fixed
+them (`ἔξηλθεν` read `ἐξερύω`, `φᾶτε` read `φάω`). No rule adds a key the
+published table lacked.
+
+- An excluded 1.3.1 conflict (`carried_baseline_conflicts`). `ἀμέτρητον`
+  keeps `ἀμέτρητος` and `Δημήτρειον` keeps `Δημήτρειος`; without the release
+  the corpus gap-fill supplies the recorded readings `ἀμετρητος` and
+  `Δημήτρειοι`. Every other conflict stays excluded: `ἐκπλαγῇ` stays
+  `ἐκπλάσσω`, and a capitalised function word (`Γὰρ`, `Ἤ`) still reads its
+  lowercase lemma. Released forms count among the pinned `excluded_entries`
+  and separately as `released_conflict_entries`.
+- A noun without a fresh paradigm (`kept_withheld_noun_forms`). A superseded
+  noun lemma loses its old paradigm to the one the current generators make.
+  Where the noun audits record no resolved genitive for the lemma (the
+  generator could not use the printed one: `λεκτόν`, `κλείς`, `σωματεῖον`),
+  there is no fresh paradigm, and the lemma keeps the marked expansion keys
+  the published table had with the same reading (`λεκτοῦ`, `κλῃσίν`,
+  `σωματεῖα`). The lemma must be a positive lexical head in its citation
+  spelling (not one with a grave, `Καλαβρὰ`) and the key a structurally
+  possible polytonic spelling (the Hunspell export's check), so hyphenated
+  and doubly accented OCR keys stay out. One class of old paradigm
+  is wrong: the old generator declined such a headword by its nominative
+  (`Θεοπρεπότης, -τος` as `Θεοπρεπότου`). Where the lemma's citation key is
+  among the keys and the entry prints an ending in -ος, -ως, -ους or -ες that
+  no other key ends with, only the citation spelling is kept. A headword the
+  audit rules out as a noun, and a lemma with a fresh paradigm, keep nothing.
+  The kept keys count as `withheld_noun_entries_kept`; the pinned counts do
+  not change.
+- A regular cell of an oxytone in -ός (`carry_published_cells`). No generator
+  makes the masculine and neuter cells of the Sophocles adjectives in -ικός
+  and -τός, and they are not in the reference either: an earlier Sophocles
+  expansion made them. A key the published table read under a head in -ός
+  comes back when the target lacks the key, the head is a positive lexical
+  head that the target maps to itself, and the key is one of the head's
+  twelve regular masculine and neuter cells in its accented, grave or
+  unaccented spelling (`ἀρχοντικόν`, `θελητόν`, `καρπωτοῦ`, `Κρητικον`). A
+  head only the Sophocles OCR attests is skipped when its lowercase spelling
+  or its spelling with the other breathing is a positive head (`Θερινός`
+  beside `θερινός`, `Ἱωνικός` beside `Ἰωνικός`), and so is a superseded noun.
+  A key that already has another reading keeps it (`νοερῶν` stays `νοερόω`).
+- A breathing-corrected head (`carry_published_cells`). The published table
+  read some keys under a head whose breathing the Sophocles OCR lost
+  (`Ρωμαϊκόν` under `Ρωμαϊκός`). Where the breathing review in
+  `grc_lexical_heads.json` corrected the head and the target has the key's
+  breathed spelling under the corrected head (`Ῥωμαϊκόν` `Ῥωμαϊκός`), the
+  published key comes back with the corrected head. A key without such a
+  fresh cell stays out.
+- A historical unaccented key (`αθηλυντος`, `παμπολλων`), after the marked
+  spellings and the source aliases are in (`restore_unmarked_keys`). It comes
+  back only where the marked spellings of the current table that strip to it
+  read the key's lemma, so the key agrees with the table and unaccented input
+  reaches the paradigm. A key whose marked spellings read another head, that
+  no marked spelling backs, or that the published table lacked stays out.
+  Three refinements decide what agreement is. Two spellings of one lemma
+  agree: a leading spacing breathing folds into its capital (`᾿Αγαρηνός` is
+  `Ἀγαρηνός`) and a breathing-corrected head is its corrected spelling; the
+  key takes the spelling its marked forms read. A grave form whose acute twin
+  is in the table is not consulted (`ευθης` follows `εὐθής`, not the reading
+  of `εὐθὴς`). A marked form that reads a lemma no list in
+  `grc_lexical_heads.json` has does not dispute a key whose own lemma a list
+  other than the Sophocles OCR confirms (`απεπνιγη`, `ζημιωθης`). The
+  unaccented keys of the three rules above come back under the same test.
+  The audit records the count and a digest of these rows
+  (`unmarked_key_restore`); `scripts/build_source_alias_manifest.py` removes
+  exactly those trailing rows before it reverses the alias changes.
+- A reading under an accent-less head (`keep_published_over_unaccented_heads`).
+  LSJ9 exports some heads without any diacritic (`κληζω` for `κλῄζω`), and the
+  fresh paradigm of such a head claims keys the published table read under
+  the properly spelled one. Where the fresh lemma has no diacritic and the
+  published lemma is a positive lexical head with exactly those letters, the
+  published reading stays (`κληζεται` reads `κλῄζω`). This is the only rule
+  that replaces a current reading.
+
+The overlay prints each rule's count, and the alias audit records them under
+`historical_overlay_counts`.
+
+Running it without `--reference` downloads and verifies that exact artifact;
+the carried table likewise comes from its pinned Hub revision unless
+`--carried` or `DILEMMA_AG_EXPANSION_CARRIED` names a local copy.
 
 `build_lookup_db.py` checks the readings this layer supplies once more: a
 lemma without any diacritic that no list in `grc_lexical_heads.json` has
@@ -83,7 +269,8 @@ hashes. The merged source pairs, reviewed exact-form specification, and
 `grc_lexical_heads.json` are required inputs for this step.
 
 With `--kaikki DIR`, the overlay also checks historical-only elisions against
-both fresh Ancient Greek dumps in `en-el/` and `el/`, and binds noun input
+both fresh Ancient Greek dumps (flat or nested layout, see
+[Dump directories](development.md#dump-directories)), and binds noun input
 validation to that same directory. It can replace an
 unsupported historical owner only when all positively defined current source
 readings agree on one PRON or DET owner, and every reading fits an explicit

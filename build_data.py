@@ -43,6 +43,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from dilemma.verb_source import is_periphrastic_auxiliary
+from dilemma_build.kaikki_dumps import (  # noqa: F401  (re-exported)
+    DUMPS, EL_DIALECT_DUMP, NESTED_MAP as _NESTED_MAP, env_dump_dir, resolve_dump,
+)
 from dilemma.nominal_header_forms import (is_abbreviated_nominal_header,
                                          is_modern_nominal_fragment)
 from dilemma.verb_table_fragments import (
@@ -53,35 +56,45 @@ from dilemma.verb_table_fragments import (
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
 
-# Default kaikki dump directory. Set KAIKKI_DIR env var to override.
-# Supports two layouts:
-#   flat:   <dir>/kaikki.org-en-dictionary-Greek.jsonl
-#   nested: <dir>/en-el/kaikki.org-dictionary-Greek-words.jsonl
-DEFAULT_DUMP_DIR = Path(os.environ.get(
-    "KAIKKI_DIR", DATA_DIR))
-
-DUMPS = {
-    "el": {
-        "en": "kaikki.org-en-dictionary-Greek.jsonl",
-        "el": "kaikki.org-el-dictionary-Greek.jsonl",
-    },
-    "grc": {
-        "en": "kaikki.org-en-dictionary-AncientGreek.jsonl",
-        "el": "kaikki.org-el-dictionary-AncientGreek.jsonl",
-    },
-    "mgr": {
-        "el": "kaikki.org-el-dictionary-MedievalGreek.jsonl",
-    },
-}
+# Default kaikki dump directory: ``$DILEMMA_KAIKKI_DIR`` (or the older
+# ``$KAIKKI_DIR``), else data/. Both the flat and the nested layout are read
+# (dilemma_build.kaikki_dumps, which also names the dumps).
+DEFAULT_DUMP_DIR = env_dump_dir() or DATA_DIR
 
 _GENDER_TAGS = frozenset({"masculine", "feminine", "neuter"})
 
-# The Greek Wiktionary heads some Modern Greek pages as Cretan or Cypriot.
-# The extract files them as languages of their own, outside the Greek file;
-# build/extract_el_dialect_sections.py collects them into this one, which the
-# Greek-edition scan reads after the Greek file (``extract_pairs``).
-EL_DIALECT_DUMP = "kaikki.org-el-dictionary-GreekDialects.jsonl"
+# Cretan and Cypriot sections of the Greek Wiktionary, collected into
+# EL_DIALECT_DUMP; the Greek-edition scan reads it after the Greek file
+# (``extract_pairs``).
 EL_DIALECT_CODES = {"el-crt": "Cretan", "el-cyp": "Cypriot"}
+
+
+# The Greek edition's personal-pronoun grid (grc-προσωπική αντωνυμία, and the
+# Modern templates). Unlike the English edition's generic templates in
+# _SHARED_PERSON_TEMPLATES (grc-decl), these never decline another word.
+PERSONAL_PRONOUN_TABLE_TEMPLATES = frozenset({
+    "grc-προσωπική αντωνυμία", "προσωπική αντωνυμία", "el-προσωπική αντωνυμία",
+})
+_PERSON_HEADER = re.compile(r"^([αβγ])['΄ʹ’]\s*πρόσωπο$")
+
+
+def _person_header_cells(forms: list) -> set[str]:
+    """The persons a Greek-edition table names in its header cells
+    (``α΄ πρόσωπο``), as person tags."""
+    names = {"α": "first-person", "β": "second-person", "γ": "third-person"}
+    return {names[m[1]] for fe in forms
+            if (m := _PERSON_HEADER.match((fe.get("form") or "").strip()))}
+
+
+def personal_pronoun_table(forms: list) -> bool:
+    """Whether a forms[] list is the personal-pronoun grid: its template, or
+    header cells for more than one person."""
+    for fe in forms:
+        if "inflection-template" in (fe.get("tags") or []):
+            if fe.get("form", "") in PERSONAL_PRONOUN_TABLE_TEMPLATES:
+                return True
+            break
+    return len(_person_header_cells(forms)) > 1
 
 
 def tag_dialect_entry(entry: dict) -> str | None:
@@ -93,32 +106,6 @@ def tag_dialect_entry(entry: dict) -> str | None:
             if dialect not in (row.get("tags") or []):
                 row["tags"] = list(row.get("tags") or []) + [dialect]
     return dialect
-
-# Alternate filenames/paths for the nested directory layout
-_NESTED_MAP = {
-    "kaikki.org-en-dictionary-Greek.jsonl":
-        "en-el/kaikki.org-dictionary-Greek-words.jsonl",
-    "kaikki.org-en-dictionary-AncientGreek.jsonl":
-        "en-el/kaikki.org-dictionary-AncientGreek.jsonl",
-    "kaikki.org-el-dictionary-Greek.jsonl":
-        "el/kaikki.org-dictionary-Greek.jsonl",
-    "kaikki.org-el-dictionary-AncientGreek.jsonl":
-        "el/kaikki.org-dictionary-AncientGreek.jsonl",
-    "kaikki.org-el-dictionary-MedievalGreek.jsonl":
-        "el/kaikki.org-dictionary-MedievalGreek.jsonl",
-}
-
-
-def resolve_dump(filename: str, dump_dir: Path) -> Path:
-    """Resolve a dump filename, checking flat and nested layouts."""
-    direct = dump_dir / filename
-    if direct.exists():
-        return direct
-    if filename in _NESTED_MAP:
-        nested = dump_dir / _NESTED_MAP[filename]
-        if nested.exists():
-            return nested
-    return direct
 
 DOWNLOAD_URLS = {
     "kaikki.org-en-dictionary-Greek.jsonl":
@@ -1582,11 +1569,18 @@ def extract_pairs(jsonl_path: Path, lang: str,
                 # The grid is also told by its persons, since the dumps
                 # rename its template (EN's τα came as the generic
                 # inflection-table-top in the 2026-09 dump): a pronoun's
-                # own table has one person.
+                # own table has one person. The Greek edition names them
+                # in header cells (α΄ πρόσωπο), not tags.
                 persons = {t for fe in forms for t in fe.get("tags", [])
-                           if t in _PERSON_TAGS}
+                           if t in _PERSON_TAGS} | _person_header_cells(forms)
                 if uses_shared_person_template or len(persons) > 1:
                     continue
+            elif personal_pronoun_table(forms):
+                # Another word's page carrying the personal-pronoun grid (the
+                # Greek edition's det ὅς, 2026-11: ἡμῖν, σύ, ὑμᾶς) lists
+                # forms of ἐγώ, σύ and οὗ, not its own. Keep its headword
+                # line only.
+                forms = [fe for fe in forms if fe.get("source") == "header"]
 
             # Track current dialect from table-tags headers.
             # page_dialect is the entry-level dialect from sense tags
@@ -2028,12 +2022,20 @@ def noun_head_inventory(records: list, lookup: dict, source_hashes: dict) -> dic
 
 
 def _is_verb_inflection_gloss(gloss: str) -> bool:
-    """Recognize grammatical form descriptions without matching lexical 'of'."""
+    """Recognize grammatical form descriptions without matching lexical 'of'.
+
+    A person phrase starts an inflection gloss ("first-person singular
+    present"), except where it describes a pronoun: "second person singular
+    personal pronoun: thou, you" defines σύ, it is no form of another word.
+    """
     text = re.sub(
         r"^(?:(?:uncontracted|contracted|unaugmented|late|paroxytone|"
         r"prevocalic/clause-final)\s+)+", "", gloss.strip().lower())
     return bool(re.match(
-        r"^(?:(?:first|second|third)[ -]person\b|"
+        r"^(?:(?:first|second|third)[ -]person\b"
+        r"(?!(?:\s+(?:singular|plural|dual))?"
+        r"(?:\s+(?:personal|reflexive|possessive|intensive|emphatic|demonstrative))*"
+        r"\s+pronoun)|"
         r"(?:singular|plural|dual) (?:present|past|aorist|perfect|future|indicative|subjunctive|imperative)\b|"
         r"(?:inflection|conjugation|form|(?:alternative|alternate) (?:form|spelling)) of\b|"
         r"(?:active|passive|middle)(?: nonfinite form)? of\b|"

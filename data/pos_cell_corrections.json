@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "description": "Reviewed corrections to cells of the POS disambiguation tables (treebank_pos_lookup.json, glaux_pos_lookup.json, ag_pos_lookup.json). Dilemma applies them when it loads the tables, so they take effect without a table rebuild. A row applies only while the table still holds its 'target' for that form and tag; a rebuilt table that already fixed the cell leaves the row a no-op. action 'drop' removes the cell, so a lower-priority table can supply the tag; 'correct' replaces the target with 'corrected'.",
+ "description": "Reviewed corrections to cells of the POS disambiguation tables (treebank_pos_lookup.json, glaux_pos_lookup.json, ag_pos_lookup.json, mg_pos_lookup.json, lsj9_pos_lookup.json). Dilemma applies them when it loads the tables, so they take effect without a table rebuild. A row applies only while the table still holds its 'target' for that form and tag; a rebuilt table that already fixed the cell leaves the row a no-op. action 'drop' removes the cell, so a lower-priority table can supply the tag; 'correct' replaces the target with 'corrected'; 'add' (no 'target') supplies 'corrected' only while the table has no cell for that form and tag.",
  "corrections": [
   {
    "table": "treebank",
@@ -788,6 +788,929 @@
    "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
    "evidence": "Untagged ἕξ gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
    "issue": 105
+  },
+  {
+   "table": "mg",
+   "form": "ας",
+   "upos": "PART",
+   "action": "add",
+   "corrected": "ας",
+   "reason": "The Modern hortative particle ας. mg_pos_lookup.json lists only forms with several Modern readings; ας kept its PART cell only through the paradigm-fragment cell ADJ αισώπειος, which 1.3.25 dropped (#122), so under lang=\"all\" ας/PART fell back to the Ancient ὅς.",
+   "evidence": "Wiktionary (English and Greek editions) heads ας as a particle; the Modern lookup row gives ας; lang=\"el\" gives ας/PART -> ας; the Ancient table has no PART cell for ας (PRON/DET ὅς, CCONJ/ADV ἕως). 1.3.24 published this same cell.",
+   "issue": 128
+  },
+  {
+   "table": "ag",
+   "form": "ας",
+   "upos": "NOUN",
+   "target": "μονοτονία",
+   "action": "drop",
+   "reason": "Head-line fragment: the genitive ending -ᾱς of the declension header 'μονοτονία, -ᾱς' was read as a form of μονοτονία, and its accent-stripped key ας became a NOUN cell.",
+   "evidence": "The English Wiktionary Ancient Greek entry μονοτονία lists 'ᾱς' among its forms beside the full genitive μονοτονίᾱς; ας is no form of μονοτονία under any tag.",
+   "issue": 128
+  },
+  {
+   "table": "lsj9",
+   "form": "ονων",
+   "upos": "NOUN",
+   "target": "ὀνή",
+   "action": "drop",
+   "reason": "Accent-stripped key of ὀνῶν (genitive plural of the rare ὀνή); unaccented ονων is overwhelmingly ὄνων, the genitive plural of ὄνος, which the lookup already gives. lsj9 lists no forms of ὄνος, so its stripped key held ὀνή alone.",
+   "evidence": "form_profile.db: ὄνων 267 tokens (noun), ὀνῶν 7; lemma_attestation.json: ὄνος 2,275 tokens, ὀνή 2. The untagged lookup gives ὄνος (lang=\"el\": όνος); 1.3.24's Modern NOUN cell όνος gave ὄνος under lang=\"all\". The accented key ὀνῶν keeps its NOUN cell.",
+   "issue": 128
+  },
+  {
+   "table": "treebank",
+   "form": "δι",
+   "upos": "ADP",
+   "target": "δι",
+   "action": "correct",
+   "corrected": "διά",
+   "reason": "Elided διά written without its apostrophe. Ten GLAUx tokens lemmatised as δι outvote the other corpora in the rebuilt table, which then cites the bare elided stem as the preposition's lemma.",
+   "evidence": "δι is no headword of grc_lexical_heads.json as a preposition; DBBE gold gives διά for its 3 δι/ADP tokens; the 1.3.25 treebank table had δι ADP διά.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ταύτης",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "οὗτος",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (ταὐτός (ag_pos_lookup ταυτης), whose genitive is ταὐτῆς).",
+   "evidence": "Perseus gold: ταύτης/adj -> οὗτος; GLAUx: ταύτης -> οὗτος 5,171; the 1.3.25 table had ταύτης ADJ οὗτος.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "οὐδὲν",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "οὐδείς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (the uninflected οὐδέν).",
+   "evidence": "Perseus gold: οὐδὲν/adj and οὐδέν/adj -> οὐδείς; GLAUx: οὐδὲν -> οὐδείς 17,122; the 1.3.25 table had οὐδὲν ADJ οὐδείς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Οὐδὲν",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "οὐδείς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (the uninflected οὐδέν).",
+   "evidence": "GLAUx: οὐδὲν -> οὐδείς 17,122; the 1.3.25 table had Οὐδὲν ADJ οὐδείς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κέλσου",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κέλσος",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (κέλλω).",
+   "evidence": "GLAUx: Κέλσου -> Κέλσος (noun) 176; the 1.3.25 table had Κέλσου NOUN Κέλσος; the rebuilt audit still lists Κέλσος as the capital-name owner.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κέλσῳ",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κέλσος",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (κέλλω).",
+   "evidence": "GLAUx: Κέλσῳ -> Κέλσος (noun) 114; the 1.3.25 table had Κέλσῳ NOUN Κέλσος.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "πρηνής",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "πρηνής",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (the Attic πρανής).",
+   "evidence": "Perseus gold: πρηνής/adj and πρηνὴς/adj -> πρηνής; GLAUx: πρηνής 40 tokens; LSJ headword πρηνής; the 1.3.25 table had πρηνής ADJ πρηνής.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Ἡρακλέης",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Ἡρακλέης",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (the Attic Ἡρακλῆς).",
+   "evidence": "Perseus gold: Ἡρακλέης/noun -> Ἡρακλέης; GLAUx: Ἡρακλέης -> Ἡρακλέης 38; the 1.3.25 table had Ἡρακλέης NOUN Ἡρακλέης.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "σκυτεύς",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "σκυτεύς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (σκυτοτόμος, another word).",
+   "evidence": "GLAUx: σκυτεύς/σκυτεὺς -> σκυτεύς 17; LSJ headword σκυτεύς 'shoemaker'; untagged σκυτεύς gives σκυτεύς; the 1.3.25 table had σκυτεύς NOUN σκυτεύς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κίρρα",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κίρρα",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (Κρῖσα, another town).",
+   "evidence": "Perseus gold: Κίρρα/noun -> Κίρρα; GLAUx: Κίρρα -> Κίρρα 6; the 1.3.25 table had Κίρρα NOUN Κίρρα.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "τεκνίον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "τεκνίον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (τέκνον).",
+   "evidence": "GLAUx: τεκνίον -> τεκνίον 9; LSJ headword τεκνίον (diminutive); the 1.3.25 table had τεκνίον NOUN τεκνίον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "φύσαντα",
+   "upos": "VERB",
+   "target": "φύσας",
+   "action": "correct",
+   "corrected": "φύω",
+   "reason": "The rebuilt 1.3.26 treebank table cites the participle φύσας as the lemma of φύσαντα: one GLAUx token lemmatised φύσας wins the vote where the bare lookup reading changed.",
+   "evidence": "GLAUx: φύσαντα -> φύω 5, φύσας 1; φύσας is a participle of φύω, no headword of its own; the 1.3.25 table had φύσαντα VERB φύω.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "θαμνώδης",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "θαμνώδης",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (θαμνοειδής, another adjective).",
+   "evidence": "GLAUx: θαμνώδης -> θαμνώδης 5; LSJ headword θαμνώδης; untagged θαμνώδης gives θαμνώδης; the 1.3.25 table had θαμνώδης ADJ θαμνώδης.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "θεόληπτος",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "θεόληπτος",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (θεοβλαβής, another word, under lang=\"grc\").",
+   "evidence": "GLAUx: θεόληπτος -> θεόληπτος 5; LSJ headword θεόληπτος; untagged θεόληπτος gives θεόληπτος; the 1.3.25 table had θεόληπτος ADJ θεόληπτος.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ὑμός",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "ὑμός",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (ὑμέτερος).",
+   "evidence": "GLAUx: ὑμός -> ὑμός 3; LSJ headword ὑμός; untagged ὑμός gives ὑμός; the 1.3.25 table had ὑμός ADJ ὑμός.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ὄργια",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "ὄργια",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (the singular ὄργιον).",
+   "evidence": "GLAUx: ὄργια/ὄργιά -> ὄργια 78; Perseus gold: ὄργια/noun -> ὄργια; LSJ headword ὄργια; untagged ὄργια gives ὄργια; the 1.3.25 table had ὄργια NOUN ὄργια.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "πλοιάριον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "πλοιάριον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (πλοῖον).",
+   "evidence": "GLAUx: πλοιάριον/πλοιάριόν -> πλοιάριον 4; LSJ headword πλοιάριον; untagged πλοιάριον gives πλοιάριον; the 1.3.25 table had πλοιάριον NOUN πλοιάριον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "τοπάζιον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "τοπάζιον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (τόπαζος).",
+   "evidence": "GLAUx: τοπάζιον -> τοπάζιον 9; untagged τοπάζιον gives τοπάζιον; the 1.3.25 table had τοπάζιον NOUN τοπάζιον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Τριτογένεια",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Τριτογένεια",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (Τριτογενής).",
+   "evidence": "GLAUx: Τριτογένεια -> Τριτογένεια 14; Perseus gold: Τριτογένεια/noun -> Τριτογένεια; LSJ headword Τριτογένεια; untagged Τριτογένεια gives Τριτογένεια; the 1.3.25 table had Τριτογένεια NOUN Τριτογένεια.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Ἀριστέας",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Ἀριστέας",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (Ἀρισταῖος, another name).",
+   "evidence": "GLAUx: Ἀριστέας -> Ἀριστέας 17; untagged Ἀριστέας gives Ἀριστέας; the 1.3.25 table had Ἀριστέας NOUN Ἀριστέας.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Λάμων",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Λάμων",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (Λάμος, another name).",
+   "evidence": "GLAUx: Λάμων -> Λάμων 24; untagged Λάμων gives Λάμων; the 1.3.25 table had Λάμων NOUN Λάμων.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Νάσων",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Νάσων",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (νῆσος, through the lowercased key of the Doric νάσων).",
+   "evidence": "GLAUx: Νάσων -> Νάσων 1; untagged Νάσων gives Νάσων; the 1.3.25 table had Νάσων NOUN Νάσων.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "τρίχωσις",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "τρίχωσις",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (τριχίασις, another word).",
+   "evidence": "GLAUx: τρίχωσις -> τρίχωσις 6; LSJ headword τρίχωσις; untagged τρίχωσις gives τρίχωσις; the 1.3.25 table had τρίχωσις NOUN τρίχωσις.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "δελφάκιον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "δελφάκιον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (δέλφαξ).",
+   "evidence": "GLAUx: δελφάκιον/δελφάκιόν -> δελφάκιον 8; LSJ headword δελφάκιον; untagged δελφάκιον gives δελφάκιον; the 1.3.25 table had δελφάκιον NOUN δελφάκιον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "θεραπαινίς",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "θεραπαινίς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (θεράπαινα).",
+   "evidence": "GLAUx: θεραπαινίς/θεραπαινὶς -> θεραπαινίς 16; LSJ headword θεραπαινίς; untagged θεραπαινίς gives θεραπαινίς; the 1.3.25 table had θεραπαινίς NOUN θεραπαινίς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "σκωλήκιον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "σκωλήκιον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (σκώληξ).",
+   "evidence": "GLAUx: σκωλήκιον -> σκωλήκιον 10; LSJ headword σκωλήκιον; untagged σκωλήκιον gives σκωλήκιον; the 1.3.25 table had σκωλήκιον NOUN σκωλήκιον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "πλοκαμίς",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "πλοκαμίς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (πλόκαμος).",
+   "evidence": "GLAUx: πλοκαμίς -> πλοκαμίς 3; LSJ headword πλοκαμίς; untagged πλοκαμίς gives πλοκαμίς; the 1.3.25 table had πλοκαμίς NOUN πλοκαμίς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "σκληρία",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "σκληρία",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (σκληρότης).",
+   "evidence": "GLAUx: σκληρία -> σκληρία 1; LSJ headword σκληρία; untagged σκληρία gives σκληρία; the 1.3.25 table had σκληρία NOUN σκληρία.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "γαστρίον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "γαστρίον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (γάστρα).",
+   "evidence": "GLAUx: γαστρίον -> γαστρίον 4; LSJ headword γαστρίον; untagged γαστρίον gives γαστρίον; the 1.3.25 table had γαστρίον NOUN γαστρίον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "μαρσίππιον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "μαρσίππιον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (μάρσιππος).",
+   "evidence": "GLAUx: μαρσίππιον -> μαρσίππιον 2; untagged μαρσίππιον gives μαρσίππιον; the 1.3.25 table had μαρσίππιον NOUN μαρσίππιον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "φωλίον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "φωλίον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (φωλεός).",
+   "evidence": "GLAUx: φωλίον/φωλιὸν -> φωλίον 2; LSJ headword φωλίον; untagged φωλίον gives φωλίον; the 1.3.25 table had φωλίον NOUN φωλίον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "σκεδασμός",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "σκεδασμός",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (σκέδασις).",
+   "evidence": "GLAUx: σκεδασμός/σκεδασμὸς -> σκεδασμός 6; LSJ headword σκεδασμός; untagged σκεδασμός gives σκεδασμός; the 1.3.25 table had σκεδασμός NOUN σκεδασμός.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ἀγερμός",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "ἀγερμός",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (ἄγερσις).",
+   "evidence": "GLAUx: ἀγερμός/ἀγερμὸς -> ἀγερμός 7; LSJ headword ἀγερμός; untagged ἀγερμός gives ἀγερμός; the 1.3.25 table had ἀγερμός NOUN ἀγερμός.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "σκοτοδινίασις",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "σκοτοδινίασις",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (σκοτοδινία).",
+   "evidence": "GLAUx: σκοτοδινίασις -> σκοτοδινίασις 2; LSJ headword σκοτοδινίασις; untagged σκοτοδινίασις gives σκοτοδινίασις; the 1.3.25 table had σκοτοδινίασις NOUN σκοτοδινίασις.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "χυτρίδιον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "χυτρίδιον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (χύτρα).",
+   "evidence": "GLAUx: χυτρίδιον -> χυτρίδιον 17; LSJ headword χυτρίδιον; untagged χυτρίδιον gives χυτρίδιον; the 1.3.25 table had χυτρίδιον NOUN χυτρίδιον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ἡρωΐς",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "ἡρωΐς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (the adjective ἡρωϊκός).",
+   "evidence": "GLAUx: ἡρωΐς -> ἡρωΐς 1; untagged ἡρωΐς gives ἡρωΐς; the 1.3.25 table had ἡρωΐς NOUN ἡρωΐς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κορκυραῖος",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "Κορκυραῖος",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading falls through to a lower-priority table (Κερκυραῖος).",
+   "evidence": "GLAUx: Κορκυραῖος -> Κορκυραῖος 3; untagged Κορκυραῖος gives Κορκυραῖος; the 1.3.25 table had Κορκυραῖος ADJ Κορκυραῖος.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Σαρμάτης",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Σαρμάτης",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (Σαυρομάτης).",
+   "evidence": "GLAUx: Σαρμάτης -> Σαρμάτης 1; LSJ headword Σαρμάτης; untagged Σαρμάτης gives Σαρμάτης; the 1.3.25 table had Σαρμάτης NOUN Σαρμάτης.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Σάκας",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Σάκας",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (Σάκης).",
+   "evidence": "GLAUx: Σάκας -> Σάκας 14; the same form is also the accusative of Σάκαι (GLAUx 12); untagged Σάκας gives Σάκας; the 1.3.25 table had Σάκας NOUN Σάκας.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Θεσπρωτοί",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Θεσπρωτοί",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (the singular Θεσπρωτός).",
+   "evidence": "GLAUx: Θεσπρωτοί -> Θεσπρωτοί 2; untagged Θεσπρωτοί gives Θεσπρωτοί; the 1.3.25 table had Θεσπρωτοί NOUN Θεσπρωτοί.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Θεσπρωτοὶ",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Θεσπρωτοί",
+   "reason": "Grave spelling of the Θεσπρωτοί row: a capitalized key is matched only by its exact spelling, and the lowercased key through which 1.3.25 answered the grave spelling is gone from the rebuilt 1.3.26 treebank table, so the NOUN reading falls through to a lower-priority table (the singular Θεσπρωτός).",
+   "evidence": "GLAUx: Θεσπρωτοὶ -> Θεσπρωτοί 4; untagged Θεσπρωτοὶ gives Θεσπρωτοί; the 1.3.25 table had θεσπρωτοί NOUN Θεσπρωτοί, and 1.3.25 gave Θεσπρωτοί for Θεσπρωτοὶ/NOUN. The lowercased key is not restored.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ουδέν",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "οὐδείς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading of this key falls through to the lookup row (the uninflected οὐδέν); the rows for οὐδὲν and Οὐδὲν cover only the grave spelling.",
+   "evidence": "Perseus gold: οὐδέν/adj -> οὐδείς; GLAUx: οὐδέν -> οὐδείς 2,668; the 1.3.25 table had ουδέν ADJ οὐδείς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "υμός",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "ὑμός",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADJ reading of this key falls through to a lower-priority table (ὑμέτερος).",
+   "evidence": "GLAUx: ὑμός -> ὑμός 3; monotonic key of ὑμός; untagged υμός gives ὑμός; the 1.3.25 table had υμός ADJ ὑμός.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ηρωΐς",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "ἡρωΐς",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading of this key falls through to a lower-priority table (the adjective ἡρωϊκός).",
+   "evidence": "GLAUx: ἡρωΐς -> ἡρωΐς 1; monotonic key of ἡρωΐς; untagged ηρωΐς gives ἡρωΐς; the 1.3.25 table had ηρωΐς NOUN ἡρωΐς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "γραφών",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "γραφή",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading of this key falls through to a lower-priority table (γραφεύς).",
+   "evidence": "GLAUx: γραφῶν -> γραφή 218; Perseus gold: γραφῶν/noun -> γραφή; untagged γραφών gives γραφή; the 1.3.25 table had γραφών NOUN γραφή.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "γραφαίς",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "γραφή",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading of this key falls through to a lower-priority table (γραφεύς).",
+   "evidence": "GLAUx: γραφαῖς -> γραφή 218; untagged γραφαίς gives γραφή; the 1.3.25 table had γραφαίς NOUN γραφή.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ζώδιον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "ζῴδιον",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading of this key falls through to a lower-priority table (ζῷον, another word).",
+   "evidence": "GLAUx: ζῴδιον/ζῴδιόν -> ζῴδιον 108, and 9 tokens of the spelling without the subscript; untagged ζώδιον gives ζῴδιον; the 1.3.25 table had ζώδιον NOUN ζῴδιον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "δήτα",
+   "upos": "ADV",
+   "action": "add",
+   "corrected": "δῆτα",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the ADV reading of this key falls through to a lower-priority table (δή).",
+   "evidence": "GLAUx: δῆτα/δῆτά -> δῆτα 505; Perseus gold: δῆτα/adv -> δῆτα; untagged δήτα gives δῆτα; the 1.3.25 table had δήτα ADV δῆτα.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "αοιδή",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "ἀοιδή",
+   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading of this key falls through to a lower-priority table (the contracted ᾠδή).",
+   "evidence": "GLAUx: ἀοιδή/ἀοιδὴ -> ἀοιδή 14; Perseus gold: ἀοιδή/noun -> ἀοιδή; the polytonic key ἀοιδή keeps its cell; untagged αοιδή gives ἀοιδή; the 1.3.25 table had αοιδή NOUN ἀοιδή.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "κίρρα",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κίρρα",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell, so the NOUN reading of this key falls through to a lower-priority table (Κρῖσα, another town); the row for Κίρρα covers only the nominative spelling.",
+   "evidence": "Perseus gold: Κίρρᾳ/noun -> Κίρρα; GLAUx: Κίρρᾳ -> Κίρρα 4; this lowercased key is the one the dative Κίρρᾳ reaches; the 1.3.25 table had κίρρα NOUN Κίρρα.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ἀτταλικῇ",
+   "upos": "ADJ",
+   "action": "add",
+   "corrected": "Ἀτταλικός",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the ADJ request gets no answer without a guess.",
+   "evidence": "GLAUx: Ἀτταλικῇ -> Ἀτταλικός 1 (the table keys the lowercased form); the 1.3.25 table had ἀτταλικῇ ADJ Ἀτταλικός.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κάστον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κάστος",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell, so the NOUN request reaches the accent-stripped key of the crasis κἀστὸν and reads ἀστός.",
+   "evidence": "GLAUx: Κάστον -> Κάστος 2; the 1.3.25 table had Κάστον NOUN Κάστος.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κέλσους",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κέλσος",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell, so no table answers the NOUN request and the form has no lookup row; the Byzantine-normalisation reading κέλλω is returned, as for Κέλσου and Κέλσῳ before their rows.",
+   "evidence": "GLAUx: Κέλσους -> Κέλσος 1; the 1.3.25 table had Κέλσους NOUN Κέλσος.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Βονωνίαν",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Βονωνία",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Βονωνίαν -> Βονωνία 8; the 1.3.25 table had Βονωνίαν NOUN Βονωνία.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Μαικήνου",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Μαικήνας",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Μαικήνου -> Μαικήνας 7; the 1.3.25 table had Μαικήνου NOUN Μαικήνας.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Μαικήνη",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Μαικήνας",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Μαικήνη -> Μαικήνας 1; the 1.3.25 table had Μαικήνη NOUN Μαικήνας.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Αὐρηλίαν",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Αὐρηλία",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Αὐρηλίαν -> Αὐρηλία 4; the 1.3.25 table had Αὐρηλίαν NOUN Αὐρηλία.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Αὐρηλίας",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Αὐρηλία",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Αὐρηλίας -> Αὐρηλία 5; the 1.3.25 table had Αὐρηλίας NOUN Αὐρηλία.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κάλητα",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κάλης",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Κάλητα -> Κάλης 3; the 1.3.25 table had Κάλητα NOUN Κάλης.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Κάλητος",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κάλης",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Κάλητος -> Κάλης 1; the 1.3.25 table had Κάλητος NOUN Κάλης.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Σερβιλίαν",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Σερβιλία",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Σερβιλίαν -> Σερβιλία 6; the 1.3.25 table had Σερβιλίαν NOUN Σερβιλία.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ἑστιάδας",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Ἑστιάς",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Ἑστιάδας -> Ἑστιάς 4 (the table keys the lowercased form); the 1.3.25 table had ἑστιάδας NOUN Ἑστιάς.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ἰβυκείου",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Ἰβύκειον",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell and the form has no lookup row, so the NOUN request gets no answer without a guess.",
+   "evidence": "GLAUx: Ἰβυκείου -> Ἰβύκειον 1 (the table keys the lowercased form); the 1.3.25 table had ἰβυκείου NOUN Ἰβύκειον.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "άβραμος",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Ἄβραμος",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell, so Ἅβραμος/NOUN gets no answer without a guess and the monotonic spelling reads the lookup row (Ἀβραάμ).",
+   "evidence": "GLAUx: Ἅβραμος 29 tokens and Ἄβραμος 4, the declined name; the 1.3.25 table had άβραμος NOUN Ἄβραμος, the key both breathings reach.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "εισήει",
+   "upos": "VERB",
+   "action": "add",
+   "corrected": "εἴσειμι",
+   "reason": "The rebuilt 1.3.26 treebank table no longer has this cell, so the spelling without the iota subscript reads its lookup rows (εἰσήει -> εἰσήκω, εισήει -> εἰσέρχομαι) while εἰσῄει reads εἴσειμι.",
+   "evidence": "Perseus gold: εἰσῄει/verb -> εἴσειμι; εἰσῄει/VERB gives εἴσειμι; the 1.3.25 table had εισήει VERB εἴσειμι.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "εισήεσαν",
+   "upos": "VERB",
+   "target": "εἰσέρχομαι",
+   "action": "correct",
+   "corrected": "εἴσειμι",
+   "reason": "New cell of the rebuilt 1.3.26 treebank table, from GLAUx's convention of lemmatising the imperfect of εἶμι under ἔρχομαι. The subscripted spelling still reads the εἶμι compound (εἰσῄεσαν/VERB gives εἴσειμι), so the two spellings of one form disagree.",
+   "evidence": "εἰσῄεσαν/VERB gives εἴσειμι in 1.3.25 and in the rebuilt data, and 1.3.25 gave εἴσειμι for εἰσήεσαν/VERB; GLAUx: εἰσῄεσαν -> εἰσέρχομαι 15 (the convention the lookup does not follow); the 1.3.25 table had no εισήεσαν key.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "συνήεσαν",
+   "upos": "VERB",
+   "target": "συνέρχομαι",
+   "action": "correct",
+   "corrected": "σύνειμι",
+   "reason": "New cell of the rebuilt 1.3.26 treebank table, from GLAUx's convention of lemmatising the imperfect of εἶμι under ἔρχομαι. The subscripted spelling still reads the εἶμι compound (συνῄεσαν/VERB gives σύνειμι), so the two spellings of one form disagree.",
+   "evidence": "συνῄεσαν/VERB gives σύνειμι in 1.3.25 and in the rebuilt data, and 1.3.25 gave σύνειμι for συνήεσαν/VERB; GLAUx: συνῄεσαν -> συνέρχομαι 55 (the convention the lookup does not follow); the 1.3.25 table had no συνήεσαν key.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "ήμεν",
+   "upos": "VERB",
+   "target": "ἔρχομαι",
+   "action": "drop",
+   "reason": "New cell of the rebuilt 1.3.26 treebank table: the monotonic key of ᾖμεν (ἔρχομαι in GLAUx's convention) is also the key of the far commoner ἦμεν, so ήμεν/VERB reads ἔρχομαι instead of εἰμί.",
+   "evidence": "GLAUx: ἦμεν -> εἰμί 253, ᾖμεν -> ἔρχομαι 10; Perseus gold: ἦμεν/verb -> εἰμί; untagged ήμεν gives εἰμί; the 1.3.25 table had no ήμεν key and gave εἰμί.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "λόγιον",
+   "upos": "ADJ",
+   "target": "Λόγιος",
+   "action": "correct",
+   "corrected": "λόγιος",
+   "reason": "New cell of the rebuilt 1.3.26 treebank table: the capital-name reading of Λόγιον (Λόγιος, 2 GLAUx tokens; a capital-name owner in the table's audit) also fills the lowercase key, where it overrides the adjective λόγιος for a lowercase word.",
+   "evidence": "GLAUx: λόγιον -> λόγιος (adj) 7, Λόγιον -> Λόγιος 2; the Wiktionary table has λόγιον ADJ λόγιος; the 1.3.25 answer was λόγιος; the capitalized key Λόγιον keeps Λόγιος.",
+   "issue": 125
+  },
+  {
+   "table": "glaux",
+   "form": "Δημοτέλη",
+   "upos": "NOUN",
+   "target": "δεμοτελες",
+   "action": "correct",
+   "corrected": "Δημοτέλης",
+   "reason": "Junk GLAUx lemma (δεμοτελες is no Greek word). The 1.3.25 treebank table masked the cell; the rebuilt table has no cell for the form.",
+   "evidence": "δεμοτελες is in no head list of grc_lexical_heads.json; GLAUx: Δημοτέλη -> Δημοτέλης 1, δεμοτελες 1; the PROPN cell of the same key is Δημοτέλης; the 1.3.25 table had Δημοτέλη NOUN Δημοτέλης.",
+   "issue": 125
+  },
+  {
+   "table": "glaux",
+   "form": "δημοτέλη",
+   "upos": "NOUN",
+   "target": "δεμοτελες",
+   "action": "correct",
+   "corrected": "Δημοτέλης",
+   "reason": "Junk GLAUx lemma (δεμοτελες is no Greek word). The 1.3.25 treebank table masked the cell; the rebuilt table has no cell for the form.",
+   "evidence": "δεμοτελες is in no head list of grc_lexical_heads.json; GLAUx: Δημοτέλη -> Δημοτέλης 1, δεμοτελες 1; the PROPN cell of the same key is Δημοτέλης; the 1.3.25 table had δημοτέλη NOUN Δημοτέλης.",
+   "issue": 125
+  },
+  {
+   "table": "glaux",
+   "form": "καμέ",
+   "upos": "PRON",
+   "target": "ἐͅγώ",
+   "action": "correct",
+   "corrected": "ἐγώ",
+   "reason": "Junk GLAUx lemma with a combining iota subscript, from the spelling κᾀμὲ (ἐͅγώ is no Greek word). The 1.3.25 treebank table masked the cell with κἀγώ; the rebuilt table has no PRON cell for the key.",
+   "evidence": "ἐͅγώ is in no head list of grc_lexical_heads.json; GLAUx: κἀμὲ/κἀμέ -> ἐγώ 291; Perseus gold: κἀμέ/pron -> ἐγώ; κἀμέ/PRON gives ἐγώ in the rebuilt data (1.3.25 gave κἀγώ for both spellings).",
+   "issue": 125
+  },
+  {
+   "table": "ag",
+   "form": "ην",
+   "upos": "SCONJ",
+   "action": "add",
+   "corrected": "ἐάν",
+   "reason": "The reviewed 1.3.26 lookup reading of the unaccented and monotonic keys is εἰμί (ἦν), and no table has an SCONJ cell for them, so an SCONJ request fell through to the verb. A word tagged as a subordinating conjunction with these letters is ἤν, that is ἐάν.",
+   "evidence": "GLAUx: ἢν -> ἐάν 7,141, ἤν -> ἐάν 1,045; Perseus gold: ἤν/conj -> ἐάν; ἤν/SCONJ and ἢν/SCONJ give ἐάν; the VERB, CCONJ and PART cells of the key and the untagged answer are unchanged. 1.3.25 gave ἤν.",
+   "issue": 125
+  },
+  {
+   "table": "ag",
+   "form": "ήν",
+   "upos": "SCONJ",
+   "action": "add",
+   "corrected": "ἐάν",
+   "reason": "The reviewed 1.3.26 lookup reading of the unaccented and monotonic keys is εἰμί (ἦν), and no table has an SCONJ cell for them, so an SCONJ request fell through to the verb. A word tagged as a subordinating conjunction with these letters is ἤν, that is ἐάν.",
+   "evidence": "GLAUx: ἢν -> ἐάν 7,141, ἤν -> ἐάν 1,045; Perseus gold: ἤν/conj -> ἐάν; ἤν/SCONJ and ἢν/SCONJ give ἐάν; the VERB, CCONJ and PART cells of the key and the untagged answer are unchanged. 1.3.25 gave ἤν.",
+   "issue": 125
+  },
+  {
+   "table": "ag",
+   "form": "ἣν",
+   "upos": "SCONJ",
+   "action": "add",
+   "corrected": "ὅς",
+   "reason": "Guard for the ην and ήν SCONJ rows: a tag falls back from the exact key to the monotonic and accent-stripped keys, so without this cell the relative ἣν under a mistaken SCONJ tag would read ἐάν.",
+   "evidence": "GLAUx: ἣν -> ὅς 9,109, ἐάν 3; Perseus gold: ἣν/pron -> ὅς; ἣν/SCONJ gave ὅς in 1.3.25 and without the ην rows.",
+   "issue": 125
+  },
+  {
+   "table": "ag",
+   "form": "ἥν",
+   "upos": "SCONJ",
+   "action": "add",
+   "corrected": "ὅς",
+   "reason": "Guard for the ην and ήν SCONJ rows: a tag falls back from the exact key to the monotonic and accent-stripped keys, so without this cell the relative ἥν under a mistaken SCONJ tag would read ἐάν.",
+   "evidence": "GLAUx: ἥν -> ὅς 439; Perseus gold: ἥν/pron -> ὅς; ἥν/SCONJ gave ὅς in 1.3.25 and without the ην rows.",
+   "issue": 125
+  },
+  {
+   "table": "mg",
+   "form": "παρέξω",
+   "upos": "VERB",
+   "action": "add",
+   "corrected": "παρέχω",
+   "reason": "The 2026-11 Medieval dump has a new adverb page παρέξω, which becomes the lang=\"el\" lookup row because the Modern table has no παρέξω; the Modern POS table has no cell for the form, so a VERB request returned the adverb.",
+   "evidence": "GLAUx: παρέξω -> παρέχω (verb) 45; Perseus gold: παρέξω/verb -> παρέχω; lang=\"all\" and lang=\"grc\" give παρέξω/VERB -> παρέχω and παρέξω/ADV -> παρέξω; 1.3.25 gave παρέχω under lang=\"el\". The untagged lang=\"el\" answer stays παρέξω.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "Λευκαδία",
+   "upos": "ADJ",
+   "target": "Λευκαδίος",
+   "action": "correct",
+   "corrected": "Λευκάδιος",
+   "reason": "AGDT lemma with the accent on the wrong syllable (the adjective is Λευκάδιος). In 1.3.25 the lookup row read Λευκάδιος and its spelling stood under lang=\"all\"; with Λευκαδία restored as a head (#126) the cell's own spelling is returned.",
+   "evidence": "Λευκαδίος is in no head list of grc_lexical_heads.json; the Wiktionary table has Λευκαδία ADJ Λευκάδιος; Perseus (AGDT): Λευκαδία/adj -> Λευκαδίος, 1 token; 1.3.25 gave Λευκάδιος under lang=\"all\".",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "λευκαδία",
+   "upos": "ADJ",
+   "target": "Λευκαδίος",
+   "action": "correct",
+   "corrected": "Λευκάδιος",
+   "reason": "AGDT lemma with the accent on the wrong syllable (the adjective is Λευκάδιος). In 1.3.25 the lookup row read Λευκάδιος and its spelling stood under lang=\"all\"; with Λευκαδία restored as a head (#126) the cell's own spelling is returned.",
+   "evidence": "Λευκαδίος is in no head list of grc_lexical_heads.json; the Wiktionary table has Λευκαδία ADJ Λευκάδιος; Perseus (AGDT): Λευκαδία/adj -> Λευκαδίος, 1 token; 1.3.25 gave Λευκάδιος under lang=\"all\".",
+   "issue": 126
+  },
+  {
+   "table": "mg",
+   "form": "θεα",
+   "upos": "NOUN",
+   "target": "Θεός",
+   "action": "correct",
+   "corrected": "θεά",
+   "reason": "Modern cell that reads the feminine θεά as the capitalized Θεός. In 1.3.25 the lookup read the unaccented θεα as θεός and that lowercase reading stood under lang=\"all\"; with θεά restored as a head (#126) the cell is returned as it is: a capitalized lemma for a lowercase noun.",
+   "evidence": "GLAUx: θεά/θεὰ -> θεά 288; Perseus gold: θεά/noun -> θεά; untagged θεα and θεά give θεά under every lang; θεά is a headword of mg_headwords.json. 1.3.25 gave θεα/NOUN -> θεός under lang=\"all\". Under lang=\"el\" the cell gave Θεός in 1.3.25 as well; the row changes that to θεά.",
+   "issue": 126
+  },
+  {
+   "table": "mg",
+   "form": "θεά",
+   "upos": "NOUN",
+   "target": "Θεός",
+   "action": "correct",
+   "corrected": "θεά",
+   "reason": "The same Modern cell under the accented key. It answers only under lang=\"el\" (the Ancient tables give θεά/NOUN -> θεά under lang=\"all\"); corrected with the θεα row so that the two spellings agree.",
+   "evidence": "GLAUx: θεά/θεὰ -> θεά 288; Perseus gold: θεά/noun -> θεά; untagged θεα and θεά give θεά under every lang; θεά is a headword of mg_headwords.json. Under lang=\"el\" θεά/NOUN gave Θεός in 1.3.25 as well, so this row changes a standing answer.",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Ἔρως",
+   "upos": "NOUN",
+   "target": "ἔρως",
+   "action": "correct",
+   "corrected": "Ἔρως",
+   "reason": "The cell of the capitalized key reads the lowercase noun. 1.3.25 answered Ἔρως from the lookup row; with ἔρως restored as a head (#126) the cell names a case twin of the row's reading and decides, so the god loses his capital.",
+   "evidence": "GLAUx: Ἔρως -> Ἔρως 227, ἔρως 1; Perseus gold: Ἔρως/noun -> Ἔρως; the lowercase key ἔρως keeps NOUN ἔρως (423 GLAUx tokens); 1.3.25 gave Ἔρως.",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Πρόξενος",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Πρόξενος",
+   "reason": "Capitalized name beside the lowercase head πρόξενος, which 1.3.26 restores (#126). The NOUN cell reached through the lowercased key reads πρόξενος; that is now a case twin of the capitalized form's own reading, and a POS entry that names a case twin decides, so the name would lose its capital. The corpus reads the capitalized form as the name.",
+   "evidence": "GLAUx: Πρόξενος -> Πρόξενος 27; lowercase πρόξενος/NOUN -> πρόξενος is unchanged (34 GLAUx noun tokens); 1.3.25 gave Πρόξενος under lang=\"all\" and lang=\"grc\".",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Προξένου",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Πρόξενος",
+   "reason": "Capitalized name beside the lowercase head πρόξενος, which 1.3.26 restores (#126). The NOUN cell reached through the lowercased key reads πρόξενος; that is now a case twin of the capitalized form's own reading, and a POS entry that names a case twin decides, so the name would lose its capital. The corpus reads the capitalized form as the name.",
+   "evidence": "GLAUx: Προξένου -> Πρόξενος 29; lowercase προξένου/NOUN -> πρόξενος is unchanged (9 GLAUx noun tokens); 1.3.25 gave Πρόξενος under lang=\"all\" (πρόξενος under lang=\"grc\").",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Πρόξενον",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Πρόξενος",
+   "reason": "Capitalized name beside the lowercase head πρόξενος, which 1.3.26 restores (#126). The NOUN cell reached through the lowercased key reads πρόξενος; that is now a case twin of the capitalized form's own reading, and a POS entry that names a case twin decides, so the name would lose its capital. The corpus reads the capitalized form as the name.",
+   "evidence": "GLAUx: Πρόξενον -> Πρόξενος 14; lowercase πρόξενον/NOUN -> πρόξενος is unchanged (18 GLAUx noun tokens); 1.3.25 gave Πρόξενος under lang=\"all\" (πρόξενος under lang=\"grc\").",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Δρύας",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Δρύας",
+   "reason": "Capitalized name beside the lowercase head δρύας, which 1.3.26 restores (#126). The NOUN cell reached through the lowercased key reads δρύας; that is now a case twin of the capitalized form's own reading, and a POS entry that names a case twin decides, so the name would lose its capital. The corpus reads the capitalized form as the name.",
+   "evidence": "GLAUx: Δρύας -> Δρύας 23; lowercase δρύας/NOUN -> δρύας is unchanged (7 GLAUx noun tokens); 1.3.25 gave Δρύας under lang=\"all\" and lang=\"grc\".",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Φιλάδελφος",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Φιλάδελφος",
+   "reason": "Capitalized name beside the lowercase head φιλάδελφος, which 1.3.26 restores (#126). The NOUN cell reached through the lowercased key reads φιλάδελφος; that is now a case twin of the capitalized form's own reading, and a POS entry that names a case twin decides, so the name would lose its capital. The corpus reads the capitalized form as the name.",
+   "evidence": "GLAUx: Φιλάδελφος -> Φιλάδελφος 21; lowercase φιλάδελφος/NOUN -> φιλάδελφος is unchanged; 1.3.25 gave Φιλάδελφος under lang=\"all\" and lang=\"grc\".",
+   "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Μέροπος",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Μέροψ",
+   "reason": "Capitalized name beside the lowercase head μέροψ, which 1.3.26 restores (#126). The NOUN cell reached through the lowercased key reads μέροψ; that is now a case twin of the capitalized form's own reading, and a POS entry that names a case twin decides, so the name would lose its capital. The corpus reads the capitalized form as the name.",
+   "evidence": "GLAUx: Μέροπος -> Μέροψ 14; lowercase μέροπος/NOUN -> μέροψ is unchanged; 1.3.25 gave Μέροψ under lang=\"all\" (μέροψ under lang=\"grc\").",
+   "issue": 126
   }
  ]
 }

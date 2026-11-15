@@ -25,13 +25,16 @@ m.load_wiktionary_genitives = lambda: {}
 m.noun_generation_input_hashes = lambda *a, **kw: {}
 if name == "expand_sophocles":
     m.sophocles_noun_input_hashes = lambda: {}
+    m.load_breathing_review = lambda *a, **kw: None
 if name == "expand_lsj":
     m.parse_lsj_entries = lambda: entries
     m.load_wiktionary_forms = lambda: {}
     m.load_lsj_head_texts = lambda: {}
+    m.load_lsj_supplement_head_texts = lambda: {}
+    m.verify_lsj_glosses = lambda: {"sha256": "0" * 64, "size": 0}
 else:
-    m.analyze = lambda: (entries, ["λόγος"], [])
-    m.parse_sophocles_entries = lambda: entries
+    m.analyze = lambda *a, **kw: (entries, ["λόγος"], [])
+    m.parse_sophocles_entries = lambda *a, **kw: entries
     m.find_verb_candidates = lambda *a: ["λύω"]
 m.expand_all()
 m.expand_verbs()

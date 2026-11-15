@@ -5,7 +5,11 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path, PureWindowsPath
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from dilemma_build.kaikki_dumps import layout_names, resolve_dump  # noqa: E402
 
 SOURCE_FILES = (
     'overlay_lsj.py', 'build/expand_lsj.py', 'build/lsj_principal_parts.py',
@@ -15,9 +19,10 @@ SOURCE_FILES = (
 )
 
 CLOSED_CLASS_SOURCE_FILES = ('build/closed_class_elisions.py', 'build_data.py')
+# label -> flat dump name; the audit may record either layout's path.
 CLOSED_CLASS_DUMPS = {
-    'wiktionary_en_grc': 'en-el/kaikki.org-dictionary-AncientGreek.jsonl',
-    'wiktionary_el_grc': 'el/kaikki.org-dictionary-AncientGreek.jsonl',
+    'wiktionary_en_grc': 'kaikki.org-en-dictionary-AncientGreek.jsonl',
+    'wiktionary_el_grc': 'kaikki.org-el-dictionary-AncientGreek.jsonl',
 }
 
 
@@ -70,9 +75,11 @@ def validate_closed_class_evidence(audit, repo, kaikki, sources):
     assert kaikki is not None, '--kaikki is required to verify fresh closed-class sources'
     assert set(block['external_input_sha256']) == set(CLOSED_CLASS_DUMPS)
     external = {}
-    for label, relative in CLOSED_CLASS_DUMPS.items():
+    for label, filename in CLOSED_CLASS_DUMPS.items():
         expected = block['external_input_sha256'][label]
-        assert expected == {'path': relative, **pin(kaikki / relative)}, label
+        assert expected.get('path') in layout_names(filename), label
+        assert expected == {'path': expected['path'],
+                            **pin(resolve_dump(filename, kaikki))}, label
         external[label] = expected
     assert set(block['source_sha256']) == set(CLOSED_CLASS_SOURCE_FILES)
     for name in CLOSED_CLASS_SOURCE_FILES:
@@ -139,8 +146,8 @@ def main() -> None:
     assert sources['build/expand_lsj.py']['sha256'] == audit['cell_pattern_source_sha256']
     external_inputs, closed_class = validate_closed_class_evidence(
         audit, args.repo, args.kaikki, sources)
-    external_before = {label: pin(args.kaikki / row['path'])
-                       for label, row in external_inputs.items()}
+    external_before = {label: pin(resolve_dump(CLOSED_CLASS_DUMPS[label], args.kaikki))
+                       for label in external_inputs}
     inputs = {}
     for name, expected in audit['input_sha256'].items():
         assert Path(name).name == name
@@ -150,6 +157,8 @@ def main() -> None:
     reference_manifest = json.loads((args.repo / 'data/ag_expansion_reference.json').read_text())
     assert reference_manifest['reference']['sha256'] == audit['reference_sha256']
     assert reference_manifest['reference_base']['sha256'] == audit['reference_base_sha256']
+    carried_baseline = reference_manifest.get('carried_baseline')
+    assert (carried_baseline or {}).get('sha256') == audit.get('carried_baseline_sha256')
     for label in ('reference_base', 'exclusions'):
         expected = reference_manifest[label]
         assert pin(args.repo / expected['path']) == {key: expected[key] for key in ('sha256', 'size')}
@@ -157,6 +166,20 @@ def main() -> None:
         'data/ag_noun_generation_audit.json', 'data/ag_sophocles_noun_generation_audit.json')}
     lookup = json.loads(args.lookup.read_text())
     final_count = len(lookup)
+    # The overlay appends the unaccented keys it gives back after the alias
+    # changes; the audit records their count and digest. Remove exactly
+    # those trailing rows first, so the alias reversal starts from the table
+    # the alias step left.
+    unmarked_restore = audit.get('unmarked_key_restore') or {'count': 0}
+    if unmarked_restore['count']:
+        newest_first = reversed(lookup)
+        tail = [next(newest_first) for _ in range(unmarked_restore['count'])][::-1]
+        hasher = hashlib.sha256()
+        for key in tail:
+            hasher.update(f'{key}\t{lookup[key]}\n'.encode('utf-8'))
+        assert hasher.hexdigest() == unmarked_restore['sha256']
+        for key in tail:
+            del lookup[key]
     assert len(audit['recovered']) == audit['recovered_count']
     assert len(audit['canonicalized']) == audit['canonicalized_count']
     recovered_forms = {row['form'] for row in audit['recovered']}
@@ -176,8 +199,8 @@ def main() -> None:
     restored = {'sha256': writer.digest.hexdigest(), 'size': writer.size}
     assert restored == predecessor_pin
     assert before == {path: pin(path) for path in artifact_paths}
-    assert external_before == {label: pin(args.kaikki / row['path'])
-                               for label, row in external_inputs.items()}
+    assert external_before == {label: pin(resolve_dump(CLOSED_CLASS_DUMPS[label], args.kaikki))
+                               for label in external_inputs}
     assert sources == {name: pin(args.repo / name) for name in source_files}
     assert inputs == {name: pin(args.repo / name) for name in inputs}
     manifest = {
@@ -202,6 +225,7 @@ def main() -> None:
         'historical_reference': reference_manifest['reference'],
         'historical_reference_base': reference_manifest['reference_base'],
         'historical_exclusions': reference_manifest['exclusions'],
+        'carried_baseline': carried_baseline,
         'noun_generation_audits': noun_audits,
         'scope': {
             'description': 'Recover exact source cells and normalized lookup aliases in historical withheld irregular-compound families; recover independently re-owned cells only within the documented historical-key shape scope. Historical-only marked PRON/DET owners may be canonicalized only from unique current source readings and explicit literal-completion cells in fresh same-POS definitions. No approximate paradigm generation.',
@@ -216,7 +240,8 @@ def main() -> None:
         },
         'reversal': {
             'result': 'byte_equal',
-            'procedure': 'Delete recovered rows; restore current_owner for canonicalized rows; serialize unchanged dictionary order as UTF-8 JSON with compact separators and a final newline.',
+            'procedure': 'Delete the trailing unaccented keys the audit counts and digests; delete recovered rows; restore current_owner for canonicalized rows; serialize unchanged dictionary order as UTF-8 JSON with compact separators and a final newline.',
+            'unaccented_keys_removed': unmarked_restore['count'],
             'restored_target': restored,
         },
         'purpose': 'Ancillary provenance and reversible change audit; not a runtime or CI download requirement.',
