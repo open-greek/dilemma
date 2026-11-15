@@ -668,12 +668,19 @@ a POS entry does not override a lookup reading together with its
 capitalized twin, so tagged results for genuine homographs such as `ἀξίαν`
 (`ἄξιος`) and `ἱερὰ` (`ἱερόν`) follow the single lookup reading.
 
-Reviewed corrections to individual cells of the treebank, GLAUx and
-Wiktionary POS tables are kept in `data/pos_cell_corrections.json`, with a
-reason and evidence for each row, and are applied when the tables load
-(`μάκαρ` ADJ is `μάκαρ`, not the AGDT typo `μάκαπ`; numerals have no
-multiplicative-adverb ADV cell). A row applies only while the table still
-holds its target, so a rebuilt table that fixed a cell leaves the row inert.
+Reviewed corrections to individual cells of the treebank, GLAUx,
+Wiktionary (Ancient and Modern) and LSJ9 POS tables are kept in
+`data/pos_cell_corrections.json`, with a reason and evidence for each row,
+and are applied when the tables load (`μάκαρ` ADJ is `μάκαρ`, not the AGDT
+typo `μάκαπ`; numerals have no multiplicative-adverb ADV cell). A row
+applies only while the table still holds its target, so a rebuilt table that
+fixed a cell leaves the row inert. An `add` row supplies a cell only while
+the table has none for that form and tag: the Modern table lists only forms
+with several Modern readings, so `ας` PART (the Modern particle) needs one
+under `lang="all"`, where the Ancient `ὅς` would otherwise answer (#128).
+A single candidate that differs from the untagged answer only in case does
+not replace it when its case disagrees with the form and tag (`γ` VERB stays
+`γ`, not `Γ`).
 Some corpus texts write an initial rho without its breathing, so the Ancient
 corpus POS tables hold targets such as `ρῆσις` and `ρέω` under `ρήσεις`. For
 Ancient input such a target is skipped and the lookup candidates decide

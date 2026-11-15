@@ -1209,3 +1209,55 @@ def test_shipped_polytonic_pos_readings_under_triantafyllidis(form, upos, lemma)
     model = _shipped_triantafyllidis_model()
     assert model.lemmatize_pos(form, upos, guess=False) == lemma
     assert model.lemmatize_batch_pos([form], [upos], guess=False) == [lemma]
+
+
+# #133: the reviewed non-lemma filter (#108) also guards the fallback readings.
+
+_STALE_REJECTED_CELLS = {
+    "Ταύτῃ": {"PROPN": "Ταύτη", "PRON": "οὗτος"},
+    "Τούτου": {"PROPN": "Τοῦτος"},
+    "λυόμενος": {"VERB": "Ταύτη"},
+}
+
+
+def test_fallback_readings_skip_reviewed_non_lemmas(fallback_model):
+    from dilemma.grc_rejected_lemmas import REJECTED_LEMMAS
+
+    model = fallback_model({}, _STALE_REJECTED_CELLS)
+    model._load_fallback_readings()
+    for table in (model._fallback_readings, model._fallback_exact_readings):
+        assert not {lemma for cells in table.values()
+                    for lemmas in cells.values() for lemma in lemmas} & REJECTED_LEMMAS
+    assert not model._fallback_verb_lemmas & REJECTED_LEMMAS
+    # The retained reading of a partly rejected form stays.
+    assert model._grammatical_readings("Ταύτῃ") == {"PRON": {"οὗτος"}}
+    # A form whose every cell is rejected leaves no empty exact entry.
+    assert "Τούτου" not in model._fallback_exact_readings
+
+
+def test_normalisation_lookup_cannot_return_a_reviewed_non_lemma(fallback_model):
+    model = fallback_model({}, _STALE_REJECTED_CELLS)
+    assert model._lookup_grammatical_word("Τούτου") is None
+    assert model._lookup_grammatical_word(
+        "Τούτου", normalization=True, source_word="Τουτου") is None
+    assert model._lookup_grammatical_word("Ταύτῃ") == "οὗτος"
+
+
+def test_participle_nominative_cannot_return_a_reviewed_non_lemma(fallback_model):
+    # A stale VERB cell for the rebuilt nominative used to be the only
+    # grammatical target, so the oblique participle took it.
+    model = fallback_model({"λυόμενος": "λυόμενον"}, _STALE_REJECTED_CELLS)
+    assert model._participle_nominative_lemma("λυομένῳ") is None
+    assert model._lookup_grammatical_word("λυόμενος", verb_only=True) is None
+
+
+@pytest.mark.parametrize("word,upos,baseline,candidate,disagrees", [
+    ("γ", "VERB", "γ", "Γ", True),        # #128: lowercase form keeps γ
+    ("Γ", "VERB", "γ", "Γ", False),
+    ("ερις", "PROPN", "ἔρις", "Ἔρις", False),
+    ("Ἔριδος", "PROPN", "Ἔρις", "ἔρις", True),
+    ("ὀνῶν", "NOUN", "ονη", "ὀνή", False),  # a re-accent still replaces
+])
+def test_single_candidate_recase_follows_form_and_tag(word, upos, baseline,
+                                                      candidate, disagrees):
+    assert core.Dilemma._recase_disagrees(word, upos, baseline, candidate) is disagrees
