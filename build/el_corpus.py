@@ -185,11 +185,13 @@ def raw_dir() -> Path:
 
 
 def kaikki_dir() -> Path:
-    """The kaikki.org Wiktionary dumps: ``$DILEMMA_KAIKKI_DIR``, else the
-    checkout's ``kaikki/``, else the main checkout's (for worktrees)."""
-    env = os.environ.get("DILEMMA_KAIKKI_DIR")
+    """The kaikki.org Wiktionary dumps: ``$DILEMMA_KAIKKI_DIR`` (or the older
+    ``$KAIKKI_DIR``), else the checkout's ``kaikki/``, else the main
+    checkout's (for worktrees)."""
+    from dilemma_build.kaikki_dumps import env_dump_dir
+    env = env_dump_dir()
     if env:
-        return Path(env)
+        return env
     here = ROOT / "kaikki"
     if here.exists():
         return here

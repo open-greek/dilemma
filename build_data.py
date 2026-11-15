@@ -43,6 +43,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from dilemma.verb_source import is_periphrastic_auxiliary
+from dilemma_build.kaikki_dumps import (  # noqa: F401  (re-exported)
+    DUMPS, EL_DIALECT_DUMP, NESTED_MAP as _NESTED_MAP, env_dump_dir, resolve_dump,
+)
 from dilemma.nominal_header_forms import (is_abbreviated_nominal_header,
                                          is_modern_nominal_fragment)
 from dilemma.verb_table_fragments import (
@@ -53,34 +56,16 @@ from dilemma.verb_table_fragments import (
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
 
-# Default kaikki dump directory. Set KAIKKI_DIR env var to override.
-# Supports two layouts:
-#   flat:   <dir>/kaikki.org-en-dictionary-Greek.jsonl
-#   nested: <dir>/en-el/kaikki.org-dictionary-Greek-words.jsonl
-DEFAULT_DUMP_DIR = Path(os.environ.get(
-    "KAIKKI_DIR", DATA_DIR))
-
-DUMPS = {
-    "el": {
-        "en": "kaikki.org-en-dictionary-Greek.jsonl",
-        "el": "kaikki.org-el-dictionary-Greek.jsonl",
-    },
-    "grc": {
-        "en": "kaikki.org-en-dictionary-AncientGreek.jsonl",
-        "el": "kaikki.org-el-dictionary-AncientGreek.jsonl",
-    },
-    "mgr": {
-        "el": "kaikki.org-el-dictionary-MedievalGreek.jsonl",
-    },
-}
+# Default kaikki dump directory: ``$DILEMMA_KAIKKI_DIR`` (or the older
+# ``$KAIKKI_DIR``), else data/. Both the flat and the nested layout are read
+# (dilemma_build.kaikki_dumps, which also names the dumps).
+DEFAULT_DUMP_DIR = env_dump_dir() or DATA_DIR
 
 _GENDER_TAGS = frozenset({"masculine", "feminine", "neuter"})
 
-# The Greek Wiktionary heads some Modern Greek pages as Cretan or Cypriot.
-# The extract files them as languages of their own, outside the Greek file;
-# build/extract_el_dialect_sections.py collects them into this one, which the
-# Greek-edition scan reads after the Greek file (``extract_pairs``).
-EL_DIALECT_DUMP = "kaikki.org-el-dictionary-GreekDialects.jsonl"
+# Cretan and Cypriot sections of the Greek Wiktionary, collected into
+# EL_DIALECT_DUMP; the Greek-edition scan reads it after the Greek file
+# (``extract_pairs``).
 EL_DIALECT_CODES = {"el-crt": "Cretan", "el-cyp": "Cypriot"}
 
 
@@ -93,32 +78,6 @@ def tag_dialect_entry(entry: dict) -> str | None:
             if dialect not in (row.get("tags") or []):
                 row["tags"] = list(row.get("tags") or []) + [dialect]
     return dialect
-
-# Alternate filenames/paths for the nested directory layout
-_NESTED_MAP = {
-    "kaikki.org-en-dictionary-Greek.jsonl":
-        "en-el/kaikki.org-dictionary-Greek-words.jsonl",
-    "kaikki.org-en-dictionary-AncientGreek.jsonl":
-        "en-el/kaikki.org-dictionary-AncientGreek.jsonl",
-    "kaikki.org-el-dictionary-Greek.jsonl":
-        "el/kaikki.org-dictionary-Greek.jsonl",
-    "kaikki.org-el-dictionary-AncientGreek.jsonl":
-        "el/kaikki.org-dictionary-AncientGreek.jsonl",
-    "kaikki.org-el-dictionary-MedievalGreek.jsonl":
-        "el/kaikki.org-dictionary-MedievalGreek.jsonl",
-}
-
-
-def resolve_dump(filename: str, dump_dir: Path) -> Path:
-    """Resolve a dump filename, checking flat and nested layouts."""
-    direct = dump_dir / filename
-    if direct.exists():
-        return direct
-    if filename in _NESTED_MAP:
-        nested = dump_dir / _NESTED_MAP[filename]
-        if nested.exists():
-            return nested
-    return direct
 
 DOWNLOAD_URLS = {
     "kaikki.org-en-dictionary-Greek.jsonl":

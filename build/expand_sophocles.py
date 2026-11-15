@@ -29,6 +29,7 @@ from expand_lsj import (
     load_wiktionary_genitives, resolve_noun_genitive, _genitive_is_junk,
     noun_generation_input_hashes,
     noun_expansion_error,
+    add_input_arguments, configure_inputs,
 )
 from dilemma.form_sanitize import (  # noqa: E402
     has_editorial_sigla,
@@ -571,7 +572,9 @@ def main():
                         help="Expand nouns and merge into ag_lookup.json")
     parser.add_argument("--expand-verbs", action="store_true",
                         help="Expand verbs and merge into ag_lookup.json")
+    add_input_arguments(parser)
     args = parser.parse_args()
+    configure_inputs(args.kaikki, args.lsj9_dir)
 
     if args.analyze:
         analyze()

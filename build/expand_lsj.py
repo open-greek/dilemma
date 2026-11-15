@@ -39,20 +39,46 @@ from lsj_principal_parts import (  # noqa: E402
 )
 
 DATA_DIR = SCRIPT_DIR / "data"
-LSJ9_DIR = Path.home() / "Documents" / "lsj9"
+from kaikki_dumps import DUMPS, env_dump_dir, resolve_dump  # noqa: E402
+
+# LSJ9 exports: ``$DILEMMA_LSJ9_DIR`` (or ``--lsj9-dir``), else ~/Documents/lsj9.
+LSJ9_DIR = Path(os.environ.get("DILEMMA_LSJ9_DIR")
+                or Path.home() / "Documents" / "lsj9")
 LSJ9_FORMS = LSJ9_DIR / "lsj9_forms.tsv"
 LSJ9_HEADWORDS = LSJ9_DIR / "lsj9_headwords.json"
 LSJ9_GLOSSES = LSJ9_DIR / "lsj9_glosses.jsonl"
-KAIKKI_DIR = Path(os.environ.get(
-    "KAIKKI_DIR", Path.home() / "Documents" / "kaikki"))
-# Try nested layout first (en-el/), then flat layout
-_KAIKKI_AG_NESTED = KAIKKI_DIR / "en-el" / "kaikki.org-dictionary-AncientGreek.jsonl"
-_KAIKKI_AG_FLAT = KAIKKI_DIR / "kaikki.org-en-dictionary-AncientGreek.jsonl"
-KAIKKI_AG = _KAIKKI_AG_NESTED if _KAIKKI_AG_NESTED.exists() else _KAIKKI_AG_FLAT
-_KAIKKI_AG_EL_NESTED = KAIKKI_DIR / "el" / "kaikki.org-dictionary-AncientGreek.jsonl"
-_KAIKKI_AG_EL_FLAT = KAIKKI_DIR / "kaikki.org-el-dictionary-AncientGreek.jsonl"
-KAIKKI_AG_EL = (_KAIKKI_AG_EL_NESTED if _KAIKKI_AG_EL_NESTED.exists()
-                else _KAIKKI_AG_EL_FLAT)
+# kaikki dumps: ``--kaikki``, else ``$DILEMMA_KAIKKI_DIR`` (or the older
+# ``$KAIKKI_DIR``), else the checkout's kaikki/; flat or nested layout.
+KAIKKI_DIR = env_dump_dir() or SCRIPT_DIR / "kaikki"
+KAIKKI_AG = resolve_dump(DUMPS["grc"]["en"], KAIKKI_DIR)
+KAIKKI_AG_EL = resolve_dump(DUMPS["grc"]["el"], KAIKKI_DIR)
+
+
+def configure_inputs(kaikki: Path | None = None, lsj9_dir: Path | None = None) -> None:
+    """Point the dump and LSJ9 paths at other directories (the ``--kaikki``
+    and ``--lsj9-dir`` options of this script and expand_sophocles.py)."""
+    global KAIKKI_DIR, KAIKKI_AG, KAIKKI_AG_EL
+    global LSJ9_DIR, LSJ9_FORMS, LSJ9_HEADWORDS, LSJ9_GLOSSES
+    if kaikki is not None:
+        KAIKKI_DIR = Path(kaikki)
+        KAIKKI_AG = resolve_dump(DUMPS["grc"]["en"], KAIKKI_DIR)
+        KAIKKI_AG_EL = resolve_dump(DUMPS["grc"]["el"], KAIKKI_DIR)
+    if lsj9_dir is not None:
+        LSJ9_DIR = Path(lsj9_dir)
+        LSJ9_FORMS = LSJ9_DIR / "lsj9_forms.tsv"
+        LSJ9_HEADWORDS = LSJ9_DIR / "lsj9_headwords.json"
+        LSJ9_GLOSSES = LSJ9_DIR / "lsj9_glosses.jsonl"
+
+
+def add_input_arguments(parser) -> None:
+    parser.add_argument("--kaikki", type=Path, default=None,
+                        help="kaikki dump directory, flat or nested layout "
+                             "(default: $DILEMMA_KAIKKI_DIR, else ./kaikki)")
+    parser.add_argument("--lsj9-dir", type=Path, default=None,
+                        help="LSJ9 export directory (default: $DILEMMA_LSJ9_DIR, "
+                             "else ~/Documents/lsj9)")
+
+
 WTP_DB = DATA_DIR / "wtp.db"
 
 # --- Lua runtime compatibility for running Wiktionary's grc modules via wtp ---
@@ -438,7 +464,7 @@ def _parse_lsj9_headwords():
     return entries
 
 
-def parse_lsj9_entries(forms_path: Path = LSJ9_FORMS) -> dict:
+def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
     """Load entries from lsj9_forms.tsv (an upstream LSJ9 export).
 
     This provides explicit grammar (ὁ/ἡ/τό/ον/ές) and pre-extracted
@@ -447,6 +473,7 @@ def parse_lsj9_entries(forms_path: Path = LSJ9_FORMS) -> dict:
     Returns same format as parse_lsj_entries(): {headword: {headword,
     orth_orig, article, gender, itype, genitive}}.
     """
+    forms_path = forms_path or LSJ9_FORMS
     if not forms_path.exists():
         print(f"  lsj9_forms.tsv not found at {forms_path}")
         return {}
@@ -1884,7 +1911,9 @@ def main():
                         help="Expand LSJ-only verb entries and add to lookup")
     parser.add_argument("--dry-run", action="store_true",
                         help="With --expand, show stats but don't save")
+    add_input_arguments(parser)
     args = parser.parse_args()
+    configure_inputs(args.kaikki, args.lsj9_dir)
 
     if args.setup:
         setup_wtp()

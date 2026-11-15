@@ -23,20 +23,22 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from dilemma.form_sanitize import nonlexical_generated_lemma, sanitize_form
+from dilemma_build.kaikki_dumps import DUMPS, resolve_dump
 from build_data import (
     _is_verb_inflection_gloss, _is_ancient_reference_gloss,
     _is_closed_class_inflection_gloss, _declared_ancient_nominal_form,
     is_independent_finite_entry,
 )
 
+# (source, dump file name, language); dumps resolve in either layout.
 KAIKKI_INPUTS = (
-    ("wiktionary_en_grc", "en-el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
-    ("wiktionary_el_grc", "el/kaikki.org-dictionary-AncientGreek.jsonl", "grc"),
-    ("wiktionary_el_medieval", "el/kaikki.org-dictionary-MedievalGreek.jsonl", "gkm"),
+    ("wiktionary_en_grc", DUMPS["grc"]["en"], "grc"),
+    ("wiktionary_el_grc", DUMPS["grc"]["el"], "grc"),
+    ("wiktionary_el_medieval", DUMPS["mgr"]["el"], "gkm"),
 )
 VERNACULAR_INPUTS = (
-    ("wiktionary_en_el", "en-el/kaikki.org-dictionary-Greek-words.jsonl", "el"),
-    ("wiktionary_el_el", "el/kaikki.org-dictionary-Greek.jsonl", "el"),
+    ("wiktionary_en_el", DUMPS["el"]["en"], "el"),
+    ("wiktionary_el_el", DUMPS["el"]["el"], "el"),
 )
 EDITED_INPUTS = (
     "dge_headwords.json", "cunliffe_headwords.json", "lgpn_names.json",
@@ -205,8 +207,8 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
             target[word].add(source)
             counts[source] += 1
 
-    for source, relative, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
-        path = kaikki / relative
+    for source, filename, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
+        path = resolve_dump(filename, kaikki)
         pin(source, path)
         with path.open(encoding="utf-8") as stream:
             for line in stream:

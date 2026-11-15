@@ -16,12 +16,16 @@ def test_dump_argument_binds_noun_input_validation_before_loading(tmp_path, monk
     class ReachedInputValidation(Exception):
         pass
 
+    from dilemma_build.kaikki_dumps import env_dump_dir
+
     monkeypatch.setenv('KAIKKI_DIR', str(tmp_path / 'older'))
+    monkeypatch.setenv('DILEMMA_KAIKKI_DIR', str(tmp_path / 'older'))
     fresh = tmp_path / 'fresh'
     monkeypatch.setattr(sys, 'argv', ['overlay_lsj.py', '--kaikki', str(fresh)])
 
     def validate(path):
-        assert os.environ['KAIKKI_DIR'] == str(fresh)
+        assert os.environ['DILEMMA_KAIKKI_DIR'] == str(fresh)
+        assert env_dump_dir() == fresh
         raise ReachedInputValidation
 
     monkeypatch.setattr(overlay, 'load_noun_generation_audit', validate)
