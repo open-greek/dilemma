@@ -3,6 +3,7 @@
 [README](../README.md)
 
 - [Build commands](#build-commands)
+- [Sophocles heads](#sophocles-heads)
 - [Historical expansion overlay](#historical-expansion-overlay)
 - [Corpus and lexical evidence](#corpus-and-lexical-evidence)
 - [Verb expansion](#verb-expansion)
@@ -32,7 +33,8 @@ read from `--lsj9-dir`, `$DILEMMA_LSJ9_DIR` or `~/Documents/lsj9`), the
 Sophocles TEI data (included in `data/sophocles/`), and a current
 `data/grc_lexical_heads.json`, whose `sophocles_breathing` record supplies the
 breathings the Sophocles OCR lost (`expand_sophocles.py` refuses to run
-without it). `--kaikki` names the dump directory in either layout
+without it) and whose heads decide two of the [head rules](#sophocles-heads).
+`--kaikki` names the dump directory in either layout
 ([Dump directories](development.md#dump-directories)).
 
 The verb pass reads each headword's LSJ text from `lsj9_glosses.jsonl` to add
@@ -54,6 +56,79 @@ citations. The verb pass reads it only for principal parts: a tense the current
 text gives stands, a tense it lacks is taken from the earlier text, and the
 three aorist slots are filled only together. 978 verb entries gain 3,018
 principal parts this way. Entry rejections still read the current text alone.
+
+## Sophocles heads
+
+`build/expand_sophocles.py` reads each entry's head from its `<orth>` element.
+The text is OCR, so the first word is not taken as it stands: five rules
+decide what is generated, and under which head. Nouns, adverbs and verbs
+are read through the same rules.
+
+- **A phrase is not an entry.** When another Greek word follows the first
+  one inside the `<orth>`, before its first comma, the head is a phrase or a
+  word the OCR split, and nothing is generated from its first word:
+  `Νέα Ῥώμη` gives no paradigm of `Νέα`, and `κατα- φθάνω` none of `κατα`.
+  Whatever follows a full stop, colon, semicolon, dash, equals sign or run of
+  hyphens is entry text, and so is a parenthesis, a digit or a Latin word
+  (`or`, `for`, a citation); the first word then stays the head
+  (`βιοθανέω ---- βιαιοθανατέω`, `γιγαντιάω (γίγας)`,
+  `Ἱριάδιτζα or Τριαδίτζα`).
+- **A stated gender wins over the ending.** An article that is the first
+  field after the head, or that follows one field (the genitive, which the
+  OCR may garble), states the noun's gender: `καισάριης, ἡ`,
+  `ἀτρεπτότης, ητος; ἡ`. The ending classes then supply a genitive only
+  through a class of that gender (`ἀντίστροφος, ου, ἡ` is declined as a
+  feminine in -ος). Where the ending has no such class the shared genitive
+  resolver decides, and the noun is withheld when it finds no genitive
+  either: `καισάριης, ἡ` (Latin *caesaries*) used to get the masculine
+  paradigm in -ου. An article further on belongs to the definition and stays
+  a guess, as does the `ἡ` the OCR reads for an adjective's feminine ending
+  (`ἀρθρικός, ἡ. ὄν`).
+- **A malformed head is rejected.** A head with two accents (`Ἔρετριάς`,
+  `οἴηματικός`) or with a hyphen or dash inside it (`Σινα-ῖτις`,
+  `ὕπο-κατασκευή`) is not generated. The one repair is to drop the hyphens,
+  and only when the joined word has a single accent and a lexical source
+  other than Sophocles lists it in `grc_lexical_heads.json`: `καθ-ηδύνω` is
+  read as `καθηδύνω` and expanded under that head, unless the table already
+  has it.
+- **A capitalized common word goes under its lowercase head.** When the
+  other lexical sources list the lowercase spelling of a capitalized head and
+  none lists the capitalized one, the capital is the lexicon's typography:
+  the entry `᾿Αθεότης` is read as `ἀθεότης`, and generated there unless the
+  table already has that head. A breathing the OCR prints as a separate mark
+  before the capital is joined to it for this comparison. A capitalized head
+  another source lists (`Πέτρα` beside `πέτρα`), or one without a lowercase
+  twin, is a name and stays.
+- **A capitalized unaccented key does not shadow a lowercase reading.** Every
+  generated form also gets an accent-stripped key. A capitalized one is
+  withheld when its lowercase spelling already reads another lemma:
+  `Εστιας` for `Ἑστιάς` would take the unaccented reading of `ἑστία`.
+
+The noun step records the decisions in
+`data/ag_sophocles_noun_generation_audit.json`, each record with its `count`:
+
+- `head_rules.multi_word_heads`: every phrase and its first word;
+- `head_rules.stated_gender`: every noun whose stated gender is not the
+  gender of its ending's class, with both and the result (`expanded`, or the
+  reason the noun was withheld);
+- `head_rules.malformed_heads`: every rejected head and the reason
+  (`two-accents`, `inner-hyphen`);
+- `head_rules.repaired_heads` and `head_rules.lowercased_heads`: every
+  printed head and the head it is read under;
+- `withheld_capitalized_keys`: every withheld key with its lemma and the
+  lowercase reading.
+
+The head records cover verbs and adverbs as well, because every step reads
+the same heads. The verb step writes its own withheld keys to
+`data/ag_sophocles_verb_generation_audit.json`. The lexical heads the repair
+and the lowercase rule read are pinned among the noun audit's inputs
+(`input_sha256.lexical_heads`), so the overlay refuses an audit made against
+other heads.
+
+The rules change what the generator writes, not what the overlay recovers.
+`superseded_lemmas` still names a lemma as the lexicon prints it, because the
+historical layer keyed its rows that way, so a rejected or re-keyed head that
+is not superseded keeps the marked rows the pinned reference has for it.
 
 ## Historical expansion overlay
 
