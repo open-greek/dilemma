@@ -41,7 +41,8 @@ def run_noun_step(tmp_path, monkeypatch, lookup, *entries, forms=None):
 
     def expand_noun(wtp, head, gender, genitive, wikt_genitives=None):
         calls.append((head, gender, genitive))
-        return set((forms or {}).get(head, [head])), ""
+        _, error = S.resolve_noun_genitive(head, gender, genitive, wikt_genitives)
+        return (set(), error) if error else (set((forms or {}).get(head, [head])), "")
 
     monkeypatch.setattr(S, "expand_noun", expand_noun)
     S.expand_all()
@@ -115,3 +116,67 @@ def test_noun_step_skips_and_records_a_phrase(tmp_path, monkeypatch):
     assert audit["schema_version"] == 1
     assert audit["head_rules"]["multi_word_heads"] == {
         "count": 2, "heads": {"Νέα Ῥώμη": "Νέα", "Νεκρὰ Θάλασσα": "Νεκρὰ"}}
+
+
+def test_article_after_the_head_states_the_gender(tmp_path, monkeypatch):
+    entries, _ = parse(
+        tmp_path, monkeypatch,
+        "<orth>καισάριης</orth>, ἡ, the Latin caesaries --- κόμη. Lyd. 95, 11.",
+        "<orth>ἀτρεπτότης</orth>, ητος; ἡ, (ἄτρεπτος) immutability.",
+        "<orth>καθολικότης</orth>, yros, ἡ, the office of καθολικός.",
+        "<orth>ἀντίστροφος</orth>, oυ, ἡ, antistrophe, in versification.",
+        "<orth>τένων</orth>, οντος, ὁ. A sinew.",
+        # the article belongs to the definition: a guess, not a statement
+        "<orth>αἰσχροπάθεια</orth>, ας, η, (αἰσχροπαθής) — τὸ αἰσχρῶς πάσχειν.",
+        "<orth>διαγογγυσμός</orth>, οὔ, ὃ, --- τὸ διαγογγύζειν. Ex, 16, 8.",
+        "<orth>θάτερον</orth>, = τὸ ἅτερον (ἕτερον).",
+        # the feminine ending of an adjective, read as the article by the OCR
+        "<orth>ἀρθρικός</orth>, ἡ. ὄν, (ἄρθρον) of the article, in grammar.",
+        "<orth>πρωϊνός</orth> ἡ, όν, L. matutinus.")
+    stated = {head: (entry["gender"], entry["gender_stated"])
+              for head, entry in entries.items()}
+    assert stated == {
+        "καισάριης": ("f", True), "ἀτρεπτότης": ("f", True),
+        "καθολικότης": ("f", True), "ἀντίστροφος": ("f", True),
+        "τένων": ("m", True),
+        "αἰσχροπάθεια": ("n", False), "διαγογγυσμός": ("n", False),
+        "θάτερον": ("n", False),
+        "ἀρθρικός": ("f", False), "πρωϊνός": ("f", False)}
+
+
+def test_ending_class_keeps_to_the_stated_gender():
+    assert S.infer_from_ending("καισάριης") == ("m", "καισάριοῦ")
+    assert S.infer_from_ending("καισάριης", "f") == ("", "")
+    assert S.infer_from_ending("ἀντίστροφος") == ("m", "ἀντίστροφου")
+    assert S.infer_from_ending("ἀντίστροφος", "f") == ("f", "ἀντίστροφου")
+    assert S.infer_from_ending("βροῦμα", "f") == ("", "")
+    assert S.infer_from_ending("κινητήριον", "m") == ("", "")
+    assert S.infer_from_ending("αἰσχροπάθεια") == ("f", "αἰσχροπάθείας")
+
+
+def test_stated_gender_wins_over_the_ending(tmp_path, monkeypatch):
+    lookup, audit, calls = run_noun_step(
+        tmp_path, monkeypatch, {},
+        "<orth>καισάριης</orth>, ἡ, the Latin caesaries --- κόμη.",
+        "<orth>φάκιης</orth>, ἡ, facies = ὄψις. Lyd. 145.",
+        "<orth>καλλίπενθος</orth>, eos, τὸ, good πένθος for sin.",
+        "<orth>ἀντίστροφος</orth>, oυ, ἡ, antistrophe, in versification.",
+        "<orth>βροῦμα</orth>, ἡ, the Latin bruma.",
+        "<orth>διαγογγυσμός</orth>, οὔ, ὃ, --- τὸ διαγογγύζειν.",
+        "<orth>ἀρθρικός</orth>, ἡ. ὄν, (ἄρθρον) of the article.")
+    assert calls == [
+        ("καισάριης", "f", ""), ("φάκιης", "f", ""), ("καλλίπενθος", "n", ""),
+        ("ἀντίστροφος", "f", "ἀντίστροφου"), ("βροῦμα", "f", ""),
+        # no stated gender: the ending decides, as before
+        ("διαγογγυσμός", "m", "διαγογγυσμου"), ("ἀρθρικός", "m", "ἀρθρικου")]
+    # no class fits the stated gender and the ending: nothing is generated
+    assert not {"καισάριης", "φάκιης", "καλλίπενθος"} & set(lookup.values())
+    assert {"ἀντίστροφος", "βροῦμα", "διαγογγυσμός"} <= set(lookup.values())
+    assert audit["failures"] == {"missing-genitive": 3}
+    assert audit["head_rules"]["stated_gender"] == {"count": 5, "heads": {
+        "καισάριης": {"stated": "f", "ending_class": "m", "result": "missing-genitive"},
+        "φάκιης": {"stated": "f", "ending_class": "m", "result": "missing-genitive"},
+        "καλλίπενθος": {"stated": "n", "ending_class": "m",
+                        "result": "missing-genitive"},
+        "ἀντίστροφος": {"stated": "f", "ending_class": "m", "result": "expanded"},
+        "βροῦμα": {"stated": "f", "ending_class": "n", "result": "expanded"}}}

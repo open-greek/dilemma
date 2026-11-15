@@ -82,6 +82,16 @@ INLINE_GEN_RE = re.compile(
     r'(ὁ|ἡ|τό|τὸ|τά|οἱ)'     # article = gender
 )
 
+# An article states the entry's gender when it is the first field after the
+# head or follows one field, the genitive (which the OCR may garble):
+# "καισάριης, ἡ, the Latin caesaries", "ἀτρεπτότης, ητος; ἡ". An article
+# further on belongs to the definition and is only a guess.
+STATED_ARTICLE_RE = re.compile(
+    r'^[,\s]*(?:[^\s,;()=—–-]+[,;]?\s+)?(ὁ|ἡ|τό|τὸ|τά)[,\s.]')
+# ... unless the neuter ending follows it: "ἀρθρικός, ἡ. ὄν" is a three-ending
+# adjective whose feminine ή the OCR read as the article.
+_NEUTER_ENDING_NEXT = re.compile(r"^[\s.,;]*ον\b")
+
 # For entries without inline genitive, infer from ending
 ENDING_RULES = [
     # (nom_ending, gender, gen_ending) - high confidence patterns only
@@ -236,9 +246,13 @@ _THREE_ENDINGS = re.compile(r"^\s*,\s*[ηα]\s*,\s*ο?ν\b")
 _TWO_ENDINGS = re.compile(r"^\s*,\s*(ον|ες)\b")
 
 
+def _fold_ocr(text: str) -> str:
+    return strip_diacritics(text).lower().translate(_OCR_LOOKALIKES)
+
+
 def adjective_endings(after_headword: str) -> str | None:
     """'three' or 'two' when the entry gives an adjective's endings, else None."""
-    folded = strip_diacritics(after_headword[:24]).lower().translate(_OCR_LOOKALIKES)
+    folded = _fold_ocr(after_headword[:24])
     if _THREE_ENDINGS.match(folded):
         return "three"
     if _TWO_ENDINGS.match(folded):
@@ -249,7 +263,7 @@ def adjective_endings(after_headword: str) -> str | None:
 def new_head_audit():
     """An empty record of one parse's head decisions (``head_rules`` in the
     noun generation audit)."""
-    return {"printed": {}, "multi_word_heads": {}}
+    return {"printed": {}, "multi_word_heads": {}, "stated_gender": {}}
 
 
 def parse_sophocles_entries(breathing=_DEFAULT, audit=None):
@@ -300,11 +314,13 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None):
             # Try to extract genitive + gender from inline text
             gender = ""
             genitive = ""
+            gender_stated = False
             m = INLINE_GEN_RE.match(after_hw)
             if m:
                 gen_ending = m.group(1).strip()
                 article = m.group(2).strip()
                 gender = GENDER_MAP.get(article, "")
+                gender_stated = bool(gender)
 
                 if gender and gen_ending:
                     # Preserve the exact source field. The shared resolver
@@ -312,9 +328,14 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None):
                     genitive = gen_ending
             else:
                 # Check for just an article without genitive
-                article_m = re.search(r'[,\s]+(ὁ|ἡ|τό|τὸ|τά)[,\s.]', after_hw[:30])
+                stated_m = STATED_ARTICLE_RE.match(after_hw)
+                article_m = stated_m or re.search(
+                    r'[,\s]+(ὁ|ἡ|τό|τὸ|τά)[,\s.]', after_hw[:30])
                 if article_m:
                     gender = GENDER_MAP.get(article_m.group(1), "")
+                    gender_stated = stated_m is not None and not (
+                        _NEUTER_ENDING_NEXT.match(_fold_ocr(
+                            after_hw[stated_m.end(1):stated_m.end(1) + 8])))
 
             # Check for adjective markers
             endings = adjective_endings(after_hw)
@@ -327,6 +348,7 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None):
             entry = {
                 "headword": printed,
                 "gender": gender,
+                "gender_stated": gender_stated,
                 "genitive": genitive,
                 "supplied_genitive": genitive,
                 "is_adj": is_adj,
@@ -350,14 +372,19 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None):
     return entries
 
 
-def infer_from_ending(hw):
-    """Infer gender and genitive from headword ending pattern."""
+def infer_from_ending(hw, gender=""):
+    """Infer gender and genitive from headword ending pattern.
+
+    ``gender`` is the gender the entry states: only a class of that gender
+    is returned, and ("", "") when the ending has none."""
     hw_plain = strip_diacritics(hw)
-    for nom_end, gender, gen_end in ENDING_RULES:
+    for nom_end, rule_gender, gen_end in ENDING_RULES:
+        if gender and rule_gender != gender:
+            continue
         nom_end_plain = strip_diacritics(nom_end)
         if hw_plain.endswith(nom_end_plain):
             stem = hw[:-len(nom_end)]
-            return gender, stem + gen_end
+            return rule_gender, stem + gen_end
     return "", ""
 
 
@@ -425,8 +452,16 @@ def analyze(audit=None):
             has_gender_gen += 1
             expandable.append(hw)
         else:
-            # Try ending inference
-            g, gen = infer_from_ending(hw)
+            # Try ending inference. A stated gender wins: the ending gives
+            # the genitive only through a class of that gender, and without
+            # one the shared resolver decides (or withholds the noun).
+            stated = entry["gender"] if entry.get("gender_stated") else ""
+            g, gen = infer_from_ending(hw, stated)
+            if stated and audit is not None:
+                by_ending = infer_from_ending(hw)[0]
+                if by_ending and by_ending != stated:
+                    audit.setdefault("stated_gender", {})[hw] = {
+                        "stated": stated, "ending_class": by_ending}
             if g:
                 inferable += 1
                 entry["gender"] = g
@@ -496,6 +531,9 @@ def expand_all():
         genitive = entry["genitive"]
 
         forms, err = expand_noun(wtp, hw, gender, genitive, wikt_genitives)
+        if hw in head_audit["stated_gender"]:
+            head_audit["stated_gender"][hw]["result"] = (
+                "expanded" if forms and not err else err or "empty-noun-paradigm")
 
         if err or not forms:
             stats["failed"] += 1
