@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "description": "Reviewed corrections to cells of the POS disambiguation tables (treebank_pos_lookup.json, glaux_pos_lookup.json, ag_pos_lookup.json). Dilemma applies them when it loads the tables, so they take effect without a table rebuild. A row applies only while the table still holds its 'target' for that form and tag; a rebuilt table that already fixed the cell leaves the row a no-op. action 'drop' removes the cell, so a lower-priority table can supply the tag; 'correct' replaces the target with 'corrected'.",
+ "description": "Reviewed corrections to cells of the POS disambiguation tables (treebank_pos_lookup.json, glaux_pos_lookup.json, ag_pos_lookup.json, mg_pos_lookup.json, lsj9_pos_lookup.json). Dilemma applies them when it loads the tables, so they take effect without a table rebuild. A row applies only while the table still holds its 'target' for that form and tag; a rebuilt table that already fixed the cell leaves the row a no-op. action 'drop' removes the cell, so a lower-priority table can supply the tag; 'correct' replaces the target with 'corrected'; 'add' (no 'target') supplies 'corrected' only while the table has no cell for that form and tag.",
  "corrections": [
   {
    "table": "treebank",
@@ -788,6 +788,36 @@
    "reason": "build_data.py's POS map gives every member of a numeral family the family's multiplicative adverb as its ADV cell; the cardinal or ordinal itself is no form of the -άκις adverb.",
    "evidence": "Untagged ἕξ gives a numeral (or ἐκτός via the accent-stripped key), never ἑξάκις; only the -άκις keys themselves are forms of ἑξάκις.",
    "issue": 105
+  },
+  {
+   "table": "mg",
+   "form": "ας",
+   "upos": "PART",
+   "action": "add",
+   "corrected": "ας",
+   "reason": "The Modern hortative particle ας. mg_pos_lookup.json lists only forms with several Modern readings; ας kept its PART cell only through the paradigm-fragment cell ADJ αισώπειος, which 1.3.25 dropped (#122), so under lang=\"all\" ας/PART fell back to the Ancient ὅς.",
+   "evidence": "Wiktionary (English and Greek editions) heads ας as a particle; the Modern lookup row gives ας; lang=\"el\" gives ας/PART -> ας; the Ancient table has no PART cell for ας (PRON/DET ὅς, CCONJ/ADV ἕως). 1.3.24 published this same cell.",
+   "issue": 128
+  },
+  {
+   "table": "ag",
+   "form": "ας",
+   "upos": "NOUN",
+   "target": "μονοτονία",
+   "action": "drop",
+   "reason": "Head-line fragment: the genitive ending -ᾱς of the declension header 'μονοτονία, -ᾱς' was read as a form of μονοτονία, and its accent-stripped key ας became a NOUN cell.",
+   "evidence": "The English Wiktionary Ancient Greek entry μονοτονία lists 'ᾱς' among its forms beside the full genitive μονοτονίᾱς; ας is no form of μονοτονία under any tag.",
+   "issue": 128
+  },
+  {
+   "table": "lsj9",
+   "form": "ονων",
+   "upos": "NOUN",
+   "target": "ὀνή",
+   "action": "drop",
+   "reason": "Accent-stripped key of ὀνῶν (genitive plural of the rare ὀνή); unaccented ονων is overwhelmingly ὄνων, the genitive plural of ὄνος, which the lookup already gives. lsj9 lists no forms of ὄνος, so its stripped key held ὀνή alone.",
+   "evidence": "form_profile.db: ὄνων 267 tokens (noun), ὀνῶν 7; lemma_attestation.json: ὄνος 2,275 tokens, ὀνή 2. The untagged lookup gives ὄνος (lang=\"el\": όνος); 1.3.24's Modern NOUN cell όνος gave ὄνος under lang=\"all\". The accented key ὀνῶν keeps its NOUN cell.",
+   "issue": 128
   }
  ]
 }

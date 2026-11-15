@@ -727,7 +727,9 @@ reason and evidence in `dilemma/grc_rejected_lemmas.py`. The lookup build
 drops every reading with such a lemma (recorded in
 `citation_hygiene_rejections.tsv` as `reviewed_rejected_target`) and rejects
 corpus pairs that name one, `build/build_glaux_pos_lookup.py` skips them, and
-the runtime ignores POS-table cells that target them. The corpora also give
+the runtime ignores POS-table cells that target them, both in the POS
+tables and in the grammatical readings behind the Byzantine-normalisation
+lookups and the participle nominative fallback (#133). The corpora also give
 some sentence-initial pronouns a capitalised name lemma that the build used to
 lowercase into another real head (`Αὕτη` → `ἄτη`, `Τούτου` → `τοῦτος`,
 `Πάντα` → `πάν`). A capitalised GLAUx or Diorisis pair is now skipped when

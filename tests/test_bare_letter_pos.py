@@ -123,7 +123,10 @@ def test_shipped_other_tags_and_untagged_are_unchanged(shipped_model):
         assert model.lemmatize("ε", guess=False) == "ἔ"
     # Accented letters are not bare: ἡ keeps the article logic.
     assert model.lemmatize_pos("ἡ", "NOUN", guess=False) == "ὁ"
-    # X keeps its answer (κ -> Κ on the DBBE gold with the Ancient lookup).
-    expected = "κ" if model.lang == "el" else "Κ"
+    # X keeps the untagged answer: the Ancient lookup's Κ under "grc";
+    # under "all" the untagged κ, not the single candidate's capital Κ,
+    # whose case disagrees with the form (#128, as γ VERB -> γ).
+    expected = "Κ" if model.lang == "grc" else "κ"
+    assert model.lemmatize("κ", guess=False) == expected
     assert model.lemmatize_pos("κ", "X", guess=False) == expected
     assert model.lemmatize_batch_pos(["κ"], ["X"], guess=False) == [expected]
