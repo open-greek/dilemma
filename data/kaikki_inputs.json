@@ -17,7 +17,7 @@
     "compression": "gzip",
     "bytes": 21328056,
     "sha256": "72072b9a6b6c33413772b62a8bfb97a218e186319c730102a19ccaf5747bd7d5",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   },
   "kaikki.org-en-dictionary-AncientGreek.jsonl": {
@@ -32,7 +32,7 @@
     "compression": "gzip",
     "bytes": 37114459,
     "sha256": "1d514efd4a8997e3402489f787671986dc1cf43f91dedef0beb9a24de6668154",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   },
   "kaikki.org-el-dictionary-Greek.jsonl": {
@@ -47,7 +47,7 @@
     "compression": "gzip",
     "bytes": 74071212,
     "sha256": "e0bc3b1c9b7dad971c2b4754193f2293e2f2ed0957919fb5b8f4a19d48d21267",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   },
   "kaikki.org-el-dictionary-AncientGreek.jsonl": {
@@ -62,7 +62,7 @@
     "compression": "gzip",
     "bytes": 8506719,
     "sha256": "54bd31adafcb730a03ec9b69917c014926c59a1a1e0cb6cfabe4255b69840ba9",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   },
   "kaikki.org-el-dictionary-MedievalGreek.jsonl": {
@@ -77,7 +77,7 @@
     "compression": "gzip",
     "bytes": 824245,
     "sha256": "a7b16c829f82f9b1ec121be11dedc2048d0936f8f04c3d8e3a5e0b9857fff542",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   },
   "kaikki.org-el-raw-wiktextract-data.jsonl.gz": {
@@ -92,7 +92,7 @@
     "compression": "none",
     "bytes": 117997939,
     "sha256": "80c83cbfb0701a4c5a201202f5a8e3b71767e3ab5c6a7f327d1c885e117a7099",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   },
   "kaikki.org-el-dictionary-GreekDialects.jsonl": {
@@ -108,7 +108,7 @@
     "compression": "gzip",
     "bytes": 59552,
     "sha256": "0f1c02805e872c5043bfce0f2bbb0e2c00a208bb8ace358e640529fc843d434b",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   },
   "kaikki.org-el-dictionary-GreekDialects.meta.json": {
@@ -124,7 +124,7 @@
     "compression": "gzip",
     "bytes": 366,
     "sha256": "04753e3b4526a65b50158b4d8955eac801a27140ac4e9826abf54a3e1b9f4d57",
-    "revision": "pending"
+    "revision": "3f40180235ec030f8350ee7dd9603abca021456d"
    }
   }
  }
