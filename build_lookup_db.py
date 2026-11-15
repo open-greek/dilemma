@@ -470,8 +470,8 @@ def ag_reading_layers(ag: dict, base: dict, reference: dict) -> dict[str, str]:
     return layers
 
 
-def load_ag_reading_layers(ag: dict) -> dict[str, str]:
-    """Read the pinned layer files and classify ``ag``'s readings."""
+def read_ag_layer_records() -> tuple[dict, dict]:
+    """The pinned Wiktionary-only base and expansion reference, verified."""
     import overlay_lsj
     for path in (AG_EXPANSION_MANIFEST_PATH, AG_WIKTIONARY_BASE_PATH):
         if not path.exists():
@@ -487,7 +487,121 @@ def load_ag_reading_layers(ag: dict) -> dict[str, str]:
         base = json.load(handle)
     with open(reference_path, encoding="utf-8") as handle:
         reference = json.load(handle)
+    return base, reference
+
+
+def load_ag_reading_layers(ag: dict) -> dict[str, str]:
+    """Read the pinned layer files and classify ``ag``'s readings."""
+    base, reference = read_ag_layer_records()
     return ag_reading_layers(ag, base, reference)
+
+
+# The Wiktionary extracts of grc_lexical_heads.json. A head they list has an
+# entry of its own that defines it, not only an inflection or alternative-form
+# entry (build/build_grc_lexical_heads.py).
+WIKTIONARY_HEAD_SOURCES = frozenset({"wiktionary_en_grc", "wiktionary_el_grc"})
+
+
+def lexical_heads_by_kind(path: Path) -> tuple[frozenset[str], frozenset[str]]:
+    """The Ancient heads of grc_lexical_heads.json: (Wiktionary, all).
+
+    The first set holds the heads a Wiktionary extract defines in an entry of
+    their own; the second every listed head, dictionaries included. A head
+    list without sources (older files and test fixtures) yields two empty
+    sets.
+    """
+    heads = json.loads(path.read_text(encoding="utf-8"))["heads"]
+    if not isinstance(heads, dict):
+        return frozenset(), frozenset()
+    return (frozenset(head for head, sources in heads.items()
+                      if WIKTIONARY_HEAD_SOURCES.intersection(sources)),
+            frozenset(heads))
+
+
+def displaced_head_candidates(ag: dict, wiktionary_heads, listed_heads=(),
+                              base: dict = None) -> dict[str, str]:
+    """Heads whose Ancient reading is another lemma: {head: lemma}.
+
+    Every Wiktionary head qualifies; another listed head only where the
+    pinned Wiktionary-only base reads it as itself.
+    """
+    base = base or {}
+    heads = set(wiktionary_heads) | {head for head in listed_heads
+                                     if base.get(head) == head}
+    return {head: ag[head] for head in sorted(heads)
+            if isinstance(ag.get(head), str) and ag[head] != head}
+
+
+def corpus_form_evidence(pairs, forms) -> dict[str, dict[str, int]]:
+    """Token counts by lemma of each listed form in counted corpus pairs."""
+    evidence: dict[str, dict[str, int]] = {}
+    for pair in pairs:
+        form = pair["form"]
+        if form in forms:
+            counts = evidence.setdefault(form, {})
+            counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
+    return evidence
+
+
+def restore_displaced_lexical_heads(ag: dict, *, wiktionary_heads, base: dict,
+                                    evidence: dict, listed_heads=(),
+                                    eligible=None) -> list[dict]:
+    """Give a lexical head back its own reading when another lemma took it.
+
+    The merged Ancient table can read a word that has an entry of its own as
+    a form of another word: a homograph entry on the same Wiktionary page
+    (κλαίω is also a future of κλείω, ἄπειρος a Doric spelling of ἤπειρος),
+    a name page's lowercase key (δῖος -> Δῖος), or a page that lists the word
+    in its table (γραφή -> γραφεύς). Both readings are real, and the POS
+    table keeps both; the lookup holds one, so the head takes it back where
+    the evidence prefers it:
+
+    - the counted corpus pairs (GLAUx) read the form as the head more often
+      than as the lemma that displaced it (ἕως 5,399 to 1, against ἠώς), or
+    - for a head Wiktionary defines, they are silent or tied and the pinned
+      Wiktionary-only base reads the head as itself.
+
+    A head only a dictionary lists (``listed_heads``: σπαθίον, κατέναντι)
+    is considered where the base reads it as itself, and needs the corpus
+    majority: those lists and the base also hold inflected forms. Where the
+    corpus prefers the other lemma (τοῦ, ἴσον, θρόνον), or neither source
+    supports the head, the reading stays. A restored head's unaccented,
+    lowercase and monotonic keys follow it when they hold the same
+    displaced lemma, are no listed head themselves, and no other restored
+    head claims them.
+
+    ``eligible(form)``, when given, limits the change to keys whose reading
+    came from the merged file. Changes ``ag`` in place and returns one
+    record per key: form, displaced lemma, restored head and the counts.
+    """
+    eligible = eligible or (lambda form: True)
+    all_heads = set(wiktionary_heads) | set(listed_heads)
+    restored = []
+    alias_claims: dict[str, set] = {}
+    for head, lemma in displaced_head_candidates(
+            ag, wiktionary_heads, listed_heads, base).items():
+        if not eligible(head):
+            continue
+        counts = evidence.get(head, {})
+        own, other = counts.get(head, 0), counts.get(lemma, 0)
+        if not (own > other or (own == other and head in wiktionary_heads
+                                and base.get(head) == head)):
+            continue
+        restored.append({"form": head, "lemma": lemma, "head": head,
+                         "head_count": own, "lemma_count": other})
+        for key in {head.lower(), to_monotonic(head), to_monotonic(head).lower(),
+                    strip_accents(head.lower())} - {head}:
+            if ag.get(key) == lemma and key not in all_heads and eligible(key):
+                alias_claims.setdefault(key, set()).add((head, lemma))
+    for record in restored:
+        ag[record["form"]] = record["head"]
+    for key, claims in sorted(alias_claims.items()):
+        if len(claims) == 1:
+            head, lemma = next(iter(claims))
+            ag[key] = head
+            restored.append({"form": key, "lemma": lemma, "head": head,
+                             "head_count": None, "lemma_count": None})
+    return sorted(restored, key=lambda record: record["form"])
 
 
 def el_rule_paradigm_forms(el: dict) -> set[str]:
@@ -569,8 +683,11 @@ def build():
         el_source_overrides[cell["form"]] = "el_paradigm_gaps"
     # A merged file names one source per layer where pinned records tell the
     # layers apart; every other reading keeps the file itself as its source.
+    ag_base = None
     if ag_default_source == AG_PATH.name:
-        ag_source_overrides.update(load_ag_reading_layers(ag))
+        ag_base, reference = read_ag_layer_records()
+        ag_source_overrides.update(ag_reading_layers(ag, ag_base, reference))
+        del reference
         counts = {layer: 0 for layer in (AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER)}
         for layer in ag_source_overrides.values():
             counts[layer] += 1
@@ -594,6 +711,44 @@ def build():
             "lemma": lemma,
             "reason": reason,
         })
+
+    # The counted GLAUx pairs: evidence for the displaced-head rule below,
+    # then a gap-fill source of their own.
+    glaux_pairs = None
+    if GLAUX_PAIRS_PATH.exists():
+        with open(GLAUX_PAIRS_PATH, encoding="utf-8") as f:
+            glaux_pairs = json.load(f)
+
+    # A word with an entry of its own takes back the reading another lemma's
+    # homograph entry or table took from it in the merged table, where GLAUx,
+    # or for a Wiktionary head the pinned Wiktionary-only base, prefers it
+    # (restore_displaced_lexical_heads; ἄπειρος, κλαίω, ἕως, γραφή).
+    if ag_base is not None and GRC_LEXICAL_HEADS_PATH.exists():
+        if glaux_pairs is None:
+            print(f"  NOTE: {GLAUX_PAIRS_PATH.name} not found; displaced "
+                  "heads are restored only where Wiktionary defines them and "
+                  "the pinned base reads them as themselves")
+        wiktionary_heads, listed_heads = lexical_heads_by_kind(GRC_LEXICAL_HEADS_PATH)
+        candidates = displaced_head_candidates(ag, wiktionary_heads, listed_heads,
+                                               ag_base)
+        restored_heads = restore_displaced_lexical_heads(
+            ag, wiktionary_heads=wiktionary_heads, listed_heads=listed_heads,
+            base=ag_base,
+            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys()),
+            eligible=lambda form: ag_source_overrides.get(form) in (
+                None, AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER))
+        for record in restored_heads:
+            _record_citation_rejection(
+                table="AG", source=ag_source_overrides.get(
+                    record["form"], ag_default_source),
+                form=record["form"], lemma=record["lemma"],
+                reason=f"displaced_lexical_head_restored_to_{record['head']}")
+            ag_source_overrides[record["form"]] = AG_WIKTIONARY_LAYER
+        print(f"  Displaced lexical heads restored: "
+              f"{sum(r['head_count'] is not None for r in restored_heads):,} "
+              f"heads, {len(restored_heads):,} keys "
+              f"({len(candidates):,} heads read as another lemma)")
+    ag_base = None
 
     # Merge med into el: vernacular medieval Greek is the ancestor of
     # Modern Greek, and EL Wiktionary's "Medieval Greek" category contains
@@ -929,10 +1084,8 @@ def build():
     glaux_added_med = 0
     glaux_skipped_med = 0
     glaux_bad_lemma = 0
-    if GLAUX_PAIRS_PATH.exists():
+    if glaux_pairs is not None:
         t_g = time.time()
-        with open(GLAUX_PAIRS_PATH, encoding="utf-8") as f:
-            glaux_pairs = json.load(f)
         # Snapshot AG keys before GLAUx expansion, so we can check
         # whether a form had an original (Wiktionary) AG entry.
         ag_original = dict(ag)
@@ -978,6 +1131,7 @@ def build():
               f"{glaux_bad_lemma:,} bad lemmas rejected, "
               f"{glaux_twin_skipped:,} capitalised pronoun twins skipped "
               f"({time.time()-t_g:.1f}s)")
+        glaux_pairs = None
 
     # Expand AG and el with Diorisis corpus pairs (456K forms from
     # 10.2M tokens of ancient Greek texts). Lower confidence than GLAUx
