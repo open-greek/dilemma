@@ -53,8 +53,8 @@ SOURCE_PAIR_NAMES = (
     "tagnt_pairs.json", "pedalion_pairs.json",
 )
 # label -> (edition, flat dump name). Either dump layout is read
-# (dilemma_build.kaikki_dumps); portable audits record the path relative to
-# the user-supplied dump directory.
+# (dilemma_build.kaikki_dumps); audits record the flat name, so both layouts
+# give the same audit bytes.
 CLOSED_CLASS_DUMPS = {
     "wiktionary_en_grc": ("en", "kaikki.org-en-dictionary-AncientGreek.jsonl"),
     "wiktionary_el_grc": ("el", "kaikki.org-el-dictionary-AncientGreek.jsonl"),
@@ -506,11 +506,12 @@ def load_closed_class_entries(kaikki: Path):
     pins, paths, entries = {}, {}, []
     for label, (source, filename) in CLOSED_CLASS_DUMPS.items():
         path = resolve_dump(filename, kaikki)
-        relative = path.relative_to(kaikki).as_posix()
         if not path.is_file():
-            raise SystemExit(f"fresh closed-class source missing: {relative}")
+            raise SystemExit(f"fresh closed-class source missing: {filename}")
         paths[label] = path
-        pins[label] = {"path": relative, "sha256": file_sha256(path),
+        # The flat dump name, whichever layout holds the file, so equal
+        # dump bytes give equal audit bytes.
+        pins[label] = {"path": filename, "sha256": file_sha256(path),
                        "size": path.stat().st_size}
     for label, (source, relative) in CLOSED_CLASS_DUMPS.items():
         with paths[label].open(encoding="utf-8") as handle:
@@ -650,14 +651,64 @@ def resolve_reference(manifest: dict, explicit: Path | None) -> Path:
     )
 
 
+# The lexical-head sources that define Ancient citation forms. A historical
+# baseline conflict keeps the expansion out only where its recorded reading
+# is such a head (released_baseline_conflicts).
+ANCIENT_HEAD_SOURCES = frozenset({
+    "wiktionary_en_grc", "wiktionary_el_grc", "lsj9_headwords",
+    "dge_headwords", "cunliffe_headwords",
+})
+
+
+def load_ancient_heads(path: Path) -> frozenset[str]:
+    """Heads an Ancient dictionary or Wiktionary extract defines."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    heads = payload.get("heads")
+    if not isinstance(heads, dict):
+        return frozenset()
+    return frozenset(head for head, sources in heads.items()
+                     if ANCIENT_HEAD_SOURCES.intersection(sources))
+
+
+def released_baseline_conflicts(conflicts: dict[str, str],
+                                ancient_heads) -> frozenset[str]:
+    """Baseline conflicts whose recorded 1.3.1 reading is no citation form.
+
+    The pinned exclusions keep an expansion reading out of every form whose
+    1.3.1 resolution disagreed with it, so that resolution's sources fill
+    the form later in the lookup build. That is right where the recorded
+    reading is an Ancient head of the form's own case (ἐκπλαγῇ ἐκπλάσσω,
+    not the generated ἐκπλαγής). It is wrong where the recorded reading is
+    the form itself (ἄκτιστον, ἀποστασίου), an unaccented or Modern
+    spelling no Ancient dictionary defines (ἀμετρητος, σπερματούχος), or a
+    capital for a lowercase form (Στερέα for στερέα): the sources that
+    supply those readings now win wherever the expansion is withheld. Such
+    a conflict is released and the expansion reading recovered. A list
+    without recorded readings releases nothing.
+    """
+    if not isinstance(conflicts, dict):
+        return frozenset()
+    return frozenset(
+        form for form, recorded in conflicts.items()
+        if not (isinstance(recorded, str) and recorded != form
+                and recorded in ancient_heads
+                and form[:1].isupper() == recorded[:1].isupper()))
+
+
 def overlay_expansion(
     reference: dict[str, str],
     reference_base: dict[str, str],
     target: dict[str, str],
     excluded_forms: set[str] | frozenset[str] = frozenset(),
     superseded_noun_lemmas: set[str] | frozenset[str] = frozenset(),
+    released_forms: set[str] | frozenset[str] = frozenset(),
 ) -> dict[str, int]:
-    """Add only historical expansion keys, preserving current mappings."""
+    """Add only historical expansion keys, preserving current mappings.
+
+    ``released_forms`` are excluded forms (released baseline conflicts) that
+    still take the expansion reading; they count among the pinned
+    exclusions and separately as released.
+    """
     stats = {
         "reference_entries": len(reference),
         "reference_base_entries": len(reference_base),
@@ -666,6 +717,7 @@ def overlay_expansion(
         "unmarked_entries": 0,
         "editorial_entries": 0,
         "excluded_entries": 0,
+        "released_conflict_entries": 0,
         "already_present": 0,
         "conflicts_preserved": 0,
         "nonlexical_lemma_entries": 0,
@@ -682,7 +734,9 @@ def overlay_expansion(
             continue
         if form in excluded_forms:
             stats["excluded_entries"] += 1
-            continue
+            if form not in released_forms:
+                continue
+            stats["released_conflict_entries"] += 1
         if has_editorial_sigla(form) or has_editorial_sigla(lemma):
             stats["editorial_entries"] += 1
             continue
@@ -703,6 +757,49 @@ def overlay_expansion(
         target[form] = lemma
         stats["added"] += 1
     stats["target_entries_after"] = len(target)
+    return stats
+
+
+def restore_unmarked_keys(
+    reference: dict[str, str],
+    reference_base: dict[str, str],
+    target: dict[str, str],
+    excluded_forms: set[str] | frozenset[str] = frozenset(),
+) -> dict[str, int]:
+    """Give back the expansion's unaccented keys that agree with the table.
+
+    The historical expansion stored a fully unaccented key beside every
+    generated form (αθηλυντος beside ἀθήλυντος); an input typed without
+    accents reaches the paradigm only through it. overlay_expansion() never
+    copies those keys, because one can shadow a newer reading of a marked
+    form with the same letters. Here a missing key comes back only where
+    every marked target form that strips to it reads the key's lemma, so it
+    agrees with the current table by construction. A key no marked form
+    backs, or whose forms read other lemmas, stays out.
+    """
+    wanted = {
+        form: lemma for form, lemma in reference.items()
+        if form not in reference_base and not has_orthographic_mark(form)
+        and form not in target and form not in excluded_forms
+        and not has_editorial_sigla(form) and not has_editorial_sigla(lemma)
+    }
+    readings: dict[str, set[str]] = defaultdict(set)
+    for form, lemma in target.items():
+        if has_orthographic_mark(form):
+            bare = strip_marks(form)
+            if bare in wanted:
+                readings[bare].add(lemma)
+    stats = {"unmarked_candidates": len(wanted), "unmarked_restored": 0,
+             "unmarked_disputed": 0, "unmarked_unbacked": 0}
+    for bare, lemma in wanted.items():
+        current = readings.get(bare)
+        if current == {lemma}:
+            target[bare] = lemma
+            stats["unmarked_restored"] += 1
+        elif current:
+            stats["unmarked_disputed"] += 1
+        else:
+            stats["unmarked_unbacked"] += 1
     return stats
 
 
@@ -854,6 +951,9 @@ def main() -> None:
     excluded_forms = frozenset(exclusions["baseline_conflicts"]) | frozenset(
         exclusions["nonlexical"]
     )
+    released_forms = released_baseline_conflicts(
+        exclusions["baseline_conflicts"], load_ancient_heads(args.lexical_heads)
+    ) - frozenset(exclusions["nonlexical"])
 
     print(f"Loading pinned reference: {reference_path}")
     with reference_path.open(encoding="utf-8") as handle:
@@ -889,7 +989,7 @@ def main() -> None:
 
     stats = overlay_expansion(
         reference, reference_base, target, excluded_forms=excluded_forms,
-        superseded_noun_lemmas=superseded_nouns,
+        superseded_noun_lemmas=superseded_nouns, released_forms=released_forms,
     )
     alias_stats = restore_attested_compound_aliases(
         reference, reference_base, target, source_pairs,
@@ -899,6 +999,9 @@ def main() -> None:
         historical_conflicts=exclusions["baseline_conflicts"],
     )
     merge_closed_class_elisions(target, alias_stats, closed_class)
+    stats.update(restore_unmarked_keys(
+        reference, reference_base, target,
+        excluded_forms=excluded_forms - released_forms))
     alias_stats["historical_overlay_counts"] = stats
     if closed_class["enabled"]:
         verify_closed_class_inputs(fresh_paths, closed_class["external_input_sha256"])
@@ -932,7 +1035,11 @@ def main() -> None:
     print(f"Nonlexical generated lemma entries skipped: {stats['nonlexical_lemma_entries']:,}")
     print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
     print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
+    print(f"Released baseline conflicts: {stats['released_conflict_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
+    print(f"Unaccented fallback keys restored: {stats['unmarked_restored']:,} "
+          f"({stats['unmarked_disputed']:,} disputed, "
+          f"{stats['unmarked_unbacked']:,} without a marked form)")
     print(f"Attested compound cells/aliases recovered: {alias_stats['recovered_count']:,}")
     print(f"Attested owners canonicalized: {alias_stats['canonicalized_count']:,}")
     print(f"Historical closed-class elisions canonicalized: "

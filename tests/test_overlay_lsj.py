@@ -802,3 +802,51 @@ def test_valid_enclitic_citation_accent_is_not_treated_as_malformed():
         {"πρόσειμι"})
     assert target["πρόσειμί"] == "πρόσειμί"
     assert not audit["canonicalized"]
+
+
+def test_baseline_conflicts_hold_only_ancient_heads_of_the_same_case(tmp_path):
+    from overlay_lsj import load_ancient_heads, released_baseline_conflicts
+    heads = tmp_path / "grc_lexical_heads.json"
+    heads.write_text(json.dumps({"schema_version": 2, "heads": {
+        "ἐκπλάσσω": ["lsj9_headwords"], "κατασειστά": ["lbg_headwords"],
+        "Στερέα": ["wiktionary_en_grc"]}}, ensure_ascii=False), encoding="utf-8")
+    ancient = load_ancient_heads(heads)
+    assert ancient == {"ἐκπλάσσω", "Στερέα"}
+    conflicts = {"ἐκπλαγῇ": "ἐκπλάσσω",      # an Ancient head: holds
+                 "ἀμέτρητον": "ἀμετρητος",    # unaccented, no head
+                 "ἄκτιστον": "ἄκτιστον",      # the form itself
+                 "κατασειστά": "κατασειστά",
+                 "στερέα": "Στερέα"}          # a capital for a lowercase form
+    assert released_baseline_conflicts(conflicts, ancient) == {
+        "ἀμέτρητον", "ἄκτιστον", "κατασειστά", "στερέα"}
+
+
+def test_released_conflicts_take_the_expansion_and_stay_counted():
+    reference = {"ἀμέτρητον": "ἀμέτρητος", "ἐκπλαγῇ": "ἐκπλαγής"}
+    target = {}
+    stats = overlay_expansion(reference, {}, target,
+                              excluded_forms={"ἀμέτρητον", "ἐκπλαγῇ"},
+                              released_forms={"ἀμέτρητον"})
+    assert target == {"ἀμέτρητον": "ἀμέτρητος"}
+    assert stats["excluded_entries"] == 2
+    assert stats["released_conflict_entries"] == 1
+
+
+def test_unaccented_keys_return_where_every_marked_form_agrees():
+    from overlay_lsj import restore_unmarked_keys
+    reference = {"ἀθήλυντος": "ἀθήλυντος", "αθηλυντος": "ἀθήλυντος",
+                 "παμπόλλων": "πάμπολλος", "παμπολλων": "πάμπολλος",
+                 "νοερῶν": "νοερόω", "νοερων": "νοερόω",
+                 "ορφνινος": "ὄρφνινος",
+                 "τοσ": "τόσος"}
+    target = {"ἀθήλυντος": "ἀθήλυντος",
+              "παμπόλλων": "πάμπολλος", "Παμπόλλων": "πάμπολλος",
+              "νοερῶν": "νοερός"}                 # a newer marked reading
+    stats = restore_unmarked_keys(reference, {}, target,
+                                  excluded_forms={"τοσ"})
+    assert target["αθηλυντος"] == "ἀθήλυντος"
+    assert target["παμπολλων"] == "πάμπολλος"
+    assert "νοερων" not in target and "ορφνινος" not in target
+    assert "τοσ" not in target
+    assert stats == {"unmarked_candidates": 4, "unmarked_restored": 2,
+                     "unmarked_disputed": 1, "unmarked_unbacked": 1}
