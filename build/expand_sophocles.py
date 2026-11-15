@@ -481,6 +481,30 @@ def infer_from_ending(hw, gender=""):
     return "", ""
 
 
+def add_plain_key(lookup, plain, hw, withheld):
+    """Write the accent-stripped key ``plain`` of a form of ``hw`` unless the
+    table has it. True when the key was written.
+
+    A capitalized key is withheld (and recorded in ``withheld``) when its
+    lowercase spelling already reads another lemma: unaccented input folds
+    to that key, and Εστιας -> Ἑστιάς would take the reading of εστιας ->
+    ἑστία.
+    """
+    if plain in lookup:
+        return False
+    lowered = plain.lower()
+    other = lookup.get(lowered) if lowered != plain else None
+    if other is not None and other != hw:
+        withheld[plain] = {"lemma": hw, "lowercase_reading": other}
+        return False
+    lookup[plain] = hw
+    return True
+
+
+def withheld_keys_record(withheld):
+    return {"count": len(withheld), "keys": dict(sorted(withheld.items()))}
+
+
 def analyze(audit=None):
     """Show stats about Sophocles entries."""
     print("Parsing Sophocles entries...")
@@ -617,6 +641,7 @@ def expand_all():
 
     stats = {"expanded": 0, "failed": 0, "new_forms": 0, "collisions": 0}
     failures = Counter()
+    withheld_keys = {}
     t0 = time.time()
 
     for i, hw in enumerate(expandable):
@@ -646,10 +671,9 @@ def expand_all():
 
                 plain = strip_diacritics(form)
                 if plain != form:
-                    if plain not in lookup:
-                        lookup[plain] = hw
+                    if add_plain_key(lookup, plain, hw, withheld_keys):
                         stats["new_forms"] += 1
-                    elif lookup[plain] != hw:
+                    elif lookup.get(plain, hw) != hw:
                         stats["collisions"] += 1
 
         if (i + 1) % 500 == 0:
@@ -679,10 +703,10 @@ def expand_all():
             lookup[hw] = hw
             adv_added += 1
         plain = strip_diacritics(hw)
-        if plain != hw and plain not in lookup:
-            lookup[plain] = hw
+        if plain != hw and add_plain_key(lookup, plain, hw, withheld_keys):
             adv_added += 1
     print(f"  Adverbs added: {adv_added}")
+    print(f"  Capitalized unaccented keys withheld: {len(withheld_keys):,}")
 
     print(f"\nSaving to {AG_LOOKUP}...")
     with open(AG_LOOKUP, "w", encoding="utf-8") as f:
@@ -700,6 +724,7 @@ def expand_all():
             "failures": dict(sorted(failures.items())),
             "resolutions": dict(sorted(resolutions.items())),
             "head_rules": head_rules_record(head_audit),
+            "withheld_capitalized_keys": withheld_keys_record(withheld_keys),
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
@@ -768,6 +793,7 @@ def expand_verbs():
     wtp = get_wtp()
 
     stats = {"expanded": 0, "failed": 0, "mi_verbs": 0, "new_forms": 0, "collisions": 0}
+    withheld_keys = {}
     t0 = time.time()
 
     for i, hw in enumerate(candidates):
@@ -791,10 +817,9 @@ def expand_verbs():
 
                 plain = strip_diacritics(form)
                 if plain != form:
-                    if plain not in lookup:
-                        lookup[plain] = hw
+                    if add_plain_key(lookup, plain, hw, withheld_keys):
                         stats["new_forms"] += 1
-                    elif lookup[plain] != hw:
+                    elif lookup.get(plain, hw) != hw:
                         stats["collisions"] += 1
 
         if (i + 1) % 500 == 0:
@@ -812,6 +837,7 @@ def expand_verbs():
     print(f"  Failed: {stats['failed']:,} (of which {stats['mi_verbs']:,} -μι verbs)")
     print(f"  New forms added: {stats['new_forms']:,}")
     print(f"  Collisions (kept existing): {stats['collisions']:,}")
+    print(f"  Capitalized unaccented keys withheld: {len(withheld_keys):,}")
     print(f"  Lookup size: {original_size:,} -> {len(lookup):,}")
 
     print(f"\nSaving to {AG_LOOKUP}...")
@@ -819,6 +845,12 @@ def expand_verbs():
         json.dump(lookup, f, ensure_ascii=False)
     size_mb = AG_LOOKUP.stat().st_size / (1024 * 1024)
     print(f"  {size_mb:.1f} MB written")
+    AG_LOOKUP.with_name("ag_sophocles_verb_generation_audit.json").write_text(
+        json.dumps({
+            "schema_version": 1,
+            "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "withheld_capitalized_keys": withheld_keys_record(withheld_keys),
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main():

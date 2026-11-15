@@ -371,3 +371,52 @@ def test_verb_step_generates_a_common_word_under_its_lowercase_head(
         "<orth>Ἰουδαΐζω</orth>, to judaize.",
         heads={"ἱπποθυτέω": ["lsj9_headwords"]})
     assert calls == ["ἱπποθυτέω", "Ἰουδαΐζω"]
+
+
+def test_capitalized_plain_key_does_not_shadow_a_lowercase_reading():
+    lookup = {"εστιας": "ἑστία", "πετρας": "Πέτρα", "νεα": "νέος"}
+    withheld = {}
+    assert not S.add_plain_key(lookup, "Εστιας", "Ἑστιάς", withheld)
+    assert withheld == {"Εστιας": {"lemma": "Ἑστιάς", "lowercase_reading": "ἑστία"}}
+    # the lowercase key reads the same lemma, or there is none: written
+    assert S.add_plain_key(lookup, "Πετρας", "Πέτρα", withheld)
+    assert S.add_plain_key(lookup, "Εστιαδος", "Ἑστιάς", withheld)
+    # a lowercase key is not held back by anything, and no key is overwritten
+    assert S.add_plain_key(lookup, "εστιαδος", "ἑστιάς", withheld)
+    assert not S.add_plain_key(lookup, "νεα", "Νέα", withheld)
+    assert lookup == {"εστιας": "ἑστία", "πετρας": "Πέτρα", "νεα": "νέος",
+                      "Πετρας": "Πέτρα", "Εστιαδος": "Ἑστιάς", "εστιαδος": "ἑστιάς"}
+    assert list(withheld) == ["Εστιας"]
+
+
+def test_noun_step_withholds_shadowing_capitalized_keys(tmp_path, monkeypatch):
+    lookup, audit, _ = run_noun_step(
+        tmp_path, monkeypatch,
+        {"ἑστίας": "ἑστία", "εστιας": "ἑστία", "αττικως": "ἀττικός"},
+        "<orth>Ἑστιάς</orth>, άδος, ἡ, Vestal.",
+        "<orth>Ἀττικῶς</orth>, adv. in the Attic dialect.",
+        forms={"Ἑστιάς": ["Ἑστιάς", "Ἑστιάδος"]})
+    assert lookup == {
+        "ἑστίας": "ἑστία", "εστιας": "ἑστία", "αττικως": "ἀττικός",
+        "Ἑστιάς": "Ἑστιάς", "Ἑστιάδος": "Ἑστιάς", "Εστιαδος": "Ἑστιάς",
+        "Ἀττικῶς": "Ἀττικῶς"}
+    assert audit["withheld_capitalized_keys"] == {"count": 2, "keys": {
+        "Αττικως": {"lemma": "Ἀττικῶς", "lowercase_reading": "ἀττικός"},
+        "Εστιας": {"lemma": "Ἑστιάς", "lowercase_reading": "ἑστία"}}}
+
+
+def test_verb_step_withholds_shadowing_capitalized_keys(tmp_path, monkeypatch):
+    lookup, calls = run_verb_step(
+        tmp_path, monkeypatch,
+        {"ἰουδαΐζεις": "ἰουδαΐζω", "ιουδαιζεις": "ἰουδαΐζω"},
+        "<orth>Ἰουδαΐζω</orth>, to judaize.",
+        forms={"Ἰουδαΐζω": ["Ἰουδαΐζω", "Ἰουδαΐζεις"]})
+    assert calls == ["Ἰουδαΐζω"]
+    assert lookup == {
+        "ἰουδαΐζεις": "ἰουδαΐζω", "ιουδαιζεις": "ἰουδαΐζω",
+        "Ἰουδαΐζω": "Ἰουδαΐζω", "Ιουδαιζω": "Ἰουδαΐζω", "Ἰουδαΐζεις": "Ἰουδαΐζω"}
+    audit = json.loads((tmp_path / "ag_sophocles_verb_generation_audit.json")
+                       .read_text(encoding="utf-8"))
+    assert audit["schema_version"] == 1 and len(audit["generator_sha256"]) == 64
+    assert audit["withheld_capitalized_keys"] == {"count": 1, "keys": {
+        "Ιουδαιζεις": {"lemma": "Ἰουδαΐζω", "lowercase_reading": "ἰουδαΐζω"}}}
