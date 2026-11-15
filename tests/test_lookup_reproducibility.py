@@ -21,20 +21,24 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
                            "ᾖμεν": "ἔρχομαι", "ἐξῇμεν": "ἐξέρχομαι",
                            "ᾖσαν": "ἀείδω", "ἴσθι": "εἰμί",
                            "ἀπῆμεν": "ἄπειμι",
-                           "μοναχικός": "μοναχικός", "μοναχικοῦ": "μοναχικός"},
+                           "μοναχικός": "μοναχικός", "μοναχικοῦ": "μοναχικός",
+                           "στέφος": "στέφος", "στέφεος": "στέφος",
+                           "στέφεα": "στέφος"},
         "grc_ikos_adjectives.json": {"lemmas": [
             {"lemma": "μοναχικός", "evidence": ["sophocles"]}]},
         "mg_lookup.json": {"λόγος": "λόγος", "λέει": "λέω", "λέγει": "λέω"},
         "med_lookup.json": {},
-        "vlg_headwords.json": ["ἀρχή", "βίος", "γῆ", "δῶρον", "ἔργον"],
+        "vlg_headwords.json": ["ἀρχή", "βίος", "γῆ", "δῶρον", "ἔργον", "σύναρσις"],
         "wip_headwords.json": ["ζυγόν", "ἦθος", "θεός", "ἰδέα", "κόσμος"],
         "lsj10_headwords.json": ["λίθος", "μέτρον", "νόμος", "ὁδός", "πῦρ"],
         "lbg_headwords.json": [{"lemma": word} for word in
-                               ("ῥόδον", "σῶμα", "τέλος", "ὕδωρ", "φῶς")],
+                               ("ῥόδον", "σῶμα", "τέλος", "ὕδωρ", "φῶς",
+                                "ῥήτρευσις")],
         "lbg_pairs.json": {"ῥόδα": "ῥόδον", "σώματος": "σῶμα",
                            "Ῥώμης": "Ῥώμη"},
         "etymology_bridges.json": {"λέω": ["λέγω"], "λόγος": ["λόγος"]},
         "related_lemmas.json": {"λέγω": ["λόγος"]},
+        "grc_lexical_heads.json": {"heads": [], "vernacular_heads": []},
     }
     for name, value in sources.items():
         (data / name).write_text(json.dumps(value, ensure_ascii=False))
@@ -147,6 +151,17 @@ builder.build()
         # A listed -ικός adjective gains its feminine cells, under their source.
         assert rows["μοναχικήν"] == rows["μοναχικην"] == rows["μοναχικαί"] == "μοναχικός"
         assert origin["μοναχικήν|all"] == "grc_adjective_gaps"
+        # An s-stem neuter with only uncontracted rows gains its contracted
+        # cells, and headword-only -σις nouns (from a headword list, and from
+        # the Byzantine list, which reaches only the combined table) gain
+        # theirs, all under their own source. Existing rows keep theirs.
+        assert rows["στέφους"] == rows["στεφους"] == rows["στέφη"] == "στέφος"
+        assert rows["συνάρσεως"] == rows["συναρσεως"] == rows["σύναρσιν"] == "σύναρσις"
+        assert rows["ῥητρεύσεως"] == rows["ῥητρεύσει"] == "ῥήτρευσις"
+        assert (origin["στέφους|all"] == origin["συνάρσεως|all"]
+                == origin["ῥητρεύσεως|all"] == "grc_noun_gaps")
+        assert origin["στέφεος|all"] != "grc_noun_gaps"
+        assert "σύναρσι" not in rows
         # A merged file names one source per pinned layer: a reading the
         # Wiktionary base records, one the dictionary expansion records, and
         # one neither records (also when a layer has the key under another

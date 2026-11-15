@@ -1,0 +1,155 @@
+"""POS-table entries found only under a shared key (#105).
+
+An entry reached only through the accent-stripped key (ὄρους finds the
+ὀρός of ὀροῦς under ορους) may not respell or replace the reading of the
+form's own spelling.
+"""
+import pytest
+
+from dilemma import core
+
+
+@pytest.fixture
+def table_model(tmp_path, monkeypatch):
+    """A model with given candidates and POS tables, and the real selection."""
+    monkeypatch.setattr(core.Dilemma, "_load_lookups", lambda *a, **k: None)
+    monkeypatch.setattr(core.Dilemma, "_check_backend", lambda *a: None)
+    for name in ("AG_POS_LOOKUP_PATH", "GLAUX_POS_LOOKUP_PATH",
+                 "TREEBANK_POS_LOOKUP_PATH", "MG_POS_LOOKUP_PATH"):
+        path = tmp_path / name
+        path.write_text("{}", encoding="utf-8")
+        monkeypatch.setattr(core, name, path)
+    monkeypatch.setattr(core, "POS_CELL_CORRECTIONS_PATH", tmp_path / "none.json")
+
+    def make(candidates, tables, *, lang="grc"):
+        model = core.Dilemma(lang=lang, skip_pos=True)
+        model._pos_ag_lookup = {form: dict(by_pos) for form, by_pos in tables.items()}
+        model._pos_lookup = {form: dict(by_pos) for form, by_pos in tables.items()}
+        model._pos_rejected_targets = frozenset()
+        made = [core.LemmaCandidate(lemma=lemma, source=source, via=via)
+                for lemma, source, via in candidates]
+        model._lemmatize_verbose_impl = lambda word, **kwargs: list(made)
+        model._article_pos_lemma = lambda word, upos: None
+        model._apply_convention = lambda lemma: lemma
+        first = made[0].lemma if made else None
+        model.lemmatize = lambda word, **kwargs: first
+        model.lemmatize_batch = lambda words, **kwargs: [first] * len(words)
+        return model
+
+    return make
+
+
+def both(model, word, upos):
+    scalar = model.lemmatize_pos(word, upos, guess=False)
+    batch = model.lemmatize_batch_pos([word], [upos], guess=False)
+    assert batch == [scalar], (word, upos, scalar, batch)
+    return scalar
+
+
+EXACT = ("lookup", "exact")
+
+
+@pytest.mark.parametrize("via,expected", [("exact", "ὄρος"), ("stripped", "ὀρός")])
+def test_stripped_key_entry_does_not_respell_an_exact_row(table_model, via, expected):
+    model = table_model([("ὄρος", "lookup", via)], {"ορους": {"NOUN": "ὀρός"}})
+    assert both(model, "ὄρους", "NOUN") == expected
+
+
+@pytest.mark.parametrize("key", ["ὄρους", "όρους"])
+def test_own_and_monotonic_key_entries_still_respell(table_model, key):
+    # The monotonic key keeps the accent's place: a breathing or accent
+    # type misspelt in the source still finds its word there.
+    model = table_model([("ὄρος", *EXACT)], {key: {"NOUN": "ὀρός"}})
+    assert both(model, "ὄρους", "NOUN") == "ὀρός"
+
+
+def test_reaccented_echo_row_does_not_own_the_spelling(table_model):
+    model = table_model([("ὤρα", *EXACT)], {"ωρα": {"NOUN": "ὥρα"}})
+    assert both(model, "ὦρα", "NOUN") == "ὥρα"
+
+
+@pytest.mark.parametrize("word,upos,exact,entry", [
+    ("Ἄργους", "PROPN", "Ἄργος", "Ἀργώ"),
+    ("μᾶζαν", "PROPN", "μᾶζα", "Μαζάν"),
+    ("ὅλα", "NOUN", "ὅλος", "ὀλή"),
+])
+def test_stripped_key_entry_does_not_replace_an_exact_nominal_row(
+        table_model, word, upos, exact, entry):
+    from dilemma.core import strip_accents
+    model = table_model([(exact, *EXACT)],
+                        {strip_accents(word.lower()): {upos: entry}})
+    assert both(model, word, upos) == exact
+
+
+def test_nominal_tag_still_replaces_an_exact_verb_row(table_model):
+    # Byzantine μοχθῶ (= μόχθῳ) is held by the lookup as a form of μοχθέω.
+    model = table_model([("μοχθέω", *EXACT)], {"μοχθω": {"NOUN": "μόχθος"}})
+    assert both(model, "μοχθῶ", "NOUN") == "μόχθος"
+
+
+def test_other_tags_keep_the_stripped_key_override(table_model):
+    model = table_model([("τῇδε", *EXACT)], {"τηδε": {"PRON": "ὅδε"}})
+    assert both(model, "τῆδε", "PRON") == "ὅδε"
+
+
+@pytest.mark.parametrize("upos", ["NOUN", "ADJ"])
+def test_stripped_key_entry_does_not_replace_an_article_reading(table_model, upos):
+    model = table_model([("αὐτός", "article", "")], {"αυτη": {upos: "ἀϋτή"}})
+    assert both(model, "αὐτή", upos) == "αὐτός"
+
+
+def test_unknown_entry_provenance_keeps_its_authority(table_model):
+    model = table_model([("αὐτός", "article", "")], {})
+    model._pos_table_lookup = lambda word, upos: "ἀϋτή"
+    assert both(model, "αὐτή", "NOUN") == "ἀϋτή"
+
+
+@pytest.mark.parametrize("word,key,family,verb,expected", [
+    ("πόθῳ", "ποθω", ("πόθος", "Πόθος"), "πίνω", "πόθος"),
+    ("ἰδῶν", "ιδών", ("ἴδη", "Ἴδη"), "ὁράω", "ὁράω"),
+])
+def test_verb_case_twin_rule_needs_more_than_the_stripped_key(
+        table_model, word, key, family, verb, expected):
+    model = table_model([(family[0], "lookup", "exact"),
+                         (family[1], "lookup", "exact+case_alt")],
+                        {key: {"VERB": verb}})
+    assert both(model, word, "VERB") == expected
+
+
+# --- shipped data ---------------------------------------------------------
+
+@pytest.fixture(scope="module", params=["grc", "all"])
+def shipped_model(request):
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    return core.Dilemma(lang=request.param, resolve_articles=True)
+
+
+SHIPPED_105 = [
+    ("ὄρους", "NOUN", "ὄρος"), ("ὅρους", "NOUN", "ὅρος"),
+    ("ὅλων", "NOUN", "ὅλος"), ("ὅλα", "NOUN", "ὅλος"),
+    ("ἐκτός", "ADV", "ἐκτός"), ("ἕκτος", "ADV", "ἕκτος"),
+    ("Ἄργους", "PROPN", "Ἄργος"), ("αὐτή", "NOUN", "αὐτός"),
+    ("μᾶζαν", "PROPN", "μᾶζα"), ("πόθῳ", "VERB", "πόθος"),
+    ("αὐτόν", "ADJ", "αὐτός"),
+    # controls the issue names, and the Byzantine misspellings that rely on
+    # a looser entry
+    ("ὄρει", "NOUN", "ὄρος"), ("ὅρον", "NOUN", "ὅρος"), ("Ἄργει", "PROPN", "Ἄργος"),
+    ("μοχθῶ", "NOUN", "μόχθος"), ("πιστῶ", "ADJ", "πιστός"),
+    ("σοφῶ", "ADJ", "σοφός"), ("καμοῦ", "PRON", "ἐγώ"),
+    ("τῆδε", "PRON", "ὅδε"), ("ἤδει", "VERB", "οἶδα"),
+    ("Ὦρα", "NOUN", "ὥρα"), ("Λάμπε", "VERB", "λάμπω"),
+]
+
+
+
+@pytest.mark.parametrize("word,upos,lemma", SHIPPED_105)
+def test_shipped_pos_answers(shipped_model, word, upos, lemma):
+    assert both(shipped_model, word, upos) == lemma
+
+
+def test_shipped_batch_matches_scalar_in_context(shipped_model):
+    rows = SHIPPED_105
+    batch = shipped_model.lemmatize_batch_pos(
+        [row[0] for row in rows], [row[1] for row in rows], guess=False)
+    assert batch == [row[2] for row in rows]

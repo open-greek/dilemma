@@ -1,0 +1,2398 @@
+{
+ "schema_version": 1,
+ "language": "el",
+ "rule": "el_generator_delta_refresh_v1",
+ "delta_sha256": "f35a78c1a7f9dd3ec401c202d75f3896c3430e9562dc0ce0771b4df5542ec87c",
+ "inputs": {
+  "mg_lookup.json": "d40b55cc6b1142e7670f8ed062c15a8bc4008ad8a71d21634d865972457feeb7",
+  "mg_pairs.json": "9524f9a4ab24a64e391d328b02e6e4d5b401daa8d502d8be9c1feb54c5c607e2",
+  "mg_pos_lookup.json": "fd7ae81efa90c9886cf646b603c570fa6b52448d610e6c1b1e784a48fc7b56b9"
+ },
+ "outputs": {
+  "mg_lookup.json": "b4084b71d281bcb7029f5bae41f5aeec8860ee5d9f8702fd7ee2873e86b5a139",
+  "mg_pairs.json": "0558af700b7869fdd640c2276dbd55202f08bdc1c2c040df4dbd10165f619972",
+  "mg_pos_lookup.json": "bb556e4e513e8fe8bc339a76d447fadf2f0f9b54a096b1f5b45e57c0686d575c"
+ },
+ "counts": {
+  "mg_lookup.json: applied": 26,
+  "mg_pairs.json: applied": 129,
+  "mg_pos_lookup.json: applied": 39
+ },
+ "changes": [
+  {
+   "file": "mg_lookup.json",
+   "key": "ΧΧΧ",
+   "base": "Καραβίτης",
+   "before": "Καραβίτης",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "άς",
+   "base": "αραιός",
+   "before": "αραιός",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "έ",
+   "base": "αραιός",
+   "before": "αραιός",
+   "after": "Έ",
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ές",
+   "base": "μουσικομανής",
+   "before": "μουσικομανής",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ής",
+   "base": "ολομελής",
+   "before": "ολομελής",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "γή",
+   "base": "τριπολῖτις",
+   "before": "τριπολῖτις",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "γῆ",
+   "base": "τριπολῖτις",
+   "before": "τριπολῖτις",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ες",
+   "base": "μουσικομανής",
+   "before": "μουσικομανής",
+   "after": "εις",
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ης",
+   "base": "ολομελής",
+   "before": "ολομελής",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ιά",
+   "base": "φαρδύς",
+   "before": "φαρδύς",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ια",
+   "base": "φαρδύς",
+   "before": "φαρδύς",
+   "after": "ίο",
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ικο",
+   "base": "διαβατάρης",
+   "before": "διαβατάρης",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "κο",
+   "base": "ασχημούλης",
+   "before": "ασχημούλης",
+   "after": "ΚΟ",
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ξή",
+   "base": "διαειδικός",
+   "before": "διαειδικός",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ξη",
+   "base": "διαειδικός",
+   "before": "διαειδικός",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ος",
+   "base": "αισώπειος",
+   "before": "αισώπειος",
+   "after": "Ος",
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ουν",
+   "base": "οκταπλούς",
+   "before": "οκταπλούς",
+   "after": "σαλπάρω",
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ουσης",
+   "base": "αρχαΐζω",
+   "before": "αρχαΐζω",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ουσων",
+   "base": "αρχαΐζω",
+   "before": "αρχαΐζω",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ουσών",
+   "base": "αρχαΐζω",
+   "before": "αρχαΐζω",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ού",
+   "base": "αραιός",
+   "before": "αραιός",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ούν",
+   "base": "οκταπλούς",
+   "before": "οκταπλούς",
+   "after": "σαλπάρω",
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ούσης",
+   "base": "αρχαΐζω",
+   "before": "αρχαΐζω",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "χχχ",
+   "base": "Καραβίτης",
+   "before": "Καραβίτης",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ός",
+   "base": "αραιός",
+   "before": "αραιός",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_lookup.json",
+   "key": "ών",
+   "base": "αραιός",
+   "before": "αραιός",
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Γιαννούλα",
+    "lemma": "Καραβίτης",
+    "pos": "name",
+    "tags": [
+     "form-of"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζε",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζο",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζοι",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζοι",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζος",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζου",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "genitive",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζους",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "Ρουαντέζων",
+    "lemma": "Νοτιοαφρικάνος",
+    "pos": "noun",
+    "tags": [
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ΧΧΧ",
+    "lemma": "Καραβίτης",
+    "pos": "name",
+    "tags": [
+     "feminine"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ά",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "feminine",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ά",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "neuter",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ά",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ά",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ά",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "neuter",
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ά",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "neuter",
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "άς",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "έ",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "masculine",
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "αισχροκερδής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "ανεπιτυχής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "feminine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "αφανής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "εμπροσθογεμής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "καινοφανής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "μουσικομανής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "ολομελής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "φυλλοειδής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ές",
+    "lemma": "φωτογενής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ής",
+    "lemma": "αμφικλινής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ής",
+    "lemma": "ανεπιτυχής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ής",
+    "lemma": "αφανής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ής",
+    "lemma": "καινοφανής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ής",
+    "lemma": "ολομελής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ής",
+    "lemma": "φυλλοειδής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ής",
+    "lemma": "φωτογενής",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "α",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "feminine",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "α",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "neuter",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "α",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "α",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "α",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "neuter",
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "α",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "neuter",
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ας",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "γ",
+    "lemma": "βρόντημα",
+    "pos": "noun",
+    "tags": [
+     "neuter"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "γένη",
+    "lemma": "αισώπειος",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "form-of",
+     "nominative",
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "γένη",
+    "lemma": "αισώπειος",
+    "pos": "noun",
+    "tags": [
+     "neuter"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "γή",
+    "lemma": "τριπολῖτις",
+    "pos": "noun",
+    "tags": [
+     "feminine"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "γῆ",
+    "lemma": "τριπολῖτις",
+    "pos": "noun",
+    "tags": [
+     "feminine"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ε",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "masculine",
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ες",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "feminine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ες",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ες",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ες",
+    "lemma": "φυλλώδης",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ες",
+    "lemma": "φυματιώδης",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ης",
+    "lemma": "φυλλώδης",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ης",
+    "lemma": "φυματιώδης",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ιά",
+    "lemma": "φαρδύς",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ικο",
+    "lemma": "απλοχέρης",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ικο",
+    "lemma": "διαβατάρης",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ιο",
+    "lemma": "ακέραιος",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ιο",
+    "lemma": "βοϊδίσιος",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "καλυβών",
+    "lemma": "αχυροκαλύβα",
+    "pos": "noun",
+    "tags": [
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "κο",
+    "lemma": "ασχημούλης",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανές",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανές",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανές",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανή",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανή",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανή",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανής",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "genitive",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μηχανών",
+    "lemma": "κρεατομηχανή",
+    "pos": "noun",
+    "tags": [
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητές",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητές",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητές",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητή",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητή",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "genitive",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητή",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητής",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "μιμητών",
+    "lemma": "αττικιστής",
+    "pos": "noun",
+    "tags": [
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ξή",
+    "lemma": "διαειδικός",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ον",
+    "lemma": "αειπάρθενος",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ον",
+    "lemma": "ασυνάρμοστος",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ον",
+    "lemma": "μύχιος",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ον",
+    "lemma": "φιλοπράγμων",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ος",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "masculine",
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ου",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "masculine",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ου",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "neuter",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ουν",
+    "lemma": "αμβλύνους",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ουν",
+    "lemma": "κρυψίνους",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ους",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "masculine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ους",
+    "lemma": "περίνους",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ους",
+    "lemma": "πορφυρόχρους",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ους",
+    "lemma": "σοκολατόχρους",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ουσών",
+    "lemma": "αρχαΐζων",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ού",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "masculine",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ού",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "neuter",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ούν",
+    "lemma": "οκταπλούς",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ούς",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "masculine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ούσης",
+    "lemma": "αρχαΐζων",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "π",
+    "lemma": "κακόγνωμος",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παίχτες",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παίχτες",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "nominative",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παίχτες",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παίχτη",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "accusative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παίχτη",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παίχτη",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "singular",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παίχτης",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "παιχτών",
+    "lemma": "κάμποσος",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ς",
+    "lemma": "Δρυάδες",
+    "pos": "noun",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "υ",
+    "lemma": "ένδακρυς",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ων",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ων",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "masculine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ων",
+    "lemma": "αισώπειος",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "neuter",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ων",
+    "lemma": "φιλοπράγμων",
+    "pos": "adj",
+    "tags": []
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όντων",
+    "lemma": "αρχαΐζων",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "masculine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όντων",
+    "lemma": "αρχαΐζων",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "neuter",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όνων",
+    "lemma": "αιθεροβάμων",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όνων",
+    "lemma": "αιθεροβάμων",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "masculine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όνων",
+    "lemma": "αιθεροβάμων",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "neuter",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όνων",
+    "lemma": "απράγμων",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όνων",
+    "lemma": "απράγμων",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "masculine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "όνων",
+    "lemma": "απράγμων",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "neuter",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ός",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "masculine",
+     "nominative",
+     "singular"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ών",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "feminine",
+     "genitive",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ών",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "masculine",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "remove": {
+    "form": "ών",
+    "lemma": "αριός",
+    "pos": "adj",
+    "tags": [
+     "genitive",
+     "neuter",
+     "plural"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "add": {
+    "form": "γένη",
+    "lemma": "Ος",
+    "pos": "noun",
+    "tags": [
+     "accusative",
+     "form-of",
+     "nominative",
+     "plural",
+     "vocative"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pairs.json",
+   "add": {
+    "form": "γένη",
+    "lemma": "Ος",
+    "pos": "noun",
+    "tags": [
+     "neuter"
+    ]
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ά",
+   "base": {
+    "ADV": "αλλιώς",
+    "NOUN": "άρθρο",
+    "ADJ": "αριός"
+   },
+   "before": {
+    "ADJ": "αριός",
+    "ADV": "αλλιώς",
+    "NOUN": "άρθρο"
+   },
+   "after": {
+    "ADV": "αλλιώς",
+    "NOUN": "άρθρο"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "άς",
+   "base": {
+    "ADJ": "αριός"
+   },
+   "before": {
+    "ADJ": "αριός"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "έ",
+   "base": {
+    "ADJ": "αριός"
+   },
+   "before": {
+    "ADJ": "αριός"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ές",
+   "base": {
+    "ADJ": "αριός"
+   },
+   "before": {
+    "ADJ": "αριός"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ας",
+   "base": {
+    "ADJ": "αισώπειος",
+    "PART": "ας"
+   },
+   "before": {
+    "ADJ": "αισώπειος",
+    "PART": "ας"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "γ",
+   "base": {
+    "NOUN": "βρόντημα",
+    "VERB": "εισακούω"
+   },
+   "before": {
+    "NOUN": "βρόντημα",
+    "VERB": "εισακούω"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ε",
+   "base": {
+    "ADJ": "αισώπειος",
+    "VERB": "αποδεικνύω",
+    "INTJ": "ε"
+   },
+   "before": {
+    "ADJ": "αισώπειος",
+    "INTJ": "ε",
+    "VERB": "αποδεικνύω"
+   },
+   "after": {
+    "INTJ": "ε",
+    "VERB": "αποδεικνύω"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ες",
+   "base": {
+    "ADJ": "αισώπειος",
+    "ADP": "εις",
+    "PROPN": "Ες"
+   },
+   "before": {
+    "ADJ": "αισώπειος",
+    "ADP": "εις",
+    "PROPN": "Ες"
+   },
+   "after": {
+    "ADP": "εις",
+    "PROPN": "Ες"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ια",
+   "base": {
+    "ADJ": "φαρδύς",
+    "NOUN": "ίο",
+    "PROPN": "Ία"
+   },
+   "before": {
+    "ADJ": "φαρδύς",
+    "NOUN": "ίο",
+    "PROPN": "Ία"
+   },
+   "after": {
+    "NOUN": "ίο",
+    "PROPN": "Ία"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ιο",
+   "base": {
+    "NOUN": "ιός",
+    "PROPN": "Ίος",
+    "ADJ": "ακέραιος"
+   },
+   "before": {
+    "ADJ": "ακέραιος",
+    "NOUN": "ιός",
+    "PROPN": "Ίος"
+   },
+   "after": {
+    "NOUN": "ιός",
+    "PROPN": "Ίος"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "κο",
+   "base": {
+    "ADJ": "ασχημούλης",
+    "PROPN": "Κο"
+   },
+   "before": {
+    "ADJ": "ασχημούλης",
+    "PROPN": "Κο"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ον",
+   "base": {
+    "NOUN": "ων",
+    "ADJ": "μύχιος"
+   },
+   "before": {
+    "ADJ": "μύχιος",
+    "NOUN": "ων"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "οντων",
+   "base": {
+    "NOUN": "ων",
+    "ADJ": "αρχαΐζων"
+   },
+   "before": {
+    "ADJ": "αρχαΐζων",
+    "NOUN": "ων"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ονων",
+   "base": {
+    "NOUN": "όνος",
+    "ADJ": "αιθεροβάμων"
+   },
+   "before": {
+    "ADJ": "αιθεροβάμων",
+    "NOUN": "όνος"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ος",
+   "base": {
+    "ADJ": "αισώπειος",
+    "PROPN": "Ος"
+   },
+   "before": {
+    "ADJ": "αισώπειος",
+    "PROPN": "Ος"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ου",
+   "base": {
+    "ADJ": "αισώπειος",
+    "PART": "ου",
+    "NOUN": "ου",
+    "PROPN": "Ου"
+   },
+   "before": {
+    "ADJ": "αισώπειος",
+    "NOUN": "ου",
+    "PART": "ου",
+    "PROPN": "Ου"
+   },
+   "after": {
+    "NOUN": "ου",
+    "PART": "ου",
+    "PROPN": "Ου"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ουν",
+   "base": {
+    "VERB": "σαλπάρω",
+    "ADJ": "οκταπλούς",
+    "PROPN": "Ουν"
+   },
+   "before": {
+    "ADJ": "οκταπλούς",
+    "PROPN": "Ουν",
+    "VERB": "σαλπάρω"
+   },
+   "after": {
+    "PROPN": "Ουν",
+    "VERB": "σαλπάρω"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ους",
+   "base": {
+    "ADJ": "αισώπειος",
+    "NOUN": "ους",
+    "PROPN": "Ους",
+    "PRON": "ους"
+   },
+   "before": {
+    "ADJ": "αισώπειος",
+    "NOUN": "ους",
+    "PRON": "ους",
+    "PROPN": "Ους"
+   },
+   "after": {
+    "NOUN": "ους",
+    "PRON": "ους",
+    "PROPN": "Ους"
+   },
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ουσης",
+   "base": {
+    "ADJ": "αρχαΐζων"
+   },
+   "before": {
+    "ADJ": "αρχαΐζων"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ουσων",
+   "base": {
+    "ADJ": "αρχαΐζων"
+   },
+   "before": {
+    "ADJ": "αρχαΐζων"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ουσών",
+   "base": {
+    "ADJ": "αρχαΐζων"
+   },
+   "before": {
+    "ADJ": "αρχαΐζων"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ού",
+   "base": {
+    "ADJ": "αριός"
+   },
+   "before": {
+    "ADJ": "αριός"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ούν",
+   "base": {
+    "VERB": "σαλπάρω",
+    "ADJ": "οκταπλούς"
+   },
+   "before": {
+    "ADJ": "οκταπλούς",
+    "VERB": "σαλπάρω"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ούς",
+   "base": {
+    "ADJ": "αριός",
+    "NOUN": "ους"
+   },
+   "before": {
+    "ADJ": "αριός",
+    "NOUN": "ους"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ούσης",
+   "base": {
+    "ADJ": "αρχαΐζων"
+   },
+   "before": {
+    "ADJ": "αρχαΐζων"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "π",
+   "base": {
+    "ADJ": "κακόγνωμος"
+   },
+   "before": {
+    "ADJ": "κακόγνωμος"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παίχτες",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παίχτη",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παίχτης",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παιχτες",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παιχτη",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παιχτης",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παιχτων",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "παιχτών",
+   "base": {
+    "NOUN": "παίκτης",
+    "ADJ": "κάμποσος"
+   },
+   "before": {
+    "ADJ": "κάμποσος",
+    "NOUN": "παίκτης"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ων",
+   "base": {
+    "ADJ": "αισώπειος"
+   },
+   "before": {
+    "ADJ": "αισώπειος"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "όντων",
+   "base": {
+    "NOUN": "ων",
+    "ADJ": "αρχαΐζων"
+   },
+   "before": {
+    "ADJ": "αρχαΐζων",
+    "NOUN": "ων"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "όνων",
+   "base": {
+    "NOUN": "όνος",
+    "ADJ": "αιθεροβάμων"
+   },
+   "before": {
+    "ADJ": "αιθεροβάμων",
+    "NOUN": "όνος"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ός",
+   "base": {
+    "ADJ": "αριός"
+   },
+   "before": {
+    "ADJ": "αριός"
+   },
+   "after": null,
+   "status": "applied"
+  },
+  {
+   "file": "mg_pos_lookup.json",
+   "key": "ών",
+   "base": {
+    "ADJ": "αριός"
+   },
+   "before": {
+    "ADJ": "αριός"
+   },
+   "after": null,
+   "status": "applied"
+  }
+ ]
+}

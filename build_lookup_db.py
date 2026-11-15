@@ -41,6 +41,11 @@ from dilemma.elision_tails import (  # noqa: E402
 )
 from dilemma.el_paradigm_gaps import complete_lookup  # noqa: E402
 from dilemma.grc_adjective_gaps import complete_ikos_adjectives  # noqa: E402
+from dilemma.grc_noun_gaps import (  # noqa: E402
+    SOURCE as GRC_NOUN_GAPS_SOURCE, complete_noun_gaps, select_noun_gap_lemmas)
+from dilemma.grc_rejected_lemmas import (  # noqa: E402
+    CLOSED_PRONOMINAL_LEMMAS, REJECTED_LEMMAS,
+)
 from dilemma.grammatical_lemmas import (  # noqa: E402
     reviewed_verb_forms, reviewed_verb_lemmas, reviewed_verb_readings,
 )
@@ -101,6 +106,9 @@ ETYMOLOGY_BRIDGES_PATH = DATA_DIR / "etymology_bridges.json"
 LSJGR_BRIDGES_PATH = DATA_DIR / "lsjgr_bridges.json"
 RELATED_LEMMAS_PATH = DATA_DIR / "related_lemmas.json"
 HNC_PAIRS_PATH = DATA_DIR / "hnc_pairs.json"
+# The lexical heads every Ancient reading is checked against (built by
+# build/build_grc_lexical_heads.py, published on the Hub).
+GRC_LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
 
 _TRUSTED_BUILD_HEADWORD_PATHS = (
     LSJ_HEADWORDS_PATH, LSJ10_HEADWORDS_PATH, LBG_HEADWORDS_PATH,
@@ -175,6 +183,89 @@ def _citation_artifact_reason(lemma: str) -> str | None:
         if nonlexical:
             return f"nonlexical_{nonlexical}"
         return "final_elision_mark"
+    return None
+
+
+def _bare_letters(text: str) -> str:
+    """The letters of a spelling, case kept, every combining mark removed."""
+    return unicodedata.normalize("NFC", "".join(
+        c for c in unicodedata.normalize("NFD", text)
+        if not unicodedata.combining(c)))
+
+
+def load_expansion_lemma_heads(path: Path) -> tuple[frozenset, dict]:
+    """The heads an unaccented expansion lemma may stand for.
+
+    Returns every Ancient and vernacular head of grc_lexical_heads.json,
+    and the Ancient heads indexed by their bare letters, the index
+    ``unaccented_expansion_lemma`` repairs a lemma through.
+    """
+    evidence = json.loads(path.read_text(encoding="utf-8"))
+    ancient = evidence["heads"]
+    heads = frozenset(ancient) | frozenset(evidence.get("vernacular_heads", ()))
+    by_letters: dict[str, set] = {}
+    for head in ancient:
+        by_letters.setdefault(_bare_letters(head), set()).add(head)
+    return heads, by_letters
+
+
+def unaccented_expansion_lemma(lemma: str, heads, heads_by_letters,
+                               is_citation=None
+                               ) -> tuple[str, str | None] | None:
+    """Judge a dictionary-expansion lemma that carries no diacritic at all.
+
+    The expansion layer holds lemmas that are source-text artefacts, not
+    citation forms: Latin words read as Beta Code (αελιυς, σερvιλια), OCR
+    garble (λαβλυμι, λαβ’μι), hyphenated composition lemmas
+    (προ-ανακηρυσσω) and unaccented doublets of real heads (συνοχος). A
+    lemma with any combining mark, or one a head list has (τε, που, κρεω),
+    is kept: None. Otherwise the reading is repaired to the single Ancient
+    head with the same letters, ``("unaccented_expansion_lemma_repaired",
+    head)``, or dropped, ``("unaccented_expansion_lemma_unlisted", None)``.
+    With ``is_citation``, the head must also pass it (the build asks for a
+    head the lookup maps to itself): the head lists carry inflected
+    cross-reference entries (κλεῖδα, κλεῖδες, of κλείς), and a reading
+    repaired to one of them is another non-lemma, so it is dropped instead,
+    ``("unaccented_expansion_lemma_head_not_citation", None)``.
+    """
+    if not isinstance(lemma, str) or not lemma:
+        return None
+    if any(unicodedata.combining(c) for c in unicodedata.normalize("NFD", lemma)):
+        return None
+    if lemma in heads:
+        return None
+    same_letters = heads_by_letters.get(lemma, ())
+    if len(same_letters) == 1:
+        head = next(iter(same_letters))
+        if is_citation is not None and not is_citation(head):
+            return "unaccented_expansion_lemma_head_not_citation", None
+        return "unaccented_expansion_lemma_repaired", head
+    return "unaccented_expansion_lemma_unlisted", None
+
+
+def capitalized_pronoun_twin(form: str, lemma: str, tables) -> str | None:
+    """The pronoun a capitalised corpus form's lowercase spelling reads as.
+
+    GLAUx and Diorisis give some sentence-initial pronouns a capitalised
+    name lemma, which the build lowercases into another real head: Αὕτη
+    becomes ἄτη, Τούτου τοῦτος, Πάντα πάν, Ἡμῶν ἡμός. When the form's
+    lowercase spelling (first letter lowered) already reads, from a
+    non-corpus source, as a closed-class pronominal lemma
+    (``CLOSED_PRONOMINAL_LEMMAS``) and the corpus pair names another,
+    capitalised-free lemma, return that pronoun so the pair is skipped and
+    the capitalised form falls back to its lowercase reading. ``tables`` is
+    a sequence of (readings, is_corpus) pairs to look the twin up in.
+    """
+    if not form or not lemma or not form[0].isupper() or lemma[0].isupper():
+        return None
+    lower = form[0].lower() + form[1:]
+    if lower == form:
+        return None
+    for readings, is_corpus in tables:
+        twin = readings.get(lower)
+        if (twin in CLOSED_PRONOMINAL_LEMMAS and twin != lemma
+                and not is_corpus(lower)):
+            return twin
     return None
 
 
@@ -477,6 +568,17 @@ def build():
         print(f"  Modern Greek rule-generated paradigm forms: {len(generated):,}")
     citation_rejections: list[dict] = []
 
+    def _record_citation_rejection(*, table: str, source: str,
+                                   form: str, lemma: str,
+                                   reason: str) -> None:
+        citation_rejections.append({
+            "table": table,
+            "source": source,
+            "form": form,
+            "lemma": lemma,
+            "reason": reason,
+        })
+
     # Merge med into el: vernacular medieval Greek is the ancestor of
     # Modern Greek, and EL Wiktionary's "Medieval Greek" category contains
     # early MG vocabulary, not Byzantine literary Greek.
@@ -729,16 +831,84 @@ def build():
 
         Corpora like GLAUx sometimes capitalize sentence-initial lemmas
         (e.g. Εἰμί instead of εἰμί). If the lowercase version is a known
-        headword, prefer it.
+        headword, prefer it. A reviewed non-lemma (REJECTED_LEMMAS) stays
+        as it is, so the rejection still catches it: GLAUx's Ταύτης for
+        Ταύτῃ would otherwise pass as the lowercase ταύτης, which some head
+        list carries.
         """
+        if lemma in REJECTED_LEMMAS:
+            return lemma
         if lemma and lemma[0].isupper():
             lower = lemma[0].lower() + lemma[1:]
             if lower in headwords_exact:
                 return lower
         return lemma
 
+    _CORPUS_PAIR_SOURCES = {GLAUX_PAIRS_PATH.name, DIORISIS_PAIRS_PATH.name}
+
+    def _pronoun_twin_tables(ag_snapshot):
+        """Where a capitalised corpus form's lowercase twin is looked up:
+        the AG table as it stood before the corpus block, then the el table,
+        each with a test for readings an earlier corpus block supplied."""
+        return (
+            (ag_snapshot, lambda f: ag_source_overrides.get(f)
+             in _CORPUS_PAIR_SOURCES),
+            (el, lambda f: el_source_overrides.get(f) in _CORPUS_PAIR_SOURCES),
+        )
+
+    # Unaccented dictionary-expansion lemmas are checked against the lexical
+    # heads (#103). Without them the check cannot run, and the build would
+    # ship the transliterated-Latin and OCR lemmas it exists to remove.
+    # Every expansion lemma is judged once, here, before any corpus pair is
+    # read: the verdict drops or repairs the expansion reading in
+    # _sanitize_table, and it applies to a corpus pair naming the same lemma
+    # too, since GLAUx and Diorisis carry some of these artefacts (λαβῃ ->
+    # λαβλυμι) and ag_headwords.json lists them, so a corpus pair would
+    # otherwise put the dropped lemma back. A repair goes only to a head the
+    # Ancient or Modern table maps to itself.
+    expansion_heads = expansion_heads_by_letters = None
+    if GRC_LEXICAL_HEADS_PATH.exists():
+        expansion_heads, expansion_heads_by_letters = (
+            load_expansion_lemma_heads(GRC_LEXICAL_HEADS_PATH))
+    elif AG_EXPANSION_LAYER in ag_source_overrides.values():
+        sys.exit(f"{GRC_LEXICAL_HEADS_PATH.name} is missing; it is needed to "
+                 "check the dictionary-expansion lemmas. Fetch it with "
+                 "python -m dilemma download.")
+    expansion_verdicts: dict[str, tuple[str, str | None]] = {}
+    if expansion_heads is not None:
+        def _is_citation_head(head):
+            return ag.get(head) == head or el.get(head) == head
+        for form, layer in ag_source_overrides.items():
+            if layer != AG_EXPANSION_LAYER or not isinstance(ag.get(form), str):
+                continue
+            lemma = sanitize_form(ag[form])
+            if lemma in expansion_verdicts:
+                continue
+            verdict = unaccented_expansion_lemma(
+                lemma, expansion_heads, expansion_heads_by_letters,
+                _is_citation_head)
+            if verdict is not None:
+                expansion_verdicts[lemma] = verdict
+    corpus_expansion_dropped: dict[str, int] = {}
+    corpus_expansion_repaired: dict[str, int] = {}
+
+    def _corpus_expansion_lemma(form, lemma, source):
+        """A corpus pair's lemma after the #103 verdict on the same expansion
+        lemma: the repaired head, the lemma unchanged, or None (dropped)."""
+        verdict = expansion_verdicts.get(sanitize_form(lemma))
+        if verdict is None:
+            return lemma
+        reason, head = verdict
+        counts = corpus_expansion_repaired if head else corpus_expansion_dropped
+        counts[source] = counts.get(source, 0) + 1
+        _record_citation_rejection(
+            table="AG", source=source, form=form, lemma=lemma,
+            reason=f"{reason}_to_{head}" if head else reason)
+        return head
+
     # Reject pairs whose lemma is not a known AG headword to filter
     # out annotation errors (e.g. Ἔστι -> Ἔσθι, corrupt -δήποτε lemmas).
+    # Reviewed non-lemmas (dilemma/grc_rejected_lemmas.py) are rejected too.
     glaux_added_ag = 0
     glaux_added_med = 0
     glaux_skipped_med = 0
@@ -750,12 +920,22 @@ def build():
         # Snapshot AG keys before GLAUx expansion, so we can check
         # whether a form had an original (Wiktionary) AG entry.
         ag_original = dict(ag)
+        glaux_twin_skipped = 0
+        twin_tables = _pronoun_twin_tables(ag_original)
         for p in glaux_pairs:
             form, lemma = p["form"], p["lemma"]
             # Normalize capitalized lemmas (GLAUx sentence-initial convention)
             lemma = _normalize_corpus_lemma(lemma, ag_headwords_exact)
+            lemma = _corpus_expansion_lemma(form, lemma, GLAUX_PAIRS_PATH.name)
+            if lemma is None:
+                glaux_bad_lemma += 1
+                continue
+            if capitalized_pronoun_twin(form, lemma, twin_tables):
+                glaux_twin_skipped += 1
+                continue
             # Validate lemma against known AG headwords
-            if ag_headwords_exact and lemma not in ag_headwords_exact:
+            if (lemma in REJECTED_LEMMAS
+                    or (ag_headwords_exact and lemma not in ag_headwords_exact)):
                 glaux_bad_lemma += 1
                 continue
             # Add to AG if not already present
@@ -779,7 +959,8 @@ def build():
         print(f"  GLAUx: +{glaux_added_ag:,} to AG, "
               f"+{glaux_added_med:,} to el, "
               f"{glaux_skipped_med:,} el conflicts skipped, "
-              f"{glaux_bad_lemma:,} bad lemmas rejected "
+              f"{glaux_bad_lemma:,} bad lemmas rejected, "
+              f"{glaux_twin_skipped:,} capitalised pronoun twins skipped "
               f"({time.time()-t_g:.1f}s)")
 
     # Expand AG and el with Diorisis corpus pairs (456K forms from
@@ -798,12 +979,22 @@ def build():
             diorisis_pairs = json.load(f)
         # Snapshot AG keys before Diorisis expansion (includes Wiktionary + GLAUx)
         ag_before_dior = dict(ag)
+        dior_twin_skipped = 0
+        twin_tables = _pronoun_twin_tables(ag_before_dior)
         for p in diorisis_pairs:
             form, lemma = p["form"], p["lemma"]
             # Normalize capitalized lemmas
             lemma = _normalize_corpus_lemma(lemma, ag_headwords_exact)
+            lemma = _corpus_expansion_lemma(form, lemma, DIORISIS_PAIRS_PATH.name)
+            if lemma is None:
+                dior_bad_lemma += 1
+                continue
+            if capitalized_pronoun_twin(form, lemma, twin_tables):
+                dior_twin_skipped += 1
+                continue
             # Validate lemma against known AG headwords
-            if ag_headwords_exact and lemma not in ag_headwords_exact:
+            if (lemma in REJECTED_LEMMAS
+                    or (ag_headwords_exact and lemma not in ag_headwords_exact)):
                 dior_bad_lemma += 1
                 continue
             # Add to AG if not already present from any source
@@ -829,7 +1020,8 @@ def build():
         print(f"  Diorisis: +{dior_added_ag:,} to AG ({dior_skipped_ag:,} skipped), "
               f"+{dior_added_el:,} to el, "
               f"{dior_skipped_el:,} el conflicts skipped, "
-              f"{dior_bad_lemma:,} bad lemmas rejected "
+              f"{dior_bad_lemma:,} bad lemmas rejected, "
+              f"{dior_twin_skipped:,} capitalised pronoun twins skipped "
               f"({time.time()-t_d:.1f}s)")
 
     # Koine NT (Nestle 1904 lowfat, CC BY 4.0): lowest-priority gap-fill of
@@ -844,7 +1036,12 @@ def build():
         for p in nt_pairs:
             form, lemma = p["form"], p["lemma"]
             lemma = _normalize_corpus_lemma(lemma, ag_headwords_exact)
-            if ag_headwords_exact and lemma not in ag_headwords_exact:
+            lemma = _corpus_expansion_lemma(form, lemma, NT_PAIRS_PATH.name)
+            if lemma is None:
+                nt_bad_lemma += 1
+                continue
+            if (lemma in REJECTED_LEMMAS
+                    or (ag_headwords_exact and lemma not in ag_headwords_exact)):
                 nt_bad_lemma += 1
                 continue
             if _fills_ag_gap(form, lemma):
@@ -878,7 +1075,12 @@ def build():
                 bad_lemma += 1
                 continue
             lemma = _normalize_corpus_lemma(lemma, ag_headwords_exact)
-            if ag_headwords_exact and lemma not in ag_headwords_exact:
+            lemma = _corpus_expansion_lemma(form, lemma, path.name)
+            if lemma is None:
+                bad_lemma += 1
+                continue
+            if (lemma in REJECTED_LEMMAS
+                    or (ag_headwords_exact and lemma not in ag_headwords_exact)):
                 bad_lemma += 1
                 continue
             if _fills_ag_gap(form, lemma):
@@ -891,6 +1093,13 @@ def build():
         print(f"  {label}: +{added_ag:,} to AG, "
               f"{bad_lemma:,} bad lemmas rejected ({time.time()-t_g:.1f}s)")
 
+
+    for label, counts in (("dropped", corpus_expansion_dropped),
+                          ("repaired", corpus_expansion_repaired)):
+        if counts:
+            print(f"  Corpus pairs naming a judged expansion lemma (#103), {label}: "
+                  + ", ".join(f"{source} {count:,}"
+                              for source, count in sorted(counts.items())))
 
     trusted_grave_targets = trusted_ag_citation_headwords(
         _TRUSTED_BUILD_HEADWORD_PATHS)
@@ -907,16 +1116,6 @@ def build():
     # LSJ paradigm expansion produces leading combining-psili forms like
     # `̓Αβαρικός`, and treebank exports encode elision as trailing psili
     # (`μετ̓`). See form_sanitize.sanitize_form for the rules.
-    def _record_citation_rejection(*, table: str, source: str,
-                                   form: str, lemma: str,
-                                   reason: str) -> None:
-        citation_rejections.append({
-            "table": table,
-            "source": source,
-            "form": form,
-            "lemma": lemma,
-            "reason": reason,
-        })
 
     def _sanitize_table(name: str, table: dict, *, default_source: str,
                         source_overrides: dict[str, str],
@@ -927,6 +1126,7 @@ def build():
         grave_normalized = 0
         grave_dropped = 0
         artifact_dropped = {}
+        expansion_repaired = expansion_dropped = 0
         for k, v in table.items():
             source = source_overrides.get(k, default_source)
             sk = sanitize_form(k)
@@ -950,6 +1150,28 @@ def build():
                     table=name, source=source, form=k, lemma=sv,
                     reason=artifact_reason)
                 continue
+            if isinstance(sv, str) and sv in REJECTED_LEMMAS:
+                artifact_dropped["reviewed_rejected_target"] = (
+                    artifact_dropped.get("reviewed_rejected_target", 0) + 1)
+                _record_citation_rejection(
+                    table=name, source=source, form=k, lemma=sv,
+                    reason="reviewed_rejected_target")
+                continue
+            if source == AG_EXPANSION_LAYER:
+                verdict = expansion_verdicts.get(sv)
+                if verdict is not None:
+                    reason, head = verdict
+                    if head is None:
+                        expansion_dropped += 1
+                        _record_citation_rejection(
+                            table=name, source=source, form=k, lemma=sv,
+                            reason=reason)
+                        continue
+                    expansion_repaired += 1
+                    _record_citation_rejection(
+                        table=name, source=source, form=k, lemma=sv,
+                        reason=f"{reason}_to_{head}")
+                    sv = head
             if trusted_grave_targets and isinstance(sv, str) and _has_grave(sv):
                 safe = _normalize_grave_citation_lemma(
                     sv, trusted_grave_targets)
@@ -1005,6 +1227,10 @@ def build():
                   f"citation lemmas")
         for reason, count in sorted(artifact_dropped.items()):
             print(f"  Dropped {count:,} {name} {reason} citation artifacts")
+        if expansion_dropped or expansion_repaired:
+            print(f"  Unaccented dictionary-expansion lemmas: dropped "
+                  f"{expansion_dropped:,} {name} readings, repaired "
+                  f"{expansion_repaired:,} to their accented head")
         return out
 
     # Feminine and neuter-plural cells of -ικός adjectives that the pinned
@@ -1269,6 +1495,30 @@ def build():
         print("  Fix: python -m dilemma download --with-attestation")
         print(f"{banner}\n")
 
+    # Regular cells of Ancient -σις nouns and s-stem neuters that no source
+    # declined (dilemma/grc_noun_gaps.py): headword-only -σις nouns (σύναρσις)
+    # and the Attic contracted cells of neuters whose tables are Ionic only
+    # (στέφους beside στέφεος). Generated by rule, so they run on the final
+    # combined table, after every source (the Byzantine headwords reach only
+    # `combined`) and after the word-tail filter, and fill absent keys only;
+    # the reviewed overrides below still win. Keys the merge left out on
+    # purpose (article forms) stay out.
+    # The selection weighs each row by its source (a Modern Greek row is no
+    # evidence of an Ancient declension), and a cell is not added when its
+    # lowercase, grave-to-acute or monotonic spelling already reads as
+    # another lemma.
+    noun_sis, noun_sstem = select_noun_gap_lemmas(
+        (form, lemma, source_of_input.get(combined_sources.get(form)))
+        for form, lemma in combined.items())
+    left_out = {k for table in (ag, el) for k in table if k not in combined}
+    noun_cells = complete_noun_gaps(combined, noun_sis, noun_sstem, taken=left_out)
+    for cell in noun_cells:
+        combined_sources[cell["form"]] = GRC_NOUN_GAPS_SOURCE
+    for kind, label in (("sis", "-σις noun"), ("sstem", "s-stem neuter")):
+        cells = [c for c in noun_cells if c["kind"] == kind]
+        print(f"  Ancient {label} cells ({GRC_NOUN_GAPS_SOURCE}): +{len(cells):,} "
+              f"keys for {len({c['lemma'] for c in cells}):,} lemmas")
+
     _write_citation_rejection_report(citation_rejections)
     print(f"  Citation rejection report: {CITATION_REJECTIONS_PATH} "
           f"({len(citation_rejections):,} rows)")
@@ -1348,6 +1598,24 @@ def build():
         "πλέοντας": "πλέω",      # was πολύς (verb, not adj)
         "πρόειπε": "προλέγω",    # was προαγορεύω
         "χωρῇ": "χώρα",         # was χωρέω (noun dative more common)
+        # The merged layer of ag_lookup.json gives the γραφή paradigm to
+        # γραφεύς (an Attic dual γραφή under γραφεύς) and the forms of σύ to
+        # σῦς (form-of rows σεῖο -> σῦς); the Wiktionary base, every
+        # dictionary and the treebanks have them under γραφή and σύ (#110).
+        # These are exactly the keys the base reads as γραφή or σύ that the
+        # merged layer moved to γραφεύς or σῦς.
+        **{form: "γραφή" for form in (
+            "γραφή", "γραφῆς", "γραφήν", "γραφαί", "γραφάς", "γραφαῖς",
+            "γραφῶν", "γραφά", "γραφαῖν", "γραφη", "γραφην", "γραφαι",
+            "γραφας", "γραφαις", "γραφα", "γραφαιν", "γραφαίν", "γραφαίς",
+            "γραφών")},
+        **{form: "σύ" for form in (
+            "σύ", "συ", "σοῦ", "σού", "σου", "σεῖο", "σείο", "σειο", "σέο",
+            "σεο", "σεῦ", "σεύ", "σευ", "σέθεν", "σεθεν", "τεΐν", "τειν")},
+        "ἱερέων": "ἱερεύς",      # was ἱερός (gen. pl. of ἱερεύς; ἱερός has ἱερῶν)
+        "ἄριστα": "ἀγαθός",      # was ἄριστον (as ἄριστος, ἀρίστους -> ἀγαθός)
+        "ἀρίστοις": "ἀγαθός",    # was ἄριστον
+        "ἀρὰν": "ἀρά",           # was ἀρή (expansion); ἀράν -> ἀρά
     }
     # Also fix corrupt -δήποτε lemmas from pipeline
     for k, v in list(combined.items()):

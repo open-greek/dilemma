@@ -1,0 +1,1517 @@
+{
+ "dumps": {
+  "kaikki.org-el-dictionary-Greek.jsonl": "76ea0f160794323e9cd3252a7e3892f8e0c6f5b08bd1cca69cfb8d54b00348e4",
+  "kaikki.org-el-dictionary-GreekDialects.jsonl": "733f1ca8246186bbe4e73fced06926aa1e0f8ec1c2792b9402e9c836d28c8b4f",
+  "kaikki.org-en-dictionary-Greek.jsonl": "6a6a930ef6fd2a011ccebda89c82ca73bb62456cd026cea583358c216aa173d7"
+ },
+ "files": {
+  "mg_lookup.json": {
+   "set": {
+    "ΧΧΧ": [
+     "Καραβίτης",
+     null
+    ],
+    "άς": [
+     "αραιός",
+     null
+    ],
+    "έ": [
+     "αραιός",
+     "Έ"
+    ],
+    "ές": [
+     "μουσικομανής",
+     null
+    ],
+    "ής": [
+     "ολομελής",
+     null
+    ],
+    "γή": [
+     "τριπολῖτις",
+     null
+    ],
+    "γῆ": [
+     "τριπολῖτις",
+     null
+    ],
+    "ες": [
+     "μουσικομανής",
+     "εις"
+    ],
+    "ης": [
+     "ολομελής",
+     null
+    ],
+    "ιά": [
+     "φαρδύς",
+     null
+    ],
+    "ια": [
+     "φαρδύς",
+     "ίο"
+    ],
+    "ικο": [
+     "διαβατάρης",
+     null
+    ],
+    "κο": [
+     "ασχημούλης",
+     "ΚΟ"
+    ],
+    "ξή": [
+     "διαειδικός",
+     null
+    ],
+    "ξη": [
+     "διαειδικός",
+     null
+    ],
+    "ος": [
+     "αισώπειος",
+     "Ος"
+    ],
+    "ουν": [
+     "οκταπλούς",
+     "σαλπάρω"
+    ],
+    "ουσης": [
+     "αρχαΐζω",
+     null
+    ],
+    "ουσων": [
+     "αρχαΐζω",
+     null
+    ],
+    "ουσών": [
+     "αρχαΐζω",
+     null
+    ],
+    "ού": [
+     "αραιός",
+     null
+    ],
+    "ούν": [
+     "οκταπλούς",
+     "σαλπάρω"
+    ],
+    "ούσης": [
+     "αρχαΐζω",
+     null
+    ],
+    "χχχ": [
+     "Καραβίτης",
+     null
+    ],
+    "ός": [
+     "αραιός",
+     null
+    ],
+    "ών": [
+     "αραιός",
+     null
+    ]
+   }
+  },
+  "mg_pairs.json": {
+   "add": [
+    {
+     "form": "γένη",
+     "lemma": "Ος",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "form-of",
+      "nominative",
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "γένη",
+     "lemma": "Ος",
+     "pos": "noun",
+     "tags": [
+      "neuter"
+     ]
+    }
+   ],
+   "remove": [
+    {
+     "form": "Γιαννούλα",
+     "lemma": "Καραβίτης",
+     "pos": "name",
+     "tags": [
+      "form-of"
+     ]
+    },
+    {
+     "form": "Ρουαντέζε",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "Ρουαντέζο",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "singular"
+     ]
+    },
+    {
+     "form": "Ρουαντέζοι",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "Ρουαντέζοι",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "Ρουαντέζος",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "Ρουαντέζου",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "genitive",
+      "singular"
+     ]
+    },
+    {
+     "form": "Ρουαντέζους",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "plural"
+     ]
+    },
+    {
+     "form": "Ρουαντέζων",
+     "lemma": "Νοτιοαφρικάνος",
+     "pos": "noun",
+     "tags": [
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "ΧΧΧ",
+     "lemma": "Καραβίτης",
+     "pos": "name",
+     "tags": [
+      "feminine"
+     ]
+    },
+    {
+     "form": "ά",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "feminine",
+      "singular"
+     ]
+    },
+    {
+     "form": "ά",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "neuter",
+      "plural"
+     ]
+    },
+    {
+     "form": "ά",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "ά",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "ά",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "neuter",
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "ά",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "neuter",
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "άς",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "singular"
+     ]
+    },
+    {
+     "form": "έ",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "masculine",
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "ές",
+     "lemma": "αισχροκερδής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "ανεπιτυχής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "feminine",
+      "plural"
+     ]
+    },
+    {
+     "form": "ές",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "ές",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "ές",
+     "lemma": "αφανής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "εμπροσθογεμής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "καινοφανής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "μουσικομανής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "ολομελής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "φυλλοειδής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ές",
+     "lemma": "φωτογενής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ής",
+     "lemma": "αμφικλινής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ής",
+     "lemma": "ανεπιτυχής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ής",
+     "lemma": "αφανής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ής",
+     "lemma": "καινοφανής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ής",
+     "lemma": "ολομελής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ής",
+     "lemma": "φυλλοειδής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ής",
+     "lemma": "φωτογενής",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "α",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "feminine",
+      "singular"
+     ]
+    },
+    {
+     "form": "α",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "neuter",
+      "plural"
+     ]
+    },
+    {
+     "form": "α",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "α",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "α",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "neuter",
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "α",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "neuter",
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "ας",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "singular"
+     ]
+    },
+    {
+     "form": "γ",
+     "lemma": "βρόντημα",
+     "pos": "noun",
+     "tags": [
+      "neuter"
+     ]
+    },
+    {
+     "form": "γένη",
+     "lemma": "αισώπειος",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "form-of",
+      "nominative",
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "γένη",
+     "lemma": "αισώπειος",
+     "pos": "noun",
+     "tags": [
+      "neuter"
+     ]
+    },
+    {
+     "form": "γή",
+     "lemma": "τριπολῖτις",
+     "pos": "noun",
+     "tags": [
+      "feminine"
+     ]
+    },
+    {
+     "form": "γῆ",
+     "lemma": "τριπολῖτις",
+     "pos": "noun",
+     "tags": [
+      "feminine"
+     ]
+    },
+    {
+     "form": "ε",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "masculine",
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "ες",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "feminine",
+      "plural"
+     ]
+    },
+    {
+     "form": "ες",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "ες",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "ες",
+     "lemma": "φυλλώδης",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ες",
+     "lemma": "φυματιώδης",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ης",
+     "lemma": "φυλλώδης",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ης",
+     "lemma": "φυματιώδης",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ιά",
+     "lemma": "φαρδύς",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ικο",
+     "lemma": "απλοχέρης",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ικο",
+     "lemma": "διαβατάρης",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ιο",
+     "lemma": "ακέραιος",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ιο",
+     "lemma": "βοϊδίσιος",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "καλυβών",
+     "lemma": "αχυροκαλύβα",
+     "pos": "noun",
+     "tags": [
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "κο",
+     "lemma": "ασχημούλης",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "μηχανές",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "plural"
+     ]
+    },
+    {
+     "form": "μηχανές",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "μηχανές",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "μηχανή",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "singular"
+     ]
+    },
+    {
+     "form": "μηχανή",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "μηχανή",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "μηχανής",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "genitive",
+      "singular"
+     ]
+    },
+    {
+     "form": "μηχανών",
+     "lemma": "κρεατομηχανή",
+     "pos": "noun",
+     "tags": [
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "μιμητές",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "plural"
+     ]
+    },
+    {
+     "form": "μιμητές",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "μιμητές",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "μιμητή",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "accusative",
+      "singular"
+     ]
+    },
+    {
+     "form": "μιμητή",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "genitive",
+      "singular"
+     ]
+    },
+    {
+     "form": "μιμητή",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "μιμητής",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "μιμητών",
+     "lemma": "αττικιστής",
+     "pos": "noun",
+     "tags": [
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "ξή",
+     "lemma": "διαειδικός",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ον",
+     "lemma": "αειπάρθενος",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ον",
+     "lemma": "ασυνάρμοστος",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ον",
+     "lemma": "μύχιος",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ον",
+     "lemma": "φιλοπράγμων",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ος",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "masculine",
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "ου",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "masculine",
+      "singular"
+     ]
+    },
+    {
+     "form": "ου",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "neuter",
+      "singular"
+     ]
+    },
+    {
+     "form": "ουν",
+     "lemma": "αμβλύνους",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ουν",
+     "lemma": "κρυψίνους",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ους",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "masculine",
+      "plural"
+     ]
+    },
+    {
+     "form": "ους",
+     "lemma": "περίνους",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ους",
+     "lemma": "πορφυρόχρους",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ους",
+     "lemma": "σοκολατόχρους",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ουσών",
+     "lemma": "αρχαΐζων",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "ού",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "masculine",
+      "singular"
+     ]
+    },
+    {
+     "form": "ού",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "neuter",
+      "singular"
+     ]
+    },
+    {
+     "form": "ούν",
+     "lemma": "οκταπλούς",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ούς",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "masculine",
+      "plural"
+     ]
+    },
+    {
+     "form": "ούσης",
+     "lemma": "αρχαΐζων",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "singular"
+     ]
+    },
+    {
+     "form": "π",
+     "lemma": "κακόγνωμος",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "παίχτες",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "plural"
+     ]
+    },
+    {
+     "form": "παίχτες",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "nominative",
+      "plural"
+     ]
+    },
+    {
+     "form": "παίχτες",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "plural",
+      "vocative"
+     ]
+    },
+    {
+     "form": "παίχτη",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "accusative",
+      "singular"
+     ]
+    },
+    {
+     "form": "παίχτη",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "singular"
+     ]
+    },
+    {
+     "form": "παίχτη",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "singular",
+      "vocative"
+     ]
+    },
+    {
+     "form": "παίχτης",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "παιχτών",
+     "lemma": "κάμποσος",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "ς",
+     "lemma": "Δρυάδες",
+     "pos": "noun",
+     "tags": []
+    },
+    {
+     "form": "υ",
+     "lemma": "ένδακρυς",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "ων",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "ων",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "masculine",
+      "plural"
+     ]
+    },
+    {
+     "form": "ων",
+     "lemma": "αισώπειος",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "neuter",
+      "plural"
+     ]
+    },
+    {
+     "form": "ων",
+     "lemma": "φιλοπράγμων",
+     "pos": "adj",
+     "tags": []
+    },
+    {
+     "form": "όντων",
+     "lemma": "αρχαΐζων",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "masculine",
+      "plural"
+     ]
+    },
+    {
+     "form": "όντων",
+     "lemma": "αρχαΐζων",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "neuter",
+      "plural"
+     ]
+    },
+    {
+     "form": "όνων",
+     "lemma": "αιθεροβάμων",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "όνων",
+     "lemma": "αιθεροβάμων",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "masculine",
+      "plural"
+     ]
+    },
+    {
+     "form": "όνων",
+     "lemma": "αιθεροβάμων",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "neuter",
+      "plural"
+     ]
+    },
+    {
+     "form": "όνων",
+     "lemma": "απράγμων",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "όνων",
+     "lemma": "απράγμων",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "masculine",
+      "plural"
+     ]
+    },
+    {
+     "form": "όνων",
+     "lemma": "απράγμων",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "neuter",
+      "plural"
+     ]
+    },
+    {
+     "form": "ός",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "masculine",
+      "nominative",
+      "singular"
+     ]
+    },
+    {
+     "form": "ών",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "feminine",
+      "genitive",
+      "plural"
+     ]
+    },
+    {
+     "form": "ών",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "masculine",
+      "plural"
+     ]
+    },
+    {
+     "form": "ών",
+     "lemma": "αριός",
+     "pos": "adj",
+     "tags": [
+      "genitive",
+      "neuter",
+      "plural"
+     ]
+    }
+   ]
+  },
+  "mg_pos_lookup.json": {
+   "set": {
+    "ά": [
+     {
+      "ADJ": "αριός",
+      "ADV": "αλλιώς",
+      "NOUN": "άρθρο"
+     },
+     {
+      "ADV": "αλλιώς",
+      "NOUN": "άρθρο"
+     }
+    ],
+    "άς": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "έ": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ές": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ας": [
+     {
+      "ADJ": "αισώπειος",
+      "PART": "ας"
+     },
+     null
+    ],
+    "γ": [
+     {
+      "NOUN": "βρόντημα",
+      "VERB": "εισακούω"
+     },
+     null
+    ],
+    "ε": [
+     {
+      "ADJ": "αισώπειος",
+      "INTJ": "ε",
+      "VERB": "αποδεικνύω"
+     },
+     {
+      "INTJ": "ε",
+      "VERB": "αποδεικνύω"
+     }
+    ],
+    "ες": [
+     {
+      "ADJ": "αισώπειος",
+      "ADP": "εις",
+      "PROPN": "Ες"
+     },
+     {
+      "ADP": "εις",
+      "PROPN": "Ες"
+     }
+    ],
+    "ια": [
+     {
+      "ADJ": "φαρδύς",
+      "NOUN": "ίο",
+      "PROPN": "Ία"
+     },
+     {
+      "NOUN": "ίο",
+      "PROPN": "Ία"
+     }
+    ],
+    "ιο": [
+     {
+      "ADJ": "ακέραιος",
+      "NOUN": "ιός",
+      "PROPN": "Ίος"
+     },
+     {
+      "NOUN": "ιός",
+      "PROPN": "Ίος"
+     }
+    ],
+    "κο": [
+     {
+      "ADJ": "ασχημούλης",
+      "PROPN": "Κο"
+     },
+     null
+    ],
+    "ον": [
+     {
+      "ADJ": "μύχιος",
+      "NOUN": "ων"
+     },
+     null
+    ],
+    "οντων": [
+     {
+      "ADJ": "αρχαΐζων",
+      "NOUN": "ων"
+     },
+     null
+    ],
+    "ονων": [
+     {
+      "ADJ": "αιθεροβάμων",
+      "NOUN": "όνος"
+     },
+     null
+    ],
+    "ος": [
+     {
+      "ADJ": "αισώπειος",
+      "PROPN": "Ος"
+     },
+     null
+    ],
+    "ου": [
+     {
+      "ADJ": "αισώπειος",
+      "NOUN": "ου",
+      "PART": "ου",
+      "PROPN": "Ου"
+     },
+     {
+      "NOUN": "ου",
+      "PART": "ου",
+      "PROPN": "Ου"
+     }
+    ],
+    "ουν": [
+     {
+      "ADJ": "οκταπλούς",
+      "PROPN": "Ουν",
+      "VERB": "σαλπάρω"
+     },
+     {
+      "PROPN": "Ουν",
+      "VERB": "σαλπάρω"
+     }
+    ],
+    "ους": [
+     {
+      "ADJ": "αισώπειος",
+      "NOUN": "ους",
+      "PRON": "ους",
+      "PROPN": "Ους"
+     },
+     {
+      "NOUN": "ους",
+      "PRON": "ους",
+      "PROPN": "Ους"
+     }
+    ],
+    "ουσης": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "ουσων": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "ουσών": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "ού": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ούν": [
+     {
+      "ADJ": "οκταπλούς",
+      "VERB": "σαλπάρω"
+     },
+     null
+    ],
+    "ούς": [
+     {
+      "ADJ": "αριός",
+      "NOUN": "ους"
+     },
+     null
+    ],
+    "ούσης": [
+     {
+      "ADJ": "αρχαΐζων"
+     },
+     null
+    ],
+    "π": [
+     {
+      "ADJ": "κακόγνωμος"
+     },
+     null
+    ],
+    "παίχτες": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "παίχτη": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "παίχτης": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "παιχτες": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "παιχτη": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "παιχτης": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "παιχτων": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "παιχτών": [
+     {
+      "ADJ": "κάμποσος",
+      "NOUN": "παίκτης"
+     },
+     null
+    ],
+    "ων": [
+     {
+      "ADJ": "αισώπειος"
+     },
+     null
+    ],
+    "όντων": [
+     {
+      "ADJ": "αρχαΐζων",
+      "NOUN": "ων"
+     },
+     null
+    ],
+    "όνων": [
+     {
+      "ADJ": "αιθεροβάμων",
+      "NOUN": "όνος"
+     },
+     null
+    ],
+    "ός": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ],
+    "ών": [
+     {
+      "ADJ": "αριός"
+     },
+     null
+    ]
+   }
+  }
+ },
+ "generator": {
+  "new": "1fa55837ed5298778ff001348626a8e529b226f7",
+  "old": "c4ced976d92cc8744bb0f51c7f319e81349783f0"
+ },
+ "inputs": {
+  "triantafyllidis_headwords.json": "e67908f1822e9d4319af174115b6e46b9f7e904cb5cc6b702caddbbe36ec97a1"
+ },
+ "language": "el",
+ "rule": "el_generator_delta_refresh_v1",
+ "schema_version": 1
+}

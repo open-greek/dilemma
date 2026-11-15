@@ -107,3 +107,25 @@ def test_absent_pos_does_not_repeat_batch_model_inference():
 def test_absent_pos_does_not_replace_distinct_baseline_with_unmatched_candidate():
     m=model([candidate('different')],'baseline',None)
     assert m.lemmatize_batch_pos(['input'],['NOUN'],guess=False)==['baseline']
+
+
+@pytest.mark.parametrize('pos', ['unmatched', None])
+def test_unmatched_pos_keeps_the_batch_baseline_not_the_first_candidate(pos):
+    # Under convention="triantafyllidis" the verbose list ranks differently
+    # from lemmatize_batch() (προῖὸν NOUN: πρόειμι first, baseline προϊών);
+    # both POS calls return the baseline.
+    m=model([candidate('πρόειμι'),candidate('προϊών')],'προϊών',pos)
+    m._fix_mg_selfmap=lambda word,candidates,upos=None: None
+    assert m.lemmatize_pos('προῖὸν','NOUN',guess=False)=='προϊών'
+    assert m.lemmatize_batch_pos(['προῖὸν'],['NOUN'],guess=False)==['προϊών']
+
+
+def test_shipped_triantafyllidis_pos_calls_agree():
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip('Shipped Dilemma data is not installed')
+    m=core.Dilemma(lang='all',convention='triantafyllidis',resolve_articles=True)
+    items=[('προῖὸν','NOUN'),('προῖὸν','ADJ'),('γραφῆς','ADJ'),('Έλληνας','NOUN'),
+           ('Γένη','VERB'),('ν᾽','NOUN')]
+    words=[w for w,_ in items]; tags=[t for _,t in items]
+    assert [m.lemmatize_pos(w,t,guess=False) for w,t in items]==m.lemmatize_batch_pos(
+        words,tags,guess=False)

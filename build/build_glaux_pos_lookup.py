@@ -22,6 +22,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from dilemma.form_sanitize import is_capitalized
+from dilemma.grc_rejected_lemmas import REJECTED_LEMMAS
 
 GLAUX_PAIRS = SCRIPT_DIR / "data" / "glaux_pairs.json"
 OUTPUT_PATH = SCRIPT_DIR / "data" / "glaux_pos_lookup.json"
@@ -73,6 +74,7 @@ def build_lookup():
     # Collect form_upos_lemmas[form][upos][lemma] = count
     form_upos_lemmas = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     skipped = 0
+    rejected = 0
 
     _junk_finals = tuple("᾽'’ʼ`ʹ")
     for item in pairs:
@@ -90,6 +92,11 @@ def build_lookup():
                 or "̅" in unicodedata.normalize("NFD", lemma):
             skipped += 1
             continue
+        # Reviewed non-lemmas: GLAUx files forms of οὗτος under the names
+        # Ταύτη, Ταύτης, Τοῦτος (dilemma/grc_rejected_lemmas.py).
+        if lemma in REJECTED_LEMMAS:
+            rejected += 1
+            continue
         upos = WIKT_TO_UPOS.get(pos)
         if not upos:
             skipped += 1
@@ -101,6 +108,7 @@ def build_lookup():
         form_upos_lemmas[form][upos][lemma] += 1
 
     print(f"Skipped (no POS / no UPOS mapping): {skipped}")
+    print(f"Skipped (reviewed non-lemma): {rejected}")
     print(f"Unique forms: {len(form_upos_lemmas)}")
 
     # Filter to genuinely ambiguous forms

@@ -23,6 +23,7 @@ except PackageNotFoundError:  # running from a source checkout, not installed
 
 from .core import (
     Dilemma,
+    DilemmaDataWarning,
     LemmaCandidate,
     LookupDB,
     to_monotonic,
@@ -77,6 +78,7 @@ def __getattr__(name):
 
 __all__ = [
     "Dilemma",
+    "DilemmaDataWarning",
     "LemmaCandidate",
     "LookupDB",
     "to_monotonic",

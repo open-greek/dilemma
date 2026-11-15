@@ -44,7 +44,11 @@ Download options:
 Set `DILEMMA_DATA_DIR` to select a particular `data/` directory, and
 `DILEMMA_MODEL_DIR` to select a `model/` directory. Without an override, the
 lemmatizer checks the download cache, a source checkout, and bundled data,
-using the most recently built or downloaded artifacts.
+using the most recently built or downloaded artifacts. A data directory that
+lacks a list lemmatization reads (the `*_headwords.json` lists,
+`grc_lexical_heads.json`, `grc_adverb_heads.json`, or the convention files)
+still loads, but `Dilemma()` emits a `DilemmaDataWarning` naming the missing
+files, because the lemmas then differ from those of a full download.
 
 ## Lemmatize words
 
@@ -122,7 +126,9 @@ rejected-target checks still apply.
 
 `lemmatize_verbose()` returns candidate lemmas with language, source, score,
 and proper-name metadata. Use `lemmatize_pos()` or `lemmatize_batch_pos()`
-when you already have part-of-speech tags. A preceding article can also help
+when you already have part-of-speech tags. A POS entry found only under
+the accent-stripped spelling does not override the reading of the form as
+written (`ὄρους` NOUN stays `ὄρος`). A preceding article can also help
 rank verbose candidates through `prev_word`.
 
 Reviewed imperfect forms such as `ἀπῇμεν` retain the grammatical lemma

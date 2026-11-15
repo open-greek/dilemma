@@ -43,7 +43,8 @@ from pathlib import Path
 from typing import NamedTuple
 
 from dilemma.verb_source import is_periphrastic_auxiliary
-from dilemma.nominal_header_forms import is_abbreviated_nominal_header
+from dilemma.nominal_header_forms import (is_abbreviated_nominal_header,
+                                         is_modern_nominal_fragment)
 from dilemma.verb_table_fragments import (
     retain_complete_passive_aorist_readings, stemless_passive_aorist_dialects,
     retain_complete_aorist_nonpast_readings, stemless_aorist_nonpast_voices,
@@ -1656,6 +1657,10 @@ def extract_pairs(jsonl_path: Path, lang: str,
 
                 if (lang.startswith("grc-")
                         and is_abbreviated_nominal_header(entry, f_entry)):
+                    continue
+                # A Modern table cell without the word's stem (αρχαΐζων's
+                # ούσης, αισώπειος's ος) is no form of it, in any product.
+                if modern_greek and is_modern_nominal_fragment(entry, f_entry):
                     continue
 
                 form = strip_length_marks(form_text)

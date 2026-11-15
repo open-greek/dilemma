@@ -109,7 +109,12 @@ def test_unsupported_exact_target_keeps_prior_order_and_all_candidates(model, mo
     rows = model.lemmatize_verbose('Σικυῶν̓', guess=False)
     assert rows[0].lemma == 'σικύωνος'
     assert {r.lemma for r in rows} == {'Σικυών', 'σικύωνος', 'σικυών', 'Σικυώνη'}
-    assert model.lemmatize_pos('Σικυῶν̓', 'NOUN', guess=False) == 'σικύωνος'
+    # Without a POS entry the tagged calls keep the untagged answer, which the
+    # exact elided entry still decides; the scalar call no longer takes the
+    # verbose order's first candidate, so it agrees with the batch call.
+    assert model.lemmatize('Σικυῶν̓', guess=False) == 'Σικυών'
+    assert model.lemmatize_pos('Σικυῶν̓', 'NOUN', guess=False) == 'Σικυών'
+    assert model.lemmatize_batch_pos(['Σικυῶν̓'], ['NOUN'], guess=False) == ['Σικυών']
 
 
 def test_raw_support_survives_monotonic_convention(model, tmp_path, monkeypatch):

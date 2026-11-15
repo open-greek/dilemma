@@ -1,0 +1,51 @@
+{
+ "schema_version": 1,
+ "description": "Reviewed Ancient Greek adverbs in -ως that stay their own headword although an adjective of the same stem exists. build/build_grc_adverb_heads.py leaves every entry out of data/grc_adverb_heads.json and lists it there as `keep`; at runtime an ADV-tagged keep word is returned as itself instead of the POS table's adjective. Every entry has a reason. Corpus evidence is from data/diorisis_pairs.json and data/perseus_pairs.json (the AGDT).",
+ "entries": [
+  {
+   "adverb": "μόνως",
+   "decision": "keep",
+   "reason": "adverb of the pronominal adjective μόνος ('only, alone'); Diorisis and the AGDT lemmatize it as itself"
+  },
+  {
+   "adverb": "πρώτως",
+   "decision": "keep",
+   "reason": "adverb of the ordinal πρῶτος ('for the first time') with its own LSJ entry; Diorisis and the AGDT lemmatize it as itself"
+  },
+  {
+   "adverb": "τέως",
+   "decision": "keep",
+   "reason": "temporal correlative of ἕως ('meanwhile'), not the adverb of an adjective; own LSJ and Cunliffe entry; Diorisis and the AGDT lemmatize it as itself"
+  },
+  {
+   "adverb": "ἀμῶς",
+   "decision": "keep",
+   "reason": "pronominal adverb ('somehow', ἀμῶς γέ πως) of the indefinite ἀμός, which survives only in such adverbs; Diorisis lemmatizes it as itself"
+  },
+  {
+   "adverb": "ἄλλως",
+   "decision": "keep",
+   "reason": "pronominal adverb of ἄλλος, 'otherwise, in vain', with its own LSJ and Cunliffe entry; Diorisis and the AGDT lemmatize it as itself"
+  },
+  {
+   "adverb": "ἑτέρως",
+   "decision": "keep",
+   "reason": "pronominal adverb of ἕτερος with its own Cunliffe entry; Diorisis and the AGDT lemmatize it as itself"
+  },
+  {
+   "adverb": "ἰδίως",
+   "decision": "keep",
+   "reason": "the ag_gold and katharevousa_gold gate fixtures lemmatize it as itself (lexicalized 'especially, properly'); Diorisis and the AGDT give ἴδιος, so it is kept to follow the fixtures"
+  },
+  {
+   "adverb": "ἴσως",
+   "decision": "keep",
+   "reason": "lexicalized as 'perhaps', no longer read as 'equally' from ἴσος; the ag_gold fixture, Diorisis and the AGDT lemmatize it as itself"
+  },
+  {
+   "adverb": "ὁμῶς",
+   "decision": "keep",
+   "reason": "'equally, together', of the pronominal ὁμός, with its own LSJ and Cunliffe entry; Diorisis and the AGDT lemmatize it as itself, and it must stay apart from ὅμως"
+  }
+ ]
+}

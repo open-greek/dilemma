@@ -521,6 +521,19 @@ A reference that agrees with the table is kept (`περίπλους`, accusative
   for proper nouns via templates (413K junk entries like `Αχιλλείς`).
   These are skipped unless EN Wiktionary also lists them (which
   indicates a human editor intentionally added them, e.g. `Έλληνες`).
+- **Modern table fragments**. Some Modern Greek noun and adjective tables
+  lose a stem: `αρχαΐζων` lists the participle endings `ούσης`, `όντων`,
+  `ουσών`, `αισώπειος` lists `ος`, `ε`, `ους`, and a headword line can end
+  in a stray letter (`βρόντημα` `γ`). A case cell or headword form whose
+  letters are shorter than the word's is skipped when it is a bare ending
+  (at most three letters, two fewer than the word) or, for a case cell of a
+  common noun or adjective, starts with another letter (`μηχανή` in
+  `κρεατομηχανή`'s table). Longer suppletive cells (`χειρότερος`), short
+  name forms (`Δία`) and headword alternatives (`αργιλές`) are kept
+  (`is_modern_nominal_fragment`). The published snapshot carries the change
+  as the recorded generator delta `data/changes/el_nominal_fragments.json`
+  (the 1.3.24 and the 1.3.25 generator over the dumps pinned in
+  `data/kaikki_inputs.json`; `scripts/refresh_el_generator_delta.py`).
 - **Training pair validation**. Lemmas must resolve to supported lexical
   heads. Independently defined homographs can retain separate paradigms even
   when the flat lookup chooses another reading. The `el_*_heads.json` and
@@ -598,6 +611,53 @@ accented form, its lowercase, and a lowercase accentless key. Entries with
 editorial marks or hyphens (`παρα-λυτικός`), paroxytone names in `-ικος` and
 two-ending entries stay out.
 
+Two noun classes get the same treatment (`dilemma/grc_noun_gaps.py`, source
+`grc_noun_gaps`), on the final combined table, after the corpus word-tail
+filter and before the reviewed overrides:
+
+- Nouns in `-σις` known only from a headword list (`σύναρσις`, from the VLG
+  list; `ῥήτρευσις`, from the Byzantine list, whose paradigm expansion
+  skips every `-ις` noun because it cannot infer an `-ις` genitive). Every
+  lowercase, singly accented, self-mapped `-σις` head that has the
+  breathing its first letter needs (not `όδευσις` beside `ὅδευσις`) gets the
+  regular Attic
+  cells `-εως -ει -εις -εων -εσι(ν) -έοιν -ιν`, with the acute on the stem's
+  last vowel (`συνάρσεως`, `συναρσέοιν`) and the accusative keeping the
+  headword's accent (`σύναρσιν`). The vocative `-σι` is left out, because it
+  is the one cell that meets corpus names (`Κίμωσι`, of `Κίμων`).
+- s-stem neuters in `-ος` whose tables are Ionic or epic only (`στέφεος`,
+  `στέφεα` from the dictionary expansion; `τέκεος`, `γλάγεος` from Homeric
+  Wiktionary tables). A lowercase, singly accented `-ος` lemma with an
+  accented `-εος` row and an accented neuter plural row (`-εα`, `-εσι(ν)` or
+  `-εων`) under it, both from an Ancient source, gets the contracted cells
+  `-ους -ει -η -ῶν -εσι(ν) -οῖν` (`στέφους`, `στέφη`, `στεφῶν`). The plural
+  row keeps singular-only epic nouns (`κῦδος`, `σθένος`) out. Modern Greek
+  rows are no evidence (`υπέρβαρος`), a lemma beginning with a vowel or rho
+  needs its breathing, a lemma that an Ancient dictionary table
+  (`wiktionary_grc`, `grc_merged`, `grc_lexicon_expansion`) also declines in
+  the second declension, with two of `-ου -ῳ -ον -οι -οις`, is a masculine or
+  an adjective and is skipped (`λόχος`, `πρᾶος`, `λάϊνος`, `ὄχθος`; this also
+  drops the genuine neuter `γάνος`), and `φῖλος`, whose `-εος` rows sit beside
+  the adjective `φίλος`, is a reviewed exclusion
+  (`NOT_SSTEM_NEUTERS`).
+
+Each cell is keyed by its accented form, its lowercase and its accentless
+lowercase spelling, and fills a key only when no source supplied it and no
+other generated lemma claims it (accent doublets such as `σχετλίασις` and
+`σχετλιάσις` leave their shared keys empty). A cell is not added at all when
+its lowercase, grave-to-acute or monotonic spelling already reads as another
+lemma, since the runtime answers the form through those spellings: `λαθῶν`
+keeps `λανθάνω` through `λαθών`, and `ἔσθη` keeps `ἐσθίω` through `έσθη`.
+The accentless key is not weighed this way, because it serves unaccented
+input only and the accent tells the cell apart (`αἰτίωσιν` beside the
+verb's `αἰτιῶσιν`). The 1.3.25 build adds 39,606 `-σις` keys for 3,024
+lemmas and 543 s-stem keys for 124 lemmas. A key that already reads as
+another word keeps it (`κινήσει` → `κινέω`, `δάκρυσιν` → `δάκρυον`), and the
+declension is the Attic one only,
+not the Ionic `-ιος` forms. Headword-only adjectives and nouns in `-ος`
+(about 16,900 lemmas, mostly Byzantine entries without a gender) are not
+generated.
+
 Verb expansion rejects source entries explicitly identified as prefixes,
 imperative forms of another verb, or defective verbs whose entry explicitly
 limits the available persons. Those restrictions preserve source-attested
@@ -658,6 +718,26 @@ build time. When `lang="el"` is used, 150K MG-specific entries
 override the AG-first defaults with MG lemma forms (ο instead of ὁ,
 είμαι instead of εἰμί). For polytonic input (breathings/circumflex),
 an additional AG-only lookup pass runs first.
+
+**Reviewed non-lemmas and capitalised corpus forms.** Some sources give a
+lemma that no dictionary heads: the Greek Wiktionary has Ancient pages for
+`Ταύτη`, `Τοῦτος` and `Ἡμων`, and GLAUx files forms of οὗτος under name
+lemmas such as `Ταύτης` and `Τοῦτης`. These spellings are listed with their
+reason and evidence in `dilemma/grc_rejected_lemmas.py`. The lookup build
+drops every reading with such a lemma (recorded in
+`citation_hygiene_rejections.tsv` as `reviewed_rejected_target`) and rejects
+corpus pairs that name one, `build/build_glaux_pos_lookup.py` skips them, and
+the runtime ignores POS-table cells that target them. The corpora also give
+some sentence-initial pronouns a capitalised name lemma that the build used to
+lowercase into another real head (`Αὕτη` → `ἄτη`, `Τούτου` → `τοῦτος`,
+`Πάντα` → `πάν`). A capitalised GLAUx or Diorisis pair is now skipped when
+the form's lowercase spelling already reads, from a non-corpus source, as a
+closed-class pronoun (οὗτος, πᾶς, ἐγώ and the others in
+`CLOSED_PRONOMINAL_LEMMAS`) and the pair names another lemma, so the
+capitalised form takes its lowercase reading. A blanket rule for every
+capitalised corpus row was measured and rejected, because about 2,200 rows of
+mixed quality would change (`Οἰκία` → `οἰκία` is right, `Βασιλέως` →
+`βασιλίς` is wrong).
 
 When the transformer handles an unseen form, beam search generates
 multiple candidates and picks the first that matches a known headword
@@ -750,6 +830,37 @@ speech, and source hashes for surviving Ancient training heads that differ
 from their flat lookup target or are absent from the flat map. The training-data
 integrity check requires this evidence; an unrelated definition under another part of speech cannot
 authorize an exception.
+
+### Ancient adverbs in -ως
+
+`build/build_grc_adverb_heads.py` writes `data/grc_adverb_heads.json`, the
+map the runtime uses to cite a regular Ancient adverb under its adjective
+(`καλῶς` -> `καλός`; see [Adverbs in -ως](usage.md#adverbs-in--ως)). It runs
+after `build_lookup_db.py` and `build/build_treebank_pos_lookup.py`, and
+records the sha256 of every input: the four Ancient POS tables (`ag_pos`,
+`lsj9_pos`, `treebank_pos`, `glaux_pos`), the ag/lsj/lsj10/dge/cunliffe
+headword lists, `lookup.db` and the review file.
+
+The keys are lowercase polytonic adverbs in -ως/-ῶς from the POS tables. The
+adjective is the first cell, in the order ag_pos ADJ, lsj9_pos ADJ, treebank
+ADV, treebank ADJ, GLAUx ADV, GLAUx ADJ, whose value is a lowercase headword
+and an ADJ value somewhere, derives exactly from the adverb's stem (s+ος, s+ης,
+s+οος, s+ους; -έως from -ύς or -ής; -όνως from -ων; -έντως from -εις), and
+agrees in accent: an oxytone -ός adjective gives -ῶς and any other -ος
+adjective -ως, which keeps `ὅμως` away from `ὁμός`. Adverb lemmas of
+`lookup.db` that no POS cell covers take the single headword that passes the
+same checks among the dictionary ADJ values and the -ικός headwords
+(`ὑποτυπωτικῶς` -> `ὑποτυπωτικός`). Left out are keys that a POS table
+itself calls a noun or adjective (`σῶς`, `ἅλως`), keys under five letters,
+monotonic keys (final -ώς, or no breathing on an initial vowel or ρ),
+antepenult-accented Attic-declension words (`ἔκπλεως`), dental-stem nouns
+(`καταγέλως`, `καταγέλωτος`), and the adverbs of
+`data/grc_adverb_review.json`, a reviewed list of lexicalized adverbs that
+the references keep as headwords, each with a reason. The output repeats that
+list as `keep`; an ADV-tagged keep word is returned as itself rather than the
+adjective a treebank cell names. Equivalence groups of
+`data/lemma_equivalences.json` never resolve to a mapped adverb, so under
+`convention="cunliffe"` `ἄδικος` no longer maps back to `ἀδίκως`.
 
 ### Modern Greek homographs
 
