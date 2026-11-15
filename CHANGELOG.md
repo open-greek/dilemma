@@ -6,91 +6,126 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
-This release moves the Ancient and Medieval Greek builds to the archived
-2026-11 kaikki snapshot (#125) and fixes the merged Ancient layer (#126), the
-`lang="all"` POS answers lost with the Modern fragments (#128) and the
-fallback readings that skipped the reviewed non-lemma filter (#133). Modern
-Greek tables are not regenerated (`build_data.py --lang grc` and `--lang mgr`
-only). The measurements below were taken per fix against the 1.3.25 data
-unless they say otherwise; the rebuilt lookup is measured separately.
+This release rebuilds the Ancient and Medieval Greek lookup on the archived
+2026-11 kaikki snapshot (#125). It also fixes the merged Ancient layer (#126),
+the `lang="all"` POS answers lost with the Modern fragments (#128) and the
+fallback readings that skipped the reviewed non-lemma filter (#133). The
+Modern Greek tables are not regenerated (`build_data.py --lang grc` and
+`--lang mgr` only). Unless a line says otherwise, measurements compare this
+release (rebuilt data and new code) with the published 1.3.25 data and code,
+with `guess=False`.
 
-### Lookup and table data
+### Rebuilt lookup (#125)
 
-- Ancient headwords that another lemma had taken over in the lookup get their own reading back (#126). `ἄπειρος` reads as `ἄπειρος` again instead of `ἤπειρος`. Other examples: `κλαίω` (was `κλείω`), `γραφή` (`γραφεύς`), `μήν` (`μείς`), `εἴσω` (`εἴδομαι`), `δῆτα` (`δή`), `θεά` (`θεός`), `δῖος` (`Δῖος`), `ἀγαπητός` (`Ἀγαπητός`), `λιτός` (`λίς`), `γονή` (`γονεύς`) and `σπαθίον` (`σπάθη`). The cause: when a word has a second Wiktionary entry, such as `κλαίω` being also a future of `κλείω`, or appears in another word's table, the merged Ancient table filed the word under that other lemma.
-  - `build_lookup_db.py` now applies a rule before the corpus gap-fill (`restore_displaced_lexical_heads`). A head that Wiktionary defines gets its own reading back when GLAUx reads the form as the head more often than as the other lemma. It also gets it back when GLAUx has no or tied evidence and the pinned Wiktionary-only base reads it as itself. A head that only a dictionary lists needs both conditions: the base reading and the GLAUx majority.
+The kaikki dumps that 1.3.7 to 1.3.25 were built on no longer exist. The
+Ancient and Medieval builders now read the dumps of 2026-10-30 (English
+Wiktionary) and 2026-11-02 (Greek Wiktionary), archived on the Hub and pinned
+in `data/kaikki_inputs.json`. The whole Ancient chain was rerun on them:
+`build_data.py`, the lexical heads, the contracted aliases, the LSJ and
+Sophocles expansions, the overlay, the alias manifest, `build_lookup_db.py`,
+the treebank POS table and the adverb heads.
+
+- **Size.** `lookup.db` has 15,687,214 rows (1.3.25: 15,703,890): 2,292,678 from `wiktionary_grc`, 6,014,364 from `grc_lexicon_expansion` and 2,350,226 from `grc_merged`. `ag_lookup.json` has 10,665,147 keys (10,640,468).
+- **Keys against 1.3.25.** The Ancient table gains about 72,000 expansion keys and 13,000 Wiktionary keys, and about 9,200 expansion keys change their reading. It drops about 100,600 keys:
+  - 77,168 are spellings of hyphenated or starred Sophocles composition entries (`*πάρ-ισος`), which no token matches.
+  - 17,455 are verb forms of 237 lemmas. Part of them were wrong readings (`ἔξηλθεν` read `ἐξερύω`, `φᾶτε` read `φάω`); the rest are listed under "Known gaps".
+  - About 5,200 are nominal spellings that no generator makes any more, mostly misaccented ones (`ῥήμα`, `ἁμαρτια`, `ἀδελφην`), and 714 are capitalized unaccented keys (`Ειρηνην`, `Ιερων`).
+- **Agreement with the annotated corpora** (`lang="all"`, answers that become right and wrong against the corpus lemma):
+
+  | Corpus | Tokens | Untagged | Tagged |
+  |---|---|---|---|
+  | DBBE gold | 8,342 | +9 / −3 | +14 / −2 |
+  | Gorman test | 5,025 | +2 / −0 | +4 / −0 |
+  | Perseus pairs | 80,911 | +96 / −24 | +50 / −9 |
+  | Diorisis pairs (sample) | 30,000 | +23 / −5 | +17 / −4 |
+
+  `lang="grc"` and `lang="el"` are net positive on every corpus as well. The three `bench_fast` fixtures do not change under `lang="all"`.
+- **DBBE** (`eval_dbbe.py`, equiv): 89.7% without POS and 92.5% with gold POS (1.3.25: 89.6 and 92.4). `bench_fast`: AG 99.7, Katharevousa 95.3, Demotic 96.0 (unchanged). `scripts/check_benchmark_regressions.py` passes.
+
+### Carrying the published expansion forward
+
+The published table was built on top of earlier tables, so it holds keys that
+a build from fresh dumps withholds or that no current generator makes.
+`overlay_lsj.py --carried` now takes the published 1.3.25 table as a pinned
+input and gives such a key back only under a stated rule. No rule adds a key
+the published table lacked, and there is no general "carry every published
+key" rule, because part of the published readings were wrong and the rebuild
+fixed them (`ἔξηλθεν` read `ἐξερύω`). Full conditions are in
+docs/lexicon-expansion.md, "Historical expansion overlay". Counts are from
+the release build:
+
+- Excluded 1.3.1 conflicts whose published reading the corpus gap-fill would otherwise replace with a recorded artefact: 7,675 keys (`ἀμέτρητον` keeps `ἀμέτρητος`).
+- Nouns that get no fresh paradigm because the generator cannot use their printed genitive: 1,539 keys of 253 lemmas (`λεκτοῦ`, `κλῃσίν`, `σωματεῖα`).
+- Regular masculine and neuter cells of oxytone adjectives in -ός, which an earlier Sophocles expansion made: 3,747 keys of 457 lemmas (`ἀρχοντικόν`, `θελητόν`).
+- Keys of heads whose lost breathing was corrected, moved to the corrected head: 1,316 keys of 119 lemmas (`Ρωμαϊκόν` under `Ῥωμαϊκός`).
+- Readings under a properly spelled head that a fresh paradigm of an accent-less LSJ9 head claimed: 57 keys (`κληζεται` reads `κλῄζω`, not `κληζω`).
+- Unaccented fallback keys, only where the marked spellings of the rebuilt table that strip to the key read its lemma: 386,533 keys.
+
+### Dictionary expansion
+
+- **Principal parts.** The current LSJ9 glosses export ends many verb entries' head text at the first citation, before the remaining principal parts. `build/expand_lsj.py` now also reads the same export at an earlier lsj9 commit, for principal parts only: a tense the current text gives stands, a missing one is taken from the earlier text, and the three aorist slots are filled only together. 978 verb entries gain 3,018 principal parts, and 178 verbs that only LSJ lists gain 19,363 forms. Both files are pinned in `data/lsj9_glosses_pin.json`, and the verb pass stops when either is missing or differs.
+- **Sophocles heads.** `build/expand_sophocles.py` reads each head through five rules (docs/lexicon-expansion.md, "Sophocles heads"), and its audits record every decision:
+  - The first word of a phrase is not an entry (`Νέα Ῥώμη` gives no paradigm of `Νέα`).
+  - A stated gender wins over the ending (`καισάριης, ἡ` no longer gets a masculine paradigm in -ου).
+  - A head with two accents is rejected (77 heads). A head with an inner hyphen is read under the joined word when another lexical source lists it (`καθ-ηδύνω` as `καθηδύνω`: 6,159 heads) and rejected otherwise (978).
+  - A capitalized common word is generated under its lowercase head (`᾿Αθεότης` as `ἀθεότης`).
+  - A capitalized unaccented key is withheld when its lowercase spelling already reads another lemma (`Εστιας` for `Ἑστιάς` beside `ἑστία`): 270 keys.
+- **Sophocles breathings** (#107). `build/sophocles_breathing.py` restores the initial breathing of each unbreathed ο- and ρ-chunk head from evidence (rho before a vowel, another source's head with the same letters, or the agreeing heads that share its longest initial stretch). It withholds the head when the evidence is split or missing. 1,490 heads are corrected (`ὀφφίκιον`, `ῥῆσις`, `ῥομφαία`) and 88 withheld. The decisions are recorded in `grc_lexical_heads.json` (`sophocles_breathing`).
+- **Lexical heads.** Wiktionary pages whose only gloss names a nonfinite cell of another verb ("uncontracted present active infinitive of ἐπαινέω") are no longer lexical heads: `ἐπαινέειν`, `νοέειν`, `ἐπαινέεσθαι` (new in the 2026-11 dumps) and 12 such heads that 1.3.25 lists (`χέειν`, `ποιέεσθαι`, `δοκέειν`).
+- **Pronoun grid.** The Greek Wiktionary's Ancient Greek page for the determiner `ὅς` carries the personal-pronoun grid in the 2026-11 dump. On a page that is not a pronoun, the grid now contributes only the headword line, so `ἡμῖν`, `ἡμῶν`, `ὑμῖν`, `ὑμᾶς` and `σύ` do not become DET forms of `ὅς` (596 pair rows).
+- A stemless LSJ verb headword (the prefix `ἡμι-`) is never expanded, so bare endings such as `ῆς` and `εῖτε` are not mapped to it.
+- **Generated noun cells.** The dictionary expansion now declines 60 nouns in -σις that only the generated layer declined in 1.3.25 (`σύναρσις`). Their readings are the same, and `grc_noun_gaps` has 39,397 rows (40,149). `ἀδράνεος`, an adjective in LSJ, joins the reviewed lemmas that are not s-stem neuters: the expansion layer declines it as a neuter, and its second-declension cells (`ἀδράνεον`), which had kept it out of the rule, are among the dropped keys.
+
+### Lookup readings
+
+- **Displaced heads** (#126). Ancient headwords that another lemma had taken over in the lookup get their own reading back. `ἄπειρος` reads `ἄπειρος` again instead of `ἤπειρος`. Other examples: `κλαίω` (was `κλείω`), `γραφή` (`γραφεύς`), `μήν` (`μείς`), `εἴσω` (`εἴδομαι`), `δῆτα` (`δή`), `θεά` (`θεός`), `δῖος` (`Δῖος`), `ἀγαπητός` (`Ἀγαπητός`), `λιτός` (`λίς`), `γονή` (`γονεύς`) and `σπαθίον` (`σπάθη`). The cause: when a word has a second Wiktionary entry, such as `κλαίω` being also a future of `κλείω`, or appears in another word's table, the merged Ancient table filed the word under that other lemma.
+  - `build_lookup_db.py` applies the rule before the corpus gap-fill (`restore_displaced_lexical_heads`). A head that Wiktionary defines gets its own reading back when GLAUx reads the form as the head more often than as the other lemma, or when GLAUx has no or tied evidence and the pinned Wiktionary-only base reads it as itself. A head that only a dictionary lists needs both.
   - Where GLAUx prefers the other lemma, the reading stays (`τοῦ`, `ἴσον`, `θρόνον`). `ag_pos_lookup.json` still keeps both readings of a homograph.
-  - The restored rows carry the `wiktionary_grc` source. Each one is listed in `citation_hygiene_rejections.tsv` under the reason `displaced_lexical_head_restored_to_<head>`.
-  - On the 1.3.25 data this restores 668 heads and 1,674 keys.
-  - Gold agreement, comparing tagged (with capitalized nouns tagged PROPN) and untagged runs, plus DBBE gold-POS equivalence:
-    - Perseus, tagged: 93.20 → 93.24% (strict).
-    - Diorisis, tagged: 90.86 → 90.90%.
-    - Untagged pairs: 90.24 → 90.33%.
-    - DBBE, gold POS: unchanged at 92.4% equiv.
-    - DBBE, untagged: 89.6 → 89.7% equiv.
-    - Gorman held-out sample: +1 tagged, +5 untagged out of 6,234 tokens.
-    - `bench_fast` and the benchmark gate: unchanged.
+  - The restored rows carry the `wiktionary_grc` source, and each is listed in `citation_hygiene_rejections.tsv` under `displaced_lexical_head_restored_to_<head>`.
+  - The release build restores 581 heads and 1,084 keys.
+- **Reviewed readings.** `KAIKKI_2026_11_READING_OVERRIDES` in `build_lookup_db.py` holds 274 keys whose reading the rebuild changed for the worse, each with its evidence. Unless noted there, the reading is the one 1.3.25 returned. Together with the older reviewed overrides, the build changes 404 readings and adds 6 absent keys.
+  - Readings the dumps changed: `ην` and `ήν` → `εἰμί` (accented `ἤν` stays `ἐάν`), `μεγάλα` → `μέγας`, `εἴσομαι` → `οἶδα`, `τοῖ` → `σύ`, `κἆτα` → `εἶτα`, `ἐπαινεῖν` → `ἐπαινέω`.
+  - Nominal cells that regenerated contract verbs took: `νοερῶν` → `νοερός` (not `νοερόω`), `γνάθων` → `γνάθος` (not the name `Γνάθων`), the paradigm of `παστάς`, the participles of `ἕψω` and `οἰκίζω`, and cells of 24 other nominals (`νεκροποιοῦ` → `νεκροποιός`, not `νεκροποιέω`).
+  - Nouns in -σις where the treebanks read the noun: `ἑστιάσεις` → `ἑστίασις`, `ἐμφράξεις` → `ἔμφραξις`.
+  - Keys that fell to a treebank gap-fill row with a wrong lemma: `εὑρέτιν` → `εὑρέτις`, `Δωρίδ᾽` → `Δωρίς`, `ἔσσαν` → `ἕννυμι`.
+  - `νη` reads the oath particle `νή` under `lang="all"` (1.3.25: the Modern `νη`); `lang="el"` keeps its Modern row.
+- **Absent keys.** A reviewed reading is written even when no source has the key for the 17 forms in `REVIEWED_ABSENT_KEY_READINGS`, whose only reading named a rejected lemma (`πεπαρῴνηκεν` → `παροινέω`, `ἠμφεσβήτουν` → `ἀμφισβητέω`).
+- **Rejected lemmas.** Seven corpus lemmatizer artefacts join `dilemma/grc_rejected_lemmas.py`: `παραπαροινέω`, `ἀμφιαμφισβητέω`, `γιχρώσκω`, `ταθήχω`, `χειρίω`, `ἀρικνέομαι` and `διασμήγνυμι`.
+- **Modern spellings under `lang="all"`.** Seven monotonic and unaccented keys that fresh pages gave an Ancient reading keep the Modern lemma 1.3.25 returned (`αυτοκινήτου` → `αυτοκίνητο`, `Βιέννης` → `Βιέννη`). Only the combined reading changes; `lang="grc"` keeps the Ancient one.
+- **Corpus rows in the Modern table.** For a form with a reviewed reading, an el-only row that an Ancient corpus gap-fill supplied with another lemma is removed, so `lang="el"` returns the reviewed reading too (`εἴσομαι` no longer gives `εἶμι`): 20 rows.
 
 ### POS-aware lemmatization
 
-- `lang="all"` POS answers that only Modern Greek paradigm fragments used to reach (#128). The Modern POS table lists only forms with several Modern readings, so dropping the fragments in 1.3.25 (#122) also dropped the cells of their real readings. `data/pos_cell_corrections.json` now also covers the Modern Wiktionary and LSJ9 tables and has an `add` action, which supplies a cell only while the table has none for that form and tag:
-  - `ας` PART gives the Modern particle `ας` again (was `ὅς`); the head-line fragment cell `ας` NOUN → `μονοτονία` (the `-ᾱς` of `μονοτονία, -ᾱς`) is dropped.
-  - `ονων` NOUN gives `ὄνος` (was `ὀνή`), under `lang="grc"` too: the LSJ9 accent-stripped cell of `ὀνῶν` is dropped (ὄνων 267 tokens, ὀνῶν 7). Accented `ὀνῶν` NOUN keeps `ὀνή`.
-  - `όντων` NOUN keeps `ὄντα`, the Ancient Wiktionary noun; 1.3.24's `ων` was the Modern participle.
-  - `γ` VERB gives `γ` (was `Γ`): a single candidate that differs from the untagged answer only in case no longer replaces it when its case disagrees with the form and tag. The same applies to other bare letters under `lang="all"` (`κ` X now gives the untagged `κ`, not `Κ`). Scalar and batch POS calls agree.
-- The reviewed non-lemma filter of #108 (`dilemma/grc_rejected_lemmas.py`) now also applies to the grammatical readings behind the Byzantine-normalisation lookups and the participle nominative fallback, so a stale table cell targeting `Ταύτη` or `Τοῦτος` cannot surface through them (#133). A form whose every cell is rejected leaves no empty entry that would hide its other accentual homographs.
+- **`lang="all"` POS answers that only Modern Greek paradigm fragments used to reach** (#128). The Modern POS table lists only forms with several Modern readings, so dropping the fragments in 1.3.25 (#122) also dropped the cells of their real readings. `data/pos_cell_corrections.json` now also covers the Modern Wiktionary and LSJ9 tables and has an `add` action, which supplies a cell only while the table has none for that form and tag:
+  - `ας` PART gives the Modern particle `ας` again (was `ὅς`); the head-line fragment cell `ας` NOUN → `μονοτονία` is dropped.
+  - `ονων` NOUN gives `ὄνος` (was `ὀνή`), under `lang="grc"` too. Accented `ὀνῶν` NOUN keeps `ὀνή`.
+  - `όντων` NOUN keeps `ὄντα`, the Ancient Wiktionary noun.
+  - `γ` VERB gives `γ` (was `Γ`): a single candidate that differs from the untagged answer only in case no longer replaces it when its case disagrees with the form and tag.
+- **Rejected lemmas in fallback readings** (#133). The reviewed non-lemma filter of #108 now also applies to the grammatical readings behind the Byzantine-normalisation lookups and the participle nominative fallback, so a stale table cell targeting `Ταύτη` or `Τοῦτος` cannot surface through them.
+- **Capitalized words.** `lemmatize_pos()` and `lemmatize_batch_pos()` now give a capitalized word the same lemma under every tag (checked on 74,841 capitalized GLAUx types):
+  - A POS entry that names one of the word's case twins decides: `Πῶς` ADV gives `πῶς`, `Δίκαιον` ADJ `δίκαιος`, `Λόγος` NOUN `λόγος`.
+  - Where no POS entry names one, the reading of the word's own lookup row stands for Ancient text (`Εὐξένου` NOUN gives `Εὔξενος`, `Βαβυλωνίην` ADJ `Βαβυλώνιος`).
+  - With `lang="el"` or `convention="triantafyllidis"`, and for a word without polytonic marks whose lowercase twin is a Modern citation form, the lowercase reading is kept (`Χέρι` NOUN gives `χέρι`, `Κάποιος` DET `κάποιος`). PROPN reads the capitalized twin under every setting.
+- **Reviewed cells.** `data/pos_cell_corrections.json` grows from 96 to 169 rows. The rebuilt treebank table keeps a corpus vote only where the bare lookup disagrees with it, so cells whose loss let a lower table answer are added back (`δήτα` ADV gives `δῆτα`, `ζώδιον` NOUN `ζῴδιον`), and new cells that displaced a 1.3.25 answer are corrected or dropped (`εισήεσαν` VERB gives `εἴσειμι`, `ήμεν` VERB `εἰμί`). An Ancient name whose common word the tables hold under the lowercase key keeps its capital under NOUN or ADJ through a reviewed cell (`Πρόξενος` NOUN gives `Πρόξενος`).
 
 ### Build
 
-- Every builder that reads the kaikki dumps now accepts both the flat layout
-  (`scripts/archive_kaikki_inputs.py download` restores the archived 2026-11
-  snapshot into it) and the nested `en-el/`, `el/` layout. The dump names and
-  `resolve_dump` moved from `build_data.py` to `build/kaikki_dumps.py`
-  (`build_data` re-exports them), and `build_grc_lexical_heads.py`,
-  `build_grc_contracted_aliases.py`, `build_treebank_pos_lookup.py`,
-  `overlay_lsj.py` and `scripts/build_source_alias_manifest.py`, which read
-  only the nested layout, use it. The source-alias manifest accepts an audit
-  recorded in either layout for the same bytes.
-- `build/expand_lsj.py` and `build/expand_sophocles.py` take `--kaikki DIR`
-  and `--lsj9-dir DIR`; `overlay_lsj.py` takes `--lsj9-dir`. The dump
-  directory comes from `$DILEMMA_KAIKKI_DIR` in every builder (`$KAIKKI_DIR`
-  is still read when it is unset), the LSJ9 exports from `$DILEMMA_LSJ9_DIR`.
-  Without either, `expand_lsj.py` now reads `./kaikki` instead of
-  `~/Documents/kaikki`.
-- The Greek Wiktionary's Ancient Greek page for the determiner `ὅς` carries the
-  personal-pronoun grid in the 2026-11 dump. On any page that is not a
-  pronoun that grid now contributes only the headword line, so `ἡμῖν`,
-  `ἡμῶν`, `ὑμῖν`, `ὑμᾶς` and `σύ` do not become DET forms of `ὅς` (596 pair
-  rows). Pronoun pages also count the person header cells (`α΄ πρόσωπο`).
-- Wiktionary pages whose only gloss names a nonfinite cell of another verb
-  ("uncontracted present active infinitive of ἐπαινέω") are no longer lexical
-  heads: `ἐπαινέειν`, `νοέειν`, `ἐπαινέεσθαι` (new in the 2026-11 dumps) and
-  12 such heads 1.3.25 lists (`χέειν`, `ποιέεσθαι`, `δοκέειν`, ...).
-- The Sophocles lexicon's lost breathings (#107): `build/sophocles_breathing.py`
-  restores the initial breathing of each unbreathed ο- and ρ-chunk head from
-  evidence (rho before a vowel; another source's head with the same letters;
-  the agreeing heads that share its longest initial stretch) and withholds the
-  head when the evidence is split or missing. On the 2026-11 inputs: 1,490
-  heads corrected (982 same head, 332 initial rho, 176 word family; `ὀφφίκιον`,
-  `ῥῆσις`, `ῥομφαία`), 88 withheld. The decisions are recorded in
-  `grc_lexical_heads.json` (`sophocles_breathing`) and applied by
-  `expand_sophocles.py`, which pins them in its noun audit.
-- Reviewed lookup overrides for readings the 2026-11 dumps change for the
-  worse, from the GLAUx counts: `ην`/`ήν` → `εἰμί` (accented `ἤν` stays
-  `ἐάν`), `μεγάλα` → `μέγας`, `εἴσομαι` → `οἶδα`, `ἑψόμενα` → `ἕψω`,
-  `τοῖ` → `σύ` (1.3.25: `τέῳ`), `κἆτα` → `εἶτα`.
-- `build_data.py` output is identical under different `PYTHONHASHSEED`
-  values (measured on the 2026-11 dumps for every language); the documented
-  `PYTHONHASHSEED=0` is kept for the other builders.
+- Every builder that reads the kaikki dumps accepts both the flat layout (`scripts/archive_kaikki_inputs.py download` restores the archived snapshot into it) and the nested `en-el/`, `el/` layout. The dump names and `resolve_dump` moved from `build_data.py` to `build/kaikki_dumps.py` (`build_data` re-exports them).
+- `build/expand_lsj.py` and `build/expand_sophocles.py` take `--kaikki DIR` and `--lsj9-dir DIR`; `overlay_lsj.py` takes `--lsj9-dir` and `--carried`. The dump directory comes from `$DILEMMA_KAIKKI_DIR` in every builder (`$KAIKKI_DIR` is still read when it is unset), the LSJ9 exports from `$DILEMMA_LSJ9_DIR`. Without either, `expand_lsj.py` reads `./kaikki` instead of `~/Documents/kaikki`.
+- `build_data.py` output is identical under different `PYTHONHASHSEED` values (measured on the 2026-11 dumps for every language); the documented `PYTHONHASHSEED=0` is kept for the other builders.
 
-### Measured (#128 and #133, 1.3.25 data, `guess=False`)
+### Known gaps
 
-- Untagged `lemmatize_batch`: 0 changes under `all`, `grc` and `el` over DBBE gold (8,342), Gorman test (5,025), perseus_pairs (80,911), a 30k diorisis_pairs sample and the three bench fixtures.
-- Tagged `lemmatize_batch_pos`, `lang="all"`: DBBE 5 changes, perseus 6, diorisis 2, Gorman 0; no fix or break under the equivalence scorer. All are case agreements on a lowercase form (`κ` CCONJ `Κ` -> `κ`, `γ` PART `Γ` -> `γ`, `θούριος` ADJ `Θούριος` -> `θούριος`, `μακρόβιος` ADJ `Μακρόβιος` -> `μακρόβιος`) plus `ας` NOUN `μονοτονία` -> `ὅς`. `lang="grc"`: only `ας` NOUN. `lang="el"`: 0.
-- `scripts/check_benchmark_regressions.py` passes; bench_fast unchanged (AG 99.7, Katharevousa 95.3, Demotic 96.0).
+- Verb forms of 1.3.25 that are not regenerated: uncontracted cells, forms of lemmas whose head the current LSJ export does not support (deponents and damaged heads), and artefacts of the older tables (`ἑφρόντιζον`). The lookup loses 17,455 such keys of 237 lemmas, including the wrong readings named above.
+- About 1.03M keys still read a hyphenated Sophocles composition lemma (1.3.25: 1.11M). The overlay names a superseded lemma as the lexicon prints it, so it returns the rows of a rejected or re-keyed head.
+- With `lang="el"`, 151 capitalized Ancient names in the measured corpora now read their lowercase twin under a nominal tag (`Εὐξένου` NOUN gives `εύξενος`), because Modern text capitalizes every sentence. `Τύχη` and `Νίκη` NOUN give the lowercase noun under every setting.
 
 ### Release notes
 
-- `data/pos_cell_corrections.json` changed and is in `hf_data.py` TRACKED; its new sha256 is pinned in `data/hf_manifest.json`, so it must be uploaded to the Hub before the push.
+- Rebuilt and re-pinned in `data/hf_manifest.json`: `lookup.db`, `spell_index.db`, `grc_lexical_heads.json`, `grc_reading_heads.json`, `grc_contracted_verb_aliases.json`, `verb_subjects.json`, `grc_adverb_heads.json`, `pos_cell_corrections.json`, `ag_noun_generation_audit.json`, `ag_sophocles_noun_generation_audit.json`, `treebank_pos_lookup.audit.json` and `changes/glaux_name_lemmas.json`. `lemma_attestation.json` has the same counts as before; only the hash it records for the name corrections changes.
+- `python -m dilemma download` also serves files that the manifest does not pin. Their Hub copies are updated with this release: the POS tables `ag_pos_lookup.json`, `treebank_pos_lookup.json` and `glaux_pos_lookup.json` (the last had not been updated for 1.3.25), and the build tables `ag_lookup.json`, `ag_pairs.json`, `med_lookup.json`, `med_pairs.json`, `ag_source_alias_audit.json` and `ag_source_alias_manifest.json`.
+- `lsj9_pos_lookup.json` is not rebuilt: a trial on the new exports measured worse (it drops `μόνον` and adds `τό` NOUN → `ὁ`).
+- Full suite on the rebuilt data with `--run-slow`: 6,074 passed, 26 skipped, 3 xfailed, 0 failed (run in seven chunks).
 
 ## [1.3.25] - 2026-11-14
 

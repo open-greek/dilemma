@@ -637,9 +637,10 @@ filter and before the reviewed overrides:
   (`wiktionary_grc`, `grc_merged`, `grc_lexicon_expansion`) also declines in
   the second declension, with two of `-ου -ῳ -ον -οι -οις`, is a masculine or
   an adjective and is skipped (`λόχος`, `πρᾶος`, `λάϊνος`, `ὄχθος`; this also
-  drops the genuine neuter `γάνος`), and `φῖλος`, whose `-εος` rows sit beside
-  the adjective `φίλος`, is a reviewed exclusion
-  (`NOT_SSTEM_NEUTERS`).
+  drops the genuine neuter `γάνος`), and two lemmas are reviewed exclusions
+  (`NOT_SSTEM_NEUTERS`): `φῖλος`, whose `-εος` rows sit beside the adjective
+  `φίλος`, and the adjective `ἀδράνεος`, which the dictionary expansion
+  declines as a neuter and no table declines in the second declension.
 
 Each cell is keyed by its accented form, its lowercase and its accentless
 lowercase spelling, and fills a key only when no source supplied it and no
