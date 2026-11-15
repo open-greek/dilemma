@@ -73,7 +73,9 @@ The opt-in mode also recognizes monotonic projections of polytonic articles,
 such as `τών` from `τῶν`, without removing accents from unrelated words.
 A smooth breathing on `αι` or `οι` is never the article's: `αἴ`, `αἰ`, `αἶ`
 and `οἴ` keep their own readings, while `αί`, `αἵ` and `Αἱ` still resolve to
-`ὁ`.
+`ὁ`. `αἴ` tagged SCONJ gives `αἴ`, not `εἰ`: the Ancient POS tables hold only
+a CCONJ entry for it, and an SCONJ request reads a CCONJ entry only for
+Modern Greek conjunctions (see the polytonic Modern Greek rule below).
 The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
