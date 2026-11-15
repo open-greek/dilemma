@@ -17,17 +17,23 @@ To regenerate the expanded lookup table from LSJ and Sophocles sources:
 ```bash
 pip install --force-reinstall --no-deps git+https://github.com/tatuylonen/wikitextprocessor.git
 python build/expand_lsj.py --setup           # build Wiktionary Lua module database
-python build/expand_lsj.py --expand          # expand LSJ nouns
-python build/expand_lsj.py --expand-verbs    # expand LSJ verbs
-python build/expand_sophocles.py --expand    # expand Sophocles nouns
-python build/expand_sophocles.py --expand-verbs  # expand Sophocles verbs
-python overlay_lsj.py                        # recover pinned historical expansion gaps
+python build/expand_lsj.py --expand --kaikki kaikki --lsj9-dir LSJ9        # expand LSJ nouns
+python build/expand_lsj.py --expand-verbs --kaikki kaikki --lsj9-dir LSJ9  # expand LSJ verbs
+python build/expand_sophocles.py --expand --kaikki kaikki        # expand Sophocles nouns
+python build/expand_sophocles.py --expand-verbs --kaikki kaikki  # expand Sophocles verbs
+python overlay_lsj.py --lsj9-dir LSJ9          # recover pinned historical expansion gaps
 python build/expand_lbg.py                    # inflect Byzantine headwords (gated gap-fill)
 ```
 
 This requires LSJ9 data from [lsj9](https://github.com/ciscoriordan/lsj9)
-(included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`) and
-the Sophocles TEI data (included in `data/sophocles/`).
+(included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`; the
+exports `lsj9_forms.tsv`, `lsj9_headwords.json` and `lsj9_glosses.jsonl` are
+read from `--lsj9-dir`, `$DILEMMA_LSJ9_DIR` or `~/Documents/lsj9`), the
+Sophocles TEI data (included in `data/sophocles/`), and a current
+`data/grc_lexical_heads.json`, whose `sophocles_breathing` record supplies the
+breathings the Sophocles OCR lost (`expand_sophocles.py` refuses to run
+without it). `--kaikki` names the dump directory in either layout
+([Dump directories](development.md#dump-directories)).
 
 ## Historical expansion overlay
 
