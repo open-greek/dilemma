@@ -141,6 +141,24 @@ def test_single_forms_keep_the_reading_the_treebanks_give():
     assert not [form for form in o if form[-1] in "’'ʼ`"]
 
 
+def test_readings_the_generated_verbs_and_gap_fill_rows_took():
+    o = B.KAIKKI_2026_11_READING_OVERRIDES
+    for stem in ("νεκροποι", "σοφοποι", "φωτοποι"):
+        assert _forms_of(stem + "ός") == {
+            stem + ending for ending in
+            ("οῦ", "ου", "ῶν", "ων", "οῖς", "οις", "οι", "ω")}, stem
+        # The nominative and the verb's own cells are no keys of it.
+        assert stem + "ός" not in o and stem + "εῖ" not in o
+    assert _forms_of("συνούσιος") == {"συνουσίου", "συνουσιοις", "συνουσιω"}
+    assert o["ὑποστύλου"] == "ὑπόστυλος" and o["προπύργου"] == "πρόπυργος"
+    assert o["προενόει"] == "προνοέω" and o["παρενόει"] == "παρανοέω"
+    assert o["παραθετέον"] == "παραθετέον" and o["Σηρικῶν"] == "Σηρικός"
+    assert _forms_of("ὀρνίθειος") == {"ὀρνιθείου", "ὀρνιθείων", "ὀρνιθείῳ",
+                                      "ὀρνιθείοις"}
+    assert o["Ιερου"] == "ἱερός" and "Ἱεροῦ" not in o
+    assert o["Ἀστροάρχην"] == "ἀστροάρχη" and o["ἔσσαν"] == "ἕννυμι"
+
+
 def test_override_keys_and_lemmas_are_nfc_and_no_lemma_is_rejected():
     import unicodedata
     for table in (B.KAIKKI_2026_11_READING_OVERRIDES,
@@ -149,7 +167,7 @@ def test_override_keys_and_lemmas_are_nfc_and_no_lemma_is_rejected():
             assert unicodedata.normalize("NFC", form) == form, form
             assert unicodedata.normalize("NFC", lemma) == lemma, lemma
             assert lemma not in REJECTED_LEMMAS, lemma
-    assert len(B.KAIKKI_2026_11_READING_OVERRIDES) == 234
+    assert len(B.KAIKKI_2026_11_READING_OVERRIDES) == 274
 
 
 # The override loop ----------------------------------------------------------

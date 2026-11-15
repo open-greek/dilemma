@@ -312,6 +312,39 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     **{form: "κλῄζω" for form in (
         "κλήζεσθαι", "κληζεσθαι", "κλήζουσι", "κληζουσι", "κλήζομεν",
         "κληζομεν", "κλήζων", "κληζων")},
+    # Readings that changed once the verbs of Sophocles' lexicon and the
+    # verbs whose principal parts the earlier LSJ export supplies were
+    # generated. 1.3.25 held the reading given here unless a note says
+    # otherwise.
+    #
+    # More nominal cells that regenerated contract verbs took, as with
+    # νοερῶν above: the oblique cells of νεκροποιός, σοφοποιός, φωτοποιός,
+    # συνούσιος, ὑπόστυλος and πρόπυργος read as νεκροποιέω, σοφοποιέω,
+    # φωτοποιέω, συνουσιόω, ὑποστυλόω and προπυργόω.
+    **{stem + ending: stem + "ός"
+       for stem in ("νεκροποι", "σοφοποι", "φωτοποι")
+       for ending in ("οῦ", "ου", "ῶν", "ων", "οῖς", "οις", "οι", "ω")},
+    **{form: "συνούσιος" for form in ("συνουσίου", "συνουσιοις", "συνουσιω")},
+    "ὑποστύλου": "ὑπόστυλος", "προπύργου": "πρόπυργος",
+    # Imperfects of προνοέω and παρανοέω read as uncontracted presents of
+    # προενόω and παρενόω (GLAUx: προενόει προνοοῦμαι 1, which 1.3.25
+    # returned; παρενόει παρανοέω 2).
+    "προενόει": "προνοέω", "παρενόει": "παρανοέω",
+    # The LSJ head παραθετέον read as a participle of παραθετέω, and the
+    # genitive plural of Σηρικός as the land Σηρική.
+    "παραθετέον": "παραθετέον", "Σηρικῶν": "Σηρικός",
+    # Oblique cells of ὀρνίθειος (GLAUx: 4 keys) taken by the paradigm of
+    # ὀρνιθείον, a head of Sophocles' lexicon alone.
+    **{form: "ὀρνίθειος" for form in (
+        "ὀρνιθείου", "ὀρνιθείων", "ὀρνιθείῳ", "ὀρνιθείοις")},
+    # Keys that left the expansion layer and fell to a treebank gap-fill row
+    # with a lemma no dictionary gives the form: GLAUx reads its one
+    # unaccented Ιερου as itself (1.3.25: Ἱερόν), the accusative of
+    # ἀστροάρχη as a masculine Ἀστροάρχης (1.3.25: the capitalized head of
+    # Sophocles' lexicon, now generated in lowercase), and ἔσσαν, the
+    # aorist of ἕννυμι like ἕσσαν, as the cross-reference head ἔσσα
+    # (1.3.25: ἐννύω).
+    "Ιερου": "ἱερός", "Ἀστροάρχην": "ἀστροάρχη", "ἔσσαν": "ἕννυμι",
 }
 
 # Reviewed readings that are written even when no source has the key. An
