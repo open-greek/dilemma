@@ -599,6 +599,8 @@ def test_manifest_pins_reference_base_and_traced_forms():
     assert len(manifest["reference"]["sha256"]) == 64
     assert len(manifest["reference_base"]["sha256"]) == 64
     assert len(manifest["behavior_baseline"]["sha256"]) == 64
+    assert len(manifest["carried_baseline"]["revision"]) == 40
+    assert len(manifest["carried_baseline"]["sha256"]) == 64
     assert len(manifest["exclusions"]["sha256"]) == 64
     assert manifest["expected_counts"]["expansion_entries"] == 7_581_466
     assert manifest["expected_counts"]["unmarked_entries"] == 3_839_827
@@ -804,21 +806,20 @@ def test_valid_enclitic_citation_accent_is_not_treated_as_malformed():
     assert not audit["canonicalized"]
 
 
-def test_baseline_conflicts_hold_only_ancient_heads_of_the_same_case(tmp_path):
-    from overlay_lsj import load_ancient_heads, released_baseline_conflicts
-    heads = tmp_path / "grc_lexical_heads.json"
-    heads.write_text(json.dumps({"schema_version": 2, "heads": {
-        "ἐκπλάσσω": ["lsj9_headwords"], "κατασειστά": ["lbg_headwords"],
-        "Στερέα": ["wiktionary_en_grc"]}}, ensure_ascii=False), encoding="utf-8")
-    ancient = load_ancient_heads(heads)
-    assert ancient == {"ἐκπλάσσω", "Στερέα"}
-    conflicts = {"ἐκπλαγῇ": "ἐκπλάσσω",      # an Ancient head: holds
-                 "ἀμέτρητον": "ἀμετρητος",    # unaccented, no head
-                 "ἄκτιστον": "ἄκτιστον",      # the form itself
-                 "κατασειστά": "κατασειστά",
-                 "στερέα": "Στερέα"}          # a capital for a lowercase form
-    assert released_baseline_conflicts(conflicts, ancient) == {
-        "ἀμέτρητον", "ἄκτιστον", "κατασειστά", "στερέα"}
+def test_baseline_conflicts_release_only_what_the_published_table_carried():
+    from overlay_lsj import carried_baseline_conflicts
+    reference = {"ἐκπλαγῇ": "ἐκπλαγής", "ἀμέτρητον": "ἀμέτρητος",
+                 "Δημήτρειον": "Δημήτρειος", "Γὰρ": "Γάρ", "Ἤ": "Ἤ"}
+    conflicts = {"ἐκπλαγῇ": "ἐκπλάσσω", "ἀμέτρητον": "ἀμετρητος",
+                 "Δημήτρειον": "Δημήτρειοι", "Γὰρ": "γάρ", "Ἤ": "ἤ",
+                 "ἄλλο": "ἄλλος"}                # not an expansion form
+    carried = {"ἀμέτρητον": "ἀμέτρητος",        # carried the expansion reading
+               "Δημήτρειον": "Δημήτρειος",
+               "ἐκπλαγῇ": "ἐκπλάσσω",           # carried the recorded reading
+               "ἄλλο": "ἄλλος"}                 # Γὰρ and Ἤ: no key at all
+    assert carried_baseline_conflicts(conflicts, reference, carried) == {
+        "ἀμέτρητον", "Δημήτρειον"}
+    assert carried_baseline_conflicts(conflicts, reference, {}) == frozenset()
 
 
 def test_released_conflicts_take_the_expansion_and_stay_counted():
@@ -842,7 +843,9 @@ def test_unaccented_keys_return_where_every_marked_form_agrees():
     target = {"ἀθήλυντος": "ἀθήλυντος",
               "παμπόλλων": "πάμπολλος", "Παμπόλλων": "πάμπολλος",
               "νοερῶν": "νοερός"}                 # a newer marked reading
-    stats = restore_unmarked_keys(reference, {}, target,
+    carried = {key: lemma for key, lemma in reference.items()
+               if key in {"αθηλυντος", "παμπολλων", "νοερων", "ορφνινος", "τοσ"}}
+    stats = restore_unmarked_keys(reference, {}, target, carried,
                                   excluded_forms={"τοσ"})
     assert target["αθηλυντος"] == "ἀθήλυντος"
     assert target["παμπολλων"] == "πάμπολλος"
@@ -852,6 +855,23 @@ def test_unaccented_keys_return_where_every_marked_form_agrees():
                      "unmarked_disputed": 1, "unmarked_unbacked": 1}
 
 
+def test_unaccented_keys_the_published_table_lacked_stay_out():
+    from overlay_lsj import restore_unmarked_keys
+    reference = {"ἀθήλυντος": "ἀθήλυντος", "αθηλυντος": "ἀθήλυντος",
+                 "ἀνώτερος": "ἀνώτερος", "ανωτερω": "ἀνώτερος",
+                 "ξυνίων": "ξυνίημι", "ξυνιων": "ξυνίημι"}
+    target = {"ἀθήλυντος": "ἀθήλυντος", "ἀνωτέρω": "ἀνώτερος",
+              "ξυνίων": "ξυνίημι"}
+    carried = {"αθηλυντος": "ἀθήλυντος",          # carried: comes back
+               "ξυνιων": "συνίημι"}                # carried another reading
+    stats = restore_unmarked_keys(reference, {}, target, carried)
+    assert target["αθηλυντος"] == "ἀθήλυντος"
+    assert "ανωτερω" not in target and "ξυνιων" not in target
+    assert stats["unmarked_candidates"] == 1 and stats["unmarked_restored"] == 1
+    assert restore_unmarked_keys(reference, {}, dict(target), {})[
+        "unmarked_candidates"] == 0
+
+
 def test_restored_unaccented_keys_are_the_table_tail_and_digested():
     import hashlib
     from overlay_lsj import restore_unmarked_keys, unmarked_restore_record
@@ -859,7 +879,8 @@ def test_restored_unaccented_keys_are_the_table_tail_and_digested():
                  "παμπόλλων": "πάμπολλος", "παμπολλων": "πάμπολλος"}
     target = {"ἀθήλυντος": "ἀθήλυντος", "παμπόλλων": "πάμπολλος"}
     rows = []
-    restore_unmarked_keys(reference, {}, target, restored_rows=rows)
+    carried = {"αθηλυντος": "ἀθήλυντος", "παμπολλων": "πάμπολλος"}
+    restore_unmarked_keys(reference, {}, target, carried, restored_rows=rows)
     assert rows == [("αθηλυντος", "ἀθήλυντος"), ("παμπολλων", "πάμπολλος")]
     assert list(target.items())[-len(rows):] == rows
     record = unmarked_restore_record(rows)

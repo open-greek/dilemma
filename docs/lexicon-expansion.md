@@ -56,25 +56,37 @@ SHA-256-pinned March artifact in `data/ag_expansion_reference.json`; it never
 restores a historical base mapping and never overrides a current mapping.
 It restores marked surface spellings first, not the generated accent-stripped
 fallback keys that can shadow unrelated analyses sharing the same bare
-skeleton. After the marked spellings and the source aliases are in, it gives
-back a historical unaccented key (`αθηλυντος`, `παμπολλων`) only where every
-marked spelling of the current table that strips to it reads the key's lemma,
-so the key agrees with the table by construction and unaccented input reaches
-the paradigm (`restore_unmarked_keys`; a key whose marked spellings disagree,
-or that no marked spelling backs, stays out). The generated
-`data/ag_expansion_exclusions.json` also removes historical rows that conflict
-with the pinned 1.3.1 resolved lookup or with Dilemma's nonlexical classifier.
-Its generator is `build/build_ag_expansion_exclusions.py`. A 1.3.1 conflict
-keeps its form out only where the recorded 1.3.1 reading is an Ancient head
-(Wiktionary, LSJ, DGE or Cunliffe in `grc_lexical_heads.json`) of the form's
-own case (`ἐκπλαγῇ` stays `ἐκπλάσσω`). A conflict recorded as the form itself
-(`ἄκτιστον`, `ἀποστασίου`), as an unaccented or Modern spelling (`ἀμετρητος`,
-`σπερματούχος`) or as a capital for a lowercase form (`Στερέα` for `στερέα`)
-is released, and the expansion reading is recovered
-(`released_baseline_conflicts`): the corpus gap-fill would otherwise supply
-those readings. Released forms still count among the pinned
-`excluded_entries` and separately as `released_conflict_entries`.
-Running it without `--reference` downloads and verifies that exact artifact.
+skeleton. The generated `data/ag_expansion_exclusions.json` also removes
+historical rows that conflict with the pinned 1.3.1 resolved lookup or with
+Dilemma's nonlexical classifier. Its generator is
+`build/build_ag_expansion_exclusions.py`.
+
+The table published from 1.3.7 to 1.3.25 was built on top of earlier tables,
+so it carried two kinds of expansion key that a build from fresh dumps
+withholds. The manifest pins that table as `carried_baseline`, and the overlay
+gives a withheld key back only where that table had it with the expansion
+reading:
+
+- An excluded 1.3.1 conflict (`carried_baseline_conflicts`). `ἀμέτρητον`
+  keeps `ἀμέτρητος` and `Δημήτρειον` keeps `Δημήτρειος`; without the release
+  the corpus gap-fill supplies the recorded readings `ἀμετρητος` and
+  `Δημήτρειοι`. Every other conflict stays excluded: `ἐκπλαγῇ` stays
+  `ἐκπλάσσω`, and a capitalised function word (`Γὰρ`, `Ἤ`) still reads its
+  lowercase lemma. Released forms count among the pinned `excluded_entries`
+  and separately as `released_conflict_entries`.
+- A historical unaccented key (`αθηλυντος`, `παμπολλων`), after the marked
+  spellings and the source aliases are in (`restore_unmarked_keys`). It comes
+  back only where every marked spelling of the current table that strips to
+  it reads the key's lemma, so the key agrees with the table by construction
+  and unaccented input reaches the paradigm. A key whose marked spellings
+  disagree, that no marked spelling backs, or that the published table
+  lacked stays out. The audit records the count and a digest of these rows
+  (`unmarked_key_restore`); `scripts/build_source_alias_manifest.py` removes
+  exactly those trailing rows before it reverses the alias changes.
+
+Running it without `--reference` downloads and verifies that exact artifact;
+the carried table likewise comes from its pinned Hub revision unless
+`--carried` or `DILEMMA_AG_EXPANSION_CARRIED` names a local copy.
 
 `build_lookup_db.py` checks the readings this layer supplies once more: a
 lemma without any diacritic that no list in `grc_lexical_heads.json` has

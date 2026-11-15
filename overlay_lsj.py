@@ -45,6 +45,7 @@ DEFAULT_TARGET = ROOT / "data" / "ag_lookup.json"
 DEFAULT_NOUN_AUDIT = ROOT / "data" / "ag_noun_generation_audit.json"
 DEFAULT_SOPHOCLES_NOUN_AUDIT = ROOT / "data" / "ag_sophocles_noun_generation_audit.json"
 DEFAULT_LEXICAL_HEADS = ROOT / "data" / "grc_lexical_heads.json"
+CARRIED_BASELINE_ENV = "DILEMMA_AG_EXPANSION_CARRIED"
 # The same source order as the lookup builder, with the fresh merged
 # Wiktionary pairs first. Annotation alternatives are retained in the audit.
 SOURCE_PAIR_NAMES = (
@@ -651,48 +652,31 @@ def resolve_reference(manifest: dict, explicit: Path | None) -> Path:
     )
 
 
-# The lexical-head sources that define Ancient citation forms. A historical
-# baseline conflict keeps the expansion out only where its recorded reading
-# is such a head (released_baseline_conflicts).
-ANCIENT_HEAD_SOURCES = frozenset({
-    "wiktionary_en_grc", "wiktionary_el_grc", "lsj9_headwords",
-    "dge_headwords", "cunliffe_headwords",
-})
+def resolve_carried_baseline(manifest: dict, explicit: Path | None) -> Path:
+    return resolve_hf_file(
+        manifest["carried_baseline"], "carried expansion baseline", explicit
+    )
 
 
-def load_ancient_heads(path: Path) -> frozenset[str]:
-    """Heads an Ancient dictionary or Wiktionary extract defines."""
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    heads = payload.get("heads")
-    if not isinstance(heads, dict):
-        return frozenset()
-    return frozenset(head for head, sources in heads.items()
-                     if ANCIENT_HEAD_SOURCES.intersection(sources))
-
-
-def released_baseline_conflicts(conflicts: dict[str, str],
-                                ancient_heads) -> frozenset[str]:
-    """Baseline conflicts whose recorded 1.3.1 reading is no citation form.
+def carried_baseline_conflicts(conflicts, reference: dict[str, str],
+                               carried: dict[str, str]) -> frozenset[str]:
+    """Baseline conflicts the published table carried with the expansion reading.
 
     The pinned exclusions keep an expansion reading out of every form whose
     1.3.1 resolution disagreed with it, so that resolution's sources fill
-    the form later in the lookup build. That is right where the recorded
-    reading is an Ancient head of the form's own case (ἐκπλαγῇ ἐκπλάσσω,
-    not the generated ἐκπλαγής). It is wrong where the recorded reading is
-    the form itself (ἄκτιστον, ἀποστασίου), an unaccented or Modern
-    spelling no Ancient dictionary defines (ἀμετρητος, σπερματούχος), or a
-    capital for a lowercase form (Στερέα for στερέα): the sources that
-    supply those readings now win wherever the expansion is withheld. Such
-    a conflict is released and the expansion reading recovered. A list
-    without recorded readings releases nothing.
+    the form later in the lookup build (ἐκπλαγῇ ἐκπλάσσω, not the generated
+    ἐκπλαγής). The table published from 1.3.7 to 1.3.25 nevertheless read
+    some of those forms from the expansion (ἀμέτρητον ἀμέτρητος, Δημήτρειον
+    Δημήτρειος), because it was built on top of earlier tables. A build from
+    fresh dumps withholds them, and the corpus gap-fill then supplies the
+    recorded reading (ἀμετρητος, Δημήτρειοι). Such a conflict is released:
+    the form keeps the reading the published table gave it. Every other
+    conflict stays excluded, so a capitalised function word (Γὰρ, Ἤ) still
+    reads its lowercase lemma and not a generated name.
     """
-    if not isinstance(conflicts, dict):
-        return frozenset()
     return frozenset(
-        form for form, recorded in conflicts.items()
-        if not (isinstance(recorded, str) and recorded != form
-                and recorded in ancient_heads
-                and form[:1].isupper() == recorded[:1].isupper()))
+        form for form in conflicts
+        if form in reference and carried.get(form) == reference[form])
 
 
 def overlay_expansion(
@@ -767,19 +751,24 @@ def restore_unmarked_keys(
     reference: dict[str, str],
     reference_base: dict[str, str],
     target: dict[str, str],
+    carried: dict[str, str],
     excluded_forms: set[str] | frozenset[str] = frozenset(),
     restored_rows: list[tuple[str, str]] | None = None,
 ) -> dict[str, int]:
-    """Give back the expansion's unaccented keys that agree with the table.
+    """Give back the unaccented expansion keys the published table carried.
 
     The historical expansion stored a fully unaccented key beside every
     generated form (αθηλυντος beside ἀθήλυντος); an input typed without
     accents reaches the paradigm only through it. overlay_expansion() never
     copies those keys, because one can shadow a newer reading of a marked
-    form with the same letters. Here a missing key comes back only where
-    every marked target form that strips to it reads the key's lemma, so it
-    agrees with the current table by construction. A key no marked form
-    backs, or whose forms read other lemmas, stays out.
+    form with the same letters. The table published from 1.3.7 to 1.3.25
+    still carried part of them from earlier tables, and a build from fresh
+    dumps has none of those. Here a missing key comes back only where
+    ``carried`` (that published table) has it with the expansion's lemma and
+    every marked target form that strips to it reads that lemma, so it adds
+    no key the published table lacked and agrees with the current table by
+    construction. A key no marked form backs, or whose forms read other
+    lemmas, stays out.
 
     The keys are appended to ``target`` in order, and ``restored_rows``
     receives each (key, lemma), so the caller can record a digest that lets
@@ -789,6 +778,7 @@ def restore_unmarked_keys(
         form: lemma for form, lemma in reference.items()
         if form not in reference_base and not has_orthographic_mark(form)
         and form not in target and form not in excluded_forms
+        and carried.get(form) == lemma
         and not has_editorial_sigla(form) and not has_editorial_sigla(lemma)
     }
     readings: dict[str, set[str]] = defaultdict(set)
@@ -936,6 +926,12 @@ def main() -> None:
         "--reference", type=Path,
         help="Local copy of the pinned reference (otherwise downloaded)",
     )
+    parser.add_argument(
+        "--carried", type=Path,
+        help="Local copy of the pinned published table whose expansion keys "
+             "are carried over (otherwise $DILEMMA_AG_EXPANSION_CARRIED, "
+             "else downloaded)",
+    )
     parser.add_argument("--target", type=Path, default=DEFAULT_TARGET)
     parser.add_argument("--noun-audit", type=Path, default=DEFAULT_NOUN_AUDIT)
     parser.add_argument("--sophocles-noun-audit", type=Path,
@@ -974,14 +970,25 @@ def main() -> None:
     excluded_forms = frozenset(exclusions["baseline_conflicts"]) | frozenset(
         exclusions["nonlexical"]
     )
-    released_forms = released_baseline_conflicts(
-        exclusions["baseline_conflicts"], load_ancient_heads(args.lexical_heads)
-    ) - frozenset(exclusions["nonlexical"])
 
     print(f"Loading pinned reference: {reference_path}")
     with reference_path.open(encoding="utf-8") as handle:
         reference = json.load(handle)
     print(f"  {len(reference):,} entries")
+
+    carried: dict[str, str] = {}
+    if "carried_baseline" in manifest:
+        carried_path = args.carried
+        if carried_path is None and os.environ.get(CARRIED_BASELINE_ENV):
+            carried_path = Path(os.environ[CARRIED_BASELINE_ENV])
+        carried_path = resolve_carried_baseline(manifest, carried_path)
+        print(f"Loading pinned published table: {carried_path}")
+        with carried_path.open(encoding="utf-8") as handle:
+            carried = json.load(handle)
+        print(f"  {len(carried):,} entries")
+    released_forms = carried_baseline_conflicts(
+        exclusions["baseline_conflicts"], reference, carried
+    ) - frozenset(exclusions["nonlexical"])
 
     print(f"Loading exact reference base: {base_path}")
     with base_path.open(encoding="utf-8") as handle:
@@ -1024,9 +1031,10 @@ def main() -> None:
     merge_closed_class_elisions(target, alias_stats, closed_class)
     unmarked_rows: list[tuple[str, str]] = []
     stats.update(restore_unmarked_keys(
-        reference, reference_base, target,
+        reference, reference_base, target, carried,
         excluded_forms=excluded_forms - released_forms,
         restored_rows=unmarked_rows))
+    del carried
     alias_stats["historical_overlay_counts"] = stats
     alias_stats["unmarked_key_restore"] = unmarked_restore_record(unmarked_rows)
     if closed_class["enabled"]:
@@ -1042,6 +1050,8 @@ def main() -> None:
     alias_stats["input_sha256"] = alias_inputs
     alias_stats["reference_sha256"] = manifest["reference"]["sha256"]
     alias_stats["reference_base_sha256"] = manifest["reference_base"]["sha256"]
+    alias_stats["carried_baseline_sha256"] = manifest.get(
+        "carried_baseline", {}).get("sha256")
     alias_stats["generator_sha256"] = file_sha256(Path(__file__))
     alias_stats["cell_pattern_source_sha256"] = file_sha256(ROOT / "build/expand_lsj.py")
     for key, expected in manifest["expected_counts"].items():

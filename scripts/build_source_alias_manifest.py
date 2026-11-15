@@ -157,6 +157,8 @@ def main() -> None:
     reference_manifest = json.loads((args.repo / 'data/ag_expansion_reference.json').read_text())
     assert reference_manifest['reference']['sha256'] == audit['reference_sha256']
     assert reference_manifest['reference_base']['sha256'] == audit['reference_base_sha256']
+    carried_baseline = reference_manifest.get('carried_baseline')
+    assert (carried_baseline or {}).get('sha256') == audit.get('carried_baseline_sha256')
     for label in ('reference_base', 'exclusions'):
         expected = reference_manifest[label]
         assert pin(args.repo / expected['path']) == {key: expected[key] for key in ('sha256', 'size')}
@@ -223,6 +225,7 @@ def main() -> None:
         'historical_reference': reference_manifest['reference'],
         'historical_reference_base': reference_manifest['reference_base'],
         'historical_exclusions': reference_manifest['exclusions'],
+        'carried_baseline': carried_baseline,
         'noun_generation_audits': noun_audits,
         'scope': {
             'description': 'Recover exact source cells and normalized lookup aliases in historical withheld irregular-compound families; recover independently re-owned cells only within the documented historical-key shape scope. Historical-only marked PRON/DET owners may be canonicalized only from unique current source readings and explicit literal-completion cells in fresh same-POS definitions. No approximate paradigm generation.',
