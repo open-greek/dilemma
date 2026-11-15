@@ -31,8 +31,8 @@ if name == "expand_lsj":
     m.load_wiktionary_forms = lambda: {}
     m.load_lsj_head_texts = lambda: {}
 else:
-    m.analyze = lambda: (entries, ["λόγος"], [])
-    m.parse_sophocles_entries = lambda: entries
+    m.analyze = lambda *a, **kw: (entries, ["λόγος"], [])
+    m.parse_sophocles_entries = lambda *a, **kw: entries
     m.find_verb_candidates = lambda *a: ["λύω"]
 m.expand_all()
 m.expand_verbs()

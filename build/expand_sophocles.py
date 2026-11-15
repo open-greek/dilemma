@@ -163,25 +163,68 @@ def add_penult_accent(s):
         nfd[:pos+1] + "\u0301" + nfd[pos+1:])
 
 
-def clean_headword(raw):
-    """Clean OCR artifacts from a headword."""
+# Punctuation the OCR leaves around a printed head.
+_EDGE_PUNCTUATION = ".,;:()[]{}—–-·\"' "
+# A full stop, colon or semicolon (or the raised dot) closes the head; so does
+# the lexicon's equals sign, which the OCR gives as a dash or a run of hyphens.
+_HEAD_CLOSERS = (".", ";", ":", "·", "—", "–", "=", "--")
+# Spacing breathings and quotation marks the OCR puts before a capital.
+_LEADING_MARKS = "᾿᾽'‘’“\""
+
+
+def _starts_greek_word(token):
+    """Whether a token inside an <orth> opens with a Greek letter (the OCR
+    also writes the micro sign for μ)."""
+    token = token.lstrip(_LEADING_MARKS)
+    return bool(token) and (token[0] == "µ" or (
+        is_greek(token[0]) and unicodedata.category(token[0]).startswith("L")))
+
+
+def read_orth(raw):
+    """Read an <orth>: ``(first word, reason, rest)``.
+
+    The first word is cleaned as a headword ("" when it holds no Greek word)
+    and ``rest`` is the element's text after it. ``reason`` is "" when the
+    first word is the entry's head, that is when the text before the first
+    comma ends there or goes on with entry text: after a full stop, colon,
+    semicolon or the equals sign (a dash, or two or more hyphens), or with a
+    parenthesis, a digit or a Latin word (``or``/``for`` before a variant, a
+    citation, an ending the OCR read as Latin).
+
+    ``reason`` is "multi-word" when another Greek word follows the first one
+    directly. The head is then a phrase (Νέα Ῥώμη, ἀνθ᾽ ὧν) or a word the
+    OCR split (κατα- φθάνω), and its first word is not the entry.
+    """
     if not raw:
-        return ""
-    # Take first word only
-    hw = raw.strip().split(",")[0].strip().split(" ")[0].strip()
+        return "", "", ""
+    text = raw.strip()
+    segment = text.split(",")[0].strip()
+    first = segment.split(" ")[0].strip()
+    rest = text[len(first):]
     # Strip punctuation
-    hw = hw.strip(".,;:()[]{}—–-·\"' ")
+    hw = first.strip(_EDGE_PUNCTUATION)
     # Remove Latin characters (OCR errors)
     hw = ''.join(c for c in hw if not ('A' <= c <= 'Z' or 'a' <= c <= 'z'))
     # Normalize Unicode
     hw = unicodedata.normalize("NFC", hw)
     hw = strip_length_marks(hw)
     if not hw or len(hw) < 2 or not is_greek(hw):
-        return ""
+        return "", "", rest
     # Add accent if missing (common in OCR'd Byzantine proper nouns)
     if not has_accent(hw) and hw[0].isupper():
         hw = add_penult_accent(hw)
-    return hw
+    following = segment[len(first):].split()
+    if (following and not first.endswith(_HEAD_CLOSERS)
+            and _starts_greek_word(following[0])):
+        return hw, "multi-word", rest
+    return hw, "", rest
+
+
+def clean_headword(raw):
+    """The head an <orth> prints, cleaned of OCR artifacts; "" when it has
+    none or prints several words (see ``read_orth``)."""
+    hw, reason, _ = read_orth(raw)
+    return "" if reason else hw
 
 
 # The entry text after a headword, folded for the OCR: accents, breathings and
@@ -203,14 +246,27 @@ def adjective_endings(after_headword: str) -> str | None:
     return None
 
 
-def parse_sophocles_entries(breathing=_DEFAULT):
+def new_head_audit():
+    """An empty record of one parse's head decisions (``head_rules`` in the
+    noun generation audit)."""
+    return {"printed": {}, "multi_word_heads": {}}
+
+
+def parse_sophocles_entries(breathing=_DEFAULT, audit=None):
     """Parse all Sophocles XML chunks, extract headwords + grammatical info.
 
     ``breathing`` is the lexical heads' breathing review (default: read from
-    grc_lexical_heads.json when present); withheld heads are skipped."""
+    grc_lexical_heads.json when present); withheld heads are skipped.
+    ``audit`` (``new_head_audit()``) receives the heads the rules of
+    ``read_orth`` set aside, and under ``printed`` every first word as the
+    lexicon prints it, entry or not."""
     entries = {}
     if breathing is _DEFAULT:
         breathing = load_breathing_review()
+    if audit is None:
+        audit = new_head_audit()
+    printed_heads = audit.setdefault("printed", {})
+    multi_word = audit.setdefault("multi_word_heads", {})
 
     for xml_file in sorted(SOPH_DIR.glob("*.xml")):
         try:
@@ -229,10 +285,10 @@ def parse_sophocles_entries(breathing=_DEFAULT):
             if orth is None or not orth.text:
                 continue
 
-            hw = clean_headword(orth.text)
-            if hw:
-                hw = _apply_breathing(orth.text, hw, breathing)
-            if not hw:
+            printed, reason, _rest = read_orth(orth.text)
+            if printed:
+                printed = _apply_breathing(orth.text, printed, breathing)
+            if not printed:
                 continue
 
             # Get full entry text (after the headword)
@@ -268,17 +324,28 @@ def parse_sophocles_entries(breathing=_DEFAULT):
             # Check for indeclinable
             is_indecl = "indeclinable" in after_hw[:80] or "indecl" in after_hw[:80]
 
+            entry = {
+                "headword": printed,
+                "gender": gender,
+                "genitive": genitive,
+                "supplied_genitive": genitive,
+                "is_adj": is_adj,
+                "adjective_endings": endings,
+                "is_xref": is_xref,
+                "is_indecl": is_indecl,
+            }
+            # The first word as printed, whether or not it is an entry: the
+            # noun audit names superseded lemmas by it.
+            printed_heads.setdefault(printed, entry)
+
+            if reason == "multi-word":
+                multi_word.setdefault(
+                    " ".join(orth.text.strip().split(",")[0].split()), printed)
+                continue
+
+            hw = printed
             if hw not in entries:
-                entries[hw] = {
-                    "headword": hw,
-                    "gender": gender,
-                    "genitive": genitive,
-                    "supplied_genitive": genitive,
-                    "is_adj": is_adj,
-                    "adjective_endings": endings,
-                    "is_xref": is_xref,
-                    "is_indecl": is_indecl,
-                }
+                entries[hw] = entry
 
     return entries
 
@@ -294,10 +361,10 @@ def infer_from_ending(hw):
     return "", ""
 
 
-def analyze():
+def analyze(audit=None):
     """Show stats about Sophocles entries."""
     print("Parsing Sophocles entries...")
-    entries = parse_sophocles_entries()
+    entries = parse_sophocles_entries(audit=audit)
     print(f"Total entries: {len(entries)}")
 
     # Load existing lookup
@@ -390,7 +457,8 @@ def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
     load_breathing_review(required=True)
     input_hashes = sophocles_noun_input_hashes()
-    entries, expandable, adverb_list = analyze()
+    head_audit = new_head_audit()
+    entries, expandable, adverb_list = analyze(head_audit)
 
     print(f"\nLoading lookup...")
     with open(AG_LOOKUP, encoding="utf-8") as f:
@@ -401,7 +469,9 @@ def expand_all():
     wikt_genitives = load_wiktionary_genitives()
     superseded = set()
     resolutions = {}
-    for hw, entry in entries.items():
+    # Superseded lemmas are named as the lexicon prints them: the historical
+    # layer keyed its rows that way, also for a first word that is no entry.
+    for hw, entry in (head_audit["printed"] or entries).items():
         supplied = entry.get("supplied_genitive", "")
         if not entry["gender"]:
             continue
@@ -497,7 +567,15 @@ def expand_all():
             "superseded_lemmas": sorted(superseded),
             "failures": dict(sorted(failures.items())),
             "resolutions": dict(sorted(resolutions.items())),
+            "head_rules": head_rules_record(head_audit),
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def head_rules_record(head_audit):
+    """The audit's ``head_rules``: each rule's heads and their count. The
+    rules apply to every entry, so the verb step reads the same heads."""
+    return {name: {"count": len(rows), "heads": dict(sorted(rows.items()))}
+            for name, rows in sorted(head_audit.items()) if name != "printed"}
 
 
 def sophocles_noun_input_hashes():
