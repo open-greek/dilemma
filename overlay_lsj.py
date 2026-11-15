@@ -827,6 +827,32 @@ def overlay_expansion(
     return stats
 
 
+def keep_published_over_unaccented_heads(
+    target: dict[str, str], carried: dict[str, str],
+    lexical_heads: set[str] | frozenset[str],
+) -> int:
+    """Keep a published reading an accent-less copy of its lemma took over.
+
+    LSJ9 exports some heads without any diacritic (κληζω for κλῄζω). The
+    fresh paradigm of such a head claims keys the published table read
+    under the properly spelled head (κληζεται: κλῄζω). Where the fresh
+    lemma has no diacritic and the published lemma is a positive head with
+    exactly those letters, the published reading stays. Returns the number
+    of readings put back.
+    """
+    replaced = 0
+    for form, lemma in target.items():
+        published = carried.get(form)
+        if (published is None or published == lemma
+                or has_orthographic_mark(lemma)
+                or published not in lexical_heads
+                or strip_marks(published) != lemma):
+            continue
+        target[form] = published
+        replaced += 1
+    return replaced
+
+
 def restore_unmarked_keys(
     reference: dict[str, str],
     reference_base: dict[str, str],
@@ -1123,8 +1149,8 @@ def main() -> None:
         "entries removed"
     )
 
-    # The noun rule needs the published table; a manifest without one runs
-    # the plain overlay.
+    # The rules that carry published keys need the published table; a
+    # manifest without one runs the plain overlay.
     withheld_nouns: dict[str, tuple[str, ...]] = {}
     if carried:
         withheld_nouns = load_withheld_noun_lemmas(
@@ -1136,6 +1162,8 @@ def main() -> None:
         carried=carried, withheld_noun_lemmas=withheld_nouns,
         lexical_heads=lexical_heads,
     )
+    stats["unaccented_head_readings_kept"] = (
+        keep_published_over_unaccented_heads(target, carried, lexical_heads))
     alias_stats = restore_attested_compound_aliases(
         reference, reference_base, target, source_pairs,
         lexical_heads,
@@ -1194,6 +1222,8 @@ def main() -> None:
           f"{stats['withheld_noun_entries_kept']:,} "
           f"({stats['withheld_noun_lemmas_kept']:,} lemmas, "
           f"{stats['withheld_noun_citation_only_lemmas']:,} citation only)")
+    print(f"Published readings kept over accent-less heads: "
+          f"{stats['unaccented_head_readings_kept']:,}")
     print(f"Unaccented fallback keys restored: {stats['unmarked_restored']:,} "
           f"({stats['unmarked_disputed']:,} disputed, "
           f"{stats['unmarked_unbacked']:,} without a marked form)")

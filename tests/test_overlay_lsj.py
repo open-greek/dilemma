@@ -990,3 +990,20 @@ def test_withheld_noun_lemmas_are_superseded_records_without_a_genitive(tmp_path
     superseded = {"λεκτόν", "σωματεῖον", "ἀγκών", "κλυσμός", "Α α"}
     assert load_withheld_noun_lemmas((lsj, sophocles), superseded) == {
         "λεκτόν": ("οῦ", "τό"), "σωματεῖον": ()}
+
+
+def test_published_reading_stays_over_an_accentless_copy_of_its_head():
+    from overlay_lsj import keep_published_over_unaccented_heads
+    target = {"κληζεται": "κληζω", "κληζω": "κληζω",
+              "κληθεις": "κληζω",            # the published table read καλέω
+              "ἔξηλθεν": "ἐξέρχομαι",        # a marked fresh lemma stays
+              "φορω": "φορω"}                # published head is no head here
+    carried = {"κληζεται": "κλῄζω", "κληθεις": "καλέω",
+               "ἔξηλθεν": "ἐξερύω", "φορω": "φορῶ"}
+    kept = keep_published_over_unaccented_heads(
+        target, carried, {"κλῄζω", "καλέω", "ἐξερύω"})
+    assert kept == 1
+    assert target == {"κληζεται": "κλῄζω", "κληζω": "κληζω",
+                      "κληθεις": "κληζω", "ἔξηλθεν": "ἐξέρχομαι",
+                      "φορω": "φορω"}
+    assert keep_published_over_unaccented_heads(dict(target), {}, {"κλῄζω"}) == 0
