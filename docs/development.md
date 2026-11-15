@@ -203,22 +203,35 @@ with the input and output hashes, and `undo --data OUT --audit AUDIT` restores
 the base's content. Rebuild `lookup.db` and `spell_index.db` from the refreshed
 `mg_lookup.json` afterwards.
 
-A rule that only removes readings can be recorded without running the
-generator twice. `build_data.py` skips Modern Greek noun and adjective table
-cells that have no stem of their word (`is_modern_nominal_fragment` in
+`build_data.py` writes into its own checkout's `data/`, so run each side in
+a separate clone, with the same dumps and `PYTHONHASHSEED=0`. The dumps are
+pinned in `data/kaikki_inputs.json`; restore them into a flat directory with
+`scripts/archive_kaikki_inputs.py download --out KAIKKI_DIR` (it verifies
+every sha256), check an existing directory with `verify KAIKKI_DIR`, and stage
+a new snapshot for the Hub with `stage --src KAIKKI_DIR --out-dir STAGE`
+followed, after the upload, by `pin-revision FULL_SHA --out-dir STAGE`. Give
+`diff` a `--dumps` directory holding only the three files the Modern build
+reads (`kaikki.org-en-dictionary-Greek.jsonl`,
+`kaikki.org-el-dictionary-Greek.jsonl`,
+`kaikki.org-el-dictionary-GreekDialects.jsonl`), so the record pins exactly
+those.
+
+The 1.3.25 change that skips Modern Greek noun and adjective table cells
+without a stem of their word (`is_modern_nominal_fragment` in
 `dilemma/nominal_header_forms.py`: αρχαΐζων's `ούσης`, `όντων`, `ουσών`,
-αισώπειος's `ος` and `ε`, βρόντημα's header letter `γ`).
-`scripts/derive_el_nominal_fragment_delta.py` applies that rule to the dumps'
-cells and writes `data/changes/el_nominal_fragments.json` in the same delta
-format: it removes a fragment's key from `mg_lookup.json` and its POS reading
-from `mg_pos_lookup.json` only where the pinned value is the fragment's
-headword (or what that headword resolves to), and adds nothing. Apply it with
-`refresh_el_generator_delta.py apply` as above.
+αισώπειος's `ος` and `ε`, βρόντημα's header letter `γ`) is recorded this way
+in `data/changes/el_nominal_fragments.json` (old generator 1.3.24, new
+generator the release branch, dumps of the 2026-11-14 snapshot).
+`scripts/derive_el_nominal_fragment_delta.py` is a removal-only cross-check
+of such a rule for when the generator's dumps are not available: it applies
+the rule to the dumps' cells and removes a fragment's readings from the
+pinned tables. It cannot see what a full run does besides (a freed key going
+to its next source, a POS entry left with one reading being dropped, training
+pairs), so write its output to a scratch path and compare.
 
 ```bash
 python scripts/derive_el_nominal_fragment_delta.py --dumps KAIKKI_DIR \
-    --base data --manifest data/hf_manifest.json \
-    --out data/changes/el_nominal_fragments.json
+    --base data --manifest data/hf_manifest.json --out /path/to/check.json
 ```
 
 The artifacts CI tests against (including `lookup.db`, `spell_index.db`,

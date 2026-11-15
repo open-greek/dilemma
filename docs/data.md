@@ -531,7 +531,9 @@ A reference that agrees with the table is kept (`περίπλους`, accusative
   `κρεατομηχανή`'s table). Longer suppletive cells (`χειρότερος`), short
   name forms (`Δία`) and headword alternatives (`αργιλές`) are kept
   (`is_modern_nominal_fragment`). The published snapshot carries the change
-  as the recorded removal `data/changes/el_nominal_fragments.json`.
+  as the recorded generator delta `data/changes/el_nominal_fragments.json`
+  (the 1.3.24 and the 1.3.25 generator over the dumps pinned in
+  `data/kaikki_inputs.json`; `scripts/refresh_el_generator_delta.py`).
 - **Training pair validation**. Lemmas must resolve to supported lexical
   heads. Independently defined homographs can retain separate paradigms even
   when the flat lookup chooses another reading. The `el_*_heads.json` and

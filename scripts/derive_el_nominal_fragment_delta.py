@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
-"""Record the Modern Greek table fragments the published tables still carry.
+"""Cross-check a Modern Greek fragment rule against the published tables.
 
-``build_data.py`` now skips a Modern Greek noun or adjective table cell that
+``build_data.py`` skips a Modern Greek noun or adjective table cell that
 has no stem of its word (``is_modern_nominal_fragment``: αρχαΐζων's ούσης,
 όντων and ουσών, αισώπειος's ος and ε, βρόντημα's γ). The published Modern
 Greek tables are a pinned snapshot, so the change reaches them as a recorded
-delta, not as a regeneration.
+delta: ``data/changes/el_nominal_fragments.json`` is the difference between
+the old and the new generator over the dumps pinned in
+``data/kaikki_inputs.json`` (``scripts/refresh_el_generator_delta.py diff``).
 
-This script reads the Wiktionary dumps and applies the generator's own rule
-to every Modern Greek form cell. For each fragment it removes, from the
+This script is the removal-only approximation for when those dumps are not
+available. It reads the Wiktionary dumps and applies the generator's own
+rule to every Modern Greek form cell. For each fragment it removes, from the
 pinned ``mg_lookup.json`` and ``mg_pos_lookup.json``, only the readings the
 cell could have put there: one of the cell's keys (its spelling, lowercase,
 monotonic and accentless forms) whose value is the fragment's headword, or
 the word that headword resolves to in the same snapshot (αρχαΐζων to
-αρχαΐζω). Nothing is added. The delta is written in the format of
+αρχαΐζω). Nothing is added. The output uses the delta format of
 ``scripts/refresh_el_generator_delta.py``, which applies, audits and undoes
-it::
+it; write it to a scratch path, not over the committed record::
 
     python scripts/derive_el_nominal_fragment_delta.py --dumps DUMP_DIR \
-        --base data --manifest data/hf_manifest.json \
-        --out data/changes/el_nominal_fragments.json
-    python scripts/refresh_el_generator_delta.py apply --base data \
-        --manifest data/hf_manifest.json \
-        --delta data/changes/el_nominal_fragments.json --output OUT_DIR
+        --base data --manifest data/hf_manifest.json --out CHECK.json
 
-A full ``build_data.py --lang el`` over the pinned dumps can differ from the
-delta where another page also claims a removed key (first claim wins), so
-the next regeneration supersedes this record.
+A full ``build_data.py --lang el`` differs from this approximation where a
+removed key has another claimant (the next claim wins), where a POS entry is
+left with one reading (the table keeps only ambiguous forms) and in the
+training pairs.
 """
 from __future__ import annotations
 

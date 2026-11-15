@@ -76,11 +76,28 @@ tables list bare endings (`αισώπειος`: `ος`, `ε`, `ους`), stray h
 than its word and is either a bare ending or, for a common noun or adjective,
 starts with another letter (`is_modern_nominal_fragment`); suppletive cells,
 short name forms and headword alternatives stay. The published tables carry
-the change as the recorded removal `data/changes/el_nominal_fragments.json`
-(made by `scripts/derive_el_nominal_fragment_delta.py`, applied with
-`refresh_el_generator_delta.py`): 26 `mg_lookup.json` keys and one ADJ or NOUN
-reading on each of 39 `mg_pos_lookup.json` keys, nothing added. With
-`lang="el"`, `ὄντων` and `οὐσῶν` tagged ADJ also give `εἰμί`.
+the change as the recorded generator delta `data/changes/el_nominal_fragments.json`:
+`scripts/refresh_el_generator_delta.py diff` over the 1.3.24 and the new
+`build_data.py --lang el`, both run on the kaikki.org dumps pinned in the new
+`data/kaikki_inputs.json` (the same Greek dumps and dialect extract
+`el_generator_refresh.json` records), then `apply`ed to the published tables
+with no conflict. 479 fragment cells change 26 `mg_lookup.json` keys (19 lose
+their reading; 7 now take the key's next source, e.g. `ος` → `Ος`, `ες` →
+`εις`, `ια` → `ίο`, `κο` → `ΚΟ`), 39 `mg_pos_lookup.json` keys (8 lose one ADJ
+or NOUN reading; 31 are dropped because one reading is left and the table
+holds only ambiguous forms, e.g. `όντων`, `ούσης`, `παίχτες`), and
+`mg_pairs.json` (127 fragment pairs removed; the two `γένη` pairs whose lemma
+the generator resolves through the key `ος` now name `Ος`). Nothing else
+moved. With `lang="el"`, `ὄντων` and `οὐσῶν` tagged ADJ also give `εἰμί`.
+Under `lang="all"`, `ας` tagged PART now gives `ὅς`, as it does untagged: the
+Modern particle reading was reachable only through `αισώπειος`'s fragment
+`ας` (follow-up).
+
+The kaikki.org extracts the builders read are pinned in `data/kaikki_inputs.json`
+(per file: URL, kaikki's Last-Modified date, size, sha256, license and Hub
+archive path), and `scripts/archive_kaikki_inputs.py` stages them gzipped for
+the Hub, restores them from a pinned Hub revision into a flat dump directory,
+and verifies a dump directory against the pins.
 
 s-stem neuters known only from their Ionic or uncontracted table now have the
 Attic contracted cells (#114). The dictionary expansion and the Homeric

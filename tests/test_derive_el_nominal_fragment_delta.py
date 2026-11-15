@@ -82,16 +82,58 @@ def test_script_writes_a_delta_the_refresh_tool_applies_and_undoes(tmp_path):
     assert json.loads((out / "mg_lookup.json").read_text(encoding="utf-8")) == LOOKUP
 
 
-def test_committed_record_matches_its_generator():
-    record = json.loads((ROOT / "data" / "changes" / "el_nominal_fragments.json")
-                        .read_text(encoding="utf-8"))
-    assert record["rule"] == D.RULE
-    assert record["generator_sha256"] == D.sha256(D.GENERATOR)
-    pos = record["files"]["mg_pos_lookup.json"]["set"]
+RECORD = ROOT / "data" / "changes" / "el_nominal_fragments.json"
+EL_DUMPS = {"kaikki.org-en-dictionary-Greek.jsonl",
+            "kaikki.org-el-dictionary-Greek.jsonl",
+            "kaikki.org-el-dictionary-GreekDialects.jsonl"}
+
+
+def _record():
+    return json.loads(RECORD.read_text(encoding="utf-8"))
+
+
+def test_committed_record_is_a_generator_delta_over_the_pinned_dumps():
+    record = _record()
+    assert record["rule"] == R.RULE and record["language"] == "el"
+    # 1.3.24's build_data.py against the release branch's.
+    assert record["generator"]["old"] == "c4ced976d92cc8744bb0f51c7f319e81349783f0"
+    assert len(record["generator"]["new"]) == 40
+    pins = json.loads((ROOT / "data" / "kaikki_inputs.json").read_text(encoding="utf-8"))
+    assert set(record["dumps"]) == EL_DUMPS
+    for name, digest in record["dumps"].items():
+        assert pins["files"][name]["sha256"] == digest, name
+    assert set(record["files"]) == {"mg_lookup.json", "mg_pos_lookup.json",
+                                    "mg_pairs.json"}
+
+
+def test_committed_record_changes_only_fragment_readings():
+    files = _record()["files"]
+    lookup = files["mg_lookup.json"]["set"]
+    pos = files["mg_pos_lookup.json"]["set"]
+    assert (len(lookup), len(pos)) == (26, 39)
+    assert lookup["ούσης"] == ["αρχαΐζω", None]
+    assert lookup["ΧΧΧ"] == ["Καραβίτης", None]
+    # A freed key goes to its next source, as a full build gives it.
+    assert lookup["ος"] == ["αισώπειος", "Ος"]
+    assert lookup["ες"] == ["μουσικομανής", "εις"]
+    assert sum(after is not None for _, after in lookup.values()) == 7
     assert pos["ούσης"] == [{"ADJ": "αρχαΐζων"}, None]
-    assert pos["όντων"][1] == {"NOUN": "ων"}
-    # A removal only, never a new or changed reading.
+    # One reading left: the table keeps only ambiguous forms.
+    assert pos["όντων"] == [{"ADJ": "αρχαΐζων", "NOUN": "ων"}, None]
+    # A removal only, never a new or changed POS reading.
     for before, after in pos.values():
-        assert after is None or (set(after.items()) < set(before.items()))
-    for before, after in record["files"]["mg_lookup.json"]["set"].items():
-        assert after[1] is None
+        if after is not None:
+            assert set(after.items()) < set(before.items())
+            lost = set(before) - set(after)
+            assert lost <= {"ADJ", "NOUN"} and len(after) >= 2
+
+
+def test_committed_record_removes_fragment_training_pairs():
+    pairs = _record()["files"]["mg_pairs.json"]
+    removed = {(r["lemma"], r["form"]) for r in pairs["remove"]}
+    assert len(pairs["remove"]) == 127
+    assert {("αρχαΐζων", "ούσης"), ("αισώπειος", "ος"),
+            ("κρεατομηχανή", "μηχανή"), ("βρόντημα", "γ")} <= removed
+    # The only additions are the two γένη pairs the generator resolves
+    # through the key ος, which now names Ος instead of αισώπειος.
+    assert [(r["form"], r["lemma"]) for r in pairs["add"]] == [("γένη", "Ος")] * 2
