@@ -62,6 +62,7 @@ CLOSED_CLASS_DUMPS = {
 }
 _CHUNK = 1 << 20
 _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
+_LEADING_BREATHINGS = frozenset("\u0313\u0314\u1fbf\u1ffe")
 # What a consonant-stem or s-stem entry prints after its headword: a
 # genitive in -ος, -ως or -ους, or the neuter -ες of an adjective in -ης.
 _THIRD_DECLENSION_ENDINGS = ("ος", "ως", "ους", "ες")
@@ -682,6 +683,17 @@ def carried_baseline_conflicts(conflicts, reference: dict[str, str],
         if form in reference and carried.get(form) == reference[form])
 
 
+def fold_leading_breathing(lemma: str) -> str:
+    """A lemma whose breathing is written before its capital, precomposed.
+
+    The reference spells part of its capitalised lemmas with a spacing
+    breathing in front of the letter (᾿Αγαρηνός for Ἀγαρηνός).
+    """
+    if lemma and lemma[0] in _LEADING_BREATHINGS:
+        return sanitize_form(lemma)
+    return lemma
+
+
 def kept_withheld_noun_forms(
     pending: dict[str, list[str]],
     withheld_noun_lemmas: dict[str, tuple[str, ...]],
@@ -827,6 +839,17 @@ def overlay_expansion(
     return stats
 
 
+def confirmed_head(lemma: str, head_evidence: dict[str, tuple[str, ...]]) -> bool:
+    """Whether a list other than the Sophocles lexicon attests the head.
+
+    That lexicon is read from OCR, which capitalises entry words and
+    misreads breathings and accents, so a head only it attests can be a
+    misspelling of another word.
+    """
+    return any(not name.startswith("sophocles/")
+               for name in head_evidence.get(lemma, ()))
+
+
 def keep_published_over_unaccented_heads(
     target: dict[str, str], carried: dict[str, str],
     lexical_heads: set[str] | frozenset[str],
@@ -860,6 +883,8 @@ def restore_unmarked_keys(
     carried: dict[str, str],
     excluded_forms: set[str] | frozenset[str] = frozenset(),
     restored_rows: list[tuple[str, str]] | None = None,
+    head_evidence: dict[str, tuple[str, ...]] | None = None,
+    breathing_corrections: dict[str, str] | None = None,
 ) -> dict[str, int]:
     """Give back the unaccented expansion keys the published table carried.
 
@@ -871,38 +896,86 @@ def restore_unmarked_keys(
     still carried part of them from earlier tables, and a build from fresh
     dumps has none of those. Here a missing key comes back only where
     ``carried`` (that published table) has it with the expansion's lemma and
-    every marked target form that strips to it reads that lemma, so it adds
-    no key the published table lacked and agrees with the current table by
-    construction. A key no marked form backs, or whose forms read other
-    lemmas, stays out.
+    the marked target forms that strip to it read that lemma, so it adds no
+    key the published table lacked and agrees with the current table. A key
+    no marked form backs, or whose forms read another head, stays out.
+
+    The marked forms (the key's backers) are compared as follows.
+
+    * Two spellings of one lemma agree: a leading spacing breathing is
+      folded into its capital (᾿Αγαρηνός is Ἀγαρηνός), and a head the
+      breathing review corrected (``breathing_corrections``) is its
+      corrected spelling (Ρωμαϊκός is Ῥωμαϊκός). The key is written with
+      the spelling its backers read, the normalised one when they differ,
+      so a paradigm keeps one lemma spelling across its keys.
+    * A grave form whose acute twin is a target key is not a backer of its
+      own: the acute form's lemma stands for both (ζημιωθῇς, not the
+      generated ζημιωθὴς).
+    * With ``head_evidence``, a backer that reads another lemma does not
+      dispute a key whose lemma is a confirmed head (confirmed_head) when
+      its own lemma is no positive lexical head (ἀπεπνιγῆ under the
+      generated ἀποπενιγ͂υμι beside ἀπεπνίγη ἀποπνίγω). A backer that agrees
+      always counts.
 
     The keys are appended to ``target`` in order, and ``restored_rows``
     receives each (key, lemma), so the caller can record a digest that lets
     scripts/build_source_alias_manifest.py remove exactly these rows again.
     """
-    wanted = {
-        form: lemma for form, lemma in reference.items()
-        if form not in reference_base and not has_orthographic_mark(form)
-        and form not in target and form not in excluded_forms
-        and carried.get(form) == lemma
-        and not has_editorial_sigla(form) and not has_editorial_sigla(lemma)
-    }
-    readings: dict[str, set[str]] = defaultdict(set)
+    corrections = breathing_corrections or {}
+
+    def canonical(lemma: str) -> str:
+        lemma = fold_leading_breathing(lemma)
+        return corrections.get(lemma, lemma)
+
+    wanted: dict[str, str] = {}
+    published: dict[str, str] = {}
+    for form, lemma in reference.items():
+        if (form in reference_base or has_orthographic_mark(form)
+                or form in target or form in excluded_forms
+                or carried.get(form) != lemma
+                or has_editorial_sigla(form) or has_editorial_sigla(lemma)):
+            continue
+        wanted[form] = canonical(lemma)
+        published[form] = lemma
+    # bare key -> normalised lemma -> the spellings its backers read
+    readings: dict[str, dict[str, set[str]]] = defaultdict(
+        lambda: defaultdict(set))
+    grave_twins = 0
     for form, lemma in target.items():
-        if has_orthographic_mark(form):
-            bare = strip_marks(form)
-            if bare in wanted:
-                readings[bare].add(lemma)
+        if not has_orthographic_mark(form):
+            continue
+        bare = strip_marks(form)
+        if bare not in wanted:
+            continue
+        acute = grave_to_acute(form)
+        if acute != form and acute in target:
+            grave_twins += 1
+            continue
+        readings[bare][canonical(lemma)].add(lemma)
     stats = {"unmarked_candidates": len(wanted), "unmarked_restored": 0,
-             "unmarked_disputed": 0, "unmarked_unbacked": 0}
+             "unmarked_disputed": 0, "unmarked_unbacked": 0,
+             "unmarked_lemma_respelled": 0,
+             "unmarked_nonhead_readings_ignored": 0,
+             "unmarked_grave_twins_skipped": grave_twins}
     for bare, lemma in wanted.items():
-        current = readings.get(bare)
-        if current == {lemma}:
+        current = readings.get(bare, {})
+        others = set(current) - {lemma}
+        disputing = others
+        if head_evidence is not None and confirmed_head(lemma, head_evidence):
+            disputing = {other for other in others if other in head_evidence}
+        spellings = current.get(lemma, set())
+        if spellings and not disputing:
+            if lemma not in spellings and len(spellings) == 1:
+                (lemma,) = spellings
             target[bare] = lemma
             stats["unmarked_restored"] += 1
+            if lemma != published[bare]:
+                stats["unmarked_lemma_respelled"] += 1
+            if others:
+                stats["unmarked_nonhead_readings_ignored"] += 1
             if restored_rows is not None:
                 restored_rows.append((bare, lemma))
-        elif current:
+        elif disputing:
             stats["unmarked_disputed"] += 1
         else:
             stats["unmarked_unbacked"] += 1
@@ -973,6 +1046,27 @@ def load_withheld_noun_lemmas(
                    or record["reason"] == "nonlexical-noun-headword"
                    for record in rows)
     }
+
+
+def load_carried_head_records(
+    path: Path,
+) -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
+    """Head evidence and breathing corrections for the carried keys.
+
+    Returns the source lists of every positive head, and the corrected
+    spelling of each head the Sophocles breathing review corrected.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 2 or not payload.get("heads"):
+        raise SystemExit("invalid positive lexical-head evidence for carried keys")
+    evidence = {head: tuple(sources)
+                for head, sources in payload["heads"].items() if sources}
+    review = payload.get("sophocles_breathing") or {}
+    if review and review.get("schema_version") != 1:
+        raise SystemExit("unsupported Sophocles breathing review record")
+    corrections = {head: record["head"]
+                   for head, record in review.get("corrected", {}).items()}
+    return evidence, corrections
 
 
 def resolve_target_editorial_entries(target: dict[str, str]) -> dict[str, int]:
@@ -1152,9 +1246,13 @@ def main() -> None:
     # The rules that carry published keys need the published table; a
     # manifest without one runs the plain overlay.
     withheld_nouns: dict[str, tuple[str, ...]] = {}
+    head_evidence: dict[str, tuple[str, ...]] = {}
+    breathing_corrections: dict[str, str] = {}
     if carried:
         withheld_nouns = load_withheld_noun_lemmas(
             (args.noun_audit, args.sophocles_noun_audit), superseded_nouns)
+        head_evidence, breathing_corrections = load_carried_head_records(
+            args.lexical_heads)
 
     stats = overlay_expansion(
         reference, reference_base, target, excluded_forms=excluded_forms,
@@ -1176,7 +1274,9 @@ def main() -> None:
     stats.update(restore_unmarked_keys(
         reference, reference_base, target, carried,
         excluded_forms=excluded_forms - released_forms,
-        restored_rows=unmarked_rows))
+        restored_rows=unmarked_rows,
+        head_evidence=head_evidence if carried else None,
+        breathing_corrections=breathing_corrections))
     stats["unmarked_withheld_noun_restored"] = sum(
         lemma in withheld_nouns for _key, lemma in unmarked_rows)
     del carried
@@ -1228,7 +1328,11 @@ def main() -> None:
           f"({stats['unmarked_disputed']:,} disputed, "
           f"{stats['unmarked_unbacked']:,} without a marked form)")
     print(f"  of them: {stats['unmarked_withheld_noun_restored']:,} of nouns "
-          f"without a fresh paradigm")
+          f"without a fresh paradigm, "
+          f"{stats['unmarked_lemma_respelled']:,} with a normalised "
+          f"lemma spelling, {stats['unmarked_nonhead_readings_ignored']:,} past "
+          f"a reading that is no lexical head; "
+          f"{stats['unmarked_grave_twins_skipped']:,} grave twins not consulted")
     print(f"Attested compound cells/aliases recovered: {alias_stats['recovered_count']:,}")
     print(f"Attested owners canonicalized: {alias_stats['canonicalized_count']:,}")
     print(f"Historical closed-class elisions canonicalized: "

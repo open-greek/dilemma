@@ -852,7 +852,10 @@ def test_unaccented_keys_return_where_every_marked_form_agrees():
     assert "νοερων" not in target and "ορφνινος" not in target
     assert "τοσ" not in target
     assert stats == {"unmarked_candidates": 4, "unmarked_restored": 2,
-                     "unmarked_disputed": 1, "unmarked_unbacked": 1}
+                     "unmarked_disputed": 1, "unmarked_unbacked": 1,
+                     "unmarked_lemma_respelled": 0,
+                     "unmarked_nonhead_readings_ignored": 0,
+                     "unmarked_grave_twins_skipped": 0}
 
 
 def test_unaccented_keys_the_published_table_lacked_stay_out():
@@ -1007,3 +1010,91 @@ def test_published_reading_stays_over_an_accentless_copy_of_its_head():
                       "κληθεις": "κληζω", "ἔξηλθεν": "ἐξέρχομαι",
                       "φορω": "φορω"}
     assert keep_published_over_unaccented_heads(dict(target), {}, {"κλῄζω"}) == 0
+
+
+def test_carried_head_records_hold_evidence_and_corrections(tmp_path):
+    from overlay_lsj import load_carried_head_records
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({
+        "schema_version": 2,
+        "heads": {"Ῥωμαϊκός": ["lsj9_headwords", "sophocles/0950.xml"],
+                  "Θερινός": ["sophocles/0550.xml"], "ἄκυρος": []},
+        "sophocles_breathing": {"schema_version": 1, "corrected": {
+            "Ρωμαϊκός": {"head": "Ῥωμαϊκός", "rule": "same_head"}}}}),
+        encoding="utf-8")
+    evidence, corrections = load_carried_head_records(path)
+    assert evidence == {"Ῥωμαϊκός": ("lsj9_headwords", "sophocles/0950.xml"),
+                        "Θερινός": ("sophocles/0550.xml",)}
+    assert corrections == {"Ρωμαϊκός": "Ῥωμαϊκός"}
+    path.write_text(json.dumps({"schema_version": 2,
+                                "heads": {"ἄκυρος": ["lsj9_headwords"]}}))
+    assert load_carried_head_records(path) == (
+        {"ἄκυρος": ("lsj9_headwords",)}, {})
+    path.write_text("{}")
+    with pytest.raises(SystemExit, match="invalid positive lexical-head"):
+        load_carried_head_records(path)
+
+
+def test_unaccented_key_compares_lemmas_with_the_breathing_normalised():
+    from overlay_lsj import restore_unmarked_keys
+    # The reference spells the lemma with a spacing breathing; the fresh
+    # marked form reads the precomposed spelling.
+    reference = {"Αγαρηνων": "᾿Αγαρηνός", "Αδριατικων": "᾿Αδριατικός",
+                 "αβαφη": "αβαφής", "ομοπιστοις": "ομόπιστος"}
+    target = {"Ἀγαρηνῶν": "Ἀγαρηνός", "\u0313Αγαρηνῶν": "᾿Αγαρηνός",
+              "\u0313Αδριατικῶν": "᾿Αδριατικός",   # only the old spelling
+              "αβαφή": "αβαφής", "ἀβαφῆ": "ἀβαφής",
+              "ομοπίστοις": "ομόπιστος"}
+    rows = []
+    stats = restore_unmarked_keys(
+        reference, {}, target, dict(reference), restored_rows=rows,
+        breathing_corrections={"αβαφής": "ἀβαφής", "ομόπιστος": "ὁμόπιστος"})
+    assert rows == [("Αγαρηνων", "Ἀγαρηνός"), ("Αδριατικων", "᾿Αδριατικός"),
+                    ("αβαφη", "ἀβαφής"), ("ομοπιστοις", "ομόπιστος")]
+    assert stats["unmarked_restored"] == 4
+    assert stats["unmarked_lemma_respelled"] == 2
+    # Without the corrections the uncorrected and corrected heads differ.
+    plain = {key: lemma for key, lemma in target.items() if key not in reference}
+    stats = restore_unmarked_keys(reference, {}, plain, dict(reference))
+    assert "αβαφη" not in plain and plain["Αγαρηνων"] == "Ἀγαρηνός"
+    assert stats["unmarked_disputed"] == 1
+
+
+def test_unaccented_key_ignores_a_reading_that_is_no_lexical_head():
+    from overlay_lsj import restore_unmarked_keys
+    reference = {"απεπνιγη": "ἀποπνίγω", "ιστρικος": "ἱστρικός",
+                 "διαστατου": "διαστατός", "ασμοδαιε": "ἀσμοδαιός"}
+    target = {"ἀπεπνίγη": "ἀποπνίγω", "ἀπεπνιγῆ": "ἀποπενιγ͂υμι",
+              "ἱστρικός": "ἱστρικός", "ἰστρικός": "ἰστρικός",
+              "διαστατοῦ": "διαστατός", "διαστάτου": "διαστατόω",
+              "ἀσμοδαιέ": "ἀσμοδαιός", "ἀσμοδαῖε": "ἀσμοδαῖος"}
+    evidence = {"ἀποπνίγω": ("lsj9_headwords",),
+                "ἱστρικός": ("sophocles/0600.xml",),     # unconfirmed head
+                "διαστατός": ("lsj9_headwords",),
+                "διαστατόω": ("lsj9_headwords",)}        # a head disputes
+    carried = dict(reference)
+    with_heads = dict(target)
+    stats = restore_unmarked_keys(reference, {}, with_heads, carried,
+                                  head_evidence=evidence)
+    assert {key: with_heads[key] for key in with_heads if key not in target} == {
+        "απεπνιγη": "ἀποπνίγω"}
+    assert stats["unmarked_restored"] == 1
+    assert stats["unmarked_nonhead_readings_ignored"] == 1
+    assert stats["unmarked_disputed"] == 3
+    without = dict(target)
+    stats = restore_unmarked_keys(reference, {}, without, carried)
+    assert without == target and stats["unmarked_disputed"] == 4
+
+
+def test_unaccented_key_takes_the_acute_form_over_its_grave_twin():
+    from overlay_lsj import restore_unmarked_keys
+    reference = {"ευθης": "εὐθής", "νερον": "νερόν", "καλον": "καλός"}
+    target = {"εὐθής": "εὐθής", "εὐθὴς": "εὐθύς",
+              "νερὸν": "νύς",                    # no acute twin: it counts
+              "καλόν": "καλός", "καλὸν": "καλός", "κᾶλον": "κᾶλον"}
+    stats = restore_unmarked_keys(reference, {}, target, dict(reference))
+    assert target["ευθης"] == "εὐθής"
+    assert "νερον" not in target and "καλον" not in target
+    assert stats["unmarked_restored"] == 1
+    assert stats["unmarked_grave_twins_skipped"] == 2
+    assert stats["unmarked_disputed"] == 2
