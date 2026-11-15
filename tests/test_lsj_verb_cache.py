@@ -49,7 +49,7 @@ def test_same_conjugation_verbs_preserve_their_own_stems_and_marks(monkeypatch):
 def test_present_cache_does_not_cache_other_head_text_principal_parts(monkeypatch):
     monkeypatch.setattr(expand_lsj, "parse_html_forms", lambda html, word: {"λύω", "λύεις"})
     monkeypatch.setattr(expand_lsj, "expand_principal_parts",
-                        lambda wtp, word, text: {text})
+                        lambda wtp, word, text, supplement="": {text})
     wtp = FakeWtp()
     assert expand_lsj.expand_verb(wtp, "λύω", "ἔλυσα")[0] == {"λύω", "λύεις", "ἔλυσα"}
     assert expand_lsj.expand_verb(wtp, "λύω", "λέλυκα")[0] == {"λύω", "λύεις", "λέλυκα"}

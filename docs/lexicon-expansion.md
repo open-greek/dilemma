@@ -46,6 +46,15 @@ expanded and how, `data/lsj9_glosses_pin.json` pins its sha256 and size, and
 `expand_lsj.py --expand-verbs` stops when `lsj9_glosses.jsonl` is missing or
 differs.
 
+The current export ends many verb entries' head text at the first citation
+(`κατατέμνω`: "fut. -τεμῶ Ar.Ach.301: aor."), before the remaining principal
+parts. The pin therefore names a second file, `lsj9_glosses_earlier.jsonl`: the
+same export at an earlier lsj9 commit, which keeps those parts and drops the
+citations. The verb pass reads it only for principal parts: a tense the current
+text gives stands, a tense it lacks is taken from the earlier text, and the
+three aorist slots are filled only together. 978 verb entries gain 3,018
+principal parts this way. Entry rejections still read the current text alone.
+
 ## Historical expansion overlay
 
 The final overlay is intentional. A May 2026 base-data refresh replaced the

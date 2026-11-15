@@ -102,9 +102,10 @@ read it: `build_grc_lexical_heads.py`, `build_grc_contracted_aliases.py` and
 Wiktionary definition check for corpus votes (a different table and audit),
 so pass it explicitly. `expand_lsj.py` and `expand_sophocles.py` also take
 `--lsj9-dir DIR` (`$DILEMMA_LSJ9_DIR`, default `~/Documents/lsj9`) for
-`lsj9_forms.tsv`, `lsj9_headwords.json` and `lsj9_glosses.jsonl`; the verb
-pass refuses a `lsj9_glosses.jsonl` that does not match
-`data/lsj9_glosses_pin.json`.
+`lsj9_forms.tsv`, `lsj9_headwords.json`, `lsj9_glosses.jsonl` and
+`lsj9_glosses_earlier.jsonl` (the glosses file at the earlier lsj9 commit the
+pin names, read for principal parts only); the verb pass refuses either
+glosses file when it does not match `data/lsj9_glosses_pin.json`.
 
 ### 2. Build the lookup database
 

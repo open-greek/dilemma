@@ -3,5 +3,11 @@
   "sha256": "fe881d28d45443be768d9cab939c2bb8ab2f3abab3339630e1585f78469136f7",
   "size": 36072906,
   "used_by": "build/expand_lsj.py --expand-verbs: principal parts and the entries the verb pass skips (prefixes, cross-references, person-limited verbs)",
-  "note": "The LSJ9 glosses export the 1.3.26 expansion read. A different export changes ag_lookup.json, so the verb pass refuses one that does not match."
+  "note": "The LSJ9 glosses export the 1.3.26 expansion read (lsj9 commit f3c9fd0). A different export changes ag_lookup.json, so the verb pass refuses one that does not match.",
+  "principal_parts_supplement": {
+    "path": "lsj9_glosses_earlier.jsonl",
+    "sha256": "8685d4b227a618b209d275e4e1e2e97038a3ac16a17b2c9ede2e771e957b2b50",
+    "size": 35544292,
+    "note": "The same file at lsj9 commit b72652a, saved under this name. The current export ends many verb entries' head text at the first citation, before the remaining principal parts; this export keeps them. The verb pass reads it only for tenses the current text does not give: 978 verb entries gain 3,018 principal parts."
+  }
 }
