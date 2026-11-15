@@ -942,6 +942,36 @@ _PP_CACHE: dict[tuple, set[str]] = {}
 _LSJ_HEAD_TEXTS: dict[str, str] | None = None
 
 
+LSJ9_GLOSSES_PIN = DATA_DIR / "lsj9_glosses_pin.json"
+
+
+def verify_lsj_glosses() -> dict[str, object]:
+    """Check the LSJ9 glosses export against its pin, or stop.
+
+    The verb pass reads principal parts and its entry rejections from each
+    headword's LSJ text, so another export (or none) silently changes
+    ag_lookup.json: an export without the ἡμι- entry's text once turned 38
+    bare endings into forms of the prefix. data/lsj9_glosses_pin.json
+    records the export's sha256 and size.
+    """
+    pin = json.loads(LSJ9_GLOSSES_PIN.read_text(encoding="utf-8"))
+    expected = {"sha256": pin["sha256"], "size": pin["size"]}
+    if not LSJ9_GLOSSES.is_file():
+        raise SystemExit(f"{LSJ9_GLOSSES.name} not found in {LSJ9_DIR}; the verb "
+                         "pass needs the pinned LSJ9 glosses export "
+                         f"({LSJ9_GLOSSES_PIN.name})")
+    digest = hashlib.sha256()
+    with LSJ9_GLOSSES.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+    actual = {"sha256": digest.hexdigest(), "size": LSJ9_GLOSSES.stat().st_size}
+    if actual != expected:
+        raise SystemExit(f"{LSJ9_GLOSSES} does not match {LSJ9_GLOSSES_PIN.name} "
+                         f"(sha256 {actual['sha256'][:12]}, {actual['size']:,} bytes; "
+                         f"pinned {expected['sha256'][:12]}, {expected['size']:,})")
+    return actual
+
+
 def load_lsj_head_texts() -> dict[str, str]:
     """Load the leading paragraph of every LSJ entry (gloss without
     `level` / `number` is the entry head, which carries the
@@ -1794,6 +1824,8 @@ def expand_verbs():
     lsj_entries = parse_lsj_entries()
     wikt = load_wiktionary_forms()
     print("Loading LSJ entry head texts (for principal-parts extraction)...")
+    pinned = verify_lsj_glosses()
+    print(f"  {LSJ9_GLOSSES.name}: sha256 {pinned['sha256'][:12]} (pinned)")
     head_texts = load_lsj_head_texts()
 
     print(f"Loading {AG_LOOKUP}...")
