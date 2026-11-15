@@ -263,6 +263,7 @@ def test_settle_heads_keeps_the_order_and_the_printed_twin():
     assert audit["malformed_heads"] == {"Ἔρετριάς": "two-accents"}
     assert audit["repaired_heads"] == {"κατα-μαρτυρία": "καταμαρτυρία",
                                        "καθ-ηδύνω": "καθηδύνω"}
+    assert audit["lowercased_heads"] == {}
     # without the lexical heads nothing is repaired
     assert list(S.settle_heads(entries, None)) == ["ἄβαγνον", "καθηδύνω", "ὕδωρ"]
 
@@ -312,3 +313,61 @@ def test_verb_step_rejects_and_repairs_malformed_heads(tmp_path, monkeypatch):
     assert calls == ["καθηδύνω", "γράφω"]
     assert set(lookup.values()) == {"καθηδύνω", "γράφω"}
     assert "καθηδύνεις" in lookup and "καθηδυνεις" in lookup
+
+
+COMMON = frozenset({"ἀθεότης", "ἔκπτυξις", "ἱπποθυτέω", "πέτρα", "Πέτρα",
+                    "θεοπρεπῶς", "ἑλένη", "Ἑλένη"})
+
+
+@pytest.mark.parametrize("printed,head,rule", [
+    # only the lowercase spelling is another source's head: a common word
+    ("Ἀθεότης", "ἀθεότης", "lowercased"),
+    ("Ἔκπτυξις", "ἔκπτυξις", "lowercased"),
+    ("Θεοπρεπῶς", "θεοπρεπῶς", "lowercased"),
+    ("Ἱππο-θυτέω", "ἱπποθυτέω", "joined"),
+    # another source lists the capitalized head: a name beside a common word
+    ("Πέτρα", "Πέτρα", ""),
+    ("Ἑλένη", "Ἑλένη", ""),
+    # no lowercase twin
+    ("Θεοδοτάκης", "Θεοδοτάκης", ""),
+    ("Σιναῖτις", "Σιναῖτις", ""),
+    ("ἀθεότης", "ἀθεότης", ""),
+])
+def test_settle_head_lowercases_a_capitalized_common_word(printed, head, rule):
+    assert S.settle_head(printed, COMMON) == (head, rule)
+    assert S.settle_head(printed, None)[0] in ("", printed)
+
+
+def test_noun_step_generates_a_common_word_under_its_lowercase_head(
+        tmp_path, monkeypatch):
+    sources = ["lsj9_headwords"]
+    lookup, audit, calls = run_noun_step(
+        tmp_path, monkeypatch, {"ἔκπτυξις": "ἔκπτυξις", "εκπτυξις": "ἔκπτυξις"},
+        "<orth>Ἀθεότης</orth>, ητος, ἡ, ungodliness.",
+        "<orth>Ἔκπτυξις</orth>, εως, ἡ, an unfolding.",
+        "<orth>Πέτρα</orth>, ας, ἡ, Petra, a city.",
+        "<orth>Θεοδοτάκης</orth>, ου, ὁ, dear Θεόδοτος.",
+        "<orth>Θεοπρεπῶς</orth>, adv. in a manner worthy of God.",
+        heads={"ἀθεότης": sources, "Ἀθεότης": ["sophocles/0057.xml"],
+               "ἔκπτυξις": sources, "πέτρα": sources, "Πέτρα": ["pd_headwords"],
+               "θεοπρεπῶς": sources},
+        forms={"ἀθεότης": ["ἀθεότης", "ἀθεότητος"]})
+    # Ἔκπτυξις is skipped: the table already has the lowercase head
+    assert [head for head, _, _ in calls] == ["ἀθεότης", "Πέτρα", "Θεοδοτάκης"]
+    assert lookup["ἀθεότητος"] == lookup["αθεοτητος"] == "ἀθεότης"
+    assert lookup["θεοπρεπῶς"] == lookup["θεοπρεπως"] == "θεοπρεπῶς"
+    assert lookup["Πέτρα"] == "Πέτρα" and lookup["Θεοδοτάκης"] == "Θεοδοτάκης"
+    assert set(lookup.values()) == {
+        "ἔκπτυξις", "ἀθεότης", "Πέτρα", "Θεοδοτάκης", "θεοπρεπῶς"}
+    assert audit["head_rules"]["lowercased_heads"] == {"count": 3, "heads": {
+        "Ἀθεότης": "ἀθεότης", "Ἔκπτυξις": "ἔκπτυξις", "Θεοπρεπῶς": "θεοπρεπῶς"}}
+
+
+def test_verb_step_generates_a_common_word_under_its_lowercase_head(
+        tmp_path, monkeypatch):
+    lookup, calls = run_verb_step(
+        tmp_path, monkeypatch, {},
+        "<orth>Ἱπποθυτέω</orth>, to sacrifice horses.",
+        "<orth>Ἰουδαΐζω</orth>, to judaize.",
+        heads={"ἱπποθυτέω": ["lsj9_headwords"]})
+    assert calls == ["ἱπποθυτέω", "Ἰουδαΐζω"]

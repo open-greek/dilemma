@@ -269,7 +269,7 @@ def new_head_audit():
     """An empty record of one parse's head decisions (``head_rules`` in the
     noun generation audit)."""
     return {"printed": {}, "multi_word_heads": {}, "stated_gender": {},
-            "malformed_heads": {}, "repaired_heads": {}}
+            "malformed_heads": {}, "repaired_heads": {}, "lowercased_heads": {}}
 
 
 def load_lexical_heads(path: Path | None = None):
@@ -289,6 +289,16 @@ def load_lexical_heads(path: Path | None = None):
 _INNER_HYPHENS = "-—–"
 
 
+def lowercase_twin(head, lexical_heads):
+    """The lowercase spelling of a capitalized head when the other lexical
+    sources list that spelling and not the capitalized one, else ""."""
+    lowered = head.lower()
+    if (lexical_heads and head[:1].isupper() and head not in lexical_heads
+            and lowered in lexical_heads):
+        return lowered
+    return ""
+
+
 def settle_head(printed, lexical_heads=None):
     """``(head, rule)``: the head a printed head is generated under.
 
@@ -298,27 +308,42 @@ def settle_head(printed, lexical_heads=None):
     ὕπο-κατασκευή). The one repair is to drop the hyphens, and only when the
     joined word has a single accent and another lexical source lists it
     ("joined": καθ-ηδύνω -> καθηδύνω).
+
+    A capitalized head is a common word the lexicon prints with a capital
+    when the other sources list only its lowercase spelling ("lowercased":
+    Ἀθεότης -> ἀθεότης, Ἔκπτυξις -> ἔκπτυξις). A capitalized head another
+    source lists (Πέτρα beside πέτρα), or one with no lowercase twin, is a
+    name and stands.
     """
     if any(mark in printed for mark in _INNER_HYPHENS):
         joined = "".join(ch for ch in printed if ch not in _INNER_HYPHENS)
-        if accent_count(joined) <= 1 and joined in (lexical_heads or ()):
-            return joined, "joined"
+        if accent_count(joined) <= 1:
+            if joined in (lexical_heads or ()):
+                return joined, "joined"
+            lowered = lowercase_twin(joined, lexical_heads)
+            if lowered:
+                return lowered, "joined"
         return "", "inner-hyphen"
     if accent_count(printed) > 1:
         return "", "two-accents"
+    lowered = lowercase_twin(printed, lexical_heads)
+    if lowered:
+        return lowered, "lowercased"
     return printed, ""
 
 
 def settle_heads(entries, lexical_heads, audit=None):
     """The parsed entries keyed by the head each is generated under.
 
-    Malformed heads are dropped and repaired ones re-keyed in place (see
-    ``settle_head``); an entry the lexicon also prints under the repaired
-    head keeps its own text. ``audit`` records both groups by printed head.
+    Malformed heads are dropped; repaired and lowercased ones are re-keyed
+    in place (see ``settle_head``), and an entry the lexicon also prints
+    under the new head keeps its own text. ``audit`` records the three
+    groups by printed head.
     """
     audit = audit if audit is not None else new_head_audit()
     malformed = audit.setdefault("malformed_heads", {})
-    repaired = audit.setdefault("repaired_heads", {})
+    changed = {"joined": audit.setdefault("repaired_heads", {}),
+               "lowercased": audit.setdefault("lowercased_heads", {})}
     settled = {}
     for printed, entry in entries.items():
         head, rule = settle_head(printed, lexical_heads)
@@ -326,7 +351,7 @@ def settle_heads(entries, lexical_heads, audit=None):
             malformed[printed] = rule
             continue
         if head != printed:
-            repaired[printed] = head
+            changed[rule][printed] = head
             if head in entries:
                 continue
             entry = dict(entry, headword=head, printed=printed)
