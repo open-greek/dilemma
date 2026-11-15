@@ -756,6 +756,37 @@ capitalised corpus row was measured and rejected, because about 2,200 rows of
 mixed quality would change (`Οἰκία` → `οἰκία` is right, `Βασιλέως` →
 `βασιλίς` is wrong).
 
+**Corpus lemmatizer artefacts and the reviewed readings around them.** A
+treebank's automatic annotation also builds lemmas from an augmented,
+reduplicated or misprinted form: GLAUx files `ἠμφεσβήτουν` under
+`ἀμφιαμφισβητέω` and `χρωσθήσεται` under `γιχρώσκω`. `ag_headwords.json`
+has these spellings, so headword validation lets the pairs through. The
+seven reviewed ones are listed in `dilemma/grc_rejected_lemmas.py` under the
+reason `corpus_lemmatizer_artifact`. Three reviewed tables in
+`build_lookup_db.py` go with them:
+
+- `REVIEWED_ABSENT_KEY_READINGS`. A reviewed override changes only a key the
+  tables hold. Rejecting a lemma can leave a form with no reading at all, so
+  the forms of the seven artefacts are listed here with their real lemma
+  (`ἠμφεσβήτουν` → `ἀμφισβητέω`, `πεπαρῴνηκεν` → `παροινέω`), and these
+  entries are also written when no source has the key.
+- The Ancient corpus gap-fill copies a pair into the Modern table when the
+  Ancient table agrees with it or lacks the form, and such a row answers
+  `lang="el"`. For the forms reviewed for the 2026-11 rebuild
+  (`KAIKKI_2026_11_READING_OVERRIDES`, the absent-key readings and `Μάγων`),
+  an el row that a corpus pair file supplied and that names another lemma
+  than the reviewed one is removed, so the reviewed reading answers
+  `lang="el"` too. El rows from the Modern Greek sources are never removed.
+- `MODERN_READING_OVERRIDES` is the reverse case: monotonic and unaccented
+  Modern spellings (`αυτοκινήτου`, `εστιάσεις`, `Βιέννης`) to which the
+  rebuilt Ancient layer gave an Ancient lemma. Only the combined reading
+  changes, back to the Modern lemma that 1.3.25 returned under `lang="all"`;
+  `lang="grc"` keeps the Ancient reading and `lang="el"` the Modern one.
+
+The build log reports the three counts on one line (`Lookup overrides
+applied: N readings changed, N absent keys added, N el-only corpus readings
+removed`) and the Modern readings on the next.
+
 When the transformer handles an unseen form, beam search generates
 multiple candidates and picks the first that matches a known headword
 from the citation-safe filter. In default mode that includes validated lookup
