@@ -1261,3 +1261,12 @@ def test_participle_nominative_cannot_return_a_reviewed_non_lemma(fallback_model
 def test_single_candidate_recase_follows_form_and_tag(word, upos, baseline,
                                                       candidate, disagrees):
     assert core.Dilemma._recase_disagrees(word, upos, baseline, candidate) is disagrees
+
+
+def test_breathing_final_vowel_reads_the_lookup_before_elision(fallback_model):
+    # δἐ: a psili that is the final vowel's only mark is a breathing, so
+    # lemmatize_batch() reads the lookup first, as lemmatize() does.
+    model = fallback_model(
+        {"δέ": "δέ", "δε": "δέ", "δέω": "δέω", "δεω": "δέω"}, {})
+    assert model.lemmatize("δἐ", guess=False) == "δέ"
+    assert model.lemmatize_batch(["δἐ"], guess=False) == ["δέ"]

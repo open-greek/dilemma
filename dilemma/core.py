@@ -1083,6 +1083,16 @@ def _is_marked_vowel_psili_elision(word: str) -> bool:
     return False
 
 
+def _is_bare_vowel_psili_final(word: str) -> bool:
+    """True iff ``word`` ends in a vowel whose only mark is a psili (ἐ, οὐ,
+    δἐ): a breathing, not the elision apostrophe of
+    ``_is_marked_vowel_psili_elision``. lemmatize() reads such a word in the
+    lookup before the elision expander, so lemmatize_batch() does too."""
+    nfd = unicodedata.normalize("NFD", word)
+    return (len(nfd) >= 2 and nfd.endswith("\u0313")
+            and nfd[-2] in _GREEK_VOWEL_BASES)
+
+
 def _canon_elision(word: str) -> str | None:
     """Rewrite a trailing elision mark to the canonical U+1FBD key used by lookup.db.
 
@@ -4767,9 +4777,12 @@ class Dilemma:
                             word, upos, preferred, candidates,
                             extra=(pos_lemma_conv,)))
                 # POS lemma not among candidates (e.g., single candidate from
-                # lookup maps to a different headword). For an explicit verb
-                # tag, two case twins still represent one competing lexical
-                # reading, so they cannot block the supported verb target.
+                # lookup maps to a different headword). Two case twins still
+                # represent one competing lexical reading, so they cannot
+                # block the supported target: νῖκος NOUN reads Νίκη and its
+                # lowercase twin νίκη, and the treebank's νῖκος still wins,
+                # as it does against Νίκη alone. Under an explicit verb tag
+                # a loose entry may not replace the family (#42).
                 # Under convention="triantafyllidis" the Modern and Ancient
                 # lookups read one row, so a Modern entry the polytonic rule
                 # let stand meets the same lemma twice (σεῖς PRON: σέω from
@@ -4779,11 +4792,10 @@ class Dilemma:
                     if not self._pos_override_blocked(word, upos, pos_lemma,
                                                       candidates):
                         return checked(pos_lemma_conv)
-                elif (upos == "VERB"
-                        and len({c.lemma.lower() for c in candidates}) == 1
+                elif (len({c.lemma.lower() for c in candidates}) == 1
                         and not self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
-                            case_twin_family=True)):
+                            case_twin_family=upos == "VERB")):
                     return checked(pos_lemma_conv)
                 # Also trust the POS table when every candidate is just a
                 # case/accent variant of the input form (i.e. nothing in
@@ -4983,17 +4995,16 @@ class Dilemma:
                 one_reading = not matched and self._one_reading_against_modern_entry(
                     word, upos, candidates)
                 if not matched and (len(candidates) <= 1 or one_reading
-                        or (upos == "VERB"
-                            and len({c.lemma.lower() for c in candidates}) == 1)):
+                        or len({c.lemma.lower() for c in candidates}) == 1):
                     # A case-twin family is one competing reading when a
-                    # supported explicit verb tag selects a different lemma.
-                    # So is one lemma met from both sides of the lookup
-                    # under a Modern entry (#119; as in lemmatize_pos).
-                    # A loose entry leaves the candidates to decide (#105).
+                    # supported POS entry selects a different lemma. So is
+                    # one lemma met from both sides of the lookup under a
+                    # Modern entry (#119; as in lemmatize_pos). A loose
+                    # entry leaves the candidates to decide (#105).
                     if candidates and self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
-                            case_twin_family=len(candidates) > 1
-                            and not one_reading):
+                            case_twin_family=upos == "VERB"
+                            and len(candidates) > 1 and not one_reading):
                         loose_blocked.add(i)
                     else:
                         results[i] = pos_lemma_conv
@@ -5606,6 +5617,17 @@ class Dilemma:
             if _is_explicit_numeral(word):
                 results.append(word)
                 continue
+
+            # A final vowel whose only mark is a psili carries a breathing
+            # (ἐ, δἐ), so the lookup reads it first, as in lemmatize(); the
+            # expander would read the breathing as an elision mark
+            # (δἐ -> δέω instead of δέ).
+            if (_is_bare_vowel_psili_final(word)
+                    and not _is_marked_vowel_psili_elision(word)):
+                lemma = self._lookup_word(word)
+                if lemma and not _is_elided_junk_value(lemma):
+                    results.append(lemma)
+                    continue
 
             # Exact elided entry (ὅτ᾽->ὅτε, μ᾽->ἐγώ), before the expander —
             # matches lemmatize(): the corpus-derived lemma must beat the
