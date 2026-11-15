@@ -35,3 +35,11 @@ def test_override_targets_are_lexical_heads():
     heads = json.loads(path.read_text(encoding="utf-8"))["heads"]
     for lemma in set(B.KAIKKI_2026_11_READING_OVERRIDES.values()):
         assert lemma in heads, lemma
+
+
+def test_rebuild_regressions_keep_their_treebank_readings():
+    o = B.KAIKKI_2026_11_READING_OVERRIDES
+    assert o["νοερῶν"] == o["νοεροῖς"] == "νοερός"
+    assert o["παστάδα"] == o["παστάδος"] == "παστάς"
+    assert o["πορρωτάτω"] == o["ποῤῥωτάτω"] == "πόρρω"
+    assert o["ἑψομένης"] == "ἕψω" and o["μηνας"] == "μείς"
