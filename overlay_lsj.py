@@ -828,8 +828,13 @@ def main() -> None:
     parser.add_argument("--kaikki", type=Path,
                         help="Fresh dump directory; require both Ancient dumps for "
                              "source-proved historical closed-class elision repairs")
+    parser.add_argument("--lsj9-dir", type=Path,
+                        help="LSJ9 export directory the noun audit pins "
+                             "(default: $DILEMMA_LSJ9_DIR, else ~/Documents/lsj9)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.lsj9_dir is not None:
+        os.environ["DILEMMA_LSJ9_DIR"] = str(args.lsj9_dir)
     if args.kaikki is not None:
         # build/expand_lsj.py reads the dump directory from the environment
         # when overlay imports it.
