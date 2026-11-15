@@ -708,9 +708,11 @@ def kept_withheld_noun_forms(
 
     ``pending`` holds, per superseded lemma whose generation was withheld,
     the marked expansion keys the published table carried and the target
-    lacks. They are kept when the lemma is a positive lexical head and the
-    key is a structurally possible polytonic spelling (the Hunspell
-    export's grc_orthography_reason, with the elision mark normalised).
+    lacks. They are kept when the lemma is a positive lexical head in its
+    citation spelling (a head with a grave, Καλαβρὰ, is an extraction
+    artefact) and the key is a structurally possible polytonic spelling
+    (the Hunspell export's grc_orthography_reason, with the elision mark
+    normalised).
 
     One class of old paradigm is known to be wrong. The old generator
     declined a headword by its nominative when it could not use the printed
@@ -726,9 +728,10 @@ def kept_withheld_noun_forms(
     stats = {"withheld_noun_lemmas_kept": 0, "withheld_noun_entries_kept": 0,
              "withheld_noun_citation_only_lemmas": 0, "left": 0}
     for lemma, forms in pending.items():
+        trusted = lemma in lexical_heads and grave_to_acute(lemma) == lemma
         candidates = [
             form for form in forms
-            if lemma in lexical_heads and grc_orthography_reason(
+            if trusted and grc_orthography_reason(
                 canonicalize_final_elision(sanitize_form(form))) is None
         ]
         citation = [form for form in candidates if grave_to_acute(form) == lemma]

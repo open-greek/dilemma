@@ -93,9 +93,10 @@ published table lacked.
   generator could not use the printed one: `λεκτόν`, `κλείς`, `σωματεῖον`),
   there is no fresh paradigm, and the lemma keeps the marked expansion keys
   the published table had with the same reading (`λεκτοῦ`, `κλῃσίν`,
-  `σωματεῖα`). The lemma must be a positive lexical head and the key a
-  structurally possible polytonic spelling (the Hunspell export's check), so
-  hyphenated and doubly accented OCR keys stay out. One class of old paradigm
+  `σωματεῖα`). The lemma must be a positive lexical head in its citation
+  spelling (not one with a grave, `Καλαβρὰ`) and the key a structurally
+  possible polytonic spelling (the Hunspell export's check), so hyphenated
+  and doubly accented OCR keys stay out. One class of old paradigm
   is wrong: the old generator declined such a headword by its nominative
   (`Θεοπρεπότης, -τος` as `Θεοπρεπότου`). Where the lemma's citation key is
   among the keys and the entry prints an ending in -ος, -ως, -ους or -ες that

@@ -931,17 +931,21 @@ def test_noun_without_a_fresh_paradigm_keeps_its_published_keys():
 
 def test_withheld_noun_keys_need_a_positive_head_and_a_possible_spelling():
     reference = {"κλῃσίν": "κλείς", "κλει-δὸς": "κλείς", "κλεῖδὸς": "κλείς",
-                 "Ἀρτέμονος": "᾿Αρτέμων"}
+                 "Ἀρτέμονος": "᾿Αρτέμων",        # the head list has Ἀρτέμων
+                 "Καλαβρῶν": "Καλαβρὰ"}          # a head in grave spelling
     carried = dict(reference)
     target = {}
     stats = overlay_expansion(
-        reference, {}, target, superseded_noun_lemmas={"κλείς", "᾿Αρτέμων"},
+        reference, {}, target,
+        superseded_noun_lemmas={"κλείς", "᾿Αρτέμων", "Καλαβρὰ"},
         carried=carried,
-        withheld_noun_lemmas={"κλείς": ("κλειδός",), "᾿Αρτέμων": ()},
-        lexical_heads={"κλείς", "Ἀρτέμων"})
+        withheld_noun_lemmas={"κλείς": ("κλειδός",), "᾿Αρτέμων": (),
+                              "Καλαβρὰ": ()},
+        lexical_heads={"κλείς", "Ἀρτέμων", "Καλαβρὰ"})
     assert target == {"κλῃσίν": "κλείς"}
     assert stats["withheld_noun_entries_kept"] == 1
-    assert stats["superseded_noun_entries"] == 3
+    assert stats["withheld_noun_lemmas_kept"] == 1
+    assert stats["superseded_noun_entries"] == 4
 
 
 def test_wrongly_declined_withheld_noun_keeps_only_its_citation_spelling():
