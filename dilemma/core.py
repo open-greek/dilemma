@@ -4544,6 +4544,26 @@ class Dilemma:
         return self._pos_entry_is_loose(word, upos, pos_lemma)
 
     @staticmethod
+    def _is_name_row_family(word: str, candidates) -> bool:
+        """Whether a lowercase word reads only a capitalized lemma and its twin.
+
+        The lookup row of νῖκος reads the name Νίκη, and the lowercase head
+        νίκη joins it only as that lemma's case alternate. For a lowercase
+        word that is one reading, as it was before νίκη had a row of its
+        own, so a supported POS entry (νῖκος NOUN -> νῖκος) still decides.
+        A family whose row reads the lowercase lemma (ἐλάττονος: μικρός
+        beside Μικρός) is not one: there the lookup reading stands.
+        """
+        if len(candidates) < 2 or not word[:1].islower():
+            return False
+        if len({c.lemma.lower() for c in candidates}) != 1:
+            return False
+        direct = [c for c in candidates
+                  if not getattr(c, "via", "").endswith("+case_alt")]
+        return (0 < len(direct) < len(candidates)
+                and all(is_capitalized(c.lemma) for c in direct))
+
+    @staticmethod
     def _prefer_case_twin(word: str, upos: str | None, lemma: str,
                           candidates: list[LemmaCandidate],
                           extra: tuple[str, ...] = ()) -> str:
@@ -4592,6 +4612,15 @@ class Dilemma:
         if upos == "PROPN":
             return upper_twin
         if word[:1].islower():
+            return lower_twin
+        # Capitalized input: the lookup row's own reading stands against a
+        # twin that is only its case alternate (Εὐξένου NOUN keeps Εὔξενος).
+        direct = {c.lemma for c in candidates
+                  if getattr(c, "source", "") == "lookup"
+                  and not getattr(c, "via", "").endswith("+case_alt")}
+        if upper_twin in direct and lower_twin not in direct:
+            return upper_twin
+        if lower_twin in direct and upper_twin not in direct:
             return lower_twin
         return lemma
 
@@ -4777,12 +4806,14 @@ class Dilemma:
                             word, upos, preferred, candidates,
                             extra=(pos_lemma_conv,)))
                 # POS lemma not among candidates (e.g., single candidate from
-                # lookup maps to a different headword). Two case twins still
-                # represent one competing lexical reading, so they cannot
-                # block the supported target: νῖκος NOUN reads Νίκη and its
-                # lowercase twin νίκη, and the treebank's νῖκος still wins,
-                # as it does against Νίκη alone. Under an explicit verb tag
-                # a loose entry may not replace the family (#42).
+                # lookup maps to a different headword). For an explicit verb
+                # tag, two case twins still represent one competing lexical
+                # reading, so they cannot block the supported verb target
+                # (#42). So do a name and its lowercase case alternate for a
+                # lowercase word (_is_name_row_family: νῖκος NOUN reads Νίκη
+                # and νίκη, and the treebank's νῖκος still wins, as it does
+                # against Νίκη alone). Any other twin family keeps the
+                # lookup reading under a non-verb tag.
                 # Under convention="triantafyllidis" the Modern and Ancient
                 # lookups read one row, so a Modern entry the polytonic rule
                 # let stand meets the same lemma twice (σεῖς PRON: σέω from
@@ -4792,7 +4823,9 @@ class Dilemma:
                     if not self._pos_override_blocked(word, upos, pos_lemma,
                                                       candidates):
                         return checked(pos_lemma_conv)
-                elif (len({c.lemma.lower() for c in candidates}) == 1
+                elif ((upos == "VERB"
+                         or self._is_name_row_family(word, candidates))
+                        and len({c.lemma.lower() for c in candidates}) == 1
                         and not self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
                             case_twin_family=upos == "VERB")):
@@ -4995,12 +5028,16 @@ class Dilemma:
                 one_reading = not matched and self._one_reading_against_modern_entry(
                     word, upos, candidates)
                 if not matched and (len(candidates) <= 1 or one_reading
-                        or len({c.lemma.lower() for c in candidates}) == 1):
+                        or ((upos == "VERB"
+                             or self._is_name_row_family(word, candidates))
+                            and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
-                    # supported POS entry selects a different lemma. So is
-                    # one lemma met from both sides of the lookup under a
-                    # Modern entry (#119; as in lemmatize_pos). A loose
-                    # entry leaves the candidates to decide (#105).
+                    # supported explicit verb tag selects a different lemma,
+                    # and so is a name with its lowercase case alternate for
+                    # a lowercase word. So is one lemma met from both sides
+                    # of the lookup under a Modern entry (#119; as in
+                    # lemmatize_pos). A loose entry leaves the candidates to
+                    # decide (#105).
                     if candidates and self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
                             case_twin_family=upos == "VERB"

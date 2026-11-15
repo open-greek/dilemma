@@ -244,6 +244,55 @@ def test_unmatched_noun_does_not_override_an_independent_case_family():
     assert model.lemmatize_batch_pos(["Ωρολογίου"], ["NOUN"], guess=False) == ["ωρολόγιο"]
 
 
+def twin_model(rows, pos_lemma):
+    """pos_model() whose candidates record how the lookup met them."""
+    model = pos_model([lemma for lemma, _ in rows], pos_lemma)
+    candidates = [core.LemmaCandidate(lemma=lemma, source="lookup", via=via,
+                                      proper=lemma[:1].isupper())
+                  for lemma, via in rows]
+    model._lemmatize_verbose_impl = lambda word, guess: candidates
+    model._pos_entry_is_loose = lambda word, upos, lemma: False
+    model._is_closed_class_reading = lambda candidate: False
+    model._is_verb_shaped_lemma = lambda lemma: False
+    return model
+
+
+def test_lowercase_word_read_only_as_a_name_is_one_reading_for_a_pos_entry():
+    # The row of νῖκος reads the name Νίκη; the head νίκη joins it only as
+    # that lemma's case alternate, so the treebank's νῖκος NOUN still wins.
+    model = twin_model([("νίκη", "exact+case_alt"), ("Νίκη", "exact")], "νῖκος")
+    assert model.lemmatize_pos("νῖκος", "NOUN", guess=False) == "νῖκος"
+    assert model.lemmatize_batch_pos(["νῖκος"], ["NOUN"], guess=False) == ["νῖκος"]
+
+
+def test_lowercase_row_beside_its_capital_twin_keeps_the_lookup_reading():
+    # ἐλάττονος reads μικρός itself; the treebank's ἐλαχύς does not replace
+    # that family under ADJ (held-out Gorman reads the lookup's lemma).
+    model = twin_model([("μικρός", "exact"), ("Μικρός", "exact+case_alt")], "ἐλαχύς")
+    assert model.lemmatize_pos("ἐλάττονος", "ADJ", guess=False) == "μικρός"
+    assert model.lemmatize_batch_pos(["ἐλάττονος"], ["ADJ"], guess=False) == ["μικρός"]
+
+
+@pytest.mark.parametrize("word,rows,incoming,expected", [
+    # The row's own reading stands against its case alternate.
+    ("Εὐξένου", [("εὔξενος", "exact+case_alt"), ("Εὔξενος", "exact")],
+     "εὔξενος", "Εὔξενος"),
+    ("Δίκαιον", [("δίκαιος", "lower"), ("Δίκαιος", "lower+case_alt")],
+     "Δίκαιος", "δίκαιος"),
+    # Two rows of their own: the incoming choice stays.
+    ("Τύχη", [("τύχη", "lower"), ("Τύχη", "exact")], "τύχη", "τύχη"),
+    ("Τύχη", [("τύχη", "lower"), ("Τύχη", "exact")], "Τύχη", "Τύχη"),
+])
+def test_capitalized_word_keeps_the_reading_of_its_own_row(word, rows, incoming,
+                                                          expected):
+    candidates = [core.LemmaCandidate(lemma=lemma, source="lookup", via=via)
+                  for lemma, via in rows]
+    assert core.Dilemma._prefer_case_twin(word, "NOUN", incoming,
+                                          candidates) == expected
+    assert core.Dilemma._prefer_case_twin(word, "PROPN", incoming, candidates) == (
+        next(lemma for lemma, _ in rows if lemma[:1].isupper()))
+
+
 @pytest.fixture(scope="module")
 def shipped_models():
     if not core.LOOKUP_DB_PATH.exists():
