@@ -670,10 +670,27 @@ capitalized twin, so tagged results for genuine homographs such as `ἀξίαν`
 exception is a lowercase word whose lookup row reads only a capitalized
 lemma: the lowercase head that joins it as that lemma's case alternate is no
 second reading, so `νῖκος` NOUN gives the treebank's `νῖκος` beside `Νίκη`
-and `νίκη`. A capitalized word tagged other than PROPN keeps the reading of
-its own lookup row against that reading's case alternate (`Εὐξένου` NOUN
-gives `Εὔξενος`, `Βαβυλωνίην` ADJ `Βαβυλώνιος`); where the row reads the
-lowercase lemma, that stands (`Δίκαιον` ADJ gives `δίκαιος`).
+and `νίκη`.
+
+A capitalized word tagged other than PROPN follows a POS entry that names
+one of its case twins, in `lemmatize_pos()` as in `lemmatize_batch_pos()`:
+`Πῶς` ADV gives `πῶς`, `Δίκαιον` ADJ `δίκαιος`, `Λόγος` NOUN `λόγος`, and
+with `lang="grc"` or `"all"` `Χριστὸς` NOUN gives `Χριστός`. Where no POS
+entry names one, Ancient and Modern text differ. Ancient editions capitalize
+names, so the reading of the word's own lookup row stands against that
+reading's case alternate (`Εὐξένου` NOUN gives `Εὔξενος`, `Βαβυλωνίην` ADJ
+`Βαβυλώνιος`). Modern Greek text capitalizes every sentence, so there the
+lowercase reading is kept: with `lang="el"` or
+`convention="triantafyllidis"` for every such word, polytonic or not
+(`Χέρι` NOUN gives `χέρι`, `Αν` SCONJ `αν`, `Καρδίᾳ` NOUN `καρδία`), and
+with the other settings for a word written without polytonic marks whose
+lowercase twin is a Modern Greek citation form (`Κάποιος` DET gives
+`κάποιος`). PROPN reads the capitalized twin under every setting (`Χέρι`
+PROPN gives `Χέρι`). Where the POS tables hold the common word under the
+form's lowercase key, an Ancient name keeps its capital under NOUN or ADJ
+only through a reviewed cell for its capitalized spelling (below):
+`Πρόξενος` NOUN gives `Πρόξενος`, `πρόξενος` NOUN `πρόξενος`, while `Τύχη`
+NOUN gives `τύχη`.
 
 Reviewed corrections to individual cells of the treebank, GLAUx,
 Wiktionary (Ancient and Modern) and LSJ9 POS tables are kept in
@@ -685,6 +702,15 @@ fixed a cell leaves the row inert. An `add` row supplies a cell only while
 the table has none for that form and tag: the Modern table lists only forms
 with several Modern readings, so `ας` PART (the Modern particle) needs one
 under `lang="all"`, where the Ancient `ὅς` would otherwise answer (#128).
+The rebuilt 1.3.26 treebank table keeps a corpus vote only where the bare
+lookup disagrees with it, so cells whose loss let a lower table answer are
+added back (`δήτα` ADV gives `δῆτα`, `ζώδιον` NOUN `ζῴδιον`, `ουδέν` ADJ
+`οὐδείς`), new cells that displaced a 1.3.25 answer are corrected or
+dropped (`εισήεσαν` VERB gives `εἴσειμι`, `ήμεν` VERB `εἰμί`), and the
+monotonic keys of `ἤν` get an SCONJ cell (`ην` SCONJ gives `ἐάν`; `ἣν`
+SCONJ stays `ὅς`). A capitalized key is matched by its exact spelling
+only, so a name row covers the listed spellings (`Θεσπρωτοί` and
+`Θεσπρωτοὶ`).
 A single candidate that differs from the untagged answer only in case does
 not replace it when its case disagrees with the form and tag (`γ` VERB stays
 `γ`, not `Γ`).
@@ -697,7 +723,8 @@ with a bare rho (`ρε`) are unaffected.
 Batch POS calls apply the same overrides when all candidates are case or
 accent variants of the input. Agreement with a self-map still compares the
 available citation spellings. If no POS entry matches, case twins retain
-the scalar API's candidate order and capitalization rule; a single accent
+the scalar API's candidate order and capitalization rule, so a capitalized
+word gets the same lemma from both calls under every tag; a single accent
 variant retains its scalar citation spelling. This fallback checks only
 structured readings, so unresolved words keep their batched model inference.
 
