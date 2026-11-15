@@ -15,7 +15,8 @@ AG_NAMES = sorted([
     "lsj_headwords.json", "lsj10_headwords.json", "cunliffe_headwords.json",
     "dge_headwords.json", "lbg_headwords.json", "vlg_headwords.json",
     "pd_headwords.json", "wip_headwords.json", "ag_headwords.json",
-    "grc_lexical_heads.json", "grc_adverb_heads.json"])
+    "grc_lexical_heads.json", "grc_adverb_heads.json",
+    "pos_cell_corrections.json"])
 MG_NAMES = ["mg_headwords.json", "triantafyllidis_headwords.json"]
 
 
@@ -96,3 +97,12 @@ assert "lsj10_headwords.json" not in message
     result = subprocess.run([sys.executable, "-c", script], cwd=tmp_path, env=env,
                             capture_output=True, text=True, timeout=300)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_pos_cell_corrections_are_published_and_checked():
+    # The #106 corrections are read at runtime; without the file the POS
+    # tables keep their old cells (μάκαρ ADJ -> μάκαπ) in silence.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import hf_data
+    assert "data/pos_cell_corrections.json" in hf_data.TRACKED
+    assert core.POS_CELL_CORRECTIONS_PATH.name in core._AG_DATA_LISTS

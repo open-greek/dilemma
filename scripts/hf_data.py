@@ -121,6 +121,9 @@ TRACKED = [
     "data/grc_reading_heads.json",
     # Regular Ancient adverbs in -ως and their adjectives (issue #117).
     "data/grc_adverb_heads.json",
+    # Reviewed POS-table cell corrections the runtime applies at load (#106).
+    # Git-tracked too, but the wheel carries no data: installs get it here.
+    "data/pos_cell_corrections.json",
     # Explicit, sense-scoped dictionary evidence for optional verb exports.
     "data/verb_subjects.json",
     # Immutable source copies for reproducible monotonic corpus extraction.

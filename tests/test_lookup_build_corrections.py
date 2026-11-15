@@ -45,6 +45,18 @@ def test_unaccented_expansion_lemma(lemma, verdict):
     assert B.unaccented_expansion_lemma(lemma, HEADS, BY_LETTERS) == verdict
 
 
+def test_repair_target_must_be_a_citation_head():
+    # κλεῖδα is a head-list cross-reference entry (an accusative of κλείς),
+    # not a lemma the lookup maps to itself: the reading is dropped.
+    citations = {"σύνοχος"}
+    judge = lambda lemma: B.unaccented_expansion_lemma(
+        lemma, HEADS, BY_LETTERS, citations.__contains__)
+    assert judge("κλειδα") == ("unaccented_expansion_lemma_head_not_citation", None)
+    assert judge("συνοχος") == ("unaccented_expansion_lemma_repaired", "σύνοχος")
+    assert judge("λαβλυμι") == ("unaccented_expansion_lemma_unlisted", None)
+    assert judge("τε") is None
+
+
 def test_expansion_heads_index_keeps_case_and_ancient_heads_only(tmp_path):
     path = tmp_path / "heads.json"
     path.write_text(json.dumps({"heads": ["Βάβυρσα", "σύνοχος"],
@@ -85,12 +97,13 @@ builder.build()
 # Wiktionary base lacks.
 EXPANSION = {
     "λαβῃ": "λαβλυμι",          # OCR garble, in no head list: dropped
+    "κληϊδα": "κλειδα",          # the one same-letter head is no citation head
     "Αἴλιοι": "αελιυς",          # Latin read as Beta Code: dropped
     "σύνοχα": "συνοχος",         # unaccented doublet: repaired
     "γε": "γε",                  # a listed unaccented head: kept
     "μοναχικοῦ": "μοναχικός",    # accented: kept
 }
-WIKTIONARY = {"λόγος": "λόγος"}
+WIKTIONARY = {"λόγος": "λόγος", "σύνοχος": "σύνοχος", "κλεῖδα": "κλείς"}
 
 
 def _fixture(tmp_path, extra=None):
@@ -102,7 +115,7 @@ def _fixture(tmp_path, extra=None):
         "mg_lookup.json": {"λόγος": "λόγος"},
         "med_lookup.json": {},
         "grc_lexical_heads.json": {"heads": ["σύνοχος", "γε", "λόγος",
-                                             "μοναχικός", "λαβή"],
+                                             "μοναχικός", "λαβή", "κλεῖδα"],
                                    "vernacular_heads": []},
         **(extra or {}),
     }
@@ -163,6 +176,35 @@ def test_unaccented_expansion_lemmas_are_dropped_or_repaired(tmp_path):
             "λαβλυμι") in rejected
     assert ("AG", layer, "unaccented_expansion_lemma_repaired_to_σύνοχος",
             "σύνοχα", "συνοχος") in rejected
+    assert "κληϊδα" not in rows
+    assert ("AG", layer, "unaccented_expansion_lemma_head_not_citation",
+            "κληϊδα", "κλειδα") in rejected
+
+
+def test_corpus_pairs_cannot_bring_back_a_dropped_expansion_lemma(tmp_path):
+    # GLAUx annotates λαβῃ with the expansion's OCR lemma λαβλυμι, and
+    # ag_headwords.json lists it, so headword validation alone let the pair
+    # refill the key the #103 check emptied.
+    glaux = [{"form": "λαβῃ", "lemma": "λαβλυμι", "pos": "verb"},
+             {"form": "συνόχου", "lemma": "συνοχος", "pos": "adj"}]
+    diorisis = [{"form": "λαβῇ", "lemma": "λαβλυμι", "pos": "verb"}]
+    data, env = _fixture(tmp_path, {
+        "ag_headwords.json": ["λαβλυμι", "συνοχος", "σύνοχος", "λόγος"],
+        "glaux_pairs.json": glaux,
+        "diorisis_pairs.json": diorisis,
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    for lang in ("all", "grc", "el"):
+        rows = _rows(data, lang)
+        assert "λαβλυμι" not in set(rows.values())
+        assert "λαβῃ" not in rows and "λαβῇ" not in rows
+    assert _rows(data)["συνόχου"] == "σύνοχος"
+    rejected = _rejections(data)
+    assert ("AG", B.GLAUX_PAIRS_PATH.name, "unaccented_expansion_lemma_unlisted",
+            "λαβῃ", "λαβλυμι") in rejected
+    assert ("AG", B.DIORISIS_PAIRS_PATH.name, "unaccented_expansion_lemma_unlisted",
+            "λαβῇ", "λαβλυμι") in rejected
 
 
 def test_missing_lexical_heads_stop_a_build_with_expansion_readings(tmp_path):
@@ -205,13 +247,16 @@ def test_reviewed_non_lemmas_and_pronoun_twins_leave_the_lookup(tmp_path):
         {"form": "Αὕτη", "lemma": "Ἄτη", "pos": "noun"},
         {"form": "Οἰκία", "lemma": "οἰκία", "pos": "noun"},
         {"form": "Ταύτῃ", "lemma": "Ταύτη", "pos": "noun"},
+        # Reviewed, though a head list has its lowercase ταύτης.
+        {"form": "Ταύτῃ", "lemma": "Ταύτης", "pos": "noun"},
         {"form": "Ταύτῃ", "lemma": "οὗτος", "pos": "pron"},
     ]
     diorisis = [{"form": "Ἡμῶν", "lemma": "ἡμός", "pos": "pron"}]
     data, env = _fixture(tmp_path, {
         "ag": {"αὕτη": "οὗτος", "οἰκία": "οἰκία", "Ταύτη": "Ταύτη",
                "ἡμῶν": "ἐγώ", "ἄτη": "ἄτη"},
-        "ag_headwords.json": ["ἄτη", "οὗτος", "οἰκία", "ἡμός", "ἐγώ", "λόγος"],
+        "ag_headwords.json": ["ἄτη", "οὗτος", "οἰκία", "ἡμός", "ἐγώ", "λόγος",
+                              "ταύτης"],
         "glaux_pairs.json": glaux,
         "diorisis_pairs.json": diorisis,
     })

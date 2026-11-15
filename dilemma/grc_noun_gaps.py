@@ -13,20 +13,27 @@ Two kinds of noun reach the lookup with only part of their declension:
 
 Both declensions are regular, with an acute on the stem's last vowel
 (συνάρσεως, στέφους, μεγέθη) except where the ending carries the accent
-(συναρσέοιν, στεφῶν, στεφοῖν). This module gives those cells. Nothing here overwrites a
-reading: a cell fills an absent key only, and only for a plain lemma
-(lowercase, one word, one accent). A -σις noun must be a self-mapped head
-of the table. An s-stem neuter needs its own evidence in the table: an
-accented -εος row and a neuter plural (-εα, -εσι(ν) or -εων) row under the
-lemma, so a masculine in -ος with an -εος spelling of something else
-(φῖλος, Πάτροκλος) is not declined.
+(συναρσέοιν, στεφῶν, στεφοῖν). This module gives those cells. Nothing here
+overwrites a reading: a cell fills an absent key only, only for a plain lemma
+(lowercase, one word, one accent), and not at all when one of its spellings
+(lowercase, monotonic, accentless) already reads as another lemma, since the
+runtime reaches a form's reading through those spellings too (λαθῶν keeps
+λανθάνω through λαθων). A -σις noun must be a self-mapped head of the table.
+An s-stem neuter needs its own evidence in the table from an Ancient source:
+an accented -εος row and a neuter plural (-εα, -εσι(ν) or -εων) row under the
+lemma. A Modern Greek row is no evidence (υπέρβαρος), a lemma that begins
+with a vowel or rho needs its breathing, a lemma an Ancient dictionary table
+also declines in the second declension (two of -ου -ῳ -ον -οι -οις) is a
+masculine or an adjective (λόχος, πρᾶος, λάϊνος), and the reviewed
+``NOT_SSTEM_NEUTERS`` (φῖλος, whose -εος rows Wiktionary files beside the
+adjective φίλος) are not declined either.
 
 The vocative singular of a -σις noun (σύναρσι) is not generated: it is the
 only cell that collides with corpus names (Κίμωσι, of Κίμων).
 """
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 import unicodedata
 
 ACUTE, GRAVE, CIRCUMFLEX = "́", "̀", "͂"
@@ -62,6 +69,25 @@ _SSTEM_UNACCENTED = (
 # Neuter plural endings whose presence under a lemma shows that it declines
 # as an s-stem neuter (the -εος row alone does not).
 _SSTEM_PLURAL_EVIDENCE = ("εα", "εσι", "εσιν", "εων")
+# Second-declension endings (accentless, iota subscript dropped). An Ancient
+# dictionary table that gives two of them under an -ος lemma declines it as a
+# masculine or an adjective, whatever -εος rows sit beside them.
+_OSTEM_ENDINGS = frozenset(("ου", "ω", "ωι", "ον", "οι", "οις"))
+# Lookup sources (registry codes, data/lookup_sources.json) of Modern and
+# Medieval Greek readings: no evidence for an Ancient declension.
+MODERN_SOURCES = frozenset((
+    "wiktionary_el", "wiktionary_med", "el_rule_paradigms", "el_paradigm_gaps",
+    "hnc"))
+# Lookup sources whose rows are dictionary inflection tables of Ancient Greek.
+# Corpus pairs are left out: a lemmatizer's slip (γλῆνον under γλῆνος) is no
+# declension.
+ANCIENT_TABLE_SOURCES = frozenset((
+    "wiktionary_grc", "grc_merged", "grc_lexicon_expansion"))
+_BREATHINGS = frozenset(("\u0313", "\u0314"))
+# Reviewed -ος lemmas with s-stem evidence in the table that are not s-stem
+# neuters. φῖλος is Homer's masculine "friend" (φίλος); its -εος/-εα rows in
+# the Wiktionary tables are spellings of other words.
+NOT_SSTEM_NEUTERS = frozenset(("φῖλος",))
 
 
 def _nfc(text: str) -> str:
@@ -149,41 +175,96 @@ def sstem_cells(lemma: str) -> list[tuple[str, str]]:
     return sorted(cells, key=lambda item: order.index(item[1]))
 
 
+def _needs_breathing_and_lacks_it(lemma: str) -> bool:
+    """A lemma beginning with a vowel or rho written without its breathing."""
+    nfd = unicodedata.normalize("NFD", lemma)
+    if not nfd or nfd[0].lower() not in _VOWELS | {"ρ"}:
+        return False
+    head = []
+    for ch in nfd:
+        if not unicodedata.combining(ch) and head and \
+                (len(head) >= 2 or ch.lower() not in _VOWELS):
+            break
+        head.append(ch)
+    return not any(ch in _BREATHINGS for ch in head)
+
+
 def select_noun_gap_lemmas(
-        items: Iterable[tuple[str, str]]) -> tuple[list[str], list[str]]:
+        items: Iterable[tuple]) -> tuple[list[str], list[str]]:
     """The -σις nouns and s-stem neuters of a form -> lemma table.
 
-    ``items`` yields (form, lemma) pairs, read once. A -σις noun is a plain
-    lemma that maps to itself: for a headword-only noun that row is all the
-    table knows. An s-stem neuter is a plain -ος lemma that has, among its
-    own forms, an accented -εος form and an accented neuter-plural form
-    (-εα, -εσι, -εσιν or -εων) on the same stem; its headword key may read
-    as another lemma (γλάγος as γάλα) and the cells still go to the lemma
-    its table is listed under. Both lists are sorted, so the result does not
-    depend on the table's order.
+    ``items`` yields (form, lemma) or (form, lemma, source) tuples, read
+    once; ``source`` is the row's lookup source code, and a row without one
+    counts as an Ancient dictionary row. A -σις noun is a plain lemma that
+    maps to itself, with the breathing its first letter needs (όδευσις,
+    beside ὅδευσις, is not one): for a headword-only noun that row is all
+    the table knows. An s-stem neuter is a plain -ος lemma that has, among its own
+    forms from a source outside ``MODERN_SOURCES``, an accented -εος form
+    and an accented neuter-plural form (-εα, -εσι, -εσιν or -εων) on the same
+    stem; its headword key may read as another lemma (γλάγος as γάλα) and
+    the cells still go to the lemma its table is listed under. It is not
+    selected when it lacks the breathing its first letter needs, when an
+    ``ANCIENT_TABLE_SOURCES`` table gives two second-declension cells under
+    it, or when it is one of the reviewed ``NOT_SSTEM_NEUTERS``. Both lists
+    are sorted, so the result does not depend on the table's order.
     """
     sis: set[str] = set()
     genitive: set[str] = set()
     plural: set[str] = set()
+    second_declension: dict[str, set[str]] = {}
     plural_endings = {ending: len(ending) for ending in _SSTEM_PLURAL_EVIDENCE}
-    for form, lemma in items:
+    for item in items:
+        form, lemma = item[0], item[1]
+        source = item[2] if len(item) > 2 else None
         if form == lemma:
-            if lemma.endswith("σις") and is_plain_lemma(lemma):
+            if (lemma.endswith("σις") and is_plain_lemma(lemma)
+                    and not _needs_breathing_and_lacks_it(lemma)):
                 sis.add(lemma)
             continue
-        if not lemma.endswith("ος") or not _has_accent(form):
+        if not lemma.endswith("ος"):
             continue
-        bare_form = strip_accents(form)
+        bare_form = strip_accents(form).lower()
         stem = strip_accents(lemma[:-2])
         if not bare_form.startswith(stem):
             continue
         ending = bare_form[len(stem):]
+        if ending in _OSTEM_ENDINGS:
+            if source is None or source in ANCIENT_TABLE_SOURCES:
+                second_declension.setdefault(lemma, set()).add(ending)
+            continue
+        if not _has_accent(form) or source in MODERN_SOURCES:
+            continue
         if ending == "εος":
             genitive.add(lemma)
         elif ending in plural_endings:
             plural.add(lemma)
-    sstem = {lemma for lemma in genitive & plural if is_plain_lemma(lemma)}
+    sstem = {
+        lemma for lemma in genitive & plural
+        if is_plain_lemma(lemma)
+        and not _needs_breathing_and_lacks_it(lemma)
+        and len(second_declension.get(lemma, ())) < 2
+        and lemma not in NOT_SSTEM_NEUTERS
+    }
     return sorted(sis), sorted(sstem)
+
+
+def _spellings(form: str) -> tuple[str, ...]:
+    """The keys a cell is stored under: accented, lowercase, accentless."""
+    return tuple(dict.fromkeys((form, form.lower(), strip_accents(form).lower())))
+
+
+def reading_spellings(form: str) -> tuple[str, ...]:
+    """The spellings whose reading a cell may not hide.
+
+    The form, its lowercase, its grave-to-acute and its monotonic spelling:
+    the runtime answers the cell's form from any of them, and they keep its
+    accent's place. The accentless key is left out, since it serves
+    unaccented input only and an accented cell is told apart by its accent
+    (αἰτίωσιν beside the verb's αἰτιῶσιν, both αιτιωσιν without accents).
+    """
+    from dilemma.core import grave_to_acute, to_monotonic
+    return tuple(dict.fromkeys((form, form.lower(), grave_to_acute(form),
+                                to_monotonic(form.lower()))))
 
 
 def complete_noun_gaps(
@@ -191,18 +272,24 @@ def complete_noun_gaps(
         sis_lemmas: Iterable[str],
         sstem_lemmas: Iterable[str],
         *,
-        taken: Mapping[str, object] | None = None) -> list[dict]:
+        taken: Mapping[str, object] | None = None,
+        variants: Callable[[str], Iterable[str]] | None = None) -> list[dict]:
     """Fill absent keys with the lemmas' cells; return one row per added key.
 
     Each cell is added under its accented form, its lowercase and its
     accentless lowercase key, the way the paradigm expansions key their
     forms. A key already in ``lookup`` (or in ``taken``, for keys a table
-    left out on purpose, such as article forms) keeps its reading. When two
+    left out on purpose, such as article forms) keeps its reading. A cell
+    one of whose spellings (``variants``, by default ``reading_spellings``)
+    already reads as another lemma is not added under any key: the new
+    accented key would hide the reading the runtime gave the form through
+    that spelling (λαθῶν, whose monotonic λαθών reads λανθάνω). When two
     lemmas give the same absent key, neither takes it: the key is ambiguous
     and the table has no evidence to choose. A -σις lemma must map to itself
     in ``lookup`` (see select_noun_gap_lemmas).
     """
     taken = taken or {}
+    variants = variants or reading_spellings
     claims: dict[str, list[tuple[str, str, str]]] = {}
     for kind, lemmas, cells_of in (("sis", sis_lemmas, sis_cells),
                                    ("sstem", sstem_lemmas, sstem_cells)):
@@ -210,8 +297,10 @@ def complete_noun_gaps(
             if kind == "sis" and lookup.get(lemma) != lemma:
                 continue
             for form, cell in cells_of(lemma):
-                for key in dict.fromkeys((form, form.lower(),
-                                          strip_accents(form).lower())):
+                if any(lookup.get(spelling, lemma) != lemma
+                       for spelling in variants(form)):
+                    continue
+                for key in _spellings(form):
                     if key in lookup or key in taken:
                         continue
                     rows = claims.setdefault(key, [])

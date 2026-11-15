@@ -258,6 +258,11 @@
       "sha256": "75ac31704b98aa77dfa5d06c8e77c50b3921bfb3d6910dccb086f132115fe237",
       "git_sha1": "7dbd7063287608babbdf9b3b6919a962700a8fb7"
     },
+    "data/pos_cell_corrections.json": {
+      "size": 41761,
+      "sha256": "5b9c1e67cea8cf15a332731afa80944f767ef726ea1d9a6f64797161d8bc1b57",
+      "git_sha1": "0faa03f830b82bd9a4d367ba9bcd28ba36672f4a"
+    },
     "data/verb_subjects.json": {
       "size": 712559,
       "sha256": "6d382b00c16719b267a4546063344a79ed9f4a33f3064ab2e707804e6a887fb4",

@@ -182,7 +182,7 @@ _AG_DATA_LISTS = tuple(path.name for path in (
     LSJ_HEADWORDS_PATH, LSJ10_HEADWORDS_PATH, CUNLIFFE_HEADWORDS_PATH,
     DGE_HEADWORDS_PATH, LBG_HEADWORDS_PATH, VLG_HEADWORDS_PATH,
     PD_HEADWORDS_PATH, WIP_HEADWORDS_PATH, AG_HEADWORDS_PATH,
-    GRC_LEXICAL_HEADS_PATH, GRC_ADVERB_HEADS_PATH))
+    GRC_LEXICAL_HEADS_PATH, GRC_ADVERB_HEADS_PATH, POS_CELL_CORRECTIONS_PATH))
 _MG_DATA_LISTS = (TRIANTAFYLLIDIS_HEADWORDS_PATH.name, MG_HEADWORDS_PATH.name)
 _CONVENTION_DATA_FILES = {
     "lsj": (LEMMA_EQUIVALENCES_PATH.name, "convention_lsj.json"),
@@ -1046,6 +1046,27 @@ def _is_consonant_psili_elision(word: str) -> bool:
     return False
 
 
+def _is_marked_vowel_psili_elision(word: str) -> bool:
+    """True iff ``word`` ends in a combining psili (U+0313) that follows
+    another diacritic on its final vowel (αἶ̓, οἷ̓, βαί̓, ὁποῖ̓).
+
+    A breathing is the first mark on its vowel, so a psili typed after a
+    breathing or an accent there is an elision apostrophe. A psili that is
+    the vowel's only mark (ἐ, αἰ, οὐ) stays a breathing, as in
+    ``_strip_elision``.
+    """
+    nfd = unicodedata.normalize("NFD", word)
+    if not nfd.endswith("\u0313") or len(nfd) < 3:
+        return False
+    marks = 0
+    for ch in reversed(nfd[:-1]):
+        if unicodedata.combining(ch):
+            marks += 1
+            continue
+        return marks > 0 and ch in _GREEK_VOWEL_BASES
+    return False
+
+
 def _canon_elision(word: str) -> str | None:
     """Rewrite a trailing elision mark to the canonical U+1FBD key used by lookup.db.
 
@@ -1431,6 +1452,7 @@ class Dilemma:
         self._trusted_grave_targets: set[str] | None = None
         self._elision_lexical_heads: frozenset[str] | None = None
         self._ancient_lexical_heads: frozenset[str] | None = None
+        self._vernacular_lexical_heads: frozenset[str] | None = None
         self._fallback_readings = None
         self._fallback_exact_readings = None
         self._fallback_verb_lemmas = None
@@ -2258,6 +2280,10 @@ class Dilemma:
         lower = word.lower()
         if word in _ARTICLE_FORMS or lower in _ARTICLE_FORMS:
             return True
+        # An elided word is no article (οἷ̓ is οἷος, αἶ̓ αἶα); its trailing
+        # psili is the apostrophe, not a breathing.
+        if _is_marked_vowel_psili_elision(word):
+            return False
         # The plural articles οἱ/αἱ have a rough breathing, so a smooth one on
         # αι/οι marks another word (αἴ, αἰ, αἶ, οἴ), even though the monotonic
         # projection drops the breathing and matches αἵ/οἵ. Byzantine ὀ for
@@ -3646,6 +3672,14 @@ class Dilemma:
         # would otherwise be stripped or vowel-expanded into a word.
         if _is_explicit_numeral(word):
             return word
+        # A psili after the final vowel's own marks is an elision apostrophe
+        # (αἶ̓, οἷ̓): the elided entry and the expander come first, as in
+        # lemmatize_batch(), since the loose lookup keys drop the mark and
+        # read the bare letters (αι -> αἴ).
+        if _is_marked_vowel_psili_elision(word):
+            elided = self._lookup_elided(word) or self._expand_elision(word)
+            if elided:
+                return self._apply_convention(elided)
         if not _is_consonant_psili_elision(word):
             lemma = self._lookup_word(word)
             if lemma and not _is_elided_junk_value(lemma):
@@ -3954,8 +3988,11 @@ class Dilemma:
         A lemma that is itself an Ancient head written without breathings
         (the Sophocles lexicon's οφφίκιον) takes the form's breathing.
         A capitalized lemma (a name only Modern Greek Wiktionary lists,
-        Ραχίλ) is returned as it is. Otherwise there is no Ancient lemma
-        with those letters: None.
+        Ραχίλ) is returned as it is. With ``lang="all"``, a Modern Greek
+        lexical head is returned as it is too: polytonic vernacular Greek
+        reads as Modern there (1.3.24, #104), so ἀκόμη keeps ακόμη and
+        ἀξίζει αξίζω. Otherwise there is no Ancient lemma with those
+        letters: None (ἀστοχήσει with ``lang="grc"``).
         A lemma that keeps a breathing, or a form without one, is returned
         unchanged.
         """
@@ -3990,6 +4027,11 @@ class Dilemma:
             # A name has one citation form in both languages; one that
             # only Modern Greek lists (Ραχίλ for Ῥαχὶλ) is still the name.
             return lemma
+        if self.lang == "all":
+            if self._vernacular_lexical_heads is None:
+                self._vernacular_lexical_heads = _lexical_heads("el")
+            if lemma in self._vernacular_lexical_heads:
+                return lemma
         return None
 
     def _ancient_lookup_has_spelling(self, word: str) -> bool:
@@ -4724,20 +4766,62 @@ class Dilemma:
                            word, upos, pos_lemma, candidates):
                     return checked(pos_lemma_conv)
 
-        if len(candidates) == 1:
-            return checked(candidates[0].lemma)
+        if len(candidates) > 1:
+            # MG self-map fix: when the top candidate is an MG self-map for
+            # an ADJ/VERB inflection, prefer the citation form from
+            # combined/AG.
+            mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
+            if mg_fix is not None:
+                return checked(mg_fix)
 
-        # MG self-map fix: when the top candidate is an MG self-map for
-        # an ADJ/VERB inflection, prefer the citation form from combined/AG.
-        mg_fix = self._fix_mg_selfmap(word, candidates, upos=upos)
-        if mg_fix is not None:
-            return checked(mg_fix)
+        # No POS match among candidates: the regular lemmatize_batch()
+        # answer, as lemmatize_batch_pos() keeps it.
+        return checked(self._unmatched_pos_result(
+            word, upos, candidates, pos_lemma,
+            attested_only=attested_only, guess=guess))
 
-        # No POS match among candidates - return top candidate
-        # (same result as regular lemmatize), re-ranked between case
-        # twins so PROPN can still reach the capitalized headword.
-        return checked(self._prefer_case_twin(word, upos, candidates[0].lemma,
-                                             candidates))
+    def _unmatched_pos_result(self, word: str, upos: str, candidates,
+                              pos_lemma: str | None, *,
+                              attested_only: bool, guess: bool) -> str | None:
+        """What lemmatize_pos() returns when no POS entry chose a candidate.
+
+        It is the answer lemmatize_batch_pos() keeps: the lemmatize_batch()
+        baseline (not the verbose list's first candidate, which ranks
+        differently under convention="triantafyllidis", προῖὸν NOUN), with
+        that method's adjustments. Without a POS entry a single candidate
+        that only re-accents the baseline replaces it; a list of case twins
+        goes to the case-twin tiebreak; a baseline the POS check rejects
+        gives way to the first candidate; and a lemma whose case disagrees
+        with the form or tag is re-ranked between case twins.
+        """
+        def first():
+            return self._prefer_case_twin(word, upos, candidates[0].lemma,
+                                          candidates)
+
+        baseline = self.lemmatize_batch([word], attested_only=attested_only,
+                                        guess=guess)[0]
+        rejected = (baseline is not None
+                    and self._checked_pos_result(word, upos, baseline) is None)
+        lemma = None if rejected else baseline
+        if (pos_lemma is None and len(candidates) == 1 and lemma is not None
+                and strip_accents(candidates[0].lemma.lower())
+                == strip_accents(lemma.lower())):
+            return candidates[0].lemma
+        if len(candidates) > 1 and all(
+                c.lemma.lower() == candidates[0].lemma.lower()
+                for c in candidates):
+            lemma = first()
+        if lemma is None:
+            return first() if rejected and candidates else None
+        need = (lemma[:1].islower() if upos == "PROPN"
+                else word[:1].islower() and is_capitalized(lemma))
+        if need:
+            extra_lemma = (self._apply_convention(pos_lemma)
+                           if pos_lemma is not None else None)
+            extra = (extra_lemma,) if extra_lemma is not None else ()
+            lemma = self._prefer_case_twin(word, upos, lemma, candidates,
+                                           extra=extra)
+        return lemma
 
     def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str],
                             *, attested_only: bool = False,

@@ -76,6 +76,38 @@ def test_selection_needs_a_self_map_or_the_sstem_evidence():
     assert sstem == ["γλάγος", "σκέπος"]
 
 
+def test_selection_wants_ancient_neuter_evidence():
+    rows = [
+        # A Modern Greek adjective's table is no evidence (#114 review).
+        ("υπερβαρέος", "υπέρβαρος", "wiktionary_el"),
+        ("υπερβαρέα", "υπέρβαρος", "wiktionary_el"),
+        # The same rows from Ancient sources, but the lemma lacks the
+        # breathing its vowel needs.
+        ("υβρέος", "υβρος", "grc_merged"), ("υβρέα", "υβρος", "grc_merged"),
+        # A masculine and an adjective that an Ancient table also declines
+        # in the second declension.
+        ("λοχέος", "λόχος", "grc_merged"), ("λοχέων", "λόχος", "grc_merged"),
+        ("λόχου", "λόχος", "wiktionary_grc"), ("λόχον", "λόχος", "wiktionary_grc"),
+        ("πράεος", "πρᾶος", "grc_merged"), ("πράεα", "πρᾶος", "grc_merged"),
+        ("πρᾴου", "πρᾶος", "grc_merged"), ("πρᾷοι", "πρᾶος", "grc_merged"),
+        # A corpus lemmatizer's second-declension slip does not count.
+        ("γλήνεος", "γλῆνος", "wiktionary_grc"), ("γλήνεα", "γλῆνος", "wiktionary_grc"),
+        ("γλῆνον", "γλῆνος", "glaux"), ("γλήνου", "γλῆνος", "glaux"),
+        # Reviewed: Homer's φῖλος.
+        ("φίλεος", "φῖλος", "wiktionary_grc"), ("φίλεα", "φῖλος", "wiktionary_grc"),
+        # Breathing and rho are fine when written.
+        ("ἔσθεος", "ἔσθος", "grc_lexicon_expansion"),
+        ("ἔσθεα", "ἔσθος", "grc_lexicon_expansion"),
+        ("ῥάκεος", "ῥάκος", "wiktionary_grc"), ("ῥάκεα", "ῥάκος", "wiktionary_grc"),
+        # A -σις head without its breathing is no -σις noun of the table.
+        ("όδευσις", "όδευσις", "lbg_headwords"),
+        ("ὅδευσις", "ὅδευσις", "lbg_headwords"),
+    ]
+    sis, sstem = select_noun_gap_lemmas(rows)
+    assert sstem == ["γλῆνος", "ἔσθος", "ῥάκος"]
+    assert sis == ["ὅδευσις"]
+
+
 def test_completion_fills_absent_keys_only():
     lookup = {"σύναρσις": "σύναρσις", "κινήσει": "κινέω", "κίνησις": "κίνησις",
               "στέφος": "στέφος", "στέφει": "στέφω"}
@@ -84,12 +116,25 @@ def test_completion_fills_absent_keys_only():
     assert lookup["συνάρσεως"] == lookup["συναρσεως"] == "σύναρσις"
     assert lookup["σύναρσιν"] == lookup["συναρσιν"] == "σύναρσις"
     assert lookup["στέφους"] == lookup["στεφους"] == lookup["στεφῶν"] == "στέφος"
-    # existing readings are kept, their accentless twins are filled
-    assert lookup["κινήσει"] == "κινέω" and lookup["κινησει"] == "κίνησις"
-    assert lookup["στέφει"] == "στέφω" and lookup["στεφει"] == "στέφος"
+    # existing readings are kept, and a cell whose own spelling already
+    # reads as another lemma is not added under any key
+    assert lookup["κινήσει"] == "κινέω" and "κινησει" not in lookup
+    assert lookup["στέφει"] == "στέφω" and "στεφει" not in lookup
     assert "κινήσει" not in {row["form"] for row in added}
     assert {row["kind"] for row in added if row["lemma"] == "στέφος"} == {"sstem"}
     assert all(row["cell"] for row in added)
+
+
+def test_completion_does_not_hide_a_reading_through_the_cells_spellings():
+    # λαθῶν's monotonic spelling λαθών is the participle of λανθάνω: the
+    # cell would hide it (#114 review). αἰτίωσιν's accent tells it from the
+    # verb's αἰτιῶσιν, which shares only the accentless key, so it is added.
+    lookup = {"λάθος": "λάθος", "λαθών": "λανθάνω", "λαθων": "λανθάνω",
+              "αἰτίωσις": "αἰτίωσις", "αιτιωσιν": "αἰτιάω"}
+    complete_noun_gaps(lookup, ["αἰτίωσις"], ["λάθος"])
+    assert "λαθῶν" not in lookup and lookup["λαθων"] == "λανθάνω"
+    assert lookup["λάθους"] == "λάθος"
+    assert lookup["αἰτίωσιν"] == "αἰτίωσις" and lookup["αιτιωσιν"] == "αἰτιάω"
 
 
 def test_completion_needs_a_self_mapped_sis_head():
