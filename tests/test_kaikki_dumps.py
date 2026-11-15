@@ -85,7 +85,9 @@ def test_overlay_records_the_path_it_read(tmp_path, layout):
     assert len(entries) == 2
     for label, (_, filename) in overlay.CLOSED_CLASS_DUMPS.items():
         expected = filename if layout == "flat" else K.NESTED_MAP[filename]
-        assert pins[label]["path"] == expected
+        # The pin names the flat dump in either layout, so equal dump bytes
+        # give equal audit bytes; the path read is the layout's own.
+        assert pins[label]["path"] == filename
         assert paths[label] == tmp_path / expected
 
 
@@ -118,7 +120,8 @@ def test_expand_lsj_kaikki_and_lsj9_options(tmp_path, layout, monkeypatch):
     sys.path.insert(0, str(ROOT / "build"))
     import expand_lsj
     for name in ("KAIKKI_DIR", "KAIKKI_AG", "KAIKKI_AG_EL", "LSJ9_DIR",
-                 "LSJ9_FORMS", "LSJ9_HEADWORDS", "LSJ9_GLOSSES"):
+                 "LSJ9_FORMS", "LSJ9_HEADWORDS", "LSJ9_GLOSSES",
+                 "LSJ9_GLOSSES_SUPPLEMENT"):
         monkeypatch.setattr(expand_lsj, name, getattr(expand_lsj, name))
     en = place(tmp_path, K.DUMPS["grc"]["en"], layout)
     el = place(tmp_path, K.DUMPS["grc"]["el"], layout)
