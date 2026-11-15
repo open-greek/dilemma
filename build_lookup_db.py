@@ -164,12 +164,12 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     # 1.3.25 readings: νοερῶν and νοεροῖς as the verb νοερόω (GLAUx: νοερός
     # 11 and 5), παστάδα and παστάδος as παστός (παστάς 4 and 6), θεανθρώπου
     # and οἰκιοῦντες as θεανθρωπόω and οἰκίον, μηνας as the name Μηνᾶς
-    # (μῆνας of μείς), ἑψομένης as ἕπω (ἕψω 5), ἠμφεσβήτησαν as the
-    # generated ἀμφιαμφισβητέω.
+    # (μῆνας of μείς), ἑψομένης as ἕπω (ἕψω 5). ἠμφεσβήτησαν, which read
+    # the generated ἀμφιαμφισβητέω, is in REVIEWED_ABSENT_KEY_READINGS.
     "νοερῶν": "νοερός", "νοεροῖς": "νοερός",
     "παστάδα": "παστάς", "παστάδος": "παστάς",
     "θεανθρώπου": "θεάνθρωπος", "οἰκιοῦντες": "οἰκίζω", "μηνας": "μείς",
-    "ἑψομένης": "ἕψω", "ἠμφεσβήτησαν": "ἀμφισβητέω",
+    "ἑψομένης": "ἕψω",
     # Pinned 1.3.1 resolutions the expansion exclusions still hold, which
     # the corpus gap-fill now supplies: GLAUx files ἀπεικός under ἀφίημι
     # (LSJ ἀπεικός, of ἀπέοικα), the superlative πορρωτάτω under the
@@ -187,6 +187,27 @@ REVIEWED_ABSENT_KEY_READINGS = {
     # elided stem before the overrides run. The clean stem stays as an
     # explicit bridge to μήτε, like the other apostrophe-tokenized stems.
     "μήτ": "μήτε",
+    # Forms whose only reading named a corpus lemmatizer artefact, now a
+    # rejected lemma (dilemma/grc_rejected_lemmas.py): a GLAUx or Diorisis
+    # pair, or a dictionary-expansion reading that shut the corpus pairs
+    # out. Rejecting the lemma empties the key, so each form gets the verb
+    # it belongs to. 1.3.25 read παροινέω, χρῴζω, χειρίζω and διασμήχω for
+    # these forms, and ἀμφισβητέω for ἠμφεσβήτησεν, ἠμφεσβήτησαν and
+    # ἠμφεσβητήσαμεν; the other six ἠμφεσβητ- keys already read the artefact.
+    # πεπαρῴνηκα, a headword-list self-map, and τέθηκται, which falls to
+    # the Diorisis pair (θήγω) once GLAUx's is rejected, need no entry.
+    "πεπαρῴνηκεν": "παροινέω", "πεπαρῴνηκας": "παροινέω",
+    "πεπαρῳνήκεσαν": "παροινέω",
+    **{form: "ἀμφισβητέω" for form in (
+        "ἠμφεσβήτουν", "ἠμφεσβήτεις", "ἠμφεσβήτησεν", "ἠμφεσβήτησέ",
+        "ἠμφεσβήτησάς", "ἠμφεσβήτησαν", "ἠμφεσβητήσαμεν", "ἠμφεσβητήθη",
+        "ἠμφεσβήτηκεν")},
+    "χρωσθήσεται": "χρῴζω",
+    "κεχειρικέναι": "χειρίζω",
+    "διέσμηκται": "διασμήχω",
+    # A misprint of Ionic ἀπίκηται in a Hippocratic text (ἄχρις ἂν ἀρίκηται
+    # ἐς τοὺς ἑκατὸν σταδίους); ἀπίκηται reads ἀφικνέομαι. 1.3.25: ἐρείκω.
+    "ἀρίκηται": "ἀφικνέομαι",
 }
 
 # The input every reviewed reading is recorded under (lookup_sources.json).

@@ -365,6 +365,46 @@ def test_reviewed_absent_key_reading_is_added(tmp_path):
             "WHERE l.form = 'μήτ'").fetchall() == [("dilemma_corrections",)]
 
 
+def test_forms_of_rejected_corpus_artefacts_keep_a_reading(tmp_path):
+    # The corpora file these forms under lemmas their annotation made up,
+    # and ag_headwords.json lists the lemmas, so the pairs pass validation.
+    glaux = [{"form": "χρωσθήσεται", "lemma": "γιχρώσκω", "pos": "verb"},
+             {"form": "τέθηκται", "lemma": "ταθήχω", "pos": "verb"},
+             {"form": "ἠμφεσβήτησαν", "lemma": "ἀμφιαμφισβητέω", "pos": "verb"}]
+    diorisis = [{"form": "τέθηκται", "lemma": "θήγω", "pos": "verb"},
+                {"form": "πεπαρῴνηκεν", "lemma": "παραπαροινέω", "pos": "verb"}]
+    data, env = _fixture(tmp_path, {
+        # The dictionary expansion carries the same artefact for two forms,
+        # which keeps every corpus pair out of the Ancient table.
+        "ag": {"ἠμφεσβήτουν": "ἀμφιαμφισβητέω",
+               "ἠμφεσβήτησαν": "ἀμφιαμφισβητέω"},
+        "ag_headwords.json": ["γιχρώσκω", "ταθήχω", "θήγω", "παραπαροινέω",
+                              "ἀμφιαμφισβητέω", "ἀμφισβητέω", "λόγος"],
+        "glaux_pairs.json": glaux,
+        "diorisis_pairs.json": diorisis,
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    rows = _rows(data)
+    # No source is left for these keys; the reviewed reading is added.
+    assert rows["χρωσθήσεται"] == "χρῴζω" and rows["πεπαρῴνηκεν"] == "παροινέω"
+    assert rows["ἠμφεσβήτουν"] == rows["ἠμφεσβήτησαν"] == "ἀμφισβητέω"
+    # With GLAUx's pair rejected, the Diorisis pair supplies the key.
+    assert rows["τέθηκται"] == "θήγω"
+    from dilemma.grc_rejected_lemmas import REJECTED_LEMMAS
+    for lang in ("all", "grc", "el"):
+        lang_rows = _rows(data, lang)
+        assert not set(lang_rows.values()) & REJECTED_LEMMAS, lang
+        if lang != "all":
+            assert not {"χρωσθήσεται", "πεπαρῴνηκεν", "ἠμφεσβήτουν",
+                        "ἠμφεσβήτησαν"} & lang_rows.keys()
+    assert ("AG", "ag_lookup.json", "reviewed_rejected_target", "ἠμφεσβήτουν",
+            "ἀμφιαμφισβητέω") in _rejections(data)
+    # The fixture has none of the listed keys, so every one is added.
+    assert (f"{len(B.REVIEWED_ABSENT_KEY_READINGS)} absent keys added"
+            in result.stdout)
+
+
 def test_modern_spellings_keep_their_modern_reading_under_all(tmp_path):
     # The Ancient table gained monotonic alias keys of Ancient lemmas, and
     # the combined table is Ancient-first.

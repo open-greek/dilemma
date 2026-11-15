@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 import build_lookup_db as B
+from dilemma.grc_rejected_lemmas import REJECTED_LEMMA_TARGETS, REJECTED_LEMMAS
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,8 +34,13 @@ def test_override_targets_are_lexical_heads():
     if not path.exists():
         pytest.skip("grc_lexical_heads.json is not downloaded")
     heads = json.loads(path.read_text(encoding="utf-8"))["heads"]
-    for lemma in set(B.KAIKKI_2026_11_READING_OVERRIDES.values()):
+    for lemma in (set(B.KAIKKI_2026_11_READING_OVERRIDES.values())
+                  | set(B.REVIEWED_ABSENT_KEY_READINGS.values())):
         assert lemma in heads, lemma
+    # The corpus lemmatizer artefacts are in no head list.
+    for lemma, entry in REJECTED_LEMMA_TARGETS.items():
+        if entry["reason"] == "corpus_lemmatizer_artifact":
+            assert lemma not in heads, lemma
 
 
 def test_rebuild_regressions_keep_their_treebank_readings():
@@ -117,6 +123,27 @@ def test_absent_key_readings_are_overrides_too():
     assert B.EL_CORPUS_ROW_OVERRIDE_FORMS == (
         set(B.KAIKKI_2026_11_READING_OVERRIDES)
         | set(B.REVIEWED_ABSENT_KEY_READINGS) | {"Μάγων"})
+
+
+def test_forms_of_rejected_corpus_artefacts_keep_a_reading():
+    # Rejecting the lemma empties the key, so the form's verb is written
+    # whether or not another source brings the key back.
+    artefacts = {lemma for lemma, entry in REJECTED_LEMMA_TARGETS.items()
+                 if entry["reason"] == "corpus_lemmatizer_artifact"}
+    assert artefacts == {"παραπαροινέω", "ἀμφιαμφισβητέω", "γιχρώσκω", "ταθήχω",
+                         "χειρίω", "ἀρικνέομαι", "διασμήγνυμι"}
+    a = B.REVIEWED_ABSENT_KEY_READINGS
+    assert a["πεπαρῴνηκεν"] == a["πεπαρῴνηκας"] == a["πεπαρῳνήκεσαν"] == "παροινέω"
+    for form in ("ἠμφεσβήτουν", "ἠμφεσβήτεις", "ἠμφεσβήτησεν", "ἠμφεσβήτησέ",
+                 "ἠμφεσβήτησάς", "ἠμφεσβήτησαν", "ἠμφεσβητήσαμεν",
+                 "ἠμφεσβητήθη", "ἠμφεσβήτηκεν"):
+        assert a[form] == "ἀμφισβητέω", form
+    assert a["χρωσθήσεται"] == "χρῴζω" and a["κεχειρικέναι"] == "χειρίζω"
+    assert a["διέσμηκται"] == "διασμήχω" and a["ἀρίκηται"] == "ἀφικνέομαι"
+    assert not set(a.values()) & REJECTED_LEMMAS
+    # Real dictionary heads stay out of the rejected lemmas: Sophocles heads
+    # ῥυέντης and ἀπόμυξα, whose colliding cells are overridden instead.
+    assert not {"ῥυέντης", "ἀπόμυξα"} & REJECTED_LEMMAS
 
 
 # Modern readings under lang="all" -------------------------------------------
