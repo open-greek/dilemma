@@ -5,7 +5,11 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path, PureWindowsPath
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from dilemma_build.kaikki_dumps import layout_names, resolve_dump  # noqa: E402
 
 SOURCE_FILES = (
     'overlay_lsj.py', 'build/expand_lsj.py', 'build/lsj_principal_parts.py',
@@ -15,9 +19,10 @@ SOURCE_FILES = (
 )
 
 CLOSED_CLASS_SOURCE_FILES = ('build/closed_class_elisions.py', 'build_data.py')
+# label -> flat dump name; the audit may record either layout's path.
 CLOSED_CLASS_DUMPS = {
-    'wiktionary_en_grc': 'en-el/kaikki.org-dictionary-AncientGreek.jsonl',
-    'wiktionary_el_grc': 'el/kaikki.org-dictionary-AncientGreek.jsonl',
+    'wiktionary_en_grc': 'kaikki.org-en-dictionary-AncientGreek.jsonl',
+    'wiktionary_el_grc': 'kaikki.org-el-dictionary-AncientGreek.jsonl',
 }
 
 
@@ -70,9 +75,11 @@ def validate_closed_class_evidence(audit, repo, kaikki, sources):
     assert kaikki is not None, '--kaikki is required to verify fresh closed-class sources'
     assert set(block['external_input_sha256']) == set(CLOSED_CLASS_DUMPS)
     external = {}
-    for label, relative in CLOSED_CLASS_DUMPS.items():
+    for label, filename in CLOSED_CLASS_DUMPS.items():
         expected = block['external_input_sha256'][label]
-        assert expected == {'path': relative, **pin(kaikki / relative)}, label
+        assert expected.get('path') in layout_names(filename), label
+        assert expected == {'path': expected['path'],
+                            **pin(resolve_dump(filename, kaikki))}, label
         external[label] = expected
     assert set(block['source_sha256']) == set(CLOSED_CLASS_SOURCE_FILES)
     for name in CLOSED_CLASS_SOURCE_FILES:
@@ -139,8 +146,8 @@ def main() -> None:
     assert sources['build/expand_lsj.py']['sha256'] == audit['cell_pattern_source_sha256']
     external_inputs, closed_class = validate_closed_class_evidence(
         audit, args.repo, args.kaikki, sources)
-    external_before = {label: pin(args.kaikki / row['path'])
-                       for label, row in external_inputs.items()}
+    external_before = {label: pin(resolve_dump(CLOSED_CLASS_DUMPS[label], args.kaikki))
+                       for label in external_inputs}
     inputs = {}
     for name, expected in audit['input_sha256'].items():
         assert Path(name).name == name
@@ -176,8 +183,8 @@ def main() -> None:
     restored = {'sha256': writer.digest.hexdigest(), 'size': writer.size}
     assert restored == predecessor_pin
     assert before == {path: pin(path) for path in artifact_paths}
-    assert external_before == {label: pin(args.kaikki / row['path'])
-                               for label, row in external_inputs.items()}
+    assert external_before == {label: pin(resolve_dump(CLOSED_CLASS_DUMPS[label], args.kaikki))
+                               for label in external_inputs}
     assert sources == {name: pin(args.repo / name) for name in source_files}
     assert inputs == {name: pin(args.repo / name) for name in inputs}
     manifest = {

@@ -18,6 +18,12 @@ from dilemma_build.build_grc_lexical_heads import (
     "Delphic form of θωάζω", "Doric and Pamphylian form of σημαίνω",
     "Tragic form of ἀμφιέπω",
     "μορφή του στενάχω", "μεσοπαθητική φωνή του ρήματος αἱρέω",
+    # Nonfinite cell pages without structured form_of (2026-11 dumps).
+    "uncontracted present active infinitive of ἐπαινέω (epainéō)",
+    "uncontracted present mediopassive infinitive of ἐπαινέω (epainéō)",
+    "uncontracted future active infinitive of μένω (ménō)",
+    "uncontracted present mediopassive participle of περῐσπᾰ́ω (perĭspắō)",
+    "aorist passive participle of λύω",
 ])
 def test_grammatical_reference_is_not_a_definition(gloss):
     assert not has_definition({"pos": "verb", "senses": [{"glosses": [gloss]}]})
@@ -26,6 +32,7 @@ def test_grammatical_reference_is_not_a_definition(gloss):
 @pytest.mark.parametrize("gloss", [
     "to be in charge of the household", "a kind of fish", "the form of a thing",
     "part of a building", "αιτία ενός γεγονότος",
+    "the present participle of a verb, as a noun", "active infinitive of purpose",
 ])
 def test_lexical_definition_can_include_ordinary_of(gloss):
     assert has_definition({"pos": "noun", "senses": [{"glosses": [gloss]}]})
@@ -69,12 +76,15 @@ def test_head_normalization_preserves_lexical_marks_and_case():
     assert normalize_headword("γία") == "γία"
 
 
-def test_builder_merges_independent_sources_and_pins_portable_inputs(tmp_path):
+@pytest.mark.parametrize("layout", ["flat", "nested"])
+def test_builder_merges_independent_sources_and_pins_portable_inputs(tmp_path, layout):
+    from dilemma_build.kaikki_dumps import NESTED_MAP
     data, kaikki = tmp_path / "data", tmp_path / "kaikki"
     data.mkdir(); kaikki.mkdir()
     for name in EDITED_INPUTS:
         (data / name).write_text(json.dumps(["λόγος"] if name == "dge_headwords.json" else []))
-    for source, relative, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
+    for source, filename, language in KAIKKI_INPUTS + VERNACULAR_INPUTS:
+        relative = filename if layout == "flat" else NESTED_MAP[filename]
         path = kaikki / relative; path.parent.mkdir(parents=True, exist_ok=True)
         word = ("παλάτι" if language == "el" else
                 "ἄνθρωπος" if source == "wiktionary_en_grc" else "σπίτι")

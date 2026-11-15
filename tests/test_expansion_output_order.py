@@ -25,6 +25,7 @@ m.load_wiktionary_genitives = lambda: {}
 m.noun_generation_input_hashes = lambda *a, **kw: {}
 if name == "expand_sophocles":
     m.sophocles_noun_input_hashes = lambda: {}
+    m.load_breathing_review = lambda *a, **kw: None
 if name == "expand_lsj":
     m.parse_lsj_entries = lambda: entries
     m.load_wiktionary_forms = lambda: {}

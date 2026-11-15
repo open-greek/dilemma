@@ -11,10 +11,10 @@ python build/build_grc_lexical_heads.py --kaikki kaikki
 
 echo ""
 echo "=== Step 2: current LSJ/Sophocles expansion ==="
-python build/expand_lsj.py --expand
-python build/expand_lsj.py --expand-verbs
-python build/expand_sophocles.py --expand
-python build/expand_sophocles.py --expand-verbs
+python build/expand_lsj.py --expand --kaikki kaikki
+python build/expand_lsj.py --expand-verbs --kaikki kaikki
+python build/expand_sophocles.py --expand --kaikki kaikki
+python build/expand_sophocles.py --expand-verbs --kaikki kaikki
 
 echo ""
 echo "=== Step 3: pinned historical expansion recovery ==="

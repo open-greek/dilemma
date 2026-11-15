@@ -140,6 +140,22 @@ def _has_grave(s: str) -> bool:
     return "\u0300" in unicodedata.normalize("NFD", s)
 
 
+# Readings the 2026-11 kaikki dumps change for the worse, restored or
+# corrected from the treebanks (GLAUx form-lemma counts in parentheses). The
+# dumps are right that accented ἤν is ἐάν (GLAUx 1,045), but the unaccented
+# and monotonic keys belong to the far commoner ἦν; a new adverb page made
+# μεγάλα its own lemma; εἴσομαι and ἑψόμενα fell to εἶμι and ἕπω; τοῖ
+# (1.3.25: τέῳ, the dumps: ὁ) is Doric σοί; κἆτα is καὶ εἶτα, not ἄτη (the
+# GLAUx annotation of its two tokens is wrong; κᾆτα: εἶτα 103).
+KAIKKI_2026_11_READING_OVERRIDES = {
+    "ην": "εἰμί", "ήν": "εἰμί",                 # ἦν 29,294
+    "μεγάλα": "μέγας", "μεγαλα": "μέγας",       # 1,638
+    "εἴσομαι": "οἶδα", "είσομαι": "οἶδα", "εισομαι": "οἶδα",  # 43 (ἔρχομαι 2)
+    "ἑψόμενα": "ἕψω",                            # 42
+    "τοῖ": "σύ",                                 # 25
+    "κἆτα": "εἶτα",                              # crasis καὶ εἶτα
+}
+
 _FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",
                         "\u1fbf", "\u0313", "\u0314"}
 _FINAL_KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
@@ -1616,6 +1632,7 @@ def build():
         "ἄριστα": "ἀγαθός",      # was ἄριστον (as ἄριστος, ἀρίστους -> ἀγαθός)
         "ἀρίστοις": "ἀγαθός",    # was ἄριστον
         "ἀρὰν": "ἀρά",           # was ἀρή (expansion); ἀράν -> ἀρά
+        **KAIKKI_2026_11_READING_OVERRIDES,
     }
     # Also fix corrupt -δήποτε lemmas from pipeline
     for k, v in list(combined.items()):

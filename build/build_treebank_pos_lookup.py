@@ -252,11 +252,11 @@ def _defined_pos_targets(wanted):
         return set()
     from build_data import WIKT_TO_UPOS, is_independent_lexical_entry, strip_length_marks
 
+    from dilemma_build.kaikki_dumps import DUMPS, resolve_dump
+
     found = set()
-    for source, relative in (
-            ("en", "en-el/kaikki.org-dictionary-AncientGreek.jsonl"),
-            ("el", "el/kaikki.org-dictionary-AncientGreek.jsonl")):
-        path = Path(KAIKKI_DIR) / relative
+    for source in ("en", "el"):
+        path = resolve_dump(DUMPS["grc"][source], Path(KAIKKI_DIR))
         with path.open(encoding="utf-8") as stream:
             for line in stream:
                 entry = json.loads(line)
@@ -436,10 +436,9 @@ def build_lookup():
         if path.exists():
             audit["inputs"][name] = _input_fingerprint(path)
     if KAIKKI_DIR is not None:
-        for source, relative in (
-                ("wiktionary_en_grc", "en-el/kaikki.org-dictionary-AncientGreek.jsonl"),
-                ("wiktionary_el_grc", "el/kaikki.org-dictionary-AncientGreek.jsonl")):
-            path = Path(KAIKKI_DIR) / relative
+        from dilemma_build.kaikki_dumps import DUMPS, resolve_dump
+        for source, edition in (("wiktionary_en_grc", "en"), ("wiktionary_el_grc", "el")):
+            path = resolve_dump(DUMPS["grc"][edition], Path(KAIKKI_DIR))
             if path.exists():
                 audit["inputs"][source] = _input_fingerprint(path)
     if LSJ9_HEADWORDS is not None:

@@ -681,6 +681,21 @@ length. Nominal headers and contradictory grammatical tags cannot supply
 verb quantities. A declared verb-form page needs a separate lexical definition;
 quantity notation is removed after accent placement.
 
+A Wiktionary page whose only gloss names a cell of another verb
+("uncontracted present active infinitive of ἐπαινέω") is not a lexical head,
+even without a structured form_of (`build/build_grc_lexical_heads.py`). The
+digitized Sophocles lexicon prints almost no initial breathings in its ο chunk
+and none on the initial rho of its ρ chunk (`οφφίκιον`, `ρῆσις`).
+`build/sophocles_breathing.py` restores each one from evidence: an initial rho
+before a vowel takes the rough breathing, and a vowel takes the breathing of
+another source's head with the same letters or, failing that, the one that
+all other heads sharing its longest initial stretch (at least four letters)
+agree on (`ὀφφίκιον` from `ὀφφικιάλιος`). A head with both breathings
+attested, no evidence, two accents or an initial diaeresis from the OCR is
+withheld rather than guessed. Every decision, with its rule and evidence, is
+recorded in `grc_lexical_heads.json` under `sophocles_breathing`, and
+`build/expand_sophocles.py` applies the same record to its headwords.
+
 The verb expansion is more than just the present system. For each
 verb headword, an LSJ-entry parser (`build/lsj_principal_parts.py`)
 walks the head paragraph and pulls out whatever principal parts LSJ

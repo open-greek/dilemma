@@ -29,6 +29,7 @@ from expand_lsj import (
     load_wiktionary_genitives, resolve_noun_genitive, _genitive_is_junk,
     noun_generation_input_hashes,
     noun_expansion_error,
+    add_input_arguments, configure_inputs,
 )
 from dilemma.form_sanitize import (  # noqa: E402
     has_editorial_sigla,
@@ -36,6 +37,38 @@ from dilemma.form_sanitize import (  # noqa: E402
 )
 
 SOPH_DIR = DATA_DIR / "sophocles" / "chunks"
+# build/build_grc_lexical_heads.py decides the breathings the OCR lost
+# (build/sophocles_breathing.py) and records them in this file.
+LEXICAL_HEADS = DATA_DIR / "grc_lexical_heads.json"
+_DEFAULT = object()
+
+
+def load_breathing_review(path: Path | None = None, *, required: bool = False):
+    """The ``sophocles_breathing`` record of grc_lexical_heads.json, or None.
+    ``required`` refuses a missing record (the expansion runs)."""
+    path = path or LEXICAL_HEADS
+    review = (json.loads(path.read_text(encoding="utf-8")).get("sophocles_breathing")
+              if path.exists() else None)
+    if review is None and required:
+        raise SystemExit(f"{path} has no sophocles_breathing record; rebuild it "
+                         "with build/build_grc_lexical_heads.py first")
+    return review
+
+
+def _apply_breathing(raw: str, hw: str, review) -> str | None:
+    """``hw`` with the breathing the review restored for the source head
+    ``raw``, unchanged, or None when the review withheld it."""
+    if not review:
+        return hw
+    from dilemma_build.build_grc_lexical_heads import normalize_headword
+    from dilemma_build.sophocles_breathing import add_breathing, breathing_of, needs_breathing
+    key = normalize_headword(raw)
+    if key in review["withheld"]:
+        return None
+    row = review["corrected"].get(key)
+    if row and needs_breathing(hw):
+        return add_breathing(hw, breathing_of(row["head"]))
+    return hw
 
 # Article -> gender
 GENDER_MAP = {"ὁ": "m", "ἡ": "f", "τό": "n", "τὸ": "n", "τά": "n", "οἱ": "m"}
@@ -170,9 +203,14 @@ def adjective_endings(after_headword: str) -> str | None:
     return None
 
 
-def parse_sophocles_entries():
-    """Parse all Sophocles XML chunks, extract headwords + grammatical info."""
+def parse_sophocles_entries(breathing=_DEFAULT):
+    """Parse all Sophocles XML chunks, extract headwords + grammatical info.
+
+    ``breathing`` is the lexical heads' breathing review (default: read from
+    grc_lexical_heads.json when present); withheld heads are skipped."""
     entries = {}
+    if breathing is _DEFAULT:
+        breathing = load_breathing_review()
 
     for xml_file in sorted(SOPH_DIR.glob("*.xml")):
         try:
@@ -192,6 +230,8 @@ def parse_sophocles_entries():
                 continue
 
             hw = clean_headword(orth.text)
+            if hw:
+                hw = _apply_breathing(orth.text, hw, breathing)
             if not hw:
                 continue
 
@@ -348,6 +388,7 @@ def analyze():
 
 def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
+    load_breathing_review(required=True)
     input_hashes = sophocles_noun_input_hashes()
     entries, expandable, adverb_list = analyze()
 
@@ -461,6 +502,9 @@ def expand_all():
 
 def sophocles_noun_input_hashes():
     hashes = noun_generation_input_hashes(include_lsj=False)
+    review = json.dumps(load_breathing_review(), ensure_ascii=False, sort_keys=True,
+                        separators=(",", ":"))
+    hashes["sophocles_breathing"] = hashlib.sha256(review.encode("utf-8")).hexdigest()
     for path in sorted(SOPH_DIR.glob("*.xml")):
         with path.open("rb") as stream:
             digest = hashlib.sha256()
@@ -494,6 +538,7 @@ def find_verb_candidates(entries, lookup):
 
 def expand_verbs():
     """Expand Sophocles verb headwords and merge into ag_lookup.json."""
+    load_breathing_review(required=True)
     print("Parsing Sophocles entries...")
     entries = parse_sophocles_entries()
     print(f"Total entries: {len(entries)}")
@@ -571,7 +616,9 @@ def main():
                         help="Expand nouns and merge into ag_lookup.json")
     parser.add_argument("--expand-verbs", action="store_true",
                         help="Expand verbs and merge into ag_lookup.json")
+    add_input_arguments(parser)
     args = parser.parse_args()
+    configure_inputs(args.kaikki, args.lsj9_dir)
 
     if args.analyze:
         analyze()

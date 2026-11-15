@@ -52,10 +52,12 @@ SOURCE_PAIR_NAMES = (
     "diorisis_pairs.json", "nt_pairs.json", "ptnk_pairs.json",
     "tagnt_pairs.json", "pedalion_pairs.json",
 )
-# Paths remain relative to the user-supplied dump directory in portable audits.
+# label -> (edition, flat dump name). Either dump layout is read
+# (dilemma_build.kaikki_dumps); portable audits record the path relative to
+# the user-supplied dump directory.
 CLOSED_CLASS_DUMPS = {
-    "wiktionary_en_grc": ("en", "en-el/kaikki.org-dictionary-AncientGreek.jsonl"),
-    "wiktionary_el_grc": ("el", "el/kaikki.org-dictionary-AncientGreek.jsonl"),
+    "wiktionary_en_grc": ("en", "kaikki.org-en-dictionary-AncientGreek.jsonl"),
+    "wiktionary_el_grc": ("el", "kaikki.org-el-dictionary-AncientGreek.jsonl"),
 }
 _CHUNK = 1 << 20
 _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
@@ -499,9 +501,12 @@ def load_alias_lexical_heads(path: Path) -> set[str]:
 
 def load_closed_class_entries(kaikki: Path):
     """Read both exact fresh dumps, retaining own Ancient PRON/DET entries."""
+    from dilemma_build.kaikki_dumps import resolve_dump
+
     pins, paths, entries = {}, {}, []
-    for label, (source, relative) in CLOSED_CLASS_DUMPS.items():
-        path = kaikki / relative
+    for label, (source, filename) in CLOSED_CLASS_DUMPS.items():
+        path = resolve_dump(filename, kaikki)
+        relative = path.relative_to(kaikki).as_posix()
         if not path.is_file():
             raise SystemExit(f"fresh closed-class source missing: {relative}")
         paths[label] = path
@@ -823,10 +828,17 @@ def main() -> None:
     parser.add_argument("--kaikki", type=Path,
                         help="Fresh dump directory; require both Ancient dumps for "
                              "source-proved historical closed-class elision repairs")
+    parser.add_argument("--lsj9-dir", type=Path,
+                        help="LSJ9 export directory the noun audit pins "
+                             "(default: $DILEMMA_LSJ9_DIR, else ~/Documents/lsj9)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if args.lsj9_dir is not None:
+        os.environ["DILEMMA_LSJ9_DIR"] = str(args.lsj9_dir)
     if args.kaikki is not None:
-        os.environ["KAIKKI_DIR"] = str(args.kaikki)
+        # build/expand_lsj.py reads the dump directory from the environment
+        # when overlay imports it.
+        os.environ["DILEMMA_KAIKKI_DIR"] = str(args.kaikki)
     superseded_nouns = load_noun_generation_audit(args.noun_audit)
     superseded_nouns |= load_noun_generation_audit(args.sophocles_noun_audit,
                                                   "expand_sophocles.py")
