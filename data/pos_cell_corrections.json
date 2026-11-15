@@ -818,6 +818,27 @@
    "reason": "Accent-stripped key of ὀνῶν (genitive plural of the rare ὀνή); unaccented ονων is overwhelmingly ὄνων, the genitive plural of ὄνος, which the lookup already gives. lsj9 lists no forms of ὄνος, so its stripped key held ὀνή alone.",
    "evidence": "form_profile.db: ὄνων 267 tokens (noun), ὀνῶν 7; lemma_attestation.json: ὄνος 2,275 tokens, ὀνή 2. The untagged lookup gives ὄνος (lang=\"el\": όνος); 1.3.24's Modern NOUN cell όνος gave ὄνος under lang=\"all\". The accented key ὀνῶν keeps its NOUN cell.",
    "issue": 128
+  },
+  {
+   "table": "treebank",
+   "form": "σου",
+   "upos": "PRON",
+   "action": "add",
+   "corrected": "σύ",
+   "reason": "The 1.3.26 treebank rebuild no longer keeps the corpus PRON vote for σου: since #110 the bare lookup already gives σύ, so the builder keeps the vote only for a fresh independent PRON definition of σύ, and build_data's inflection-gloss rule reads the English definition 'second person singular personal pronoun' as a form description. Without the cell, lang=\"all\" falls through to the Modern PRON σου and lang=\"grc\" to the Ancient table's PRON σῦς.",
+   "evidence": "GLAUx: σου -> σύ (pron) 9,753 tokens; the 1.3.25 treebank table had σου PRON σύ; DBBE gold gives σύ for all 19 σου/PRON tokens and Perseus gold for its σου/PRON token.",
+   "issue": 125
+  },
+  {
+   "table": "treebank",
+   "form": "δι",
+   "upos": "ADP",
+   "target": "δι",
+   "action": "correct",
+   "corrected": "διά",
+   "reason": "Elided διά written without its apostrophe. Ten GLAUx tokens lemmatised as δι outvote the other corpora in the rebuilt table, which then cites the bare elided stem as the preposition's lemma.",
+   "evidence": "δι is no headword of grc_lexical_heads.json as a preposition; DBBE gold gives διά for its 3 δι/ADP tokens; the 1.3.25 treebank table had δι ADP διά.",
+   "issue": 125
   }
  ]
 }

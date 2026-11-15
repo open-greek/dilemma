@@ -102,7 +102,7 @@ def test_shipped_correction_record_is_reviewed_and_current():
               for name, path in TABLE_PATHS.items() if path.exists()}
     seen = set()
     for row in record["corrections"]:
-        assert row["reason"] and row["evidence"] and row["issue"] in (105, 106, 128)
+        assert row["reason"] and row["evidence"] and row["issue"] in (105, 106, 125, 128)
         key = (row["table"], row["form"], row["upos"])
         assert key not in seen
         seen.add(key)
