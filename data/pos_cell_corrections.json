@@ -821,16 +821,6 @@
   },
   {
    "table": "treebank",
-   "form": "σου",
-   "upos": "PRON",
-   "action": "add",
-   "corrected": "σύ",
-   "reason": "The 1.3.26 treebank rebuild no longer keeps the corpus PRON vote for σου: since #110 the bare lookup already gives σύ, so the builder keeps the vote only for a fresh independent PRON definition of σύ, and build_data's inflection-gloss rule reads the English definition 'second person singular personal pronoun' as a form description. Without the cell, lang=\"all\" falls through to the Modern PRON σου and lang=\"grc\" to the Ancient table's PRON σῦς.",
-   "evidence": "GLAUx: σου -> σύ (pron) 9,753 tokens; the 1.3.25 treebank table had σου PRON σύ; DBBE gold gives σύ for all 19 σου/PRON tokens and Perseus gold for its σου/PRON token.",
-   "issue": 125
-  },
-  {
-   "table": "treebank",
    "form": "δι",
    "upos": "ADP",
    "target": "δι",
@@ -928,26 +918,6 @@
    "corrected": "Κίρρα",
    "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (Κρῖσα, another town).",
    "evidence": "Perseus gold: Κίρρα/noun -> Κίρρα; GLAUx: Κίρρα -> Κίρρα 6; the 1.3.25 table had Κίρρα NOUN Κίρρα.",
-   "issue": 125
-  },
-  {
-   "table": "treebank",
-   "form": "Ἑρμαίου",
-   "upos": "NOUN",
-   "action": "add",
-   "corrected": "Ἑρμαίας",
-   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (the common noun ἕρμαιον).",
-   "evidence": "Perseus gold: Ἑρμαίου/noun -> Ἑρμαίας; GLAUx: Ἑρμαίου -> Ἑρμαίας 8; the 1.3.25 table had Ἑρμαίου NOUN Ἑρμαίας.",
-   "issue": 125
-  },
-  {
-   "table": "treebank",
-   "form": "ἱκέτις",
-   "upos": "NOUN",
-   "action": "add",
-   "corrected": "ἱκέτις",
-   "reason": "The rebuilt 1.3.26 treebank table drops this cell: the builder keeps one corpus vote per form only where the bare lookup disagrees with it, and only its strongest tag, so the NOUN reading falls through to a lower-priority table (the masculine ἱκέτης).",
-   "evidence": "Perseus gold: ἱκέτις/noun -> ἱκέτις; GLAUx: ἱκέτις 25 tokens as the feminine noun; LSJ headword ἱκέτις; the 1.3.25 table had ἱκέτις NOUN ἱκέτις.",
    "issue": 125
   },
   {
