@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.26] - 2026-11-15
+
 This release rebuilds the Ancient and Medieval Greek lookup on the archived
 2026-11 kaikki snapshot (#125). It also fixes the merged Ancient layer (#126),
 the `lang="all"` POS answers lost with the Modern fragments (#128) and the
@@ -2300,6 +2302,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.26]: https://github.com/open-greek/dilemma/releases/tag/1.3.26
 [1.3.25]: https://github.com/open-greek/dilemma/releases/tag/1.3.25
 [1.3.24]: https://github.com/open-greek/dilemma/releases/tag/1.3.24
 [1.3.23]: https://github.com/open-greek/dilemma/releases/tag/1.3.23
