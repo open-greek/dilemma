@@ -177,6 +177,137 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     "ἀπεικός": "ἀπεικός",
     "πορρωτάτω": "πόρρω", "ποῤῥωτάτω": "πόρρω",
     "σαλπισταῖς": "σαλπιστής",
+    # Readings that the review of the rebuilt table against 1.3.25 found
+    # changed for the worse. Unless a note says otherwise, 1.3.25 held the
+    # reading given here for every key.
+    #
+    # A lowercase genitive plural read as the name Γνάθων (GLAUx: γνάθων 40
+    # tokens, all feminine genitive plurals; Γνάθων 12 tokens). The name's
+    # own cells (γνάθωνα, γνάθωνος) keep it.
+    "γνάθων": "γνάθος", "γναθων": "γνάθος",
+    # The rest of the παστάς paradigm, read as παστός like παστάδα and
+    # παστάδος above (GLAUx: παστάς for παστάδας 8, παστάδων 5, παστάδι 4,
+    # παστάδες 4, παστάσι 2, παστάσιν 1; never παστός).
+    **{form: "παστάς" for form in (
+        "παστάδας", "παστάδων", "παστάδι", "παστάδες", "παστάσι", "παστάσιν",
+        "παστάδε", "παστάδοιν", "πασταδα", "πασταδος", "πασταδας", "πασταδων",
+        "πασταδι", "πασταδες", "παστασι", "παστασιν", "πασταδε", "πασταδοιν",
+        "παστας")},
+    # The rest of the participle of ἕψω, read as the future participle of
+    # ἕπομαι like ἑψόμενα and ἑψομένης above (GLAUx ἕψω: ἑψομένων 25,
+    # ἑψομένου 17, ἑψομένοις 11, ἑψομένῳ 5; ἕπομαι: one token in all).
+    **{form: "ἕψω" for form in (
+        "ἑψόμενοι", "ἑψόμεναι", "ἑψομένου", "ἑψομένων", "ἑψομένῳ", "ἑψομένῃ",
+        "ἑψομένοις", "ἑψομέναις", "ἑψομένην", "ἑψομένους", "ἑψομένας")},
+    # Cells of adjectives, nouns and an adverb that regenerated contract
+    # verbs took, as with νοερῶν and νοεροῖς above: the genitive, dative and
+    # nominative plural of the nominal read as an imperative, subjunctive or
+    # optative of a rare verb in -όω, -έω or -άω (GLAUx: νοεροῦ νοερός 7,
+    # ἐνάρθρου ἔναρθρος 7, ὁλοκαύτου ὁλόκαυτος 1, ὁλοκάρπου ὁλόκαρπος 1;
+    # GLAUx, Diorisis and the New Testament read ἀντιπέρα as the adverb,
+    # never as ἀντιπεράω). Only keys that moved from the nominal are
+    # listed: ἀντιπερῶν, νομομαθοῦ and νομομαθῇ are verb forms and keep the
+    # verb.
+    **{form: "νοερός" for form in (
+        "νοεροῦ", "νοερου", "νοερων", "νοεροις", "νοεροι", "νοερω")},
+    **{form: "ἔναρθρος" for form in (
+        "ἐνάρθρου", "εναρθροις", "εναρθρω", "εναρθρων")},
+    **{form: "ἀντίπερα" for form in ("ἀντιπέρα", "αντιπερα", "αντιπεραν")},
+    **{form: "χριστομάχος" for form in (
+        "χριστομαχοι", "χριστομαχοις", "χριστομαχου", "χριστομαχω",
+        "χριστομαχων")},
+    **{form: "φιλήδονος" for form in (
+        "φιληδονοι", "φιληδονοις", "φιληδονου", "φιληδονω", "φιληδονων")},
+    **{form: "δίψυχος" for form in (
+        "διψυχοι", "διψυχοις", "διψυχου", "διψυχω", "διψυχων")},
+    **{form: "νομομαθής" for form in ("νομομαθης", "νομομαθη", "νομομαθων")},
+    "ὁλοκαύτου": "ὁλόκαυτος", "ὁλοκάρπου": "ὁλόκαρπος",
+    "κατασπίλου": "κατάσπιλος",
+    **{form: "γώνιος" for form in ("γωνίου", "γωνιοις", "γωνιω")},
+    **{form: "κάστελλον" for form in (
+        "καστέλλου", "καστελλου", "καστελλοις", "καστελλω", "καστελλων")},
+    **{form: "κατάσαρκος" for form in (
+        "κατασάρκου", "κατασαρκου", "κατασαρκοι", "κατασαρκοις",
+        "κατασαρκω", "κατασαρκων")},
+    **{form: "φάλσος" for form in (
+        "φάλσου", "φαλσου", "φαλσοι", "φαλσοις", "φαλσω", "φαλσων")},
+    **{form: "χάμος" for form in (
+        "χάμου", "χαμου", "χαμοι", "χαμοις", "χαμων")},
+    **{form: "ἀπόμματος" for form in (
+        "ἀπομμάτου", "απομματου", "απομματοι", "απομματοις", "απομματω",
+        "απομματων")},
+    **{form: "ἄφηβος" for form in (
+        "ἀφήβου", "αφηβου", "αφηβοι", "αφηβοις")},
+    **{form: "ἔμμορφος" for form in (
+        "ἐμμόρφου", "εμμορφου", "εμμορφοι", "εμμορφοις", "εμμορφω",
+        "εμμορφων")},
+    **{form: "ἐνούσιος" for form in ("ἐνουσίου", "ενουσιοις", "ενουσιω")},
+    # ἀγλαΐσας read ἀγλαΐω, which no dictionary heads. The participle
+    # ἀττικίζων, the accusative plural δρύας and the accusative Ἀπολλώνιον
+    # were restored as heads on GLAUx counts that follow its lemma
+    # annotation, not the word: its 7 δρύας tokens are feminine accusative
+    # plurals (oaks; Diorisis: δρῦς), and it files the name's accusative
+    # under a neuter Ἀπολλώνιον (131 to 2), which the Wiktionary base reads
+    # as Ἀπολλώνιος.
+    "ἀγλαΐσας": "ἀγλαΐζω", "ἀττικίζων": "ἀττικίζω", "δρύας": "δρῦς",
+    "Ἀπολλώνιον": "Ἀπολλώνιος", "Απολλώνιον": "Ἀπολλώνιος",
+    # The restored head νη is the bound prefix νη- of the Greek Wiktionary,
+    # which is never a token; the oath particle is νή (GLAUx: νὴ 1,615).
+    # 1.3.25 read νή under lang="grc" and the Modern νη under lang="all",
+    # which now reads νή too; lang="el" keeps its Modern row.
+    "νη": "νή",
+    # Forms of the adjective Κορινθιακός that the expansion layer files
+    # under Κορίνθιος, as GLAUx does (Diorisis: Κορινθιακός).
+    **{form: "Κορινθιακός" for form in (
+        "Κορινθιακόν", "Κορινθιακοῦ", "Κορινθιακοῖς", "Κορινθιακῷ")},
+    # The table of οἰκιῶν, the future participle of οἰκίζω, reads οἰκίον
+    # in the merged layer, as οἰκιοῦντες above did. 21 of these keys read
+    # οἰκίζω in 1.3.25; the other 42 are new keys of the same table. The
+    # noun's own οἰκίου is not among them.
+    **{form: "οἰκίζω" for form in (
+        "οἰκιοῦν", "οἰκιοῦντα", "οἰκιοῦντας", "οἰκιοῦντε", "οἰκιοῦντι",
+        "οἰκιοῦντος", "οἰκιούντοιν", "οἰκιούντων", "οἰκιούντως", "οἰκιοῦσα",
+        "οἰκιούσα", "οἰκιοῦσαι", "οἰκιούσαιν", "οἰκιούσαις", "οἰκιοῦσαν",
+        "οἰκιούσας", "οἰκιούσης", "οἰκιούσῃ", "οἰκιοῦσι", "οἰκιοῦσιν",
+        "οἰκιουσῶν",
+        "οικιούν", "οικιούντα", "οικιούντας", "οικιούντε", "οικιούντες",
+        "οικιούντι", "οικιούντοιν", "οικιούντος", "οικιούντων", "οικιούντως",
+        "οικιούσα", "οικιούσαι", "οικιούσαιν", "οικιούσαις", "οικιούσαν",
+        "οικιούσας", "οικιούση", "οικιούσης", "οικιούσι", "οικιούσιν",
+        "οικιουσών",
+        "οικιουν", "οικιουντα", "οικιουντας", "οικιουντε", "οικιουντες",
+        "οικιουντι", "οικιουντοιν", "οικιουντος", "οικιουντων", "οικιουντως",
+        "οικιουσα", "οικιουσαι", "οικιουσαιν", "οικιουσαις", "οικιουσαν",
+        "οικιουσας", "οικιουση", "οικιουσης", "οικιουσι", "οικιουσιν",
+        "οικιουσων")},
+    # Nouns in -σις whose -σεις and -σει cells regenerated verb paradigms
+    # took (GLAUx noun to verb: ἑστιάσεις 50:0, ἑστιάσει 11:1, ἐμφράξεις
+    # 55:0, ἐμφράξει 15:7, ὀχλήσεις 9:0). Where the treebank prefers the
+    # verb (διακωλύσει: verb 4, noun 0) the new reading stays.
+    "ἑστιάσεις": "ἑστίασις", "ἑστιάσει": "ἑστίασις",
+    "ἐμφράξεις": "ἔμφραξις", "ἐμφράξει": "ἔμφραξις",
+    "ὀχλήσεις": "ὄχλησις",
+    # Cells of the first-declension paradigms generated for ῥυέντης and
+    # ἀπόμυξα, heads of Sophocles' lexicon alone, that are forms of ῥέω and
+    # ἀπομύσσω (GLAUx: ῥυέντα ῥέω 7), and the genitive Φόρκυνος read as
+    # itself (GLAUx: Φόρκυς 11).
+    "ῥυέντα": "ῥέω", "ῥυέντας": "ῥέω",
+    "ἀπόμυξαι": "ἀπομύσσω", "ἀπομύξῃ": "ἀπομύσσω",
+    "Φόρκυνος": "Φόρκυς",
+    # Elided names that fell from the expansion layer to treebank gap-fill,
+    # which reads them with a lowercase lemma (δωρίς, ἰλιάς; GLAUx reads
+    # the Δωρίδ’ of its own text as Δωρίς 4 times). The keys end in U+1FBD,
+    # the mark every elision spelling is folded onto.
+    "Δωρίδ᾽": "Δωρίς", "Ἰλιάδ᾽": "Ἰλιάς",
+    # The unaccented and monotonic keys of αὐλῶν moved to the rarer αὐλών
+    # (αὐλῶν 386 corpus tokens, αὐλών and αὐλὼν 36); αὐλῶν itself reads αὐλή.
+    "αυλων": "αὐλή", "αυλών": "αὐλή",
+    # Monotonic and unaccented keys of κλῄζω that read the accentless
+    # dictionary head κληζω. The accented keys (κλῄζεσθαι) left the table
+    # and fold onto the monotonic ones, which read κληζω in 1.3.25 too.
+    **{form: "κλῄζω" for form in (
+        "κλήζεσθαι", "κληζεσθαι", "κλήζουσι", "κληζουσι", "κλήζομεν",
+        "κληζομεν", "κλήζων", "κληζων")},
 }
 
 # Reviewed readings that are written even when no source has the key. An

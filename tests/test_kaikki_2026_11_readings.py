@@ -51,6 +51,106 @@ def test_rebuild_regressions_keep_their_treebank_readings():
     assert o["ἑψομένης"] == "ἕψω" and o["μηνας"] == "μείς"
 
 
+# Readings the review of the rebuilt table against 1.3.25 found worse --------
+
+def _forms_of(lemma):
+    return {form for form, target in B.KAIKKI_2026_11_READING_OVERRIDES.items()
+            if target == lemma}
+
+
+def _bare(form):
+    return B.strip_accents(form.lower())
+
+
+def test_whole_paradigms_follow_the_keys_already_reviewed():
+    assert _forms_of("γνάθος") == {"γνάθων", "γναθων"}
+    assert _forms_of("παστάς") == {
+        "παστάδα", "παστάδος", "παστάδας", "παστάδων", "παστάδι", "παστάδες",
+        "παστάσι", "παστάσιν", "παστάδε", "παστάδοιν", "πασταδα", "πασταδος",
+        "πασταδας", "πασταδων", "πασταδι", "πασταδες", "παστασι", "παστασιν",
+        "πασταδε", "πασταδοιν", "παστας"}
+    assert _forms_of("ἕψω") == {
+        "ἑψόμενα", "ἑψομένης", "ἑψόμενοι", "ἑψόμεναι", "ἑψομένου", "ἑψομένων",
+        "ἑψομένῳ", "ἑψομένῃ", "ἑψομένοις", "ἑψομέναις", "ἑψομένην",
+        "ἑψομένους", "ἑψομένας"}
+    # The table of the future participle οἰκιῶν: polytonic, monotonic and
+    # unaccented keys of the same 21 cells, and οἰκιοῦντες from before. The
+    # noun's own genitive οἰκίου is not a key of it.
+    participle = _forms_of("οἰκίζω")
+    assert len(participle) == 64 and "οἰκιοῦντες" in participle
+    assert {"οἰκιοῦσι", "οἰκιοῦσιν", "οἰκιοῦσα", "οἰκιοῦν", "οικιούσι",
+            "οικιουσι", "οἰκιοῦντος", "οικιουντες"} <= participle
+    for form in participle:
+        assert _bare(form).startswith(("οικιουν", "οικιουσ")), form
+    assert len({_bare(form) for form in participle}) == 21
+    assert not {"οἰκίου", "οικίου", "οικιου", "οἰκιῶν"} & participle
+
+
+def test_nominal_cells_are_not_read_as_regenerated_contract_verbs():
+    assert _forms_of("νοερός") == {"νοερῶν", "νοεροῖς", "νοεροῦ", "νοερου",
+                                   "νοερων", "νοεροις", "νοεροι", "νοερω"}
+    assert _forms_of("ἔναρθρος") == {"ἐνάρθρου", "εναρθροις", "εναρθρω",
+                                     "εναρθρων"}
+    assert _forms_of("ἀντίπερα") == {"ἀντιπέρα", "αντιπερα", "αντιπεραν"}
+    for stem, lemma in (("χριστομαχ", "χριστομάχος"), ("φιληδον", "φιλήδονος"),
+                        ("διψυχ", "δίψυχος")):
+        assert _forms_of(lemma) == {stem + ending for ending in
+                                    ("οι", "οις", "ου", "ω", "ων")}, lemma
+    assert _forms_of("νομομαθής") == {"νομομαθης", "νομομαθη", "νομομαθων"}
+    # Genuine forms of the verbs keep the verb.
+    o = B.KAIKKI_2026_11_READING_OVERRIDES
+    assert not {"ἀντιπερῶν", "αντιπερων", "νομομαθοῦ", "νομομαθῇ"} & o.keys()
+    genitives = {
+        "ὁλοκαύτου": "ὁλόκαυτος", "ὁλοκάρπου": "ὁλόκαρπος", "γωνίου": "γώνιος",
+        "καστέλλου": "κάστελλον", "κατασάρκου": "κατάσαρκος",
+        "κατασπίλου": "κατάσπιλος", "φάλσου": "φάλσος", "χάμου": "χάμος",
+        "ἀπομμάτου": "ἀπόμματος", "ἀφήβου": "ἄφηβος", "ἐμμόρφου": "ἔμμορφος",
+        "ἐνουσίου": "ἐνούσιος"}
+    for form, lemma in genitives.items():
+        assert o[form] == lemma, form
+    # With the unaccented keys of the same nominals that moved with them.
+    assert sum(len(_forms_of(lemma)) for lemma in genitives.values()) == 47
+    for lemma in genitives.values():
+        stem = _bare(lemma)[:-2]
+        for form in _forms_of(lemma):
+            assert _bare(form).startswith(stem), (form, lemma)
+            assert _bare(form)[len(stem):] in {"ου", "οι", "οις", "ω", "ων"}, form
+
+
+def test_single_forms_keep_the_reading_the_treebanks_give():
+    o = B.KAIKKI_2026_11_READING_OVERRIDES
+    assert o["ἀγλαΐσας"] == "ἀγλαΐζω" and o["ἀττικίζων"] == "ἀττικίζω"
+    assert o["δρύας"] == "δρῦς" and o["νη"] == "νή"
+    assert "δρυας" not in o and "νή" not in o and "νὴ" not in o
+    assert _forms_of("Κορινθιακός") == {"Κορινθιακόν", "Κορινθιακοῦ",
+                                        "Κορινθιακοῖς", "Κορινθιακῷ"}
+    assert _forms_of("ἑστίασις") == {"ἑστιάσεις", "ἑστιάσει"}
+    assert _forms_of("ἔμφραξις") == {"ἐμφράξεις", "ἐμφράξει"}
+    assert o["ὀχλήσεις"] == "ὄχλησις"
+    assert o["ῥυέντα"] == o["ῥυέντας"] == "ῥέω"
+    assert o["ἀπόμυξαι"] == o["ἀπομύξῃ"] == "ἀπομύσσω"
+    assert o["Φόρκυνος"] == "Φόρκυς"
+    assert o["αυλων"] == o["αυλών"] == "αὐλή" and "αὐλῶν" not in o
+    assert o["Ἀπολλώνιον"] == o["Απολλώνιον"] == "Ἀπολλώνιος"
+    assert _forms_of("κλῄζω") == {"κλήζεσθαι", "κληζεσθαι", "κλήζουσι",
+                                  "κληζουσι", "κλήζομεν", "κληζομεν", "κλήζων",
+                                  "κληζων"}
+    # Elided keys carry the mark the build folds every elision spelling onto.
+    assert o["Δωρίδ᾽"] == "Δωρίς" and o["Ἰλιάδ᾽"] == "Ἰλιάς"
+    assert not [form for form in o if form[-1] in "’'ʼ`"]
+
+
+def test_override_keys_and_lemmas_are_nfc_and_no_lemma_is_rejected():
+    import unicodedata
+    for table in (B.KAIKKI_2026_11_READING_OVERRIDES,
+                  B.REVIEWED_ABSENT_KEY_READINGS, B.MODERN_READING_OVERRIDES):
+        for form, lemma in table.items():
+            assert unicodedata.normalize("NFC", form) == form, form
+            assert unicodedata.normalize("NFC", lemma) == lemma, lemma
+            assert lemma not in REJECTED_LEMMAS, lemma
+    assert len(B.KAIKKI_2026_11_READING_OVERRIDES) == 233
+
+
 # The override loop ----------------------------------------------------------
 
 GLAUX, DIORISIS = B.GLAUX_PAIRS_PATH.name, B.DIORISIS_PAIRS_PATH.name
