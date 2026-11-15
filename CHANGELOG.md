@@ -20,14 +20,25 @@ garble (`λαβλυμι`, `λαβ’μι`), hyphenated LSJ composition lemmas
 (`προ-ανακηρυσσω`) and unaccented doublets of real heads (`συνοχος`).
 `build_lookup_db.py` now checks every expansion reading whose lemma carries no
 diacritic: a lemma that `grc_lexical_heads.json` lists (`τε`, `που`) is kept,
-one with a single same-letter Ancient head is moved to it (`σύνοχα` →
-`σύνοχος`), and the rest are dropped; both are listed in
-`data/citation_hygiene_rejections.tsv`. Wiktionary, corpus and merged readings
-are not checked this way, so real unaccented LBG and LSJ10 headwords stay. On
-the 1.3.24 data this drops 1,032 rows (138 lemmas) and repairs 23 rows (19
-lemmas); `λαβηι` gives `λαβή`. On 119,894 annotated Perseus/Diorisis pairs
-only `σύνοχα` and `βιατὰς` change among this issue's rows, both to the gold
-lemma.
+one with a single same-letter Ancient head that the lookup maps to itself is
+moved to it (`σύνοχα` → `σύνοχος`), and the rest are dropped, including those
+whose only same-letter head is a cross-reference entry of the head lists
+(`κληϊδα` → `κλειδα` was moved to `κλεῖδα`, an accusative of `κλείς`) or has
+no row of its own; all are listed in `data/citation_hygiene_rejections.tsv`.
+GLAUx, Diorisis and other corpus pairs naming one of these judged lemmas get
+the same verdict, because `ag_headwords.json` lists some of them: GLAUx
+annotates `λαβῃ` with `λαβλυμι` and refilled the key the check emptied.
+Other Wiktionary, corpus and merged readings are not checked this way, so real
+unaccented LBG and LSJ10 headwords stay. The 1.3.25 build drops 1,032
+expansion rows (138 lemmas) and 10 more whose head is no citation form, and
+repairs 13 rows (9 lemmas); it rejects 269 corpus pairs (GLAUx 255, Diorisis
+13, Pedalion 1) and repairs 24, so no lookup row carries a dropped lemma.
+`λαβηι` and `λαβῃ` give `λαβή` with `lang="all"`, `"grc"` and `"el"`, and
+`κληϊδα` gives `κλείς`. Three repairs of the first rebuild became drops
+because their heads have no row (`Βάβυρσα`, `μός`, `πέδιος`), so `Βάβυρσά`
+gives `None`. Rejecting the corpus pairs also fixes DBBE `Πολλῶν` untagged
+(`πολύς`, was GLAUx's `πολλες`). On 119,894 annotated Perseus/Diorisis pairs only `σύνοχα` and
+`βιατὰς` change among this issue's rows, both to the gold lemma.
 
 Sentence-initial forms of οὗτος, πᾶς and the personal pronouns no longer
 return other headwords or names that do not exist (#108): `Αὕτη` PRON gives
@@ -45,8 +56,10 @@ cells that target them (which already fixes the PROPN/NOUN cases on the
 form's lowercase spelling reads, from a dictionary source, as a closed-class
 pronoun and the pair names another lemma (about 60 rows: `Αὕτη` → `ἄτη`,
 `Ἡμῶν` → `ἡμός`, `Τίνες` → `τίνω`). `ἄτη`, `πάν`, `πάνετες` and `τοῦτος` keep
-their own readings. Untagged `Ταύτῃ` gives the adverb `ταύτῃ`, as lowercase
-`ταύτῃ` does.
+their own readings. A reviewed name lemma is checked before the corpus
+capitalisation repair lowercases it, so GLAUx's `Ταύτῃ` → `Ταύτης` no longer
+passes as the lowercase `ταύτης`; untagged `Ταύτῃ` gives `οὗτος` from
+Diorisis.
 
 The second-person pronoun and the γραφή paradigm no longer resolve to σῦς and
 γραφεύς (#110): `σύ`, `σοῦ`, `σεῖο`, `σέο`, `σέθεν` and `τεΐν` give `σύ`, and
@@ -106,13 +119,21 @@ Wiktionary tables give στέφεος, στέφεα and στεφέων but no σ
 τέκους → τίκτω, κέρνους → κερνέω, σκέπους → σκεπός, γλάγους/θύους/κύους →
 None). `build_lookup_db.py` now generates the contracted cells (-ους -ει -η
 -ῶν -εσι(ν) -οῖν, acute on the stem's last vowel) for every lowercase -ος
-lemma with an accented -εος row and a neuter plural row under it
-(`dilemma/grc_noun_gaps.py`, new lookup source `grc_noun_gaps`, not
+lemma with an accented -εος row and a neuter plural row under it from Ancient
+sources (`dilemma/grc_noun_gaps.py`, new lookup source `grc_noun_gaps`, not
 share-alike, like `grc_adjective_gaps`), filling only keys no source
-supplies: 620 keys for 138 lemmas. All eight issue forms now give their noun
-in both modes; the plural-evidence check keeps φῖλος, κῦδος and σθένος out.
-Measured on an emulated rebuild: benchmark gate and 119,894 annotated pairs
-unchanged, DBBE +2 (στέφους, ἔσθη), no breaks.
+supplies: 543 keys for 124 lemmas. All eight issue forms now give their noun
+in both modes. The plural-evidence check keeps κῦδος and σθένος out; Modern
+Greek rows count for nothing (υπέρβαρος), a vowel- or rho-initial lemma needs
+its breathing, a lemma an Ancient dictionary table also declines in the
+second declension is a masculine or an adjective (λόχος, πρᾶος, λάϊνος,
+ὄχθος, ὦρος; also the genuine neuter γάνος), and φῖλος is a reviewed
+exclusion. A cell whose lowercase, grave-to-acute or monotonic spelling
+already reads as another lemma is not added, so `λαθῶν` keeps `λανθάνω` and
+`φιλοῖν` `φίλος`; the accentless key does not block a cell, so `σκέπους`
+still gives `σκέπος`. That gate costs `ἔσθη`, which keeps `ἐσθίω` through
+`έσθη` (DBBE gold `ἔσθος`), so of the two DBBE gains of the first emulation
+only `στέφους` remains.
 
 Nouns in -σις known only from a headword list now have their regular cells
 (#115). σύναρσις had only its VLG headword row, so συνάρσει, συνάρσεως,
@@ -121,8 +142,9 @@ Nouns in -σις known only from a headword list now have their regular cells
 step gives every lowercase, singly accented, self-mapped -σις head the Attic
 cells -εως -ει -εις -εων -εσι(ν) -έοιν and the accusative -ιν (no vocative,
 which meets corpus names such as Κίμωσι), again only for absent keys, and a
-key two accent doublets would share stays empty: about 41,100 keys for 3,041
-lemmas. συνάρσει NOUN → σύναρσις, ῥητρεύσει → ῥήτρευσις, and αἰτίωσιν →
+key two accent doublets would share stays empty, and a head without the
+breathing its first letter needs (όδευσις beside ὅδευσις) is skipped: 39,606
+keys for 3,024 lemmas. συνάρσει NOUN → σύναρσις, ῥητρεύσει → ῥήτρευσις, and αἰτίωσιν →
 αἰτίωσις (was αἰτιάω through the accent-stripped key); keys that already read
 as another word keep it (κινήσει → κινέω untagged). Measured on an emulated
 rebuild: benchmark gate and annotated pairs unchanged, DBBE +2 (συνάρσει,
@@ -198,8 +220,12 @@ one and the accent as written or an acute turned circumflex (`εὐσεβής`,
 `ἀνεξάντλητος`; `ἐδραία` gives `ἑδραῖος`, `ἀνευροῦς` `ἄνευρος`); a
 breathingless Ancient head takes the form's breathing (`ὀφφίκιον`); a
 capitalized name only Modern Greek lists keeps its lemma (`Ῥαχὶλ` gives
-`Ραχίλ`); otherwise there is no lemma (`ἀστοχήσει` gives `None` with
-`guess=False`). `lang="el"` and `convention="triantafyllidis"` are unchanged.
+`Ραχίλ`); with `lang="all"` a Modern Greek lexical head with no Ancient twin
+is kept, so polytonic vernacular Greek still reads as Modern as in 1.3.24
+(`ἀκόμη` gives `ακόμη`, `ἀξίζει` `αξίζω`, `ἀλλιῶς` `αλλιώς`, `ἀστοχήσει`
+`αστοχώ`); otherwise there is no lemma (`ἀστοχήσει` gives `None` with
+`lang="grc"` and `guess=False`). `lang="el"` and
+`convention="triantafyllidis"` are unchanged.
 Measured: DBBE untagged strict 6,799 -> 6,809 with `lang="all"`
 (equivalence-adjusted 7,299, unchanged) and 6,808 -> 6,819 with `lang="grc"`
 (7,295 -> 7,296); DBBE gold POS strict 7,096 -> 7,105 (`all`, #107 included;
@@ -210,9 +236,15 @@ tagged calls the existing POS rejection audit now turns to `None` (`ὀφφικ�
 NOUN, `ἀββακοὺμ` NOUN), because the heads list holds only the Sophocles
 spelling `οφφίκιον` and no `Ἀββακούμ`; untagged they give `ὀφφίκιον` and
 `Ἀββακούμ`. Keeping capitalized names avoided the three further losses the
-plain rule had (`Ραχίλ`, `Αγιοστεφανίτης`, `Απόκρεω`). `διωρθωμένου` still
-gives the Modern participle `διορθωμένος` untagged: the lexicon expansion
-lacks that one cell of the participle; docs/usage.md says so.
+plain rule had (`Ραχίλ`, `Αγιοστεφανίτης`, `Απόκρεω`). Keeping the Modern
+head under `lang="all"` was measured on the rebuilt data against the rule
+without it: of the 15,000 most frequent forms of the Wikisource polytonic
+Modern Greek slice, 50 answers change (7,068 tokens), 37 of them from `None`
+to the Modern lemma (`ἀκόμη` 1,659 tokens, `ἀκόμα` 956, `ἔξαφνα`, `ἀγκαλιά`,
+`ὡστόσο`, `αὔριο`, `ἔργο`), and others from an unrelated Byzantine-normalizer
+answer to it (`ἁμάξι` was `ἁμαξίς`); on DBBE 4 answers change with and
+without gold POS and one leaves the gold lemma (`ὠδικοῦ` gives `ωδικός`, not
+`ᾠδικός`); `lang="grc"` is unchanged.
 
 The polytonic Modern Greek POS rule of 1.3.24 (`lang="all"`) gives the
 Ancient answer again for three kinds of Ancient forms (#123). A misaccented
@@ -249,6 +281,17 @@ gives `νά`, as with `lang="el"`). Measured: no change under the default
 convention; under triantafyllidis 0 of 465,573 annotated Ancient (form, UPOS)
 pairs, 8 of 660,000 tag requests (e.g. `ἑπομένῃ` ADJ `επόμενος`, `ῥὰ` INTJ
 `ρε`) and 1 DBBE token (`κυροῦ`, now correct).
+
+`lemmatize_pos` and `lemmatize_batch_pos` agree when no POS entry chooses a
+candidate. The scalar call returned the first verbose candidate and the batch
+call kept the `lemmatize_batch()` answer, and under `convention="triantafyllidis"`
+the two rank differently: with `lang="all"`, `προῖὸν` NOUN gave `πρόειμι`
+from one and `προϊών` from the other, `γραφῆς` ADJ `γραφή` and `γραφεύς`.
+`lemmatize_pos` now returns the `lemmatize_batch()` answer with the batch
+call's adjustments. On 4,800 requests (400 test words, 12 tags each) the
+disagreements under `lang="all"` with triantafyllidis fall from 347 to 0;
+`lang="all"`, `"grc"` and `"el"` with the default convention and `"el"` with
+triantafyllidis had none, and no answer changes there.
 
 Polytonic Modern Greek conjunctions keep their Modern reading under SCONJ as
 under CCONJ (#120): an SCONJ request reads the Modern CCONJ entry when the
@@ -299,7 +342,13 @@ enclitic), `αἴ`, `αἲ`, `αἶ`, `αἰ` and `οἴ` all collapsed onto it:
 PART or SCONJ, `οἴ` tagged INTJ and the untagged forms gave `ὁ`. A smooth
 breathing on `αι` or `οι` now ends the article check, since the plural
 articles have a rough one; `αἴ` PART gives `αἴ`, `οἴ` gives `οἴ`, and `αἶ`
-gives the lookup reading `αἶα`. Monotonic and rough-breathing spellings (`αί`,
+gives the lookup reading `αἶα`. A combining psili after the final vowel's
+own breathing or accent is an elision mark, not a smooth breathing, so the
+elided `αἶ̓` and `οἷ̓` (AGDT Sophocles) are not articles either, and
+`lemmatize()` now tries the elided entry and the vowel expander first for
+them, as `lemmatize_batch()` already did: both give `αἶα` and `οἷος`, as
+with `’` (`βαί̓` and `ὁποῖ̓` no longer give `βάι` and `ὄψ` from the scalar
+call). Monotonic and rough-breathing spellings (`αί`,
 `αἵ`, `Αἱ`, `ΑΙ`) still give `ὁ`, and so do the Byzantine scribal spellings
 `ὀ` and `τἠς`, which the DBBE gold annotates as the article (excluding every
 smooth breathing broke those 7 tokens, so the rule is limited to `αι`/`οι`).
@@ -362,13 +411,16 @@ message and answered differently: with the eleven `*_headwords.json` lists
 missing, `ὀλεθροτόκον` ADJ gave `None` instead of `ὀλεθροτόκος` and `καὶ` INTJ
 gave `αἴ` instead of `καί`. `Dilemma()` now emits one `DilemmaDataWarning` per
 data directory naming each missing file (the Ancient lists,
-`grc_lexical_heads.json` and `grc_adverb_heads.json` for `grc`/`all`, the two
+`grc_lexical_heads.json`, `grc_adverb_heads.json` and
+`pos_cell_corrections.json` for `grc`/`all`, the two
 Modern Greek lists for `el`/`all`, and `lemma_equivalences.json` with the
 convention's own file) and the command that fetches them,
 `python -m dilemma download --no-tagger`; `dilemma.core.missing_data_files()`
 lists them. It is a warning rather than an error, so Modern-Greek-only and
 minimal directories still load; a full download is silent and no answer
-changes.
+changes. `pos_cell_corrections.json` is now also in `scripts/hf_data.py`'s
+tracked set, so it reaches the Hub and `python -m dilemma download`; without
+it the #106 corrections were silently absent from installed data.
 
 ### Known limits
 
@@ -376,6 +428,13 @@ changes.
   reading under every tag: `ἀξίαν` gives `ἄξιος` and `ἱερὰ` gives `ἱερόν`.
 - Headword-only Ancient adjectives and nouns in -ος (about 16,900 lemmas,
   mostly Byzantine entries without a gender) still have no generated cells.
+- With `lang="grc"`, a polytonic Modern Greek word that no Ancient head
+  spells gets no lookup lemma and can reach the Byzantine normalizer, which
+  may find an unrelated word (`ἀλλιῶς` gives `ἁλιεύς`, `ἀνάβει` `Ανάβης`,
+  `ἄνοιξη` `ἀνοίγω`); with `lang="all"` they keep their Modern lemma.
+- A key that the #103 or #108 rules empty can be refilled by a Modern Greek
+  self row: untagged `Πάσας` gives `Πάσας`, not `πᾶς`, and `Τούτος` gives the
+  Modern `Τούτος`.
 - `αἴ` SCONJ gives `αἴ`, not `εἰ`: the Ancient POS tables hold only a CCONJ
   cell for it, and the SCONJ-to-CCONJ reading of #120 applies to Modern Greek
   entries only.

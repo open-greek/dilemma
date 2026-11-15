@@ -618,7 +618,9 @@ filter and before the reviewed overrides:
 - Nouns in `-σις` known only from a headword list (`σύναρσις`, from the VLG
   list; `ῥήτρευσις`, from the Byzantine list, whose paradigm expansion
   skips every `-ις` noun because it cannot infer an `-ις` genitive). Every
-  lowercase, singly accented, self-mapped `-σις` head gets the regular Attic
+  lowercase, singly accented, self-mapped `-σις` head that has the
+  breathing its first letter needs (not `όδευσις` beside `ὅδευσις`) gets the
+  regular Attic
   cells `-εως -ει -εις -εων -εσι(ν) -έοιν -ιν`, with the acute on the stem's
   last vowel (`συνάρσεως`, `συναρσέοιν`) and the accusative keeping the
   headword's accent (`σύναρσιν`). The vocative `-σι` is left out, because it
@@ -627,18 +629,31 @@ filter and before the reviewed overrides:
   `στέφεα` from the dictionary expansion; `τέκεος`, `γλάγεος` from Homeric
   Wiktionary tables). A lowercase, singly accented `-ος` lemma with an
   accented `-εος` row and an accented neuter plural row (`-εα`, `-εσι(ν)` or
-  `-εων`) under it gets the contracted cells `-ους -ει -η -ῶν -εσι(ν) -οῖν`
-  (`στέφους`, `στέφη`, `στεφῶν`). The plural row keeps masculines with an
-  `-εος` spelling (`φῖλος`) and singular-only epic nouns (`κῦδος`, `σθένος`)
-  out.
+  `-εων`) under it, both from an Ancient source, gets the contracted cells
+  `-ους -ει -η -ῶν -εσι(ν) -οῖν` (`στέφους`, `στέφη`, `στεφῶν`). The plural
+  row keeps singular-only epic nouns (`κῦδος`, `σθένος`) out. Modern Greek
+  rows are no evidence (`υπέρβαρος`), a lemma beginning with a vowel or rho
+  needs its breathing, a lemma that an Ancient dictionary table
+  (`wiktionary_grc`, `grc_merged`, `grc_lexicon_expansion`) also declines in
+  the second declension, with two of `-ου -ῳ -ον -οι -οις`, is a masculine or
+  an adjective and is skipped (`λόχος`, `πρᾶος`, `λάϊνος`, `ὄχθος`; this also
+  drops the genuine neuter `γάνος`), and `φῖλος`, whose `-εος` rows sit beside
+  the adjective `φίλος`, is a reviewed exclusion
+  (`NOT_SSTEM_NEUTERS`).
 
 Each cell is keyed by its accented form, its lowercase and its accentless
 lowercase spelling, and fills a key only when no source supplied it and no
 other generated lemma claims it (accent doublets such as `σχετλίασις` and
-`σχετλιάσις` leave their shared keys empty). On the 1.3.24 table this adds
-about 41,100 `-σις` keys for about 3,040 lemmas and 620 s-stem keys for 138
-lemmas. A key that already reads as another word keeps it (`κινήσει` →
-`κινέω`, `δάκρυσιν` → `δάκρυον`), and the declension is the Attic one only,
+`σχετλιάσις` leave their shared keys empty). A cell is not added at all when
+its lowercase, grave-to-acute or monotonic spelling already reads as another
+lemma, since the runtime answers the form through those spellings: `λαθῶν`
+keeps `λανθάνω` through `λαθών`, and `ἔσθη` keeps `ἐσθίω` through `έσθη`.
+The accentless key is not weighed this way, because it serves unaccented
+input only and the accent tells the cell apart (`αἰτίωσιν` beside the
+verb's `αἰτιῶσιν`). The 1.3.25 build adds 39,606 `-σις` keys for 3,024
+lemmas and 543 s-stem keys for 124 lemmas. A key that already reads as
+another word keeps it (`κινήσει` → `κινέω`, `δάκρυσιν` → `δάκρυον`), and the
+declension is the Attic one only,
 not the Ionic `-ιος` forms. Headword-only adjectives and nouns in `-ος`
 (about 16,900 lemmas, mostly Byzantine entries without a gender) are not
 generated.

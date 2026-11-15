@@ -4,21 +4,12 @@
 capitalised pronoun twins), #110 (reviewed lookup overrides) and #122 (Modern
 Greek table fragments). Most of these answers come from data/lookup.db and
 data/mg_pos_lookup.json as rebuilt for 1.3.25.
-
-test_unaccented_expansion_artefact_is_gone stays xfail: the rebuild drops the
-expansion reading λαβῃ -> λαβλυμι, but GLAUx carries the same unaccented
-lemma for the form and refills the key (GLAUX_REFILL below).
 """
 
 import pytest
 
 from dilemma import core
 from dilemma.grc_rejected_lemmas import REJECTED_LEMMAS
-
-GLAUX_REFILL = pytest.mark.xfail(
-    strict=False,
-    reason="GLAUx refills λαβῃ with the same unaccented lemma λαβλυμι; "
-           "the #103 filter judges expansion readings only")
 
 _MODELS = {}
 
@@ -47,8 +38,8 @@ def test_sentence_initial_pronouns_take_the_pronoun_lemma(lang):
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_sentence_initial_pronouns_untagged(lang):
     model = _model(lang)
-    forms = ["Ταύτης", "Πάντες", "Αὕτη", "Τούτου", "Πάντα"]
-    expected = ["οὗτος", "πᾶς", "οὗτος", "οὗτος", "πᾶς"]
+    forms = ["Ταύτης", "Πάντες", "Αὕτη", "Τούτου", "Πάντα", "Ταύτῃ"]
+    expected = ["οὗτος", "πᾶς", "οὗτος", "οὗτος", "πᾶς", "οὗτος"]
     assert model.lemmatize_batch(forms, guess=False) == expected
     assert [model.lemmatize(f, guess=False) for f in forms] == expected
 
@@ -87,7 +78,6 @@ def test_pronoun_controls_and_other_heads_keep_their_readings(lang):
 
 # #103 ---------------------------------------------------------------------
 
-@GLAUX_REFILL
 @pytest.mark.parametrize("lang", ["all", "grc", "el"])
 def test_unaccented_expansion_artefact_is_gone(lang):
     model = _model(lang)
@@ -95,6 +85,21 @@ def test_unaccented_expansion_artefact_is_gone(lang):
     assert model.lemmatize("λαβηι", guess=False) != "λαβλυμι"
     if lang == "all":
         assert model.lemmatize("λαβηι", guess=False) == "λαβή"
+
+
+@pytest.mark.parametrize("lang", ["all", "grc", "el"])
+def test_corpus_pairs_do_not_refill_a_dropped_expansion_lemma(lang):
+    # GLAUx annotates λαβῃ with the expansion's OCR lemma λαβλυμι and refilled
+    # the key the #103 check emptied; the build now rejects such pairs.
+    assert _model(lang).lemmatize("λαβῃ", guess=False) == "λαβή"
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_no_repair_to_a_cross_reference_head(lang):
+    # κλεῖδα and κλεῖδες are head-list cross-references (accusatives of κλείς).
+    model = _model(lang)
+    assert model.lemmatize_batch(["κληϊδα", "κληϊδας"], guess=False) == [
+        "κλείς", "κλείς"]
 
 
 def test_unaccented_expansion_doublet_is_repaired():
@@ -180,6 +185,25 @@ def test_no_unaccented_unlisted_expansion_lemma_ships():
         "JOIN sources s ON s.id = l.source_id WHERE s.code = 'grc_lexicon_expansion'")
     assert not [lemma for (lemma,) in rows
                 if builder.unaccented_expansion_lemma(lemma, heads, by_letters)]
+
+
+def test_no_lemma_the_expansion_check_rejected_ships():
+    # A lemma the #103 check dropped from the expansion layer may not come
+    # back through a corpus pair (GLAUx λαβῃ -> λαβλυμι).
+    import csv
+    path = core.DATA_DIR / "citation_hygiene_rejections.tsv"
+    if not path.exists():
+        pytest.skip("citation_hygiene_rejections.tsv is not installed")
+    with path.open(encoding="utf-8", newline="") as stream:
+        dropped = sorted({row["lemma"] for row in csv.DictReader(stream, delimiter="\t")
+                          if row["reason"] in (
+                              "unaccented_expansion_lemma_unlisted",
+                              "unaccented_expansion_lemma_head_not_citation")})
+    assert "λαβλυμι" in dropped
+    marks = ",".join("?" * len(dropped))
+    assert _lookup_rows(
+        "SELECT l.form, m.text FROM lookup l JOIN lemmas m ON m.id = l.lemma_id "
+        f"WHERE m.text IN ({marks})", dropped) == []
 
 
 def test_no_reviewed_non_lemma_ships():

@@ -70,3 +70,30 @@ def test_shipped_smooth_breathing_interjections_keep_their_readings(
     assert model.lemmatize_pos("αἵ", "PRON", guess=False) == "ὅς"
     assert model.lemmatize_pos("οἴμοι", "INTJ", guess=False) == "οἴμοι"
     assert model.lemmatize_batch(["αἵ", "οἵ", "αί", "Αἱ"], guess=False) == ["ὁ"] * 4
+
+
+@pytest.mark.parametrize("form,elided", [
+    ("αἶ̓", True), ("οἷ̓", True), ("βαί̓", True), ("ὁποῖ̓", True),
+    ("αἰ", False), ("ἐ", False), ("οὐ", False), ("εἰ", False), ("ἀλλ̓", False),
+])
+def test_psili_after_the_vowels_own_marks_is_an_elision(form, elided):
+    assert core._is_marked_vowel_psili_elision(form) is elided
+
+
+@pytest.mark.parametrize("form", ["αἶ̓", "οἷ̓"])
+def test_elided_form_with_combining_psili_is_not_the_article(form):
+    # The trailing U+0313 is the apostrophe of αἶ(α) and οἷ(ος), not a
+    # breathing; the elided word is no article.
+    assert not Dilemma._is_ancient_article_form(form)
+    assert resolver()._resolve_closed_class(form) is None
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_shipped_combining_psili_elision_agrees_across_calls(lang):
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    model = Dilemma(lang=lang, resolve_articles=True)
+    forms = ["αἶ̓", "οἷ̓", "βαί̓", "ὁποῖ̓", "αἶ’", "οἷ’"]
+    expected = ["αἶα", "οἷος", "βαιός", "ὁποῖος", "αἶα", "οἷος"]
+    assert [model.lemmatize(f, guess=False) for f in forms] == expected
+    assert model.lemmatize_batch(forms, guess=False) == expected

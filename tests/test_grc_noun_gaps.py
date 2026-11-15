@@ -210,4 +210,21 @@ def test_shipped_generated_rows_name_their_source():
             "SELECT count(*) FROM lookup l JOIN sources s ON s.id = l.source_id "
             "WHERE s.code = ?", (SOURCE,)).fetchone()[0]
     assert rows == dict.fromkeys(("στέφους", "συνάρσεως", "συναρσεως"), SOURCE)
-    assert 40_000 < count < 45_000
+    assert 39_000 < count < 42_000
+
+
+def test_shipped_cells_do_not_hide_other_readings():
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    # #114 review: cells of masculines, adjectives and a Modern Greek lemma,
+    # and cells whose monotonic spelling reads as another lemma, are gone.
+    with sqlite3.connect(f"file:{core.LOOKUP_DB_PATH}?mode=ro", uri=True) as conn:
+        lemmas = {lemma for (lemma,) in conn.execute(
+            "SELECT DISTINCT m.text FROM lookup l JOIN lemmas m ON m.id = l.lemma_id "
+            "JOIN sources s ON s.id = l.source_id WHERE s.code = ?", (SOURCE,))}
+    assert not lemmas & {"φῖλος", "υπέρβαρος", "λόχος", "πρᾶος", "λάϊνος",
+                         "ἀδράνεος", "ὄχθος", "ὦρος", "οὖρος"}
+    model = _model("grc")
+    assert model.lemmatize_batch(["λαθῶν", "φιλοῖν"], guess=False) == [
+        "λανθάνω", "φίλος"]
+

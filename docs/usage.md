@@ -73,7 +73,10 @@ The opt-in mode also recognizes monotonic projections of polytonic articles,
 such as `τών` from `τῶν`, without removing accents from unrelated words.
 A smooth breathing on `αι` or `οι` is never the article's: `αἴ`, `αἰ`, `αἶ`
 and `οἴ` keep their own readings, while `αί`, `αἵ` and `Αἱ` still resolve to
-`ὁ`. `αἴ` tagged SCONJ gives `αἴ`, not `εἰ`: the Ancient POS tables hold only
+`ὁ`. A combining psili typed after the final vowel's own breathing or accent
+is an elision mark, not a breathing, and such a form is no article: `αἶ̓` and
+`οἷ̓` give `αἶα` and `οἷος` from `lemmatize()` and `lemmatize_batch()` alike,
+as `αἶ’` and `οἷ’` do. `αἴ` tagged SCONJ gives `αἴ`, not `εἰ`: the Ancient POS tables hold only
 a CCONJ entry for it, and an SCONJ request reads a CCONJ entry only for
 Modern Greek conjunctions (see the polytonic Modern Greek rule below).
 The `triantafyllidis` convention auto-enables
@@ -129,14 +132,20 @@ The Ancient headword with the same letters is returned instead, with the
 form's breathing or the other one and with the accent as written or an acute
 turned circumflex (`εὐσεβεστάτῃ` gives `εὐσεβής`, not `ευσεβής`; `ἐδραία`
 gives `ἑδραῖος`). A name that only Modern Greek lists keeps its lemma
-(`Ῥαχὶλ` gives `Ραχίλ`); otherwise there is no lemma (`ἀστοχήσει` gives `None`
-with `guess=False`). `lang="el"` and `convention="triantafyllidis"` read the
-Modern rows as before. Known gaps: the Sophocles lexicon writes its omicron
-and rho heads without breathings, and the POS rejection audit is built against
-those heads, so `ὀφφικίου` gives `ὀφφίκιον` untagged but `None` with a NOUN
-tag. `διωρθωμένου` has no row of its own (the lexicon expansion has the
-participle's other cells), so the orthographic normalizer still reads it as
-the Modern participle `διορθωμένος`.
+(`Ῥαχὶλ` gives `Ραχίλ`). With `lang="all"`, a Modern Greek lexical head that
+has no Ancient twin is kept too, so polytonic vernacular Greek still reads as
+Modern (`ἀκόμη` gives `ακόμη`, `ἀξίζει` `αξίζω`, `ἔργο` `έργο`; also
+`ἀστοχήσει` `αστοχώ`). With `lang="grc"` there is otherwise no lemma
+(`ἀστοχήσει` gives `None` with `guess=False`). `lang="el"` and
+`convention="triantafyllidis"` read the Modern rows as before. Known gaps: the
+Sophocles lexicon writes its omicron and rho heads without breathings, and the
+POS rejection audit is built against those heads, so `ὀφφικίου` gives
+`ὀφφίκιον` untagged but `None` with a NOUN tag. With `lang="grc"` a polytonic
+Modern Greek word that no Ancient head spells can still reach the Byzantine
+normalizer, which may find an unrelated Ancient word (`ἀλλιῶς` gives
+`ἁλιεύς`, `ἀνάβει` `Ανάβης`); with `lang="all"` these keep their Modern lemma.
+An Ancient form whose Modern twin is listed can take it under `lang="all"`
+(`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
 
 ## Conventions
 
@@ -280,10 +289,17 @@ than citation forms: Latin words read as Beta Code (`αελιυς`), OCR garble
 (`προ-ανακηρυσσω`) and unaccented doublets (`συνοχος`). A lemma that
 `grc_lexical_heads.json` lists (`τε`, `που`) is kept. Otherwise the reading is
 moved to the single Ancient head with the same letters, recorded as
-`unaccented_expansion_lemma_repaired_to_<head>` (`σύνοχα` → `σύνοχος`), or
-dropped as `unaccented_expansion_lemma_unlisted`. Wiktionary, corpus and
-merged readings are not checked this way, so real unaccented LBG and LSJ10
-headwords stay.
+`unaccented_expansion_lemma_repaired_to_<head>` (`σύνοχα` → `σύνοχος`), when
+the lookup maps that head to itself; a head the lists carry only as a
+cross-reference to another word (`κλεῖδα`, an accusative of `κλείς`) or that
+has no row of its own is no citation form, and the reading is dropped as
+`unaccented_expansion_lemma_head_not_citation`. Every other such reading is
+dropped as `unaccented_expansion_lemma_unlisted`. A GLAUx, Diorisis, NT or
+cog pair whose lemma is one of these judged expansion lemmas gets the same
+verdict, since `ag_headwords.json` lists some of them and the pair would put
+the dropped lemma back (`λαβῃ` → `λαβλυμι` from GLAUx). Other Wiktionary,
+corpus and merged readings are not checked this way, so real unaccented LBG
+and LSJ10 headwords stay.
 
 One rejection cannot be made per pair. A corpus tokenizer that splits a
 printed word at its elision mark and gives the second half the whole word's

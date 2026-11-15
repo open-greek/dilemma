@@ -3,7 +3,9 @@
 #107: an Ancient POS-table target whose initial rho lacks its breathing
 (ρῆσις) is a corpus spelling and does not replace the lemma.
 #109: a lemma found only through the lookup's monotonic or accent-stripped
-key may not drop the breathing the form has (εὐσεβεστάτῃ -> εὐσεβής).
+key may not drop the breathing the form has (εὐσεβεστάτῃ -> εὐσεβής); with
+lang="all" a Modern Greek lexical head with no Ancient twin is kept, so
+polytonic vernacular Greek reads as Modern (ἀκόμη -> ακόμη).
 #123: the polytonic Modern POS rule counts syllables with synizesis
 (προῖὸν is no monosyllable), returns the lowercase Ancient headword a
 capitalized Ancient name stands for (εὐήνεμός ADJ), and keeps a lowercase
@@ -30,7 +32,7 @@ def model_from(tmp_path, monkeypatch):
     monkeypatch.setattr(core, "POS_CELL_CORRECTIONS_PATH", tmp_path / "none.json")
 
     def make(lookup, *, lang="grc", ancient_pos=None, modern_pos=None,
-             headwords=(), heads=()):
+             headwords=(), heads=(), vernacular=()):
         core.AG_POS_LOOKUP_PATH.write_text("{}", encoding="utf-8")
         model = core.Dilemma(lang="grc", skip_pos=True)
         model.lang = lang
@@ -46,6 +48,7 @@ def model_from(tmp_path, monkeypatch):
         model._pos_rejected_targets = frozenset()
         model._headword_sets["lsj"] = set(headwords)
         model._ancient_lexical_heads = set(heads)
+        model._vernacular_lexical_heads = set(vernacular)
         return model
 
     return make
@@ -128,6 +131,15 @@ def test_restore_breathing_finds_the_ancient_headword(model_from):
     assert restore("ἐδραία", "εδραίος") == "ἑδραῖος"
     # No Ancient lemma with those letters.
     assert restore("ἀστοχήσει", "αστοχώ") is None
+    # Under lang="all" a Modern Greek lexical head stands (polytonic
+    # vernacular Greek, #104); under "grc" it does not.
+    model._vernacular_lexical_heads = {"αστοχώ", "ακόμη"}
+    assert restore("ἀστοχήσει", "αστοχώ") is None
+    model.lang = "all"
+    assert restore("ἀστοχήσει", "αστοχώ") == "αστοχώ"
+    assert restore("ἀκόμη", "ακόμη") == "ακόμη"
+    # The Ancient headword still comes first.
+    assert restore("ἀνεξάντλητον", "ανεξάντλητος") == "ἀνεξάντλητος"
     # Lemmas that keep a breathing and forms without one are untouched.
     assert restore("εὐσεβεστάτῃ", "εὐσεβής") == "εὐσεβής"
     assert restore("ευσεβεστατη", "ευσεβής") == "ευσεβής"
@@ -159,6 +171,9 @@ def test_loose_lookup_key_keeps_the_breathing(model_from, lang):
     assert model._lookup_word("ἀστοχήσει") is None
     # Monotonic input reads the Modern rows as before.
     assert model._lookup_word("αστοχήσει") == "αστοχώ"
+    model._vernacular_lexical_heads = {"αστοχώ"}
+    assert model._lookup_word("ἀστοχήσει") == (
+        "αστοχώ" if lang == "all" else None)
 
 
 def test_modern_mode_keeps_the_modern_row(model_from):
@@ -171,19 +186,39 @@ def test_modern_mode_keeps_the_modern_row(model_from):
 def test_shipped_loose_keys_keep_the_breathing(shipped_models, lang):
     model = shipped_models[lang]
     forms = ["εὐσεβεστάτῃ", "ἀστοχήσει", "ἀνεξάντλητον", "ἀνεξαντλήτου", "ὀφφικίου"]
+    # With lang="all" the polytonic form keeps the Modern head (#104).
+    modern = "αστοχώ" if lang == "all" else None
     assert model.lemmatize_batch(forms, guess=False) == [
-        "εὐσεβής", None, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
+        "εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
     assert [model.lemmatize(f, guess=False) for f in forms] == [
-        "εὐσεβής", None, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
+        "εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
     tagged = model.lemmatize_batch_pos(forms[:4], ["ADJ", "VERB", "ADJ", "ADJ"],
                                        guess=False)
-    assert tagged == ["εὐσεβής", None, "ἀνεξάντλητος", "ἀνεξάντλητος"]
+    assert tagged == ["εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος"]
     assert model.lemmatize_batch(
         ["ἀνευροῦς", "ἐδραία", "εὐσεβεστάτη"], guess=False) == [
         "ἄνευρος", "ἑδραῖος", "εὐσεβής"]
     assert model.lemmatize_pos("ἀστοχήσας", "VERB", guess=False) == "ἀστοχέω"
     # A name only Modern Greek Wiktionary lists keeps its lemma.
     assert model.lemmatize("Ῥαχὶλ", guess=False) == "Ραχίλ"
+
+
+def test_shipped_polytonic_vernacular_keeps_its_modern_lemma(shipped_models):
+    # #109 review: the breathing restoration found no Ancient headword for
+    # these and returned None, so the Modern row was lost and the Byzantine
+    # normalizer filled in another word (ἀλλιῶς -> ἁλιεύς, ἀνάβει -> Ανάβης).
+    model = shipped_models["all"]
+    forms = ["ἀκόμη", "ἔργο", "αὔριο", "ὡστόσο", "ἀξίζει", "ἀλλιῶς", "ἀνάβει",
+             "ἀκούστηκε"]
+    expected = ["ακόμη", "έργο", "αύριο", "ωστόσο", "αξίζω", "αλλιώς", "ανάβω",
+                "ακούγομαι"]
+    assert model.lemmatize_batch(forms, guess=False) == expected
+    assert [model.lemmatize(f, guess=False) for f in forms] == expected
+    assert model.lemmatize("ἔργο", guess=True) == "έργο"
+    assert model.lemmatize_pos("ἔργο", "NOUN", guess=False) == "έργο"
+    assert model.lemmatize_pos("ἀκόμη", "ADV", guess=False) == "ακόμη"
+    assert model.lemmatize_batch_pos(["ἔργο", "ἀκόμη"], ["NOUN", "ADV"],
+                                     guess=False) == ["έργο", "ακόμη"]
 
 
 def test_shipped_modern_mode_is_unchanged():

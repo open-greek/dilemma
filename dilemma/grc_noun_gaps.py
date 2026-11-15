@@ -15,10 +15,11 @@ Both declensions are regular, with an acute on the stem's last vowel
 (συνάρσεως, στέφους, μεγέθη) except where the ending carries the accent
 (συναρσέοιν, στεφῶν, στεφοῖν). This module gives those cells. Nothing here
 overwrites a reading: a cell fills an absent key only, only for a plain lemma
-(lowercase, one word, one accent), and not at all when one of its spellings
-(lowercase, monotonic, accentless) already reads as another lemma, since the
-runtime reaches a form's reading through those spellings too (λαθῶν keeps
-λανθάνω through λαθων). A -σις noun must be a self-mapped head of the table.
+(lowercase, one word, one accent), and not at all when its lowercase,
+grave-to-acute or monotonic spelling already reads as another lemma, since
+the runtime reaches a form's reading through those spellings too (λαθῶν
+keeps λανθάνω through λαθών). A -σις noun must be a self-mapped head of the
+table, with the breathing its first letter needs.
 An s-stem neuter needs its own evidence in the table from an Ancient source:
 an accented -εος row and a neuter plural (-εα, -εσι(ν) or -εων) row under the
 lemma. A Modern Greek row is no evidence (υπέρβαρος), a lemma that begins
@@ -198,8 +199,8 @@ def select_noun_gap_lemmas(
     counts as an Ancient dictionary row. A -σις noun is a plain lemma that
     maps to itself, with the breathing its first letter needs (όδευσις,
     beside ὅδευσις, is not one): for a headword-only noun that row is all
-    the table knows. An s-stem neuter is a plain -ος lemma that has, among its own
-    forms from a source outside ``MODERN_SOURCES``, an accented -εος form
+    the table knows. An s-stem neuter is a plain -ος lemma that has, among
+    its own forms from a source outside ``MODERN_SOURCES``, an accented -εος form
     and an accented neuter-plural form (-εα, -εσι, -εσιν or -εων) on the same
     stem; its headword key may read as another lemma (γλάγος as γάλα) and
     the cells still go to the lemma its table is listed under. It is not
