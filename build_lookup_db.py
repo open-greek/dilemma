@@ -159,6 +159,24 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     # infinitive with it. GLAUx: ἐπαινεῖν -> ἐπαινέω 437, ἐπαινέειν 5.
     "ἐπαινεῖν": "ἐπαινέω", "επαινείν": "ἐπαινέω", "επαινειν": "ἐπαινέω",
     "ἐπαινέειν": "ἐπαινέω", "επαινέειν": "ἐπαινέω", "επαινεειν": "ἐπαινέω",
+    # The rebuilt merged layer and the regenerated LSJ verb paradigms read
+    # these forms as homographs of rare words, against the treebanks and the
+    # 1.3.25 readings: νοερῶν and νοεροῖς as the verb νοερόω (GLAUx: νοερός
+    # 11 and 5), παστάδα and παστάδος as παστός (παστάς 4 and 6), θεανθρώπου
+    # and οἰκιοῦντες as θεανθρωπόω and οἰκίον, μηνας as the name Μηνᾶς
+    # (μῆνας of μείς), ἑψομένης as ἕπω (ἕψω 5), ἠμφεσβήτησαν as the
+    # generated ἀμφιαμφισβητέω.
+    "νοερῶν": "νοερός", "νοεροῖς": "νοερός",
+    "παστάδα": "παστάς", "παστάδος": "παστάς",
+    "θεανθρώπου": "θεάνθρωπος", "οἰκιοῦντες": "οἰκίζω", "μηνας": "μείς",
+    "ἑψομένης": "ἕψω", "ἠμφεσβήτησαν": "ἀμφισβητέω",
+    # Pinned 1.3.1 resolutions the expansion exclusions still hold, which
+    # the corpus gap-fill now supplies: GLAUx files ἀπεικός under ἀφίημι
+    # (LSJ ἀπεικός, of ἀπέοικα), the superlative πορρωτάτω under the
+    # comparative προσωτέρω (GLAUx: πόρρω 182) and σαλπισταῖς under σάλπιγξ.
+    "ἀπεικός": "ἀπεικός",
+    "πορρωτάτω": "πόρρω", "ποῤῥωτάτω": "πόρρω",
+    "σαλπισταῖς": "σαλπιστής",
 }
 
 _FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",
@@ -548,9 +566,46 @@ def corpus_form_evidence(pairs, forms) -> dict[str, dict[str, int]]:
     return evidence
 
 
+def head_alias_keys(head: str) -> set[str]:
+    """The looser keys of a head: lowercase, monotonic and unaccented."""
+    return {head.lower(), to_monotonic(head), to_monotonic(head).lower(),
+            strip_accents(head.lower())} - {head}
+
+
+def corpus_key_evidence(pairs, keys) -> dict[str, dict[str, int]]:
+    """Token counts by lemma of every counted form that folds to a key.
+
+    A form folds to its lowercase, monotonic and unaccented spellings, the
+    keys a displaced head's aliases use (γυναικῶν and γυναικών both fold
+    to γυναικων).
+    """
+    evidence: dict[str, dict[str, int]] = {}
+    for pair in pairs:
+        form = pair["form"]
+        for key in {form, *head_alias_keys(form)} & keys:
+            counts = evidence.setdefault(key, {})
+            counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
+    return evidence
+
+
+def corpus_lemma_totals(pairs) -> dict[str, int]:
+    """Token counts of each lemma over all counted corpus pairs."""
+    totals: dict[str, int] = {}
+    for pair in pairs:
+        totals[pair["lemma"]] = totals.get(pair["lemma"], 0) + int(pair.get("count", 1))
+    return totals
+
+
+# A head only a dictionary lists needs at least this many corpus tokens read
+# as itself: one token is a lemmatizer's choice, not evidence (ἐγώγε, τός).
+LISTED_HEAD_MIN_TOKENS = 2
+
+
 def restore_displaced_lexical_heads(ag: dict, *, wiktionary_heads, base: dict,
                                     evidence: dict, listed_heads=(),
-                                    eligible=None) -> list[dict]:
+                                    eligible=None, key_evidence=None,
+                                    lemma_totals=None,
+                                    rejected=None) -> list[dict]:
     """Give a lexical head back its own reading when another lemma took it.
 
     The merged Ancient table can read a word that has an entry of its own as
@@ -568,36 +623,74 @@ def restore_displaced_lexical_heads(ag: dict, *, wiktionary_heads, base: dict,
 
     A head only a dictionary lists (``listed_heads``: σπαθίον, κατέναντι)
     is considered where the base reads it as itself, and needs the corpus
-    majority: those lists and the base also hold inflected forms. Where the
-    corpus prefers the other lemma (τοῦ, ἴσον, θρόνον), or neither source
-    supports the head, the reading stays. A restored head's unaccented,
-    lowercase and monotonic keys follow it when they hold the same
-    displaced lemma, are no listed head themselves, and no other restored
-    head claims them.
+    majority of at least ``LISTED_HEAD_MIN_TOKENS`` tokens: those lists and
+    the base also hold inflected forms. Where the corpus prefers the other
+    lemma (τοῦ, ἴσον, θρόνον), or neither source supports the head, the
+    reading stays.
+
+    A case twin is no other lemma: a capitalized head never takes a key
+    from its own lowercase lemma (Υἱός, Πατήρ keep υἱός, πατήρ), and a
+    lowercase head takes one from its capitalized twin only where the
+    corpus uses the lowercase lemma at least as often overall
+    (``lemma_totals``: ψυχή, τύχη, δῖος, but not φίλιππος beside Φίλιππος,
+    whose new self-map would turn every Φιλίππου into the adjective).
+
+    A restored head's unaccented, lowercase and monotonic keys follow it
+    when they hold the same displaced lemma, are no listed head themselves,
+    no other restored head claims them, and the corpus forms that fold to
+    the key (``key_evidence``) read it as the head more often than as any
+    other lemma, or the corpus has no form for the key at all: γυναικων
+    stays γυνή beside γυναικών, because γυναικῶν folds to it too, and ρα
+    stays ῥεῖα beside ῥᾶ, because the corpus reads ῥα as ἄρα. A
+    capitalized head's lowercase keys never follow it, and a key that maps
+    to itself keeps its reading.
+
+    ``rejected(form, head)``, when given, names a reading a later step of
+    the build drops (the article filter); such a head keeps the displaced
+    lemma, so its keys are not left without a row (ὄ, ό keep ὅς).
 
     ``eligible(form)``, when given, limits the change to keys whose reading
     came from the merged file. Changes ``ag`` in place and returns one
     record per key: form, displaced lemma, restored head and the counts.
     """
     eligible = eligible or (lambda form: True)
+    rejected = rejected or (lambda form, head: False)
+    key_evidence = key_evidence or {}
+    lemma_totals = lemma_totals or {}
     all_heads = set(wiktionary_heads) | set(listed_heads)
     restored = []
     alias_claims: dict[str, set] = {}
     for head, lemma in displaced_head_candidates(
             ag, wiktionary_heads, listed_heads, base).items():
-        if not eligible(head):
+        if not eligible(head) or rejected(head, head):
             continue
+        if head.lower() == lemma.lower():
+            if not lemma[:1].isupper() or (lemma_totals.get(head, 0)
+                                           < lemma_totals.get(lemma, 0)):
+                continue
         counts = evidence.get(head, {})
         own, other = counts.get(head, 0), counts.get(lemma, 0)
-        if not (own > other or (own == other and head in wiktionary_heads
-                                and base.get(head) == head)):
+        if head in wiktionary_heads:
+            supported = own > other or (own == other and base.get(head) == head)
+        else:
+            supported = own > other and own >= LISTED_HEAD_MIN_TOKENS
+        if not supported:
             continue
         restored.append({"form": head, "lemma": lemma, "head": head,
                          "head_count": own, "lemma_count": other})
-        for key in {head.lower(), to_monotonic(head), to_monotonic(head).lower(),
-                    strip_accents(head.lower())} - {head}:
-            if ag.get(key) == lemma and key not in all_heads and eligible(key):
-                alias_claims.setdefault(key, set()).add((head, lemma))
+        for key in head_alias_keys(head):
+            if key == lemma or ag.get(key) != lemma or key in all_heads:
+                continue
+            if head[:1].isupper() and not key[:1].isupper():
+                continue
+            if not eligible(key) or rejected(key, head):
+                continue
+            folded = key_evidence.get(key)
+            if folded and folded.get(head, 0) <= max(
+                    (count for other_lemma, count in folded.items()
+                     if other_lemma != head), default=0):
+                continue
+            alias_claims.setdefault(key, set()).add((head, lemma))
     for record in restored:
         ag[record["form"]] = record["head"]
     for key, claims in sorted(alias_claims.items()):
@@ -724,37 +817,6 @@ def build():
         with open(GLAUX_PAIRS_PATH, encoding="utf-8") as f:
             glaux_pairs = json.load(f)
 
-    # A word with an entry of its own takes back the reading another lemma's
-    # homograph entry or table took from it in the merged table, where GLAUx,
-    # or for a Wiktionary head the pinned Wiktionary-only base, prefers it
-    # (restore_displaced_lexical_heads; ἄπειρος, κλαίω, ἕως, γραφή).
-    if ag_base is not None and GRC_LEXICAL_HEADS_PATH.exists():
-        if glaux_pairs is None:
-            print(f"  NOTE: {GLAUX_PAIRS_PATH.name} not found; displaced "
-                  "heads are restored only where Wiktionary defines them and "
-                  "the pinned base reads them as themselves")
-        wiktionary_heads, listed_heads = lexical_heads_by_kind(GRC_LEXICAL_HEADS_PATH)
-        candidates = displaced_head_candidates(ag, wiktionary_heads, listed_heads,
-                                               ag_base)
-        restored_heads = restore_displaced_lexical_heads(
-            ag, wiktionary_heads=wiktionary_heads, listed_heads=listed_heads,
-            base=ag_base,
-            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys()),
-            eligible=lambda form: ag_source_overrides.get(form) in (
-                None, AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER))
-        for record in restored_heads:
-            _record_citation_rejection(
-                table="AG", source=ag_source_overrides.get(
-                    record["form"], ag_default_source),
-                form=record["form"], lemma=record["lemma"],
-                reason=f"displaced_lexical_head_restored_to_{record['head']}")
-            ag_source_overrides[record["form"]] = AG_WIKTIONARY_LAYER
-        print(f"  Displaced lexical heads restored: "
-              f"{sum(r['head_count'] is not None for r in restored_heads):,} "
-              f"heads, {len(restored_heads):,} keys "
-              f"({len(candidates):,} heads read as another lemma)")
-    ag_base = None
-
     # Merge med into el: vernacular medieval Greek is the ancestor of
     # Modern Greek, and EL Wiktionary's "Medieval Greek" category contains
     # early MG vocabulary, not Byzantine literary Greek.
@@ -870,6 +932,41 @@ def build():
                 and not _is_article_map(form, lemma)
                 and "\u0300" in unicodedata.normalize("NFD", form)
                 and strip_accents(form.lower()) in _VOWEL_ONLY_ARTICLE_LETTERS)
+
+    # A word with an entry of its own takes back the reading another lemma's
+    # homograph entry or table took from it in the merged table, where GLAUx,
+    # or for a Wiktionary head the pinned Wiktionary-only base, prefers it
+    # (restore_displaced_lexical_heads; ἄπειρος, κλαίω, ἕως, γραφή).
+    if ag_base is not None and GRC_LEXICAL_HEADS_PATH.exists():
+        if glaux_pairs is None:
+            print(f"  NOTE: {GLAUX_PAIRS_PATH.name} not found; displaced "
+                  "heads are restored only where Wiktionary defines them and "
+                  "the pinned base reads them as themselves")
+        wiktionary_heads, listed_heads = lexical_heads_by_kind(GRC_LEXICAL_HEADS_PATH)
+        candidates = displaced_head_candidates(ag, wiktionary_heads, listed_heads,
+                                               ag_base)
+        alias_keys = set().union(*map(head_alias_keys, candidates)) if candidates else set()
+        restored_heads = restore_displaced_lexical_heads(
+            ag, wiktionary_heads=wiktionary_heads, listed_heads=listed_heads,
+            base=ag_base,
+            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys()),
+            key_evidence=corpus_key_evidence(glaux_pairs or (), alias_keys),
+            lemma_totals=corpus_lemma_totals(glaux_pairs or ()),
+            rejected=_is_article_map,
+            eligible=lambda form: ag_source_overrides.get(form) in (
+                None, AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER))
+        for record in restored_heads:
+            _record_citation_rejection(
+                table="AG", source=ag_source_overrides.get(
+                    record["form"], ag_default_source),
+                form=record["form"], lemma=record["lemma"],
+                reason=f"displaced_lexical_head_restored_to_{record['head']}")
+            ag_source_overrides[record["form"]] = AG_WIKTIONARY_LAYER
+        print(f"  Displaced lexical heads restored: "
+              f"{sum(r['head_count'] is not None for r in restored_heads):,} "
+              f"heads, {len(restored_heads):,} keys "
+              f"({len(candidates):,} heads read as another lemma)")
+    ag_base = None
 
     # Expand AG with AGDT/Perseus treebank pairs (the 33 Greek AGDT works:
     # Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch,

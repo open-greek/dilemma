@@ -388,6 +388,72 @@ def test_restore_displaced_lexical_heads_follows_corpus_then_base():
     assert [record["form"] for record in restored] == sorted(by_form)
 
 
+def test_restored_head_aliases_need_the_corpus_reading_of_the_whole_key():
+    ag = {"γυναικών": "γυνή", "γυναικων": "γυνή",
+          "ῥᾶ": "ῥεῖα", "ρα": "ῥεῖα",
+          "ἕως": "ἠώς", "εως": "ἠώς"}
+    base = {"γυναικών": "γυναικών"}
+    evidence = {"ῥᾶ": {"ῥᾶ": 8}, "ἕως": {"ἕως": 5399, "ἠώς": 1}}
+    # γυναικῶν folds to γυναικων too; ῥα folds to ρα and the corpus reads
+    # it as ἄρα; εως has only ἕως behind it.
+    key_evidence = {"γυναικων": {"γυνή": 1785},
+                    "ρα": {"ἄρα": 752, "ῥᾶ": 8},
+                    "εως": {"ἕως": 5400, "ἠώς": 1}}
+    restored = B.restore_displaced_lexical_heads(
+        ag, wiktionary_heads={"γυναικών", "ῥᾶ", "ἕως"}, base=base,
+        evidence=evidence, key_evidence=key_evidence)
+    assert ag["γυναικών"] == "γυναικών" and ag["γυναικων"] == "γυνή"
+    assert ag["ῥᾶ"] == "ῥᾶ" and ag["ρα"] == "ῥεῖα"
+    assert ag["ἕως"] == ag["εως"] == "ἕως"
+    assert {r["form"] for r in restored} == {"γυναικών", "ῥᾶ", "ἕως", "εως"}
+
+
+def test_case_twins_are_restored_only_toward_the_commoner_lemma():
+    ag = {"Υἱός": "υἱός", "υιος": "υἱός",           # capital head: never
+          "Ϡ": "ϡ", "ϡ": "ϡ",
+          "ψυχή": "Ψυχή", "ψυχη": "Ψυχή",           # lowercase lemma commoner
+          "φίλιππος": "Φίλιππος", "φιλιππος": "Φίλιππος"}  # the name commoner
+    heads = {"Υἱός", "Ϡ", "ψυχή", "φίλιππος"}
+    evidence = {"Υἱός": {"Υἱός": 8}, "Ϡ": {"Ϡ": 12},
+                "ψυχή": {"ψυχή": 760}, "φίλιππος": {"φίλιππος": 8}}
+    totals = {"υἱός": 587, "Υἱός": 8, "ψυχή": 15029, "Ψυχή": 9,
+              "φίλιππος": 37, "Φίλιππος": 2970}
+    restored = B.restore_displaced_lexical_heads(
+        ag, wiktionary_heads=heads, base={}, evidence=evidence,
+        lemma_totals=totals, key_evidence={"ψυχη": {"ψυχή": 15029}})
+    assert ag["Υἱός"] == ag["υιος"] == "υἱός"
+    assert ag["Ϡ"] == ag["ϡ"] == "ϡ"
+    assert ag["ψυχή"] == ag["ψυχη"] == "ψυχή"
+    assert ag["φίλιππος"] == ag["φιλιππος"] == "Φίλιππος"
+    assert {r["form"] for r in restored} == {"ψυχή", "ψυχη"}
+
+
+def test_listed_heads_need_two_tokens_and_a_reading_the_build_keeps():
+    ag = {"ἐγώγε": "ἐγώ", "ὄ": "ὅς", "ό": "ὅς", "σπαθίον": "σπάθη"}
+    base = {"ἐγώγε": "ἐγώγε", "ὄ": "ὄ", "σπαθίον": "σπαθίον"}
+    evidence = {"ἐγώγε": {"ἐγώγε": 1}, "ὄ": {"ὄ": 3},
+                "σπαθίον": {"σπαθίον": 2}}
+    restored = B.restore_displaced_lexical_heads(
+        ag, wiktionary_heads=set(), listed_heads={"ἐγώγε", "ὄ", "σπαθίον"},
+        base=base, evidence=evidence,
+        # the build's article filter drops ὄ -> ὄ, which would leave the
+        # key without a row
+        rejected=lambda form, head: head == "ὄ")
+    assert ag["ἐγώγε"] == "ἐγώ"
+    assert ag["ὄ"] == ag["ό"] == "ὅς"
+    assert ag["σπαθίον"] == "σπαθίον"
+    assert [r["form"] for r in restored] == ["σπαθίον"]
+
+
+def test_corpus_key_evidence_folds_forms_to_their_loose_keys():
+    pairs = [{"form": "γυναικῶν", "lemma": "γυνή", "count": 1785},
+             {"form": "Γυναικῶν", "lemma": "γυνή", "count": 2},
+             {"form": "ψυχή", "lemma": "ψυχή", "count": 5}]
+    assert B.corpus_key_evidence(pairs, {"γυναικων", "ψυχη"}) == {
+        "γυναικων": {"γυνή": 1787}, "ψυχη": {"ψυχή": 5}}
+    assert B.corpus_lemma_totals(pairs) == {"γυνή": 1787, "ψυχή": 5}
+
+
 def test_restore_displaced_lexical_heads_respects_eligibility():
     ag = {"κλαίω": "κλείω"}
     restored = B.restore_displaced_lexical_heads(
