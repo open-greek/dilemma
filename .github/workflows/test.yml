@@ -81,7 +81,9 @@ jobs:
           python3 scripts/audit_hunspell_frequency.py --source fixture
 
       - name: Run all tests
-        run: python3 -m pytest tests/ -x -v
+        # Separate processes: one pytest process over the whole suite
+        # outgrows the runner's 16 GB of memory.
+        run: python3 scripts/run_test_chunks.py
 
       - name: Check deterministic benchmark baselines
         run: python3 scripts/check_benchmark_regressions.py

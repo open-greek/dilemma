@@ -422,6 +422,15 @@ changes. `pos_cell_corrections.json` is now also in `scripts/hf_data.py`'s
 tracked set, so it reaches the Hub and `python -m dilemma download`; without
 it the #106 corrections were silently absent from installed data.
 
+### Development
+
+`scripts/run_test_chunks.py` runs the test suite as several pytest processes,
+and CI now uses it: one process over the whole suite peaks at about 17.5 GB,
+more than the 16 GB CI runner has. The Ancient Greek, Modern Greek and
+Medieval Greek kaikki dumps the data build reads are archived on the Hub and
+pinned in `data/kaikki_inputs.json`; `scripts/archive_kaikki_inputs.py
+download` restores them and checks every sha256.
+
 ### Known limits
 
 - The lookup holds one reading per key, so genuine homographs keep that

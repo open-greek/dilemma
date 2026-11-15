@@ -50,9 +50,14 @@ benchmark gate. The dictionary audit requires a fresh Hunspell export first:
 ```bash
 python3 export_hunspell.py --variant grc
 python3 scripts/audit_hunspell_frequency.py --source fixture
-python3 -m pytest tests/ -x -v
+python3 scripts/run_test_chunks.py
 python3 scripts/check_benchmark_regressions.py
 ```
+
+`scripts/run_test_chunks.py` runs the suite as five pytest processes (four
+chunks of test files, then `tests/test_new_features.py` alone), the way CI
+does. A single `pytest tests/` process also works but peaks at about 17.5 GB,
+more than a 16 GB machine or CI runner has.
 
 Use `--run-slow` for tests that load model weights. Some source-specific tests
 need additional corpora and skip when those corpora are absent. See
