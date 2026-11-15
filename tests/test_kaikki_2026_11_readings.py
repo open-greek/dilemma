@@ -117,3 +117,41 @@ def test_absent_key_readings_are_overrides_too():
     assert B.EL_CORPUS_ROW_OVERRIDE_FORMS == (
         set(B.KAIKKI_2026_11_READING_OVERRIDES)
         | set(B.REVIEWED_ABSENT_KEY_READINGS) | {"Μάγων"})
+
+
+# Modern readings under lang="all" -------------------------------------------
+
+def test_modern_readings_are_pinned_and_apart_from_the_ancient_overrides():
+    m = B.MODERN_READING_OVERRIDES
+    assert m["αυτοκινήτου"] == m["αυτοκινητου"] == "αυτοκίνητο"
+    assert m["εστιάσεις"] == "εστίαση" and m["εμφράξεις"] == "έμφραξη"
+    assert m["δακτυλίδι"] == m["δακτυλιδι"] == "δαχτυλίδι"
+    assert m["Βιέννης"] == "Βιέννη"
+    # Modern lemmas are monotonic, and no key has an Ancient override too.
+    for lemma in m.values():
+        assert lemma == B.to_monotonic(lemma), lemma
+    assert not m.keys() & (B.KAIKKI_2026_11_READING_OVERRIDES.keys()
+                           | B.REVIEWED_ABSENT_KEY_READINGS.keys())
+    assert "MODERN_READING_OVERRIDES, combined=combined" in inspect.getsource(B.build)
+
+
+def test_modern_reading_changes_the_combined_table_only():
+    combined = {"αυτοκινήτου": "αὐτοκίνητος", "Βιέννης": "Βίεννα",
+                "εστιάσεις": "εστίαση"}
+    ag = dict(combined)
+    el = {"αυτοκινήτου": "αυτοκίνητο", "εστιάσεις": "εστίαση"}
+    el_sources = {"αυτοκινήτου": "mg_lookup.json", "εστιάσεις": "mg_lookup.json"}
+    sources = {}
+    changed = B.apply_modern_reading_overrides(
+        {"αυτοκινήτου": "αυτοκίνητο", "Βιέννης": "Βιέννη",
+         "εστιάσεις": "εστίαση", "δακτυλίδι": "δαχτυλίδι"},
+        combined=combined, combined_sources=sources, el=el, el_sources=el_sources)
+    # An absent key is not added, and a reading that is right already stays.
+    assert changed == ["αυτοκινήτου", "Βιέννης"]
+    assert combined == {"αυτοκινήτου": "αυτοκίνητο", "Βιέννης": "Βιέννη",
+                        "εστιάσεις": "εστίαση"}
+    # The row is the Modern table's where that has the reading.
+    assert sources == {"αυτοκινήτου": "mg_lookup.json",
+                       "Βιέννης": B.LOOKUP_OVERRIDES_INPUT}
+    assert ag["αυτοκινήτου"] == "αὐτοκίνητος" and ag["Βιέννης"] == "Βίεννα"
+    assert el == {"αυτοκινήτου": "αυτοκίνητο", "εστιάσεις": "εστίαση"}

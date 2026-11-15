@@ -365,6 +365,35 @@ def test_reviewed_absent_key_reading_is_added(tmp_path):
             "WHERE l.form = 'μήτ'").fetchall() == [("dilemma_corrections",)]
 
 
+def test_modern_spellings_keep_their_modern_reading_under_all(tmp_path):
+    # The Ancient table gained monotonic alias keys of Ancient lemmas, and
+    # the combined table is Ancient-first.
+    data, env = _fixture(tmp_path, {
+        "ag": {"αυτοκινήτου": "αὐτοκίνητος", "αὐτοκίνητος": "αὐτοκίνητος",
+               "Βιέννης": "Βίεννα"},
+        "mg_lookup.json": {"λόγος": "λόγος", "αυτοκίνητο": "αυτοκίνητο",
+                           "αυτοκινήτου": "αυτοκίνητο"},
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    combined, grc, el = _rows(data), _rows(data, "grc"), _rows(data, "el")
+    assert combined["αυτοκινήτου"] == "αυτοκίνητο"
+    assert combined["Βιέννης"] == "Βιέννη"
+    # lang="grc" still reads the Ancient lemma; lang="el" needs no row of
+    # its own, because the combined row is the Modern one.
+    assert grc["αυτοκινήτου"] == "αὐτοκίνητος" and grc["Βιέννης"] == "Βίεννα"
+    assert "αυτοκινήτου" not in el and "Βιέννης" not in el
+    assert combined["αὐτοκίνητος"] == "αὐτοκίνητος"
+    with sqlite3.connect(data / "lookup.db") as conn:
+        rows = dict(conn.execute(
+            "SELECT l.form, l.src || ' ' || s.code FROM lookup l "
+            "JOIN sources s ON s.id = l.source_id WHERE l.lang = 'all'"))
+    # The row is the Modern table's own where that table has the reading.
+    assert rows["αυτοκινήτου"] == "el wiktionary_el"
+    assert rows["Βιέννης"] == "el dilemma_corrections"
+    assert "Modern readings kept under lang=all: 2" in result.stdout
+
+
 # #126: lexical heads displaced by another lemma's homograph entry ----------
 
 def test_lexical_heads_by_kind_separates_wiktionary_entries(tmp_path):

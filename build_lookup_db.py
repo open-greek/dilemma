@@ -251,6 +251,46 @@ def apply_lookup_overrides(overrides: dict, *, combined: dict,
     return counts
 
 
+# Modern Greek spellings that the 2026-11 rebuild reads as an Ancient lemma
+# under lang="all". Fresh Wiktionary pages and the fresh dictionary expansion
+# gave these monotonic and unaccented keys an Ancient reading, and the
+# combined table is Ancient-first. 1.3.25 answered with the Modern lemma,
+# which the el table still holds. Only the combined reading changes: the
+# Ancient table keeps its own and answers lang="grc" with it. These cannot
+# join the overrides above, which rewrite the Ancient table too and name
+# Ancient lexical heads.
+MODERN_READING_OVERRIDES = {
+    "αυτοκινήτου": "αυτοκίνητο", "αυτοκινητου": "αυτοκίνητο",  # αὐτοκίνητος
+    "εστιάσεις": "εστίαση",                                   # ἑστιάω
+    "εμφράξεις": "έμφραξη",                                   # ἐμφράσσω
+    "δακτυλίδι": "δαχτυλίδι", "δακτυλιδι": "δαχτυλίδι",       # δακτυλίς
+    "Βιέννης": "Βιέννη",                                      # Βίεννα
+}
+
+
+def apply_modern_reading_overrides(readings: dict, *, combined: dict,
+                                   combined_sources: dict, el: dict,
+                                   el_sources: dict) -> list[str]:
+    """Give the combined table the reviewed Modern reading of a key it holds.
+
+    The Ancient and el tables are left as they are, so the Ancient reading
+    is still written as a grc row. The combined row is credited to the
+    source of the el reading when the el table has the same one, otherwise
+    to the reviewed corrections. Returns the forms whose reading changed;
+    their combined rows are Modern ones.
+    """
+    changed = []
+    for form, lemma in readings.items():
+        if form not in combined or combined[form] == lemma:
+            continue
+        combined[form] = lemma
+        combined_sources[form] = (el_sources[form]
+                                  if el.get(form) == lemma and form in el_sources
+                                  else LOOKUP_OVERRIDES_INPUT)
+        changed.append(form)
+    return changed
+
+
 _FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",
                         "\u1fbf", "\u0313", "\u0314"}
 _FINAL_KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
@@ -1976,6 +2016,11 @@ def build():
         print(f"  Lookup overrides applied: {overridden['changed']:,} readings "
               f"changed, {overridden['added']:,} absent keys added, "
               f"{overridden['el_removed']:,} el-only corpus readings removed")
+    modern_forms = apply_modern_reading_overrides(
+        MODERN_READING_OVERRIDES, combined=combined,
+        combined_sources=combined_sources, el=el, el_sources=el_sources)
+    if modern_forms:
+        print(f"  Modern readings kept under lang=all: {len(modern_forms):,}")
 
     print(f"  Combined: {len(combined):,} entries")
 
@@ -2031,6 +2076,10 @@ def build():
                 src_map[k] = src_label
             elif _is_self_map(k, combined.get(k, '')) and not _is_self_map(k, data[k]):
                 src_map[k] = src_label
+    # A reviewed Modern reading makes the combined row a Modern one, whichever
+    # table held the key first.
+    for k in modern_forms:
+        src_map[k] = 'el'
 
     conn.executemany(
         "INSERT INTO lookup (form, lemma_id, src, lang, source_id) "
