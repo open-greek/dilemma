@@ -137,10 +137,10 @@ has no Ancient twin is kept too, so polytonic vernacular Greek still reads as
 Modern (`ἀκόμη` gives `ακόμη`, `ἀξίζει` `αξίζω`, `ἔργο` `έργο`; also
 `ἀστοχήσει` `αστοχώ`). With `lang="grc"` there is otherwise no lemma
 (`ἀστοχήσει` gives `None` with `guess=False`). `lang="el"` and
-`convention="triantafyllidis"` read the Modern rows as before. Known gaps: the
-Sophocles lexicon writes its omicron and rho heads without breathings, and the
-POS rejection audit is built against those heads, so `ὀφφικίου` gives
-`ὀφφίκιον` untagged but `None` with a NOUN tag. With `lang="grc"` a polytonic
+`convention="triantafyllidis"` read the Modern rows as before. The Sophocles
+lexicon's omicron and rho heads get their breathings back before expansion,
+so `ὀφφικίου` gives `ὀφφίκιον` both untagged and with a NOUN tag. Known gaps:
+with `lang="grc"` a polytonic
 Modern Greek word that no Ancient head spells can still reach the Byzantine
 normalizer, which may find an unrelated Ancient word (`ἀλλιῶς` gives
 `ἁλιεύς`, `ἀνάβει` `Ανάβης`); with `lang="all"` these keep their Modern lemma.

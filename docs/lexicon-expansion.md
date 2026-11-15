@@ -35,6 +35,14 @@ breathings the Sophocles OCR lost (`expand_sophocles.py` refuses to run
 without it). `--kaikki` names the dump directory in either layout
 ([Dump directories](development.md#dump-directories)).
 
+The verb pass reads each headword's LSJ text from `lsj9_glosses.jsonl` to add
+principal parts and to skip entries that are not paradigms (prefixes,
+cross-references, inflected imperatives, person-limited verbs). A glosses
+export that lacks an entry's text cannot skip it that way, so a headword that
+is all conjugation ending (the prefix `ἡμι-`, whose stem is empty) is never
+expanded, with or without its text; it would otherwise map bare endings such
+as `ῆς` and `εῖτε` to the prefix.
+
 ## Historical expansion overlay
 
 The final overlay is intentional. A May 2026 base-data refresh replaced the
