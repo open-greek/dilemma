@@ -903,3 +903,90 @@ def test_released_conflict_with_editorial_notation_stays_excluded():
     assert stats["excluded_entries"] == 2
     assert stats["released_conflict_entries"] == 1
     assert stats["editorial_entries"] == 0
+
+
+def test_noun_without_a_fresh_paradigm_keeps_its_published_keys():
+    # λεκτόν was superseded but its generation withheld; ἀγκών got a fresh
+    # paradigm, so its old keys stay out.
+    reference = {"λεκτοῦ": "λεκτόν", "λεκτά": "λεκτόν", "λεκτοῖς": "λεκτόν",
+                 "ἀγκῶνος": "ἀγκών", "παλαιός": "παλαιός"}
+    carried = {"λεκτοῦ": "λεκτόν", "λεκτά": "λεκτός",    # another reading
+               "ἀγκῶνος": "ἀγκών"}                       # λεκτοῖς: no key
+    target = {}
+    stats = overlay_expansion(
+        reference, {}, target, superseded_noun_lemmas={"λεκτόν", "ἀγκών"},
+        carried=carried, withheld_noun_lemmas={"λεκτόν": ("οῦ",)},
+        lexical_heads={"λεκτόν", "ἀγκών"})
+    assert target == {"λεκτοῦ": "λεκτόν", "παλαιός": "παλαιός"}
+    assert stats["withheld_noun_entries_kept"] == 1
+    assert stats["withheld_noun_lemmas_kept"] == 1
+    assert stats["superseded_noun_entries"] == 3
+    assert stats["added"] == 1
+
+
+def test_withheld_noun_keys_need_a_positive_head_and_a_possible_spelling():
+    reference = {"κλῃσίν": "κλείς", "κλει-δὸς": "κλείς", "κλεῖδὸς": "κλείς",
+                 "Ἀρτέμονος": "᾿Αρτέμων"}
+    carried = dict(reference)
+    target = {}
+    stats = overlay_expansion(
+        reference, {}, target, superseded_noun_lemmas={"κλείς", "᾿Αρτέμων"},
+        carried=carried,
+        withheld_noun_lemmas={"κλείς": ("κλειδός",), "᾿Αρτέμων": ()},
+        lexical_heads={"κλείς", "Ἀρτέμων"})
+    assert target == {"κλῃσίν": "κλείς"}
+    assert stats["withheld_noun_entries_kept"] == 1
+    assert stats["superseded_noun_entries"] == 3
+
+
+def test_wrongly_declined_withheld_noun_keeps_only_its_citation_spelling():
+    # The old generator declined Θεοπρεπότης, -τος by its nominative. The
+    # printed ending is not among the keys, so only the citation stays.
+    # κλείς has its printed genitive among them and keeps the paradigm.
+    reference = {"Θεοπρεπότης": "Θεοπρεπότης", "Θεοπρεπότὴς": "Θεοπρεπότης",
+                 "Θεοπρεπότου": "Θεοπρεπότης", "Θεοπρεπότῃ": "Θεοπρεπότης",
+                 "κλείς": "κλείς", "κλειδός": "κλείς", "κλειδί": "κλείς",
+                 "ἀπεικός": "ἀπεικός", "ἀπεικὸς": "ἀπεικός",
+                 "ἀπεικοῦ": "ἀπεικός"}
+    target = {}
+    stats = overlay_expansion(
+        reference, {}, target,
+        superseded_noun_lemmas={"Θεοπρεπότης", "κλείς", "ἀπεικός"},
+        carried=dict(reference),
+        withheld_noun_lemmas={"Θεοπρεπότης": ("τος",), "κλείς": ("κλειδός",),
+                              "ἀπεικός": ("ότος",)},
+        lexical_heads={"Θεοπρεπότης", "κλείς", "ἀπεικός"})
+    assert target == {"Θεοπρεπότης": "Θεοπρεπότης",
+                      "κλείς": "κλείς", "κλειδός": "κλείς", "κλειδί": "κλείς",
+                      "ἀπεικός": "ἀπεικός", "ἀπεικὸς": "ἀπεικός"}
+    assert stats["withheld_noun_citation_only_lemmas"] == 2
+    assert stats["withheld_noun_lemmas_kept"] == 3
+    assert stats["withheld_noun_entries_kept"] == 6
+    assert stats["superseded_noun_entries"] == 4
+
+
+def test_withheld_noun_lemmas_are_superseded_records_without_a_genitive(tmp_path):
+    from overlay_lsj import load_withheld_noun_lemmas
+    lsj = tmp_path / "lsj.json"
+    lsj.write_text(json.dumps({"resolutions": {
+        "λεκτόν": {"supplied": "οῦ", "resolved": "",
+                   "reason": "unsupported-genitive-abbreviation"},
+        "σωματεῖον": {"supplied": "", "resolved": "",
+                      "reason": "missing-genitive"},
+        "ἀγκών": {"supplied": "ῶνος", "resolved": "ἀγκῶνος",
+                  "reason": "completed-genitive"},
+        "κλυσμός": {"supplied": "οὔ", "resolved": "",
+                    "reason": "unsupported-genitive-abbreviation"},
+        "Α α": {"supplied": "", "resolved": "",
+                "reason": "nonlexical-noun-headword"},
+        "ἄλλος": {"supplied": "ου", "resolved": "",
+                  "reason": "missing-genitive"}}}), encoding="utf-8")
+    sophocles = tmp_path / "sophocles.json"
+    sophocles.write_text(json.dumps({"resolutions": {
+        "λεκτόν": {"supplied": "τό", "resolved": "",
+                   "reason": "unsupported-genitive-abbreviation"},
+        "κλυσμός": {"supplied": "", "resolved": "κλυσμου",
+                    "reason": "completed-genitive"}}}), encoding="utf-8")
+    superseded = {"λεκτόν", "σωματεῖον", "ἀγκών", "κλυσμός", "Α α"}
+    assert load_withheld_noun_lemmas((lsj, sophocles), superseded) == {
+        "λεκτόν": ("οῦ", "τό"), "σωματεῖον": ()}

@@ -62,6 +62,9 @@ CLOSED_CLASS_DUMPS = {
 }
 _CHUNK = 1 << 20
 _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
+# What a consonant-stem or s-stem entry prints after its headword: a
+# genitive in -ος, -ως or -ους, or the neuter -ες of an adjective in -ης.
+_THIRD_DECLENSION_ENDINGS = ("ος", "ως", "ους", "ες")
 
 
 def has_orthographic_mark(form: str) -> bool:
@@ -679,6 +682,57 @@ def carried_baseline_conflicts(conflicts, reference: dict[str, str],
         if form in reference and carried.get(form) == reference[form])
 
 
+def kept_withheld_noun_forms(
+    pending: dict[str, list[str]],
+    withheld_noun_lemmas: dict[str, tuple[str, ...]],
+    lexical_heads: set[str] | frozenset[str],
+) -> tuple[list[tuple[str, str]], dict[str, int]]:
+    """Choose the published keys a noun without a fresh paradigm keeps.
+
+    ``pending`` holds, per superseded lemma whose generation was withheld,
+    the marked expansion keys the published table carried and the target
+    lacks. They are kept when the lemma is a positive lexical head and the
+    key is a structurally possible polytonic spelling (the Hunspell
+    export's grc_orthography_reason, with the elision mark normalised).
+
+    One class of old paradigm is known to be wrong. The old generator
+    declined a headword by its nominative when it could not use the printed
+    genitive, so Θεοπρεπότης, -τος became Θεοπρεπότου and ἀδιτίων, -ωνος
+    became ἀδιτίονος. Where the lemma's own citation key is among the keys
+    (the whole paradigm was generated) and the entry prints a
+    third-declension ending that none of the other keys ends with, only the
+    citation spelling is kept.
+    """
+    from export_hunspell import grc_orthography_reason
+
+    kept: list[tuple[str, str]] = []
+    stats = {"withheld_noun_lemmas_kept": 0, "withheld_noun_entries_kept": 0,
+             "withheld_noun_citation_only_lemmas": 0, "left": 0}
+    for lemma, forms in pending.items():
+        candidates = [
+            form for form in forms
+            if lemma in lexical_heads and grc_orthography_reason(
+                canonicalize_final_elision(sanitize_form(form))) is None
+        ]
+        citation = [form for form in candidates if grave_to_acute(form) == lemma]
+        if citation:
+            letters = [strip_marks(form).lower() for form in candidates
+                       if form not in citation]
+            printed = [strip_marks(text).lower()
+                       for text in withheld_noun_lemmas[lemma]]
+            if any(ending.endswith(_THIRD_DECLENSION_ENDINGS)
+                   and not any(form.endswith(ending) for form in letters)
+                   for ending in printed):
+                candidates = citation
+                stats["withheld_noun_citation_only_lemmas"] += 1
+        stats["left"] += len(forms) - len(candidates)
+        if candidates:
+            stats["withheld_noun_lemmas_kept"] += 1
+            stats["withheld_noun_entries_kept"] += len(candidates)
+            kept.extend((form, lemma) for form in candidates)
+    return kept, stats
+
+
 def overlay_expansion(
     reference: dict[str, str],
     reference_base: dict[str, str],
@@ -686,13 +740,26 @@ def overlay_expansion(
     excluded_forms: set[str] | frozenset[str] = frozenset(),
     superseded_noun_lemmas: set[str] | frozenset[str] = frozenset(),
     released_forms: set[str] | frozenset[str] = frozenset(),
+    carried: dict[str, str] | None = None,
+    withheld_noun_lemmas: dict[str, tuple[str, ...]] | None = None,
+    lexical_heads: set[str] | frozenset[str] = frozenset(),
 ) -> dict[str, int]:
     """Add only historical expansion keys, preserving current mappings.
 
     ``released_forms`` are excluded forms (released baseline conflicts) that
     still take the expansion reading; they count among the pinned
     exclusions and separately as released.
+
+    A superseded noun lemma loses its old paradigm to the fresh one. A
+    lemma in ``withheld_noun_lemmas`` has no fresh paradigm (the generator
+    could not use its printed genitive), so it keeps the expansion keys
+    ``carried`` (the published table) has with the same reading, as
+    kept_withheld_noun_forms() selects them. They are counted as
+    ``withheld_noun_entries_kept``, not as ``added``.
     """
+    carried = carried or {}
+    withheld_noun_lemmas = withheld_noun_lemmas or {}
+    pending: dict[str, list[str]] = {}
     stats = {
         "reference_entries": len(reference),
         "reference_base_entries": len(reference_base),
@@ -707,6 +774,9 @@ def overlay_expansion(
         "nonlexical_lemma_entries": 0,
         "superseded_verb_entries": 0,
         "superseded_noun_entries": 0,
+        "withheld_noun_lemmas_kept": 0,
+        "withheld_noun_entries_kept": 0,
+        "withheld_noun_citation_only_lemmas": 0,
         "added": 0,
     }
     for form, lemma in reference.items():
@@ -739,10 +809,20 @@ def overlay_expansion(
             stats["superseded_verb_entries"] += 1
             continue
         if lemma in superseded_noun_lemmas:
-            stats["superseded_noun_entries"] += 1
+            if lemma in withheld_noun_lemmas and carried.get(form) == lemma:
+                pending.setdefault(lemma, []).append(form)
+            else:
+                stats["superseded_noun_entries"] += 1
             continue
         target[form] = lemma
         stats["added"] += 1
+    if pending:
+        kept, kept_stats = kept_withheld_noun_forms(
+            pending, withheld_noun_lemmas, lexical_heads)
+        stats["superseded_noun_entries"] += kept_stats.pop("left")
+        stats.update(kept_stats)
+        for form, lemma in kept:
+            target[form] = lemma
     stats["target_entries_after"] = len(target)
     return stats
 
@@ -841,6 +921,32 @@ def load_noun_generation_audit(path: Path, generator="expand_lsj.py") -> frozens
     if not isinstance(lemmas, list) or not all(isinstance(x, str) for x in lemmas):
         raise SystemExit("invalid noun generation audit")
     return frozenset(lemmas)
+
+
+def load_withheld_noun_lemmas(
+    paths, superseded_noun_lemmas: set[str] | frozenset[str],
+) -> dict[str, tuple[str, ...]]:
+    """Superseded nouns that the current generators gave no paradigm.
+
+    The noun audits record, per headword, the genitive text the entry
+    prints and the genitive the generator resolved from it. A superseded
+    lemma is withheld when it has a record, none of its records resolved a
+    genitive, and none rules the headword out as a noun. The value is the
+    genitive text its records print, which may be empty.
+    """
+    records: dict[str, list[dict]] = defaultdict(list)
+    for path in paths:
+        audit = json.loads(Path(path).read_text(encoding="utf-8"))
+        for lemma, record in audit.get("resolutions", {}).items():
+            if lemma in superseded_noun_lemmas:
+                records[lemma].append(record)
+    return {
+        lemma: tuple(record["supplied"] for record in rows if record["supplied"])
+        for lemma, rows in records.items()
+        if not any(record["resolved"]
+                   or record["reason"] == "nonlexical-noun-headword"
+                   for record in rows)
+    }
 
 
 def resolve_target_editorial_entries(target: dict[str, str]) -> dict[str, int]:
@@ -1017,9 +1123,18 @@ def main() -> None:
         "entries removed"
     )
 
+    # The noun rule needs the published table; a manifest without one runs
+    # the plain overlay.
+    withheld_nouns: dict[str, tuple[str, ...]] = {}
+    if carried:
+        withheld_nouns = load_withheld_noun_lemmas(
+            (args.noun_audit, args.sophocles_noun_audit), superseded_nouns)
+
     stats = overlay_expansion(
         reference, reference_base, target, excluded_forms=excluded_forms,
         superseded_noun_lemmas=superseded_nouns, released_forms=released_forms,
+        carried=carried, withheld_noun_lemmas=withheld_nouns,
+        lexical_heads=lexical_heads,
     )
     alias_stats = restore_attested_compound_aliases(
         reference, reference_base, target, source_pairs,
@@ -1034,6 +1149,8 @@ def main() -> None:
         reference, reference_base, target, carried,
         excluded_forms=excluded_forms - released_forms,
         restored_rows=unmarked_rows))
+    stats["unmarked_withheld_noun_restored"] = sum(
+        lemma in withheld_nouns for _key, lemma in unmarked_rows)
     del carried
     alias_stats["historical_overlay_counts"] = stats
     alias_stats["unmarked_key_restore"] = unmarked_restore_record(unmarked_rows)
@@ -1073,9 +1190,15 @@ def main() -> None:
     print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
     print(f"Released baseline conflicts: {stats['released_conflict_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
+    print(f"Published keys of nouns without a fresh paradigm kept: "
+          f"{stats['withheld_noun_entries_kept']:,} "
+          f"({stats['withheld_noun_lemmas_kept']:,} lemmas, "
+          f"{stats['withheld_noun_citation_only_lemmas']:,} citation only)")
     print(f"Unaccented fallback keys restored: {stats['unmarked_restored']:,} "
           f"({stats['unmarked_disputed']:,} disputed, "
           f"{stats['unmarked_unbacked']:,} without a marked form)")
+    print(f"  of them: {stats['unmarked_withheld_noun_restored']:,} of nouns "
+          f"without a fresh paradigm")
     print(f"Attested compound cells/aliases recovered: {alias_stats['recovered_count']:,}")
     print(f"Attested owners canonicalized: {alias_stats['canonicalized_count']:,}")
     print(f"Historical closed-class elisions canonicalized: "
