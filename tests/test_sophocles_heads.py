@@ -316,7 +316,7 @@ def test_verb_step_rejects_and_repairs_malformed_heads(tmp_path, monkeypatch):
 
 
 COMMON = frozenset({"ἀθεότης", "ἔκπτυξις", "ἱπποθυτέω", "πέτρα", "Πέτρα",
-                    "θεοπρεπῶς", "ἑλένη", "Ἑλένη"})
+                    "θεοπρεπῶς", "ἑλένη", "Ἑλένη", "ἀγάπη", "Ἀγάπη"})
 
 
 @pytest.mark.parametrize("printed,head,rule", [
@@ -325,9 +325,12 @@ COMMON = frozenset({"ἀθεότης", "ἔκπτυξις", "ἱπποθυτέω
     ("Ἔκπτυξις", "ἔκπτυξις", "lowercased"),
     ("Θεοπρεπῶς", "θεοπρεπῶς", "lowercased"),
     ("Ἱππο-θυτέω", "ἱπποθυτέω", "joined"),
+    # the OCR prints the capital's breathing as a separate mark
+    ("᾿Αθεότης", "ἀθεότης", "lowercased"),
     # another source lists the capitalized head: a name beside a common word
     ("Πέτρα", "Πέτρα", ""),
     ("Ἑλένη", "Ἑλένη", ""),
+    ("᾿Αγάπη", "᾿Αγάπη", ""),
     # no lowercase twin
     ("Θεοδοτάκης", "Θεοδοτάκης", ""),
     ("Σιναῖτις", "Σιναῖτις", ""),
@@ -343,7 +346,7 @@ def test_noun_step_generates_a_common_word_under_its_lowercase_head(
     sources = ["lsj9_headwords"]
     lookup, audit, calls = run_noun_step(
         tmp_path, monkeypatch, {"ἔκπτυξις": "ἔκπτυξις", "εκπτυξις": "ἔκπτυξις"},
-        "<orth>Ἀθεότης</orth>, ητος, ἡ, ungodliness.",
+        "<orth>᾿Αθεότης</orth>, ητος, ἡ, ungodliness.",
         "<orth>Ἔκπτυξις</orth>, εως, ἡ, an unfolding.",
         "<orth>Πέτρα</orth>, ας, ἡ, Petra, a city.",
         "<orth>Θεοδοτάκης</orth>, ου, ὁ, dear Θεόδοτος.",
@@ -360,7 +363,7 @@ def test_noun_step_generates_a_common_word_under_its_lowercase_head(
     assert set(lookup.values()) == {
         "ἔκπτυξις", "ἀθεότης", "Πέτρα", "Θεοδοτάκης", "θεοπρεπῶς"}
     assert audit["head_rules"]["lowercased_heads"] == {"count": 3, "heads": {
-        "Ἀθεότης": "ἀθεότης", "Ἔκπτυξις": "ἔκπτυξις", "Θεοπρεπῶς": "θεοπρεπῶς"}}
+        "Ἔκπτυξις": "ἔκπτυξις", "Θεοπρεπῶς": "θεοπρεπῶς", "᾿Αθεότης": "ἀθεότης"}}
 
 
 def test_verb_step_generates_a_common_word_under_its_lowercase_head(

@@ -34,6 +34,7 @@ from expand_lsj import (
 from dilemma.form_sanitize import (  # noqa: E402
     has_editorial_sigla,
     resolve_editorial_form,
+    sanitize_form,
 )
 
 SOPH_DIR = DATA_DIR / "sophocles" / "chunks"
@@ -291,9 +292,12 @@ _INNER_HYPHENS = "-—–"
 
 def lowercase_twin(head, lexical_heads):
     """The lowercase spelling of a capitalized head when the other lexical
-    sources list that spelling and not the capitalized one, else ""."""
-    lowered = head.lower()
-    if (lexical_heads and head[:1].isupper() and head not in lexical_heads
+    sources list that spelling and not the capitalized one, else "". The
+    OCR prints some capitals' breathing as a separate mark (᾿Αθεότης); the
+    twin is that of the head with the mark joined (Ἀθεότης -> ἀθεότης)."""
+    spelled = sanitize_form(head)
+    lowered = spelled.lower()
+    if (lexical_heads and spelled[:1].isupper() and spelled not in lexical_heads
             and lowered in lexical_heads):
         return lowered
     return ""
@@ -311,7 +315,7 @@ def settle_head(printed, lexical_heads=None):
 
     A capitalized head is a common word the lexicon prints with a capital
     when the other sources list only its lowercase spelling ("lowercased":
-    Ἀθεότης -> ἀθεότης, Ἔκπτυξις -> ἔκπτυξις). A capitalized head another
+    ᾿Αθεότης -> ἀθεότης, Ἔκπτυξις -> ἔκπτυξις). A capitalized head another
     source lists (Πέτρα beside πέτρα), or one with no lowercase twin, is a
     name and stands.
     """
