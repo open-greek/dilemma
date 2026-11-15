@@ -1072,3 +1072,37 @@ For individual form-to-lemma corrections where the lookup table returns
 the wrong lemma due to ambiguity (e.g., proper nouns beating common
 verbs), `build_lookup_db.py` has a `_LOOKUP_OVERRIDES` dict that
 hard-corrects specific entries in the database.
+
+### Displaced Ancient heads
+
+`build_data.py` can read a word that has an entry of its own as a form of
+another word: a second entry on the same Wiktionary page (`κλαίω` is also a
+future of `κλείω`, `ἄπειρος` a Doric spelling of `ἤπειρος`), a name page's
+lowercase key (`δῖος` -> `Δῖος`), or another word's table (`γραφή` ->
+`γραφεύς`). The cross-source form-of pass moves such a key even when one
+dump defines it, so `ag_lookup.json` loses the head's own reading. Both
+readings are real, and `ag_pos_lookup.json` keeps both where the parts of
+speech differ; the lookup holds one.
+
+`build_lookup_db.py` gives the head its reading back
+(`restore_displaced_lexical_heads`), before any corpus gap-fill:
+
+- A head that a Wiktionary extract defines (`wiktionary_en_grc` or
+  `wiktionary_el_grc` in `grc_lexical_heads.json`) takes it back when the
+  counted GLAUx pairs read the form as the head more often than as the
+  displacing lemma (`ἕως` 5,399 to 1), or when GLAUx is silent or tied and
+  the pinned Wiktionary-only base (`ag_lookup_wikt.json`) reads it as itself.
+- A head only a dictionary lists (`σπαθίον`, `κατέναντι`) is considered only
+  where the base reads it as itself, and needs the GLAUx majority, because
+  those lists and the base also hold inflected forms.
+- Where GLAUx prefers the other lemma (`τοῦ`, `ἴσον`, `θρόνον`), the reading
+  stays. The head's unaccented, lowercase and monotonic keys follow it when
+  they hold the same displaced lemma, are not heads themselves, and no other
+  restored head claims them.
+
+Restored rows carry the `wiktionary_grc` source, and each one is listed in
+`citation_hygiene_rejections.tsv` with the reason
+`displaced_lexical_head_restored_to_<head>` and the displaced lemma. The
+rule needs no input beyond those the build already reads. Without
+`glaux_pairs.json` it restores only the Wiktionary heads the base reads as
+themselves, and says so.

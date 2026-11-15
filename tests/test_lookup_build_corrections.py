@@ -314,3 +314,161 @@ def test_merged_layer_reassignments_are_overridden(tmp_path):
         assert rows["ἀρὰν"] == "ἀρά"
         # The other words' own forms are untouched.
         assert rows["γραφέα"] == "γραφεύς" and rows["συός"] == "σῦς"
+
+
+# #126: lexical heads displaced by another lemma's homograph entry ----------
+
+def test_lexical_heads_by_kind_separates_wiktionary_entries(tmp_path):
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({"heads": {
+        "κλαίω": ["lsj9_headwords", "wiktionary_en_grc"],
+        "ἕως": ["wiktionary_el_grc"],
+        "σπαθίον": ["lsj9_headwords", "pd_headwords"],
+        "ἄπειρος": ["wiktionary_el_medieval"]}}, ensure_ascii=False),
+        encoding="utf-8")
+    wiktionary, listed = B.lexical_heads_by_kind(path)
+    assert wiktionary == {"κλαίω", "ἕως"}
+    assert listed == {"κλαίω", "ἕως", "σπαθίον", "ἄπειρος"}
+    # The list form of older fixtures names no source: no head qualifies.
+    path.write_text(json.dumps({"heads": ["κλαίω"]}), encoding="utf-8")
+    assert B.lexical_heads_by_kind(path) == (frozenset(), frozenset())
+
+
+def test_corpus_form_evidence_sums_counts_of_listed_forms():
+    pairs = [{"form": "ἕως", "lemma": "ἕως", "count": 7},
+             {"form": "ἕως", "lemma": "ἠώς", "count": 1},
+             {"form": "ἕως", "lemma": "ἕως", "count": 2},
+             {"form": "λόγος", "lemma": "λόγος", "count": 9},
+             {"form": "θρόνον", "lemma": "θρόνος"}]
+    assert B.corpus_form_evidence(pairs, {"ἕως", "θρόνον"}) == {
+        "ἕως": {"ἕως": 9, "ἠώς": 1}, "θρόνον": {"θρόνος": 1}}
+
+
+def test_restore_displaced_lexical_heads_follows_corpus_then_base():
+    wiktionary = {"κλαίω", "ἕως", "θρόνον", "ἀγγελθείης", "ἄπειρος", "ἄπειρον",
+                  "μήν", "μῆν"}
+    listed = {"σπαθίον", "ποδίσκος", "ἠρίσταμεν", "νηός"}
+    ag = {"κλαίω": "κλείω", "κλαιω": "κλείω",       # base self-map, no corpus
+          "ἕως": "ἠώς", "εως": "ἠώς", "έως": "ἠώς",  # corpus prefers the head
+          "θρόνον": "θρόνος",                         # corpus prefers the lemma
+          "ἀγγελθείης": "ἀγγέλλω",                    # neither supports the head
+          "ἄπειρος": "ἤπειρος", "ἄπειρον": "ἤπειρος",
+          "απειρος": "ἤπειρος",
+          "μήν": "μείς", "μῆν": "μείς", "μην": "μείς",  # two heads, one alias
+          "σπαθίον": "σπάθη",      # dictionary head, base and corpus agree
+          "ποδίσκος": "πούς",      # dictionary head, base only: stays
+          "ἠρίσταμεν": "ἀριστάω",  # an inflected form a list holds: stays
+          "νηός": "ναός",          # corpus prefers the head, base does not
+          "λόγος": "λόγος"}
+    base = {"κλαίω": "κλαίω", "θρόνον": "θρόνον", "ἄπειρος": "ἄπειρος",
+            "ἄπειρον": "ἄπειρον", "σπαθίον": "σπαθίον", "ποδίσκος": "ποδίσκος",
+            "ἠρίσταμεν": "ἠρίσταμεν"}
+    evidence = {"ἕως": {"ἕως": 5399, "ἠώς": 1}, "θρόνον": {"θρόνος": 201},
+                "μήν": {"μήν": 587, "μείς": 9}, "μῆν": {"μῆν": 3},
+                "σπαθίον": {"σπαθίον": 2}, "ἠρίσταμεν": {"ἀριστάω": 1},
+                "νηός": {"νηός": 5}}
+    restored = B.restore_displaced_lexical_heads(
+        ag, wiktionary_heads=wiktionary, listed_heads=listed, base=base,
+        evidence=evidence)
+    assert ag["κλαίω"] == ag["κλαιω"] == "κλαίω"
+    assert ag["ἕως"] == ag["εως"] == ag["έως"] == "ἕως"
+    assert ag["θρόνον"] == "θρόνος" and ag["ἀγγελθείης"] == "ἀγγέλλω"
+    assert ag["ἄπειρος"] == "ἄπειρος" and ag["ἄπειρον"] == "ἄπειρον"
+    # Both restored heads claim the unaccented key: it keeps its reading.
+    assert ag["μήν"] == "μήν" and ag["μῆν"] == "μῆν" and ag["μην"] == "μείς"
+    assert ag["απειρος"] == "ἄπειρος"
+    assert ag["σπαθίον"] == "σπαθίον"
+    assert ag["ποδίσκος"] == "πούς" and ag["ἠρίσταμεν"] == "ἀριστάω"
+    assert ag["νηός"] == "ναός"
+    by_form = {record["form"]: record for record in restored}
+    assert by_form["ἕως"] == {"form": "ἕως", "lemma": "ἠώς", "head": "ἕως",
+                              "head_count": 5399, "lemma_count": 1}
+    assert by_form["εως"]["head"] == "ἕως" and by_form["εως"]["head_count"] is None
+    assert "θρόνον" not in by_form and "μην" not in by_form
+    assert [record["form"] for record in restored] == sorted(by_form)
+
+
+def test_restore_displaced_lexical_heads_respects_eligibility():
+    ag = {"κλαίω": "κλείω"}
+    restored = B.restore_displaced_lexical_heads(
+        ag, wiktionary_heads={"κλαίω"}, base={"κλαίω": "κλαίω"}, evidence={},
+        eligible=lambda form: False)
+    assert restored == [] and ag == {"κλαίω": "κλείω"}
+
+
+def _repin_base(data, base):
+    """Replace the fixture's Wiktionary-only base and its pin."""
+    path = data / "ag_lookup_wikt.json"
+    path.write_text(json.dumps(base, ensure_ascii=False), encoding="utf-8")
+    manifest_path = data / "ag_expansion_reference.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["reference_base"] = {
+        "size": path.stat().st_size,
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    manifest_path.write_text(json.dumps(manifest))
+
+
+FIXTURE_HEADS = {"σύνοχος": ["lsj9_headwords"], "γε": ["wiktionary_en_grc"],
+                 "λόγος": ["wiktionary_en_grc"], "μοναχικός": ["lsj9_headwords"],
+                 "λαβή": ["wiktionary_en_grc"], "κλεῖδα": ["wiktionary_en_grc"]}
+
+
+def test_displaced_lexical_heads_take_back_their_reading(tmp_path):
+    data, env = _fixture(tmp_path, {
+        "ag": {"κλαίω": "κλείω", "κλαιω": "κλείω", "κλείω": "κλείω",
+               "μήν": "μείς", "μείς": "μείς",
+               "θρόνον": "θρόνος", "θρόνος": "θρόνος",
+               "ἀγγελθείης": "ἀγγέλλω", "σπαθίον": "σπάθη", "σπάθη": "σπάθη",
+               "ποδίσκος": "πούς"},
+        "grc_lexical_heads.json": {"heads": {
+            **FIXTURE_HEADS,
+            "κλαίω": ["wiktionary_en_grc"], "μήν": ["wiktionary_el_grc"],
+            "θρόνον": ["wiktionary_en_grc"], "ἀγγελθείης": ["wiktionary_el_grc"],
+            "σπαθίον": ["lsj9_headwords"], "ποδίσκος": ["lsj9_headwords"]},
+            "vernacular_heads": []},
+        "glaux_pairs.json": [
+            {"form": "μήν", "lemma": "μήν", "pos": "part", "count": 50},
+            {"form": "μήν", "lemma": "μείς", "pos": "noun", "count": 1},
+            {"form": "θρόνον", "lemma": "θρόνος", "pos": "noun", "count": 20},
+            {"form": "σπαθίον", "lemma": "σπαθίον", "pos": "noun", "count": 2}],
+    })
+    _repin_base(data, {**WIKTIONARY, "κλαίω": "κλαίω", "θρόνον": "θρόνον",
+                       "σπαθίον": "σπαθίον", "ποδίσκος": "ποδίσκος"})
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Displaced lexical heads restored: 3 heads, 4 keys" in result.stdout
+    combined = _rows(data)
+    for lang in ("all", "grc"):
+        rows = {**combined, **_rows(data, lang)}
+        assert rows["κλαίω"] == rows["κλαιω"] == "κλαίω"
+        assert rows["μήν"] == "μήν" and rows["σπαθίον"] == "σπαθίον"
+        assert rows["θρόνον"] == "θρόνος" and rows["ποδίσκος"] == "πούς"
+        assert rows["ἀγγελθείης"] == "ἀγγέλλω"
+        assert rows["κλείω"] == "κλείω" and rows["μείς"] == "μείς"
+    with sqlite3.connect(data / "lookup.db") as conn:
+        origin = dict(conn.execute(
+            "SELECT form, s.code FROM lookup l JOIN sources s "
+            "ON s.id = l.source_id WHERE lang = 'all'"))
+    assert origin["κλαίω"] == origin["μήν"] == origin["κλαιω"] == "wiktionary_grc"
+    rejected = _rejections(data)
+    assert ("AG", "ag_lookup.json", "displaced_lexical_head_restored_to_κλαίω",
+            "κλαίω", "κλείω") in rejected
+    assert ("AG", "ag_lookup.json", "displaced_lexical_head_restored_to_μήν",
+            "μήν", "μείς") in rejected
+
+
+def test_displaced_heads_without_corpus_pairs_follow_the_base(tmp_path):
+    data, env = _fixture(tmp_path, {
+        "ag": {"κλαίω": "κλείω", "μήν": "μείς", "σπαθίον": "σπάθη"},
+        "grc_lexical_heads.json": {"heads": {
+            **FIXTURE_HEADS, "κλαίω": ["wiktionary_en_grc"],
+            "μήν": ["wiktionary_el_grc"], "σπαθίον": ["lsj9_headwords"]},
+            "vernacular_heads": []},
+    })
+    _repin_base(data, {**WIKTIONARY, "κλαίω": "κλαίω", "σπαθίον": "σπαθίον"})
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "glaux_pairs.json not found; displaced heads" in result.stdout
+    rows = {**_rows(data), **_rows(data, "grc")}
+    assert rows["κλαίω"] == "κλαίω" and rows["μήν"] == "μείς"
+    assert rows["σπαθίον"] == "σπάθη"
