@@ -219,6 +219,8 @@ def pos_model(lemmas, pos_lemma):
     model._apply_convention = lambda lemma: lemma
     model.lemmatize_batch = lambda words, **kwargs: [lemmas[0]] * len(words)
     model.lemmatize = lambda word, **kwargs: lemmas[0]
+    model._using_db = False
+    model._mg_lookup = {}  # No lemma is a Modern Greek citation form.
     return model
 
 
@@ -287,10 +289,134 @@ def test_capitalized_word_keeps_the_reading_of_its_own_row(word, rows, incoming,
                                                           expected):
     candidates = [core.LemmaCandidate(lemma=lemma, source="lookup", via=via)
                   for lemma, via in rows]
+    assert core.Dilemma._prefer_case_twin(word, "NOUN", incoming, candidates,
+                                          row_decides=True) == expected
+    # Unless asked, the incoming choice stays: that is the lemma a POS entry
+    # chose among the candidates.
     assert core.Dilemma._prefer_case_twin(word, "NOUN", incoming,
-                                          candidates) == expected
-    assert core.Dilemma._prefer_case_twin(word, "PROPN", incoming, candidates) == (
-        next(lemma for lemma, _ in rows if lemma[:1].isupper()))
+                                          candidates) == incoming
+    capital = next(lemma for lemma, _ in rows if lemma[:1].isupper())
+    for row_decides in (False, True):
+        assert core.Dilemma._prefer_case_twin(
+            word, "PROPN", incoming, candidates,
+            row_decides=row_decides) == capital
+
+
+def capital_model(rows, pos_lemma=None, *, lang="grc", convention=None,
+                  modern=()):
+    """twin_model() for a capitalized word.
+
+    The untagged answer is the reading of the word's own row, as the shipped
+    lookup gives it, and *modern* lists the lemmas that are Modern Greek
+    citation forms.
+    """
+    model = twin_model(rows, pos_lemma)
+    model.lang = lang
+    model._convention_name = convention
+    candidates = model._lemmatize_verbose_impl("", guess=False)
+    model._lemmatize_verbose_impl = lambda word, **kwargs: candidates
+    own = next(lemma for lemma, via in rows if not via.endswith("+case_alt"))
+    model.lemmatize_batch = lambda words, **kwargs: [own] * len(words)
+    model.lemmatize = lambda word, **kwargs: own
+    model._mg_lookup = {lemma: lemma for lemma in modern}
+    return model
+
+
+def _scalar_and_batch(model, word, upos):
+    scalar = model.lemmatize_pos(word, upos, guess=False)
+    assert model.lemmatize_batch_pos([word], [upos], guess=False) == [scalar]
+    return scalar
+
+
+@pytest.mark.parametrize("word,upos,rows,pos_lemma", [
+    # The row of a sentence-initial word reads its capitalized twin; the
+    # POS entry names the common word.
+    ("Πῶς", "ADV", [("πῶς", "exact+case_alt"), ("Πῶς", "exact")], "πῶς"),
+    ("Δῆλον", "ADJ", [("δῆλος", "exact+case_alt"), ("Δῆλος", "exact")], "δῆλος"),
+    ("Λόγος", "NOUN", [("λόγος", "exact+case_alt"), ("Λόγος", "exact")], "λόγος"),
+    # A lowercase own row never replaces a capitalized POS lemma.
+    ("Χριστὸς", "NOUN", [("χριστός", "exact"), ("Χριστός", "exact+case_alt")],
+     "Χριστός"),
+    ("Ἀαρὼν", "NOUN", [("ἀαρών", "exact"), ("Ἀαρών", "exact+case_alt")],
+     "Ἀαρών"),
+])
+@pytest.mark.parametrize("lang,convention", [
+    ("grc", None), ("all", None), ("el", "triantafyllidis")])
+def test_matched_pos_entry_decides_for_a_capitalized_word(
+        word, upos, rows, pos_lemma, lang, convention):
+    model = capital_model(rows, pos_lemma, lang=lang, convention=convention)
+    assert _scalar_and_batch(model, word, upos) == pos_lemma
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_polytonic_capitalized_name_without_a_pos_entry_keeps_its_row(lang):
+    # A lowercase twin that is a Modern citation form does not make a word
+    # written with polytonic marks Modern.
+    rows = [("εὔξενος", "exact+case_alt"), ("Εὔξενος", "exact")]
+    model = capital_model(rows, lang=lang, modern=["εὔξενος"])
+    assert _scalar_and_batch(model, "Εὐξένου", "NOUN") == "Εὔξενος"
+    assert _scalar_and_batch(model, "Εὐξένου", "PROPN") == "Εὔξενος"
+    # The row of a capitalized word may read the lowercase lemma instead.
+    rows = [("χριστός", "exact"), ("Χριστός", "exact+case_alt")]
+    model = capital_model(rows, lang=lang)
+    assert _scalar_and_batch(model, "Χριστὸς", "NOUN") == "χριστός"
+    assert _scalar_and_batch(model, "Χριστὸς", "PROPN") == "Χριστός"
+
+
+@pytest.mark.parametrize("word,rows", [
+    ("Εὐξένου", [("εὔξενος", "exact+case_alt"), ("Εὔξενος", "exact")]),
+    ("Καρδίᾳ", [("καρδία", "exact+case_alt"), ("Καρδία", "exact")]),
+    ("Χριστὸς", [("χριστός", "exact"), ("Χριστός", "exact+case_alt")]),
+])
+@pytest.mark.parametrize("lang,convention", [
+    ("el", None), ("el", "triantafyllidis"), ("all", "triantafyllidis")])
+def test_polytonic_sentence_initial_word_in_modern_text_reads_lowercase(
+        word, rows, lang, convention):
+    # Modern polytonic text capitalizes every sentence too.
+    lower = next(lemma for lemma, _ in rows if lemma[:1].islower())
+    capital = next(lemma for lemma, _ in rows if lemma[:1].isupper())
+    model = capital_model(rows, lang=lang, convention=convention)
+    assert not model._capital_row_decides(
+        word, "NOUN", model._lemmatize_verbose_impl(word))
+    assert _scalar_and_batch(model, word, "NOUN") == lower
+    assert _scalar_and_batch(model, word, "PROPN") == capital
+
+
+@pytest.mark.parametrize("word,upos,rows", [
+    ("Χέρι", "NOUN", [("χέρι", "exact+case_alt"), ("Χέρι", "exact")]),
+    ("Αν", "SCONJ", [("αν", "exact+case_alt"), ("Αν", "exact")]),
+])
+@pytest.mark.parametrize("lang,convention,modern,row_stands", [
+    ("el", None, False, False),
+    ("el", "triantafyllidis", False, False),
+    ("all", "triantafyllidis", False, False),
+    # Under the Ancient conventions a monotonic word is Modern only when
+    # its lowercase twin is a Modern citation form.
+    ("all", None, True, False),
+    ("grc", None, True, False),
+    ("all", None, False, True),
+    ("grc", None, False, True),
+])
+def test_sentence_initial_modern_word_keeps_the_lowercase_reading(
+        word, upos, rows, lang, convention, modern, row_stands):
+    lower, capital = rows[0][0], rows[1][0]
+    model = capital_model(rows, lang=lang, convention=convention,
+                          modern=[lower] if modern else [])
+    assert model._capital_row_decides(
+        word, upos, model._lemmatize_verbose_impl(word)) is row_stands
+    assert _scalar_and_batch(model, word, upos) == (
+        capital if row_stands else lower)
+    assert _scalar_and_batch(model, word, "PROPN") == capital
+
+
+def test_capital_row_question_is_for_capitalized_words_not_tagged_propn():
+    rows = [("εὔξενος", "exact+case_alt"), ("Εὔξενος", "exact")]
+    model = capital_model(rows)
+    candidates = model._lemmatize_verbose_impl("")
+    assert model._capital_row_decides("Εὐξένου", "NOUN", candidates)
+    assert not model._capital_row_decides("Εὐξένου", "PROPN", candidates)
+    assert not model._capital_row_decides("εὐξένου", "NOUN", candidates)
+    assert not model._capital_row_decides("", "NOUN", candidates)
 
 
 @pytest.fixture(scope="module")
@@ -349,6 +475,67 @@ def test_shipped_explicit_verbs_preserve_independent_names(shipped_models):
         assert model.lemmatize_pos(word, "VERB", guess=False) == lemma
     assert model.lemmatize("Λάμπε", guess=False) == "Λάμπος"
     assert model.lemmatize("Λήθειν", guess=False) == "Ληθώ"
+
+
+# Capitalized words under a tag other than PROPN: lemmatize_pos() and
+# lemmatize_batch_pos() give one answer.
+
+SHIPPED_ANCIENT_CAPITALS = [
+    # A POS entry names the common word of a sentence-initial form ...
+    ("Πῶς", "ADV", "πῶς"), ("Λόγος", "NOUN", "λόγος"),
+    ("Δίκαιον", "ADJ", "δίκαιος"), ("Ψυχή", "NOUN", "ψυχή"),
+    ("Γῆν", "NOUN", "γῆ"), ("Δῆλον", "ADJ", "δῆλος"),
+    # ... or the capitalized lemma.
+    ("Χριστὸς", "NOUN", "Χριστός"),
+    # No POS entry: the name's own row stands.
+    ("Εὐξένου", "NOUN", "Εὔξενος"), ("Ἑλληνικῶν", "ADJ", "Ἑλληνικός"),
+    ("Βαβυλωνίην", "ADJ", "Βαβυλώνιος"),
+    # Modern words keep the lowercase reading.
+    ("Τώρα", "ADV", "τώρα"), ("Κάτι", "PRON", "κάτι"), ("Για", "ADP", "για"),
+    ("Κάποιος", "DET", "κάποιος"),
+    # PROPN reads the capitalized twin.
+    ("Ψυχή", "PROPN", "Ψυχή"), ("Εὐξένου", "PROPN", "Εὔξενος"),
+]
+
+SHIPPED_MODERN_CAPITALS = [
+    ("Χέρι", "NOUN", "χέρι"), ("Αν", "SCONJ", "αν"), ("Σαν", "ADP", "σαν"),
+    ("Νόμος", "NOUN", "νόμος"), ("Κάποιος", "DET", "κάποιος"),
+    ("Ζωή", "NOUN", "ζωή"), ("Τώρα", "ADV", "τώρα"), ("Για", "ADP", "για"),
+    ("Πιστεύω", "VERB", "πιστεύω"),
+    # Polytonic Modern text capitalizes its sentences as well.
+    ("Καρδίᾳ", "NOUN", "καρδία"),
+    ("Χέρι", "PROPN", "Χέρι"), ("Καρδίᾳ", "PROPN", "Καρδία"),
+]
+
+
+def _shipped_capital_model(**kwargs):
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    return core.Dilemma(resolve_articles=True, **kwargs)
+
+
+def _assert_scalar_and_batch(model, cases):
+    words = [case[0] for case in cases]
+    tags = [case[1] for case in cases]
+    expected = [case[2] for case in cases]
+    assert [model.lemmatize_pos(word, upos, guess=False)
+            for word, upos in zip(words, tags)] == expected
+    assert model.lemmatize_batch_pos(words, tags, guess=False) == expected
+    assert [model.lemmatize_batch_pos([word], [upos], guess=False)[0]
+            for word, upos in zip(words, tags)] == expected
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_shipped_capitalized_words_agree_in_scalar_and_batch(lang):
+    _assert_scalar_and_batch(_shipped_capital_model(lang=lang),
+                             SHIPPED_ANCIENT_CAPITALS)
+
+
+@pytest.mark.parametrize("convention", [None, "triantafyllidis"])
+def test_shipped_modern_sentence_starts_agree_in_scalar_and_batch(convention):
+    kwargs = {"convention": convention} if convention else {}
+    _assert_scalar_and_batch(_shipped_capital_model(lang="el", **kwargs),
+                             SHIPPED_MODERN_CAPITALS)
 
 
 def _all_model(fallback_model, lookup, ancient_pos, modern_pos, headwords=()):

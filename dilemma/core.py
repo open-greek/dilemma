@@ -4563,10 +4563,41 @@ class Dilemma:
         return (0 < len(direct) < len(candidates)
                 and all(is_capitalized(c.lemma) for c in direct))
 
+    def _capital_row_decides(self, word: str, upos: str | None,
+                             candidates) -> bool:
+        """Whether a capitalized word's own row outranks its lowercase twin.
+
+        Asked only where no POS entry chose a candidate; a POS entry that
+        matched one decides by itself (Πῶς ADV -> πῶς, Χριστὸς NOUN ->
+        Χριστός). Ancient editions capitalize names, so there the row of a
+        capitalized word tagged other than PROPN stands (Εὐξένου NOUN
+        keeps Εὔξενος). Modern text capitalizes every sentence, in
+        polytonic spelling as in monotonic: under lang="el" or the
+        triantafyllidis convention a capitalized word keeps the lowercase
+        reading (Χέρι NOUN -> χέρι, Αν SCONJ -> αν, Καρδίᾳ NOUN ->
+        καρδία), as it did before the row's own reading was consulted.
+        Under the other settings a word written with polytonic marks is
+        Ancient, and a monotonic one is Modern when its lowercase twin is
+        a Modern citation form. PROPN and lowercase words never ask: the
+        tiebreak settles them before it looks at the rows.
+        """
+        if not word or upos == "PROPN" or word[:1].islower():
+            return False
+        if (self.lang == "el"
+                or getattr(self, "_convention_name", None) == "triantafyllidis"):
+            return False
+        if any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+               for ch in unicodedata.normalize("NFD", word)):
+            return True
+        return not any(c.lemma[:1].islower()
+                       and self._is_mg_citation_form(c.lemma)
+                       for c in candidates)
+
     @staticmethod
     def _prefer_case_twin(word: str, upos: str | None, lemma: str,
                           candidates: list[LemmaCandidate],
-                          extra: tuple[str, ...] = ()) -> str:
+                          extra: tuple[str, ...] = (), *,
+                          row_decides: bool = False) -> str:
         """Capitalization-agreement tiebreak between case-twin lemmas.
 
         Many common lemmas have a capitalized proper-noun twin as a
@@ -4584,7 +4615,13 @@ class Dilemma:
             get the common-word lemma).
           * capitalized or all-caps input with a non-PROPN POS:
             ambiguous (sentence-initial, titles) - keep the incoming
-            choice, so either twin stays reachable.
+            choice, so either twin stays reachable. This is what a POS
+            entry that matched a candidate gets, in lemmatize_pos() as
+            in lemmatize_batch_pos().
+          * the same input with ``row_decides``: the reading of the
+            word's own lookup row stands against a twin that is only its
+            case alternate. The callers ask for this only where no POS
+            entry chose a candidate (see _capital_row_decides).
 
         This is a re-rank, not a filter: it can only swap ``lemma`` for
         a case twin drawn from ``candidates`` or ``extra`` (the POS
@@ -4613,8 +4650,11 @@ class Dilemma:
             return upper_twin
         if word[:1].islower():
             return lower_twin
-        # Capitalized input: the lookup row's own reading stands against a
-        # twin that is only its case alternate (Εὐξένου NOUN keeps Εὔξενος).
+        if not row_decides:
+            return lemma
+        # Capitalized input no POS entry decided: the lookup row's own
+        # reading stands against a twin that is only its case alternate
+        # (Εὐξένου NOUN keeps Εὔξενος).
         direct = {c.lemma for c in candidates
                   if getattr(c, "source", "") == "lookup"
                   and not getattr(c, "via", "").endswith("+case_alt")}
@@ -4889,8 +4929,9 @@ class Dilemma:
         with the form or tag is re-ranked between case twins.
         """
         def first():
-            return self._prefer_case_twin(word, upos, candidates[0].lemma,
-                                          candidates)
+            return self._prefer_case_twin(
+                word, upos, candidates[0].lemma, candidates,
+                row_decides=self._capital_row_decides(word, upos, candidates))
 
         baseline = self.lemmatize_batch([word], attested_only=attested_only,
                                         guess=guess)[0]
@@ -5094,7 +5135,9 @@ class Dilemma:
                 # case twins. Preserve the scalar API's candidate order and
                 # existing PROPN/capitalization tiebreak.
                 results[i] = self._prefer_case_twin(
-                    word, upos, candidates[0].lemma, candidates)
+                    word, upos, candidates[0].lemma, candidates,
+                    row_decides=self._capital_row_decides(
+                        word, upos, candidates))
 
         # A rejected batch baseline cannot hide a retained structured
         # candidate. Do not run the model again to recover that reading.
@@ -5105,7 +5148,9 @@ class Dilemma:
                         word, guess=False, compound_guess=guess))
                 if candidates:
                     results[i] = self._prefer_case_twin(
-                        word, upos, candidates[0].lemma, candidates)
+                        word, upos, candidates[0].lemma, candidates,
+                        row_decides=self._capital_row_decides(
+                            word, upos, candidates))
 
         # Step 3: capitalization-agreement tiebreak between case-twin
         # lemmas (θυμός vs Θυμός), mirroring lemmatize_pos(). Only
