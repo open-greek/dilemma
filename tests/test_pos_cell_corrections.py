@@ -4,6 +4,9 @@
 cells are dropped or corrected when the tables load, without a rebuild.
 #128: a Modern cell that only a dropped paradigm fragment kept is added
 back, and an lsj9 accent-stripped cell is dropped.
+#125, #126: cells the rebuilt tables no longer carry are added back, new
+cells that displace a 1.3.25 answer are corrected or dropped, and names
+beside a restored lowercase head keep their capitalized lemma.
 """
 import json
 from pathlib import Path
@@ -102,7 +105,8 @@ def test_shipped_correction_record_is_reviewed_and_current():
               for name, path in TABLE_PATHS.items() if path.exists()}
     seen = set()
     for row in record["corrections"]:
-        assert row["reason"] and row["evidence"] and row["issue"] in (105, 106, 125, 128)
+        assert row["reason"] and row["evidence"] and row["issue"] in (
+            105, 106, 125, 126, 128)
         key = (row["table"], row["form"], row["upos"])
         assert key not in seen
         seen.add(key)
@@ -190,3 +194,86 @@ def test_shipped_128_untagged_answers_unchanged(shipped_all_model):
         ["ας", "ονων", "όντων", "γ"], guess=False) == ["ὅς", "ὄνος", "εἰμί", "γ"]
     assert shipped_all_model.lemmatize_pos("ας", "NOUN", guess=False) != "μονοτονία"
     assert shipped_all_model.lemmatize_pos("ὀνῶν", "NOUN", guess=False) == "ὀνή"
+
+
+# #125, #126: tagged answers of 1.3.25 that the rebuilt tables displaced.
+
+SHIPPED_125 = [
+    # Cells the rebuilt treebank table dropped; a lower table answered.
+    ("ουδέν", "ADJ", "οὐδείς"), ("δήτα", "ADV", "δῆτα"),
+    ("ζώδιον", "NOUN", "ζῴδιον"), ("πλοιάριον", "NOUN", "πλοιάριον"),
+    ("γραφών", "NOUN", "γραφή"), ("κίρρα", "NOUN", "Κίρρα"),
+    ("Κίρρᾳ", "NOUN", "Κίρρα"), ("Ἅβραμος", "NOUN", "Ἄβραμος"),
+    ("Θεσπρωτοὶ", "NOUN", "Θεσπρωτοί"), ("Κορκυραῖος", "ADJ", "Κορκυραῖος"),
+    # New cells that replaced a 1.3.25 answer.
+    ("εισήεσαν", "VERB", "εἴσειμι"), ("εἰσήεσαν", "VERB", "εἴσειμι"),
+    ("συνήεσαν", "VERB", "σύνειμι"), ("ήμεν", "VERB", "εἰμί"),
+    ("ἤμεν", "VERB", "εἰμί"), ("λόγιον", "ADJ", "λόγιος"),
+    ("λόγιον", "NOUN", "λόγιον"),
+    # Junk GLAUx lemmas the treebank table used to mask.
+    ("καμέ", "PRON", "ἐγώ"), ("Δημοτέλη", "NOUN", "Δημοτέλης"),
+    # No table has an SCONJ cell: ἤν "if" under its monotonic keys, and
+    # the relative under the rough-breathing spellings.
+    ("ην", "SCONJ", "ἐάν"), ("ήν", "SCONJ", "ἐάν"),
+    ("ἣν", "SCONJ", "ὅς"), ("ἥν", "SCONJ", "ὅς"), ("ἣν", "PRON", "ὅς"),
+    # A mis-accented treebank lemma.
+    ("Λευκαδία", "ADJ", "Λευκάδιος"), ("λευκαδία", "ADJ", "Λευκάδιος"),
+    # Names beside a restored lowercase head; the lowercase key keeps the
+    # common word.
+    ("Ἔρως", "NOUN", "Ἔρως"), ("ἔρως", "NOUN", "ἔρως"),
+    ("Πρόξενος", "NOUN", "Πρόξενος"), ("πρόξενος", "NOUN", "πρόξενος"),
+    ("Προξένου", "NOUN", "Πρόξενος"), ("προξένου", "NOUN", "πρόξενος"),
+    ("Πρόξενον", "NOUN", "Πρόξενος"), ("Δρύας", "NOUN", "Δρύας"),
+    ("Φιλάδελφος", "NOUN", "Φιλάδελφος"), ("φιλάδελφος", "ADJ", "φιλάδελφος"),
+    ("Μέροπος", "NOUN", "Μέροψ"),
+]
+
+
+@pytest.mark.parametrize("word,upos,lemma", SHIPPED_125)
+def test_shipped_125_tagged_readings(shipped_model, word, upos, lemma):
+    assert shipped_model.lemmatize_pos(word, upos, guess=False) == lemma
+    assert shipped_model.lemmatize_batch_pos([word], [upos], guess=False) == [lemma]
+
+
+def test_shipped_125_in_one_batch(shipped_model):
+    assert shipped_model.lemmatize_batch_pos(
+        [row[0] for row in SHIPPED_125], [row[1] for row in SHIPPED_125],
+        guess=False) == [row[2] for row in SHIPPED_125]
+
+
+def test_shipped_125_untagged_answers_unchanged(shipped_model):
+    # The rows answer a tag; the lookup reading stays what the build chose.
+    assert shipped_model.lemmatize_batch(
+        ["ην", "ήν", "λόγιον"], guess=False) == ["εἰμί", "εἰμί", "λόγιον"]
+
+
+# The Modern cells answer under lang="el" and, for monotonic keys, "all".
+
+SHIPPED_MODERN_126 = [
+    ("θεα", "NOUN", "θεά"), ("θεά", "NOUN", "θεά"), ("θεὰ", "NOUN", "θεά"),
+    ("παρέξω", "VERB", "παρέχω"), ("Παρέξω", "VERB", "παρέχω"),
+    ("παρέξω", "ADV", "παρέξω"),  # the adverb page keeps its own tag
+]
+
+
+@pytest.fixture(scope="module", params=[None, "triantafyllidis"])
+def shipped_el_model(request):
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    if request.param is None:
+        return core.Dilemma(lang="el")
+    return core.Dilemma(lang="el", convention=request.param)
+
+
+@pytest.mark.parametrize("word,upos,lemma", SHIPPED_MODERN_126)
+def test_shipped_modern_cells(shipped_el_model, word, upos, lemma):
+    assert shipped_el_model.lemmatize_pos(word, upos, guess=False) == lemma
+    assert shipped_el_model.lemmatize_batch_pos(
+        [word], [upos], guess=False) == [lemma]
+
+
+def test_shipped_modern_cell_answers_the_unaccented_key_under_all(
+        shipped_all_model):
+    assert shipped_all_model.lemmatize_pos("θεα", "NOUN", guess=False) == "θεά"
+    assert shipped_all_model.lemmatize_batch_pos(
+        ["θεα", "θεά"], ["NOUN", "NOUN"], guess=False) == ["θεά", "θεά"]
