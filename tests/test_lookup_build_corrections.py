@@ -316,6 +316,55 @@ def test_merged_layer_reassignments_are_overridden(tmp_path):
         assert rows["γραφέα"] == "γραφεύς" and rows["συός"] == "σῦς"
 
 
+# Reviewed readings against el-only corpus rows and absent keys --------------
+
+def test_reviewed_readings_displace_el_only_corpus_rows(tmp_path):
+    # The Ancient table agrees with a corpus pair (Μάγων, εἴσομαι, ᾔει) or
+    # lacks the form (ἀπεικός), so the gap-fill copies the pair into the el
+    # table before the overrides correct the combined and Ancient tables.
+    glaux = [{"form": "Μάγων", "lemma": "Μάγων", "pos": "noun"},
+             {"form": "ἀπεικός", "lemma": "ἀφίημι", "pos": "verb"},
+             {"form": "ᾔει", "lemma": "ἔρχομαι", "pos": "verb"}]
+    diorisis = [{"form": "εἴσομαι", "lemma": "εἶμι", "pos": "verb"}]
+    data, env = _fixture(tmp_path, {
+        "ag": {"Μάγων": "Μάγων", "εἴσομαι": "εἶμι", "ᾔει": "ἔρχομαι",
+               "μεγάλα": "μέγα"},
+        "mg_lookup.json": {"λόγος": "λόγος", "μεγάλα": "μεγάλος"},
+        "ag_headwords.json": ["Μάγων", "μάγος", "ἀφίημι", "ἔρχομαι", "εἶμι",
+                              "οἶδα", "λόγος"],
+        "glaux_pairs.json": glaux,
+        "diorisis_pairs.json": diorisis,
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    combined, el = _rows(data), _rows(data, "el")
+    assert combined["Μάγων"] == "μάγος" and combined["εἴσομαι"] == "οἶδα"
+    assert combined["ἀπεικός"] == "ἀπεικός" and combined["μεγάλα"] == "μέγας"
+    # lang="el" reads its own row first, then the combined one.
+    answers = {**combined, **el}
+    assert answers["Μάγων"] == "μάγος" and answers["εἴσομαι"] == "οἶδα"
+    assert answers["ἀπεικός"] == "ἀπεικός"
+    assert not {"Μάγων", "εἴσομαι", "ἀπεικός"} & el.keys()
+    # A Modern Wiktionary reading keeps its el row, and so does the corpus
+    # row of an override the published tables already ship (ᾔει -> εἶμι).
+    assert el["μεγάλα"] == "μεγάλος"
+    assert combined["ᾔει"] == "εἶμι" and el["ᾔει"] == "ἔρχομαι"
+    assert "3 el-only corpus readings removed" in result.stdout
+
+
+def test_reviewed_absent_key_reading_is_added(tmp_path):
+    data, env = _fixture(tmp_path)
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    # No source of the fixture has the bare elided stem.
+    assert _rows(data)["μήτ"] == "μήτε"
+    assert "μήτ" not in _rows(data, "grc") and "μήτ" not in _rows(data, "el")
+    with sqlite3.connect(data / "lookup.db") as conn:
+        assert conn.execute(
+            "SELECT s.code FROM lookup l JOIN sources s ON s.id = l.source_id "
+            "WHERE l.form = 'μήτ'").fetchall() == [("dilemma_corrections",)]
+
+
 # #126: lexical heads displaced by another lemma's homograph entry ----------
 
 def test_lexical_heads_by_kind_separates_wiktionary_entries(tmp_path):

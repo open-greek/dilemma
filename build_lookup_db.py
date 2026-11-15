@@ -179,6 +179,78 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     "σαλπισταῖς": "σαλπιστής",
 }
 
+# Reviewed readings that are written even when no source has the key. An
+# override changes only a key the tables hold, so a form whose single
+# reading the build rejects would otherwise be left without an answer.
+REVIEWED_ABSENT_KEY_READINGS = {
+    # The citation-hygiene sanitizer drops the dirty μὴτ value of the bare
+    # elided stem before the overrides run. The clean stem stays as an
+    # explicit bridge to μήτε, like the other apostrophe-tokenized stems.
+    "μήτ": "μήτε",
+}
+
+# The input every reviewed reading is recorded under (lookup_sources.json).
+LOOKUP_OVERRIDES_INPUT = "lookup_overrides"
+
+# The Ancient corpus pair files. Their gap-fill also writes a pair into the
+# el table when the Ancient table agrees with it or lacks the form.
+ANCIENT_CORPUS_PAIR_INPUTS = frozenset(path.name for path in (
+    PERSEUS_PAIRS_PATH, GLAUX_PAIRS_PATH, DIORISIS_PAIRS_PATH, NT_PAIRS_PATH,
+    *(path for _, path in COG_GAPFILL_PATHS)))
+
+# Forms whose reviewed reading also displaces an el-only row of a corpus
+# gap-fill. The override corrects the combined and the Ancient table; the
+# corpus pair the gap-fill copied into the el table before that would
+# otherwise be written as an el row and answer lang="el" with the reading
+# the review rejected (εἴσομαι -> εἶμι, ἀπεικός -> ἀφίημι, Μάγων -> Μάγων).
+# Limited to the readings reviewed for the 2026-11 rebuild: about fifty
+# older el-only corpus rows disagree with an override too (ᾔει, ᾔδετε), and
+# the published tables answer lang="el" with those.
+EL_CORPUS_ROW_OVERRIDE_FORMS = (
+    frozenset(KAIKKI_2026_11_READING_OVERRIDES)
+    | frozenset(REVIEWED_ABSENT_KEY_READINGS) | {"Μάγων"})
+
+
+def apply_lookup_overrides(overrides: dict, *, combined: dict,
+                           combined_sources: dict, ag: dict, ag_sources: dict,
+                           el: dict, el_sources: dict,
+                           absent_keys=REVIEWED_ABSENT_KEY_READINGS,
+                           el_corpus_forms=EL_CORPUS_ROW_OVERRIDE_FORMS
+                           ) -> dict[str, int]:
+    """Write the reviewed readings into the assembled tables, in place.
+
+    A reading replaces the combined and the Ancient reading of a key the
+    tables hold. A key no table holds is added to the combined table only
+    when ``absent_keys`` lists it. For a form in ``el_corpus_forms``, an el
+    reading that an Ancient corpus gap-fill supplied and that differs from
+    the reviewed one is removed, so the combined row answers lang="el" too;
+    el readings from any other source stay. Returns how many combined
+    readings changed, how many keys were added and how many el readings
+    were removed.
+    """
+    counts = {"changed": 0, "added": 0, "el_removed": 0}
+    for form, lemma in overrides.items():
+        if form in combined:
+            if combined[form] != lemma:
+                combined[form] = lemma
+                combined_sources[form] = LOOKUP_OVERRIDES_INPUT
+                counts["changed"] += 1
+        elif form in absent_keys:
+            combined[form] = lemma
+            combined_sources[form] = LOOKUP_OVERRIDES_INPUT
+            counts["added"] += 1
+        # Also fix in ag dict for the grc-only table
+        if form in ag and ag[form] != lemma:
+            ag[form] = lemma
+            ag_sources[form] = LOOKUP_OVERRIDES_INPUT
+        if (form in el_corpus_forms and form in el and el[form] != lemma
+                and el_sources.get(form) in ANCIENT_CORPUS_PAIR_INPUTS):
+            del el[form]
+            el_sources.pop(form, None)
+            counts["el_removed"] += 1
+    return counts
+
+
 _FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",
                         "\u1fbf", "\u0313", "\u0314"}
 _FINAL_KERAIA_OR_PRIME_MARKS = {"\u0374", "\u02b9"}
@@ -1845,7 +1917,7 @@ def build():
         # possible reading is the elided function word, but the corpus pair
         # is a junk self-map or accent variant.
         "ἀλλ": "ἀλλά",           # was the self-map ἀλλ
-        "μήτ": "μήτε",           # was the grave junk μὴτ
+        # μήτ (was the grave junk μὴτ) is in REVIEWED_ABSENT_KEY_READINGS.
         # NB: do NOT "fix" corpus-derived elided entries that reflect a
         # genuine ambiguity or lemmatization convention: λίπ᾽ is BOTH the
         # adverb λίπα (λίπ᾽ ἐλαίῳ) and elided λίπε (λείπω), and treebanks
@@ -1889,6 +1961,7 @@ def build():
         "ἀρίστοις": "ἀγαθός",    # was ἄριστον
         "ἀρὰν": "ἀρά",           # was ἀρή (expansion); ἀράν -> ἀρά
         **KAIKKI_2026_11_READING_OVERRIDES,
+        **REVIEWED_ABSENT_KEY_READINGS,
     }
     # Also fix corrupt -δήποτε lemmas from pipeline
     for k, v in list(combined.items()):
@@ -1896,25 +1969,13 @@ def build():
             stem = k.split("δήποτε")[0]
             if stem:
                 _LOOKUP_OVERRIDES[k] = "ὁστισδήποτε"
-    override_count = 0
-    for form, lemma in _LOOKUP_OVERRIDES.items():
-        if form in combined and combined[form] != lemma:
-            combined[form] = lemma
-            combined_sources[form] = "lookup_overrides"
-            override_count += 1
-        elif form == "μήτ" and form not in combined:
-            # The citation-hygiene sanitizer drops the dirty μὴτ value before
-            # overrides run. Keep the clean bare elided stem as an explicit
-            # bridge to μήτε, matching the other apostrophe-tokenized stems.
-            combined[form] = lemma
-            combined_sources[form] = "lookup_overrides"
-            override_count += 1
-        # Also fix in ag dict for the grc-only table
-        if form in ag and ag[form] != lemma:
-            ag[form] = lemma
-            ag_sources[form] = "lookup_overrides"
-    if override_count:
-        print(f"  Lookup overrides applied: {override_count:,}")
+    overridden = apply_lookup_overrides(
+        _LOOKUP_OVERRIDES, combined=combined, combined_sources=combined_sources,
+        ag=ag, ag_sources=ag_sources, el=el, el_sources=el_sources)
+    if any(overridden.values()):
+        print(f"  Lookup overrides applied: {overridden['changed']:,} readings "
+              f"changed, {overridden['added']:,} absent keys added, "
+              f"{overridden['el_removed']:,} el-only corpus readings removed")
 
     print(f"  Combined: {len(combined):,} entries")
 
