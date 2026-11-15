@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -253,6 +254,26 @@ def test_complete_manifest_preserves_strict_byte_reversal(tmp_path):
     assert manifest['reversal']['result'] == 'byte_equal'
     assert manifest['closed_class_elisions']['owner_changes'] == 1
     assert len(manifest['external_input_sha256']) == 2
+    assert manifest['reversal']['unaccented_keys_removed'] == 0
+    # Unaccented keys the overlay appended after the alias changes are
+    # removed first, and only when they match the audit's count and digest.
+    tail = 'ταυτ’\tοὗτος\n'
+    stats['unmarked_key_restore'] = {
+        'count': 1, 'sha256': hashlib.sha256(tail.encode('utf-8')).hexdigest()}
+    audit.write_text(json.dumps(stats, ensure_ascii=False))
+    final.write_text('{"first":"first","Ταῦτ’":"οὗτος","ταυτ’":"οὗτος"}\n')
+    subprocess.run(command, check=True, capture_output=True)
+    manifest = json.loads(result.read_text())
+    assert manifest['reversal']['result'] == 'byte_equal'
+    assert manifest['reversal']['unaccented_keys_removed'] == 1
+    assert manifest['artifacts']['lookup']['entries'] == 3
+    assert manifest['artifacts']['pre_alias_target']['entries'] == 2
+    final.write_text('{"first":"first","Ταῦτ’":"οὗτος","ταυτ’":"Ταύς"}\n')
+    failure = subprocess.run(command, capture_output=True)
+    assert failure.returncode != 0 and b'AssertionError' in failure.stderr
+    stats.pop('unmarked_key_restore')
+    audit.write_text(json.dumps(stats, ensure_ascii=False))
+    final.write_text('{"first":"first","Ταῦτ’":"οὗτος"}\n')
     # Equal mappings serialized differently cannot pass the unchanged assertion.
     before.write_text('{"first": "first", "Ταῦτ’": "Ταύς"}\n')
     failure = subprocess.run(command, capture_output=True)

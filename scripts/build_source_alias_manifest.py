@@ -164,6 +164,20 @@ def main() -> None:
         'data/ag_noun_generation_audit.json', 'data/ag_sophocles_noun_generation_audit.json')}
     lookup = json.loads(args.lookup.read_text())
     final_count = len(lookup)
+    # The overlay appends the unaccented keys it gives back after the alias
+    # changes; the audit records their count and digest. Remove exactly
+    # those trailing rows first, so the alias reversal starts from the table
+    # the alias step left.
+    unmarked_restore = audit.get('unmarked_key_restore') or {'count': 0}
+    if unmarked_restore['count']:
+        newest_first = reversed(lookup)
+        tail = [next(newest_first) for _ in range(unmarked_restore['count'])][::-1]
+        hasher = hashlib.sha256()
+        for key in tail:
+            hasher.update(f'{key}\t{lookup[key]}\n'.encode('utf-8'))
+        assert hasher.hexdigest() == unmarked_restore['sha256']
+        for key in tail:
+            del lookup[key]
     assert len(audit['recovered']) == audit['recovered_count']
     assert len(audit['canonicalized']) == audit['canonicalized_count']
     recovered_forms = {row['form'] for row in audit['recovered']}
@@ -223,7 +237,8 @@ def main() -> None:
         },
         'reversal': {
             'result': 'byte_equal',
-            'procedure': 'Delete recovered rows; restore current_owner for canonicalized rows; serialize unchanged dictionary order as UTF-8 JSON with compact separators and a final newline.',
+            'procedure': 'Delete the trailing unaccented keys the audit counts and digests; delete recovered rows; restore current_owner for canonicalized rows; serialize unchanged dictionary order as UTF-8 JSON with compact separators and a final newline.',
+            'unaccented_keys_removed': unmarked_restore['count'],
             'restored_target': restored,
         },
         'purpose': 'Ancillary provenance and reversible change audit; not a runtime or CI download requirement.',

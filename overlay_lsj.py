@@ -768,6 +768,7 @@ def restore_unmarked_keys(
     reference_base: dict[str, str],
     target: dict[str, str],
     excluded_forms: set[str] | frozenset[str] = frozenset(),
+    restored_rows: list[tuple[str, str]] | None = None,
 ) -> dict[str, int]:
     """Give back the expansion's unaccented keys that agree with the table.
 
@@ -779,6 +780,10 @@ def restore_unmarked_keys(
     every marked target form that strips to it reads the key's lemma, so it
     agrees with the current table by construction. A key no marked form
     backs, or whose forms read other lemmas, stays out.
+
+    The keys are appended to ``target`` in order, and ``restored_rows``
+    receives each (key, lemma), so the caller can record a digest that lets
+    scripts/build_source_alias_manifest.py remove exactly these rows again.
     """
     wanted = {
         form: lemma for form, lemma in reference.items()
@@ -799,11 +804,26 @@ def restore_unmarked_keys(
         if current == {lemma}:
             target[bare] = lemma
             stats["unmarked_restored"] += 1
+            if restored_rows is not None:
+                restored_rows.append((bare, lemma))
         elif current:
             stats["unmarked_disputed"] += 1
         else:
             stats["unmarked_unbacked"] += 1
     return stats
+
+
+def unmarked_restore_record(rows: list[tuple[str, str]]) -> dict:
+    """Count and digest of the unaccented keys appended last to the table.
+
+    The digest covers ``key<TAB>lemma<LF>`` for each row in table order, so
+    the alias manifest can check the table's last ``count`` rows against it
+    and remove them before it reverses the alias changes.
+    """
+    hasher = hashlib.sha256()
+    for key, lemma in rows:
+        hasher.update(f"{key}\t{lemma}\n".encode("utf-8"))
+    return {"count": len(rows), "sha256": hasher.hexdigest()}
 
 
 def load_noun_generation_audit(path: Path, generator="expand_lsj.py") -> frozenset[str]:
@@ -1002,10 +1022,13 @@ def main() -> None:
         historical_conflicts=exclusions["baseline_conflicts"],
     )
     merge_closed_class_elisions(target, alias_stats, closed_class)
+    unmarked_rows: list[tuple[str, str]] = []
     stats.update(restore_unmarked_keys(
         reference, reference_base, target,
-        excluded_forms=excluded_forms - released_forms))
+        excluded_forms=excluded_forms - released_forms,
+        restored_rows=unmarked_rows))
     alias_stats["historical_overlay_counts"] = stats
+    alias_stats["unmarked_key_restore"] = unmarked_restore_record(unmarked_rows)
     if closed_class["enabled"]:
         verify_closed_class_inputs(fresh_paths, closed_class["external_input_sha256"])
         for relative, expected in closed_class["source_sha256"].items():

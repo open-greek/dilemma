@@ -852,6 +852,24 @@ def test_unaccented_keys_return_where_every_marked_form_agrees():
                      "unmarked_disputed": 1, "unmarked_unbacked": 1}
 
 
+def test_restored_unaccented_keys_are_the_table_tail_and_digested():
+    import hashlib
+    from overlay_lsj import restore_unmarked_keys, unmarked_restore_record
+    reference = {"ἀθήλυντος": "ἀθήλυντος", "αθηλυντος": "ἀθήλυντος",
+                 "παμπόλλων": "πάμπολλος", "παμπολλων": "πάμπολλος"}
+    target = {"ἀθήλυντος": "ἀθήλυντος", "παμπόλλων": "πάμπολλος"}
+    rows = []
+    restore_unmarked_keys(reference, {}, target, restored_rows=rows)
+    assert rows == [("αθηλυντος", "ἀθήλυντος"), ("παμπολλων", "πάμπολλος")]
+    assert list(target.items())[-len(rows):] == rows
+    record = unmarked_restore_record(rows)
+    text = "αθηλυντος\tἀθήλυντος\nπαμπολλων\tπάμπολλος\n"
+    assert record == {"count": 2,
+                      "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
+    assert unmarked_restore_record([]) == {
+        "count": 0, "sha256": hashlib.sha256(b"").hexdigest()}
+
+
 def test_released_conflict_with_editorial_notation_stays_excluded():
     # The pinned counts file such a form under the exclusions; releasing it
     # would count it as notation too and add nothing.
