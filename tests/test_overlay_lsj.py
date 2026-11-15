@@ -854,6 +854,8 @@ def test_unaccented_keys_return_where_every_marked_form_agrees():
     assert stats == {"unmarked_candidates": 4, "unmarked_restored": 2,
                      "unmarked_disputed": 1, "unmarked_unbacked": 1,
                      "unmarked_lemma_respelled": 0,
+                     "unmarked_oxytone_cell_restored": 0,
+                     "unmarked_corrected_head_restored": 0,
                      "unmarked_nonhead_readings_ignored": 0,
                      "unmarked_grave_twins_skipped": 0}
 
@@ -1012,6 +1014,125 @@ def test_published_reading_stays_over_an_accentless_copy_of_its_head():
     assert keep_published_over_unaccented_heads(dict(target), {}, {"κλῄζω"}) == 0
 
 
+def test_oxytone_cells_are_the_regular_masculine_and_neuter_endings():
+    from overlay_lsj import oxytone_os_cells
+    cells = oxytone_os_cells("θελητός")
+    assert {"θελητός", "θελητὸς", "θελητοῦ", "θελητῷ", "θελητόν", "θελητὸν",
+            "θελητέ", "θελητώ", "θελητοῖν", "θελητοί", "θελητῶν",
+            "θελητοῖς", "θελητούς", "θελητά", "θελητὰ",
+            "θελητος", "θελητου", "θελητων", "θελητα"} <= cells
+    assert not {"θελητή", "θελητῆς", "θελητάς", "θελήτου", "θελητοι̃ς"} & cells
+    assert "Ἀγαρηνῶν" in oxytone_os_cells("Ἀγαρηνός")
+    # Only an oxytone in -ός with no other accent has such cells.
+    assert oxytone_os_cells("ἄνθρωπος") == frozenset()
+    assert oxytone_os_cells("θελητόν") == frozenset()
+    assert oxytone_os_cells("σοφῶς") == frozenset()
+
+
+def test_sophocles_only_head_is_not_trusted_beside_its_twin():
+    from overlay_lsj import confirmed_head, ocr_twin_head
+    evidence = {"Θερινός": ("sophocles/0550.xml",),
+                "θερινός": ("lsj9_headwords",),
+                "Ἱωνικός": ("sophocles/0600.xml",),
+                "Ἰωνικός": ("lsj9_headwords", "sophocles/0600.xml"),
+                "Κρητικός": ("pd_headwords", "sophocles/0650.xml"),
+                "κρητικός": ("lsj9_headwords",),
+                "Σοδομηνός": ("sophocles/1000.xml",)}
+    assert ocr_twin_head("Θερινός", evidence)
+    assert ocr_twin_head("Ἱωνικός", evidence)
+    assert not ocr_twin_head("Ἰωνικός", evidence)
+    assert not ocr_twin_head("Κρητικός", evidence)      # another list confirms
+    assert not ocr_twin_head("Σοδομηνός", evidence)     # no twin
+    assert not ocr_twin_head("θερινός", evidence)
+    assert not ocr_twin_head("ἄγνωστος", evidence)      # no head at all
+    assert confirmed_head("Κρητικός", evidence)
+    assert not confirmed_head("Σοδομηνός", evidence)
+    assert not confirmed_head("ἄγνωστος", evidence)
+
+
+def test_breathed_spelling_adds_the_correction_s_breathing_to_a_form():
+    from overlay_lsj import breathed_spelling
+    assert breathed_spelling("Ρωμαϊκόν", "Ρωμαϊκός", "Ῥωμαϊκός") == "Ῥωμαϊκόν"
+    assert breathed_spelling("ολικοῦ", "ολικός", "ὁλικός") == "ὁλικοῦ"
+    assert breathed_spelling("ουρανοφόρους", "ουρανοφόρος",
+                             "οὐρανοφόρος") == "οὐρανοφόρους"
+    assert breathed_spelling("ονειρατευώμεθα", "ονειρατεύομαι",
+                             "ὀνειρατεύομαι") == "ὀνειρατευώμεθα"
+    assert breathed_spelling("Αδάμου", "Άδαμος", "Ἄδαμος") == "Ἀδάμου"
+    # An augmented or already breathed form has no such spelling, nor has
+    # a correction that is more than one added breathing.
+    assert breathed_spelling("ωνειρατευόμην", "ονειρατεύομαι",
+                             "ὀνειρατεύομαι") is None
+    assert breathed_spelling("ὁλικοῦ", "ολικός", "ὁλικός") is None
+    assert breathed_spelling("Ρωμαϊκόν", "Ρωμαϊκός", "Ῥωμαικός") is None
+    assert breathed_spelling("Ρωμαϊκόν", "Ρωμαϊκός", "Ῥωμαϊκὸς") is None
+
+
+def test_published_oxytone_cells_return_under_a_trusted_self_mapped_head():
+    from overlay_lsj import carry_published_cells
+    evidence = {"ἀρχοντικός": ("lsj9_headwords",),
+                "θελητός": ("lsj9_headwords",),
+                "Ἀντιοχικός": ("lsj9_headwords",),
+                "Θερινός": ("sophocles/0550.xml",),
+                "θερινός": ("lsj9_headwords",),
+                "νοερός": ("lsj9_headwords",),
+                "λογισμός": ("lsj9_headwords",),
+                "σοφός": ("lsj9_headwords",)}
+    carried = {
+        "ἀρχοντικόν": "ἀρχοντικός", "ἀρχοντικὸν": "ἀρχοντικός",
+        "αρχοντικον": "ἀρχοντικός",
+        "ἀρχοντικοῦ": "ἀρχοντικός",          # present with this reading
+        "θελητόν": "θελητός",                # displaced by another reading
+        "θελητοῦ": "θελητός",
+        "θελητής": "θελητός",                # not a masculine/neuter cell
+        "Ἀντιοχικῶν": "᾿Αντιοχικός",          # spacing breathing in the lemma
+        "Θερινόν": "Θερινός",                # OCR twin of θερινός
+        "νοερῶν": "νοερός",                  # head not self-mapped
+        "λογισμὸν": "λογισμός",              # superseded noun
+        "σοφοῦ": "σοφός", "σοφόν": "σοφός",  # σοφόν: pinned exclusion
+        "ἀγνώστου": "ἀγνωστός",              # no positive head
+    }
+    target = {"ἀρχοντικός": "ἀρχοντικός", "ἀρχοντικοῦ": "ἀρχοντικός",
+              "θελητός": "θελητός", "θελητόν": "θελητόν",
+              "Ἀντιοχικός": "Ἀντιοχικός", "Θερινός": "Θερινός",
+              "νοερός": "νοερόω", "λογισμός": "λογισμός", "σοφός": "σοφός"}
+    before = dict(target)
+    stats, unmarked = carry_published_cells(
+        target, carried, evidence, {}, excluded_forms={"σοφόν"},
+        superseded_noun_lemmas={"λογισμός"})
+    added = {form: lemma for form, lemma in target.items() if form not in before}
+    assert added == {"ἀρχοντικόν": "ἀρχοντικός", "ἀρχοντικὸν": "ἀρχοντικός",
+                     "θελητοῦ": "θελητός", "Ἀντιοχικῶν": "Ἀντιοχικός",
+                     "σοφοῦ": "σοφός"}
+    assert {form: target[form] for form in before} == before
+    assert unmarked == {"αρχοντικον": ("ἀρχοντικός", "oxytone_cell")}
+    assert stats == {"oxytone_cell_entries": 5, "oxytone_cell_lemmas": 4,
+                     "corrected_head_entries": 0, "corrected_head_lemmas": 0}
+
+
+def test_published_keys_move_to_a_breathing_corrected_head():
+    from overlay_lsj import carry_published_cells
+    corrections = {"Ρωμαϊκός": "Ῥωμαϊκός", "ολικός": "ὁλικός",
+                   "ονειρατεύομαι": "ὀνειρατεύομαι"}
+    carried = {"Ρωμαϊκόν": "Ρωμαϊκός", "Ρωμαικον": "Ρωμαϊκός",
+               "Ρωμαϊκῆς": "Ρωμαϊκός",           # no fresh breathed cell
+               "ολικοῦ": "ολικός",               # breathed cell reads another
+               "ονειρατευώμεθα": "ονειρατεύομαι",
+               "ωνειρατευόμην": "ονειρατεύομαι",  # no such spelling
+               "Ρωμαϊκός": "Ρωμαϊκός"}           # present: left as it is
+    target = {"Ῥωμαϊκόν": "Ῥωμαϊκός", "ὁλικοῦ": "ὁλικόω",
+              "ὀνειρατευώμεθα": "ὀνειρατεύομαι", "Ρωμαϊκός": "Ρωμαϊκός"}
+    before = dict(target)
+    stats, unmarked = carry_published_cells(target, carried, {}, corrections)
+    added = {form: lemma for form, lemma in target.items() if form not in before}
+    assert added == {"Ρωμαϊκόν": "Ῥωμαϊκός",
+                     "ονειρατευώμεθα": "ὀνειρατεύομαι"}
+    assert {form: target[form] for form in before} == before
+    assert unmarked == {"Ρωμαικον": ("Ῥωμαϊκός", "corrected_head")}
+    assert stats == {"oxytone_cell_entries": 0, "oxytone_cell_lemmas": 0,
+                     "corrected_head_entries": 2, "corrected_head_lemmas": 2}
+
+
 def test_carried_head_records_hold_evidence_and_corrections(tmp_path):
     from overlay_lsj import load_carried_head_records
     path = tmp_path / "heads.json"
@@ -1098,3 +1219,32 @@ def test_unaccented_key_takes_the_acute_form_over_its_grave_twin():
     assert stats["unmarked_restored"] == 1
     assert stats["unmarked_grave_twins_skipped"] == 2
     assert stats["unmarked_disputed"] == 2
+
+
+def test_carried_cells_return_only_with_their_own_lemma_spelling():
+    from overlay_lsj import restore_unmarked_keys
+    reference = {"αθηλυντος": "ἀθήλυντος"}
+    target = {"ἀθήλυντος": "ἀθήλυντος",
+              "ἀρχοντικόν": "ἀρχοντικός", "ἀρχοντικὸν": "ἀρχοντικός",
+              "Ῥωμαϊκόν": "Ῥωμαϊκός", "Ρωμαϊκόν": "Ῥωμαϊκός",
+              "ολικοῦ": "ολικός",                 # only the uncorrected head
+              "θελητόν": "θελητόν"}
+    cells = {"αρχοντικον": ("ἀρχοντικός", "oxytone_cell"),
+             "Ρωμαικον": ("Ῥωμαϊκός", "corrected_head"),
+             "ολικου": ("ὁλικός", "corrected_head"),
+             "θελητον": ("θελητός", "oxytone_cell"),
+             "αθηλυντος": ("ἀθηλυντός", "oxytone_cell"),   # the reference wins
+             "σοφου": ("σοφός", "oxytone_cell")}           # pinned exclusion
+    rows = []
+    stats = restore_unmarked_keys(
+        reference, {}, target, {"αθηλυντος": "ἀθήλυντος"},
+        excluded_forms={"σοφου"}, restored_rows=rows,
+        breathing_corrections={"ολικός": "ὁλικός"}, carried_cells=cells)
+    assert rows == [("αθηλυντος", "ἀθήλυντος"), ("αρχοντικον", "ἀρχοντικός"),
+                    ("Ρωμαικον", "Ῥωμαϊκός")]
+    assert list(target.items())[-3:] == rows
+    assert stats["unmarked_candidates"] == 5
+    assert stats["unmarked_restored"] == 3
+    assert stats["unmarked_oxytone_cell_restored"] == 1
+    assert stats["unmarked_corrected_head_restored"] == 1
+    assert stats["unmarked_disputed"] == 1 and stats["unmarked_unbacked"] == 1

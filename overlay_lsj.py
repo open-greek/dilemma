@@ -62,7 +62,12 @@ CLOSED_CLASS_DUMPS = {
 }
 _CHUNK = 1 << 20
 _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
+_ACCENT_MARKS = frozenset("\u0300\u0301\u0342")
+_BREATHING_MARKS = ("\u0313", "\u0314")
 _LEADING_BREATHINGS = frozenset("\u0313\u0314\u1fbf\u1ffe")
+# Regular masculine and neuter cells of a second-declension oxytone.
+_OXYTONE_OS_ENDINGS = ("ός", "οῦ", "ῷ", "όν", "έ", "ώ", "οῖν", "οί", "ῶν",
+                       "οῖς", "ούς", "ά")
 # What a consonant-stem or s-stem entry prints after its headword: a
 # genitive in -ος, -ως or -ους, or the neuter -ες of an adjective in -ης.
 _THIRD_DECLENSION_ENDINGS = ("ος", "ως", "ους", "ες")
@@ -839,6 +844,29 @@ def overlay_expansion(
     return stats
 
 
+def oxytone_os_cells(lemma: str) -> frozenset[str]:
+    """Regular masculine and neuter cells of a second-declension oxytone.
+
+    For a head in -ός with no other accent these are the twelve endings of
+    the masculine and the neuter (θελητός: θελητοῦ, θελητόν, θελητά ...),
+    each in its accented spelling, its grave spelling where the final
+    syllable carries an acute, and its unaccented spelling. Any other
+    lemma has none.
+    """
+    decomposed = unicodedata.normalize("NFD", lemma)
+    if (not decomposed.endswith("ός")
+            or sum(char in _ACCENT_MARKS for char in decomposed) != 1):
+        return frozenset()
+    stem = decomposed[:-3]
+    cells = set()
+    for ending in _OXYTONE_OS_ENDINGS:
+        cell = stem + unicodedata.normalize("NFD", ending)
+        cells.add(unicodedata.normalize("NFC", cell))
+        cells.add(unicodedata.normalize("NFC", cell.replace("́", "̀")))
+        cells.add(strip_marks(cell))
+    return frozenset(cells)
+
+
 def confirmed_head(lemma: str, head_evidence: dict[str, tuple[str, ...]]) -> bool:
     """Whether a list other than the Sophocles lexicon attests the head.
 
@@ -848,6 +876,62 @@ def confirmed_head(lemma: str, head_evidence: dict[str, tuple[str, ...]]) -> boo
     """
     return any(not name.startswith("sophocles/")
                for name in head_evidence.get(lemma, ()))
+
+
+def ocr_twin_head(lemma: str, head_evidence: dict[str, tuple[str, ...]]) -> bool:
+    """Whether a head only the Sophocles lexicon has is another head's twin.
+
+    Such a head is not trusted when its lowercase spelling (Θερινός beside
+    θερινός) or its spelling with the other breathing (Ἱωνικός beside
+    Ἰωνικός) is itself a positive head. A head another list confirms keeps
+    its spelling (Κρητικός beside κρητικός).
+    """
+    if lemma not in head_evidence or confirmed_head(lemma, head_evidence):
+        return False
+    lowercase = lemma[:1].lower() + lemma[1:]
+    if lowercase != lemma and lowercase in head_evidence:
+        return True
+    decomposed = unicodedata.normalize("NFD", lemma)
+    for mark, other in (_BREATHING_MARKS, _BREATHING_MARKS[::-1]):
+        if mark in decomposed:
+            return unicodedata.normalize(
+                "NFC", decomposed.replace(mark, other, 1)) in head_evidence
+    return False
+
+
+def breathed_spelling(form: str, head: str, corrected: str) -> str | None:
+    """``form`` with the breathing a correction added to its head.
+
+    The breathing review turns ``head`` into ``corrected`` by adding one
+    breathing (Ρωμαϊκός to Ῥωμαϊκός, ολικός to ὁλικός). The same mark goes
+    on the same letter of an unbreathed form whose letters up to there are
+    the head's (Ρωμαϊκόν to Ῥωμαϊκόν); any other form has no such spelling.
+    """
+    head_nfd = unicodedata.normalize("NFD", head)
+    corrected_nfd = unicodedata.normalize("NFD", corrected)
+    form_nfd = unicodedata.normalize("NFD", form)
+    if (len(corrected_nfd) != len(head_nfd) + 1
+            or any(mark in form_nfd for mark in _BREATHING_MARKS)):
+        return None
+    for index, char in enumerate(corrected_nfd):
+        if (char in _BREATHING_MARKS
+                and corrected_nfd[:index] + corrected_nfd[index + 1:] == head_nfd):
+            break
+    else:
+        return None
+    letters = [char for char in head_nfd[:index] if not unicodedata.combining(char)]
+    position = matched = 0
+    while matched < len(letters):
+        if position == len(form_nfd):
+            return None
+        char = form_nfd[position]
+        if not unicodedata.combining(char):
+            if char != letters[matched]:
+                return None
+            matched += 1
+        position += 1
+    return unicodedata.normalize(
+        "NFC", form_nfd[:position] + corrected_nfd[index] + form_nfd[position:])
 
 
 def keep_published_over_unaccented_heads(
@@ -876,6 +960,78 @@ def keep_published_over_unaccented_heads(
     return replaced
 
 
+def carry_published_cells(
+    target: dict[str, str],
+    carried: dict[str, str],
+    head_evidence: dict[str, tuple[str, ...]],
+    breathing_corrections: dict[str, str],
+    excluded_forms: set[str] | frozenset[str] = frozenset(),
+    superseded_noun_lemmas: set[str] | frozenset[str] = frozenset(),
+) -> tuple[dict[str, int], dict[str, tuple[str, str]]]:
+    """Carry two kinds of key that only the published table has.
+
+    Neither kind is in the expansion reference: an earlier Sophocles
+    expansion made them, and no current generator does. Both are written
+    only for a key the target lacks; an existing reading is never replaced.
+
+    Oxytone adjective cells. A key the published table read under a head
+    in -ός comes back when the head is a positive lexical head the target
+    maps to itself, is not an OCR twin (ocr_twin_head), and the key is one
+    of its regular masculine or neuter cells (oxytone_os_cells):
+    ἀρχοντικόν ἀρχοντικός, θελητόν θελητός. The published lemma is read
+    with a leading spacing breathing folded into its capital. A superseded
+    noun is left alone: it has its fresh paradigm, or the keys
+    overlay_expansion() kept for it.
+
+    Breathing-corrected heads. The published table read these keys under a
+    head whose breathing the Sophocles OCR lost (Ρωμαϊκόν Ρωμαϊκός). The
+    breathing review (``sophocles_breathing`` in grc_lexical_heads.json)
+    corrected the head, and the key now reads the corrected head when the
+    target has its breathed spelling with that head (Ῥωμαϊκόν Ῥωμαϊκός).
+
+    Marked keys are written here. Unaccented keys are returned as
+    ``{key: (lemma, rule)}`` for restore_unmarked_keys(), which adds one
+    only where the marked spellings of the finished table agree with it.
+    """
+    stats = {"oxytone_cell_entries": 0, "oxytone_cell_lemmas": 0,
+             "corrected_head_entries": 0, "corrected_head_lemmas": 0}
+    marked: list[tuple[str, str, str]] = []
+    unmarked: dict[str, tuple[str, str]] = {}
+    cells: dict[str, frozenset[str]] = {}
+    for form, published in carried.items():
+        if (form in target or form in excluded_forms
+                or has_editorial_sigla(form) or has_editorial_sigla(published)):
+            continue
+        corrected = breathing_corrections.get(published)
+        if corrected is not None:
+            if not has_orthographic_mark(form):
+                unmarked[form] = (corrected, "corrected_head")
+            elif target.get(breathed_spelling(form, published, corrected)) == corrected:
+                marked.append((form, corrected, "corrected_head"))
+            continue
+        lemma = fold_leading_breathing(published)
+        if lemma not in cells:
+            cells[lemma] = (
+                oxytone_os_cells(lemma)
+                if (lemma in head_evidence and target.get(lemma) == lemma
+                    and published not in superseded_noun_lemmas
+                    and lemma not in superseded_noun_lemmas
+                    and not ocr_twin_head(lemma, head_evidence))
+                else frozenset())
+        if form in cells[lemma]:
+            if has_orthographic_mark(form):
+                marked.append((form, lemma, "oxytone_cell"))
+            else:
+                unmarked[form] = (lemma, "oxytone_cell")
+    for rule in ("oxytone_cell", "corrected_head"):
+        rows = [(form, lemma) for form, lemma, kind in marked if kind == rule]
+        stats[f"{rule}_entries"] = len(rows)
+        stats[f"{rule}_lemmas"] = len({lemma for _form, lemma in rows})
+    for form, lemma, _rule in marked:
+        target[form] = lemma
+    return stats, unmarked
+
+
 def restore_unmarked_keys(
     reference: dict[str, str],
     reference_base: dict[str, str],
@@ -885,6 +1041,7 @@ def restore_unmarked_keys(
     restored_rows: list[tuple[str, str]] | None = None,
     head_evidence: dict[str, tuple[str, ...]] | None = None,
     breathing_corrections: dict[str, str] | None = None,
+    carried_cells: dict[str, tuple[str, str]] | None = None,
 ) -> dict[str, int]:
     """Give back the unaccented expansion keys the published table carried.
 
@@ -917,6 +1074,11 @@ def restore_unmarked_keys(
       generated ἀποπενιγ͂υμι beside ἀπεπνίγη ἀποπνίγω). A backer that agrees
       always counts.
 
+    ``carried_cells`` are the unaccented keys carry_published_cells()
+    returned (``{key: (lemma, rule)}``). They are not in the reference and
+    come back under the same test, and only with exactly that lemma
+    spelling among their backers.
+
     The keys are appended to ``target`` in order, and ``restored_rows``
     receives each (key, lemma), so the caller can record a digest that lets
     scripts/build_source_alias_manifest.py remove exactly these rows again.
@@ -937,6 +1099,12 @@ def restore_unmarked_keys(
             continue
         wanted[form] = canonical(lemma)
         published[form] = lemma
+    rules: dict[str, str] = {}
+    for form, (lemma, rule) in (carried_cells or {}).items():
+        if form in wanted or form in target or form in excluded_forms:
+            continue
+        wanted[form] = lemma
+        rules[form] = rule
     # bare key -> normalised lemma -> the spellings its backers read
     readings: dict[str, dict[str, set[str]]] = defaultdict(
         lambda: defaultdict(set))
@@ -955,6 +1123,8 @@ def restore_unmarked_keys(
     stats = {"unmarked_candidates": len(wanted), "unmarked_restored": 0,
              "unmarked_disputed": 0, "unmarked_unbacked": 0,
              "unmarked_lemma_respelled": 0,
+             "unmarked_oxytone_cell_restored": 0,
+             "unmarked_corrected_head_restored": 0,
              "unmarked_nonhead_readings_ignored": 0,
              "unmarked_grave_twins_skipped": grave_twins}
     for bare, lemma in wanted.items():
@@ -964,12 +1134,16 @@ def restore_unmarked_keys(
         if head_evidence is not None and confirmed_head(lemma, head_evidence):
             disputing = {other for other in others if other in head_evidence}
         spellings = current.get(lemma, set())
+        if bare in rules:
+            spellings = spellings & {lemma}
         if spellings and not disputing:
             if lemma not in spellings and len(spellings) == 1:
                 (lemma,) = spellings
             target[bare] = lemma
             stats["unmarked_restored"] += 1
-            if lemma != published[bare]:
+            if bare in rules:
+                stats[f"unmarked_{rules[bare]}_restored"] += 1
+            elif lemma != published[bare]:
                 stats["unmarked_lemma_respelled"] += 1
             if others:
                 stats["unmarked_nonhead_readings_ignored"] += 1
@@ -1262,6 +1436,11 @@ def main() -> None:
     )
     stats["unaccented_head_readings_kept"] = (
         keep_published_over_unaccented_heads(target, carried, lexical_heads))
+    cell_stats, carried_cells = carry_published_cells(
+        target, carried, head_evidence, breathing_corrections,
+        excluded_forms=excluded_forms - released_forms,
+        superseded_noun_lemmas=superseded_nouns)
+    stats.update(cell_stats)
     alias_stats = restore_attested_compound_aliases(
         reference, reference_base, target, source_pairs,
         lexical_heads,
@@ -1276,7 +1455,8 @@ def main() -> None:
         excluded_forms=excluded_forms - released_forms,
         restored_rows=unmarked_rows,
         head_evidence=head_evidence if carried else None,
-        breathing_corrections=breathing_corrections))
+        breathing_corrections=breathing_corrections,
+        carried_cells=carried_cells))
     stats["unmarked_withheld_noun_restored"] = sum(
         lemma in withheld_nouns for _key, lemma in unmarked_rows)
     del carried
@@ -1324,12 +1504,20 @@ def main() -> None:
           f"{stats['withheld_noun_citation_only_lemmas']:,} citation only)")
     print(f"Published readings kept over accent-less heads: "
           f"{stats['unaccented_head_readings_kept']:,}")
+    print(f"Published oxytone -ός cells carried: "
+          f"{stats['oxytone_cell_entries']:,} "
+          f"({stats['oxytone_cell_lemmas']:,} lemmas)")
+    print(f"Published keys moved to breathing-corrected heads: "
+          f"{stats['corrected_head_entries']:,} "
+          f"({stats['corrected_head_lemmas']:,} lemmas)")
     print(f"Unaccented fallback keys restored: {stats['unmarked_restored']:,} "
           f"({stats['unmarked_disputed']:,} disputed, "
           f"{stats['unmarked_unbacked']:,} without a marked form)")
     print(f"  of them: {stats['unmarked_withheld_noun_restored']:,} of nouns "
           f"without a fresh paradigm, "
-          f"{stats['unmarked_lemma_respelled']:,} with a normalised "
+          f"{stats['unmarked_oxytone_cell_restored']:,} oxytone -ός cells, "
+          f"{stats['unmarked_corrected_head_restored']:,} of breathing-corrected "
+          f"heads, {stats['unmarked_lemma_respelled']:,} with a normalised "
           f"lemma spelling, {stats['unmarked_nonhead_readings_ignored']:,} past "
           f"a reading that is no lexical head; "
           f"{stats['unmarked_grave_twins_skipped']:,} grave twins not consulted")
