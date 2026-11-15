@@ -41,7 +41,10 @@ cross-references, inflected imperatives, person-limited verbs). A glosses
 export that lacks an entry's text cannot skip it that way, so a headword that
 is all conjugation ending (the prefix `ἡμι-`, whose stem is empty) is never
 expanded, with or without its text; it would otherwise map bare endings such
-as `ῆς` and `εῖτε` to the prefix.
+as `ῆς` and `εῖτε` to the prefix. Because the export decides which verbs are
+expanded and how, `data/lsj9_glosses_pin.json` pins its sha256 and size, and
+`expand_lsj.py --expand-verbs` stops when `lsj9_glosses.jsonl` is missing or
+differs.
 
 ## Historical expansion overlay
 
@@ -51,12 +54,26 @@ the June re-expansion recovered only part of the prior paradigms. The overlay
 derives only the expansion delta from the known-good, revision- and
 SHA-256-pinned March artifact in `data/ag_expansion_reference.json`; it never
 restores a historical base mapping and never overrides a current mapping.
-It restores marked surface spellings only, not the generated accent-stripped
+It restores marked surface spellings first, not the generated accent-stripped
 fallback keys that can shadow unrelated analyses sharing the same bare
-skeleton. The generated `data/ag_expansion_exclusions.json` also removes
-historical rows that conflict with the pinned 1.3.1 resolved lookup or with
-Dilemma's nonlexical classifier. Its generator is
-`build/build_ag_expansion_exclusions.py`.
+skeleton. After the marked spellings and the source aliases are in, it gives
+back a historical unaccented key (`αθηλυντος`, `παμπολλων`) only where every
+marked spelling of the current table that strips to it reads the key's lemma,
+so the key agrees with the table by construction and unaccented input reaches
+the paradigm (`restore_unmarked_keys`; a key whose marked spellings disagree,
+or that no marked spelling backs, stays out). The generated
+`data/ag_expansion_exclusions.json` also removes historical rows that conflict
+with the pinned 1.3.1 resolved lookup or with Dilemma's nonlexical classifier.
+Its generator is `build/build_ag_expansion_exclusions.py`. A 1.3.1 conflict
+keeps its form out only where the recorded 1.3.1 reading is an Ancient head
+(Wiktionary, LSJ, DGE or Cunliffe in `grc_lexical_heads.json`) of the form's
+own case (`ἐκπλαγῇ` stays `ἐκπλάσσω`). A conflict recorded as the form itself
+(`ἄκτιστον`, `ἀποστασίου`), as an unaccented or Modern spelling (`ἀμετρητος`,
+`σπερματούχος`) or as a capital for a lowercase form (`Στερέα` for `στερέα`)
+is released, and the expansion reading is recovered
+(`released_baseline_conflicts`): the corpus gap-fill would otherwise supply
+those readings. Released forms still count among the pinned
+`excluded_entries` and separately as `released_conflict_entries`.
 Running it without `--reference` downloads and verifies that exact artifact.
 
 `build_lookup_db.py` checks the readings this layer supplies once more: a

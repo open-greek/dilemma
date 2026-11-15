@@ -1110,12 +1110,26 @@ speech differ; the lookup holds one.
   displacing lemma (`ἕως` 5,399 to 1), or when GLAUx is silent or tied and
   the pinned Wiktionary-only base (`ag_lookup_wikt.json`) reads it as itself.
 - A head only a dictionary lists (`σπαθίον`, `κατέναντι`) is considered only
-  where the base reads it as itself, and needs the GLAUx majority, because
-  those lists and the base also hold inflected forms.
+  where the base reads it as itself, and needs the GLAUx majority of at least
+  two tokens, because those lists and the base also hold inflected forms (one
+  token, as for `ἐγώγε` or `τός`, is a lemmatizer's choice).
 - Where GLAUx prefers the other lemma (`τοῦ`, `ἴσον`, `θρόνον`), the reading
-  stays. The head's unaccented, lowercase and monotonic keys follow it when
-  they hold the same displaced lemma, are not heads themselves, and no other
-  restored head claims them.
+  stays. So does a head whose own reading the article filter would drop
+  (`ὄ`, whose keys `ὄ` and `ό` keep `ὅς` instead of losing their row).
+- A case twin is not another lemma. A capitalized head never takes a key from
+  its own lowercase lemma (`Υἱός` and `Πατήρ` keep `υἱός` and `πατήρ`). A
+  lowercase head takes one from its capitalized twin only where GLAUx uses
+  the lowercase lemma at least as often overall: `ψυχή`, `τύχη`, `δῖος` and
+  `νίκη` come back, `φίλιππος` beside `Φίλιππος` (37 to 2,970 tokens) does
+  not, since its self-map would offer the adjective for every `Φιλίππου`.
+- The head's unaccented, lowercase and monotonic keys follow it when they
+  hold the same displaced lemma, are not heads themselves, no other restored
+  head claims them, and the GLAUx forms that fold to the key read it as the
+  head more often than as any other lemma (or GLAUx has no form for the key).
+  `γυναικων` stays `γυνή` beside the restored `γυναικών`, because
+  `γυναικῶν` (1,785 tokens) folds to it too, and `ρα` stays `ῥεῖα` beside
+  `ῥᾶ`, because GLAUx reads `ῥα` as `ἄρα`. A capitalized head's lowercase
+  keys never follow it, and a key that maps to itself keeps its reading.
 
 Restored rows carry the `wiktionary_grc` source, and each one is listed in
 `citation_hygiene_rejections.tsv` with the reason
