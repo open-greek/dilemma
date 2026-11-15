@@ -57,13 +57,18 @@ def test_driver_uses_original_quantity_marked_headword(monkeypatch, tmp_path):
     monkeypatch.setattr(expand_lsj, "load_wiktionary_forms", lambda: set())
     monkeypatch.setattr(expand_lsj, "load_lsj_head_texts", lambda: {
         "ἡμῐ": "insep. Prefix, used in compos., half-.", "λύω": "loose."})
+    # The driver checks the LSJ9 glosses export against its pin; the entry
+    # texts come from the stubs here.
+    monkeypatch.setattr(expand_lsj, "verify_lsj_glosses",
+                        lambda: {"sha256": "0" * 64, "size": 0})
+    monkeypatch.setattr(expand_lsj, "load_lsj_supplement_head_texts", lambda: {})
     monkeypatch.setattr(expand_lsj, "get_wtp", lambda: object())
     lookup = tmp_path / "ag_lookup.json"
     lookup.write_text(json.dumps({"ἡμι": "independent_source"}))
     monkeypatch.setattr(expand_lsj, "AG_LOOKUP", lookup)
     calls = []
 
-    def expand(_wtp, word, head_text=""):
+    def expand(_wtp, word, head_text="", supplement_text=""):
         calls.append(word)
         return {"λύω", "λύεις"}, ""
 

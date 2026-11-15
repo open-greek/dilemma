@@ -91,17 +91,19 @@ class TestGraveCitationLemmas:
     def test_backed_grave_lookup_normalizes_to_headword(self):
         d = Dilemma(lang="grc")
         assert d.lemmatize("οὐρανοστεγῆ", guess=False) == "οὐρανοστεγής"
-        assert d.lemmatize("δακτύλι", guess=False) == "δακτυλεύς"
         assert d.lemmatize_batch(
             ["οὐρανοστεγῆ", "δακτύλι"], guess=False
-        ) == ["οὐρανοστεγής", "δακτυλεύς"]
-        for form, expected in [
-            ("οὐρανοστεγῆ", "οὐρανοστεγής"),
-            ("δακτύλι", "δακτυλεύς"),
-        ]:
-            candidates = d.lemmatize_verbose(form, guess=False)
-            assert candidates[0].lemma == expected
-            assert all(not _has_grave(c.lemma) for c in candidates)
+        )[0] == "οὐρανοστεγής"
+        candidates = d.lemmatize_verbose("οὐρανοστεγῆ", guess=False)
+        assert candidates[0].lemma == "οὐρανοστεγής"
+        # δακτύλι reads the vocative of δακτυλίς since the 1.3.26 expansion
+        # declines that noun; whichever row answers, no grave is emitted.
+        for form in ["οὐρανοστεγῆ", "δακτύλι"]:
+            assert all(not _has_grave(c.lemma)
+                       for c in d.lemmatize_verbose(form, guess=False))
+        # A lookup value with a grave becomes the headword it is proven by.
+        assert d._normalize_grave_citation_lemma("δακτυλεὺς") == "δακτυλεύς"
+        assert d._normalize_grave_citation_lemma("οὐρανοστεγὴς") == "οὐρανοστεγής"
 
     def test_unbacked_grave_lookup_is_not_emitted(self):
         d = Dilemma(lang="grc")

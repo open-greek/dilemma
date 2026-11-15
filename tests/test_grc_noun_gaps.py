@@ -93,8 +93,11 @@ def test_selection_wants_ancient_neuter_evidence():
         # A corpus lemmatizer's second-declension slip does not count.
         ("γλήνεος", "γλῆνος", "wiktionary_grc"), ("γλήνεα", "γλῆνος", "wiktionary_grc"),
         ("γλῆνον", "γλῆνος", "glaux"), ("γλήνου", "γλῆνος", "glaux"),
-        # Reviewed: Homer's φῖλος.
+        # Reviewed: Homer's φῖλος, and an adjective the expansion layer
+        # declines as a neuter.
         ("φίλεος", "φῖλος", "wiktionary_grc"), ("φίλεα", "φῖλος", "wiktionary_grc"),
+        ("ἀδρανέεος", "ἀδράνεος", "grc_lexicon_expansion"),
+        ("ἀδρανέεα", "ἀδράνεος", "grc_lexicon_expansion"),
         # Breathing and rho are fine when written.
         ("ἔσθεος", "ἔσθος", "grc_lexicon_expansion"),
         ("ἔσθεα", "ἔσθος", "grc_lexicon_expansion"),
@@ -205,11 +208,13 @@ def test_shipped_generated_rows_name_their_source():
     with sqlite3.connect(f"file:{core.LOOKUP_DB_PATH}?mode=ro", uri=True) as conn:
         rows = dict(conn.execute(
             "SELECT l.form, s.code FROM lookup l JOIN sources s ON s.id = l.source_id "
-            "WHERE l.lang = 'all' AND l.form IN ('στέφους', 'συνάρσεως', 'συναρσεως')"))
+            "WHERE l.lang = 'all' AND l.form IN ('στέφους', 'ῥητρεύσεως', 'ρητρευσεως')"))
         count = conn.execute(
             "SELECT count(*) FROM lookup l JOIN sources s ON s.id = l.source_id "
             "WHERE s.code = ?", (SOURCE,)).fetchone()[0]
-    assert rows == dict.fromkeys(("στέφους", "συνάρσεως", "συναρσεως"), SOURCE)
+    # σύναρσις is declined by the dictionary expansion since 1.3.26, so its
+    # cells are no longer rows of this layer.
+    assert rows == dict.fromkeys(("στέφους", "ῥητρεύσεως", "ρητρευσεως"), SOURCE)
     assert 39_000 < count < 42_000
 
 

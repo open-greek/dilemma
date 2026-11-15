@@ -87,8 +87,10 @@ ANCIENT_TABLE_SOURCES = frozenset((
 _BREATHINGS = frozenset(("\u0313", "\u0314"))
 # Reviewed -ος lemmas with s-stem evidence in the table that are not s-stem
 # neuters. φῖλος is Homer's masculine "friend" (φίλος); its -εος/-εα rows in
-# the Wiktionary tables are spellings of other words.
-NOT_SSTEM_NEUTERS = frozenset(("φῖλος",))
+# the Wiktionary tables are spellings of other words. ἀδράνεος is LSJ's
+# adjective (η, ον, = ἀδρανής); the expansion layer declines it as a neuter
+# (ἀδρανέεος, ἀδρανέεα), and no table lists its second-declension cells.
+NOT_SSTEM_NEUTERS = frozenset(("φῖλος", "ἀδράνεος"))
 
 
 def _nfc(text: str) -> str:

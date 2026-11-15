@@ -30,6 +30,8 @@ if name == "expand_lsj":
     m.parse_lsj_entries = lambda: entries
     m.load_wiktionary_forms = lambda: {}
     m.load_lsj_head_texts = lambda: {}
+    m.load_lsj_supplement_head_texts = lambda: {}
+    m.verify_lsj_glosses = lambda: {"sha256": "0" * 64, "size": 0}
 else:
     m.analyze = lambda *a, **kw: (entries, ["λόγος"], [])
     m.parse_sophocles_entries = lambda *a, **kw: entries
