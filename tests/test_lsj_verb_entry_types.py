@@ -30,6 +30,13 @@ def test_nonparadigmatic_entries_never_call_lua(word, text, reason):
     assert expand_lsj.expand_verb(None, word, head_text=text) == (set(), reason)
 
 
+@pytest.mark.parametrize("word", ["ἡμι", "ἡμί"])
+def test_stemless_headword_without_description_never_calls_lua(word):
+    # An LSJ export that lacks the prefix description must not turn the
+    # bare ending into a paradigm (εῖ, ῆς, εῖτε -> ἡμι).
+    assert expand_lsj.expand_verb(None, word, head_text="") == (set(), "empty-verb-stem")
+
+
 @pytest.mark.parametrize("text", [
     "3sg. ἄησι Hes.Op.516; imper. 3sg. ἀήτω A.R.4.768; inf. ἀῆναι.",
     "3 sg. imper. στερείτω Pl.Lg.958e; otherwise pres. occurs only in form στερίσκω.",

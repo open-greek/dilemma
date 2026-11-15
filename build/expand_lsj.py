@@ -1458,6 +1458,11 @@ def expand_verb(wtp, headword, head_text: str = ""):
         if plain.endswith("μαι"):
             return set(), "unsupported-middle-ending"
         return set(), f"unknown-ending:{headword[-3:]}"
+    if not stem and conj_type != "irreg":
+        # The whole headword is the conjugation ending (the prefix ἡμι-),
+        # so there is no stem to inflect. This holds even when the source
+        # description that marks it as a prefix is missing from the export.
+        return set(), "empty-verb-stem"
 
     # Literal irregular bases use their explicit paradigms. A compound
     # requires independently supported accent, augment, and family rules;
