@@ -42,4 +42,5 @@ def test_build_hashes_work_without_file_digest(tmp_path, monkeypatch, payload):
     hashes = expand_sophocles.sophocles_noun_input_hashes()
     assert hashes["sophocles/0057.xml"] == expected
     assert hashes.pop("sophocles_breathing") == hashlib.sha256(b"null").hexdigest()
+    assert hashes.pop("lexical_heads") == hashlib.sha256(b"null").hexdigest()
     assert set(hashes.values()) == {expected}

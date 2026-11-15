@@ -24,19 +24,30 @@ def parse(tmp_path, monkeypatch, *entries, **kwargs):
     return S.parse_sophocles_entries(None, audit=audit, **kwargs), audit
 
 
-def run_noun_step(tmp_path, monkeypatch, lookup, *entries, forms=None):
-    """expand_all() over fixture entries with the Lua expansion stubbed:
-    ``forms`` maps a head to its paradigm (default: the head alone)."""
+def fixture_inputs(tmp_path, monkeypatch, lookup, entries, heads):
+    """Point the generator at fixture chunks, a fixture table and, with
+    ``heads`` (head -> sources), a fixture grc_lexical_heads.json."""
     write_chunk(tmp_path / "chunks", *entries)
     table = tmp_path / "ag_lookup.json"
     table.write_text(json.dumps(lookup, ensure_ascii=False), encoding="utf-8")
+    lexical = tmp_path / "grc_lexical_heads.json"
+    if heads is not None:
+        lexical.write_text(json.dumps({"heads": heads}, ensure_ascii=False),
+                           encoding="utf-8")
     monkeypatch.setattr(S, "SOPH_DIR", tmp_path / "chunks")
     monkeypatch.setattr(S, "AG_LOOKUP", table)
-    monkeypatch.setattr(S, "LEXICAL_HEADS", tmp_path / "missing.json")
+    monkeypatch.setattr(S, "LEXICAL_HEADS", lexical)
     monkeypatch.setattr(S, "load_breathing_review", lambda *a, **kw: None)
     monkeypatch.setattr(S, "sophocles_noun_input_hashes", lambda: {})
     monkeypatch.setattr(S, "get_wtp", lambda: None)
     monkeypatch.setattr(S, "load_wiktionary_genitives", lambda: {})
+    return table
+
+
+def run_noun_step(tmp_path, monkeypatch, lookup, *entries, forms=None, heads=None):
+    """expand_all() over fixture entries with the Lua expansion stubbed:
+    ``forms`` maps a head to its paradigm (default: the head alone)."""
+    table = fixture_inputs(tmp_path, monkeypatch, lookup, entries, heads)
     calls = []
 
     def expand_noun(wtp, head, gender, genitive, wikt_genitives=None):
@@ -49,6 +60,20 @@ def run_noun_step(tmp_path, monkeypatch, lookup, *entries, forms=None):
     audit = json.loads((tmp_path / "ag_sophocles_noun_generation_audit.json")
                        .read_text(encoding="utf-8"))
     return json.loads(table.read_text(encoding="utf-8")), audit, calls
+
+
+def run_verb_step(tmp_path, monkeypatch, lookup, *entries, forms=None, heads=None):
+    """expand_verbs() over fixture entries with the Lua expansion stubbed."""
+    table = fixture_inputs(tmp_path, monkeypatch, lookup, entries, heads)
+    calls = []
+
+    def expand_verb(wtp, head):
+        calls.append(head)
+        return set((forms or {}).get(head, [head])), ""
+
+    monkeypatch.setattr(S, "expand_verb", expand_verb)
+    S.expand_verbs()
+    return json.loads(table.read_text(encoding="utf-8")), calls
 
 
 @pytest.mark.parametrize("orth,head,reason", [
@@ -180,3 +205,110 @@ def test_stated_gender_wins_over_the_ending(tmp_path, monkeypatch):
                         "result": "missing-genitive"},
         "ἀντίστροφος": {"stated": "f", "ending_class": "m", "result": "expanded"},
         "βροῦμα": {"stated": "f", "ending_class": "n", "result": "expanded"}}}
+
+
+LISTED = frozenset({"καθηδύνω", "καταμαρτυρία", "ἡλιοκάμινος", "ὕποκατασκευή"})
+
+
+@pytest.mark.parametrize("printed,head,rule", [
+    ("Ἔρετριάς", "", "two-accents"),
+    ("οἴηματικός", "", "two-accents"),
+    # the joined word is no other source's head
+    ("Σινα-ῖτις", "", "inner-hyphen"),
+    ("αἱρέω-ω", "", "inner-hyphen"),
+    ("στρέφω—τρέπω", "", "inner-hyphen"),
+    # ... or carries two accents, listed or not
+    ("ὕπο-κατασκευή", "", "inner-hyphen"),
+    ("γαζοφυλακέω--γαζοφύλαξ", "", "inner-hyphen"),
+    # another source lists the joined word
+    ("καθ-ηδύνω", "καθηδύνω", "joined"),
+    ("κατα-μαρτυρία", "καταμαρτυρία", "joined"),
+    # one accent, no hyphen: the head stands
+    ("ἀθεότης", "ἀθεότης", ""),
+    ("πρωΐα", "πρωΐα", ""),
+    ("ᾅδης", "ᾅδης", ""),
+    ("οφφικιον", "οφφικιον", ""),
+])
+def test_settle_head_rejects_or_repairs_a_malformed_head(printed, head, rule):
+    assert S.settle_head(printed, LISTED) == (head, rule)
+
+
+def test_hyphen_repair_needs_another_source(tmp_path):
+    assert S.settle_head("καθ-ηδύνω") == ("", "inner-hyphen")
+    assert S.settle_head("καθ-ηδύνω", frozenset()) == ("", "inner-hyphen")
+    assert S.load_lexical_heads(tmp_path / "missing.json") is None
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({"heads": {
+        "καθηδύνω": ["lsj9_headwords", "sophocles/0600.xml"],
+        "Σιναῖτις": ["sophocles/0950.xml"],
+        "πέτρα": ["pd_headwords"]}}, ensure_ascii=False), encoding="utf-8")
+    # the lexicon's own heads are the ones being judged: they are no evidence
+    assert S.load_lexical_heads(path) == {"καθηδύνω", "πέτρα"}
+
+
+def test_settle_heads_keeps_the_order_and_the_printed_twin():
+    entries = {"ἄβαγνον": {"headword": "ἄβαγνον", "gender": "n"},
+               "κατα-μαρτυρία": {"headword": "κατα-μαρτυρία", "gender": "f"},
+               "Ἔρετριάς": {"headword": "Ἔρετριάς", "gender": "f"},
+               "καθ-ηδύνω": {"headword": "καθ-ηδύνω", "gender": ""},
+               "καθηδύνω": {"headword": "καθηδύνω", "gender": "", "own": True},
+               "ὕδωρ": {"headword": "ὕδωρ", "gender": "n"}}
+    audit = S.new_head_audit()
+    settled = S.settle_heads(entries, LISTED, audit)
+    assert list(settled) == ["ἄβαγνον", "καταμαρτυρία", "καθηδύνω", "ὕδωρ"]
+    assert settled["καταμαρτυρία"] == {
+        "headword": "καταμαρτυρία", "printed": "κατα-μαρτυρία", "gender": "f"}
+    assert settled["καθηδύνω"]["own"] and settled["ἄβαγνον"] is entries["ἄβαγνον"]
+    assert entries["κατα-μαρτυρία"]["headword"] == "κατα-μαρτυρία"
+    assert audit["malformed_heads"] == {"Ἔρετριάς": "two-accents"}
+    assert audit["repaired_heads"] == {"κατα-μαρτυρία": "καταμαρτυρία",
+                                       "καθ-ηδύνω": "καθηδύνω"}
+    # without the lexical heads nothing is repaired
+    assert list(S.settle_heads(entries, None)) == ["ἄβαγνον", "καθηδύνω", "ὕδωρ"]
+
+
+HEADS = {"καταμαρτυρία": ["lbg_headwords", "sophocles/0600.xml"],
+         "ἡλιοκάμινος": ["lsj9_headwords"],
+         "καθηδύνω": ["lsj9_headwords", "sophocles/0600.xml"],
+         "Σιναῖτις": ["sophocles/0950.xml"]}
+
+
+def test_noun_step_rejects_and_repairs_malformed_heads(tmp_path, monkeypatch):
+    lookup, audit, calls = run_noun_step(
+        tmp_path, monkeypatch, {"ἡλιοκάμινος": "ἡλιοκάμινος"},
+        "<orth>Ἔρετριάς</orth>, άδος, ἡ, of Eretria.",
+        "<orth>Σινα-ῖτις</orth>, ιδος, ἡ, of Sinai.",
+        "<orth>ὕπο-κατασκευή</orth>, ῆς, ἡ, preparation.",
+        "<orth>κατα-μαρτυρία</orth>, ας, ἡ, testimony against one.",
+        "<orth>ἡλιο-κάμινος</orth>, ου, ἡ, a place exposed to the sun.",
+        "<orth>ἀνα-πλήρως</orth>, adv. fully.",
+        heads=HEADS,
+        forms={"καταμαρτυρία": ["καταμαρτυρία", "καταμαρτυρίας"]})
+    # the repaired head is expanded; the one the table has is left alone
+    assert calls == [("καταμαρτυρία", "f", "ας")]
+    assert lookup == {
+        "ἡλιοκάμινος": "ἡλιοκάμινος",
+        "καταμαρτυρία": "καταμαρτυρία", "καταμαρτυρια": "καταμαρτυρία",
+        "καταμαρτυρίας": "καταμαρτυρία", "καταμαρτυριας": "καταμαρτυρία"}
+    assert audit["head_rules"]["malformed_heads"] == {"count": 4, "heads": {
+        "Ἔρετριάς": "two-accents", "Σινα-ῖτις": "inner-hyphen",
+        "ἀνα-πλήρως": "inner-hyphen", "ὕπο-κατασκευή": "inner-hyphen"}}
+    assert audit["head_rules"]["repaired_heads"] == {"count": 2, "heads": {
+        "κατα-μαρτυρία": "καταμαρτυρία", "ἡλιο-κάμινος": "ἡλιοκάμινος"}}
+    # the historical layer keyed its rows by the printed head, so a completed
+    # genitive still supersedes that name, rejected and repaired heads alike
+    assert set(audit["superseded_lemmas"]) == {
+        "Σινα-ῖτις", "Ἔρετριάς", "κατα-μαρτυρία", "ἡλιο-κάμινος"}
+
+
+def test_verb_step_rejects_and_repairs_malformed_heads(tmp_path, monkeypatch):
+    lookup, calls = run_verb_step(
+        tmp_path, monkeypatch, {},
+        "<orth>καθ-ηδύνω</orth>, to sweeten.",
+        "<orth>δια-μαστιγόω</orth>, to scourge.",
+        "<orth>θεμάτίζω</orth>, to propose.",
+        "<orth>γράφω</orth>, to write.",
+        heads=HEADS, forms={"καθηδύνω": ["καθηδύνω", "καθηδύνεις"]})
+    assert calls == ["καθηδύνω", "γράφω"]
+    assert set(lookup.values()) == {"καθηδύνω", "γράφω"}
+    assert "καθηδύνεις" in lookup and "καθηδυνεις" in lookup

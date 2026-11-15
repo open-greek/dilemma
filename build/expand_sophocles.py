@@ -136,10 +136,15 @@ def is_greek(s):
     return any('\u0370' <= c <= '\u03FF' or '\u1F00' <= c <= '\u1FFF' for c in s)
 
 
+def accent_count(s):
+    """How many accent marks (acute, grave, circumflex) a Greek string has."""
+    nfd = unicodedata.normalize("NFD", s)
+    return sum(ord(c) in (0x0301, 0x0300, 0x0342) for c in nfd)
+
+
 def has_accent(s):
     """Check if a Greek string has any accent mark."""
-    nfd = unicodedata.normalize("NFD", s)
-    return any(ord(c) in (0x0301, 0x0300, 0x0342) for c in nfd)
+    return accent_count(s) > 0
 
 
 def add_penult_accent(s):
@@ -263,7 +268,70 @@ def adjective_endings(after_headword: str) -> str | None:
 def new_head_audit():
     """An empty record of one parse's head decisions (``head_rules`` in the
     noun generation audit)."""
-    return {"printed": {}, "multi_word_heads": {}, "stated_gender": {}}
+    return {"printed": {}, "multi_word_heads": {}, "stated_gender": {},
+            "malformed_heads": {}, "repaired_heads": {}}
+
+
+def load_lexical_heads(path: Path | None = None):
+    """The heads of grc_lexical_heads.json that a source other than this
+    lexicon lists, or None without the file. The file's own Sophocles heads
+    are the ones being judged, so they are no evidence here."""
+    path = path or LEXICAL_HEADS
+    if not path.exists():
+        return None
+    heads = json.loads(path.read_text(encoding="utf-8")).get("heads") or {}
+    return frozenset(head for head, sources in heads.items()
+                     if any(not source.startswith("sophocles/") for source in sources))
+
+
+# Hyphens and dashes left inside a printed head: the lexicon divides some
+# compounds (καθ-ηδύνω) and the OCR keeps line-break hyphens (Σινα-ῖτις).
+_INNER_HYPHENS = "-—–"
+
+
+def settle_head(printed, lexical_heads=None):
+    """``(head, rule)``: the head a printed head is generated under.
+
+    ``rule`` is "" when the printed head stands. A head is malformed, and
+    ``head`` is "", when it carries two accents ("two-accents": Ἔρετριάς,
+    οἴηματικός) or an inner hyphen ("inner-hyphen": Σινα-ῖτις,
+    ὕπο-κατασκευή). The one repair is to drop the hyphens, and only when the
+    joined word has a single accent and another lexical source lists it
+    ("joined": καθ-ηδύνω -> καθηδύνω).
+    """
+    if any(mark in printed for mark in _INNER_HYPHENS):
+        joined = "".join(ch for ch in printed if ch not in _INNER_HYPHENS)
+        if accent_count(joined) <= 1 and joined in (lexical_heads or ()):
+            return joined, "joined"
+        return "", "inner-hyphen"
+    if accent_count(printed) > 1:
+        return "", "two-accents"
+    return printed, ""
+
+
+def settle_heads(entries, lexical_heads, audit=None):
+    """The parsed entries keyed by the head each is generated under.
+
+    Malformed heads are dropped and repaired ones re-keyed in place (see
+    ``settle_head``); an entry the lexicon also prints under the repaired
+    head keeps its own text. ``audit`` records both groups by printed head.
+    """
+    audit = audit if audit is not None else new_head_audit()
+    malformed = audit.setdefault("malformed_heads", {})
+    repaired = audit.setdefault("repaired_heads", {})
+    settled = {}
+    for printed, entry in entries.items():
+        head, rule = settle_head(printed, lexical_heads)
+        if not head:
+            malformed[printed] = rule
+            continue
+        if head != printed:
+            repaired[printed] = head
+            if head in entries:
+                continue
+            entry = dict(entry, headword=head, printed=printed)
+        settled.setdefault(head, entry)
+    return settled
 
 
 def parse_sophocles_entries(breathing=_DEFAULT, audit=None):
@@ -391,7 +459,8 @@ def infer_from_ending(hw, gender=""):
 def analyze(audit=None):
     """Show stats about Sophocles entries."""
     print("Parsing Sophocles entries...")
-    entries = parse_sophocles_entries(audit=audit)
+    entries = settle_heads(parse_sophocles_entries(audit=audit),
+                           load_lexical_heads(), audit)
     print(f"Total entries: {len(entries)}")
 
     # Load existing lookup
@@ -621,6 +690,9 @@ def sophocles_noun_input_hashes():
     review = json.dumps(load_breathing_review(), ensure_ascii=False, sort_keys=True,
                         separators=(",", ":"))
     hashes["sophocles_breathing"] = hashlib.sha256(review.encode("utf-8")).hexdigest()
+    heads = load_lexical_heads()
+    listed = "null" if heads is None else "\n".join(sorted(heads))
+    hashes["lexical_heads"] = hashlib.sha256(listed.encode("utf-8")).hexdigest()
     for path in sorted(SOPH_DIR.glob("*.xml")):
         with path.open("rb") as stream:
             digest = hashlib.sha256()
@@ -656,7 +728,7 @@ def expand_verbs():
     """Expand Sophocles verb headwords and merge into ag_lookup.json."""
     load_breathing_review(required=True)
     print("Parsing Sophocles entries...")
-    entries = parse_sophocles_entries()
+    entries = settle_heads(parse_sophocles_entries(), load_lexical_heads())
     print(f"Total entries: {len(entries)}")
 
     print(f"\nLoading {AG_LOOKUP}...")
