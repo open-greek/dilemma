@@ -154,6 +154,11 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     "ἑψόμενα": "ἕψω",                            # 42
     "τοῖ": "σύ",                                 # 25
     "κἆτα": "εἶτα",                              # crasis καὶ εἶτα
+    # The new page ἐπαινέειν ("uncontracted present active infinitive of
+    # ἐπαινέω") is self-mapped by the base and takes the contracted
+    # infinitive with it. GLAUx: ἐπαινεῖν -> ἐπαινέω 437, ἐπαινέειν 5.
+    "ἐπαινεῖν": "ἐπαινέω", "επαινείν": "ἐπαινέω", "επαινειν": "ἐπαινέω",
+    "ἐπαινέειν": "ἐπαινέω", "επαινέειν": "ἐπαινέω", "επαινεειν": "ἐπαινέω",
 }
 
 _FINAL_ELISION_MARKS = {"\u2019", "\u02bc", "'", "\u1fbd", "`",

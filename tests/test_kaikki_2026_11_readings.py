@@ -19,6 +19,8 @@ def test_overrides_restore_the_treebank_readings():
     assert o["ἑψόμενα"] == "ἕψω"
     assert o["τοῖ"] == "σύ"
     assert o["κἆτα"] == "εἶτα"
+    for key in ("ἐπαινεῖν", "επαινείν", "επαινειν", "ἐπαινέειν", "επαινέειν", "επαινεειν"):
+        assert o[key] == "ἐπαινέω", key
 
 
 def test_overrides_are_applied_with_the_reviewed_lookup_overrides():
