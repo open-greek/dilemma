@@ -1,10 +1,7 @@
 """Ancient -σις nouns and s-stem neuters gain their regular cells (#114, #115).
 
 The rule tests need no data. The shipped-answer tests read data/lookup.db,
-whose generated rows arrive with the 1.3.25 lookup rebuild: they are listed in
-SHIPPED_AFTER_REBUILD and marked xfail(strict=False) with the reason "needs
-the 1.3.25 lookup rebuild"; drop the marks once the rebuilt data is pinned in
-data/hf_manifest.json.
+whose generated rows arrived with the 1.3.25 lookup rebuild.
 """
 import sqlite3
 
@@ -15,15 +12,6 @@ from dilemma.grc_noun_gaps import (
     SOURCE, acute_last_vowel, complete_noun_gaps, is_plain_lemma,
     select_noun_gap_lemmas, sis_cells, sstem_cells,
 )
-
-REBUILD = pytest.mark.xfail(strict=False,
-                            reason="needs the 1.3.25 lookup rebuild")
-
-SHIPPED_AFTER_REBUILD = [
-    "test_shipped_contracted_sstem_cells",
-    "test_shipped_sis_cells",
-    "test_shipped_generated_rows_name_their_source",
-]
 
 
 def _forms(cells):
@@ -147,7 +135,6 @@ def _model(lang):
     return _MODELS[lang]
 
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_shipped_contracted_sstem_cells(lang):
     forms = ["στέφους", "τέκους", "τρύχους", "κέρνους", "σκέπους", "γλάγους",
@@ -158,7 +145,6 @@ def test_shipped_contracted_sstem_cells(lang):
         forms, ["NOUN"] * len(forms), guess=False) == expected
 
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_shipped_sis_cells(lang):
     forms = ["συνάρσει", "συνάρσεως", "συνάρσεις", "σύναρσιν", "ῥητρεύσει",
@@ -168,7 +154,6 @@ def test_shipped_sis_cells(lang):
         forms, ["NOUN"] * len(forms), guess=False) == expected
 
 
-@REBUILD
 def test_shipped_generated_rows_name_their_source():
     if not core.LOOKUP_DB_PATH.exists():
         pytest.skip("Shipped Dilemma data is not installed")

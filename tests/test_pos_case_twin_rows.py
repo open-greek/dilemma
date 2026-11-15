@@ -4,8 +4,7 @@ The POS selection does not let an entry of a tag other than VERB override
 a lookup reading together with its capitalized twin (#42 is VERB-only;
 extending it measured worse on held-out Gorman). The wrong answers come
 from single-valued lookup.db rows (γραφῆς -> γραφεύς, σεῖο -> σῦς, ...)
-that the 1.3.25 lookup rebuild corrects. Remove the xfail marks once the
-rebuilt lookup is pinned.
+that the 1.3.25 lookup rebuild corrected.
 """
 import pytest
 
@@ -26,27 +25,25 @@ def both(model, word, upos):
     return scalar
 
 
-SHIPPED_AFTER_REBUILD = [
+SHIPPED_ROWS = [
     ("γραφῆς", "NOUN", "γραφή"), ("γραφήν", "NOUN", "γραφή"),
     ("γραφή", "NOUN", "γραφή"), ("γραφαί", "NOUN", "γραφή"),
     ("σεῖο", "PRON", "σύ"), ("σέο", "PRON", "σύ"),
     ("ἱερέων", "NOUN", "ἱερεύς"), ("ἄριστα", "ADJ", "ἀγαθός"),
     ("ἀρίστοις", "ADJ", "ἀγαθός"), ("ἀρὰν", "NOUN", "ἀρά"),
 ]
-SHIPPED_AFTER_REBUILD_UNTAGGED = [
+SHIPPED_UNTAGGED = [
     ("σύ", "σύ"), ("σεῖο", "σύ"), ("σέθεν", "σύ"), ("γραφή", "γραφή"),
 ]
 
 
-@pytest.mark.xfail(strict=False, reason="needs the 1.3.25 lookup rebuild")
-@pytest.mark.parametrize("word,upos,lemma", SHIPPED_AFTER_REBUILD)
-def test_shipped_lookup_rows_after_rebuild(shipped_model, word, upos, lemma):
+@pytest.mark.parametrize("word,upos,lemma", SHIPPED_ROWS)
+def test_shipped_lookup_rows(shipped_model, word, upos, lemma):
     assert both(shipped_model, word, upos) == lemma
 
 
-@pytest.mark.xfail(strict=False, reason="needs the 1.3.25 lookup rebuild")
-@pytest.mark.parametrize("word,lemma", SHIPPED_AFTER_REBUILD_UNTAGGED)
-def test_shipped_untagged_lookup_rows_after_rebuild(shipped_model, word, lemma):
+@pytest.mark.parametrize("word,lemma", SHIPPED_UNTAGGED)
+def test_shipped_untagged_lookup_rows(shipped_model, word, lemma):
     assert shipped_model.lemmatize(word, guess=False) == lemma
 
 

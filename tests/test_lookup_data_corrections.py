@@ -3,10 +3,11 @@
 #103 (unaccented dictionary-expansion lemmas), #108 (reviewed non-lemmas and
 capitalised pronoun twins), #110 (reviewed lookup overrides) and #122 (Modern
 Greek table fragments). Most of these answers come from data/lookup.db and
-data/mg_pos_lookup.json, so they change only when the rebuilt artifacts are
-published. Those tests are listed in SHIPPED_AFTER_REBUILD and marked
-xfail(strict=False) with the reason "needs the 1.3.25 lookup rebuild"; drop
-the marks once the rebuilt data is pinned in data/hf_manifest.json.
+data/mg_pos_lookup.json as rebuilt for 1.3.25.
+
+test_unaccented_expansion_artefact_is_gone stays xfail: the rebuild drops the
+expansion reading λαβῃ -> λαβλυμι, but GLAUx carries the same unaccented
+lemma for the form and refills the key (GLAUX_REFILL below).
 """
 
 import pytest
@@ -14,23 +15,10 @@ import pytest
 from dilemma import core
 from dilemma.grc_rejected_lemmas import REJECTED_LEMMAS
 
-REBUILD = pytest.mark.xfail(strict=False,
-                            reason="needs the 1.3.25 lookup rebuild")
-
-SHIPPED_AFTER_REBUILD = [
-    "test_sentence_initial_pronouns_take_the_pronoun_lemma",
-    "test_sentence_initial_pronouns_untagged",
-    "test_no_answer_is_a_reviewed_non_lemma",
-    "test_unaccented_expansion_artefact_is_gone",
-    "test_unaccented_expansion_doublet_is_repaired",
-    "test_ancient_participles_do_not_take_a_modern_fragment",
-    "test_modern_participle_fragment_in_el",
-    "test_merged_layer_reassignments_are_corrected_tagged",
-    "test_merged_layer_reassignments_are_corrected_untagged",
-    "test_single_valued_lookup_corrections",
-    "test_no_unaccented_unlisted_expansion_lemma_ships",
-    "test_no_reviewed_non_lemma_ships",
-]
+GLAUX_REFILL = pytest.mark.xfail(
+    strict=False,
+    reason="GLAUx refills λαβῃ with the same unaccented lemma λαβλυμι; "
+           "the #103 filter judges expansion readings only")
 
 _MODELS = {}
 
@@ -46,7 +34,6 @@ def _model(lang):
 
 # #108 ---------------------------------------------------------------------
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_sentence_initial_pronouns_take_the_pronoun_lemma(lang):
     model = _model(lang)
@@ -57,7 +44,6 @@ def test_sentence_initial_pronouns_take_the_pronoun_lemma(lang):
             for f, t in zip(forms, tags)] == expected
 
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_sentence_initial_pronouns_untagged(lang):
     model = _model(lang)
@@ -81,7 +67,6 @@ def test_pos_cells_of_reviewed_non_lemmas_are_ignored(lang):
                     for lemma in cells.values()} & REJECTED_LEMMAS
 
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_no_answer_is_a_reviewed_non_lemma(lang):
     model = _model(lang)
@@ -102,7 +87,7 @@ def test_pronoun_controls_and_other_heads_keep_their_readings(lang):
 
 # #103 ---------------------------------------------------------------------
 
-@REBUILD
+@GLAUX_REFILL
 @pytest.mark.parametrize("lang", ["all", "grc", "el"])
 def test_unaccented_expansion_artefact_is_gone(lang):
     model = _model(lang)
@@ -112,14 +97,12 @@ def test_unaccented_expansion_artefact_is_gone(lang):
         assert model.lemmatize("λαβηι", guess=False) == "λαβή"
 
 
-@REBUILD
 def test_unaccented_expansion_doublet_is_repaired():
     assert _model("all").lemmatize("σύνοχα", guess=False) == "σύνοχος"
 
 
 # #122 ---------------------------------------------------------------------
 
-@REBUILD
 def test_ancient_participles_do_not_take_a_modern_fragment():
     model = _model("all")
     forms = ["οὐσῶν", "οὐσῶν", "οὖσης", "ὅντων", "ὄντων"]
@@ -130,7 +113,6 @@ def test_ancient_participles_do_not_take_a_modern_fragment():
             assert table.get(key, {}).get("ADJ") != "αρχαΐζων"
 
 
-@REBUILD
 def test_modern_participle_fragment_in_el():
     model = _model("el")
     assert model.lemmatize_batch_pos(["ὄντων", "οὐσῶν"], ["ADJ", "ADJ"],
@@ -139,7 +121,6 @@ def test_modern_participle_fragment_in_el():
 
 # #110 ---------------------------------------------------------------------
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_merged_layer_reassignments_are_corrected_tagged(lang):
     model = _model(lang)
@@ -151,7 +132,6 @@ def test_merged_layer_reassignments_are_corrected_tagged(lang):
             for f, t in zip(forms, tags)] == expected
 
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_merged_layer_reassignments_are_corrected_untagged(lang):
     model = _model(lang)
@@ -161,7 +141,6 @@ def test_merged_layer_reassignments_are_corrected_untagged(lang):
     assert [model.lemmatize(f, guess=False) for f in forms] == expected
 
 
-@REBUILD
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_single_valued_lookup_corrections(lang):
     model = _model(lang)
@@ -193,7 +172,6 @@ def _lookup_rows(sql, params=()):
         conn.close()
 
 
-@REBUILD
 def test_no_unaccented_unlisted_expansion_lemma_ships():
     import build_lookup_db as builder
     heads, by_letters = builder.load_expansion_lemma_heads(core.GRC_LEXICAL_HEADS_PATH)
@@ -204,7 +182,6 @@ def test_no_unaccented_unlisted_expansion_lemma_ships():
                 if builder.unaccented_expansion_lemma(lemma, heads, by_letters)]
 
 
-@REBUILD
 def test_no_reviewed_non_lemma_ships():
     marks = ",".join("?" * len(REJECTED_LEMMAS))
     assert _lookup_rows(
