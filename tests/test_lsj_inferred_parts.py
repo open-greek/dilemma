@@ -501,6 +501,7 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         ("ἀμφιέσομαι", "ἀμφιάζω", "verb"),
         ("ἐνόσφισεν", "νοσφίζομαι", "verb"),
         ("περιειλόμεθα", "περιαιρέω", "verb"),
+        ("περιείλω", "περιαιρέω", "verb"),
         ("εἰκονίσεις", "εἰκονίζω", "verb")])
     monkeypatch.setattr(expand_lsj, "TREEBANK_PAIRS", (pairs,))
     heads = tmp_path / "grc_lexical_heads.json"
@@ -519,7 +520,7 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         "καταδέχομαι": {"κατεδέξατο"},
         "ἀμφιέννυμι": {"ἀμφιέσομαι"},
         "νοσφίζω": {"ἐνόσφισε(ν)"},
-        "περιαιρέω": {"περιειλόμεθα", "περιείλου"},
+        "περιαιρέω": {"περιειλόμεθα", "περιείλου", "περιείλω"},
     }
     presents = {"περιείλω": {"περιειλόμεθα", "περιείλου"}}
 
@@ -563,6 +564,8 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     assert result["περιειλόμεθα"] == "περιαιρέω"
     assert result["περιειλομεθα"] == "περιαιρέω"
     assert result["περιείλου"] == "περιείλω"
+    # a headword keeps its own spelling
+    assert result["περιείλω"] == "περιείλω"
     recorded = json.loads(audit.read_text(encoding="utf-8"))
     assert recorded["inferred"] == {
         "εἰκονίζω": {"kind": "regular", "from": "",
