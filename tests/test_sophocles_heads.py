@@ -744,6 +744,10 @@ def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeyp
     assert audit["reread_lemmas"] == {
         "Βαρύπυκνος": "βαρύπυκνος", "Ἱπποθυτέω": "ἱπποθυτέω",
         "Θεοπρεπότης": "θεοπρεπότης"}
+    # ... where the old paradigm shows the ending the entry prints: no form
+    # of the paradigm built on Θεοπρεπότης, -ου ends in the printed τος
+    assert audit["reread_endings"] == {
+        "Βαρύπυκνος": "ου", "Ἱπποθυτέω": "", "Θεοπρεπότης": "τος"}
     assert S.unread_printed_heads(
         {"malformed_heads": {"ἄμάντευτος": "two-accents", "Σινα-ῖτις": "inner-hyphen"},
          "lowercased_heads": {"᾿Αθεότης": "ἀθεότης"}}) == {"ἄμάντευτος", "᾿Αθεότης"}
@@ -806,6 +810,116 @@ def test_reread_printed_heads_keeps_only_a_reading_with_the_same_letters():
         "Θεοτήρητος": "θεοτήρητος"}
     assert S.same_letters("Ἰουδαῖσμός", "Ἰουδαϊσμός")
     assert not S.same_letters("καταγωγύός", "καταγωγός")
+
+
+@pytest.mark.parametrize("entry,ending", [
+    # a printed genitive ending is required as it stands
+    ("<orth>Εἰλωτίς</orth>, ίδος, 7, (Είλως) female Helot.", "ιδος"),
+    ("<orth>Θεοπρεπότης</orth>, τος, ἡ, the being θεοπρεπής.", "τος"),
+    ("<orth>Θρύλλημα</orth>, ατος, τὸ, (θρυλλέω) byword.", "ατος"),
+    ("<orth>Θεαρχία</orth>, ας, ἡ, (ἀρχὴ) the Supreme Divinity.", "ας"),
+    # the genitive ου, also where the OCR gives it as ov or the article is lost
+    ("<orth>Γυμνοσοφιστής</orth>, οὔ, ο, (γυμνός) Gymnosophist.", "ου"),
+    ("<orth>Διμοιρίτης</orth>, ov, 6, commonly in the plural.", "ου"),
+    ("<orth>Θηκάριον</orth>, ον, τὸ, (θήκη) sheath.", "ου"),
+    # an adjective in -ος by its endings, one in -ης, -ες by its genitive
+    ("<orth>Θεαρχικός</orth>, ἡ, όν, belonging to the Supreme Divinity.", "ου"),
+    ("<orth>Θεοτήρητος</orth>, ον, (τηρέω) divinely preserved.", "ου"),
+    ("<orth>Βληχηματώδης</orth>, ες, --- βληχώδης. Nil. 821 A.", "ους"),
+    # a verb and an adverb are not declined
+    ("<orth>Ἱπποθυτέω</orth> (θύτης), to sacrifice horses.", ""),
+    ("<orth>Θεοπρεπῶς</orth>, adv. in a manner becoming a god.", ""),
+    # no printed ending: the genitive of the head's ending
+    ("<orth>Ἱμάντωσις</orth>, δέσις ξύλων ἐμβαλλομένων.", "ιμαντωσεως"),
+    # a plural head has no singular to check, nor a head of no known class
+    ("<orth>Κελλία</orth>,ων, τὰ, Cellae, a monastic settlement.", None),
+    ("<orth>Κλαυσῦς</orth>, ῦ, ὁ, Clausys. Bekker. 1195.", None),
+])
+def test_reread_ending_is_the_ending_the_entry_prints(tmp_path, monkeypatch,
+                                                      entry, ending):
+    write_chunk(tmp_path / "chunks", entry)
+    monkeypatch.setattr(S, "SOPH_DIR", tmp_path / "chunks")
+    (head, parsed), = S.parse_sophocles_entries(None, corrections={}).items()
+    assert S.reread_ending(head, parsed) == ending
+
+
+def test_reread_endings_leave_out_a_head_without_evidence():
+    audit = {"reread_heads": {"ἄμάντευτος": "ἀμάντευτος"},
+             "printed": {
+                 "ἀμάντευτος": {"is_indecl": False, "gender": "", "first_field": "ον"},
+                 "Κελλία": {"is_indecl": False, "gender": "n", "first_field": "ων"}}}
+    reread = {"ἄμάντευτος": "ἀμάντευτος", "Κελλία": "κελλία", "Ἄγνωστος": "ἄγνωστος"}
+    # a corrected head is looked up under its present reading; a plural head
+    # and a head no entry prints have no ending
+    assert S.reread_endings(reread, audit) == {"ἄμάντευτος": "ου"}
+
+
+NAMES = {"Νοητός": {"source": "sophocles/0750.xml", "reason": "Noetus"},
+         "Ἀγέννητος": {"source": "sophocles/0057.xml", "reason": "a Gnostic figure"}}
+
+
+def test_a_reviewed_proper_name_keeps_its_capital():
+    heads = frozenset({"νοητός", "ἀγέννητος", "θεοτήρητος", "ἀγεννητογενής"})
+    assert S.settle_head("Νοητός", heads) == ("νοητός", "lowercased")
+    assert S.settle_head("Νοητός", heads, NAMES) == ("Νοητός", "")
+    # the breathing the OCR prints before the capital is joined for the test
+    assert S.settle_head("᾿Αγέννητος", heads, NAMES) == ("᾿Αγέννητος", "")
+    assert S.settle_head("Ἀγεννητο-γενής", heads, NAMES) == ("ἀγεννητογενής", "joined")
+    assert S.settle_head("Θεοτήρητος", heads, NAMES) == ("θεοτήρητος", "lowercased")
+
+    entry = {"headword": "", "gender": "m", "genitive": "οῦ"}
+    audit = S.new_head_audit()
+    settled = S.settle_heads({"Νοητός": dict(entry), "Θεοτήρητος": dict(entry)},
+                             heads, audit, NAMES)
+    assert set(settled) == {"Νοητός", "θεοτήρητος"}
+    assert audit["lowercased_heads"] == {"Θεοτήρητος": "θεοτήρητος"}
+    assert audit["proper_names"] == {"Νοητός": "Noetus"}
+    # a name is no printed head the rules read otherwise: its rows of the
+    # earlier tables are neither superseded nor read under another head
+    assert S.unread_printed_heads(audit) == {"Θεοτήρητος"}
+    assert S.reread_printed_heads(audit) == {"Θεοτήρητος": "θεοτήρητος"}
+
+
+def test_every_proper_name_is_a_capitalized_head_with_a_common_twin():
+    names = S.load_proper_names()
+    assert len(names) >= 30
+    heads = S.load_lexical_heads()
+    if heads is None:
+        pytest.skip("grc_lexical_heads.json is not installed")
+    corrections = S.load_head_corrections()
+    for name, record in names.items():
+        chunk = (S.SOPH_DIR.parent / "chunks" / record["source"].split("/")[1])
+        text = chunk.read_text(encoding="utf-8")
+        printed = {S.sanitize_form(S.read_orth(S.settle_orth(orth, corrections))[0])
+                   for orth in re.findall(r"<orth>(.*?)</orth>", text)}
+        assert name in printed, name
+        # without the record the head rules would read it as the common word
+        assert S.lowercase_twin(name, heads) == name.lower(), name
+        assert S.settle_head(name, heads, names) == (name, ""), name
+
+
+def test_proper_names_refuse_a_malformed_record(tmp_path):
+    from dilemma_build import sophocles_ocr as O
+    path = tmp_path / "corrections.json"
+
+    def load(name="Νοητός", **fields):
+        record = {"source": "sophocles/0750.xml", "reason": "Noetus", **fields}
+        path.write_text(json.dumps({"schema_version": 1, "corrections": {},
+                                    "names": {name: record}}, ensure_ascii=False),
+                        encoding="utf-8")
+        return O.load_proper_names(path)
+
+    assert load() == {"Νοητός": {"source": "sophocles/0750.xml", "reason": "Noetus"}}
+    assert O.load_proper_names(tmp_path / "absent.json") == {}
+    path.write_text(json.dumps({"schema_version": 1, "corrections": {}}),
+                    encoding="utf-8")
+    assert O.load_proper_names(path) == {}
+    for bad in ({"name": "νοητός"}, {"name": "Noetus"}, {"name": "ΝΟΗΤΟΣ"},
+                {"name": "᾿Αγέννητος"}, {"reason": " "}, {"source": "0750.xml"}):
+        with pytest.raises(SystemExit):
+            load(**bad)
+    # the names are part of the generator's pinned inputs
+    assert O.corrections_sha256({}) != O.corrections_sha256(load())
 
 
 def test_every_correction_names_an_orth_of_its_chunk():

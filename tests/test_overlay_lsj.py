@@ -1352,7 +1352,7 @@ def test_overlay_reads_a_printed_head_as_the_present_head():
         "εἰλεώδους": "εἶλεώδης", "εἰλεωδῶν": "εἶλεώδης", "ειλεωδων": "εἶλεώδης",
         # a typographic capital, generated under the lowercase head
         "Θεοτηρήτου": "Θεοτήρητος", "Θεοτηρητου": "Θεοτήρητος",
-        "Μακέλλης": "Μακέλλης",
+        "Ἱερείας": "Ἱερεία",
         # the table has the key: its reading stands
         "Θεοτήρητος": "Θεοτήρητος",
         # the present head has a fresh paradigm and is superseded
@@ -1361,18 +1361,18 @@ def test_overlay_reads_a_printed_head_as_the_present_head():
         "οἷέσι": "οἷές",
     }
     reread = {"εἶλεώδης": "εἰλεώδης", "Θεοτήρητος": "θεοτήρητος",
-              "Μακέλλης": "μακέλλης", "ἄερῖτις": "ἀερῖτις"}
-    superseded = {"εἶλεώδης", "Θεοτήρητος", "Μακέλλης", "ἄερῖτις", "ἀερῖτις", "οἷές"}
-    target = {"Θεοτήρητος": "θεοτήρητος", "μακέλλης": "μάκελλα"}
+              "Ἱερεία": "ἱερεία", "ἄερῖτις": "ἀερῖτις"}
+    superseded = {"εἶλεώδης", "Θεοτήρητος", "Ἱερεία", "ἄερῖτις", "ἀερῖτις", "οἷές"}
+    target = {"Θεοτήρητος": "θεοτήρητος", "ἱερείας": "ἱέρεια"}
     carried = dict(reference)
 
     stats = overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded,
                               carried=carried, reread_lemmas=reread)
 
     assert target == {
-        "Θεοτήρητος": "θεοτήρητος", "μακέλλης": "μάκελλα",
+        "Θεοτήρητος": "θεοτήρητος", "ἱερείας": "ἱέρεια",
         "εἰλεώδους": "εἰλεώδης", "εἰλεωδῶν": "εἰλεώδης",
-        "Θεοτηρήτου": "θεοτήρητος", "Μακέλλης": "μακέλλης",
+        "Θεοτηρήτου": "θεοτήρητος", "Ἱερείας": "ἱερεία",
     }
     assert stats["reread_lemma_entries"] == 6
     assert stats["already_present"] == 1 and stats["conflicts_preserved"] == 0
@@ -1392,6 +1392,79 @@ def test_overlay_reads_a_printed_head_as_the_present_head():
     overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded,
                       carried=carried)
     assert target == {}
+
+
+def test_only_a_paradigm_the_entry_confirms_is_read_again():
+    """The expansion built part of its Sophocles paradigms on a misread head
+    or in the wrong class. Such a paradigm is not read under the present
+    head: its spellings are no forms of the word."""
+    from overlay_lsj import confirmed_reread_lemmas
+    reference = {
+        # the head's own cell and the genitive the entry prints
+        "Θεοτήρητος": "Θεοτήρητος", "Θεοτηρήτου": "Θεοτήρητος",
+        "Θεοτηρητου": "Θεοτήρητος",
+        "Θρύλλημα": "Θρύλλημα", "Θρυλλήματος": "Θρύλλημα",
+        # the breathing joined to the capital; a key without its breathing
+        "᾿Αθεότης": "᾿Αθεότης", "᾿Αθεότητος": "᾿Αθεότης",
+        "αδούλωτος": "άδούλωτος", "αδουλώτου": "άδούλωτος",
+        # a verb and an adverb need their own cell only
+        "Ιπποθυτέω": "Ἱπποθυτέω", "Ιπποθυτέει": "Ἱπποθυτέω",
+        "Θεοπρεπῶς": "Θεοπρεπῶς",
+        # an adjective in -ικός declined as a consonant stem
+        "Θεαρχικός": "Θεαρχικός", "Θεαρχικές": "Θεαρχικός",
+        "Θεαρχιξί": "Θεαρχικός", "Θεαρχικου": "Θεαρχικός",
+        # one in -ης, -ες and a noun in -ότης, -τος declined like πολίτης
+        "Βληχηματώδης": "Βληχηματώδης", "Βληχηματώδου": "Βληχηματώδης",
+        "Θεοπρεπότης": "Θεοπρεπότης", "Θεοπρεπότου": "Θεοπρεπότης",
+        # a noun in -ίς, -ίδος declined like πόλις
+        "Εἰλωτίς": "Εἰλωτίς", "Εἰλωτέως": "Εἰλωτίς",
+        # built on another accent, breathing or without the diaeresis
+        "ἐκκηρυκτός": "ἐκκήρυκτός", "ἐκκηρυκτοῦ": "ἐκκήρυκτός",
+        "οἱηκοφόρος": "οἷηκοφόρος", "οἱηκοφόρου": "οἷηκοφόρος",
+        "Ἰουδαισμός": "Ἰουδαῖσμός", "Ἰουδαισμοῦ": "Ἰουδαῖσμός",
+        "επιπραύνω": "ἐπιπραῦνω",
+        # the micro sign of the expansion is read as mu
+        f"Ψηγ{MICRO}άτιον": f"Ψηγ{MICRO}άτιον", f"Ψηγ{MICRO}ατίου": f"Ψηγ{MICRO}άτιον",
+    }
+    reread = {"Θεοτήρητος": "θεοτήρητος", "Θρύλλημα": "θρύλλημα",
+              "᾿Αθεότης": "ἀθεότης", "άδούλωτος": "ἀδούλωτος",
+              "Ἱπποθυτέω": "ἱπποθυτέω", "Θεοπρεπῶς": "θεοπρεπῶς",
+              "Θεαρχικός": "θεαρχικός", "Βληχηματώδης": "βληχηματώδης",
+              "Θεοπρεπότης": "θεοπρεπότης", "Εἰλωτίς": "εἰλωτίς",
+              "ἐκκήρυκτός": "ἐκκήρυκτος", "οἷηκοφόρος": "οἰηκοφόρος",
+              "Ἰουδαῖσμός": "Ἰουδαϊσμός", "ἐπιπραῦνω": "ἐπιπραΰνω",
+              "Ψηγμάτιον": "ψηγμάτιον", "Χλοανός": "χλοανός",
+              "Νικάδιον": "νικάδιον"}
+    endings = {"Θεοτήρητος": "ου", "Θρύλλημα": "ατος", "᾿Αθεότης": "ητος",
+               "άδούλωτος": "ου", "Ἱπποθυτέω": "", "Θεοπρεπῶς": "",
+               "Θεαρχικός": "ου", "Βληχηματώδης": "ους", "Θεοπρεπότης": "τος",
+               "Εἰλωτίς": "ιδος", "ἐκκήρυκτός": "ου", "οἷηκοφόρος": "ου",
+               "Ἰουδαῖσμός": "ου", "ἐπιπραῦνω": "", "Ψηγμάτιον": "ου",
+               "Χλοανός": "ου"}
+    assert confirmed_reread_lemmas(reference, reread, endings) == {
+        "Θεοτήρητος": "θεοτήρητος", "Θρύλλημα": "θρύλλημα",
+        "᾿Αθεότης": "ἀθεότης", "άδούλωτος": "ἀδούλωτος",
+        "Ἱπποθυτέω": "ἱπποθυτέω", "Θεοπρεπῶς": "θεοπρεπῶς",
+        "Ψηγμάτιον": "ψηγμάτιον"}
+    # the unaccented key of a genitive is no evidence of it
+    assert "Θεαρχικός" not in confirmed_reread_lemmas(reference, reread, endings)
+    # without the record of endings nothing is read again
+    assert confirmed_reread_lemmas(reference, reread, {}) == {}
+
+
+def test_reread_endings_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_reread_endings
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"reread_endings": {"Θεοτήρητος": "ου", "Θεοπρεπῶς": ""}},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_reread_endings(audit) == {"Θεοτήρητος": "ου", "Θεοπρεπῶς": ""}
+    audit.write_text(json.dumps({"superseded_lemmas": []}), encoding="utf-8")
+    assert load_reread_endings(audit) == {}
+    for bad in (["Θεοτήρητος"], {"Θεοτήρητος": None}, {"Θεοτήρητος": 1}):
+        audit.write_text(json.dumps({"reread_endings": bad}, ensure_ascii=False),
+                         encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_reread_endings(audit)
 
 
 def test_reread_heads_come_from_the_sophocles_audit(tmp_path):

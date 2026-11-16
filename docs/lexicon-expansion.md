@@ -82,8 +82,10 @@ are read through the same rules.
   text as the chunk prints it, the head it stands for, the chunk and the
   reason (`ορνιθείον` is `ὀρνιθεῖον`, `Kούβρικος` is `Κούβρικος`,
   `τζαγγάριo` is `τζαγγάριον`, and the phi symbol U+03D5 of `Ἀπϕία` is
-  the letter). A record with a head that is not one
-  accented Greek word, or without a reason, stops the build.
+  the letter; `κληρονομμέω`, where the OCR gave one mu as the micro sign
+  and as the letter, is `κληρονομέω`; `μεταναστείω` is `μεταναστεύω`). A
+  record with a head that is not one accented Greek word, or without a
+  reason, stops the build.
 - **A phrase is not an entry.** When another Greek word follows the first
   one inside the `<orth>`, before its first comma, the head is a phrase or a
   word the OCR split, and nothing is generated from its first word:
@@ -137,7 +139,14 @@ are read through the same rules.
   table already has that head. A breathing the OCR prints as a separate mark
   before the capital is joined to it for this comparison. A capitalized head
   another source lists (`Πέτρα` beside `πέτρα`), or one without a lowercase
-  twin, is a name and stays.
+  twin, is a name and stays. So does a reviewed proper name: the `names`
+  section of `data/sophocles_head_corrections.json` lists the heads the
+  lexicon glosses as a person, a god or a place although the other lexica
+  have only the common word of that spelling (`Νοητός` is Noetus,
+  `Σκόπελος` an island, `Κοπρώνυμος` the emperor's epithet), each with its
+  chunk and what the entry says. Its rows stay under the capitalized lemma
+  (`Κοπρωνύμου` reads `Κοπρώνυμος`). Names of sects and feasts are not
+  listed and follow the rule above.
 - **A capitalized unaccented key does not shadow a lowercase reading.** Every
   generated form also gets an accent-stripped key. A capitalized one is
   withheld when its lowercase spelling already reads another lemma:
@@ -153,6 +162,8 @@ The noun step records the decisions in
   the head and the rule (`run-on-ending`, `qualified-noun`, `adverb-idiom`);
 - `head_rules.corrected_heads`: every `<orth>` text a reviewed correction
   replaced, with the head generated;
+- `head_rules.proper_names`: every capitalized head that stands because the
+  reviewed record lists it, with the record's reason;
 - `head_rules.reread_heads`: every head that the tables up to 1.3.26 read
   otherwise (`ούβρικος`, `*σχῆμα`, `᾽Αντινώ`), with the present reading.
   Those tables key rows by the old reading, so it is listed among
@@ -179,9 +190,10 @@ The head records cover verbs and adverbs as well, because every step reads
 the same heads. The verb step writes its own withheld keys to
 `data/ag_sophocles_verb_generation_audit.json`. The lexical heads the repair
 and the lowercase rule read are pinned among the noun audit's inputs
-(`input_sha256.lexical_heads`), and so are the head corrections
-(`input_sha256.sophocles_head_corrections`), so the overlay refuses an audit
-made against other heads.
+(`input_sha256.lexical_heads`), and so are the head corrections and the
+proper names (`input_sha256.sophocles_head_corrections`,
+`input_sha256.sophocles_proper_names`), so the overlay refuses an audit made
+against other heads.
 
 A verb entry whose text opens with an equals sign is expanded like any
 other verb: the lexicon glosses the verb by a synonym or by its neighbour
@@ -218,15 +230,39 @@ a head at runtime.
 `reread_lemmas` maps a superseded printed head to the head it is read as now,
 where the two differ only in accents, breathing, diaeresis or case
 (`ἄμάντευτος` to `ἀμάντευτος`, `ἀραχνοῦφής` to `ἀραχνοϋφής`, `Θεοτήρητος` to
-`θεοτήρητος`). The forms of such an entry were spelled from the same letters,
-so the overlay keeps their keys and reads them under the present head
-(`historical_overlay_counts.reread_lemma_entries`) before any other test:
-`Θεοτηρήτων` reads `θεοτήρητος`, `εἰλεωδῶν` reads `εἰλεώδης`. Most of these
-entries are adjectives, which the Sophocles steps do not expand, so the
-historical rows are their only paradigm. A head whose reading changes a letter
-is not in the map and its rows are dropped, because its forms were built on
-the misreading (`ἀνικμαέει` under `ἀνικμάέω` for `ἀνικμάζω`); nor is a head
-written with an asterisk or a spacing breathing, whose keys match no text.
+`θεοτήρητος`). Where the forms of such an entry were spelled from the same
+letters in the right class, the overlay keeps their keys and reads them under
+the present head (`historical_overlay_counts.reread_lemma_entries`) before any
+other test: `Θεοτηρήτων` reads `θεοτήρητος`, `ἀμαντεύτου` reads `ἀμάντευτος`.
+Most of these entries are adjectives, which the Sophocles steps do not expand,
+so the historical rows are their only paradigm. A head whose reading changes a
+letter is not in the map and its rows are dropped, because its forms were
+built on the misreading (`ἀνικμαέει` under `ἀνικμάέω` for `ἀνικμάζω`); nor is
+a head written with an asterisk or a spacing breathing, whose keys match no
+text.
+
+The historical layer built many of these paradigms on the misread head or in
+the wrong class, so the overlay reads one again only when the layer's own rows
+confirm it (`confirmed_reread_lemmas`,
+`historical_overlay_counts.reread_lemmas_confirmed` and
+`reread_lemmas_unconfirmed`). Two things are required. One key must be the
+present head itself, capital aside, with its accent, breathing and diaeresis
+(a key that only lacks the breathing counts): the paradigms of `ἐκκήρυκτός`
+(`ἐκκηρυκτοῦ`), `οἷηκοφόρος` (`οἱηκοφόρου`), `Ἰουδαῖσμός` (`Ἰουδαισμοῦ`) and
+`Ἕρμαῖος` (`Ἕρμαιον`) were built on another accent, on the rough breathing or
+without the diaeresis. And another key must end in the letters the entry
+implies, which the audit records per head as `reread_endings`: the genitive
+ending the entry prints as its first field (`ίδος`, `ατος`, `τος`; `ου` also
+where the OCR gives it as `ov`), `ου` for an adjective in `-ος`, `ους` for one
+in `-ης, -ες`, and without a printed ending the genitive the shared resolver
+gives for the head's ending. That rejects an adjective in `-ικός` declined as a
+consonant stem (`Θεαρχιξί`), one in `-ώδης` declined like `πολίτης`
+(`Βληχηματώδου`, `εἰλεώδου`), a noun in `-ίς, -ίδος` declined like `πόλις`
+(`Εἰλωτέως`) and the nouns whose printed genitive the layer could not use
+(`Θεοπρεπότου`). A verb, an adverb and an indeclinable word need their own
+cell only; a plural head and a head of no known class are not read again. A
+paradigm that is not confirmed stays under the superseded spelling and is
+dropped with it.
 
 ## Historical expansion overlay
 

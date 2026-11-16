@@ -18,6 +18,11 @@ them (overlay_lsj.py) sees the same letters:
   chunk and the reason. They cover what no rule can decide: an accent the
   OCR misread, and letters it gave as Latin look-alikes, as the phi
   symbol (U+03D5), as a guillemet, or dropped.
+* ``load_proper_names``: the reviewed proper names of the same file. The
+  lexicon capitalizes names and some common words alike, and the head
+  rules read a capitalized head as a common word when the other lexica
+  list only its lowercase spelling. A name that shares its spelling with a
+  common word (Νοητός, Σκόπελος) is listed here and stays a name.
 """
 from __future__ import annotations
 
@@ -75,6 +80,32 @@ def load_head_corrections(path: Path | None = None) -> dict[str, dict]:
                 or not record.get("reason", "").strip()):
             raise SystemExit(f"invalid head correction for {orth!r} in {path}")
     return corrections
+
+
+def load_proper_names(path: Path | None = None) -> dict[str, dict]:
+    """The reviewed proper names: ``{head: record}``.
+
+    The head is the capitalized headword as the head rules read it (after
+    any correction, its breathing joined to the capital), one NFC Greek
+    word; the record holds ``source`` (the chunk that prints the entry) and
+    ``reason`` (what the entry says the name is). Anything else is refused.
+    A missing file or a file without the section means no names.
+    """
+    path = path or HEAD_CORRECTIONS
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != SCHEMA:
+        raise SystemExit(f"unsupported head-correction record: {path}")
+    names = payload.get("names") or {}
+    for head, record in names.items():
+        if (not _is_greek_word(head) or not head[:1].isupper()
+                or head[1:] != head[1:].lower()
+                or unicodedata.normalize("NFC", head) != head
+                or not _SOURCE.match(record.get("source", ""))
+                or not record.get("reason", "").strip()):
+            raise SystemExit(f"invalid proper name {head!r} in {path}")
+    return names
 
 
 def corrections_sha256(corrections: dict[str, dict]) -> str:

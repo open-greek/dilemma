@@ -791,8 +791,11 @@ def overlay_expansion(
     head the rules read now, where the two differ in accents, breathing or
     case only (ἄμάντευτος is ἀμάντευτος, Θεοτήρητος is θεοτήρητος). Such a
     row keeps its key and is read under the present head
-    (``reread_lemma_entries``), then judged like any other: a head with a
-    fresh paradigm still loses the old one.
+    (``reread_lemma_entries``), then judged like any other. The caller
+    passes only the heads whose old paradigm confirmed_reread_lemmas()
+    accepts; the others stay under the superseded spelling and are dropped
+    with it. The present head is not itself superseded, so its old rows
+    stand beside a fresh paradigm, which spells the same forms.
 
     A superseded lemma in ``reread_noun_lemmas`` is a Sophocles head that
     the expansion read otherwise (with the micro sign, an asterisk or a
@@ -885,6 +888,61 @@ def overlay_expansion(
             target[form] = lemma
     stats["target_entries_after"] = len(target)
     return stats
+
+
+def _without_breathing(form: str) -> str:
+    return unicodedata.normalize("NFC", "".join(
+        char for char in unicodedata.normalize("NFD", form)
+        if char not in "\u0313\u0314"))
+
+
+def confirmed_reread_lemmas(
+    reference: dict[str, str],
+    reread_lemmas: dict[str, str],
+    endings: dict[str, str],
+) -> dict[str, str]:
+    """The heads of ``reread_lemmas`` whose old paradigm is the present
+    head's, by the expansion's own rows.
+
+    The expansion built a paradigm on the head as it read it then, in the
+    class it took the word for. Read under the present head, a paradigm
+    built on another accent, breathing or diaeresis (ἐκκηρυκτοῦ for
+    ἐκκήρυκτος, οἱηκοφόρου for οἰηκοφόρος, Ἰουδαισμοῦ for Ἰουδαϊσμός) or in
+    another class (Θεαρχιξί, Βληχηματώδου, Εἰλωτέως, Θεοπρεπότου) would put
+    spellings that are no forms of the word under a sound lemma. A
+    paradigm is accepted when
+
+    * one of its keys is the present head itself, capital aside, with
+      every accent and the diaeresis as the head has them (a key that only
+      lacks the breathing counts: the expansion wrote part of its keys so),
+      and
+    * another of its keys ends in the letters the entry implies
+      (``endings``, from the Sophocles audit's ``reread_endings``: the
+      printed genitive ending, or the genitive itself). An empty ending is
+      a word that is not declined, which needs the head cell alone; a head
+      without an ending record is not accepted.
+    """
+    keys: dict[str, list[str]] = defaultdict(list)
+    for form, lemma in reference.items():
+        lemma = greek_mu(lemma)
+        if lemma in reread_lemmas:
+            keys[lemma].append(sanitize_form(greek_mu(form)).lower())
+    confirmed = {}
+    for old, new in reread_lemmas.items():
+        ending = endings.get(old)
+        if ending is None:
+            continue
+        head = sanitize_form(new).lower()
+        cells = {head, _without_breathing(head)}
+        forms = set(keys.get(old, ()))
+        if not forms & cells:
+            continue
+        if ending and not any(strip_marks(form).endswith(ending)
+                              for form in forms - cells
+                              if has_orthographic_mark(form)):
+            continue
+        confirmed[old] = new
+    return confirmed
 
 
 def oxytone_os_cells(lemma: str) -> frozenset[str]:
@@ -1273,6 +1331,19 @@ def load_reread_lemmas(path: Path) -> dict[str, str]:
     return lemmas
 
 
+def load_reread_endings(path: Path) -> dict[str, str]:
+    """The Sophocles audit's ``reread_endings``: per re-read head the
+    ending its old paradigm must show ("" for a word that is not declined;
+    none in an audit without the record)."""
+    endings = json.loads(path.read_text(encoding="utf-8")).get(
+        "reread_endings", {})
+    if not isinstance(endings, dict) or not all(
+            isinstance(old, str) and isinstance(ending, str)
+            for old, ending in endings.items()):
+        raise SystemExit("invalid noun generation audit")
+    return endings
+
+
 def load_withheld_noun_lemmas(
     paths, superseded_noun_lemmas: set[str] | frozenset[str],
 ) -> dict[str, tuple[str, ...]]:
@@ -1439,7 +1510,8 @@ def main() -> None:
     # old paradigm; a lemma the LSJ audit supersedes too is superseded.
     reread_nouns = (load_reread_noun_lemmas(args.sophocles_noun_audit)
                     - load_noun_generation_audit(args.noun_audit))
-    reread_lemmas = load_reread_lemmas(args.sophocles_noun_audit)
+    reread_candidates = load_reread_lemmas(args.sophocles_noun_audit)
+    reread_endings = load_reread_endings(args.sophocles_noun_audit)
 
     manifest = load_manifest(args.manifest)
     reference_path = resolve_reference(manifest, args.reference)
@@ -1457,6 +1529,8 @@ def main() -> None:
     with reference_path.open(encoding="utf-8") as handle:
         reference = json.load(handle)
     print(f"  {len(reference):,} entries")
+    reread_lemmas = confirmed_reread_lemmas(
+        reference, reread_candidates, reread_endings)
 
     carried: dict[str, str] = {}
     if "carried_baseline" in manifest:
@@ -1540,6 +1614,8 @@ def main() -> None:
         head_evidence=head_evidence if carried else None,
         breathing_corrections=breathing_corrections,
         carried_cells=carried_cells, reread_lemmas=reread_lemmas))
+    stats["reread_lemmas_confirmed"] = len(reread_lemmas)
+    stats["reread_lemmas_unconfirmed"] = len(reread_candidates) - len(reread_lemmas)
     stats["unmarked_withheld_noun_restored"] = sum(
         lemma in withheld_nouns for _key, lemma in unmarked_rows)
     del carried
@@ -1580,7 +1656,9 @@ def main() -> None:
     print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
     print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
     print(f"Entries read under the present Sophocles head: "
-          f"{stats['reread_lemma_entries']:,}")
+          f"{stats['reread_lemma_entries']:,} "
+          f"({stats['reread_lemmas_confirmed']:,} heads; "
+          f"{stats['reread_lemmas_unconfirmed']:,} old paradigms not confirmed)")
     print(f"Released baseline conflicts: {stats['released_conflict_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
     print(f"Published keys of nouns without a fresh paradigm kept: "

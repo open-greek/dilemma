@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Reviewed corrections of single Sophocles headwords the OCR misread. Key: the <orth> text as data/sophocles/chunks prints it, trimmed, with micro signs written as mu (Latin look-alike letters are kept, they are what the chunk has). head: the headword it stands for. Read by build/sophocles_ocr.py for build/build_grc_lexical_heads.py and build/expand_sophocles.py.",
+  "description": "Reviewed corrections of single Sophocles headwords the OCR misread. Key: the <orth> text as data/sophocles/chunks prints it, trimmed, with micro signs written as mu (Latin look-alike letters are kept, they are what the chunk has). head: the headword it stands for. Read by build/sophocles_ocr.py for build/build_grc_lexical_heads.py and build/expand_sophocles.py. names: the capitalized heads that are proper names although the other lexica list only the lowercase spelling (a common word); key: the head as the rules read it, value: the chunk and what the entry says the name is.",
   "corrections": {
     "ορνιθείον": {
       "head": "ὀρνιθεῖον",
@@ -821,6 +821,152 @@
       "head": "ἀναμελῳδέω",
       "source": "sophocles/0100.xml",
       "reason": "the mute iota was not read: the entry is glossed μελῳδέω"
+    }
+  },
+  "names": {
+    "Βιργίλιος": {
+      "source": "sophocles/0300.xml",
+      "reason": "Virgilius, the Roman poet"
+    },
+    "Βραχιάλιον": {
+      "source": "sophocles/0300.xml",
+      "reason": "a place at Constantinople"
+    },
+    "Καβαλλώνυμος": {
+      "source": "sophocles/0600.xml",
+      "reason": "glossed by the name Καβαλλῖνος"
+    },
+    "Καράκαλλος": {
+      "source": "sophocles/0600.xml",
+      "reason": "Caracalla"
+    },
+    "Κελλία": {
+      "source": "sophocles/0650.xml",
+      "reason": "Cellae, a monastic settlement near Nitria"
+    },
+    "Κηρουλάριος": {
+      "source": "sophocles/0650.xml",
+      "reason": "Cerularius, the surname of the patriarch Michael"
+    },
+    "Κλαυσῦς": {
+      "source": "sophocles/0650.xml",
+      "reason": "Clausys, a man's name"
+    },
+    "Κοπρώνυμος": {
+      "source": "sophocles/0650.xml",
+      "reason": "Copronymus, the epithet of the emperor Constantine, son of Leo the Isaurian"
+    },
+    "Κορσίς": {
+      "source": "sophocles/0650.xml",
+      "reason": "Corsica (glossed by the preceding Κόρσικα)"
+    },
+    "Μίλιν": {
+      "source": "sophocles/0750.xml",
+      "reason": "for Μίλιον, the place in Constantinople"
+    },
+    "Μίλιον": {
+      "source": "sophocles/0750.xml",
+      "reason": "Milium, a place in Constantinople"
+    },
+    "Μακέλλης": {
+      "source": "sophocles/0700.xml",
+      "reason": "the cognomen of the emperor Leo the Great"
+    },
+    "Μαϊουμᾶς": {
+      "source": "sophocles/0700.xml",
+      "reason": "Majuma, a place near Gaza"
+    },
+    "Μελάνη": {
+      "source": "sophocles/0700.xml",
+      "reason": "Melane, a saint"
+    },
+    "Μετάνοια": {
+      "source": "sophocles/0750.xml",
+      "reason": "Penitentiary, the name of several monasteries near Constantinople"
+    },
+    "Μυίαγρος": {
+      "source": "sophocles/0750.xml",
+      "reason": "Myiagros, an Elean god"
+    },
+    "Ναυμάχιον": {
+      "source": "sophocles/0750.xml",
+      "reason": "the Rostra at Rome"
+    },
+    "Νοητός": {
+      "source": "sophocles/0750.xml",
+      "reason": "Noetus, the founder of patripassianism"
+    },
+    "Πέραμα": {
+      "source": "sophocles/0850.xml",
+      "reason": "Pera, the district across from Constantinople"
+    },
+    "Πενταδάκτυλος": {
+      "source": "sophocles/0850.xml",
+      "reason": "Pentadactylus, the mediaeval name of Mount Taygetus"
+    },
+    "Πρίγκιπος": {
+      "source": "sophocles/0900.xml",
+      "reason": "Principos, one of the Princes' Islands"
+    },
+    "Σάγκος": {
+      "source": "sophocles/0950.xml",
+      "reason": "Sancus, a Sabine divinity"
+    },
+    "Σκόπελος": {
+      "source": "sophocles/0950.xml",
+      "reason": "Scopelus, an island off Magnesia"
+    },
+    "Τρικέρβερος": {
+      "source": "sophocles/1050.xml",
+      "reason": "glossed by the name Κέρβερος"
+    },
+    "Ἀγέννητος": {
+      "source": "sophocles/0057.xml",
+      "reason": "Innatus, a Gnostic figure"
+    },
+    "Ἀθάρα": {
+      "source": "sophocles/0057.xml",
+      "reason": "the goddess Atargatis"
+    },
+    "Ἀκίνητος": {
+      "source": "sophocles/0100.xml",
+      "reason": "Acinetus, an Aeon of the Gnostics"
+    },
+    "Ἀκατάληπτος": {
+      "source": "sophocles/0100.xml",
+      "reason": "Acataleptus, a Gnostic figure"
+    },
+    "Ἀνάπλους": {
+      "source": "sophocles/0100.xml",
+      "reason": "Anaplus, the lower mouth of the Bosporus"
+    },
+    "Ἀπφύς": {
+      "source": "sophocles/0200.xml",
+      "reason": "Apphys, a man's name"
+    },
+    "Ἀργυρός": {
+      "source": "sophocles/0200.xml",
+      "reason": "Argyrus, a proper name"
+    },
+    "Ἀστροάρχη": {
+      "source": "sophocles/0250.xml",
+      "reason": "the goddess Astarte"
+    },
+    "Ἐλεήμων": {
+      "source": "sophocles/0400.xml",
+      "reason": "the Compassionate, the epithet of Saint John the Almoner"
+    },
+    "Ὑστέρα": {
+      "source": "sophocles/1100.xml",
+      "reason": "Womb, the demiurge of the Caians"
+    },
+    "Ὠμοφόρος": {
+      "source": "sophocles/1150.xml",
+      "reason": "Omophorus, a Manichean figure"
+    },
+    "Ῥύαξ": {
+      "source": "sophocles/0950.xml",
+      "reason": "Rhyax, a demon"
     }
   }
 }

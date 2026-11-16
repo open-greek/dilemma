@@ -39,7 +39,7 @@ from dilemma.form_sanitize import (  # noqa: E402
 from dilemma_build.sophocles_breathing import needs_breathing  # noqa: E402
 from dilemma_build.sophocles_ocr import (  # noqa: E402
     HEAD_CORRECTIONS, corrections_sha256, greek_mu, load_head_corrections,
-    settle_orth,
+    load_proper_names, settle_orth,
 )
 
 SOPH_DIR = DATA_DIR / "sophocles" / "chunks"
@@ -382,7 +382,8 @@ def new_head_audit():
     return {"printed": {}, "legacy_printed": set(), "split_words": {},
             "multi_word_heads": {}, "stated_gender": {},
             "malformed_heads": {}, "repaired_heads": {}, "lowercased_heads": {},
-            "one_word_heads": {}, "corrected_heads": {}, "reread_heads": {}}
+            "one_word_heads": {}, "corrected_heads": {}, "reread_heads": {},
+            "proper_names": {}}
 
 
 def load_lexical_heads(path: Path | None = None):
@@ -402,20 +403,21 @@ def load_lexical_heads(path: Path | None = None):
 _INNER_HYPHENS = "-—–"
 
 
-def lowercase_twin(head, lexical_heads):
+def lowercase_twin(head, lexical_heads, names=()):
     """The lowercase spelling of a capitalized head when the other lexical
     sources list that spelling and not the capitalized one, else "". The
     OCR prints some capitals' breathing as a separate mark (᾿Αθεότης); the
-    twin is that of the head with the mark joined (Ἀθεότης -> ἀθεότης)."""
+    twin is that of the head with the mark joined (Ἀθεότης -> ἀθεότης).
+    A reviewed proper name (``names``) has no twin."""
     spelled = sanitize_form(head)
     lowered = spelled.lower()
     if (lexical_heads and spelled[:1].isupper() and spelled not in lexical_heads
-            and lowered in lexical_heads):
+            and spelled not in names and lowered in lexical_heads):
         return lowered
     return ""
 
 
-def settle_head(printed, lexical_heads=None):
+def settle_head(printed, lexical_heads=None, names=()):
     """``(head, rule)``: the head a printed head is generated under.
 
     ``rule`` is "" when the printed head stands. A head is malformed, and
@@ -429,20 +431,22 @@ def settle_head(printed, lexical_heads=None):
     when the other sources list only its lowercase spelling ("lowercased":
     ᾿Αθεότης -> ἀθεότης, Ἔκπτυξις -> ἔκπτυξις). A capitalized head another
     source lists (Πέτρα beside πέτρα), or one with no lowercase twin, is a
-    name and stands.
+    name and stands. So does a reviewed proper name (``names``, from
+    ``load_proper_names``): Νοητός is Noetus, Σκόπελος an island, whatever
+    the other sources list under νοητός and σκόπελος.
     """
     if any(mark in printed for mark in _INNER_HYPHENS):
         joined = "".join(ch for ch in printed if ch not in _INNER_HYPHENS)
         if accent_count(joined) <= 1:
             if joined in (lexical_heads or ()):
                 return joined, "joined"
-            lowered = lowercase_twin(joined, lexical_heads)
+            lowered = lowercase_twin(joined, lexical_heads, names)
             if lowered:
                 return lowered, "joined"
         return "", "inner-hyphen"
     if accent_count(printed) > 1:
         return "", "two-accents"
-    lowered = lowercase_twin(printed, lexical_heads)
+    lowered = lowercase_twin(printed, lexical_heads, names)
     if lowered:
         return lowered, "lowercased"
     return printed, ""
@@ -478,13 +482,15 @@ def split_word(first, phrase):
     return joined, second
 
 
-def settle_heads(entries, lexical_heads, audit=None):
+def settle_heads(entries, lexical_heads, audit=None, names=_DEFAULT):
     """The parsed entries keyed by the head each is generated under.
 
     Malformed heads are dropped; repaired and lowercased ones are re-keyed
     in place (see ``settle_head``), and an entry the lexicon also prints
     under the new head keeps its own text. ``audit`` records the three
-    groups by printed head.
+    groups by printed head, and under ``proper_names`` the capitalized
+    heads that stand only because the reviewed record (``names``, default:
+    ``load_proper_names()``) lists them.
 
     A phrase of two words is a word the OCR split (``split_word``) when
     another lexical source lists the joined word and does not list both
@@ -497,9 +503,14 @@ def settle_heads(entries, lexical_heads, audit=None):
     malformed = audit.setdefault("malformed_heads", {})
     changed = {"joined": audit.setdefault("repaired_heads", {}),
                "lowercased": audit.setdefault("lowercased_heads", {})}
+    named = audit.setdefault("proper_names", {})
+    if names is _DEFAULT:
+        names = load_proper_names()
     settled = {}
     for printed, entry in entries.items():
-        head, rule = settle_head(printed, lexical_heads)
+        head, rule = settle_head(printed, lexical_heads, names)
+        if head == printed and names and lowercase_twin(printed, lexical_heads):
+            named[printed] = names.get(sanitize_form(printed), {}).get("reason", "")
         if not head:
             malformed[printed] = rule
             continue
@@ -628,6 +639,11 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
                         _NEUTER_ENDING_NEXT.match(_fold_ocr(
                             after_hw[stated_m.end(1):stated_m.end(1) + 8])))
 
+            # The first field, which is the genitive or an adjective's
+            # ending when the entry prints one
+            field_m = _FIRST_FIELD.match(after_hw)
+            first_field = _fold_ocr(field_m.group(1)) if field_m else ""
+
             # Check for adjective markers
             endings = adjective_endings(after_hw)
             is_adj = endings is not None
@@ -644,6 +660,7 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
                 "gender_stated": gender_stated,
                 "genitive": genitive,
                 "supplied_genitive": genitive,
+                "first_field": first_field,
                 "is_adj": is_adj,
                 "adjective_endings": endings,
                 "is_xref": is_xref,
@@ -879,6 +896,70 @@ def reread_printed_heads(head_audit, other_heads=frozenset()):
     return reread
 
 
+# The first field after a head when it is an ending: a genitive (ου, ης, ας,
+# ατος, εως, ίδος, ους), or the endings of an adjective. The OCR gives ου
+# as "ov", which reads as ον.
+_PRINTED_GENITIVE = re.compile(r"^[α-ω]*(?:ος|ως|ους|ης|ας)$")
+_FIRST_FIELD = re.compile(r"^[,\s]*([^\s,;.()=—–-]+)")
+
+
+def reread_ending(head, entry, wikt_genitives=None):
+    """The letters an old paradigm of ``head`` must show in a form other
+    than the head to be read again; "" for a head that is not declined (a
+    verb, an adverb, an indeclinable word), None when the entry gives no
+    usable class.
+
+    The historical layer declined part of its heads in the wrong class: an
+    adjective in -ικός as a consonant stem (Θεαρχιξί), one in -ης, -ες as a
+    first-declension noun (Βληχηματώδου), a noun in -ίς, -ίδος like πόλις
+    (Εἰλωτέως), one whose printed genitive it could not use by its
+    nominative (Θεοπρεπότου). The genitive tells the classes apart, and the
+    entry prints it, or the endings of the adjective, as its first field
+    (``first_field``, read whether or not an article follows): a printed
+    genitive ending is required as it stands (ίδος, τος, ατος), -ου for the
+    genitive ου and for an adjective in -ος, -ους for one in -ης, -ες. A
+    plural head (ων) has no singular to check. Without a printed ending the
+    genitive is the one the shared resolver gives for the head's ending.
+    """
+    plain = strip_diacritics(head).lower()
+    if entry["is_indecl"]:
+        return ""
+    if not entry["gender"] and ((plain.endswith("ως") and len(plain) > 3)
+                                or plain.endswith(("ω", "μαι", "μι"))):
+        return ""
+    field = entry.get("first_field", "")
+    if field in ("ου", "ον") or (field in ("η", "α") and plain.endswith("ος")):
+        return "ου"
+    if field == "ες" and plain.endswith("ης"):
+        return "ους"
+    if field == "ων":
+        return None
+    if _PRINTED_GENITIVE.match(field):
+        return field
+    gender, genitive = infer_from_ending(head)
+    if not (gender and genitive):
+        return None
+    resolved, error = resolve_noun_genitive(head, gender, genitive, wikt_genitives)
+    if error or not resolved or noun_expansion_error(head, resolved):
+        return None
+    return strip_diacritics(resolved).lower()
+
+
+def reread_endings(reread, head_audit, wikt_genitives=None):
+    """``{printed head: ending}`` for the heads of ``reread`` whose entry
+    says how the word declines (``reread_ending``). The overlay reads the
+    old rows of a head under its present spelling only when they show that
+    ending; a head that is left out here is not read again."""
+    endings = {}
+    for old, new in reread.items():
+        printed = head_audit["reread_heads"].get(old) or old
+        entry = head_audit["printed"].get(printed)
+        ending = reread_ending(new, entry, wikt_genitives) if entry else None
+        if ending is not None:
+            endings[old] = ending
+    return endings
+
+
 def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
     breathing_review = load_breathing_review(required=True)
@@ -900,9 +981,12 @@ def expand_all():
     # the printed head (Βαρυπύκνου), so both are superseded: no row is
     # recovered under that lemma, and no published key is kept for a noun
     # among them (they get no entry in ``resolutions``). The rows of the
-    # ones in ``reread`` are read under the present head instead.
+    # ones in ``reread`` are read under the present head instead, where the
+    # overlay finds them declined as the entry says (``reread_endings``).
     unread = unread_printed_heads(head_audit, other_heads, breathing_review)
     reread = reread_printed_heads(head_audit, other_heads)
+    endings = reread_endings(reread, head_audit, wikt_genitives)
+    reread = {old: new for old, new in reread.items() if old in endings}
     superseded = set(unread)
     resolutions = {}
     # Superseded lemmas are named as the lexicon prints them: the historical
@@ -1020,6 +1104,7 @@ def expand_all():
             "superseded_lemmas": sorted(superseded),
             "superseded_reread_lemmas": reread_superseded,
             "reread_lemmas": dict(sorted(reread.items())),
+            "reread_endings": dict(sorted(endings.items())),
             "failures": dict(sorted(failures.items())),
             "resolutions": dict(sorted(resolutions.items())),
             "head_rules": head_rules_record(head_audit),
@@ -1044,6 +1129,7 @@ def sophocles_noun_input_hashes():
     listed = "null" if heads is None else "\n".join(sorted(heads))
     hashes["lexical_heads"] = hashlib.sha256(listed.encode("utf-8")).hexdigest()
     hashes["sophocles_head_corrections"] = corrections_sha256(load_head_corrections())
+    hashes["sophocles_proper_names"] = corrections_sha256(load_proper_names())
     for path in sorted(SOPH_DIR.glob("*.xml")):
         with path.open("rb") as stream:
             digest = hashlib.sha256()
