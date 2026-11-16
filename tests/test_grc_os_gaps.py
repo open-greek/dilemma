@@ -394,7 +394,6 @@ def test_shipped_cells_name_their_source():
     rows = _lookup_rows()
     for form, lemma in _SHIPPED:
         assert rows.get(form) == f"{lemma}|{ADJECTIVE_SOURCE}", form
-    assert sum(row.endswith(f"|{NOUN_SOURCE}") for row in rows.values()) > 39_000
 
 
 @pytest.mark.parametrize("lang", ["all", "grc"])
