@@ -651,7 +651,7 @@ def test_attested_capitalized_name_keeps_its_exact_noun_cell(
     # The lower-case key stays with the common noun.
     assert 'θέρμον' not in result
     assert cells == {'Θέρμον': {'lemma': 'Θέρμος', 'form_tokens': name + other,
-                                'name_tokens': name, 'lowercase_noun_tokens': lower}}
+                                'name_tokens': name, 'lowercase_nominal_tokens': lower}}
 
 
 @pytest.mark.parametrize(('name', 'other', 'lower'), [
@@ -685,6 +685,63 @@ def test_capitalized_name_cell_needs_the_names_own_row(inputs, monkeypatch):
     result, cells = thermon(inputs, monkeypatch,
                             owners={'Θέρμον': 'θέρμος', 'θέρμον': 'θέρμος'})
     assert 'Θέρμον' not in result and cells == {}
+
+
+def aiakos(inputs, monkeypatch, grave, acute, other=0):
+    """An oxytone name in its grave and its acute spelling."""
+    rows = [{'form': 'Αἰακὸς', 'lemma': 'Αἰακός', 'pos': 'noun', 'count': grave},
+            {'form': 'Αἰακός', 'lemma': 'Αἰακός', 'pos': 'noun', 'count': acute}]
+    if other:
+        rows.append({'form': 'Αἰακός', 'lemma': 'αἰακός', 'pos': None, 'count': other})
+    bare = {'Αἰακὸς': 'Αἰακός', 'Αἰακός': 'Αἰακός'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'αἰακός': {'NOUN': 'Αἴας'}}},
+           [{'word': 'Αἰακός', 'lang_code': 'grc', 'pos': 'name',
+             'senses': [{'glosses': ['A son of Zeus.']}]}])
+    scalar_models(monkeypatch, bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    return result, audit['capital_name_cells']
+
+
+def test_grave_and_acute_spellings_share_the_name_evidence(inputs, monkeypatch):
+    # Neither spelling has ten tokens; the word has eleven. A capitalized
+    # key is read by its exact spelling, so each spelling needs its cell.
+    result, cells = aiakos(inputs, monkeypatch, grave=6, acute=5)
+    assert result['Αἰακὸς'] == result['Αἰακός'] == {'NOUN': 'Αἰακός'}
+    counts = {'lemma': 'Αἰακός', 'form_tokens': 11, 'name_tokens': 11,
+              'lowercase_nominal_tokens': 0}
+    assert cells == {'Αἰακὸς': counts, 'Αἰακός': counts}
+
+
+def test_other_readings_of_the_acute_spelling_count_against_the_grave_one(
+        inputs, monkeypatch):
+    # 24 of 24 grave tokens are the name, but only 24 of the word's 31.
+    result, cells = aiakos(inputs, monkeypatch, grave=24, acute=2, other=5)
+    assert 'Αἰακὸς' not in result and 'Αἰακός' not in result and cells == {}
+
+
+@pytest.mark.parametrize(('pos', 'kept'), [('adj', False), ('noun', False),
+                                           ('verb', True)])
+def test_lower_case_adjective_counts_against_the_name_like_a_noun(
+        inputs, monkeypatch, pos, kept):
+    # Φίλων (Philo) beside φίλων "of friends": GLAUx tags the common word as
+    # an adjective, other tagsets as a noun. A verb of the same spelling is
+    # no reading of a NOUN request.
+    rows = [{'form': 'Φίλων', 'lemma': 'Φίλων', 'pos': 'noun', 'count': 60},
+            {'form': 'φίλων', 'lemma': 'φίλος', 'pos': pos, 'count': 2036}]
+    bare = {'Φίλων': 'Φίλων', 'φίλων': 'φίλος'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'φίλων': {'NOUN': 'φίλος'}}},
+           [{'word': 'Φίλων', 'lang_code': 'grc', 'pos': 'name',
+             'senses': [{'glosses': ['A male given name.']}]},
+            {'word': 'φίλος', 'lang_code': 'grc', 'pos': pos,
+             'senses': [{'glosses': ['dear; a friend']}]}])
+    scalar_models(monkeypatch, bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    assert ('Φίλων' in result) is kept
+    assert ('Φίλων' in audit['capital_name_cells']) is kept
+    if kept:
+        assert audit['capital_name_cells']['Φίλων']['lowercase_nominal_tokens'] == 0
 
 
 def test_capital_letter_label_gets_no_name_cell(inputs, monkeypatch):

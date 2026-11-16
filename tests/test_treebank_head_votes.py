@@ -3,7 +3,9 @@
 #141: a lower-case head that an edited lexicon lists keeps its own corpus
 vote where a lower table would answer with another word, so the tagged
 answer is the untagged one. #138: a capitalized name that GLAUx attests well
-has a NOUN cell under its exact spelling. These need the table rebuilt by
+has a NOUN cell under its exact spelling; the grave and the acute spelling
+of a word are counted together, and a lower-case adjective counts against
+the name like a lower-case noun. These need the table rebuilt by
 build/build_treebank_pos_lookup.py.
 """
 import json
@@ -56,6 +58,10 @@ def test_neighbours_of_the_listed_heads(shipped_model, form, upos, lemma):
 CAPITALIZED_NAMES = [
     ("Θέρμον", "Θέρμος"), ("Εὐριπίδου", "Εὐριπίδης"), ("Συρίας", "Συρία"),
     ("Ἕκτωρ", "Ἕκτωρ"), ("Πέτρος", "Πέτρος"), ("Τρύφων", "Τρύφων"),
+    # The grave and the acute spelling share the token counts, and each has
+    # its own cell: Αἰακός and Πενθεύς have under ten tokens of their own.
+    ("Αἰακὸς", "Αἰακός"), ("Αἰακός", "Αἰακός"),
+    ("Πενθεὺς", "Πενθεύς"), ("Πενθεύς", "Πενθεύς"),
 ]
 
 
@@ -80,11 +86,21 @@ def test_lower_case_spelling_keeps_the_common_noun(shipped_model, form, lemma):
     ("Νίκη", "νίκη"), ("Νίκης", "νίκη"), ("Νίκην", "νίκη"),
     # The name in 27 of 38 capitalized tokens.
     ("Ἔρις", "ἔρις"),
+    # The lower-case spelling is an adjective with over four times the
+    # name's tokens (φίλων 2,036 beside Φίλων 60; νέων 644 beside Νέων 15).
+    ("Φίλων", "φίλος"), ("Νέων", "νέος"),
 ])
 def test_names_that_fail_the_token_tests_are_left(shipped_model, form, lemma):
     assert shipped_model.lemmatize_pos(form, "NOUN", guess=False) == lemma
     audit = json.loads(AUDIT_PATH.read_text(encoding="utf-8"))
     assert form not in audit["capital_name_cells"]
+
+
+@pytest.mark.parametrize("form,name", [("Φίλων", "Φίλων"), ("Νέων", "Νέων"),
+                                       ("Τύχη", "Τύχη")])
+def test_a_name_without_a_cell_keeps_its_other_readings(shipped_model, form, name):
+    assert shipped_model.lemmatize(form, guess=False) == name
+    assert shipped_model.lemmatize_pos(form, "PROPN", guess=False) == name
 
 
 def test_audit_lists_the_kept_votes_with_their_evidence():
@@ -95,7 +111,12 @@ def test_audit_lists_the_kept_votes_with_their_evidence():
     assert audit["listed_head_votes"]["ψηφίς"] == {"upos": "NOUN", "lemma": "ψηφίς"}
     assert audit["capital_name_cells"]["Θέρμον"] == {
         "lemma": "Θέρμος", "form_tokens": 10, "name_tokens": 10,
-        "lowercase_noun_tokens": 4}
+        "lowercase_nominal_tokens": 4}
+    # Αἰακὸς 24 and Αἰακός 7 tokens, counted as one spelling.
+    assert audit["capital_name_cells"]["Αἰακός"] == audit[
+        "capital_name_cells"]["Αἰακὸς"] == {
+            "lemma": "Αἰακός", "form_tokens": 31, "name_tokens": 31,
+            "lowercase_nominal_tokens": 0}
     for form, vote in audit["listed_head_votes"].items():
         assert table[form][vote["upos"]] == vote["lemma"]
         assert not form[:1].isupper()
@@ -103,6 +124,9 @@ def test_audit_lists_the_kept_votes_with_their_evidence():
         assert table[form]["NOUN"] == cell["lemma"]
         assert cell["form_tokens"] >= 10
         assert 10 * cell["name_tokens"] >= 9 * cell["form_tokens"]
-        assert 4 * cell["name_tokens"] >= cell["lowercase_noun_tokens"]
+        assert 4 * cell["name_tokens"] >= cell["lowercase_nominal_tokens"]
+        # ᾍδης begins with a titlecase letter, so compare with the lower case.
+        assert len(form) > 1 and form[:1] != form[:1].lower()
+        assert cell["lemma"][:1] != cell["lemma"][:1].lower()
         # Exact spelling only: the lower-case key is not the name's.
         assert table.get(form.lower(), {}).get("NOUN") != cell["lemma"]

@@ -202,11 +202,14 @@ _HEAD_VOTE_UPOS = frozenset({"NOUN", "ADJ", "ADV", "VERB"})
 
 # Tests for the NOUN cell of a capitalized name, on GLAUx token counts: the
 # capitalized spelling has enough tokens, nearly all of them are this name,
-# and the name is not rare beside the lower-case noun of the same letters, so
-# that capitals at the start of a sentence cannot pass for the name.
+# and the name is not rare beside the lower-case word of the same spelling,
+# so that capitals at the start of a sentence cannot pass for the name. The
+# lower-case word counts as a noun or as an adjective: a NOUN tag also covers
+# the substantive use of an adjective (φίλων beside Φίλων). A final grave is
+# the acute of running text, so the two spellings are counted as one.
 _NAME_MIN_FORM_TOKENS = 10
 _NAME_MIN_SHARE = (9, 10)
-_NAME_PER_LOWERCASE_NOUN = (1, 4)
+_NAME_PER_LOWERCASE_NOMINAL = (1, 4)
 
 
 def _listed_by_lexicon(sources):
@@ -235,18 +238,25 @@ def _letter_count(text):
                if not unicodedata.combining(char))
 
 
+def _grave_as_acute(text):
+    """The spelling before a pause: a final grave is the acute of running text."""
+    return unicodedata.normalize("NFC", unicodedata.normalize(
+        "NFD", text).replace("\u0300", "\u0301"))
+
+
 def _is_own_listed_head(form, upos, lemma, listed_heads):
     """The corpus reads a lower-case head of an edited lexicon as itself."""
     if (upos not in _HEAD_VOTE_UPOS or is_capitalized(form)
             or lemma not in listed_heads):
         return False
-    # A final grave is the acute of running text. Unaccented spellings and
-    # single letters are fragments and sigla, whatever a lexicon lists.
-    spelled = unicodedata.normalize("NFD", form).replace("\u0300", "\u0301")
-    if unicodedata.normalize("NFC", spelled) != lemma:
+    # Unaccented spellings and single letters are fragments and sigla,
+    # whatever a lexicon lists.
+    spelled = _grave_as_acute(form)
+    if spelled != lemma:
         return False
     return (_letter_count(spelled) >= 2
-            and any(char in "\u0301\u0342" for char in spelled))
+            and any(char in "\u0301\u0342"
+                    for char in unicodedata.normalize("NFD", spelled)))
 
 
 def _unique_owner(counts):
@@ -414,32 +424,39 @@ def _scalar_query_conflict(model, form, upos, lemma):
 
 
 class _NameTokens:
-    """GLAUx token counts behind the capitalized-name tests."""
+    """GLAUx token counts behind the capitalized-name tests.
+
+    Spellings are keyed with a final grave read as an acute, so Αἰακὸς and
+    Αἰακός share their counts and pass or fail together.
+    """
 
     def __init__(self):
         self.spelling = defaultdict(int)     # capitalized spelling, any reading
         self.name = defaultdict(int)         # (spelling, capitalized noun lemma)
-        self.lower_noun = defaultdict(int)   # lower-case spelling as a common noun
+        # lower-case spelling as a common noun or adjective
+        self.lower_nominal = defaultdict(int)
 
     def add(self, form, lemma, upos, tokens):
+        spelling = _grave_as_acute(form)
         if is_capitalized(form):
-            self.spelling[form] += tokens
+            self.spelling[spelling] += tokens
             if upos == "NOUN" and is_capitalized(lemma):
-                self.name[form, lemma] += tokens
-        elif upos == "NOUN" and not is_capitalized(lemma):
-            self.lower_noun[form] += tokens
+                self.name[spelling, lemma] += tokens
+        elif upos in ("NOUN", "ADJ") and not is_capitalized(lemma):
+            self.lower_nominal[spelling] += tokens
 
     def evidence(self, form, lemma):
         """The counts, when they show the capitalized spelling is this name."""
-        total = self.spelling.get(form, 0)
-        name = self.name.get((form, lemma), 0)
-        lower = self.lower_noun.get(form.lower(), 0)
-        share, ratio = _NAME_MIN_SHARE, _NAME_PER_LOWERCASE_NOUN
+        spelling = _grave_as_acute(form)
+        total = self.spelling.get(spelling, 0)
+        name = self.name.get((spelling, lemma), 0)
+        lower = self.lower_nominal.get(spelling.lower(), 0)
+        share, ratio = _NAME_MIN_SHARE, _NAME_PER_LOWERCASE_NOMINAL
         if (total < _NAME_MIN_FORM_TOKENS or share[1] * name < share[0] * total
                 or ratio[1] * name < ratio[0] * lower):
             return None
         return {"form_tokens": total, "name_tokens": name,
-                "lowercase_noun_tokens": lower}
+                "lowercase_nominal_tokens": lower}
 
 
 def _capital_name_cells(lookup, candidates, tokens, cascade):
@@ -449,9 +466,11 @@ def _capital_name_cells(lookup, candidates, tokens, cascade):
     lower-case keys, by its lower-case twin or by another word (Θέρμον NOUN
     gave θέρμος). Keep the name's agreeing vote where GLAUx shows that the
     capitalized spelling is the name and every language scope reads it so
-    without a tag. The cell is not projected: a lower-case or monotonic key
-    belongs to the common word. A single capital letter is a numeral or the
-    label of a figure, not a name.
+    without a tag. The grave and the acute spelling of an oxytone share the
+    evidence, and each gets its own cell, because a capitalized key is read
+    by its exact spelling only (Πενθεὺς and Πενθεύς). The cell is not
+    projected: a lower-case or monotonic key belongs to the common word. A
+    single capital letter is a numeral or the label of a figure, not a name.
     """
     attested = {}
     for form, (upos, lemma) in candidates.items():

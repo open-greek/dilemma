@@ -916,13 +916,18 @@ A capitalized name keeps its agreeing NOUN vote under its exact spelling
 (#138) when GLAUx has at least 10 tokens of the capitalized spelling, reads
 at least nine tenths of them as that name, and has at least a quarter as
 many name tokens as tokens of the lower-case spelling read as a common noun
-(so that capitals at the start of a sentence cannot pass for the name); the
-lookup must read the spelling as the name without a tag under both
-settings, and the tables must otherwise answer it with something else
-(`Θέρμον` NOUN gave `θέρμος`). A single capital letter, a numeral or the
-label of a figure, gets none. Such a cell is not projected to lower-case
-or monotonic keys. The audit lists each with its three counts under
-`capital_name_cells` (about 500 on the 1.3.26 lookup).
+or adjective (so that capitals at the start of a sentence cannot pass for
+the name; an adjective counts because a NOUN tag also covers its
+substantive use, so `Φίλων` NOUN stays `φίλος` beside 2,036 tokens of
+`φίλων`). The grave and the acute spelling of a word are counted together
+and each gets its own cell, because a capitalized key is matched by its
+exact spelling only (`Αἰακὸς` and `Αἰακός`). The lookup must read the
+spelling as the name without a tag under both settings, and the tables
+must otherwise answer it with something else (`Θέρμον` NOUN gave
+`θέρμος`). A single capital letter, a numeral or the label of a figure,
+gets none. Such a cell is not projected to lower-case or monotonic keys.
+The audit lists each with its three counts under `capital_name_cells`
+(about 530 on the 1.3.26 lookup).
 Without `--kaikki`, only these two kinds of vote are recovered. Lowercase and
 monotonic aliases retain each unambiguous part of speech, and withhold a part
 of speech with competing owners. Newly recovered entries also account for
