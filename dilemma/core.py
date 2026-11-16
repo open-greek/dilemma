@@ -2443,6 +2443,62 @@ class Dilemma:
             return _PRONOUN_LEMMAS[normalized]
         return _MONOTONIC_PRONOUN_LEMMAS.get(to_monotonic(normalized))
 
+    @staticmethod
+    def _loose_keys(word: str, *, monotonic: bool = True,
+                    stripped: bool = True) -> list[str]:
+        """The lowercase monotonic and accent-stripped keys of *word*."""
+        lower = word.lower()
+        keys = []
+        if monotonic:
+            keys.append(to_monotonic(lower))
+        if stripped:
+            keys.append(strip_accents(lower))
+        return list(dict.fromkeys(keys))
+
+    @staticmethod
+    def _capitalized_loose_keys(word: str, *, monotonic: bool = True,
+                                stripped: bool = True) -> list[str]:
+        """The monotonic and accent-stripped keys of a capitalized word, with its capital.
+
+        The loose keys are lowercase, as the Wiktionary-derived rows are
+        keyed. The generated dictionary paradigms key the accent-stripped
+        spelling of a capitalized form with its capital (Σαμαρειτις for
+        Σαμαρεῖτις), so a capitalized word that no lowercase key answers
+        tries these keys too. No key for a lowercase word.
+        """
+        if word == word.lower():
+            return []
+        keys = []
+        if monotonic:
+            keys.append(to_monotonic(word))
+        if stripped:
+            keys.append(strip_accents(word))
+        lowercase = Dilemma._loose_keys(word)
+        return [key for key in dict.fromkeys(keys) if key not in lowercase]
+
+    @staticmethod
+    def _is_capitalized_ancient_head(lemma: str) -> bool:
+        """Whether *lemma* is written as a capitalized Ancient citation form.
+
+        Capitalized, accented, and with a breathing when it opens with a
+        vowel or rho: the head of a generated paradigm (Σαμαρεῖτις), not a
+        Modern Greek name (Ολυμπιακούς), a corpus lemma printed without
+        accents (Εζεκιος) or a letter name.
+        """
+        if not is_capitalized(lemma) or _initial_breathing(lemma) == "":
+            return False
+        return any(mark in unicodedata.normalize("NFD", lemma)
+                   for mark in "\u0300\u0301\u0342")
+
+    def _capitalized_key_reading(self, table, keys: list[str]) -> str | None:
+        """The first capitalized Ancient head *table* holds under *keys*."""
+        for key in keys:
+            hit = table.get(key)
+            hit = self._normalize_grave_citation_lemma(hit) if hit else None
+            if hit and self._is_capitalized_ancient_head(hit):
+                return hit
+        return None
+
     def _lookup_word(self, word: str, *,
                      prefer_modern: bool | None = None) -> str | None:
         """Try lookup cascade: exact -> lowercase -> grave_to_acute -> monotonic -> stripped.
@@ -2469,6 +2525,9 @@ class Dilemma:
             grammar = reviewed_verb_grammar(word)
             if grammar is not None:
                 return grammar["lemma"]
+        loose_keys = self._loose_keys(word)
+        # Read after the lowercase keys, in the Ancient rows only.
+        capitalized_keys = self._capitalized_loose_keys(word)
 
         # For MG mode or triantafyllidis convention, try MG-specific
         # lookup first. MG entries take priority over AG when there's a
@@ -2482,9 +2541,7 @@ class Dilemma:
             hit = tbl.get(word) or tbl.get(word.lower())
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
-                mono = to_monotonic(word.lower())
-                stripped = strip_accents(word.lower())
-                for variant in [mono, stripped]:
+                for variant in loose_keys:
                     hit = tbl.get(variant)
                     hit = self._normalize_grave_citation_lemma(hit) if hit else None
                     if hit and not (len(variant) <= 2 and hit == variant):
@@ -2509,8 +2566,7 @@ class Dilemma:
                     hit = tbl.get(acute) or tbl.get(acute.lower())
                     hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
-                for variant in [to_monotonic(word.lower()),
-                                strip_accents(word.lower())]:
+                for variant in loose_keys:
                     hit = tbl.get(variant)
                     hit = self._normalize_grave_citation_lemma(hit) if hit else None
                     # A loose key may not drop the form's breathing (#109).
@@ -2518,6 +2574,8 @@ class Dilemma:
                     if hit and not (len(variant) <= 2 and hit == variant):
                         break
                     hit = None
+            if not hit:
+                hit = self._capitalized_key_reading(tbl, capitalized_keys)
             if hit:
                 return hit
 
@@ -2532,9 +2590,7 @@ class Dilemma:
             lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
             if lemma:
                 return lemma
-        mono = to_monotonic(word.lower())
-        stripped = strip_accents(word.lower())
-        for variant in [mono, stripped]:
+        for variant in loose_keys:
             hit = self._lookup.get(variant)
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if hit and not prefer_modern:
@@ -2542,7 +2598,7 @@ class Dilemma:
                 hit = self._restore_breathing(word, hit)
             if hit and not (len(variant) <= 2 and hit == variant):
                 return hit
-        return None
+        return self._capitalized_key_reading(self._lookup, capitalized_keys)
 
     def _positive_elision_target(self, lemma: str) -> bool:
         """Whether merged lexical definitions support an exact elision target."""
@@ -5430,6 +5486,18 @@ class Dilemma:
             (word, "exact"), (lower, "lower"),
             (mono, "mono"), (stripped, "stripped"),
         ]
+        # The capitalized loose keys of the generated paradigms, after
+        # the lowercase ones and for an Ancient head only, as in
+        # _lookup_word.
+        capitalized_keys = set()
+        if variants:
+            tried = {variant for variant, _via in variants}
+            for via, kinds in (("mono", {"stripped": False}),
+                               ("stripped", {"monotonic": False})):
+                for variant in self._capitalized_loose_keys(word, **kinds):
+                    if variant not in tried:
+                        variants.append((variant, via))
+                        capitalized_keys.add(variant)
 
         # Respect self.lang: when constructed with lang='el' (MG mode),
         # don't leak AG candidates (and vice versa). This matters for
@@ -5448,6 +5516,10 @@ class Dilemma:
         for table, lang in _tables:
             for variant, via in variants:
                 lemma = table.get(variant)
+                if lemma and variant in capitalized_keys and not (
+                        lang == "grc"
+                        and self._is_capitalized_ancient_head(lemma)):
+                    continue
                 if lemma:
                     # Skip trivial short self-mappings (accent artifacts)
                     if len(variant) <= 2 and lemma == variant and via in ("mono", "stripped"):

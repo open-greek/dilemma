@@ -1,7 +1,10 @@
-"""Runtime lookup keys: marked double rho.
+"""Runtime lookup keys: marked double rho, capitalized loose keys.
 
 #141, #134: a double rho printed with breathings (ῤῥ) is read as plain ρρ
 (ἀπεῤῥάγησαν, Βοῤῥᾶ PROPN).
+#141: a capitalized word also tries its monotonic and accent-stripped keys
+with the capital, where the generated paradigms put them, for a capitalized
+Ancient head (Σαμαρείτις).
 """
 
 import unicodedata
@@ -116,3 +119,92 @@ def test_shipped_marked_double_rho_matches_the_plain_spelling_in_modern_mode():
             plain, guess=False)
         assert model.lemmatize_pos(printed, tag, guess=False) == (
             model.lemmatize_pos(plain, tag, guess=False))
+
+
+# ---------------------------------------------- capitalized loose keys
+
+def test_loose_keys_of_a_capitalized_word():
+    lowercase = core.Dilemma._loose_keys
+    capitalized = core.Dilemma._capitalized_loose_keys
+    assert lowercase("Σαμαρείτις") == ["σαμαρείτις", "σαμαρειτις"]
+    assert capitalized("Σαμαρείτις") == ["Σαμαρείτις", "Σαμαρειτις"]
+    assert capitalized("σαμαρείτις") == []
+    assert lowercase("Ἀθηνῶν", stripped=False) == ["αθηνών"]
+    assert capitalized("Ἀθηνῶν", stripped=False) == ["Αθηνών"]
+    assert capitalized("Ἀθηνῶν", monotonic=False) == ["Αθηνων"]
+
+
+@pytest.mark.parametrize("lemma, expected", [
+    ("Σαμαρεῖτις", True), ("Ἀρειομανίτης", True), ("Καισάριον", True),
+    ("Ῥωμαΐς", True), ("Γώγ", True),
+    # A Modern Greek name, a corpus lemma without accents, a letter name,
+    # a lowercase head.
+    ("Ολυμπιακούς", False), ("Ραφιδίν", False), ("Εζεκιος", False),
+    ("Γ", False), ("σαμαρεῖτις", False),
+])
+def test_capitalized_ancient_head(lemma, expected):
+    assert core.Dilemma._is_capitalized_ancient_head(lemma) is expected
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_capitalized_word_reads_its_capitalized_stripped_key(model_from, lang):
+    model = model_from({"Σαμαρειτις": "Σαμαρεῖτις"}, lang=lang)
+    assert model._lookup_word("Σαμαρείτις") == "Σαμαρεῖτις"
+    assert model._lookup_word("Σαμαρεῖτις") == "Σαμαρεῖτις"
+    # A lowercase word does not read a capitalized key.
+    assert model._lookup_word("σαμαρείτις") is None
+    readings = model._lemmatize_verbose_impl("Σαμαρείτις", guess=False)
+    assert [(r.lemma, r.via) for r in readings] == [("Σαμαρεῖτις", "stripped")]
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_capitalized_key_reads_an_ancient_head_only(model_from, lang):
+    model = model_from({"Εζεκιου": "Εζεκιος", "Ολυμπιακούς": "Ολυμπιακούς",
+                        "Γο": "Γ", "Γωγ": "Γώγ"}, lang=lang)
+    assert model._lookup_word("Ἑζεκίου") is None
+    assert model._lookup_word("Ὀλυμπιακοὺς") is None
+    assert model._lookup_word("Γὸ") is None
+    assert model._lookup_word("Γῶγ") == "Γώγ"
+    assert model._lemmatize_verbose_impl("Ἑζεκίου", guess=False) == []
+
+
+def test_own_row_of_a_capitalized_word_is_not_filtered(model_from):
+    # Λευκήν is its own monotonic key: the row is the word's own, whatever
+    # its lemma looks like.
+    model = model_from({"Λευκήν": "λευκός", "Καλήν": "Καλήν"})
+    assert model._lookup_word("Λευκήν") == "λευκός"
+    readings = model._lemmatize_verbose_impl("Λευκήν", guess=False)
+    assert [(r.lemma, r.via) for r in readings] == [("λευκός", "exact")]
+
+
+def test_modern_table_is_read_under_lowercase_keys_only(model_from):
+    model = model_from({}, lang="el")
+    model._mg_lookup = {"Σαμαρειτις": "Σαμαρεῖτις", "σαμαρείτισσα": "Σαμαρείτισσα"}
+    assert model._lookup_word("Σαμαρείτις") is None
+    assert model._lookup_word("Σαμαρείτισσα") == "Σαμαρείτισσα"
+    model._lookup = {"Σαμαρειτις": "Σαμαρεῖτις"}
+    assert model._lookup_word("Σαμαρείτις") == "Σαμαρεῖτις"
+
+
+def test_lowercase_loose_keys_come_first(model_from):
+    model = model_from({"σαμαρειτις": "σαμαρεῖτις", "Σαμαρειτις": "Σαμαρεῖτις",
+                        "Νέαν": "Νέα", "νεαν": "νέος", "Νεαν": "Νέα"})
+    assert model._lookup_word("Σαμαρείτις") == "σαμαρεῖτις"
+    assert model._lookup_word("Νεάν") == "νέος"
+    # The word's own rows still come before any loose key.
+    assert model._lookup_word("Νέαν") == "Νέα"
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_shipped_capitalized_stripped_key(shipped_models, lang):
+    model = shipped_models[lang]
+    assert model.lemmatize("Σαμαρείτις", guess=False) == "Σαμαρεῖτις"
+    assert model.lemmatize_batch(
+        ["Σαμαρείτις", "Σαμαρεῖτις"], guess=False) == ["Σαμαρεῖτις"] * 2
+    assert model.lemmatize_verbose(
+        "Σαμαρείτις", guess=False)[0].lemma == "Σαμαρεῖτις"
+    if lang == "grc":
+        # Rows that are not capitalized Ancient heads stay unread.
+        assert model.lemmatize_batch(
+            ["Ὀλυμπιακοὺς", "Ἑξαπλᾶ"], guess=False) == [
+            "Ὀλυμπιακός", "ἑξαπλόος"]

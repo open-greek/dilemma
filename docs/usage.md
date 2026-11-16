@@ -152,6 +152,14 @@ the half-marked `ρῥ` and `ῤρ`), is read as plain `ρρ` by every method:
 `ἀπεῤῥάγησαν` gives `ἀπορρήγνυμι`, and `Βοῤῥᾶ` reads like `Βορρᾶ` with or
 without a tag. `attested_only=True` still matches the spelling as printed.
 
+A capitalized word that no lowercase key answers also tries its monotonic
+and accent-stripped keys with the capital: the generated dictionary paradigms
+key the unaccented spelling of a capitalized form that way, so `Σαμαρείτις`
+gives `Σαμαρεῖτις` and `Αὐγούσταν` `Αὐγοῦστα`. Such a key is read in the
+Ancient rows only, and only for a capitalized Ancient citation form (accented,
+with its breathing): a Modern Greek name or a corpus lemma printed without
+accents is not taken from it.
+
 ## Conventions
 
 Different dictionaries cite the same Greek word differently. LSJ uses
