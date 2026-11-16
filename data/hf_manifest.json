@@ -1,7 +1,7 @@
 {
-  "_comment": "sha256 of every artifact CI downloads from the Hub (files) and of the build tables the Hub serves beside them (build_files). Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
+  "_comment": "sha256 of every artifact CI downloads from the Hub (files) and of the other files the Hub serves that builds and tools read (pinned_only). Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-16T16:42:42Z",
+  "generated": "2026-11-16T17:36:40Z",
   "files": {
     "data/lookup.db": {
       "size": 1533190144,
@@ -152,11 +152,6 @@
       "size": 645948,
       "sha256": "9b07318bbddccec9866b15833585606077a966a785b2e1aa787027d2ae081b49",
       "git_sha1": "9133cdc639826f27ae09311fc3080b54f8b33bd0"
-    },
-    "data/med_pos_lookup.json": {
-      "size": 3340,
-      "sha256": "99f09191414ed507d971b844b7faf75545bbc14ab7220a5f719974d27a0395b5",
-      "git_sha1": "d788842348616be2082b6730815ad52be93c79ab"
     },
     "data/treebank_pos_lookup.json": {
       "size": 4956527,
@@ -339,7 +334,7 @@
       "git_sha1": "7e721a30ad9314ee592079209e65ba198fb19001"
     }
   },
-  "build_files": {
+  "pinned_only": {
     "data/ag_lookup.json": {
       "size": 505333453,
       "sha256": "40f6782c534a90351c6a9df85c03a4b9620528c3aa3cbab7654d0cca0e131ad7",
@@ -369,6 +364,111 @@
       "size": 7566,
       "sha256": "085303c8e2ebfffc88c9e35080d112c8eb447b41c04d5a257213b95bf56396c3",
       "git_sha1": "306fdc015ae8165aaa9ab65ef97d9d2f4b8bd395"
+    },
+    "data/med_pos_lookup.json": {
+      "size": 3340,
+      "sha256": "99f09191414ed507d971b844b7faf75545bbc14ab7220a5f719974d27a0395b5",
+      "git_sha1": "d788842348616be2082b6730815ad52be93c79ab"
+    },
+    "data/glaux_pairs.json": {
+      "size": 103000664,
+      "sha256": "45a88a70c21f8a0048968c7ecda1db64c7022c983f80361f4f4d5eeb97c574f8",
+      "git_sha1": "4de3954aef7165ffb124b25264dab9a21742fc2e"
+    },
+    "data/lbg_pairs.json": {
+      "size": 81739239,
+      "sha256": "ce164010064df026cffec2e66440599f346f5dc0a57fffb2c0ee833f992f5ce4",
+      "git_sha1": "e3f07f8d270cea0dafbddcf55a82fb6fef1ed1a6"
+    },
+    "data/nt_pairs.json": {
+      "size": 1845945,
+      "sha256": "a920cf40cb6dffbea671aa358e81cad1a469c1b75a7a6132b36eb0affea434ea",
+      "git_sha1": "af0ece209e5683ab163151608892249d7585fe83"
+    },
+    "data/ptnk_pairs.json": {
+      "size": 235134,
+      "sha256": "29466e6151bf13cdcbe281a19ca7052226b6234bfe2f504d1816f4fba36d25b4",
+      "git_sha1": "a748d6c019a7f37e27702578ea9f298ca446fa12"
+    },
+    "data/tagnt_pairs.json": {
+      "size": 1427825,
+      "sha256": "42b5b70d4db76236b0e847c32dd5a803cdf48a4b5abb73e65ac13f625480bc83",
+      "git_sha1": "e02b40f4d90b258a3f7b49995a194ff7c18849e4"
+    },
+    "data/pedalion_pairs.json": {
+      "size": 1240468,
+      "sha256": "702b6d6fec7ef36d043a6b3030a49223a61ef28d8b271842a53b910c4160d4be",
+      "git_sha1": "9c016a5e6f221b98926ed86d396e2ff4b66f4d01"
+    },
+    "data/glaux_freq.json": {
+      "size": 24873841,
+      "sha256": "1452c3de69583173f921084d87ec789c1765b0df1c6f272fecb4fd55bafe1b7c",
+      "git_sha1": "5c2b7ba6cf6c2346909020376c8a78cd008e006c"
+    },
+    "data/diorisis_freq.json": {
+      "size": 20527628,
+      "sha256": "49b16357c4563b40e6597dd196f71e790b457e32929393659c75083f313b9241",
+      "git_sha1": "9d0ddebe969d787b8ef6015e623118e836371a4f"
+    },
+    "data/pta_freq.json": {
+      "size": 6018074,
+      "sha256": "2330dcaa5d9eb9595934506712d7418b4148d8d55d6178d431966e1518c21b65",
+      "git_sha1": "0fcc1da4f3e89ded0fe2ebdda100d86465f9a3cd"
+    },
+    "data/cog_public_freq.json": {
+      "size": 50236758,
+      "sha256": "f4a3ce9b84bfde103a75f1782452ea988641ff1e586db68af7c51a824dc8ab0e",
+      "git_sha1": "8bf83339fd985091ff86eb5bedca4940f3fa5b41"
+    },
+    "data/first1kgreek_freq.json": {
+      "size": 34499069,
+      "sha256": "f817bdd45e6872e9dc118af6bf1102656a4ee56342b6a84970bdaf6e7ddda819",
+      "git_sha1": "8a87e28980be08a975b95da8480bb49da929530c"
+    },
+    "data/canonical_greeklit_freq.json": {
+      "size": 20767175,
+      "sha256": "acc4aa77685b564b10aea93de05fdb9044cf88917115cac3a7a52e6d3a7f82e4",
+      "git_sha1": "b33829914dfd0f297fa1cabe8f87aa7f4318a241"
+    },
+    "data/ag_verb_paradigms.json": {
+      "size": 163446030,
+      "sha256": "3660f7bf0797e48ec4dd306ce3f467e73c240bbb222482af20724b790187f684",
+      "git_sha1": "153de54eff2c2e747174b397d706b3c5bf806dc0"
+    },
+    "data/vesuvius_index.json.gz": {
+      "size": 44377493,
+      "sha256": "cfae6c142793a16afd076e1b29a8c5f1d7cfc9a2c886b8d8daac41a1d87fb818",
+      "git_sha1": "1987b179be918871a3deb378aaed0bb96988fd59"
+    },
+    "model/grc-s3/vocab.json": {
+      "size": 8981,
+      "sha256": "e858fd9988f57762b01270c3300b07c17b155a5c484187924247c9aaa201a1fc",
+      "git_sha1": "d09775cadc45e784e08cc84a419c4aca6a57564c"
+    },
+    "model/grc-s3/encoder.onnx": {
+      "size": 6862227,
+      "sha256": "67fa5fff6307202ba213bfadf5848ac9ee8df17d5891f9af13071ccc873aab2d",
+      "git_sha1": "6654876e90c5c18da4bb1025145583e46834f551"
+    },
+    "model/grc-s3/decoder_step.onnx": {
+      "size": 10511158,
+      "sha256": "0f5868d6c36b2551b343e8b78881659b89064c906079dec2baa27d062464ea01",
+      "git_sha1": "eae9db7c4b789dbf18fbc996af367760521b13bd"
+    },
+    "model/grc-s3/model.pt": {
+      "size": 16804003,
+      "sha256": "21b778268399160f3bcf7f7f4c87074788851c9948bdbdc4223e24c7fedd6104",
+      "git_sha1": "86015bf488d0c079f98bb41a1904e5f8a8378764"
+    },
+    "model/grc-s3/head_labels.json": {
+      "size": 2853,
+      "sha256": "fdebad682cd7e423a66635d24707e41b0f183ed74e6245a83dbcfcf47b9ec70c",
+      "git_sha1": "9438869fbfa4dcc00632b54830c60bcd2b44d153"
+    },
+    "model/grc-s3/heads.npz": {
+      "size": 129058,
+      "sha256": "fc14e7e39020c41062afcc967613fc9054f327c280d41498cb1c8b7613651828",
+      "git_sha1": "974e58e4c7bed9a3582b8464a996dff02994e6d3"
     }
   }
 }
