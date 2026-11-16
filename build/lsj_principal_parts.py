@@ -661,6 +661,9 @@ _SUPPLETIVE_AORISTS = {
     "ηνεγκ": "ενεγκ", "ηνεικ": "ενεικ", "ηνεχθ": "ενεχθ",
     "ηλθ": "ελθ", "ηλυθ": "ελυθ", "ειπ": "ειπ", "ειδ": "ιδ", "ειλ": "ελ",
 }
+# The same stems where an entry prints them without the augment.
+_SUPPLETIVE_STEMS = frozenset(
+    stem for stem in _SUPPLETIVE_AORISTS.values() if stem[0] == "ε")
 _TEMPORAL_AUGMENTS = {
     "α": ("η",), "ε": ("η", "ει"), "ο": ("ω",), "αι": ("η",),
     "ει": ("η",), "οι": ("ω",), "αυ": ("ηυ",), "ευ": ("ηυ",),
@@ -826,6 +829,11 @@ def _unaugmented_base(base: list[str], rest: list[str], simplex: bool
                                 if mark in _BREATHINGS)[:1]
             plain[1 if "".join(plain[:2]) in _DIPHTHONGS else 0] += breathing
         return plain, True
+    if r in _SUPPLETIVE_STEMS and not _same_onset(r[1:], b):
+        # Ionic ἔνεικα beside ἤνεικα: the ε belongs to the stem, and the
+        # other moods are built on the stem as printed (ἐνεῖκαι). The
+        # passive ἐλύθην of λύω has the augment.
+        return rest, False
     if b in ("αιρω", "αιρομαι") and r[:2] == "ηρ":
         # αἴρω: ἦρα, ἤρθην. The aorist stem is ἀρ-, not the present's αἰρ-.
         breathing = "".join(mark for mark in rest[0] if mark in _BREATHINGS)
@@ -861,6 +869,10 @@ def _unaugmented_base(base: list[str], rest: list[str], simplex: bool
                         for letter in base[:group]]
             return restored + rest[len(augment):], True
     if r[0] == "ε" and len(r) > 1 and r[1] not in _VOWEL_LETTERS:
+        if r[1:2] == r[2:3]:
+            # ἕσσα beside ἕννυμι: no stem begins with a doubled consonant,
+            # so the ε is the stem's own and there is no augment to remove.
+            return (rest, False) if vowel == "ε" else (None, False)
         # A consonant-initial aorist beside a vowel-initial present
         # (ἔχω ἔσχον, ἵστημι ἔστησα).
         return rest[1:], True
@@ -1027,8 +1039,12 @@ def _augmented_pluperfect(headword: str, stem: str) -> tuple[str, str] | None:
         before = "ξυν"
     opening = letters[:earlier] + list(before)
     if not earlier:
-        opening[0] = before[0] + "".join(
-            mark for mark in letters[0] if mark in _BREATHINGS)
+        # The breathing is on the first vowel, or on the second of a
+        # diphthong (εἰσ-).
+        for index, letter in enumerate(letters[:2]):
+            breathing = "".join(mark for mark in letter if mark in _BREATHINGS)
+            if breathing:
+                opening[index] = before[index] + breathing
     return _spell(opening + ["ε"] + letters[lead:]), _spell(opening)
 
 

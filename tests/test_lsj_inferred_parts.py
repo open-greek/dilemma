@@ -474,6 +474,8 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
                for hw in ("εἰκονίζω", "καταδείκνυμι", "καταδέχομαι",
                           "δέχομαι", "ἀμφιέννυμι", "ἀμφιάζω", "νοσφίζω",
                           "περιαιρέω", "περιείλω")}
+    # a cross-reference headword that is a form, not a verb
+    entries["περιεῖλον"] = {"orth_orig": "περιεῖλον", "gender": ""}
     entries["εἰκονικός"] = {"orth_orig": "εἰκονικός", "gender": "m"}
     monkeypatch.setattr(expand_lsj, "parse_lsj_entries", lambda: entries)
     monkeypatch.setattr(expand_lsj, "load_wiktionary_forms", lambda: {})
@@ -501,6 +503,8 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         ("ἀμφιέσομαι", "ἀμφιάζω", "verb"),
         ("ἐνόσφισεν", "νοσφίζομαι", "verb"),
         ("περιειλόμεθα", "περιαιρέω", "verb"),
+        ("περιείλω", "περιαιρέω", "verb"),
+        ("περιεῖλον", "περιαιρέω", "verb"),
         ("εἰκονίσεις", "εἰκονίζω", "verb")])
     monkeypatch.setattr(expand_lsj, "TREEBANK_PAIRS", (pairs,))
     heads = tmp_path / "grc_lexical_heads.json"
@@ -519,9 +523,9 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         "καταδέχομαι": {"κατεδέξατο"},
         "ἀμφιέννυμι": {"ἀμφιέσομαι"},
         "νοσφίζω": {"ἐνόσφισε(ν)"},
-        "περιαιρέω": {"περιειλόμεθα", "περιείλου"},
+        "περιαιρέω": {"περιειλόμεθα", "περιείλου", "περιείλω", "περιεῖλον"},
     }
-    presents = {"περιείλω": {"περιειλόμεθα", "περιείλου"}}
+    presents = {"περιείλω": {"περιειλόμεθα", "περιείλου", "περιεῖλον"}}
 
     def expand(_wtp, word, head_text="", supplement_text="",
                principal_part_forms=None):
@@ -563,6 +567,11 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     assert result["περιειλόμεθα"] == "περιαιρέω"
     assert result["περιειλομεθα"] == "περιαιρέω"
     assert result["περιείλου"] == "περιείλω"
+    # a headword keeps its own spelling
+    assert result["περιείλω"] == "περιείλω"
+    # ... while a headword that is the cell of another verb's present
+    # goes where the treebank reads it
+    assert result["περιεῖλον"] == "περιαιρέω"
     recorded = json.loads(audit.read_text(encoding="utf-8"))
     assert recorded["inferred"] == {
         "εἰκονίζω": {"kind": "regular", "from": "",
@@ -578,6 +587,8 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
          "treebank": "νοσφίζομαι"}]
     assert recorded["taken_from_a_present"] == [
         {"form": "περιειλόμεθα", "verb": "περιαιρέω",
+         "present_of": "περιείλω"},
+        {"form": "περιεῖλον", "verb": "περιαιρέω",
          "present_of": "περιείλω"}]
     assert recorded["counts"]["inferred_noun_twins"] == 1
     assert set(recorded["inputs"]) == {

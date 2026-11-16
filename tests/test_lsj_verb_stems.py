@@ -77,6 +77,20 @@ def nfc(text):
     ("ἀφικνέομαι", "ἀφικ", "ἀφικ", "ἀφ"),
     ("περιχέω", "περιχευ", "περιχευ", ""),
     ("ἐντύνω", "ἐντῡν", "ἐντῡν", ""),
+    # Ionic ἔνεικα beside ἤνεικα: the ε is the stem's, not an augment
+    ("φέρω", "ἐνεικ", "ἐνεικ", ""),
+    ("ἀποφέρω", "ἀπενεικ", "ἀπενεικ", ""),
+    ("προσφέρω", "προσενεικ", "προσενεικ", ""),
+    ("ἀποφέρω", "ἀπηνεικ", "ἀπενεικ", "ἀπ"),
+    # ... while the passive of λύω has one
+    ("λύω", "ἐλυθ", "λυθ", ""),
+    # ἕσσα beside ἕννυμι: nothing begins with σσ, so the ε is the stem's
+    ("ἕννυμι", "ἑσσ", "ἑσσ", ""),
+    ("περιέννυμι", "περιεσσ", "περιεσσ", "περι"),
+    ("ἐφέννυμι", "ἐφεσσ", "ἐφεσσ", "ἐφ"),
+    # ... while ἔσχον and ἔστησα lose theirs
+    ("ἔχω", "ἐσχ", "σχ", ""),
+    ("ἵστημι", "ἐστησ", "στησ", ""),
 ])
 def test_unaugmented_stem(headword, augmented, plain, prefix):
     assert unaugmented_stem(headword, augmented) == (plain, prefix)
@@ -92,6 +106,8 @@ def test_unaugmented_stem(headword, augmented, plain, prefix):
     ("προβάλλω", "προὐβαλ"),        # contracted with the preverb
     ("ὠθέω", "ἐωσ"),                # syllabic augment before a vowel
     ("διαΐσσω", "διῃξ"),
+    # ἕσσα beside ἵζω: neither an augment nor the present's vowel
+    ("ἵζω", "ἑσσ"),
 ])
 def test_unreadable_augment_is_not_guessed(headword, augmented):
     assert unaugmented_stem(headword, augmented)[0] is None
@@ -205,6 +221,14 @@ def test_augmented_pluperfect_only_for_a_reduplicated_stem():
     assert "plup-aug" not in derive_grc_conj_args({"pf": "ἤγγελκα"}, "ἀγγέλλω")
     assert "plup-aug" not in derive_grc_conj_args(
         {"pf": "ἀπανάλωκα"}, "ἀπαναλίσκω")
+
+
+def test_augmented_pluperfect_keeps_the_breathing_of_a_diphthong():
+    # εἰσ- carries its breathing on the second vowel.
+    args = derive_grc_conj_args({"pf": "εἰσδέδορκα"}, "εἰσδέρκομαι")
+    assert args["plup-aug"] == ["plup", "εἰσεδεδορκ", "", "prefix=εἰσ"]
+    args = derive_grc_conj_args({"pf": "ἐκλέλυκα"}, "ἐκλύω")
+    assert args["plup-aug"] == ["plup", "ἐξελελυκ", "", "prefix=ἐξ"]
 
 
 def test_contracted_imperfect_takes_the_contract_template():
@@ -374,6 +398,12 @@ def lua_forms(word, parts):
     ("δέχομαι", {"aor": "ἐδεξάμην"},
      ["ἐδεξάμην", "δέξασθαι", "δεξάμενος"], ["ἔδεξα", "δέξας"]),
     ("λύω", {"pf": "λέλυκα"}, ["λέλυκα", "λελύκειν", "ἐλελύκειν"], []),
+    ("εἰσδέρκομαι", {"pf": "εἰσδέδορκα"},
+     ["εἰσδέδορκα", "εἰσεδεδόρκειν", "εἰσεδεδορκέτην"],
+     ["εισεδεδόρκειν", "εισεδεδορκέτην"]),
+    ("ἀποφέρω", {"aor": "ἀπένεικα"},
+     ["ἀπένεικα", "ἀπενεῖκαι", "ἀπενείκας"],
+     ["ἀπονεῖκαι", "ἀπονείκας", "ἀπονείκειε"]),
 ])
 def test_real_lua_cells(word, parts, present, absent):
     forms = lua_forms(word, parts)
