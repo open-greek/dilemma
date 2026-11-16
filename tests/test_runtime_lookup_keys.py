@@ -8,6 +8,9 @@ Ancient head (Σαμαρείτις).
 The Byzantine respelling fallback prefers a respelling that reads a row as
 it is written over one that also needs its accents changed, whatever the
 rule order (αναγνώστει).
+#132: a lowercase word with a breathing does not read a Modern Greek name or
+abbreviation through a loose key (ἀνάβη, the respelling of ἀνάβει, is not
+the surname Ανάβης).
 """
 
 import unicodedata
@@ -187,6 +190,33 @@ def test_lowercase_word_keeps_a_modern_lexical_head_under_all(model_from):
     assert model._lookup_word("ἀπόκρεω") == "Απόκρεω"
     model = model_from(rows, lang="grc", vernacular={"Απόκρεω"})
     assert model._lookup_word("ἀπόκρεω") is None
+
+
+def test_shipped_lowercase_word_reads_no_modern_name(shipped_models):
+    model = shipped_models["grc"]
+    # Rows of the surnames Αγγελούδης, Ατσάλης and Αεράκης and of the
+    # abbreviations Οτ and ΕΙΠ.
+    forms = ["ἀγγελοῦδι", "ἀτσάλι", "ἀεράκι", "ὅτ", "εἴπ"]
+    assert model.lemmatize_batch(forms, guess=False) == [None] * 5
+    assert [model.lemmatize(f, guess=False) for f in forms] == [None] * 5
+    assert model.lemmatize_pos("ἀγγελοῦδι", "NOUN", guess=False) is None
+    assert model.lemmatize_verbose("εἴπ", guess=False) == []
+    # A capitalized form keeps the name; a later reading can now answer.
+    assert model.lemmatize("Ῥαχὶλ", guess=False) == "Ραχίλ"
+    assert model.lemmatize("ἀγιωτάτου", guess=False) == "ἅγιος"
+    # With lang="all" a Modern Greek lexical head is read as before.
+    assert shipped_models["all"].lemmatize_batch(
+        ["ἀγγελοῦδι", "ἀπόκρεω", "εἴπ"], guess=False) == [
+        "αγγελούδι", "Απόκρεω", None]
+
+
+def test_shipped_marked_double_rho_variants(shipped_models):
+    model = shipped_models["grc"]
+    assert model.lemmatize_batch(
+        ["Βέῥῥοιαν", "ἐῥῥίπτουν", "Βοῤῤᾶ", "παῥρησίαν"], guess=False) == [
+        "Βέροια", "ῥίπτω", "Βορέας", "παρρησία"]
+    # A doubled initial ῥ is not this spelling.
+    assert model.lemmatize("ῥρητὸν", guess=False) is None
 
 
 # ---------------------------------------------- capitalized loose keys
