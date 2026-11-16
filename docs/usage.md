@@ -702,6 +702,20 @@ only through a reviewed cell for its capitalized spelling (below):
 `Πρόξενος` NOUN gives `Πρόξενος`, `πρόξενος` NOUN `πρόξενος`, while `Τύχη`
 NOUN gives `τύχη`.
 
+So with `lang="el"` an Ancient name tagged NOUN or ADJ reads as its
+lowercase twin (`Εὐξένου` NOUN gives `εὔξενος`, PROPN `Εὔξενος`). This is
+intended: read Ancient text with `lang="all"` or `"grc"`, or tag names
+PROPN. Letting the word's own row decide under `lang="el"` was measured
+for 1.3.27 (#138). On the UD Greek GUD treebank it capitalized the words
+that open a sentence (`Αν` SCONJ, `Ο` DET, `Να` AUX: 16 forms and 169
+tokens worse, against 8 forms and 21 tokens of demonyms better). Limited to
+polytonic words whose lowercase twin is no Modern Greek headword it gave
+158 names of the Ancient corpora their capital back and took it from 23
+common words there, and it would read 210 common polytonic words as names
+at the start of a sentence (`Γῆς`, `Καρδίᾳ`, `Αἴσθησις`, `Πρᾶξις`):
+Katharevousa keeps the Ancient citation forms, so no headword list tells
+its words from Ancient ones.
+
 Reviewed corrections to individual cells of the treebank, GLAUx,
 Wiktionary (Ancient and Modern) and LSJ9 POS tables are kept in
 `data/pos_cell_corrections.json`, with a reason and evidence for each row,

@@ -538,6 +538,23 @@ def test_shipped_modern_sentence_starts_agree_in_scalar_and_batch(convention):
                              SHIPPED_MODERN_CAPITALS)
 
 
+@pytest.mark.parametrize("convention,lower,name", [
+    (None, "εὔξενος", "Εὔξενος"), ("triantafyllidis", "εύξενος", "Εύξενος")])
+def test_shipped_ancient_name_in_modern_mode_needs_the_propn_tag(
+        convention, lower, name):
+    # #138: lang="el" cannot tell a name from a word that opens a sentence
+    # (Γῆς, Αἴσθησις); the PROPN tag can.
+    kwargs = {"convention": convention} if convention else {}
+    _assert_scalar_and_batch(
+        _shipped_capital_model(lang="el", **kwargs),
+        [("Εὐξένου", "NOUN", lower), ("Εὐξένου", "PROPN", name)])
+    if convention is None:
+        _assert_scalar_and_batch(
+            _shipped_capital_model(lang="el"),
+            [("Γῆς", "NOUN", "γῆ"), ("Αἴσθησις", "NOUN", "αἴσθησις"),
+             ("Πρᾶξις", "NOUN", "πρᾶξις")])
+
+
 def _all_model(fallback_model, lookup, ancient_pos, modern_pos, headwords=()):
     """A lang="all" model with separate Ancient and Modern Greek POS entries."""
     model = fallback_model(lookup, {})
