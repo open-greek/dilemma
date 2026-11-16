@@ -302,6 +302,72 @@ def test_capitalized_word_keeps_the_reading_of_its_own_row(word, rows, incoming,
             row_decides=row_decides) == capital
 
 
+def closed_class_model(rows, pos_lemma, *, index=0, lookup=None):
+    """twin_model() whose POS entry stands at key variant *index*."""
+    model = twin_model(rows, pos_lemma)
+    model._pos_table_hit = lambda word, upos: (pos_lemma, index)
+    model._lookup_word = lambda word, **kwargs: (lookup or {}).get(word)
+    model._headword_sets = {"lsj": {lemma for lemma, _ in rows}}
+    model._ancient_lexical_heads = set()
+    return model
+
+
+AI_ROWS = [("αἶα", "exact"), ("Αἶα", "exact+case_alt")]
+
+
+@pytest.mark.parametrize("word,upos,rows,pos_lemma", [
+    ("αἶ", "CCONJ", AI_ROWS, "εἰ"),
+    ("ἄνα", "ADP", [("ἄναξ", "exact"), ("Ἄναξ", "exact+case_alt")], "ἀνά"),
+    ("ἐμέο", "PRON", [("μου", "exact"), ("Μου", "exact+case_alt")], "ἐγώ"),
+    # A capitalized word: the row reads the name, the entry the function word.
+    ("Διά", "ADP", [("ζεύς", "exact+case_alt"), ("Ζεύς", "exact")], "διά"),
+])
+def test_closed_class_entry_outranks_a_case_twin_family(word, upos, rows, pos_lemma):
+    model = closed_class_model(rows, pos_lemma)
+    assert _scalar_and_batch(model, word, upos) == pos_lemma
+
+
+@pytest.mark.parametrize("upos", ["NOUN", "ADJ", "ADV", "NUM"])
+def test_open_class_entry_leaves_a_case_twin_family(upos):
+    model = closed_class_model(AI_ROWS, "εἰ")
+    assert _scalar_and_batch(model, "αἶ", upos) == "αἶα"
+
+
+@pytest.mark.parametrize("index", [3, 4])
+def test_closed_class_entry_of_a_shared_key_leaves_the_family(index):
+    # The monotonic and the accent-stripped key hold other words' readings.
+    model = closed_class_model(AI_ROWS, "εἰ", index=index)
+    assert _scalar_and_batch(model, "αἶ", "CCONJ") == "αἶα"
+
+
+def test_closed_class_entry_naming_a_form_of_the_reading_leaves_the_family():
+    # The cell's πᾶν is the neuter of the lookup's πᾶς: the same word.
+    rows = [("πᾶς", "exact"), ("Πᾶς", "exact+case_alt")]
+    model = closed_class_model(rows, "πᾶν", lookup={"πᾶν": "πᾶς"})
+    assert _scalar_and_batch(model, "πᾶσι", "PRON") == "πᾶς"
+    model = closed_class_model(rows, "πᾶν", lookup={"πᾶν": "πᾶν"})
+    assert _scalar_and_batch(model, "πᾶσι", "PRON") == "πᾶν"
+
+
+def test_closed_class_entry_does_not_decide_between_distinct_lemmas():
+    model = closed_class_model([("αἶα", "exact"), ("αἴξ", "exact")], "εἰ")
+    assert _scalar_and_batch(model, "αἶ", "CCONJ") == "αἶα"
+
+
+SHIPPED_CLOSED_CLASS = [
+    ("αἶ", "CCONJ", "εἰ"), ("ἄνα", "ADP", "ἀνά"), ("ἐμέο", "PRON", "ἐγώ"),
+    ("ἐμεῦ", "PRON", "ἐγώ"), ("ἧος", "CCONJ", "ἕως"), ("πὸ", "ADP", "ἀπό"),
+    # kept: the same word under another citation form, and open classes
+    ("πᾶσι", "PRON", "πᾶς"), ("οἷα", "CCONJ", "οἷος"), ("αἶ", "NOUN", "αἶα"),
+]
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_shipped_closed_class_entries_against_twin_families(lang):
+    _assert_scalar_and_batch(_shipped_capital_model(lang=lang),
+                             SHIPPED_CLOSED_CLASS)
+
+
 def capital_model(rows, pos_lemma=None, *, lang="grc", convention=None,
                   modern=()):
     """twin_model() for a capitalized word.

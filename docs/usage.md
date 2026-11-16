@@ -680,7 +680,17 @@ capitalized twin, so tagged results for genuine homographs such as `ἀξίαν`
 exception is a lowercase word whose lookup row reads only a capitalized
 lemma: the lowercase head that joins it as that lemma's case alternate is no
 second reading, so `νῖκος` NOUN gives the treebank's `νῖκος` beside `Νίκη`
-and `νίκη`.
+and `νίκη`. The other exception is a tag of the small closed classes
+(PRON, DET, ADP, CCONJ, SCONJ, PART, INTJ): no noun or name is a pronoun or
+a preposition, so an entry under the form's own spelling outranks a reading
+and its capitalized twin there (`αἶ` CCONJ gives `εἰ`, not `αἶα`; `ἄνα` ADP
+`ἀνά`, not `ἄναξ`; `ἐμέο` PRON `ἐγώ`; `Διά` ADP `διά`; until 1.3.26 these
+kept the lookup reading). An entry under the monotonic or the
+accent-stripped key leaves the lookup reading, and so does one whose lemma
+the lookup reads as a form of that reading, since it names the same word
+under another citation form (`πᾶσι` PRON stays `πᾶς` against a cell's
+`πᾶν`, `οἷα` CCONJ `οἷος`). A form with no entry for the tag still follows
+the lookup (`αἶ` PART gives `αἶα` until the tables hold a PART cell for it).
 
 A capitalized word tagged other than PROPN follows a POS entry that names
 one of its case twins, in `lemmatize_pos()` as in `lemmatize_batch_pos()`:

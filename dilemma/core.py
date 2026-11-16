@@ -4003,6 +4003,9 @@ class Dilemma:
     # (να, με, σε, σαν, ας, στους) carry them, and no verb form does.
     _CLOSED_CLASS_TAGS = frozenset(
         {"PRON", "DET", "ADP", "CCONJ", "SCONJ", "PART", "INTJ"})
+    # The last key variant of _pos_table_hit that is the word's own
+    # spelling (as written, lowercased, grave folded to acute).
+    _CLOSED_CLASS_OWN_SPELLING = 2
     _TONAL_ACCENTS = frozenset({0x0301, 0x0300, 0x0342})
 
     @classmethod
@@ -4626,6 +4629,35 @@ class Dilemma:
                     return True
         return False
 
+    def _closed_class_entry_decides(self, word: str, upos: str, pos_lemma: str,
+                                    candidates) -> bool:
+        """Whether a closed-class POS entry outranks a case-twin family.
+
+        A lookup reading and its case alternate are one reading (αἶα
+        beside Αἶα for αἶ, τίσις beside Τίσις for τίσι), and a lone
+        reading yields to a supported POS entry. Under a tag of the small
+        closed classes the pair yields as well, when the entry stands
+        under the word's own spelling: no noun or name is a pronoun, a
+        preposition or a conjunction, so αἶ CCONJ is εἰ, ἐμέο PRON ἐγώ
+        and ἄνα ADP ἀνά. An entry of the monotonic or the accent-stripped
+        key, which other words share, leaves the lookup reading. So does
+        an entry whose lemma the lookup reads as a form of that reading:
+        it names the same word under another citation form (πᾶσι PRON
+        keeps πᾶς against the cell's πᾶν, οἷα CCONJ οἷος against οἷα).
+        """
+        if upos not in self._CLOSED_CLASS_TAGS or len(candidates) < 2:
+            return False
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        if (lemma is None or lemma != pos_lemma or index is None
+                or index > self._CLOSED_CLASS_OWN_SPELLING):
+            return False
+        family = {c.lemma.lower() for c in candidates}
+        read = self._lookup_word(pos_lemma)
+        return not (read and read.lower() in family)
+
     @staticmethod
     def _is_name_row_family(word: str, candidates) -> bool:
         """Whether a lowercase word reads only a capitalized lemma and its twin.
@@ -4947,7 +4979,9 @@ class Dilemma:
                                                       candidates):
                         return checked(pos_lemma_conv)
                 elif ((upos == "VERB"
-                         or self._is_name_row_family(word, candidates))
+                         or self._is_name_row_family(word, candidates)
+                         or self._closed_class_entry_decides(
+                             word, upos, pos_lemma, candidates))
                         and len({c.lemma.lower() for c in candidates}) == 1
                         and not self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
@@ -5153,7 +5187,9 @@ class Dilemma:
                     word, upos, candidates)
                 if not matched and (len(candidates) <= 1 or one_reading
                         or ((upos == "VERB"
-                             or self._is_name_row_family(word, candidates))
+                             or self._is_name_row_family(word, candidates)
+                             or self._closed_class_entry_decides(
+                                 word, upos, pos_lemma, candidates))
                             and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
                     # supported explicit verb tag selects a different lemma,
