@@ -115,6 +115,7 @@ def test_reviewed_treebank_readings_name_lemmas():
     assert readings["σοι"] == readings["σοί"] == "σύ" and readings["ὥς"] == "ὡς"
     assert "νέη" not in readings.values()
     assert readings["χαίρετ\u1fbd"] == "χαίρω"
+    assert readings["οἰκείοις"] == "οἰκεῖος"
     assert all(len(key) > 1 for key in readings)
     assert B.ANCIENT_FORM_LEMMA_READINGS == {"μου": "ἐγώ"}
     assert B.MODERN_READING_OVERRIDES["μου"] == "μου"

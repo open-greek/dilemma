@@ -386,6 +386,14 @@ REVIEWED_TREEBANK_READINGS = {
     # build drops; a Modern surname page then answered with the genitive
     # itself (#127). Μόδεστος is a listed head, and Πίος reads Πῖος.
     "Μοδέστου": "Μόδεστος", "Πίου": "Πῖος",
+    # The dative plural of οἰκεῖος (345), read as οἰκέω through Wiktionary's
+    # οἰκείοισ, a second-person optative printed as οἰκείοισ(θα), which the
+    # sanitizer folds onto the same key ahead of the adjective's own. The
+    # el copy of the GLAUx pair answered lang="el" with οἰκεῖος. A rule that
+    # let the exact key win every such fold was measured and dropped: of
+    # 135 keys most lose a good Wiktionary reading to an expansion one
+    # (ᾔδης οἶδα, ἀνῇς ἀνίημι, σαώσῃς σῴζω).
+    "οἰκείοις": "οἰκεῖος", "οικείοις": "οἰκεῖος", "οικειοις": "οἰκεῖος",
 }
 
 # Ancient readings that name an inflected form, with the lemma each key
