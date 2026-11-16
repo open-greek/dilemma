@@ -69,6 +69,11 @@ def test_the_hen_coop_has_its_accent(db):
     "ούβρικος", "ῶνσος", "λημέντια", "λινυργία", "ἐπληπτικῶς", "αῦ",
     "*σχῆμα", "*πιάζω", "«ἀθεμιστία", "\u1fbdΑντινώ", "ἐκνεωτερίξω",
     "κατηγρρησείω", "ἐπιπραῦνω", "γονιμοποίός", "μυριοπαθῆς", "παραπλασμμός",
+    # mu printed twice, and letters misread in heads the micro sign had hidden
+    "κληρονομμέω", "διαπλασμμός", "σμμικρόφυλλος", "μεταναστείω", "γραμματείω",
+    "τερμοτίζω", "κατακοιμεστής", "μανρότριχος", "ἀναμελωδέω",
+    # a dropped nu in a verb glossed by an equals sign
+    "ῥιψοκιδυνέω", "ριψοκιδυνέω",
     # the phi symbol (U+03D5) for the letter
     "Ἀπ\u03d5ία", "Ἀφ\u03d5ιανός", "Ἄ\u03d5\u03d5ιον",
     # a second accent, a wrong breathing or the OCR's capital
@@ -105,13 +110,54 @@ def test_verbs_glossed_by_an_equals_sign_have_their_cells(db, form, lemma):
 
 @pytest.mark.parametrize("form,lemma", [
     # the older paradigm of a head that was respelled, under the present head
-    ("εἰλεωδῶν", "εἰλεώδης"),
-    ("Ἑρμαίου", "Ἑρμαῖος"),
-    ("ἰλλεκέβρας", "ἰλλέκεβρα"),
+    ("ἀμαντεύτου", "ἀμάντευτος"),
     ("Θεοτηρήτων", "θεοτήρητος"),
+    ("Γυμνοσοφισταῖς", "γυμνοσοφιστής"),
     ("ἱεραρχεῖν", "ἱεραρχέω"),
+    # the corrected head's fresh paradigm
+    ("ἰλλεκέβρας", "ἰλλέκεβρα"),
+    ("ἐπιπραΰνει", "ἐπιπραΰνω"),
 ])
 def test_rows_of_a_respelled_head_are_read_under_the_present_head(db, form, lemma):
+    assert lemmas(db, form) == {lemma}
+
+
+@pytest.mark.parametrize("form", [
+    # an adjective in -ικός declined as a consonant stem, one in -ώδης and a
+    # noun in -ότης declined like πολίτης, a noun in -ίς, -ίδος like πόλις
+    "Θεαρχιξί", "Βληχηματώδου", "εἰλεώδου", "Θεοπρεπότου", "Εἰλωτέως",
+    # built on another accent, on the rough breathing, without the diaeresis
+    "ἐκκηρυκτοῦ", "οἱηκοφόρου", "Ἰουδαισμοῦ", "ἀραχνουφοῦ", "μυριοπαθαῖς",
+])
+def test_an_old_paradigm_the_entry_does_not_confirm_stays_out(db, form):
+    assert lemmas(db, form) == set()
+
+
+@pytest.mark.parametrize("form,lemma", [
+    # a name the other lexica list only as a common word keeps its capital
+    ("Κοπρωνύμου", "Κοπρώνυμος"),
+    ("Νοητοῦ", "Νοητός"),
+    ("Μιλίῳ", "Μίλιον"),
+    ("Σκοπέλῳ", "Σκόπελος"),
+    ("Μαϊουμᾶν", "Μαϊουμᾶς"),
+    ("Ἀργυροῦ", "Ἀργυρός"),
+    # the common words are untouched
+    ("νοητοῦ", "νοητός"),
+    ("σκοπέλου", "σκόπελος"),
+])
+def test_proper_names_keep_their_capital(db, form, lemma):
+    assert lemmas(db, form) == {lemma}
+
+
+@pytest.mark.parametrize("form,lemma", [
+    ("κληρονομεῖ", "κληρονομέω"),
+    ("μεταναστεύει", "μεταναστεύω"),
+    ("ῥιψοκινδυνεῖ", "ῥιψοκινδυνέω"),
+    ("ἀναμελῳδεῖ", "ἀναμελῳδέω"),
+    ("μαυροτρίχου", "μαυρότριχος"),
+    ("στρουθιομήλου", "στρουθιόμηλον"),
+])
+def test_heads_corrected_after_the_micro_sign_have_their_forms(db, form, lemma):
     assert lemmas(db, form) == {lemma}
 
 
