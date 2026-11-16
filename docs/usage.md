@@ -847,12 +847,20 @@ known gaps in both directions:
 - An Ancient form tagged with a part of speech it never has can take a Modern
   Greek headword. So can a form under its own part of speech when the lookup
   lacks its spelling, through an accent slip or a gap in the lookup, and
-  Modern Greek records a word with that accent (`ἄπαν` NOUN gives `άπαν`,
-  not `ἅπας`; `συνῃρημένῃ` VERB gives `συναιρώ`; `Βοῤῥᾶ` PROPN gives
-  `Βορράς`). The rule cannot tell a correctly spelled form the lookup lacks
-  from a misspelling; such forms need lookup rows, not a rule (treating an
-  iota subscript as Ancient evidence was measured mixed: `συνῃρημένῃ` was
-  fixed, `ἐνιαίᾳ` and `λαλᾷ` broke).
+  Modern Greek records a word with that accent (`συνῃρημένῃ` VERB gives
+  `συναιρώ`; `Βοῤῥᾶ` PROPN gives `Βορράς`). The rule cannot tell a correctly
+  spelled form the lookup lacks from a misspelling; such forms need lookup
+  rows, not a rule (treating an iota subscript as Ancient evidence was
+  measured mixed: `συνῃρημένῃ` was fixed, `ἐνιαίᾳ` and `λαλᾷ` broke). One
+  slip is read: a smooth breathing written for a rough one. When the
+  Ancient lookup lacks the form as written and holds it with a rough
+  breathing under the same reading, the Ancient side knows the spelling,
+  and the form answers as its correct spelling does (`ἄπαν` NOUN gives
+  `ἅπας`, like `ἅπαν`; `ἤμισυ` NOUN gives `ἥμισυς`; until 1.3.26 `ἄπαν`
+  NOUN gave the Modern Greek noun `άπαν`). A rough breathing is written on
+  purpose and is not read as a slip (`ὧρες` NOUN gives `ώρα`, not the
+  `ὄρνυμι` of `ὦρες`). With `lang="el"` `ἄπαν` NOUN gives `άπαν`, as `ἅπαν`
+  NOUN does.
 - Rows of Modern Greek origin that the SQLite lookup stores for both
   languages count as the Ancient lookup knowing a spelling, so such a
   vernacular form keeps the lookup's answer (`ἄντρες` NOUN gives `ἄνδρας`,

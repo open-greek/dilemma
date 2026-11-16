@@ -4226,7 +4226,10 @@ class Dilemma:
           them (ὧρες, matched to ὄρνυμι through ώρες, is ώρες), or that
           the lookup holds under the form's own accents but that has a
           verb ending when a closed-class tag is requested (σεῖς PRON is
-          not a form of σέω);
+          not a form of σέω). A form written with a smooth breathing whose
+          rough-breathing spelling the Ancient lookup holds under the same
+          reading counts as a spelling the Ancient side knows (ἄπαν NOUN
+          stays ἅπας, like ἅπαν);
         * a capitalized name with no recorded part of speech, when the
           word and the Modern lemma are lowercase and the tag is not a
           noun's (κακὸ ADJ is not the name Κακό, nor πιὰ ADV Πῖα).
@@ -4280,12 +4283,37 @@ class Dilemma:
             return True
         if known:
             return False
-        if not self._ancient_lookup_has_spelling(word):
+        if not self._ancient_lookup_has_spelling(word) \
+                and not self._rough_spelling_reads(word, ancient):
             # Neither reading is one of this spelling. A Modern entry
             # reached the same way, under the bare key, is no better
             # evidence than the Ancient one (ἐφη VERB stays φημί).
             return self._modern_pos_entry_keeps_accent(word, upos, modern)
         return closed_class and ancient_key.endswith(("ω", "μι", "μαι"))
+
+    def _rough_spelling_reads(self, word: str, lemma: str) -> bool:
+        """Whether the Ancient lookup reads *word* with a rough breathing as *lemma*.
+
+        A smooth breathing written for a rough one is the commonest slip
+        of Byzantine and later polytonic spelling, and no evidence for
+        Modern Greek. When the Ancient lookup lacks the form as written
+        and holds it with the rough breathing, under the lemma the loose
+        key gave, the Ancient side knows the spelling: ἄπαν NOUN is the
+        ἅπας of ἅπαν, as ἅπαν NOUN is, not the Modern noun άπαν (#134).
+        The reverse does not hold: a rough breathing is written on
+        purpose, and ὧρες is the Modern ώρες, not the Ancient ὦρες.
+        """
+        if _initial_breathing(word) != _SMOOTH_BREATHING or not self._ag_lookup:
+            return False
+        nfd = unicodedata.normalize("NFD", word)
+        swapped = unicodedata.normalize(
+            "NFC", nfd.replace(_SMOOTH_BREATHING, _ROUGH_BREATHING, 1))
+        acute = grave_to_acute(swapped)
+        return any(
+            self._normalize_grave_citation_lemma(
+                self._ag_lookup.get(variant) or "") == lemma
+            for variant in dict.fromkeys(
+                (swapped, swapped.lower(), acute, acute.lower())))
 
     def _lowercase_ancient_twin(self, word: str, modern: str) -> str | None:
         """The lowercase Ancient headword a Modern POS reading stands for.
