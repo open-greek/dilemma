@@ -43,4 +43,11 @@ def test_build_hashes_work_without_file_digest(tmp_path, monkeypatch, payload):
     assert hashes["sophocles/0057.xml"] == expected
     assert hashes.pop("sophocles_breathing") == hashlib.sha256(b"null").hexdigest()
     assert hashes.pop("lexical_heads") == hashlib.sha256(b"null").hexdigest()
+    # the reviewed head corrections and proper names are read from the
+    # repository's record, whatever the chunks are
+    from dilemma_build import sophocles_ocr
+    assert hashes.pop("sophocles_head_corrections") == sophocles_ocr.corrections_sha256(
+        sophocles_ocr.load_head_corrections())
+    assert hashes.pop("sophocles_proper_names") == sophocles_ocr.corrections_sha256(
+        sophocles_ocr.load_proper_names())
     assert set(hashes.values()) == {expected}
