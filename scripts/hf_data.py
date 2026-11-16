@@ -21,6 +21,10 @@ cannot satisfy yet.
     python scripts/hf_data.py check      # local vs manifest vs Hub (pre-push hook)
     python scripts/hf_data.py wait       # CI: block until the Hub serves the manifest
     python scripts/hf_data.py verify     # CI: downloaded bytes vs the manifest
+
+The manifest also pins the build tables of the Ancient and Medieval chain
+(`build_files`, the BUILD_TABLES list): `push`, `check` and `wait` cover them,
+`files` and `verify` do not, because CI does not download them.
 """
 
 import argparse
@@ -87,6 +91,13 @@ TRACKED = [
     "data/el_verb_heads.json",
     # Expanded lexical POS coverage exceeds GitHub's regular-file size limit.
     "data/lsj9_pos_lookup.json",
+    # POS tables the runtime loads. Git-tracked too, but the wheel carries
+    # no data: installs read the Hub copies, so a release has to serve the
+    # bytes of its own commit (#140).
+    "data/ag_pos_lookup.json",
+    "data/glaux_pos_lookup.json",
+    "data/med_pos_lookup.json",
+    "data/treebank_pos_lookup.json",
     # Wiktionary-derived Ancient headwords, for consumers of the downloaded
     # data that validate lemmas without a source checkout.
     "data/ag_headwords.json",
@@ -141,6 +152,20 @@ TRACKED = [
     "model/combined-s3/heads.npz",
 ]
 
+# Tables of the Ancient and Medieval build chain. `python -m dilemma download`
+# serves them with the rest of data/ and the next rebuild reads them, but the
+# runtime and the tests do not. They are pinned under `build_files`, uploaded
+# by `push` and compared with the Hub by `check` and `wait`; `files` and
+# `verify` leave them out, so CI does not download them (#140).
+BUILD_TABLES = [
+    "data/ag_lookup.json",
+    "data/ag_pairs.json",
+    "data/med_lookup.json",
+    "data/med_pairs.json",
+    "data/ag_source_alias_audit.json",
+    "data/ag_source_alias_manifest.json",
+]
+
 _CHUNK = 1 << 20
 
 
@@ -175,23 +200,58 @@ def manifest_entries() -> dict:
     return load_manifest()["files"]
 
 
-def write_manifest(files: dict, *, previous: dict | None = None) -> bool:
-    """Write the manifest; keep `generated` when nothing actually changed."""
+def build_entries() -> dict:
+    """The pinned build tables (`build_files`); empty in an older manifest."""
+    if not MANIFEST_PATH.exists():
+        return {}
+    return load_manifest().get("build_files", {})
+
+
+def pinned_entries() -> dict:
+    """Everything the Hub must serve: the CI artifacts and the build tables."""
+    return {**manifest_entries(), **build_entries()}
+
+
+def local_build_entries() -> dict:
+    """Pins of the build tables: the local file where present, else the pin
+    the manifest already has (not every checkout carries the build tables)."""
+    old = build_entries()
+    out = {}
+    for rel in BUILD_TABLES:
+        path = ROOT / rel
+        if path.exists():
+            out[rel] = file_hashes(path)
+        elif rel in old:
+            out[rel] = old[rel]
+    return out
+
+
+def write_manifest(files: dict, build_files: dict | None = None, *,
+                   previous: dict | None = None) -> bool:
+    """Write the manifest; keep `generated` when nothing actually changed.
+
+    `build_files=None` keeps the build-table pins the manifest already has.
+    """
     old = previous if previous is not None else (
         json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
         if MANIFEST_PATH.exists() else {}
     )
-    if old.get("files") == files and old.get("repo") == REPO:
+    if build_files is None:
+        build_files = old.get("build_files", {})
+    if old.get("files") == files and old.get("repo") == REPO \
+            and old.get("build_files", {}) == build_files:
         return False
     doc = {
         "_comment": (
-            "sha256 of every artifact CI downloads from the Hub. Rewritten by "
-            "scripts/hf_data.py push; CI waits for the Hub to serve these exact "
-            "bytes (hf_data.py wait) before running tests."
+            "sha256 of every artifact CI downloads from the Hub (files) and of "
+            "the build tables the Hub serves beside them (build_files). "
+            "Rewritten by scripts/hf_data.py push; CI waits for the Hub to "
+            "serve these exact bytes (hf_data.py wait) before running tests."
         ),
         "repo": REPO,
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "files": files,
+        "build_files": build_files,
     }
     MANIFEST_PATH.write_text(
         json.dumps(doc, indent=2, sort_keys=False) + "\n", encoding="utf-8")
@@ -247,15 +307,18 @@ def cmd_files(args) -> int:
 
 
 def cmd_manifest(args) -> int:
-    changed = write_manifest(local_entries(TRACKED))
+    changed = write_manifest(local_entries(TRACKED), local_build_entries())
     print(f"{MANIFEST_PATH.relative_to(ROOT)}: "
           f"{'updated' if changed else 'already up to date'}")
     return 0
 
 
 def cmd_push(args) -> int:
-    paths = args.paths or TRACKED
-    unknown = [p for p in paths if p not in TRACKED]
+    # Build tables are uploaded when the checkout has them; a checkout that
+    # rebuilt only the runtime artifacts keeps their pins.
+    paths = args.paths or TRACKED + [
+        rel for rel in BUILD_TABLES if (ROOT / rel).exists()]
+    unknown = [p for p in paths if p not in TRACKED and p not in BUILD_TABLES]
     if unknown:
         sys.exit(f"not tracked by the manifest: {', '.join(unknown)}\n"
                  f"add it to TRACKED in {Path(__file__).name} first")
@@ -277,15 +340,18 @@ def cmd_push(args) -> int:
     files = manifest_entries() if MANIFEST_PATH.exists() else {}
     files.update(local)
     files = {rel: files[rel] for rel in TRACKED if rel in files}
-    changed = write_manifest(files)
+    build = build_entries()
+    build.update(local)
+    build = {rel: build[rel] for rel in BUILD_TABLES if rel in build}
+    changed = write_manifest(files, build)
     print(f"{MANIFEST_PATH.relative_to(ROOT)}: "
           f"{'updated - commit it with the code change' if changed else 'unchanged'}")
     return 0
 
 
 def cmd_check(args) -> int:
-    want = manifest_entries()
-    missing = [rel for rel in TRACKED if rel not in want]
+    want = pinned_entries()
+    missing = [rel for rel in TRACKED + BUILD_TABLES if rel not in want]
     if missing:
         print(f"manifest is missing {', '.join(missing)}; run: "
               f"python scripts/hf_data.py push", file=sys.stderr)
@@ -315,7 +381,7 @@ def cmd_check(args) -> int:
         for rel in stale:
             print(f"  ! {rel}: the Hub is not serving the manifest's bytes yet",
                   file=sys.stderr)
-        print("CI downloads these at test time, so pushing now tests stale data.\n"
+        print("CI and installs download from the Hub, so pushing now ships stale data.\n"
               "run: python scripts/hf_data.py push", file=sys.stderr)
         return 1
     print(f"  = Hub matches the manifest ({len(want)} artifacts)")
@@ -324,7 +390,7 @@ def cmd_check(args) -> int:
 
 def cmd_wait(args) -> int:
     """Block until the Hub serves the manifest's bytes (CI's first step)."""
-    want = manifest_entries()
+    want = pinned_entries()
     deadline = time.monotonic() + args.timeout
     generated = _parse_ts(load_manifest().get("generated"))
     while True:
@@ -398,7 +464,9 @@ def main(argv=None) -> int:
     sub.add_parser("manifest", help="rewrite the manifest from local files").set_defaults(fn=cmd_manifest)
 
     p_push = sub.add_parser("push", help="upload changed artifacts, then rewrite the manifest")
-    p_push.add_argument("paths", nargs="*", help=f"default: all of {', '.join(TRACKED)}")
+    p_push.add_argument("paths", nargs="*",
+                        help="default: every tracked artifact and every "
+                             "build table the checkout has")
     p_push.set_defaults(fn=cmd_push)
 
     sub.add_parser("check", help="local vs manifest vs Hub").set_defaults(fn=cmd_check)

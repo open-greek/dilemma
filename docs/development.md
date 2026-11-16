@@ -278,6 +278,16 @@ git add data/hf_manifest.json       # commit it with the code change
 ./scripts/install_git_hooks.sh      # once per clone: pre-push sync check
 ```
 
+The manifest has two lists. `files` is everything CI downloads, which
+includes every table the runtime reads: `python -m dilemma download` serves
+the Hub copies, so the POS tables are pinned there although git tracks them
+too, and a test compares their pins with the committed files. `build_files`
+pins the tables of the Ancient and Medieval build chain (`ag_lookup.json`,
+`ag_pairs.json`, `med_lookup.json`, `med_pairs.json` and the source-alias
+audit and manifest), which the Hub serves beside them and the next rebuild
+reads. `push` uploads them when the checkout has them, `check` and `wait`
+compare them with the Hub, and CI does not download them.
+
 CI waits for the Hub to serve the manifest's bytes before downloading
 (`hf_data.py wait`) and re-checks them afterwards (`hf_data.py verify`).
 That way a `git push` that beats a slow upload just makes the test job

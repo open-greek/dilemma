@@ -1,7 +1,7 @@
 {
-  "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
+  "_comment": "sha256 of every artifact CI downloads from the Hub (files) and of the build tables the Hub serves beside them (build_files). Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-15T22:21:52Z",
+  "generated": "2026-11-16T16:42:42Z",
   "files": {
     "data/lookup.db": {
       "size": 1533190144,
@@ -142,6 +142,26 @@
       "size": 107119805,
       "sha256": "7927a45da3e2b239ca553f1fe185e827c35e265dcb01fc70d6dc9eab153c5b1b",
       "git_sha1": "68f741c959ed1990e1978e3820885aa7c2e7b3ff"
+    },
+    "data/ag_pos_lookup.json": {
+      "size": 2384810,
+      "sha256": "d9ae633bafe88fc3f4b38a0aa9f1e639754a3ce7d5ed7877196ae2bc24b7dfa9",
+      "git_sha1": "63a5533f97ce8b3c5608a71b2af730d7414697b5"
+    },
+    "data/glaux_pos_lookup.json": {
+      "size": 645948,
+      "sha256": "9b07318bbddccec9866b15833585606077a966a785b2e1aa787027d2ae081b49",
+      "git_sha1": "9133cdc639826f27ae09311fc3080b54f8b33bd0"
+    },
+    "data/med_pos_lookup.json": {
+      "size": 3340,
+      "sha256": "99f09191414ed507d971b844b7faf75545bbc14ab7220a5f719974d27a0395b5",
+      "git_sha1": "d788842348616be2082b6730815ad52be93c79ab"
+    },
+    "data/treebank_pos_lookup.json": {
+      "size": 4956527,
+      "sha256": "0bb954669fef4b2a13c3dee844b6557b648f7360b1a5e66f3eca6ce3c2a85f79",
+      "git_sha1": "adb3d007d03fb834d161152da514cb5b77cda4a2"
     },
     "data/ag_headwords.json": {
       "size": 5061093,
@@ -317,6 +337,38 @@
       "size": 129058,
       "sha256": "cc34d967e634ae425035f6eb9716c3c37fb95afb3de137ec5718946d7435dea1",
       "git_sha1": "7e721a30ad9314ee592079209e65ba198fb19001"
+    }
+  },
+  "build_files": {
+    "data/ag_lookup.json": {
+      "size": 505333453,
+      "sha256": "40f6782c534a90351c6a9df85c03a4b9620528c3aa3cbab7654d0cca0e131ad7",
+      "git_sha1": "0cb3d6bb32f638b2cce7cd21eb296d4c79db6c53"
+    },
+    "data/ag_pairs.json": {
+      "size": 435451673,
+      "sha256": "10ad47aec2d0654d8263b8bc9a33bf37dd497a9ed15a684792d9a95e397c6c79",
+      "git_sha1": "a165f040dd2885741a2c75d6f0d842ac96e66bbf"
+    },
+    "data/med_lookup.json": {
+      "size": 287742,
+      "sha256": "794bd2802eb1afb87d217ebd3fadac815c6492f441fbd2c03c6a1c7b00fd6870",
+      "git_sha1": "97a37d6178db6b10ebfd68d2d05d91d5d1b3732e"
+    },
+    "data/med_pairs.json": {
+      "size": 547027,
+      "sha256": "a33fb48d8029fc3eb16fb522d80f618474c19e83d7f327faeb21489a4cc3d5c2",
+      "git_sha1": "fbf2d0f8a8faedf30db87823611a37525d9b607f"
+    },
+    "data/ag_source_alias_audit.json": {
+      "size": 16894050,
+      "sha256": "83b45b4c6d39a4eccacd87a137a45167194211f145c20a224e6c39edd9d871b5",
+      "git_sha1": "91736d331e07ba5e67a6680372926239599bd826"
+    },
+    "data/ag_source_alias_manifest.json": {
+      "size": 7566,
+      "sha256": "085303c8e2ebfffc88c9e35080d112c8eb447b41c04d5a257213b95bf56396c3",
+      "git_sha1": "306fdc015ae8165aaa9ab65ef97d9d2f4b8bd395"
     }
   }
 }

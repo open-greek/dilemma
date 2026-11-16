@@ -38,6 +38,52 @@ def test_manifest_covers_exactly_the_tracked_artifacts(manifest):
     assert list(manifest["files"]) == hf_data.TRACKED
 
 
+def test_runtime_pos_tables_are_pinned():
+    """`python -m dilemma download` serves the Hub copies of the POS tables,
+    so a release has to pin them like every other runtime table (#140)."""
+    assert {
+        "data/ag_pos_lookup.json",
+        "data/glaux_pos_lookup.json",
+        "data/med_pos_lookup.json",
+        "data/treebank_pos_lookup.json",
+        "data/mg_pos_lookup.json",
+        "data/lsj9_pos_lookup.json",
+    } <= set(hf_data.TRACKED)
+
+
+def test_build_tables_are_pinned_and_not_downloaded_by_ci(manifest):
+    assert list(manifest["build_files"]) == hf_data.BUILD_TABLES
+    assert not set(hf_data.BUILD_TABLES) & set(hf_data.TRACKED)
+    for entry in manifest["build_files"].values():
+        assert re.fullmatch(r"[0-9a-f]{64}", entry["sha256"])
+        assert entry["size"] > 0
+    assert set(hf_data.pinned_entries()) == \
+        set(hf_data.TRACKED) | set(hf_data.BUILD_TABLES)
+
+
+def test_git_tracked_artifacts_are_pinned_at_their_committed_bytes(manifest):
+    """A pinned table that is also in git must be pinned at the committed
+    blob, or installs (Hub copy) and source checkouts (git copy) disagree."""
+    import subprocess
+    try:
+        listed = subprocess.run(
+            ["git", "ls-tree", "-r", "HEAD", "--", "data"], cwd=ROOT,
+            capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        pytest.skip("not a git checkout")
+    blobs = {}
+    for line in listed.splitlines():
+        meta, path = line.split("\t", 1)
+        blobs[path] = meta.split()[2]
+    if not blobs:
+        pytest.skip("no committed data files")
+    wrong = {path: (entry["git_sha1"], blobs[path])
+             for path, entry in manifest["files"].items()
+             if path in blobs and path != "data/hf_manifest.json"
+             and entry["git_sha1"] != blobs[path]}
+    assert not wrong
+
+
 def test_manifest_entries_are_well_formed(manifest):
     for path, entry in manifest["files"].items():
         assert path.startswith(("data/", "model/")), path
