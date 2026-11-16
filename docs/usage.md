@@ -144,18 +144,18 @@ Modern (`ἀκόμη` gives `ακόμη`, `ἀξίζει` `αξίζω`, `ἔργ
 lexicon's omicron and rho heads get their breathings back before expansion,
 so `ὀφφικίου` gives `ὀφφίκιον` both untagged and with a NOUN tag.
 
-With `lang="grc"` a polytonic Modern Greek word that no Ancient head spells
-can still reach the Byzantine normalizer, which respells one sound at a time
-and looks the respelling up. A word whose letters and accent are already
-those of a Modern Greek word is respelled only into an Ancient row as it is
-written (`ἀστράφτει` gives `ἀστράπτω`, `ἐρώτησε` `ἐρωτάω`). A respelling that
-also needs its accents changed is not taken, so `ἀλλιῶς` and `ἀνάβει` give
-`None` with `guess=False` (they gave `ἁλιεύς` and `Ανάβης` through 1.3.26);
-with `lang="all"` these keep their Modern lemma. Known gaps: the word's own
-accent-stripped key still answers (`ἄνοιξη` gives `ἀνοίγω`, the row of
-`ἀνοίξῃ`), because the same key reads Ancient words printed with a misplaced
-accent or breathing (`ἕξης` gives `ἑξῆς`, `ἐνότητα` `ἑνότης`), and nothing in
-the spelling tells the two apart. An Ancient form whose Modern twin is listed
+Known gaps: with `lang="grc"` a polytonic Modern Greek word that no Ancient
+head spells can still get an Ancient lemma. Its own accent-stripped key
+answers (`ἄνοιξη` gives `ἀνοίγω`, the row of `ἀνοίξῃ`), because the same key
+reads Ancient words printed with a misplaced accent or breathing (`ἕξης`
+gives `ἑξῆς`, `ἐνότητα` `ἑνότης`), and nothing in the spelling tells the two
+apart. Failing that, the Byzantine normalizer respells one sound and looks
+the respelling up, under its loose keys too (`ἀλλιῶς` gives `ἁλιεύς`,
+`ἀνάβει` `ἀναβαίνω`). The same step reads Byzantine and misprinted Ancient
+forms that are spelled like Modern ones (`ἐνεργεῖτο` gives `ἐνεργέω`,
+`ἁδικημένος` `ἀδικέω`); closing it for Modern spellings was measured to
+remove about as many right lemmas as wrong ones. With `lang="all"` these
+words keep their Modern lemma. An Ancient form whose Modern twin is listed
 can take it under `lang="all"` (`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
 
 A double rho printed with breathings inside a word, as older editions have it

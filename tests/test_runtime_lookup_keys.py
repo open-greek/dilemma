@@ -8,9 +8,6 @@ Ancient head (Σαμαρείτις).
 The Byzantine respelling fallback prefers a respelling that reads a row as
 it is written over one that also needs its accents changed, whatever the
 rule order (αναγνώστει).
-#132: with lang="grc" a word spelled as a Modern Greek word and as no
-Ancient one is not respelled and re-accented into an Ancient word
-(ἀλλιῶς, ἀνάβει).
 """
 
 import unicodedata
@@ -326,61 +323,3 @@ def test_identity_reading_still_settles_a_respelling(model_from):
     model = model_from({"αναγνώστη": "αναγνώστη", "αναγνωστη": "ἀναγιγνώσκω"})
     assert model._lookup_word("αναγνώστη") == "αναγνώστη"
     assert model._normalize_byzantine("αναγνώστει") is None
-
-
-# --------------------------------------------- Modern spellings (#132)
-
-MODERN_ROWS = {"αλλιώς": "αλλιώς", "αστράφτει": "αστράφτω"}
-ANCIENT_ROWS = {"αλιώς": "ἁλιεύς", "ἀστράπτει": "ἀστράπτω"}
-
-
-def test_modern_spelling_only(model_from):
-    model = model_from({**MODERN_ROWS, **ANCIENT_ROWS},
-                       vernacular={"αλλιώς", "αστράφτω"})
-    assert model._is_modern_spelling_only("ἀλλιῶς")
-    assert model._is_modern_spelling_only("ἀστράφτει")
-    # No breathing: the monotonic row answers directly.
-    assert not model._is_modern_spelling_only("αλλιώς")
-    # No Modern row with these letters and this accent.
-    assert not model._is_modern_spelling_only("ἀλιῶς")
-    assert not model._is_modern_spelling_only("ἄλλιως")
-    # The Ancient lookup has the spelling.
-    assert not model._is_modern_spelling_only("ἀστράπτει")
-    # With lang="all" the word reads as Modern and never gets here.
-    model.lang = "all"
-    assert not model._is_modern_spelling_only("ἀλλιῶς")
-
-
-def test_modern_spelling_needs_a_modern_lexical_head(model_from):
-    model = model_from({**MODERN_ROWS, **ANCIENT_ROWS})
-    assert not model._is_modern_spelling_only("ἀλλιῶς")
-    assert model._normalize_byzantine("ἀλλιῶς") == "ἁλιεύς"
-
-
-def test_modern_spelling_is_not_respelled_and_reaccented(model_from):
-    model = model_from({**MODERN_ROWS, **ANCIENT_ROWS},
-                       vernacular={"αλλιώς", "αστράφτω"})
-    assert model._lookup_word("ἀλλιῶς") is None
-    # ἀλιῶς reaches ἁλιεύς through its monotonic key only.
-    assert model._lookup_word("ἀλιῶς") == "ἁλιεύς"
-    assert model._normalize_byzantine("ἀλλιῶς") is None
-    # A respelling that is a row as written still answers.
-    assert model._normalize_byzantine("ἀστράφτει") == "ἀστράπτω"
-    # An Ancient word with the same respelling is read as before.
-    assert model._normalize_byzantine("ἀλλιῶν") is None
-    model = model_from({**ANCIENT_ROWS, "αλιών": "ἁλιεύς"})
-    assert model._normalize_byzantine("ἀλλιῶν") == "ἁλιεύς"
-
-
-def test_shipped_modern_spellings_get_no_ancient_respelling(shipped_models):
-    model = shipped_models["grc"]
-    forms = ["ἀλλιῶς", "ἀνάβει", "ἀγγελοῦδι", "ἀτσάλι"]
-    assert model.lemmatize_batch(forms, guess=False) == [None] * 4
-    assert [model.lemmatize(f, guess=False) for f in forms] == [None] * 4
-    # Respellings that are Ancient rows as written are kept.
-    kept = ["ἀστράφτει", "ἀνοιχτὰ", "ἐρώτησε", "ἀκολούθησε"]
-    assert model.lemmatize_batch(kept, guess=False) == [
-        "ἀστράπτω", "ἀνοικτός", "ἐρωτάω", "ἀκολουθέω"]
-    # With lang="all" the words read as Modern, as since 1.3.25.
-    assert shipped_models["all"].lemmatize_batch(
-        ["ἀλλιῶς", "ἀνάβει"], guess=False) == ["αλλιώς", "ανάβω"]
