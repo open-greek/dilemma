@@ -372,12 +372,16 @@ REVIEWED_TREEBANK_READINGS = {
     "σοι": "σύ", "σοί": "σύ",
     # Elided keys whose dictionary-expansion reading is the reading of none
     # of their full forms, where AGDT, GLAUx and Diorisis agree on another
-    # (GLAUx: χαίρετ’ χαίρω 40, ἔνερθ’ ἔνερθε 10). The el copy of the GLAUx
-    # pair answered lang="el" with that reading until the copy was removed
-    # (drop_el_corpus_readings). μαχώμεθ’ read συμμαχέω, as AGDT has it;
-    # GLAUx and Diorisis read μάχομαι. The keys end in U+1FBD.
+    # (GLAUx: χαίρετ’ χαίρω 40, ζῶντ’ ζάω 25, ἔνερθ’ ἔνερθε 10). The el copy
+    # of the GLAUx pair answered lang="el" with that reading until the copy
+    # was removed (drop_el_corpus_readings). μαχώμεθ’ read συμμαχέω, as AGDT
+    # has it; GLAUx and Diorisis read μάχομαι. The three forms of ζάω keep
+    # the treebanks' name of the verb, not the ζῶ that the table reads
+    # ζῶντα as: a reviewed reading also answers a tagged lookup, where the
+    # POS table has ζάω for every form. The keys end in U+1FBD.
     **{stem + "\u1fbd": lemma for stem, lemma in (
-        ("χαίρετ", "χαίρω"),
+        ("χαίρετ", "χαίρω"), ("ζῶντ", "ζάω"), ("ζῶνθ", "ζάω"),
+        ("ζώοντ", "ζάω"),
         ("ἔνερθ", "ἔνερθε"), ("θέρμετ", "θέρμω"), ("μύρονθ", "μύρω"),
         ("μαχώμεθ", "μάχομαι"), ("ἔνδικ", "ἔνδικος"), ("ἔννομ", "ἔννομος"),
         ("κρατερόφρον", "κρατερόφρων"), ("παιδέρωτ", "παιδέρως"))},
@@ -393,8 +397,7 @@ REVIEWED_TREEBANK_READINGS = {
     #   καθέζετο, Ἰδαῖ’ Ἰδαῖε, κείν’ κει~νος, ἰοῦσ’ εἷμι, οὐπώποτ’ οὐπωποτε,
     #   -δ’ δε; GLAUx has -δ’ 17,835 times under δέ);
     # - a lemma the table reads as another (κατακείω, κτέομαι, πεύθομαι,
-    #   πρώτιστος, αἴρω, ἔβραχε, and ζάω and ζήω, which read ζῶ as ζῶντα
-    #   does);
+    #   πρώτιστος, αἴρω, ἔβραχε);
     # - a spelling without its diaeresis or with the wrong accent, which has
     #   no row or a Modern one (ληίζομαι, ληίς, λοισθήιος, πλωίζω, ἀπαίσσω,
     #   παμπολύς, ἀνόρουω, ὑπένδύω, Δήμοφων; ὄψε reads ὄπτω);
@@ -409,7 +412,6 @@ REVIEWED_TREEBANK_READINGS = {
         ("πρώτισθ", "πρῶτος"), ("πρώτιστ", "πρῶτος"),
         ("αἴρετ", "ἀείρω"), ("ἀρθέντ", "ἀείρω"), ("ἤρατ", "ἀείρω"),
         ("ἀρέσθ", "ἀείρω"), ("ἔβραχ", "ἔβραχον"),
-        ("ζῶντ", "ζῶ"), ("ζῶνθ", "ζῶ"), ("ζώοντ", "ζῶ"),
         ("ληίζετ", "ληΐζομαι"), ("ληΐδ", "ληΐς"), ("λοισθήϊ", "λοισθήϊος"),
         ("πλωίζεσκ", "πλωΐζω"), ("ἀπῇξ", "ἀπαΐσσω"), ("πάμπολλ", "πάμπολυς"),
         ("ἀνόρουσ", "ἀνορούω"), ("ὑπενέδυσ", "ὑπενδύω"), ("ὄψ", "ὀψέ"),

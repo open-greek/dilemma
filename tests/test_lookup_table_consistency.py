@@ -155,8 +155,8 @@ def test_reviewed_treebank_readings_name_lemmas():
     assert readings["σοι"] == readings["σοί"] == "σύ" and readings["ὥς"] == "ὡς"
     assert "νέη" not in readings.values()
     assert readings["χαίρετ\u1fbd"] == "χαίρω"
-    # The table reads ζῶντα, ζῶντες and the key ζάω itself as ζῶ.
-    assert readings["ζῶντ\u1fbd"] == readings["ζῶνθ\u1fbd"] == "ζῶ"
+    # The treebanks' and the POS table's name of the verb, not ζῶ.
+    assert readings["ζῶντ\u1fbd"] == readings["ζῶνθ\u1fbd"] == "ζάω"
     assert readings["κείν\u1fbd"] == "ἐκεῖνος"
     assert readings["Ἐφ\u1fbd"] == "ἐπί" and readings["Ὥστ\u1fbd"] == "ὥστε"
     assert readings["δεῖνος"] == "δεῖνα"
@@ -257,13 +257,13 @@ def test_elided_keys_and_oxytone_case_twins_in_the_build(tmp_path):
     # καθέζετ᾽ and Ἐφ᾽ hold readings that are no lemma (a verb form, the
     # capitalised lemma of a sentence-initial word); the treebank copy in
     # the el table was the one good answer and is removed when it differs.
-    # ζῶντ᾽ reads ζῶ like the full forms, so its ζάω copy goes too. The
+    # γαῖ᾽ reads γαῖα like its full forms, so its γῆ copy goes too. The
     # listed head θεατρικός reads the name page's lemma and GLAUx has it
     # with a grave only. δεῖνος is the genitive of δεῖνα, and εμούς is not
     # the Doric genitive ἐμοῦς.
     glaux = [
         {"form": "καθέζετ’", "lemma": "καθέζομαι", "pos": "verb", "count": 12},
-        {"form": "ζῶντ’", "lemma": "ζάω", "pos": "verb", "count": 25},
+        {"form": "γαῖ’", "lemma": "γῆ", "pos": "noun", "count": 25},
         {"form": "θεατρικὸς", "lemma": "θεατρικός", "pos": "adj", "count": 6},
         {"form": "σκηνικὸς", "lemma": "σκηνικός", "pos": "adj", "count": 1},
         {"form": "δεῖνος", "lemma": "δεῖνα", "pos": "pron", "count": 58},
@@ -272,7 +272,7 @@ def test_elided_keys_and_oxytone_case_twins_in_the_build(tmp_path):
     diorisis = [{"form": "Ἐφ’", "lemma": "ἐπί", "pos": "adp"}]
     agdt = [{"form": "καθέζετ᾽", "lemma": "καθέζετο", "pos": "v"}]
     data, env = T._fixture(tmp_path, {
-        "ag": {"Ἐφ᾽": "Ἐπί", "ζῶντ᾽": "ζάω",
+        "ag": {"Ἐφ᾽": "Ἐπί", "γαῖ᾽": "Γαῖα",
                "θεατρικός": "Θεατρικός", "θεατρικος": "Θεατρικός",
                "σκηνικός": "Σκηνικός", "δεῖνος": "Δεῖνος",
                "εμούς": "μου", "ἐμοῦς": "μου", "μου": "μου"},
@@ -282,7 +282,7 @@ def test_elided_keys_and_oxytone_case_twins_in_the_build(tmp_path):
                 "σύνοχος", "γε", "λόγος", "μοναχικός", "λαβή", "κλεῖδα",
                 "θεατρικός", "σκηνικός", "δεῖνος", "δεῖνα")},
             "vernacular_heads": []},
-        "ag_headwords.json": ["καθέζομαι", "ἐπί", "ζάω", "ζῶ", "θεατρικός",
+        "ag_headwords.json": ["καθέζομαι", "ἐπί", "γῆ", "γαῖα", "θεατρικός",
                               "σκηνικός", "δεῖνα", "δεῖνος", "ἐμός", "ἐγώ",
                               "λόγος"],
         "perseus_pairs.json": agdt,
@@ -296,7 +296,7 @@ def test_elided_keys_and_oxytone_case_twins_in_the_build(tmp_path):
     # The grc and el tables hold only the rows that differ from the combined.
     for table in (combined, {**combined, **grc}, {**combined, **el}):
         assert table["καθέζετ᾽"] == "καθέζομαι" and table["Ἐφ᾽"] == "ἐπί"
-        assert table["ζῶντ᾽"] == "ζῶ"
+        assert table["γαῖ᾽"] == "γαῖα"
         assert table["θεατρικός"] == table["θεατρικος"] == "θεατρικός"
         assert table["δεῖνος"] == "δεῖνα"
         assert table["εμούς"] == "ἐμός"
