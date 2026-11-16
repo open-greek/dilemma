@@ -1324,12 +1324,362 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
     return args
 
 
+# --- Principal parts that no entry prints -----------------------------------
+#
+# Most LSJ verbs print no principal parts: a compound leaves them to its
+# simplex (συγκατατρίβω to τρίβω), a denominative to its class (εἰκονίζω
+# goes like νομίζω). The functions below state those parts. They are
+# hypotheses, so the caller keeps only the cells a corpus attests.
+
+# The tenses a compound takes from its simplex. The imperfect belongs to the
+# present system, which the compound builds itself.
+INFERRED_KEYS = ("fut", "fut_med", "aor", "aor1", "aor2", "aor_med", "pf",
+                 "pf_mp", "fut_p", "aor_p", "aor_p2")
+# Tenses that stand or fall together when an entry prints some of them.
+INFERRED_FAMILIES = (
+    ("fut", "fut_med"), ("aor", "aor1", "aor2", "aor_med"), ("pf",),
+    ("pf_mp",), ("fut_p", "aor_p", "aor_p2"),
+)
+_ASPIRATES = {"τ": "θ", "π": "φ", "κ": "χ"}
+_ASPIRATED_SPELLINGS = frozenset(("ανθ", "αφ", "εφ", "καθ", "μεθ", "υφ"))
+_PLAIN_SPELLINGS = frozenset(("αντ", "απ", "επ", "κατ", "μετ", "υπ"))
+
+
+def _is_rough(letters: list[str]) -> bool:
+    return any(_ROUGH in letter for letter in letters[:2])
+
+
+def _join_preverb(head: list[str], end: int, canonical: str, spelling: str,
+                  part: list[str]) -> list[str] | None:
+    """The preverbs of a compound before a form of its simplex.
+
+    ``head[:end]`` is the preverb chain of the present, whose last preverb
+    is ``canonical``, spelled ``spelling`` there. That preverb is spelled
+    again for the sound ``part`` begins with: elided before a vowel and
+    aspirated before a rough one (κατ-έτριψα, καθ-εῖλκον), assimilated
+    before a consonant (συλ-λήψομαι, ἐγ-κέκλικα), ἐξ before a vowel.
+    """
+    if not part:
+        return None
+    earlier = end - len(spelling)
+    xi = spelling.startswith("ξ")
+    part = list(part)
+    if part[0][0] in _VOWEL_LETTERS:
+        group = _vowel_group(part)
+        if canonical == "συν":
+            preverb = "ξυν" if xi else "συν"
+        elif canonical == "εισ":
+            preverb = spelling
+        else:
+            preverb = _PREVERBS[canonical][1][0]
+            if _is_rough(part) and preverb[-1] in _ASPIRATES:
+                preverb = preverb[:-1] + _ASPIRATES[preverb[-1]]
+        part[:2] = [_unbreathed(letter) for letter in part[:2]]
+        if (preverb[-1] in _VOWEL_LETTERS and group == 1
+                and part[0][0] in "ιυ"):
+            part[0] += _DIAERESIS  # προϊδεῖν
+    elif part[0][0] == "ρ":
+        if canonical == "εν":
+            return None
+        preverb = _compose(canonical, "ρ", xi)
+        part[0] = "ρ"
+        if preverb[-1] in _VOWEL_LETTERS:
+            part = ["ρ"] + part  # καταρρεύσω
+    else:
+        preverb = (spelling if canonical == "εισ"
+                   else _compose(canonical, _bare(part), xi))
+    opening = head[:earlier] + list(preverb)
+    if not earlier:
+        # The breathing of the present's preverb (ἀπ-, εἰσ-).
+        for index in range(min(2, len(preverb))):
+            if head[index][0] == preverb[index]:
+                opening[index] += "".join(
+                    mark for mark in head[index] if mark in _BREATHINGS)
+    return opening + part
+
+
+def _compound_split(headword: str, simplex: str
+                    ) -> tuple[list[str], int, str, str] | None:
+    """Where ``headword`` divides into its preverbs and ``simplex``."""
+    head, base = _letters(headword), _letters(simplex)
+    end = len(head) - len(base)
+    if end <= 0 or _bare(head[end:]) != _bare(base):
+        return None
+    if base[0][0] == "ρ" and head[end - 1][0] == "ρ":
+        end -= 1  # κατα-ρρέω
+    for found, canonical, spelling in _preverb_splits(_bare(head)):
+        if found == end:
+            return head, end, canonical, spelling
+    return None
+
+
+def compound_parts(headword: str, simplex: str, parts: dict[str, str]
+                   ) -> dict[str, str]:
+    """The principal parts of a compound, from those of its simplex.
+
+    ``parts`` are forms of ``simplex`` (ἔτριψα, τρίψω); the result has the
+    same tenses with the preverbs of ``headword`` (συγκατέτριψα,
+    συγκατατρίψω), without tone accents. A contracted future keeps its
+    circumflex, which names its conjugation.
+    """
+    split = _compound_split(headword, simplex)
+    if split is None:
+        return {}
+    head, end, canonical, spelling = split
+    out: dict[str, str] = {}
+    for key in INFERRED_KEYS:
+        form = parts.get(key)
+        if not form:
+            continue
+        joined = _join_preverb(head, end, canonical, spelling, _letters(form))
+        if joined is None:
+            continue
+        if _PERISPOMENI in unicodedata.normalize("NFD", form)[-2:]:
+            joined[-1] += _PERISPOMENI
+        out[key] = _spell(joined)
+    return out
+
+
+def compound_simplexes(headword: str, verbs: dict[str, list[str]]
+                       ) -> list[str]:
+    """The verbs ``headword`` is a compound of, by its letters.
+
+    ``verbs`` maps the bare letters of every known verb to its spellings.
+    The answer is the verb left after the longest chain of preverbs (τρίβω
+    for συγκατατρίβω), provided every shorter chain that also leaves a verb
+    leaves a compound of it (κατατρίβω). Two readings that disagree
+    (ὑπ-ερείδω, ὑπερ-είδω) give none. An aspirated preverb needs a rough
+    verb after it and a plain elided one a smooth verb (καθ-έλκω, not
+    κατ-έλκω).
+    """
+    head = _letters(headword)
+    bare = _bare(head)
+    found: dict[int, list[str]] = {}
+    for end, _, spelling in _preverb_splits(bare):
+        rest = bare[end:]
+        if rest.startswith("ρρ") and spelling[-1] in _VOWEL_LETTERS:
+            rest = rest[1:]
+        fitting = []
+        for verb in verbs.get(rest, ()):
+            if rest[0] in _VOWEL_LETTERS:
+                rough = _is_rough(_letters(verb))
+                if ((spelling in _ASPIRATED_SPELLINGS and not rough)
+                        or (spelling in _PLAIN_SPELLINGS and rough)):
+                    continue
+            fitting.append(verb)
+        if fitting:
+            found[end] = fitting
+    if not found:
+        return []
+    longest = max(found)
+    for end in found:
+        if end != longest and longest - end not in {
+                split[0] for split in _preverb_splits(bare[end:])}:
+            return []
+    return found[longest]
+
+
+# Verb classes whose other tenses follow from the present: the ending of
+# the present, the letters that replace it before the tense suffix, and
+# whether the stem ends in a dental (νομίζω, ἐνόμισα, νενόμισμαι).
+_REGULAR_CLASSES = (
+    ("ιζω", "ι", True), ("αζω", "α", True), ("ευω", "ευ", False),
+    ("εω", "η", False), ("οω", "ω", False), ("αω", "η", False),
+)
+_AUGMENTED_VOWELS = {
+    "α": ("η",), "ε": ("η",), "ο": ("ω",), "αι": ("ῃ", "αι"),
+    "ει": ("ῃ", "ει"), "οι": ("ῳ", "οι"), "αυ": ("ηυ", "αυ"),
+    "ευ": ("ηυ", "ευ"),
+}
+
+
+def _augmented(stem: list[str]) -> list[list[str]]:
+    """``stem`` with the augment, in each spelling the augment takes.
+
+    A diphthong is also left as it is: εἰκόνισα and εὐλόγησα stand beside
+    ᾐκόνισα and ηὐλόγησα.
+    """
+    first = stem[0][0]
+    if first == "ρ":
+        return [["ε" + _SMOOTH, "ρ", "ρ"] + stem[1:]]
+    if first not in _VOWEL_LETTERS:
+        return [["ε" + _SMOOTH] + stem]
+    group = _vowel_group(stem)
+    vowel = _bare(stem[:group])
+    breathing = "".join(mark for letter in stem[:group] for mark in letter
+                        if mark in _BREATHINGS)[:1]
+    out = []
+    for augment in _AUGMENTED_VOWELS.get(vowel, ()):
+        if augment == vowel:
+            out.append(list(stem))
+        elif augment in ("ῃ", "ῳ"):
+            long = "η" if augment == "ῃ" else "ω"
+            out.append([long + breathing + _SUBSCRIPT] + stem[group:])
+        elif len(augment) == 2:
+            out.append([augment[0], augment[1] + breathing] + stem[group:])
+        else:
+            out.append([augment + breathing] + stem[group:])
+    return out or [list(stem)]
+
+
+def _reduplicated(stem: list[str]) -> list[list[str]]:
+    """``stem`` as a perfect: reduplicated, or augmented where a verb
+    cannot reduplicate (a vowel, ῥ, a double consonant, most clusters)."""
+    first = stem[0][0]
+    second = stem[1][0] if len(stem) > 1 else ""
+    if first in _VOWEL_LETTERS or first == "ρ":
+        return _augmented(stem)
+    stop_and_liquid = (first in "πβφτδθκγχ" and second in "λρμν"
+                       and first + second != "γν")
+    if first in "ζξψ" or not (second in _VOWEL_LETTERS or stop_and_liquid):
+        return [["ε" + _SMOOTH] + stem]
+    plain = {"φ": "π", "θ": "τ", "χ": "κ"}.get(first, first)
+    return [[plain, "ε"] + stem]
+
+
+def regular_parts(verb: str) -> list[dict[str, str]]:
+    """The principal parts a regular denominative verb would have.
+
+    For a verb in -ίζω, -άζω, -εύω, -έω, -όω or -άω (or the middle of one)
+    with a syllable before that ending: one dict per spelling of the
+    augment, each with the future, the aorist, the perfect and the passive
+    (εἰκονίζω: εἰκονίσω, ᾐκόνισα or εἰκόνισα, ...), without tone accents.
+    A verb in -ίζω also gets its Attic future (νομιῶ) in a dict of its own.
+    Anything else gives an empty list.
+    """
+    letters = _letters(verb)
+    bare = _bare(letters)
+    for ending, vowel, dental in _REGULAR_CLASSES:
+        middle = bare.endswith(ending[:-1] + "ομαι")
+        if not middle and not bare.endswith(ending):
+            continue
+        size = len(ending) + (3 if middle else 0)
+        root = letters[:len(letters) - size]
+        # A short verb is not a denominative (ἐρέω, ὁράω, ἀρόω, χέω).
+        if len(root) < 3 or not any(letter[0] in _VOWEL_LETTERS
+                                    for letter in root):
+            return []
+        if dental or ending == "ευω":
+            theme = letters[len(root):len(root) + len(vowel)]
+        elif ending == "αω" and root[-1][0] in "ειρ":
+            theme = ["α" + _MACRON]
+        else:
+            theme = [vowel]
+        stem = root + theme
+        sigma = ["σ"] if dental else []
+        variants = []
+        augmented, reduplicated = _augmented(stem), _reduplicated(stem)
+        for index, past in enumerate(augmented):
+            perfect = reduplicated[min(index, len(reduplicated) - 1)]
+            parts = {
+                "aor_p": _spell(past + sigma + list("θην")),
+                "pf_mp": _spell(perfect + sigma + list("μαι")),
+                "fut_p": _spell(stem + sigma + list("θησομαι")),
+            }
+            if middle:
+                parts["fut_med"] = _spell(stem + list("σομαι"))
+                parts["aor_med"] = _spell(past + list("σαμην"))
+            else:
+                parts["fut"] = _spell(stem + list("σω"))
+                parts["aor"] = _spell(past + list("σα"))
+                # A dental stem with nothing before it to mark the perfect
+                # would give the adjective in -ικός, -ακός as its participle
+                # (ἱππίζω: ἱππικός).
+                if not dental or perfect != stem:
+                    parts["pf"] = _spell(perfect + list("κα"))
+            variants.append(parts)
+        if ending == "ιζω":
+            if middle:
+                variants.append({"fut_med": _spell(stem + list("ουμαι"))})
+            else:
+                contracted = stem + ["ω" + _PERISPOMENI]
+                variants.append({"fut": _spell(contracted)})
+        return variants
+    return []
+
+
+def other_voice(bare: str) -> str:
+    """The bare spelling of the same verb in the other voice, or ""."""
+    for ending, other in (("ομαι", "ω"), ("μαι", "μι"), ("ω", "ομαι"),
+                          ("μι", "μαι")):
+        if bare.endswith(ending):
+            return bare[:-len(ending)] + other
+    return ""
+
+
+# Classes whose regular tenses coincide: -ᾱσα of -άω and -ασα of -άζω, -ησα
+# of -έω and of -άω, and the aorist of -όω with the feminine participle of
+# -άω (δαπανῶσαι).
+_RIVAL_ENDINGS = {"αω": ("αζω", "εω", "οω"), "αζω": ("αω",), "εω": ("αω",),
+                  "οω": ("αω",)}
+
+
+def regular_rivals(verb: str) -> list[str]:
+    """Bare spellings of the verbs that would share ``verb``'s regular
+    tenses: the same stem in a class with the same tense stems, and the
+    same verb with the other of ἀ- and ἐ-, which take one augment
+    (ἠπόρημαι is the perfect of ἀπορέω). Each in both voices."""
+    bare = _bare(_letters(verb))
+    active = bare[:-4] + "ω" if bare.endswith("ομαι") else bare
+    rivals = []
+    for ending, others in _RIVAL_ENDINGS.items():
+        if active.endswith(ending):
+            rivals += [active[:-len(ending)] + other for other in others]
+            break
+    if active[0] in "αε" and active[1:2] not in ("ι", "υ"):
+        rivals.append(("ε" if active[0] == "α" else "α") + active[1:])
+    return rivals + [other_voice(rival) for rival in rivals]
+
+
+def regular_compound_parts(headword: str) -> list[dict[str, str]]:
+    """Regular parts with the augment after a preverb of ``headword``.
+
+    A denominative whose first element is a preposition takes its augment
+    after it (ἐπιστατέω, ἐπεστάτησα) whether or not the rest is a verb.
+    One set of :func:`regular_parts` for each preverb chain the letters
+    allow; the rest is read as rough after an aspirated preverb (ἐφ-).
+    """
+    head = _letters(headword)
+    out: list[dict[str, str]] = []
+    for end, _, spelling in _preverb_splits(_bare(head)):
+        rest = list(head[end:])
+        if rest[0][0] == "ρ" and head[end - 1][0] in _VOWEL_LETTERS:
+            continue
+        if rest[0][0] in _VOWEL_LETTERS:
+            breathing = _ROUGH if spelling in _ASPIRATED_SPELLINGS else _SMOOTH
+            rest[_vowel_group(rest) - 1] += breathing
+        simplex = _spell(rest)
+        for parts in regular_parts(simplex):
+            parts = compound_parts(headword, simplex, parts)
+            if parts and parts not in out:
+                out.append(parts)
+    return out
+
+
+def short_verb_compound(headword: str) -> bool:
+    """Whether ``headword`` may be a compound of a verb too short to be a
+    denominative: ἀπο-θέω, ἐμ-πλέω, κατα-ρρέω. Its tenses are not those of
+    its ending's class (ἀποθήσω is the future of ἀποτίθημι)."""
+    head = _letters(headword)
+    return any(not regular_parts(_spell(head[end:]))
+               for end, _, _ in _preverb_splits(_bare(head)))
+
+
 __all__ = [
     "INDICATIVE_ONLY",
+    "INFERRED_FAMILIES",
+    "INFERRED_KEYS",
     "PART_KEYS",
+    "compound_parts",
+    "compound_simplexes",
     "parse_principal_parts",
     "derive_grc_conj_args",
     "ends_at_label",
+    "other_voice",
+    "regular_compound_parts",
+    "regular_parts",
+    "regular_rivals",
+    "short_verb_compound",
     "stem_preverb",
     "strip_diacritics",
     "unaugmented_stem",

@@ -74,7 +74,7 @@ def test_driver_uses_original_quantity_marked_headword(monkeypatch, tmp_path):
         return {"λύω", "λύεις"}, ""
 
     monkeypatch.setattr(expand_lsj, "expand_verb", expand)
-    expand_lsj.expand_verbs()
+    expand_lsj.expand_verbs(corpus_checks=False)
     result = json.loads(lookup.read_text())
     assert calls == ["λύω"]
     assert result["ἡμι"] == "independent_source"
