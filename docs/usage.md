@@ -76,9 +76,12 @@ and `οἴ` keep their own readings, while `αί`, `αἵ` and `Αἱ` still res
 `ὁ`. A combining psili typed after the final vowel's own breathing or accent
 is an elision mark, not a breathing, and such a form is no article: `αἶ̓` and
 `οἷ̓` give `αἶα` and `οἷος` from `lemmatize()` and `lemmatize_batch()` alike,
-as `αἶ’` and `οἷ’` do. `αἴ` tagged SCONJ gives `αἴ`, not `εἰ`: the Ancient POS tables hold only
-a CCONJ entry for it, and an SCONJ request reads a CCONJ entry only for
-Modern Greek conjunctions (see the polytonic Modern Greek rule below).
+as `αἶ’` and `οἷ’` do. `αἴ` and `αἲ` tagged SCONJ give `εἰ`, as they do
+tagged CCONJ, through a reviewed cell: the Ancient POS tables hold only a
+CCONJ entry for the Doric conjunction, and an SCONJ request reads a CCONJ
+entry only for Modern Greek conjunctions (see the polytonic Modern Greek
+rule below). Tagged PART or INTJ, and without a tag, they stay `αἴ`. `αἶ`
+still gives `αἶα` under every tag, from its lookup row (#129).
 The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
@@ -688,9 +691,14 @@ lowercase twin is a Modern Greek citation form (`Κάποιος` DET gives
 `κάποιος`). PROPN reads the capitalized twin under every setting (`Χέρι`
 PROPN gives `Χέρι`). Where the POS tables hold the common word under the
 form's lowercase key, an Ancient name keeps its capital under NOUN or ADJ
-only through a reviewed cell for its capitalized spelling (below):
-`Πρόξενος` NOUN gives `Πρόξενος`, `πρόξενος` NOUN `πρόξενος`, while `Τύχη`
-NOUN gives `τύχη`.
+only through a cell for its capitalized spelling: `Πρόξενος` NOUN gives
+`Πρόξενος`, `πρόξενος` NOUN `πρόξενος`. The treebank builder writes such a
+NOUN cell where GLAUx attests the name well (`Θέρμον` NOUN gives `Θέρμος`,
+`Εὐριπίδου` NOUN `Εὐριπίδης`; the three token tests are under "Rebuild the
+corpus POS table" below), and a few more are reviewed cells (below). A name
+that fails a test keeps the common noun: `Τύχη` and `Νίκη` NOUN give `τύχη`
+and `νίκη` (the name has 3-15% as many tokens as the noun), and `Ἔρις` NOUN
+gives `ἔρις` (the name in 27 of its 38 capitalized tokens).
 
 Reviewed corrections to individual cells of the treebank, GLAUx,
 Wiktionary (Ancient and Modern) and LSJ9 POS tables are kept in
@@ -702,14 +710,17 @@ fixed a cell leaves the row inert. An `add` row supplies a cell only while
 the table has none for that form and tag: the Modern table lists only forms
 with several Modern readings, so `ας` PART (the Modern particle) needs one
 under `lang="all"`, where the Ancient `ὅς` would otherwise answer (#128).
-The 1.3.26 treebank builder drops most corpus votes that agree with the
-bare lookup, and the restored heads make many more votes agree, so reviewed
-cells whose loss let a lower table answer are added back (`δήτα` ADV gives
-`δῆτα`, `ζώδιον` NOUN `ζῴδιον`, `ουδέν` ADJ
-`οὐδείς`), new cells that displaced a 1.3.25 answer are corrected or
+The treebank builder drops most corpus votes that agree with the
+bare lookup, and the heads restored in 1.3.26 make many more votes agree, so
+reviewed cells whose loss let a lower table answer are added back (`δήτα`
+ADV gives `δῆτα`, `ζώδιον` NOUN `ζῴδιον`, `ουδέν` ADJ
+`οὐδείς`). Since 1.3.27 the builder itself keeps the vote of a listed head
+and of a well-attested capitalized name (`πλοιάριον` NOUN, `Πρόξενος`
+NOUN), so the 32 rows that added those cells are retired. New cells that
+displaced a 1.3.25 answer are corrected or
 dropped (`εισήεσαν` VERB gives `εἴσειμι`, `ήμεν` VERB `εἰμί`), and the
 monotonic keys of `ἤν` get an SCONJ cell (`ην` SCONJ gives `ἐάν`; `ἣν`
-SCONJ stays `ὅς`). A capitalized key is matched by its exact spelling
+SCONJ stays `ὅς`), as do `αἴ` and `αἲ` (`εἰ`). A capitalized key is matched by its exact spelling
 only, so a name row covers the listed spellings (`Θεσπρωτοί` and
 `Θεσπρωτοὶ`).
 A single candidate that differs from the untagged answer only in case does
@@ -890,7 +901,28 @@ highest-weight corpus owner, and an independent definition of the exact lemma
 and part of speech in the English
 or Greek Ancient Greek extracts. Tied corpus owners remain in the source
 evidence and cannot authorize an additional scalar override.
-Without `--kaikki`, this additional recovery is disabled. Lowercase and
+A vote is also kept, without a Wiktionary definition, for a lexical head
+itself (#141): the form is lower-case and, with a final grave read as an
+acute, is the lemma; the lemma is a noun, adjective, adverb or verb head
+that `grc_lexical_heads.json` lists from an edited lexicon (not only from
+Wiktionary, the Perseus headword list, which also holds inflected
+fragments, or the personal-name list); the lookup reads the form as that
+head without a tag under `lang="grc"` and `lang="all"`; and a lower table
+answers the form itself with another word (`ψηφίς` NOUN gave `ψῆφος`,
+`ταμεῖον` NOUN `ταμιεῖον`). A capitalized twin of the head in a lower table
+is no such conflict, and neither is a differently cased query. The audit
+lists these votes under `listed_head_votes` (about 120 on the 1.3.26 lookup).
+A capitalized name keeps its agreeing NOUN vote under its exact spelling
+(#138) when GLAUx has at least 10 tokens of the capitalized spelling, reads
+at least nine tenths of them as that name, and has at least a quarter as
+many name tokens as tokens of the lower-case spelling read as a common noun
+(so that capitals at the start of a sentence cannot pass for the name); the
+lookup must read the spelling as the name without a tag under both
+settings, and the tables must otherwise answer it with something else
+(`Θέρμον` NOUN gave `θέρμος`). Such a cell is not projected to lower-case
+or monotonic keys. The audit lists each with its three counts under
+`capital_name_cells` (about 500 on the 1.3.26 lookup).
+Without `--kaikki`, only these two kinds of vote are recovered. Lowercase and
 monotonic aliases retain each unambiguous part of speech, and withhold a part
 of speech with competing owners. Newly recovered entries also account for
 conflicting corpus claims that did not qualify for recovery. Exact spellings

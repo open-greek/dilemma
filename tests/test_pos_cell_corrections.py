@@ -7,6 +7,10 @@ back, and an lsj9 accent-stripped cell is dropped.
 #125, #126: cells the rebuilt tables no longer carry are added back, new
 cells that displace a 1.3.25 answer are corrected or dropped, and names
 beside a restored lowercase head keep their capitalized lemma.
+#129: the Doric αἴ (if) gets an SCONJ cell.
+#141, #138: the treebank builder now keeps the vote of a listed head and of
+a well-attested capitalized name, so the rows that added those cells back
+are retired; the rebuilt table must supply every one of them.
 """
 import json
 from pathlib import Path
@@ -106,7 +110,7 @@ def test_shipped_correction_record_is_reviewed_and_current():
     seen = set()
     for row in record["corrections"]:
         assert row["reason"] and row["evidence"] and row["issue"] in (
-            105, 106, 125, 126, 128)
+            105, 106, 125, 126, 128, 129)
         key = (row["table"], row["form"], row["upos"])
         assert key not in seen
         seen.add(key)
@@ -245,6 +249,61 @@ def test_shipped_125_untagged_answers_unchanged(shipped_model):
     # The rows answer a tag; the lookup reading stays what the build chose.
     assert shipped_model.lemmatize_batch(
         ["ην", "ήν", "λόγιον"], guess=False) == ["εἰμί", "εἰμί", "λόγιον"]
+
+
+# #129: αἴ is the Doric and Aeolic εἰ under SCONJ, as it is under CCONJ.
+
+SHIPPED_129 = [
+    ("αἴ", "SCONJ", "εἰ"), ("αἲ", "SCONJ", "εἰ"), ("Αἴ", "SCONJ", "εἰ"),
+    ("αἰ", "SCONJ", "εἰ"), ("αἴ", "CCONJ", "εἰ"),
+    # The particle and the interjection keep the lookup reading.
+    ("αἴ", "PART", "αἴ"), ("αἲ", "PART", "αἴ"), ("αἴ", "INTJ", "αἴ"),
+]
+
+
+@pytest.mark.parametrize("word,upos,lemma", SHIPPED_129)
+def test_shipped_129_tagged_readings(shipped_model, word, upos, lemma):
+    assert shipped_model.lemmatize_pos(word, upos, guess=False) == lemma
+    assert shipped_model.lemmatize_batch_pos([word], [upos], guess=False) == [lemma]
+
+
+def test_shipped_129_untagged_answers_unchanged(shipped_model):
+    assert shipped_model.lemmatize_batch(["αἴ", "αἲ"], guess=False) == ["αἴ", "αἴ"]
+
+
+# #141, #138: add rows retired because the builder keeps these votes itself.
+# The rebuilt treebank table has to carry each cell.
+
+RETIRED_ADD_ROWS = [
+    ("πρηνής", "ADJ", "πρηνής"), ("σκυτεύς", "NOUN", "σκυτεύς"),
+    ("τεκνίον", "NOUN", "τεκνίον"), ("θαμνώδης", "ADJ", "θαμνώδης"),
+    ("θεόληπτος", "ADJ", "θεόληπτος"), ("ὑμός", "ADJ", "ὑμός"),
+    ("υμός", "ADJ", "ὑμός"), ("ὄργια", "NOUN", "ὄργια"),
+    ("πλοιάριον", "NOUN", "πλοιάριον"), ("τοπάζιον", "NOUN", "τοπάζιον"),
+    ("τρίχωσις", "NOUN", "τρίχωσις"), ("δελφάκιον", "NOUN", "δελφάκιον"),
+    ("θεραπαινίς", "NOUN", "θεραπαινίς"), ("σκωλήκιον", "NOUN", "σκωλήκιον"),
+    ("πλοκαμίς", "NOUN", "πλοκαμίς"), ("σκληρία", "NOUN", "σκληρία"),
+    ("γαστρίον", "NOUN", "γαστρίον"), ("φωλίον", "NOUN", "φωλίον"),
+    ("σκεδασμός", "NOUN", "σκεδασμός"), ("ἀγερμός", "NOUN", "ἀγερμός"),
+    ("σκοτοδινίασις", "NOUN", "σκοτοδινίασις"), ("χυτρίδιον", "NOUN", "χυτρίδιον"),
+    ("Ἡρακλέης", "NOUN", "Ἡρακλέης"), ("Τριτογένεια", "NOUN", "Τριτογένεια"),
+    ("Ἀριστέας", "NOUN", "Ἀριστέας"), ("Λάμων", "NOUN", "Λάμων"),
+    ("Πρόξενος", "NOUN", "Πρόξενος"), ("Προξένου", "NOUN", "Πρόξενος"),
+    ("Πρόξενον", "NOUN", "Πρόξενος"), ("Δρύας", "NOUN", "Δρύας"),
+    ("Φιλάδελφος", "NOUN", "Φιλάδελφος"), ("Μέροπος", "NOUN", "Μέροψ"),
+]
+
+
+@pytest.mark.parametrize("form,upos,lemma", RETIRED_ADD_ROWS)
+def test_rebuilt_treebank_table_supplies_the_retired_add_rows(form, upos, lemma):
+    table = json.loads(TABLE_PATHS["treebank"].read_text(encoding="utf-8"))
+    assert table.get(form, {}).get(upos) == lemma
+
+
+@pytest.mark.parametrize("form,upos,lemma", RETIRED_ADD_ROWS)
+def test_shipped_retired_rows_keep_their_tagged_reading(shipped_model, form, upos, lemma):
+    assert shipped_model.lemmatize_pos(form, upos, guess=False) == lemma
+    assert shipped_model.lemmatize_batch_pos([form], [upos], guess=False) == [lemma]
 
 
 # The Modern cells answer under lang="el" and, for monotonic keys, "all".
