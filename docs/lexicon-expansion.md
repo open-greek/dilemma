@@ -210,7 +210,9 @@ and the overlay restores historical rows as they stand or not at all. The
 rows count as `hyphenated_lemma_entries`; an unaccented key under such a
 lemma is no candidate for the last rule below either. The test is
 `dilemma.citation.hyphenated_lemma`. `build_lookup_db.py` applies it to the
-Ancient corpus pairs as well, which name some of the same lemmas
+Ancient corpus pairs as well, which name some of the same lemmas: a pair
+under a preverb lemma is kept under the compound verb when a head list has
+it (`ἐπεισεκόμισαν` under `ἐπεισκομίζω`), and the others are dropped
 (docs/usage.md, "hyphenated_lemma").
 
 The table published from 1.3.7 to 1.3.25 was built on top of earlier tables,

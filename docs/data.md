@@ -757,6 +757,26 @@ capitalised corpus row was measured and rejected, because about 2,200 rows of
 mixed quality would change (`Οἰκία` → `οἰκία` is right, `Βασιλέως` →
 `βασιλίς` is wrong).
 
+**Hyphenated strings in the Ancient headword list.** `data/ag_headwords.json`
+is a published snapshot of the lemma values of an older Ancient lookup, and
+no generator for it is in the repository. It listed 6,560 strings with a
+hyphen or a dash between two letters: dictionary heads that table keyed as
+printed (`συν-αγανακτέω`, `κρυσταλλο-ειδής`), AGDT lemmas with the preverb
+apart (`παρά-ἐπιδημέω`) and line-broken corpus tokens (`ἐμπιπλά-ζομαι`). None
+is a citation form, but the list vouched for them: corpus lemma validation
+passed a pair under one, and the runtime's compound step, which accents a
+reconstructed compound from the headword lists, answered a hyphenated input
+with the hyphenated string (`προ-δουλεύοιμι` → `προ-δουλεύω`).
+`python scripts/prune_ag_headwords.py` removes every string that
+`dilemma.citation.hyphenated_lemma` flags and writes
+`data/changes/ag_headwords_hyphenated.json`: each removed string, the reason,
+and the size and sha256 of the list before and after, so the pruned list
+plus the record reproduces the 1.3.26 file byte for byte. Nothing is added;
+4,383 of the strings have their spelling without the hyphen in the list
+already. `--check` exits 1 when the list has such a string or is not the list
+the record describes. A string with a hyphen only at an edge (`-σον`, `ὁτ-`)
+or beside a metrical sign is not touched.
+
 **Corpus lemmatizer artefacts and the reviewed readings around them.** A
 treebank's automatic annotation also builds lemmas from an augmented,
 reduplicated or misprinted form: GLAUx files `ἠμφεσβήτουν` under

@@ -297,16 +297,35 @@ has no row of its own is no citation form, and the reading is dropped as
 dropped as `unaccented_expansion_lemma_unlisted`. A GLAUx, Diorisis, NT or
 cog pair whose lemma is one of these judged expansion lemmas gets the same
 verdict, since `ag_headwords.json` lists some of them and the pair would put
-the dropped lemma back (`λαβῃ` → `λαβλυμι` from GLAUx). An AGDT, GLAUx,
-Diorisis, NT or cog pair whose lemma has a hyphen between two letters is
-dropped as `hyphenated_lemma`: AGDT writes some compound verbs with the
-preverb apart (`ἐπεισεκόμισαν` under `ἐπί-εἰσκομίζω`) and GLAUx lemmatizes a
-line-broken token as it stands (`αὐ-τοῖς` under `αὐ-τός`), and neither is a
-citation form. The expansion layer has no such lemma since 1.3.27
-(docs/lexicon-expansion.md, "LSJ heads" and "Historical expansion overlay");
-Modern Greek compounds keep their hyphen (`Ελλάδα-Βουλγαρία`). Other Wiktionary,
+the dropped lemma back (`λαβῃ` → `λαβλυμι` from GLAUx). Other Wiktionary,
 corpus and merged readings are not checked this way, so real unaccented LBG
 and LSJ10 headwords stay.
+
+No Ancient citation form has a hyphen between two letters, so an AGDT, GLAUx,
+Diorisis, NT or cog pair under such a lemma is not taken as it stands. AGDT
+writes some compound verbs with the preverbs apart (`ἐπεισεκόμισαν` under
+`ἐπί-εἰσκομίζω`, `ἀντικαθεζόμενοι` under `ἀντί,κατά-ἕζομαι`), and GLAUx and
+Pedalion carry a few lemmas in the same notation. Such a lemma is joined the
+way a lexicon writes the compound (`dilemma/preverb_lemma.py`): the preverb
+elides before a vowel (`ἐπεισκομίζω`; `περί` and `πρό` do not), takes an
+aspirate before a rough breathing (`καθέζομαι`, `ἐφαμιλλάομαι`), `ἐκ` is `ἐξ`
+before a vowel, the nu of `ἐν` and `σύν` assimilates (`ἐμπεριλαμβάνω`,
+`συγκαταφεύγω`, `συλλέγω`), an initial rho doubles after a vowel
+(`ἀναρριπίζω`), and `ι` or `υ` after `πρό` takes a diaeresis (`προϊστορέω`).
+The pair is kept under the compound when `grc_lexical_heads.json` lists it,
+and is recorded as `hyphenated_lemma_joined_to_<head>`. Like every corpus
+pair it gives the form a reading only where no earlier source has one
+(`ἀντικαθεζόμενοι` keeps Wiktionary's `ἀντικαθίζομαι`). Where the list has
+the compound only with another accent or with a diaeresis, the list's
+spelling is taken (`περί-εἶμι` → `περίειμι`, `ἐν-εἰμί` → `ἔνειμι`); two listed
+spellings give no head. A GLAUx, Diorisis, NT or cog pair must also pass that
+source's usual headword validation. Every other pair under a hyphenated lemma
+is dropped as `hyphenated_lemma`: a compound no list has (`παρά,εἰσ-δυάω`), a
+lemma that repeats the preverb the verb already has (`ἀμφί-ἀμφιέννυμι`), and a
+line-broken token that GLAUx lemmatizes as it stands (`αὐ-τοῖς` under
+`αὐ-τός`). The expansion layer has no such lemma since 1.3.27
+(docs/lexicon-expansion.md, "LSJ heads" and "Historical expansion overlay");
+Modern Greek compounds keep their hyphen (`Ελλάδα-Βουλγαρία`).
 
 One rejection cannot be made per pair. A corpus tokenizer that splits a
 printed word at its elision mark and gives the second half the whole word's
