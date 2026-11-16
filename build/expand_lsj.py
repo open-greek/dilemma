@@ -390,21 +390,32 @@ def build_genitive_from_itype(headword, itype):
     return ""
 
 
-def parse_lsj_entries():
+def parse_lsj_entries(head_rules=None):
     """Parse LSJ entries from lsj9 exports.
 
     Priority: lsj9_forms.tsv (63K entries with explicit grammar) is loaded
     first, then lsj9_headwords.json fills in remaining entries (those without
     grammar in forms.tsv but present in the full headword list).
+
+    ``head_rules`` (``new_lsj_head_rules()``) receives the heads
+    lsj9_forms.tsv prints with a hyphen (see ``settle_lsj_head``).
     """
-    # Start with lsj9 forms data (entries with explicit grammar)
-    entries = parse_lsj9_entries()
+    hw_entries = _parse_lsj9_headwords()
+
+    # Start with lsj9 forms data (entries with explicit grammar). The rows
+    # printed without a hyphen come first, in the export's order. A joined
+    # head takes the grammar of its row and stands where the headword list
+    # has the joined word.
+    forms_entries = parse_lsj9_entries(headwords=hw_entries, head_rules=head_rules)
+    entries = {hw: entry for hw, entry in forms_entries.items()
+               if "printed" not in entry}
 
     # Fill in from headwords.json for entries not covered by forms.tsv
-    hw_entries = _parse_lsj9_headwords()
     hw_only = 0
     gen_fills = 0
     for hw, entry in hw_entries.items():
+        if hw not in entries and hw in forms_entries:
+            entries[hw] = forms_entries[hw]
         if hw not in entries:
             entries[hw] = entry
             hw_only += 1
@@ -468,11 +479,59 @@ def _parse_lsj9_headwords():
     return entries
 
 
-def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
+# lsj9_forms.tsv divides a compound or a derivative at its stem (Βακχ-εία,
+# ἀασι-φρονία, καθ-ηδύνω). The hyphen is the export's, not the word's:
+# lsj9_headwords.json lists the same entry under the joined word and keeps the
+# divided spelling in its ``hyphenated`` field.
+_HEAD_HYPHEN = "-"
+
+
+def new_lsj_head_rules():
+    """An empty record of one parse's head decisions (``head_rules`` in the
+    noun generation audit): the heads read under their joined word and the
+    hyphenated heads set aside, each by its printed spelling."""
+    return {"joined_heads": {}, "malformed_heads": {}}
+
+
+def settle_lsj_head(printed, headwords):
+    """``(head, rule)``: the head a head of lsj9_forms.tsv is generated under.
+
+    ``rule`` is "" when the head is printed without a hyphen and stands.
+    A hyphenated head is read under the joined word when that word is one
+    of ``headwords``, LSJ's own headwords ("joined": Βακχ-εία -> Βακχεία).
+    Joining only drops the hyphens, so the head keeps the accent and
+    breathing LSJ prints. A hyphenated head whose joined word LSJ does not
+    list is set aside ("inner-hyphen", ``head`` is ""): a head is never
+    keyed with its hyphen.
+    """
+    if _HEAD_HYPHEN not in printed:
+        return printed, ""
+    joined = printed.replace(_HEAD_HYPHEN, "")
+    if joined and joined in headwords:
+        return joined, "joined"
+    return "", "inner-hyphen"
+
+
+def head_rules_record(head_rules):
+    """The audit's ``head_rules``: each rule's heads and their count."""
+    return {name: {"count": len(rows), "heads": dict(sorted(rows.items()))}
+            for name, rows in sorted(head_rules.items())}
+
+
+def parse_lsj9_entries(forms_path: Path | None = None, headwords=None,
+                       head_rules=None) -> dict:
     """Load entries from lsj9_forms.tsv (an upstream LSJ9 export).
 
     This provides explicit grammar (ὁ/ἡ/τό/ον/ές) and pre-extracted
     genitive endings for 63K entries.
+
+    A head printed with a hyphen is keyed by its joined word
+    (``settle_lsj_head``; ``headwords`` are LSJ's headwords, read from
+    lsj9_headwords.json when not given). An entry printed without a hyphen
+    keeps its key and its grammar: a hyphenated row supplies an entry only
+    where no such row has the joined spelling (λοῖσθ-ος, ον beside
+    λοῖσθος, ὁ). Its entry follows the others and names the head as
+    printed (``printed``). ``head_rules`` records each hyphenated head.
 
     Returns same format as parse_lsj_entries(): {headword: {headword,
     orth_orig, article, gender, itype, genitive}}.
@@ -481,6 +540,10 @@ def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
     if not forms_path.exists():
         print(f"  lsj9_forms.tsv not found at {forms_path}")
         return {}
+    if headwords is None:
+        headwords = _parse_lsj9_headwords()
+    if head_rules is None:
+        head_rules = new_lsj_head_rules()
 
     # Grammar -> (article, gender) mapping
     _grammar_to_article = {
@@ -492,6 +555,7 @@ def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
     }
 
     entries = {}
+    joined_entries = {}
     with open(forms_path, encoding="utf-8") as f:
         header = f.readline()  # skip header
         for line in f:
@@ -499,7 +563,16 @@ def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
             if len(parts) < 4:
                 continue
             hw_raw, grammar, genitive, etymology = parts
-            hw = strip_length_marks(hw_raw)
+            printed = strip_length_marks(hw_raw)
+            hw, rule = settle_lsj_head(printed, headwords)
+            if not hw:
+                head_rules["malformed_heads"][printed] = rule
+                continue
+            if rule:
+                head_rules["joined_heads"][printed] = hw
+                # The joined spelling with its quantity marks, as
+                # lsj9_headwords.json spells the entry.
+                hw_raw = hw_raw.replace(_HEAD_HYPHEN, "")
 
             article_info = _grammar_to_article.get(grammar, ("", ""))
             article, gender = article_info
@@ -517,8 +590,9 @@ def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
                 # Use the extracted genitive as itype
                 itype = genitive
 
-            if hw not in entries:
-                entries[hw] = {
+            target = joined_entries if rule else entries
+            if hw not in target:
+                target[hw] = {
                     "headword": hw,
                     "orth_orig": hw_raw,
                     "article": article,
@@ -526,8 +600,15 @@ def parse_lsj9_entries(forms_path: Path | None = None) -> dict:
                     "itype": itype,
                     "genitive": genitive if grammar in ("ὁ", "ἡ", "τό") else "",
                 }
+                if rule:
+                    target[hw]["printed"] = printed
 
-    print(f"  lsj9: {len(entries):,} entries from {forms_path.name}")
+    for hw, entry in joined_entries.items():
+        entries.setdefault(hw, entry)
+
+    print(f"  lsj9: {len(entries):,} entries from {forms_path.name} "
+          f"({len(head_rules['joined_heads']):,} hyphenated heads read under "
+          f"the joined word, {len(head_rules['malformed_heads']):,} set aside)")
     return entries
 
 
@@ -1766,7 +1847,8 @@ def expand_all():
 
     input_hashes = noun_generation_input_hashes()
     print("Loading data...")
-    lsj_entries = parse_lsj_entries()
+    head_rules = new_lsj_head_rules()
+    lsj_entries = parse_lsj_entries(head_rules)
     wikt = load_wiktionary_forms()
     print("Loading Wiktionary genitives for cross-reference...")
     wikt_genitives = load_wiktionary_genitives()
@@ -1884,6 +1966,7 @@ def expand_all():
         "withheld": dict(sorted(withheld.items())),
         "failures": dict(sorted(failures.items())),
         "resolutions": dict(sorted(genitive_audit.items())),
+        "head_rules": head_rules_record(head_rules),
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 

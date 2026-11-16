@@ -27,7 +27,7 @@ if name == "expand_sophocles":
     m.sophocles_noun_input_hashes = lambda: {}
     m.load_breathing_review = lambda *a, **kw: None
 if name == "expand_lsj":
-    m.parse_lsj_entries = lambda: entries
+    m.parse_lsj_entries = lambda *a, **kw: entries
     m.load_wiktionary_forms = lambda: {}
     m.load_lsj_head_texts = lambda: {}
     m.load_lsj_supplement_head_texts = lambda: {}
