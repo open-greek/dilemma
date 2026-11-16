@@ -9583,6 +9583,8 @@ combined	lbg_headwords.json	editorial_siglum	ῥοδόσταμα(ν)	ῥοδόσ
 combined	lbg_headwords.json	editorial_siglum	ῥοντζίνι(ον)	ῥοντζίνι(ον)
 combined	lbg_headwords.json	editorial_siglum	ῥουθούνι(ον)	ῥουθούνι(ον)
 AG	lsj10_headwords.json	duplicate_tonal_marks	πενθερά́ς	πενθερά́ς
+EL	med_lookup.json	medieval_reading_of_ancient_form_Κωκυτός	κωκυτος	κωκυτός
+EL	med_lookup.json	medieval_reading_of_ancient_form_Κωκυτός	κωκυτός	κωκυτός
 EL	med_lookup.json	medieval_reading_of_ancient_form_βάσανος	βάσανον	βάσανον
 EL	med_lookup.json	medieval_reading_of_ancient_form_βάσανος	βασανον	βάσανον
 EL	med_lookup.json	medieval_reading_of_ancient_form_δόσις	δοσις	δόσιμον

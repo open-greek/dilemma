@@ -176,22 +176,18 @@ def test_el_rows_follow_the_ancient_reading_of_ancient_forms(tmp_path):
     # which reads otherwise, and its el copy used to answer lang="el". The Medieval adverb παρέξω took the el row of the future
     # of παρέχω; ἄνδρας, a Modern word, keeps its Medieval row. GLAUx's
     # name lemma Νέη is lowercased to the head νέη, a form of νέος.
-    # Wiktionary's περάσῃσ, a truncated form, folds onto περάσῃς; the
-    # GLAUx pair for the word itself takes the key.
     glaux = [{"form": "ἴθ’", "lemma": "ἔρχομαι", "pos": "verb", "count": 59},
-             {"form": "περάσῃς", "lemma": "περάω", "pos": "verb", "count": 3},
              {"form": "παρέξω", "lemma": "παρέχω", "pos": "verb", "count": 45},
              {"form": "ἄνδρας", "lemma": "ἀνήρ", "pos": "noun", "count": 4039},
              {"form": "Νέαν", "lemma": "Νέη", "pos": "noun", "count": 24}]
     data, env = T._fixture(tmp_path, {
-        "ag": {"ἴθ᾽": "εἶμι", "περάσῃσ": "πέρνημι", "κοτέῃσ": "κοτέω",
-               "παρέξω": "παρέχω", "παρεξω": "παρέχω",
+        "ag": {"ἴθ᾽": "εἶμι", "παρέξω": "παρέχω", "παρεξω": "παρέχω",
                "ἄνδρας": "ἀνήρ", "ἐμοῦ": "μου", "μου": "μου", "σοι": "σός"},
         "mg_lookup.json": {"λόγος": "λόγος", "άνδρας": "άνδρας", "μου": "μου"},
         "med_lookup.json": {"παρέξω": "παρέξω", "παρεξω": "παρέξω",
                             "ἄνδρας": "ἄνδρας"},
         "ag_headwords.json": ["ἔρχομαι", "παρέχω", "ἀνήρ", "νέη", "νέος",
-                              "λόγος", "περάω"],
+                              "λόγος"],
         "glaux_pairs.json": glaux,
     })
     result = T._build(data, env)
@@ -199,10 +195,6 @@ def test_el_rows_follow_the_ancient_reading_of_ancient_forms(tmp_path):
     combined, grc, el = (T._rows(data), T._rows(data, "grc"),
                          T._rows(data, "el"))
     assert combined["ἴθ᾽"] == "εἶμι" and "ἴθ᾽" not in el
-    assert combined["περάσῃς"] == "περάω" and "περάσῃς" not in el
-    assert combined["κοτέῃς"] == "κοτέω"   # no key of its own: kept
-    assert ("AG", "ag_lookup.json", "final_medial_sigma_key", "περάσῃς",
-            "πέρνημι") in T._rejections(data)
     assert combined["παρέξω"] == combined["παρεξω"] == "παρέχω"
     assert "παρέξω" not in el and "παρεξω" not in el
     assert combined["ἄνδρας"] == "ἀνήρ" and el["ἄνδρας"] == "ἄνδρας"

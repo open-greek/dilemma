@@ -827,12 +827,7 @@ evidence (#141):
   breathing as in `᾿Αβράμου`, a final medial sigma) and where an override
   corrected the combined reading (`ᾔει`). The 1.3.26 tables had 294 such
   rows; the log line is `el readings of Ancient corpus pairs that the
-  combined row contradicts, removed: N`. One kind of fold is settled the
-  other way: a Wiktionary spelling with a word-final medial sigma
-  (`οἰκείοισ`, `περάσῃσ`, truncated forms in -σι) folds onto the real word
-  in -ς, and the word's own key, when a later source has it, takes the
-  reading (`οἰκείοις` → `οἰκεῖος`, not `οἰκέω`; reason
-  `final_medial_sigma_key`).
+  combined row contradicts, removed: N`.
 - A Medieval entry is not merged when the Ancient table reads the same
   spelling as another lemma, GLAUx reads the form as that lemma at least
   twice, and the Medieval lemma is no Modern word, that is, its letters are

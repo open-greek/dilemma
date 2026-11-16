@@ -1951,10 +1951,6 @@ def build():
                         sources_out: dict[str, str],
                         rejected_target_keys: set = None) -> dict:
         out: dict = {}
-        # Keys whose stored reading came from a spelling with a word-final
-        # medial sigma, and the count of those an exact spelling replaced.
-        sigma_folded: set = set()
-        sigma_replaced = 0
         changed = 0
         dropped_elided = 0
         grave_normalized = 0
@@ -2045,32 +2041,13 @@ def build():
             if sk != k:
                 changed += 1
             # If sanitisation collides two keys, keep the first-seen value
-            # (the tables are already merged by priority upstream). The
-            # exception is a spelling with a word-final medial sigma
-            # (Wiktionary's οἰκείοισ and περάσῃσ, truncated -σι forms), which
-            # the sanitizer folds onto the real word in -ς: the word's own
-            # key, when a later source has it, takes the reading (οἰκείοις
-            # -> οἰκεῖος, GLAUx 345, not οἰκέω).
+            # (the tables are already merged by priority upstream).
             if sk not in out:
                 out[sk] = sv
                 sources_out[sk] = source
-                if k.endswith("σ") and sk.endswith("ς"):
-                    sigma_folded.add(sk)
-            elif sk == k and sk in sigma_folded:
-                sigma_folded.discard(sk)
-                if out[sk] != sv:
-                    _record_citation_rejection(
-                        table=name, source=sources_out[sk], form=sk,
-                        lemma=out[sk], reason="final_medial_sigma_key")
-                    out[sk] = sv
-                    sources_out[sk] = source
-                    sigma_replaced += 1
         if changed:
             print(f"  Sanitised {changed:,} {name} forms "
                   f"(misplaced breathing marks)")
-        if sigma_replaced:
-            print(f"  {name} readings of final-medial-sigma spellings that "
-                  f"the word's own key replaced: {sigma_replaced:,}")
         if dropped_elided:
             print(f"  Dropped {dropped_elided:,} {name} trailing-apostrophe "
                   f"elided forms (resolved via elision layer)")
