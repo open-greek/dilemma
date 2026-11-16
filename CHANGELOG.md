@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.27] - 2026-11-16
+
 This release closes the follow-ups to 1.3.26 (#127, #129 to #132, #134 and
 #136 to #141). The Ancient and Medieval chain is rebuilt on the same archived
 2026-11 kaikki snapshot; the Modern Greek tables are still the 1.3.25 build.
@@ -2445,6 +2447,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.27]: https://github.com/open-greek/dilemma/releases/tag/1.3.27
 [1.3.26]: https://github.com/open-greek/dilemma/releases/tag/1.3.26
 [1.3.25]: https://github.com/open-greek/dilemma/releases/tag/1.3.25
 [1.3.24]: https://github.com/open-greek/dilemma/releases/tag/1.3.24
