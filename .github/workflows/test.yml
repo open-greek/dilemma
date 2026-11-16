@@ -60,7 +60,9 @@ jobs:
       # The data artifacts live on the Hub, not in git, so a push that lands
       # before `hf upload` finishes would otherwise test new code against the
       # previous artifacts. data/hf_manifest.json pins their sha256; wait for
-      # the Hub to serve those bytes, then check what actually arrived.
+      # the Hub to serve those bytes, then check what actually arrived. The
+      # wait covers both lists of the manifest; the download and the verify
+      # step take only `hf_data.py files`, so the build tables stay out of CI.
       - name: Wait for the HuggingFace artifacts in data/hf_manifest.json
         run: python3 scripts/hf_data.py wait --timeout 900
 
