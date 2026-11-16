@@ -1,11 +1,16 @@
-"""Ancient -ικός adjectives declined as masculine nouns regain their feminines."""
+"""Ancient -ικός adjectives declined as masculine nouns regain their feminines,
+and s-stem adjectives in -ής with Ionic tables gain their contracted cells
+(#131)."""
 import json
 from pathlib import Path
 import sys
 
 import pytest
 
-from dilemma.grc_adjective_gaps import complete_ikos_adjectives, ikos_cells
+from dilemma.grc_adjective_gaps import (
+    ES_KIND, SOURCE, complete_ikos_adjectives, es_cells, es_paradigms,
+    ikos_cells, select_es_adjectives)
+from dilemma.grc_noun_gaps import fill_gap_cells
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -102,3 +107,60 @@ def test_every_review_entry_has_a_decision_and_a_reason():
         (ROOT / "data" / "grc_ikos_adjectives.json").read_text(encoding="utf-8"))["lemmas"]}
     for entry in review["entries"]:
         assert (entry["lemma"] in listed) == (entry["decision"] == "adjective")
+
+
+# s-stem adjectives in -ής ---------------------------------------------------
+
+def test_es_cells_are_the_attic_contracted_cells():
+    assert [form for form, _ in es_cells("δυσπενθής")] == [
+        "δυσπενθοῦς", "δυσπενθεῖ", "δυσπενθῆ", "δυσπενθές", "δυσπενθεῖς",
+        "δυσπενθῶν", "δυσπενθέσι", "δυσπενθέσιν"]
+    assert not any("dual" in cell or cell.startswith("vocative")
+                   for _, cell in es_cells("δυσπενθής"))
+    # After a vowel the accusative is -ᾶ as often as -ῆ: that cell is left out.
+    assert [form for form, _ in es_cells("ὑγιής")] == [
+        "ὑγιοῦς", "ὑγιεῖ", "ὑγιές", "ὑγιεῖς", "ὑγιῶν", "ὑγιέσι", "ὑγιέσιν"]
+    assert "ἐνδεῆ" not in dict(es_cells("ἐνδεής"))
+    # A barytone (συνήθης) and other words are not declined.
+    assert es_cells("συνήθης") == [] and es_cells("ἔμφλογος") == []
+
+
+def test_es_selection_needs_an_ancient_genitive_in_eos():
+    rows = [
+        ("δυσπενθής", "δυσπενθής", "vlg_headwords"),
+        ("δυσπενθέος", "δυσπενθής", "grc_lexicon_expansion"),
+        # A corpus pair is evidence too: the genitive names the declension.
+        ("ὁμοζυγέος", "ὁμοζυγής", "diorisis"),
+        # A first-declension masculine keeps its own cells.
+        ("ποιητοῦ", "ποιητής", "wiktionary_grc"),
+        ("ποιητήν", "ποιητής", "wiktionary_grc"),
+        ("ποιητέος", "ποιητής", "glaux"),
+        # A Modern Greek row, an accentless row and a capitalized row are no
+        # evidence; a name and a lemma without its breathing are not declined.
+        ("συνεχέος", "συνεχής", "wiktionary_el"),
+        ("σαφεος", "σαφής", "grc_lexicon_expansion"),
+        ("Σαφέος", "σαφής", "glaux"),
+        ("Διογενέος", "Διογενής", "glaux"),
+        ("ευτυχέος", "ευτυχής", "grc_lexicon_expansion"),
+        # A row without a source counts as an Ancient dictionary row.
+        ("εὐπειθέος", "εὐπειθής"),
+    ]
+    assert select_es_adjectives(rows) == ["δυσπενθής", "εὐπειθής", "ὁμοζυγής"]
+    assert select_es_adjectives(reversed(rows)) == select_es_adjectives(rows)
+
+
+def test_es_cells_fill_absent_keys_and_keep_other_readings():
+    lookup = {"δυσπενθής": "δυσπενθής", "δυσπενθέος": "δυσπενθής",
+              "δυσπενθῶν": "δυσπενθέω", "δυσπενθων": "δυσπενθέω",
+              "δυσπενθει": "δυσπενθέω"}
+    added = fill_gap_cells(lookup, es_paradigms(["δυσπενθής"]), strict={ES_KIND})
+    assert lookup["δυσπενθοῦς"] == lookup["δυσπενθεῖς"] == "δυσπενθής"
+    assert lookup["δυσπενθές"] == "δυσπενθής"
+    # The accented key only.
+    assert "δυσπενθους" not in lookup and "δυσπενθες" not in lookup
+    # The participle keeps δυσπενθῶν, and the dative that is the verb's form
+    # but for its accent is not added.
+    assert lookup["δυσπενθῶν"] == "δυσπενθέω"
+    assert "δυσπενθεῖ" not in lookup and lookup["δυσπενθει"] == "δυσπενθέω"
+    assert {row["kind"] for row in added} == {ES_KIND}
+    assert SOURCE == "grc_adjective_gaps"

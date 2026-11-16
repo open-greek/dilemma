@@ -23,9 +23,14 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
                            "ἀπῆμεν": "ἄπειμι",
                            "μοναχικός": "μοναχικός", "μοναχικοῦ": "μοναχικός",
                            "στέφος": "στέφος", "στέφεος": "στέφος",
-                           "στέφεα": "στέφος"},
+                           "στέφεα": "στέφος",
+                           "δυσπενθής": "δυσπενθής",
+                           "δυσπενθέος": "δυσπενθής"},
         "grc_ikos_adjectives.json": {"lemmas": [
             {"lemma": "μοναχικός", "evidence": ["sophocles"]}]},
+        "grc_second_declension.json": {"classes": {
+            "noun": {"lsj9": ["κόσμος", "νόμος"]},
+            "adjective": {"lbg": ["ἔμφλογος"]}}},
         "mg_lookup.json": {"λόγος": "λόγος", "λέει": "λέω", "λέγει": "λέω"},
         "med_lookup.json": {},
         "vlg_headwords.json": ["ἀρχή", "βίος", "γῆ", "δῶρον", "ἔργον", "σύναρσις"],
@@ -33,7 +38,7 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
         "lsj10_headwords.json": ["λίθος", "μέτρον", "νόμος", "ὁδός", "πῦρ"],
         "lbg_headwords.json": [{"lemma": word} for word in
                                ("ῥόδον", "σῶμα", "τέλος", "ὕδωρ", "φῶς",
-                                "ῥήτρευσις")],
+                                "ῥήτρευσις", "ἔμφλογος")],
         "lbg_pairs.json": {"ῥόδα": "ῥόδον", "σώματος": "σῶμα",
                            "Ῥώμης": "Ῥώμη"},
         "etymology_bridges.json": {"λέω": ["λέγω"], "λόγος": ["λόγος"]},
@@ -162,6 +167,22 @@ builder.build()
                 == origin["ῥητρεύσεως|all"] == "grc_noun_gaps")
         assert origin["στέφεος|all"] != "grc_noun_gaps"
         assert "σύναρσι" not in rows
+        # A listed second-declension word that no table declines gains its
+        # cells: a headword-list noun under the noun source, a Byzantine
+        # adjective (which reaches only the combined table) under the
+        # adjective source. A stem of three letters is not declined, and
+        # these cells have no accentless key.
+        assert rows["κόσμου"] == rows["κόσμοις"] == "κόσμος"
+        assert origin["κόσμου|all"] == "grc_noun_gaps"
+        assert rows["ἐμφλόγου"] == rows["ἔμφλογα"] == "ἔμφλογος"
+        assert origin["ἐμφλόγου|all"] == "grc_adjective_gaps"
+        assert "νόμου" not in rows and "ἔμφλογε" not in rows
+        assert "κοσμου" not in rows and "εμφλογου" not in rows
+        assert "δυσπενθους" not in rows
+        # An -ής adjective with an Ionic genitive gains its contracted cells.
+        assert rows["δυσπενθοῦς"] == rows["δυσπενθεῖς"] == "δυσπενθής"
+        assert origin["δυσπενθοῦς|all"] == "grc_adjective_gaps"
+        assert origin["δυσπενθέος|all"] != "grc_adjective_gaps"
         # A merged file names one source per pinned layer: a reading the
         # Wiktionary base records, one the dictionary expansion records, and
         # one neither records (also when a layer has the key under another
