@@ -403,21 +403,20 @@ def load_lexical_heads(path: Path | None = None):
 _INNER_HYPHENS = "-—–"
 
 
-def lowercase_twin(head, lexical_heads, names=()):
+def lowercase_twin(head, lexical_heads):
     """The lowercase spelling of a capitalized head when the other lexical
     sources list that spelling and not the capitalized one, else "". The
     OCR prints some capitals' breathing as a separate mark (᾿Αθεότης); the
-    twin is that of the head with the mark joined (Ἀθεότης -> ἀθεότης).
-    A reviewed proper name (``names``) has no twin."""
+    twin is that of the head with the mark joined (Ἀθεότης -> ἀθεότης)."""
     spelled = sanitize_form(head)
     lowered = spelled.lower()
     if (lexical_heads and spelled[:1].isupper() and spelled not in lexical_heads
-            and spelled not in names and lowered in lexical_heads):
+            and lowered in lexical_heads):
         return lowered
     return ""
 
 
-def settle_head(printed, lexical_heads=None, names=()):
+def settle_head(printed, lexical_heads=None):
     """``(head, rule)``: the head a printed head is generated under.
 
     ``rule`` is "" when the printed head stands. A head is malformed, and
@@ -431,22 +430,24 @@ def settle_head(printed, lexical_heads=None, names=()):
     when the other sources list only its lowercase spelling ("lowercased":
     ᾿Αθεότης -> ἀθεότης, Ἔκπτυξις -> ἔκπτυξις). A capitalized head another
     source lists (Πέτρα beside πέτρα), or one with no lowercase twin, is a
-    name and stands. So does a reviewed proper name (``names``, from
-    ``load_proper_names``): Νοητός is Noetus, Σκόπελος an island, whatever
-    the other sources list under νοητός and σκόπελος.
+    name and stands. The rule cannot tell a name that shares its spelling
+    with a common word (Νοητός, Noetus; Σκόπελος, an island): such an entry
+    is generated under the lowercase head too, and the reviewed record of
+    proper names (``load_proper_names``) only keeps the rows the earlier
+    tables have under the name (``unread_printed_heads``).
     """
     if any(mark in printed for mark in _INNER_HYPHENS):
         joined = "".join(ch for ch in printed if ch not in _INNER_HYPHENS)
         if accent_count(joined) <= 1:
             if joined in (lexical_heads or ()):
                 return joined, "joined"
-            lowered = lowercase_twin(joined, lexical_heads, names)
+            lowered = lowercase_twin(joined, lexical_heads)
             if lowered:
                 return lowered, "joined"
         return "", "inner-hyphen"
     if accent_count(printed) > 1:
         return "", "two-accents"
-    lowered = lowercase_twin(printed, lexical_heads, names)
+    lowered = lowercase_twin(printed, lexical_heads)
     if lowered:
         return lowered, "lowercased"
     return printed, ""
@@ -482,15 +483,13 @@ def split_word(first, phrase):
     return joined, second
 
 
-def settle_heads(entries, lexical_heads, audit=None, names=_DEFAULT):
+def settle_heads(entries, lexical_heads, audit=None):
     """The parsed entries keyed by the head each is generated under.
 
     Malformed heads are dropped; repaired and lowercased ones are re-keyed
     in place (see ``settle_head``), and an entry the lexicon also prints
     under the new head keeps its own text. ``audit`` records the three
-    groups by printed head, and under ``proper_names`` the capitalized
-    heads that stand only because the reviewed record (``names``, default:
-    ``load_proper_names()``) lists them.
+    groups by printed head.
 
     A phrase of two words is a word the OCR split (``split_word``) when
     another lexical source lists the joined word and does not list both
@@ -503,14 +502,9 @@ def settle_heads(entries, lexical_heads, audit=None, names=_DEFAULT):
     malformed = audit.setdefault("malformed_heads", {})
     changed = {"joined": audit.setdefault("repaired_heads", {}),
                "lowercased": audit.setdefault("lowercased_heads", {})}
-    named = audit.setdefault("proper_names", {})
-    if names is _DEFAULT:
-        names = load_proper_names()
     settled = {}
     for printed, entry in entries.items():
-        head, rule = settle_head(printed, lexical_heads, names)
-        if head == printed and names and lowercase_twin(printed, lexical_heads):
-            named[printed] = names.get(sanitize_form(printed), {}).get("reason", "")
+        head, rule = settle_head(printed, lexical_heads)
         if not head:
             malformed[printed] = rule
             continue
@@ -833,7 +827,8 @@ def analyze(audit=None):
     return entries, expandable, adverb_list
 
 
-def unread_printed_heads(head_audit, other_heads=frozenset(), breathing=None):
+def unread_printed_heads(head_audit, other_heads=frozenset(), breathing=None,
+                         names=()):
     """The printed heads the head rules do not read as printed and that the
     historical layer still keyed that way: a head rejected for two accents
     ("two-accents" in ``malformed_heads``, or withheld for them by the
@@ -843,13 +838,18 @@ def unread_printed_heads(head_audit, other_heads=frozenset(), breathing=None):
     source's head and is left out. A head with an inner hyphen is not
     included; the overlay has its own rule for a hyphenated lemma. Nor is a
     head withheld for its missing breathing alone: the unbreathed keys of
-    the historical layer serve breathed forms at runtime.
+    the historical layer serve breathed forms at runtime. Nor is a reviewed
+    proper name (``names``, from ``load_proper_names``): the lexicon enters
+    Νοητός for Noetus and Κοπρώνυμος for the emperor's epithet, the rows of
+    the historical layer under such a head are the name's, and they stay
+    under it as before.
     """
     printed = {head for head, rule in head_audit.get("malformed_heads", {}).items()
                if rule == "two-accents"}
     printed.update(head for head, record in ((breathing or {}).get("withheld") or {}).items()
                    if record.get("reason") == "two_accents")
-    printed.update(head_audit.get("lowercased_heads", {}))
+    printed.update(head for head in head_audit.get("lowercased_heads", {})
+                   if sanitize_form(head) not in names)
     return {head for head in printed
             if head not in other_heads and sanitize_form(head) not in other_heads}
 
@@ -863,7 +863,7 @@ def same_letters(old, new):
     return letters(old) == letters(new)
 
 
-def reread_printed_heads(head_audit, other_heads=frozenset()):
+def reread_printed_heads(head_audit, other_heads=frozenset(), names=()):
     """``{printed head: the head it is read as}`` for the rows of the
     historical layer that only need their lemma read again.
 
@@ -878,15 +878,19 @@ def reread_printed_heads(head_audit, other_heads=frozenset()):
     built on the misreading), one written with a micro sign, an asterisk or
     a spacing breathing (the overlay reads the micro sign itself, and no
     text matches the other keys), and a spelling another lexical source
-    lists as its own head.
+    lists as its own head. A reviewed proper name (``names``) is not read
+    under the common word: its rows stay as they are, and those of a
+    misread spelling of it are read under the name (Ἄργυρός, Ἀργυρός).
     """
     lowercased = head_audit.get("lowercased_heads", {})
     candidates = dict(head_audit.get("reread_heads", {}))
     candidates.update(lowercased)
     reread = {}
     for old, new in candidates.items():
-        new = lowercased.get(new, new)
+        if sanitize_form(new) not in names:
+            new = lowercased.get(new, new)
         if (not new or new == old or old in other_heads
+                or sanitize_form(old) in names
                 or sanitize_form(old) in other_heads
                 or not all(char.isalpha() or unicodedata.combining(char)
                            for char in old)
@@ -983,8 +987,12 @@ def expand_all():
     # among them (they get no entry in ``resolutions``). The rows of the
     # ones in ``reread`` are read under the present head instead, where the
     # overlay finds them declined as the entry says (``reread_endings``).
-    unread = unread_printed_heads(head_audit, other_heads, breathing_review)
-    reread = reread_printed_heads(head_audit, other_heads)
+    names = load_proper_names()
+    head_audit["proper_names"] = {
+        head: names[sanitize_form(head)]["reason"]
+        for head in head_audit["lowercased_heads"] if sanitize_form(head) in names}
+    unread = unread_printed_heads(head_audit, other_heads, breathing_review, names)
+    reread = reread_printed_heads(head_audit, other_heads, names)
     endings = reread_endings(reread, head_audit, wikt_genitives)
     reread = {old: new for old, new in reread.items() if old in endings}
     superseded = set(unread)

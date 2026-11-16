@@ -22,7 +22,8 @@ them (overlay_lsj.py) sees the same letters:
   lexicon capitalizes names and some common words alike, and the head
   rules read a capitalized head as a common word when the other lexica
   list only its lowercase spelling. A name that shares its spelling with a
-  common word (Νοητός, Σκόπελος) is listed here and stays a name.
+  common word (Νοητός, Σκόπελος) is listed here, and the rows the earlier
+  tables have under the name stay under it.
 """
 from __future__ import annotations
 

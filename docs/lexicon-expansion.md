@@ -139,14 +139,16 @@ are read through the same rules.
   table already has that head. A breathing the OCR prints as a separate mark
   before the capital is joined to it for this comparison. A capitalized head
   another source lists (`Πέτρα` beside `πέτρα`), or one without a lowercase
-  twin, is a name and stays. So does a reviewed proper name: the `names`
-  section of `data/sophocles_head_corrections.json` lists the heads the
-  lexicon glosses as a person, a god or a place although the other lexica
-  have only the common word of that spelling (`Νοητός` is Noetus,
-  `Σκόπελος` an island, `Κοπρώνυμος` the emperor's epithet), each with its
-  chunk and what the entry says. Its rows stay under the capitalized lemma
-  (`Κοπρωνύμου` reads `Κοπρώνυμος`). Names of sects and feasts are not
-  listed and follow the rule above.
+  twin, is a name and stays. The rule cannot tell a name that shares its
+  spelling with a common word: `Νοητός` (Noetus), `Σκόπελος` (an island) and
+  `Κοπρώνυμος` (the emperor's epithet) are generated under the lowercase
+  head too, as in 1.3.26. The `names` section of
+  `data/sophocles_head_corrections.json` lists the 36 such heads the lexicon
+  glosses as a person, a god or a place, each with its chunk and what the
+  entry says, so that the rows the earlier tables have under the name stay
+  the name's (`Κοπρωνύμου` reads `Κοπρώνυμος`): such a head is not
+  superseded as printed and its rows are not read under the common word.
+  Names of sects and feasts are not listed.
 - **A capitalized unaccented key does not shadow a lowercase reading.** Every
   generated form also gets an accent-stripped key. A capitalized one is
   withheld when its lowercase spelling already reads another lemma:
@@ -162,8 +164,9 @@ The noun step records the decisions in
   the head and the rule (`run-on-ending`, `qualified-noun`, `adverb-idiom`);
 - `head_rules.corrected_heads`: every `<orth>` text a reviewed correction
   replaced, with the head generated;
-- `head_rules.proper_names`: every capitalized head that stands because the
-  reviewed record lists it, with the record's reason;
+- `head_rules.proper_names`: every lowercased head the reviewed record lists
+  as a proper name, with the record's reason; its earlier rows stay under
+  the capitalized lemma;
 - `head_rules.reread_heads`: every head that the tables up to 1.3.26 read
   otherwise (`ούβρικος`, `*σχῆμα`, `᾽Αντινώ`), with the present reading.
   Those tables key rows by the old reading, so it is listed among

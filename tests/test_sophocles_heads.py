@@ -858,26 +858,48 @@ NAMES = {"Νοητός": {"source": "sophocles/0750.xml", "reason": "Noetus"},
          "Ἀγέννητος": {"source": "sophocles/0057.xml", "reason": "a Gnostic figure"}}
 
 
-def test_a_reviewed_proper_name_keeps_its_capital():
-    heads = frozenset({"νοητός", "ἀγέννητος", "θεοτήρητος", "ἀγεννητογενής"})
+def test_the_rows_of_a_reviewed_proper_name_stay_under_the_name():
+    """The lowercase rule cannot tell Νοητός (Noetus) from a capitalized
+    common word, and the entry is generated under νοητός like one. The rows
+    the earlier tables have under the name are the name's: they are neither
+    superseded with the printed head nor read under the common word."""
+    heads = frozenset({"νοητός", "ἀγέννητος", "θεοτήρητος", "ἀργυρός"})
     assert S.settle_head("Νοητός", heads) == ("νοητός", "lowercased")
-    assert S.settle_head("Νοητός", heads, NAMES) == ("Νοητός", "")
-    # the breathing the OCR prints before the capital is joined for the test
-    assert S.settle_head("᾿Αγέννητος", heads, NAMES) == ("᾿Αγέννητος", "")
-    assert S.settle_head("Ἀγεννητο-γενής", heads, NAMES) == ("ἀγεννητογενής", "joined")
-    assert S.settle_head("Θεοτήρητος", heads, NAMES) == ("θεοτήρητος", "lowercased")
+    audit = {
+        "lowercased_heads": {"Νοητός": "νοητός", "᾿Αγέννητος": "ἀγέννητος",
+                             "Θεοτήρητος": "θεοτήρητος", "Ἀργυρός": "ἀργυρός"},
+        # a name printed with a second accent, corrected
+        "reread_heads": {"Ἄργυρός": "Ἀργυρός"},
+    }
+    names = dict(NAMES, **{"Ἀργυρός": {"source": "sophocles/0200.xml",
+                                      "reason": "Argyrus"}})
+    assert S.unread_printed_heads(audit) == {
+        "Νοητός", "᾿Αγέννητος", "Θεοτήρητος", "Ἀργυρός"}
+    assert S.unread_printed_heads(audit, names=names) == {"Θεοτήρητος"}
+    assert S.reread_printed_heads(audit) == {
+        "Νοητός": "νοητός", "Θεοτήρητος": "θεοτήρητος",
+        "Ἄργυρός": "ἀργυρός", "Ἀργυρός": "ἀργυρός"}
+    # the misread spelling of a name is read under the name
+    assert S.reread_printed_heads(audit, names=names) == {
+        "Θεοτήρητος": "θεοτήρητος", "Ἄργυρός": "Ἀργυρός"}
 
-    entry = {"headword": "", "gender": "m", "genitive": "οῦ"}
-    audit = S.new_head_audit()
-    settled = S.settle_heads({"Νοητός": dict(entry), "Θεοτήρητος": dict(entry)},
-                             heads, audit, NAMES)
-    assert set(settled) == {"Νοητός", "θεοτήρητος"}
-    assert audit["lowercased_heads"] == {"Θεοτήρητος": "θεοτήρητος"}
-    assert audit["proper_names"] == {"Νοητός": "Noetus"}
-    # a name is no printed head the rules read otherwise: its rows of the
-    # earlier tables are neither superseded nor read under another head
-    assert S.unread_printed_heads(audit) == {"Θεοτήρητος"}
-    assert S.reread_printed_heads(audit) == {"Θεοτήρητος": "θεοτήρητος"}
+
+def test_noun_audit_keeps_the_rows_of_a_proper_name(tmp_path, monkeypatch):
+    sources = ["lsj9_headwords"]
+    monkeypatch.setattr(S, "load_proper_names", lambda: NAMES)
+    _, audit, _ = run_noun_step(
+        tmp_path, monkeypatch, {"νοητός": "νοητός", "θεοτήρητος": "θεοτήρητος"},
+        "<orth>Νοητός</orth>, οῦ, ὁ, Noetus, the founder of patropassianism.",
+        "<orth>Θεοτήρητος</orth>, ον, (τηρέω) divinely preserved.",
+        heads={"νοητός": sources, "θεοτήρητος": sources})
+    assert audit["head_rules"]["lowercased_heads"]["heads"] == {
+        "Νοητός": "νοητός", "Θεοτήρητος": "θεοτήρητος"}
+    assert audit["head_rules"]["proper_names"] == {
+        "count": 1, "heads": {"Νοητός": "Noetus"}}
+    assert "Θεοτήρητος" in audit["superseded_lemmas"]
+    assert "Νοητός" not in audit["superseded_lemmas"]
+    assert audit["reread_lemmas"] == {"Θεοτήρητος": "θεοτήρητος"}
+    assert audit["reread_endings"] == {"Θεοτήρητος": "ου"}
 
 
 def test_every_proper_name_is_a_capitalized_head_with_a_common_twin():
@@ -895,7 +917,6 @@ def test_every_proper_name_is_a_capitalized_head_with_a_common_twin():
         assert name in printed, name
         # without the record the head rules would read it as the common word
         assert S.lowercase_twin(name, heads) == name.lower(), name
-        assert S.settle_head(name, heads, names) == (name, ""), name
 
 
 def test_proper_names_refuse_a_malformed_record(tmp_path):
