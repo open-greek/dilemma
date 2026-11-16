@@ -115,6 +115,30 @@ def test_shipped_marked_double_rho(shipped_models, lang):
         model.lemmatize_pos("Βορρᾶ", "PROPN", guess=False))
 
 
+def test_shipped_attested_gate_matches_the_printed_spelling(shipped_models):
+    model = shipped_models["grc"]
+    printed, plain = "ἀντιῤῥητικοὺς", "ἀντιρρητικοὺς"
+    database = model._attestdb()
+    if (not database.available or not database.is_attested(printed)
+            or database.is_attested(plain)):
+        pytest.skip("Needs form_profile.db with only the printed spelling")
+    lemma = "ἀντιρρητικός"
+    assert model.lemmatize(plain, guess=False) == lemma
+    assert model.lemmatize(plain, guess=False, attested_only=True) is None
+    assert model.lemmatize(printed, guess=False, attested_only=True) == lemma
+    assert model.lemmatize_batch(
+        [printed, plain], guess=False, attested_only=True) == [lemma, None]
+    assert model.lemmatize_pos(
+        printed, "ADJ", guess=False, attested_only=True) == lemma
+    assert model.lemmatize_batch_pos(
+        [printed, plain], ["ADJ", "ADJ"], guess=False,
+        attested_only=True) == [lemma, None]
+    assert model.lemmatize_verbose(
+        printed, guess=False, attested_only=True)[0].lemma == lemma
+    assert model.lemmatize_verbose(
+        plain, guess=False, attested_only=True) == []
+
+
 def test_shipped_marked_double_rho_matches_the_plain_spelling_in_modern_mode():
     if not core.LOOKUP_DB_PATH.exists():
         pytest.skip("Shipped Dilemma data is not installed")
