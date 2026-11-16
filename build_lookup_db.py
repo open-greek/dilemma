@@ -370,6 +370,17 @@ REVIEWED_TREEBANK_READINGS = {
     # 743, σός 1). The pinned Wiktionary-only base reads σύ. The other keys
     # of σύ are restored with the γραφή paradigm in the build (#110).
     "σοι": "σύ", "σοί": "σύ",
+    # Elided keys whose dictionary-expansion reading is the reading of none
+    # of their full forms, where AGDT, GLAUx and Diorisis agree on another
+    # (GLAUx: χαίρετ’ χαίρω 40, ζῶντ’ ζάω 25, ἔνερθ’ ἔνερθε 10). The el copy
+    # of the GLAUx pair answered lang="el" with that reading until the copy
+    # was removed (drop_el_corpus_readings). μαχώμεθ’ read συμμαχέω, as AGDT
+    # has it; GLAUx and Diorisis read μάχομαι. The keys end in U+1FBD.
+    **{stem + "\u1fbd": lemma for stem, lemma in (
+        ("χαίρετ", "χαίρω"), ("ζῶντ", "ζάω"), ("ζῶνθ", "ζάω"),
+        ("ἔνερθ", "ἔνερθε"), ("θέρμετ", "θέρμω"), ("μύρονθ", "μύρω"),
+        ("μαχώμεθ", "μάχομαι"), ("ἔνδικ", "ἔνδικος"), ("ἔννομ", "ἔννομος"),
+        ("κρατερόφρον", "κρατερόφρων"), ("παιδέρωτ", "παιδέρως"))},
 }
 
 # Ancient readings that name an inflected form, with the lemma each key
@@ -720,18 +731,22 @@ def medieval_readings_held_back(med: dict, *, el: dict, ag: dict,
       Medieval rows.
 
     A looser key of a held-back form (παρεξω) follows it when it has the
-    same Medieval reading and an Ancient reading of its own.
+    same Medieval reading and an Ancient reading of its own. A Medieval
+    lemma with the letters of the Ancient one is the same word (κωκυτός
+    beside Κωκυτός) and keeps its row.
     """
     held: dict[str, str] = {}
     families = set()
     for form, lemma in med.items():
         ancient = ag.get(form)
-        if form in el or not isinstance(ancient, str) or ancient == lemma:
+        if (form in el or not isinstance(ancient, str)
+                or not isinstance(lemma, str)
+                or modern_word_key(ancient) == modern_word_key(lemma)):
             continue
         if (evidence.get(form, {}).get(ancient, 0)
                 < MEDIEVAL_ANCIENT_FORM_MIN_TOKENS):
             continue
-        if not isinstance(lemma, str) or modern_word_key(lemma) in modern_words:
+        if modern_word_key(lemma) in modern_words:
             continue
         held[form] = ancient
         families.add((modern_word_key(form), lemma))

@@ -46,19 +46,20 @@ def test_lowercase_twin_readings_need_a_modern_row_and_an_ancient_twin():
 def test_medieval_readings_held_back_for_attested_ancient_forms():
     med = {"παρέξω": "παρέξω", "παρεξω": "παρέξω", "ἄνδρας": "ἄνδρας",
            "ἀκούεις": "ἀκούεις", "κουβαλῶ": "κουβαλῶ", "δόσις": "δόσιμον",
-           "ῥάπτης": "ῥάπτης", "θεωρῶ": "θεωρῶ"}
+           "ῥάπτης": "ῥάπτης", "θεωρῶ": "θεωρῶ", "κωκυτός": "κωκυτός"}
     ag = {"παρέξω": "παρέχω", "παρεξω": "παρέχω", "ἄνδρας": "ἀνήρ",
           "ἀκούεις": "ἀκούω", "δόσις": "δόσις", "ῥάπτης": "ῥάπτω",
-          "θεωρῶ": "θεωρέω"}
+          "θεωρῶ": "θεωρέω", "κωκυτός": "Κωκυτός"}
     el = {"θεωρώ": "θεωρώ", "άνδρας": "άνδρας", "δόσις": "δόση"}
     evidence = {"παρέξω": {"παρέχω": 45}, "ἄνδρας": {"ἀνήρ": 4039},
                 "ἀκούεις": {"ἀκούω": 60}, "ῥάπτης": {"ῥάπτω": 1},
-                "θεωρῶ": {"θεωρέω": 30}}
+                "θεωρῶ": {"θεωρέω": 30}, "κωκυτός": {"Κωκυτός": 9}}
     modern = {B.modern_word_key(word) for word in ("θεωρώ", "άνδρας")}
     held = B.medieval_readings_held_back(
         med, el=el, ag=ag, evidence=evidence, modern_words=modern)
     # ἄνδρας and θεωρῶ are Modern words, ῥάπτης has one token, κουβαλῶ no
-    # Ancient reading, and the el table already has δόσις.
+    # Ancient reading, the el table already has δόσις, and κωκυτός is the
+    # Ancient lemma's own word.
     assert held == {"παρέξω": "παρέχω", "παρεξω": "παρέχω",
                     "ἀκούεις": "ἀκούω"}
 
@@ -113,6 +114,8 @@ def test_reviewed_treebank_readings_name_lemmas():
     assert readings["Νέαις"] == "Νέαι"
     assert readings["σοι"] == readings["σοί"] == "σύ" and readings["ὥς"] == "ὡς"
     assert "νέη" not in readings.values()
+    assert readings["χαίρετ\u1fbd"] == "χαίρω"
+    assert all(len(key) > 1 for key in readings)
     assert B.ANCIENT_FORM_LEMMA_READINGS == {"μου": "ἐγώ"}
     assert B.MODERN_READING_OVERRIDES["μου"] == "μου"
 
