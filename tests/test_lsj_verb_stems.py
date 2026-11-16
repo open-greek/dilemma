@@ -84,6 +84,13 @@ def nfc(text):
     ("ἀποφέρω", "ἀπηνεικ", "ἀπενεικ", "ἀπ"),
     # ... while the passive of λύω has one
     ("λύω", "ἐλυθ", "λυθ", ""),
+    # ἕσσα beside ἕννυμι: nothing begins with σσ, so the ε is the stem's
+    ("ἕννυμι", "ἑσσ", "ἑσσ", ""),
+    ("περιέννυμι", "περιεσσ", "περιεσσ", "περι"),
+    ("ἐφέννυμι", "ἐφεσσ", "ἐφεσσ", "ἐφ"),
+    # ... while ἔσχον and ἔστησα lose theirs
+    ("ἔχω", "ἐσχ", "σχ", ""),
+    ("ἵστημι", "ἐστησ", "στησ", ""),
 ])
 def test_unaugmented_stem(headword, augmented, plain, prefix):
     assert unaugmented_stem(headword, augmented) == (plain, prefix)
@@ -99,6 +106,8 @@ def test_unaugmented_stem(headword, augmented, plain, prefix):
     ("προβάλλω", "προὐβαλ"),        # contracted with the preverb
     ("ὠθέω", "ἐωσ"),                # syllabic augment before a vowel
     ("διαΐσσω", "διῃξ"),
+    # ἕσσα beside ἵζω: neither an augment nor the present's vowel
+    ("ἵζω", "ἑσσ"),
 ])
 def test_unreadable_augment_is_not_guessed(headword, augmented):
     assert unaugmented_stem(headword, augmented)[0] is None

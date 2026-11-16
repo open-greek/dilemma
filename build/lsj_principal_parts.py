@@ -869,6 +869,10 @@ def _unaugmented_base(base: list[str], rest: list[str], simplex: bool
                         for letter in base[:group]]
             return restored + rest[len(augment):], True
     if r[0] == "ε" and len(r) > 1 and r[1] not in _VOWEL_LETTERS:
+        if r[1:2] == r[2:3]:
+            # ἕσσα beside ἕννυμι: no stem begins with a doubled consonant,
+            # so the ε is the stem's own and there is no augment to remove.
+            return (rest, False) if vowel == "ε" else (None, False)
         # A consonant-initial aorist beside a vowel-initial present
         # (ἔχω ἔσχον, ἵστημι ἔστησα).
         return rest[1:], True
