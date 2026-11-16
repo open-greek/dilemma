@@ -828,6 +828,19 @@ evidence (#141):
   corrected the combined reading (`ᾔει`). The 1.3.26 tables had 294 such
   rows; the log line is `el readings of Ancient corpus pairs that the
   combined row contradicts, removed: N`.
+- Removing a copy leaves the combined reading to answer `lang="el"`, and for
+  some elided keys that reading is the worse one: a string that is no lemma
+  of the table (`καθέζετ᾽` read the verb form `καθέζετο`, `κείν᾽` the Beta
+  Code `κει~νος`, `Ἐφ᾽` a capitalised `Ἐπί`), or the lemma of another word
+  (`λῆμ᾽` read `λήμη`, `χείρον᾽` the centaur `Χείρων`). Those keys take a
+  reviewed reading under every `lang`, the one their full form or their
+  lowercase key has (`REVIEWED_TREEBANK_READINGS`, 61 elided keys:
+  `καθέζομαι`, `ἐκεῖνος`, `ἐπί`, `λῆμα`, `χείρων`). A copy that agrees with
+  the reviewed reading is not counted in the log line. Where the two
+  readings are conventions of one word (`ἴθ᾽` as `εἶμι` or `ἔρχομαι`,
+  `ἰδόντ᾽` as `εἶδον` or `ὁράω`), the combined reading answers; no rule
+  decides these, because neither treebank agreement nor the full form's
+  reading is right throughout (`ἄγετ᾽` is the particle `ἄγε`).
 - A Medieval entry is not merged when the Ancient table reads the same
   spelling as another lemma, GLAUx reads the form as that lemma at least
   twice, and the Medieval lemma is no Modern word, that is, its letters are
@@ -836,13 +849,14 @@ evidence (#141):
   answers for the future of `παρέχω`, nor `ἀκούεις` for `ἀκούω`; `ἄνδρας`,
   `νά`, `θεωρῶ` and `ἀφοῦ` keep their Medieval rows. Each held-back reading
   is listed in `citation_hygiene_rejections.tsv` with the reason
-  `medieval_reading_of_ancient_form_<lemma>` (29 keys in the 1.3.26 inputs).
+  `medieval_reading_of_ancient_form_<lemma>` (27 keys in the 1.3.26 inputs).
 
 `ANCIENT_FORM_LEMMA_READINGS` names Ancient readings that are an inflected
 form: the Greek Wiktionary page `μου` is a form-of entry of `ἐγώ` that
 carries the whole pronoun grid, so `ἐμοῦ`, `ἐμεῖο`, `μευ` and 37 more keys
-read `μου`. Every such key reads `ἐγώ`; the combined row of `μου` itself
-stays the Modern weak pronoun (`MODERN_READING_OVERRIDES`).
+read `μου`. Such a key reads `ἐγώ`, unless a reviewed reading names another
+lemma (the accent-free keys of `ἐμούς` read `ἐμός`); the combined row of
+`μου` itself stays the Modern weak pronoun (`MODERN_READING_OVERRIDES`).
 
 When the transformer handles an unseen form, beam search generates
 multiple candidates and picks the first that matches a known headword
@@ -1203,7 +1217,12 @@ speech differ; the lookup holds one.
   has only the name's page, whose lowercase key took the word). It needs the
   GLAUx majority of at least two tokens, because those lists and the base
   also hold inflected forms (one token, as for `ἐγώγε` or `τός`, is a
-  lemmatizer's choice).
+  lemmatizer's choice). For a case twin the grave spelling counts as well:
+  an oxytone head stands with its acute only before a pause, so GLAUx has
+  `γυμνικὸς` six times and `γυμνικός` once. Other heads are counted in their
+  exact spelling, since the grave would bring back `είς`, `τός` and `Δίς`.
+  A reviewed reading overrides the rule where a third lemma has the form
+  (`δεῖνος` is the genitive of `δεῖνα`, 58 tokens to 5).
 - Where GLAUx prefers the other lemma (`τοῦ`, `ἴσον`, `θρόνον`), the reading
   stays. So does a head whose own reading the article filter would drop
   (`ὄ`, whose keys `ὄ` and `ό` keep `ὅς` instead of losing their row).

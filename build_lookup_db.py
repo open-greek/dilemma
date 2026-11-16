@@ -420,13 +420,18 @@ REVIEWED_TREEBANK_READINGS = {
     # Elided keys that read a lemma of the table, but of another word than
     # their full forms: χείρον’ is χείρονα, which reads χείρων as AGDT and
     # Diorisis have it, not the centaur Χείρων; μήτιν’ is μήτινα (μήτις 4),
-    # not μῆτις, which has a circumflex; ἐϊκυῖ’ is the participle of ἔοικα,
-    # not εἰκός; four verb forms read a capitalised Βακχεύω or Κορυβαντίζω,
-    # as GLAUx names a verb made from a name, where βακχεύω and κορυβαντίζω
-    # have rows of their own.
+    # not μῆτις, which has a circumflex, and λῆμ’ is λῆμα (9), not λήμη,
+    # which has an acute; ἐϊκυῖ’ is the participle of ἔοικα, not εἰκός;
+    # ἐπίστασ’ is ἐπίστασαι (ἐπίσταμαι 5), not a form of ἐφίστημι; γαῖ’ is
+    # γαῖα as γαῖαν is, not the goddess (GLAUx files its 25 under γῆ, AGDT
+    # and Diorisis under γαῖα); ἔρωτ’ is ἔρως in all three treebanks (4),
+    # not the god; four verb forms read a capitalised Βακχεύω or
+    # Κορυβαντίζω, as GLAUx names a verb made from a name, where βακχεύω
+    # and κορυβαντίζω have rows of their own.
     **{stem + "\u1fbd": lemma for stem, lemma in (
-        ("χείρον", "χείρων"), ("μήτιν", "μήτις"), ("ἐϊκυῖ", "ἔοικα"),
-        ("βάκχευσ", "βακχεύω"), ("βακχεύητ", "βακχεύω"),
+        ("χείρον", "χείρων"), ("μήτιν", "μήτις"), ("λῆμ", "λῆμα"),
+        ("ἐϊκυῖ", "ἔοικα"), ("ἐπίστασ", "ἐπίσταμαι"), ("γαῖ", "γαῖα"),
+        ("ἔρωτ", "ἔρως"), ("βάκχευσ", "βακχεύω"), ("βακχεύητ", "βακχεύω"),
         ("βακχεύοντ", "βακχεύω"), ("ἐκορυβάντιζ", "κορυβαντίζω"))},
     # The genitive of ὁ δεῖνα (58, and Diorisis), which the name page Δεῖνος
     # held and the case-twin rule would hand to the rare δεῖνος (5), as it

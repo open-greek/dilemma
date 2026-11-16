@@ -141,7 +141,7 @@ def test_reviewed_readings_are_well_formed():
                        for char in key.lstrip("-")), key
     elided = {key: lemma for key, lemma in B.REVIEWED_TREEBANK_READINGS.items()
               if key.endswith(elision)}
-    assert len(elided) == 57
+    assert len(elided) == 61
     # An elided key never reads a capitalised lemma its lowercase stem lacks.
     assert all(lemma[0].isupper() <= key[0].isupper()
                for key, lemma in elided.items())
