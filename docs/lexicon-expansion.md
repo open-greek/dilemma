@@ -429,6 +429,11 @@ stem from it and from the headword:
   `ἤλπισα` `ἐλπισ-`, `ἀνῴδησα` `ἀνοιδησ-`), never a fixed vowel.
 - The suppletive aorists have their own stems (`εἰσήνεγκα` `εἰσενεγκ-`,
   `ἀπῆλθον` `ἀπελθ-`, `συνεῖδον` `συνιδ-`, `ἀφεῖλον` `ἀφελ-`).
+- An `ε` that belongs to the stem is not an augment: an Ionic aorist printed
+  without one keeps its stem (`ἀπένεικα` `ἀπενεικ-`, not `ἀπονεικ-`), and so
+  does an aorist whose `ε` is followed by a doubled consonant, which opens
+  no stem (`ἕσσα` of `ἕννυμι`: `περιεσσ-`, not `περισσ-`). `ἔσχον` and
+  `ἔστησα` lose theirs (`σχ-`, `στησ-`).
 - A stem that cannot be read against the headword is not guessed: a second
   augment after the preverb (`ἠμφεσβήτησα`, `ἐπηνώρθωσα`), a contracted one
   (`προὔβαλον`), a syllabic augment before a vowel (`ἔωσα`). Then only the
@@ -472,7 +477,7 @@ simplex, a denominative to its class. Such a verb had its present system
 only, so `εἰκόνισεν` had no Ancient row. The pass states the missing parts
 as hypotheses and keeps the cells a corpus attests. On the 1.3.26 inputs,
 8,206 compounds take parts from a simplex and 12,443 verbs from their class;
-8,953 of them keep at least one cell, 50,331 cells in all (99,406 keys with
+8,953 of them keep at least one cell, 50,329 cells in all (99,405 keys with
 the unaccented spellings).
 
 - A compound takes the parts its simplex prints (`compound_parts`):
@@ -575,6 +580,9 @@ reading weighs depends on the stem under the cell:
   too (`περιειλόμεθα` of `περιείλω` and of the aorist `περιειλόμην` under
   `περιαιρέω`). Where the treebanks read the form as the verb of the printed
   part, that verb takes it.
+  A headword that holds its own key keeps it (`μεθήκω`); a cross-reference
+  headword that is a cell of the other present goes with the part
+  (`ὑπερεῖδον`, held by `ὑπερείδω`, is the aorist of `ὑπεροράω`).
 
 The corpus tables only withhold or confirm cells; no form or lemma enters the
 table from them.
