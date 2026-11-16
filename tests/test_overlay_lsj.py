@@ -500,7 +500,7 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
     reference = {
         **reference_base,
         "ἀποκλείεται": "historical-lemma",
-        "ῥαψάμενοι": "new-historical-lemma",
+        "ῥαψάμενοι": "ῥάπτω",
         "δακτύλι": "historical-lemma",
         "κατεβρεχθῶσι(ν": "βρέχω",
         "unmarked": "generated-fallback",
@@ -519,7 +519,7 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
         "base": "new-base",
         "δακτύλι": "current-lemma",
         "new": "new-lemma",
-        "ῥαψάμενοι": "new-historical-lemma",
+        "ῥαψάμενοι": "ῥάπτω",
     }
     assert stats["expansion_entries"] == 5
     assert stats["unmarked_entries"] == 1
@@ -527,6 +527,78 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
     assert stats["excluded_entries"] == 1
     assert stats["added"] == 1
     assert stats["conflicts_preserved"] == 1
+
+
+@pytest.mark.parametrize("lemma,hyphenated", [
+    ("Βακχ-εία", True),            # LSJ9's export divides the head
+    ("καθ-ηδύνω", True),           # the Sophocles lexicon divides a compound
+    ("Σινα-ῖτις", True),           # an OCR line-break hyphen
+    ("προσ-ανα-στίζω", True),
+    ("ἐπί-εἰσκομίζω", True),       # a corpus lemma naming the preverb apart
+    ("παρά,εἰσ-δυάω", True),
+    ("στρέφω—τρέπω", True),        # a dash between two words
+    ("ἐμ\u0301-βλῴσκω", True),      # a stray accent before the hyphen
+    ("βου\u00adμα\u00adστόω", True),  # soft hyphens from LSJ9's headword list
+    ("γναμπτ\u00ad\u00adω", True),
+    ("ἐπιθρύξω—ἐω", True),
+    ("α-⏑β", False),
+    ("Βακχεία", False),
+    ("καθηδύνω", False),
+    ("ὁτ-", False),                # a hyphen at either end is not inside
+    ("-σον", False),
+    ("–⏑τατος", False),
+    ("", False),
+    ("-", False),
+])
+def test_hyphenated_lemma_has_a_hyphen_between_two_letters(lemma, hyphenated):
+    from dilemma.citation import hyphenated_lemma
+    import overlay_lsj
+    assert hyphenated_lemma(lemma) is hyphenated
+    assert overlay_lsj.hyphenated_lemma is hyphenated_lemma
+
+
+def test_overlay_never_restores_a_row_under_a_hyphenated_lemma():
+    reference = {
+        # LSJ: the historical layer has the divided and the joined head
+        "Βοιωτ-άρχου": "Βοιωτ-άρχης", "Βοιωτάρχου": "Βοιωτάρχης",
+        # Sophocles: a head the generator now reads as καθηδύνω, and one it rejects
+        "καθ-ήδυνε": "καθ-ηδύνω", "Σινα-ίτιδος": "Σινα-ῖτις",
+        # a spelling without a hyphen under such a lemma
+        "ἐπεισεκόμισαν": "ἐπί-εἰσκομίζω",
+        "Βακχ-είας": "Βακχ-εία",
+        "ὁτέων": "ὁτ-",
+    }
+    target = {"Βακχ-είας": "current"}
+    stats = overlay_expansion(
+        reference, {}, target,
+        # naming the printed head superseded changes nothing
+        superseded_noun_lemmas={"Σινα-ῖτις"},
+        withheld_noun_lemmas={"Σινα-ῖτις": ("ιδος",)},
+        carried={"Σινα-ίτιδος": "Σινα-ῖτις"}, lexical_heads={"Σινα-ῖτις"})
+    assert target == {"Βακχ-είας": "current", "Βοιωτάρχου": "Βοιωτάρχης",
+                      "ὁτέων": "ὁτ-"}
+    assert stats["hyphenated_lemma_entries"] == 4
+    assert stats["already_present"] == 1 and stats["conflicts_preserved"] == 1
+    assert stats["superseded_noun_entries"] == 0
+    assert stats["withheld_noun_entries_kept"] == 0
+    assert stats["added"] == 2
+
+
+def test_unaccented_key_under_a_hyphenated_lemma_stays_out():
+    from overlay_lsj import restore_unmarked_keys
+    reference = {"Βοιωτ-άρχου": "Βοιωτ-άρχης", "Βοιωτ-αρχου": "Βοιωτ-άρχης",
+                 "ἐπεισεκόμισαν": "ἐπί-εἰσκομίζω",
+                 "επεισεκομισαν": "ἐπί-εἰσκομίζω",
+                 "Βοιωτάρχου": "Βοιωτάρχης", "Βοιωταρχου": "Βοιωτάρχης"}
+    # even a table that still has the marked rows gives the keys no backing
+    target = {"Βοιωτ-άρχου": "Βοιωτ-άρχης", "ἐπεισεκόμισαν": "ἐπί-εἰσκομίζω",
+              "Βοιωτάρχου": "Βοιωτάρχης"}
+    carried = {key: lemma for key, lemma in reference.items()
+               if key in {"Βοιωτ-αρχου", "επεισεκομισαν", "Βοιωταρχου"}}
+    stats = restore_unmarked_keys(reference, {}, target, carried)
+    assert target["Βοιωταρχου"] == "Βοιωτάρχης"
+    assert "Βοιωτ-αρχου" not in target and "επεισεκομισαν" not in target
+    assert stats["unmarked_candidates"] == 1 and stats["unmarked_restored"] == 1
 
 
 def test_target_editorial_cleanup_resolves_only_movable_nu():

@@ -3,6 +3,7 @@
 [README](../README.md)
 
 - [Build commands](#build-commands)
+- [LSJ heads](#lsj-heads)
 - [Sophocles heads](#sophocles-heads)
 - [Historical expansion overlay](#historical-expansion-overlay)
 - [Corpus and lexical evidence](#corpus-and-lexical-evidence)
@@ -56,6 +57,47 @@ citations. The verb pass reads it only for principal parts: a tense the current
 text gives stands, a tense it lacks is taken from the earlier text, and the
 three aorist slots are filled only together. 978 verb entries gain 3,018
 principal parts this way. Entry rejections still read the current text alone.
+
+## LSJ heads
+
+`build/expand_lsj.py` reads its entries from two LSJ9 exports.
+`lsj9_forms.tsv` has the grammar of 63,381 entries and prints 41,956 of their
+heads divided at the stem with a hyphen (`Βακχ-εία`, `ἀασι-φρονία`,
+`καθ-ηδύνω`). `lsj9_headwords.json` lists every entry under the joined word
+and keeps the divided spelling in its `hyphenated` field. The hyphen is the
+export's notation, not part of the word, so a divided head is read under the
+joined word (`settle_lsj_head`):
+
+- Joining only drops the hyphens. The head keeps the accent and breathing LSJ
+  prints, including a coronis inside the word (`καλοκἀγαθ-ία` is
+  `καλοκἀγαθία`).
+- The joined word must be a headword of `lsj9_headwords.json`. All 41,956
+  are. A divided head whose joined word LSJ does not list would be set aside
+  (`inner-hyphen`); a head is never keyed with its hyphen.
+- The joined head takes the grammar of its `lsj9_forms.tsv` row and is
+  generated where the headword list has the entry, so the paradigms come out
+  in the same order as before. A row printed without a hyphen keeps its key
+  and its grammar when a divided row has the same joined spelling
+  (`λοῖσθος, ὁ` beside `λοῖσθ-ος, ον`).
+
+The headword list has artefacts of its own, and the same rule reads them: 76
+headwords are broken by soft hyphens (U+00AD, invisible in print), and 39
+carry a dash, most of them a whole run of entry text and one a verb in shape
+(`ἐπιθρύξω—ἐω`). Eight of the soft-hyphen spellings join to a listed headword
+(`βραγχάω`), which has its own entry; the others are not words LSJ has and
+are set aside.
+
+Up to 1.3.26 a divided head was keyed as printed. It got a paradigm of its
+own with the hyphen in every key and in the lemma (`Βακχ-είας` under
+`Βακχ-εία`), beside the paradigm of the joined entry from the headword list.
+No text spells a word that way, so those rows matched nothing. Six soft-hyphen
+headwords and `ἐπιθρύξω—ἐω` got verb paradigms the same way.
+
+The noun step records the decisions in `data/ag_noun_generation_audit.json`
+under `head_rules`: `joined_heads` (every divided head and the head it is read
+under) and `malformed_heads` (every divided head set aside), each with its
+`count`. `superseded_lemmas` and `resolutions` name the joined head. The verb
+step reads the same heads.
 
 ## Sophocles heads
 
@@ -125,10 +167,14 @@ and the lowercase rule read are pinned among the noun audit's inputs
 (`input_sha256.lexical_heads`), so the overlay refuses an audit made against
 other heads.
 
-The rules change what the generator writes, not what the overlay recovers.
-`superseded_lemmas` still names a lemma as the lexicon prints it, because the
-historical layer keyed its rows that way, so a rejected or re-keyed head that
-is not superseded keeps the marked rows the pinned reference has for it.
+The rules change what the generator writes. What the overlay recovers is
+decided there: it never restores a row under a hyphenated lemma (see
+[below](#historical-expansion-overlay)), so the rows the historical layer
+keyed under a divided head are gone whether the head was repaired or
+rejected. `superseded_lemmas` still names a lemma as the lexicon prints it,
+because the historical layer keyed its rows that way; a head rejected for two
+accents, or read under its lowercase twin, keeps the marked rows the pinned
+reference has for its printed spelling unless it is superseded.
 
 ## Historical expansion overlay
 
@@ -145,6 +191,29 @@ skeleton. The generated `data/ag_expansion_exclusions.json` also removes
 historical rows that conflict with the pinned 1.3.1 resolved lookup or with
 Dilemma's nonlexical classifier. Its generator is
 `build/build_ag_expansion_exclusions.py`.
+
+A row whose lemma has a hyphen, a soft hyphen or a dash between two letters
+is not restored (`hyphenated_lemma`). The historical layer keyed a head as its lexicon printed
+it: LSJ9's export divides compounds and derivatives (`Βοιωτ-άρχης`), the
+Sophocles lexicon divides compounds and its OCR keeps line-break hyphens
+(`καθ-ηδύνω`, `Σινα-ῖτις`), and a few rows name a corpus lemma with its preverb
+apart (`ἐπί-εἰσκομίζω`). None is a citation form. The generators now read such
+a head under its joined word ([LSJ heads](#lsj-heads),
+[Sophocles heads](#sophocles-heads)) or reject it, so the old rows are
+superseded by the joined head's paradigm, or outright. The rule looks at the
+lemma only, so it also covers a spelling of a head the current parse no longer
+prints (`ριγο-πύρετος`, now read with its breathing). The keys of these rows
+carry the hyphen too (`Βοιωτ-άρχου`), apart from a few hundred corpus
+spellings, and are not re-keyed: the joined head has its own paradigm from the
+current generators or from the reference (`Βοιωτάρχου` under `Βοιωτάρχης`),
+and the overlay restores historical rows as they stand or not at all. The
+rows count as `hyphenated_lemma_entries`; an unaccented key under such a
+lemma is no candidate for the last rule below either. The test is
+`dilemma.citation.hyphenated_lemma`. `build_lookup_db.py` applies it to the
+Ancient corpus pairs as well, which name some of the same lemmas: a pair
+under a preverb lemma is kept under the compound verb when a head list has
+it (`ἐπεισεκόμισαν` under `ἐπεισκομίζω`), and the others are dropped
+(docs/usage.md, "hyphenated_lemma").
 
 The table published from 1.3.7 to 1.3.25 was built on top of earlier tables,
 so it carried keys that a build from fresh dumps withholds or that no current
@@ -233,9 +302,9 @@ the carried table likewise comes from its pinned Hub revision unless
 
 `build_lookup_db.py` checks the readings this layer supplies once more: a
 lemma without any diacritic that no list in `grc_lexical_heads.json` has
-(transliterated Latin such as `αελιυς`, OCR such as `λαβλυμι`, hyphenated
-compounds such as `προ-ανακηρυσσω`) is dropped, or moved to the single
-Ancient head with the same letters when the lookup maps that head to itself
+(transliterated Latin such as `αελιυς`, OCR such as `λαβλυμι`) is dropped, or
+moved to the single Ancient head with the same letters when the lookup maps
+that head to itself
 (`συνοχος` → `σύνοχος`; a cross-reference head such as `κλεῖδα` drops the
 reading instead). A corpus pair naming one of these lemmas gets the same
 verdict. Each such reading is listed in
