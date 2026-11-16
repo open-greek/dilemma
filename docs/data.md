@@ -705,10 +705,15 @@ has labeled (`fut.`, `aor.` 1 / 2, `pf.`, `pf. m./p.`, `aor. p.`,
 positional argument. A principal part must carry a tonal accent. The parser
 skips an unaccented token when an intact accented form immediately follows
 in the same clause; it never supplies a missing accent to the source text.
-About 712 LSJ-only verbs receive at least one
+794 LSJ-only verbs receive at least one
 parsed principal part this way, lifting them from present-tense-only
-expansion to full paradigm coverage and adding ~+55 unique forms per
-eligible verb on average. The classifier itself
+expansion towards full paradigm coverage. A past tense is built on two stems,
+the printed augmented one for the indicative and one without the augment for
+the other moods, which is derived from the headword (`ἀντετάφην` gives
+`ἀντιταφείς`, `εἰσήνεγκα` `εἰσενέγκας`); where the augment cannot be read
+only the indicative is built
+([Stems of the past tenses](lexicon-expansion.md#stems-of-the-past-tenses)).
+The classifier itself
 (`build/expand_lsj.py::_classify_verb`) routes athematic and
 irregular verbs explicitly: -ννυμι / -νυμι / -ημι / -ωμι / -αμι /
 -μι suffix dispatch for the regular cases, plus a hand-coded Attic

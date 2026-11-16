@@ -56,6 +56,9 @@ citations. The verb pass reads it only for principal parts: a tense the current
 text gives stands, a tense it lacks is taken from the earlier text, and the
 three aorist slots are filled only together. 978 verb entries gain 3,018
 principal parts this way. Entry rejections still read the current text alone.
+Both files give the text under the entry's own spelling, which the verb pass
+matches to the headword list as described under
+[Verb expansion](#verb-expansion).
 
 ## Sophocles heads
 
@@ -380,9 +383,77 @@ when it is built from an older local pair file.
    parts fall back to present-only behavior, so the path is strictly
    additive.
 
-About 712 LSJ-only verbs receive at least one parsed principal part
-through path 2; full-pipeline success on the 28,745 LSJ-only verb
-candidates is 99.27%.
+794 of the 28,503 LSJ-only verb candidates receive at least one parsed
+principal part through path 2 (215 of them from the earlier export), and
+27,754 candidates are expanded.
+
+The entry text is found by the headword's spelling. The headword list drops
+quantity marks, and prints `θρώσκω` for the entry `θρῴσκω`, while the glosses
+keep the entry's own spelling (`ἀγῑνέω`), so the exact spelling alone misses
+the text of 6,883 candidates. `head_text_finder` takes the exact spelling
+first, then the one entry with the same letters without quantity marks, then
+the one without iota subscript either. A spelling that two entries share
+(`θᾱλέω`, `θᾰλέω`) gets no text.
+
+The parser reads Arabic and Roman aorist numbers (`aor. 1`, `aor. I`), a text
+that opens inside a section (`Pass., aor. ἀντετάφην`), and two numbered
+passive aorists of one verb (`ἀπεπνίχθην`, `ἀπεπνίγην`). A token that begins
+with a vowel and has no breathing is the tail of a word (`fut. ύσω`), never a
+form. Where the current text stops right after a label (`ἀνοιδέω`: "fut.
+-ήσω: aor.") and the earlier text opens with a Greek word (`ἀνῴδησα`), the two
+are read as one text. Hyphenated abbreviations (`fut. -ήσω`, `aor. -έτεμον`)
+are still not expanded.
+
+### Stems of the past tenses
+
+`Module:grc-conj` takes two stems for a past tense: the augmented one for the
+indicative and the unaugmented one for every other mood, the infinitive and
+the participle (`aor-1|ἐλυσ|λυσ`, and for the passive `aor-1|||ἐλυθ|λυθ`).
+LSJ prints the augmented indicative, so `unaugmented_stem` derives the other
+stem from it and from the headword:
+
+- In a compound the augment follows the preverb, which stands before it in
+  its prevocalic form; removing the augment restores the preverb of the
+  present: `ἀντετάφην` gives `ἀντιταφ-`, `ἐξέβαλον` `ἐκβαλ-`, `συνέλεξα`
+  `συλλεξ-`, `ἐνέθορον` `ἐνθορ-`, `κατέστησα` `καταστησ-`.
+- A temporal augment restores the vowel of the headword (`ἤκουσα` `ἀκουσ-`,
+  `ἤλπισα` `ἐλπισ-`, `ἀνῴδησα` `ἀνοιδησ-`), never a fixed vowel.
+- The suppletive aorists have their own stems (`εἰσήνεγκα` `εἰσενεγκ-`,
+  `ἀπῆλθον` `ἀπελθ-`, `συνεῖδον` `συνιδ-`, `ἀφεῖλον` `ἀφελ-`).
+- A stem that cannot be read against the headword is not guessed: a second
+  augment after the preverb (`ἠμφεσβήτησα`, `ἐπηνώρθωσα`), a contracted one
+  (`προὔβαλον`), a syllabic augment before a vowel (`ἔωσα`). Then only the
+  indicative is built. The same holds for the κ aorists of the -μι verbs in
+  the active (`ἔθηκα`, not `θήκας`) and for root aorists that go like a
+  passive in the indicative alone (`ἀνθυπέστην`, `ὑπέφθην`).
+
+A compound also passes `prefix=`, so that the accent of the indicative, the
+perfect and the pluperfect stays on or after the augment or reduplication
+(`παρέσχον`, `ἀπῆρα`, `ἀφῖγμαι`). The printed part decides: where LSJ has the
+accent on the preverb (`ἄφευσα`, epic `περίχευα`), none is passed. For a
+perfect the preverb is taken only where the stem shows a perfect of the rest
+after it (`δια-πεφυκ`, `μετ-αγηοχ`), because the letters often allow two
+divisions (`ἀπαν-αλίσκω`, `ἀπανα-λίσκω`).
+
+Other tenses:
+
+- A middle principal part builds the middle alone (`ἐδεξάμην`, `δέξομαι`,
+  `ἀφικόμην`: `form=mid`), and a passive aorist in `-θην` under the plain
+  label is a passive one (`ἐβουλήθην`).
+- A future with a circumflex is contracted (`βαλῶ` `fut-con-e|βαλ`, `βιβῶ`
+  of a verb in `-άζω` `fut-con-a|βιβ`); read as an ordinary future it gave
+  `βάλεις`.
+- The pluperfect is built on the perfect stems as before (`λελύκειν`) and,
+  for a visibly reduplicated stem, with the augment too (`ἐλελύκειν`,
+  `ἀπελελύκειν`).
+- A contracted imperfect takes the contract template of its present
+  (`ἀτίμων`, `ἠγνόουν`).
+
+The present system of every verb is written before any principal part, so a
+cell a headword spells out itself (`φιαλοῦμαι` of `φιαλόω`) outranks the same
+form derived from another verb's printed part (the future `φιαλῶ` of
+`φιάλλω`). A headword that another verb prints as its principal part
+(`ὑπομνήσω` under `ὑπομιμνήσκω`) is written last.
 
 ## Finite-form synthesis
 
