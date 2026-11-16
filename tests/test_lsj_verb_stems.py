@@ -258,6 +258,32 @@ def test_label_at_the_end_is_completed_by_the_earlier_text():
     assert parts == {"aor_p": "ἀπεπνίγην"}
 
 
+def test_earlier_text_continues_the_aorists_it_repeats():
+    current = "aor. ἀνέθηλα Ael.VH5.4, NA2.25: aor. 2"
+    earlier = ("aor. ἀνέθηλα Ael.VH5.4, NA2.25: aor. 2 ἀνέθαλον Ep.Phil.4.10"
+               ":—shoot up again")
+    parts = expand_lsj.merged_principal_parts("ἀναθάλλω", current, earlier)
+    assert parts["aor"] == "ἀνέθηλα"
+    assert parts["aor2"] == "ἀνέθαλον"
+    args = derive_grc_conj_args(parts, "ἀναθάλλω")
+    assert args["aor-1"][:3] == ["aor-1", "ἀνεθηλ", "ἀναθηλ"]
+    assert args["aor-2"][:3] == ["aor-2", "ἀνεθαλ", "ἀναθαλ"]
+    # An earlier text with another aorist under the same label adds none.
+    parts = expand_lsj.merged_principal_parts(
+        "παύω", "aor. ἔπαυσα: pf. πέπαυκα", "aor. ἔπαυσα: aor. 2 ἔπαυον")
+    assert parts["aor2"] == "ἔπαυον"
+    parts = expand_lsj.merged_principal_parts(
+        "παύω", "aor. ἔπαυσα: pf. πέπαυκα", "aor. ἔπαυα: aor. 2 ἔπαυον")
+    assert "aor2" not in parts
+
+
+def test_root_aorist_keeps_its_cells_beside_a_numbered_aorist():
+    parts = {"aor": "ὑπέφθην", "aor1": "ὑπέφθᾰσα"}
+    args = derive_grc_conj_args(parts, "ὑποφθάνω")
+    assert args["aor-1"][:3] == ["aor-1", "ὑπεφθᾰσ", "ὑποφθᾰσ"]
+    assert args["aor-pass"][3:5] == ["ὑπεφθ", "ὑποφθ"]
+
+
 def test_head_text_by_spelling_without_quantity_marks():
     texts = {
         nfc("ἀγῑνέω"): "impf. ἠγίνεον",

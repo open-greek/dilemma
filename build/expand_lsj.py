@@ -1099,7 +1099,11 @@ def merged_principal_parts(headword: str, head_text: str,
     the tenses the current text lacks. Where the current text stops right
     after a label (ἀνοιδέω: "... fut. -ήσω: aor."), the earlier one opens
     with the form that label announces ("ἀνῴδησα , e: pf. ἀνῴδηκα"), so the
-    two are read as one text.
+    two are read as one text. The aorists of the earlier text are taken only
+    as a group: when the current text has none, or when the earlier text
+    repeats every one the current text gives, which then stopped among them
+    (ἀναθάλλω: "aor. ἀνέθηλα ...: aor. 2" beside "aor. ἀνέθηλα : aor. 2
+    ἀνέθαλον").
     """
     parts = dict(parse_principal_parts(head_text, headword)) if head_text else {}
     if not supplement_text:
@@ -1107,9 +1111,17 @@ def merged_principal_parts(headword: str, head_text: str,
     if (head_text and ends_at_label(head_text)
             and re.match(r"\s*[\u0370-\u03ff\u1f00-\u1fff]", supplement_text)):
         supplement_text = head_text.rstrip() + " " + supplement_text
-    has_aorist = any(key in parts for key in _AORIST_PART_KEYS)
-    for key, form in parse_principal_parts(supplement_text, headword).items():
-        if key in _AORIST_PART_KEYS and has_aorist:
+    supplement = parse_principal_parts(supplement_text, headword)
+    aorists = {key: form for key, form in parts.items()
+               if key in _AORIST_PART_KEYS}
+    # "aor" stands for the numbered aorist where no plain label is printed,
+    # so it is compared only when it is the one aorist given.
+    printed = {key: form for key, form in aorists.items()
+               if key != "aor"} or aorists
+    continued = bool(printed) and all(
+        supplement.get(key) == form for key, form in printed.items())
+    for key, form in supplement.items():
+        if key in _AORIST_PART_KEYS and aorists and not continued:
             continue
         parts.setdefault(key, form)
     return parts

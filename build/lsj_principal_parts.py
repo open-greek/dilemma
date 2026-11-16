@@ -1168,6 +1168,15 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
     aor2 = parts.get("aor2") or (parts.get("aor") if parts.get("aor", "")
                                   and not parts.get("aor1")
                                   else None)
+    plain_aor = strip_diacritics(parts.get("aor", "")).lower()
+    if (not aor1 and aor2 and parts.get("aor") != aor2
+            and plain_aor.endswith(("α", "αμην"))):
+        # A plain "aor." beside a numbered second aorist is the first one
+        # (ἀναθάλλω: aor. ἀνέθηλα, aor. 2 ἀνέθαλον).
+        aor1 = parts["aor"]
+    if (not aor2 and aor1 and parts.get("aor") != aor1
+            and plain_aor.endswith(("ον", "ομην"))):
+        aor2 = parts["aor"]
     if not aor1 and not aor2 and parts.get("aor_med"):
         aor1 = aor2 = parts["aor_med"]
     aor_p = parts.get("aor_p")
@@ -1176,7 +1185,7 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
         if not aor1 and not aor2:
             aor1 = aor2 = aor_p
         aor_p = None
-    for form in (aor1, aor2):
+    for form in (aor1, aor2, parts.get("aor")):
         # A passive deponent prints its aorist in -θην under the plain label
         # (ἐβουλήθην); a root aorist in -ην (ἔβην) is not passive.
         if form and not aor_p and strip_diacritics(form).lower().endswith("θην"):
