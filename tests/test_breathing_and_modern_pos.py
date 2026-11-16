@@ -10,6 +10,8 @@ polytonic vernacular Greek reads as Modern (ἀκόμη -> ακόμη).
 (προῖὸν is no monosyllable), returns the lowercase Ancient headword a
 capitalized Ancient name stands for (εὐήνεμός ADJ), and keeps a lowercase
 Ancient reading for a capitalized PROPN form (Ὀρᾷς PROPN -> ὁράω).
+#134: a smooth breathing written for a rough one is no evidence for Modern
+Greek (ἄπαν NOUN -> ἅπας, as ἅπαν NOUN).
 """
 
 import pytest
@@ -186,8 +188,10 @@ def test_modern_mode_keeps_the_modern_row(model_from):
 def test_shipped_loose_keys_keep_the_breathing(shipped_models, lang):
     model = shipped_models[lang]
     forms = ["εὐσεβεστάτῃ", "ἀστοχήσει", "ἀνεξάντλητον", "ἀνεξαντλήτου", "ὀφφικίου"]
-    # With lang="all" the polytonic form keeps the Modern head (#104).
-    modern = "αστοχώ" if lang == "all" else None
+    # With lang="all" the polytonic form keeps the Modern head (#104). With
+    # lang="grc" the form has no row of its own; the Ancient verb answers
+    # through the inferred future cell ἀστοχήσοι (#134).
+    modern = "αστοχώ" if lang == "all" else "ἀστοχέω"
     assert model.lemmatize_batch(forms, guess=False) == [
         "εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
     assert [model.lemmatize(f, guess=False) for f in forms] == [
@@ -265,6 +269,59 @@ def test_capitalized_propn_form_keeps_a_lowercase_ancient_reading(model_from):
     assert core.Dilemma._capitalized_ancient_word("Ὀρᾷς", "PROPN", "Όρας", "ὁράω")
     assert not core.Dilemma._capitalized_ancient_word(
         "Ἀλλην", "PROPN", "Αλλήνα", "Ἀλλην")
+
+
+# ---------------------------------------------------------------- #134
+
+def _smooth_for_rough_model(model_from, lookup):
+    # The loose key άπαν holds the Ancient row of ἅπαν and the Modern noun.
+    return model_from(lookup, lang="all",
+                      modern_pos={"άπαν": {"NOUN": "άπαν"},
+                                  "απαν": {"NOUN": "άπαν"},
+                                  "ώρες": {"NOUN": "ώρα"}})
+
+
+def test_smooth_breathing_for_rough_is_a_known_ancient_spelling(model_from):
+    model = _smooth_for_rough_model(
+        model_from, {"ἅπαν": "ἅπας", "άπαν": "ἅπας", "απαν": "ἅπας"})
+    assert model._rough_spelling_reads("ἄπαν", "ἅπας")
+    assert model._pos_table_lookup("ἄπαν", "NOUN") is None
+    # The correctly spelt form never took the Modern noun.
+    assert model._pos_table_lookup("ἅπαν", "NOUN") is None
+
+
+def test_smooth_breathing_without_a_rough_row_keeps_the_modern_entry(model_from):
+    # Only the loose key reads the Ancient word: no rough spelling vouches.
+    model = _smooth_for_rough_model(model_from, {"άπαν": "ἅπας"})
+    assert not model._rough_spelling_reads("ἄπαν", "ἅπας")
+    assert model._pos_table_lookup("ἄπαν", "NOUN") == "άπαν"
+    # The rough row must read the lemma the loose key gave.
+    model = _smooth_for_rough_model(model_from, {"ἅπαν": "ἅπαξ", "άπαν": "ἅπας"})
+    assert not model._rough_spelling_reads("ἄπαν", "ἅπας")
+
+
+def test_rough_breathing_is_not_read_as_a_slip_for_smooth(model_from):
+    # ὧρες is the Modern ώρες; the Ancient ὦρες is another word.
+    model = _smooth_for_rough_model(
+        model_from, {"ὦρες": "ὄρνυμι", "ώρες": "ὄρνυμι"})
+    assert not model._rough_spelling_reads("ὧρες", "ὄρνυμι")
+    assert model._pos_table_lookup("ὧρες", "NOUN") == "ώρα"
+
+
+def test_shipped_smooth_breathing_for_rough(shipped_models):
+    model = shipped_models["all"]
+    rows = [("ἄπαν", "NOUN", "ἅπας"), ("ἅπαν", "NOUN", "ἅπας"),
+            ("ἄπαντος", "NOUN", "ἅπας"), ("ἤμισυ", "NOUN", "ἥμισυς"),
+            ("ἠγεμόνα", "NOUN", "ἡγεμών"),
+            # kept: a rough breathing, a closed-class Modern reading, and a
+            # vernacular word the Ancient lookup has no rough spelling of
+            ("ὧρες", "NOUN", "ώρα"), ("ἤμαρτον", "INTJ", "ήμαρτον"),
+            ("ἀκόμη", "ADV", "ακόμη")]
+    assert model.lemmatize_batch_pos([r[0] for r in rows], [r[1] for r in rows],
+                                     guess=False) == [r[2] for r in rows]
+    assert [model.lemmatize_pos(r[0], r[1], guess=False) for r in rows] \
+        == [r[2] for r in rows]
+    assert shipped_models["grc"].lemmatize_pos("ἄπαν", "NOUN", guess=False) == "ἅπας"
 
 
 def test_shipped_polytonic_modern_pos_rule(shipped_models):

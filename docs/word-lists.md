@@ -68,7 +68,7 @@ ancient topics could boost forms with high `freq_glaux`).
 `export_hunspell.py` produces compact Hunspell `.dic` + `.aff` pairs from
 `lookup.db`, aimed at mobile consumers (primarily the
 [Tonos](https://tonospolytonic.com/) iOS polytonic keyboard)
-where the full 1.07 GB `lookup.db` and 560 MB `spell_index.db` do not
+where the full 1.45 GB `lookup.db` and 600 MB `spell_index.db` do not
 fit inside the ~48 MB memory ceiling of a keyboard extension. Affix
 compression uses a zero-strip SFX rule only when its dictionary base is itself
 a real member of the paradigm. A mechanical common prefix such as `λόγ` or

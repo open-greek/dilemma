@@ -269,22 +269,55 @@ python scripts/derive_el_nominal_fragment_delta.py --dumps KAIKKI_DIR \
 The artifacts CI tests against (including `lookup.db`, `spell_index.db`,
 `lemma_attestation.json`, `form_profile.db`, and the ONNX/PyTorch files in
 `model/combined-s3/`) live on HuggingFace, not in git, and must match
-the source commit that uses them. `data/hf_manifest.json` pins their
+the source commit that uses them. So must every other file the Hub serves to
+`python -m dilemma download`. `data/hf_manifest.json` pins their
 sha256 and `scripts/hf_data.py` does the bookkeeping:
 
 ```bash
+python scripts/hf_data.py push -n   # what push would upload and re-pin
 python scripts/hf_data.py push      # upload whatever changed, refresh the manifest
 git add data/hf_manifest.json       # commit it with the code change
+python scripts/hf_data.py check     # checkout, manifest and Hub agree
 ./scripts/install_git_hooks.sh      # once per clone: pre-push sync check
 ```
 
-CI waits for the Hub to serve the manifest's bytes before downloading
-(`hf_data.py wait`) and re-checks them afterwards (`hf_data.py verify`).
-That way a `git push` that beats a slow upload just makes the test job
-wait rather than run new tests against the previous artifacts, and an
-upload that never happened fails with a message saying so. The pre-push
-hook catches both cases before they reach CI; `git push --no-verify`
-skips it.
+`python -m dilemma download` serves every file under `data/` and `model/`,
+which is more than CI downloads, so the manifest has two lists and every
+served file belongs in one of them:
+
+| List | In `scripts/hf_data.py` | Holds | Covered by |
+|---|---|---|---|
+| `files` | `TRACKED` | Everything CI downloads: every table and model file the runtime reads, and the evidence the tests read | `push`, `check`, `wait`, `files`, `verify` |
+| `pinned_only` | `PINNED_ONLY` | Served files CI does not download: the Ancient and Medieval build tables (`ag_lookup.json`, `ag_pairs.json`, `med_lookup.json`, `med_pairs.json`, the source-alias audit and manifest), the corpus pair tables (`glaux_pairs.json`, `lbg_pairs.json`, `nt_pairs.json` and the three gap-fill tables), the per-source frequency tables, `ag_verb_paradigms.json`, `vesuvius_index.json.gz`, `med_pos_lookup.json` and the Ancient-only model `model/grc-s3/` | `push`, `check`, `wait` |
+
+A table the runtime reads goes in `TRACKED`, also when git tracks it: an
+install reads the Hub copy, so the three Ancient POS tables
+(`ag_pos_lookup.json`, `treebank_pos_lookup.json`, `glaux_pos_lookup.json`)
+are pinned there and CI downloads them over the checkout. A test reads the
+file names out of the runtime package and fails when one is in neither list,
+or is only in `PINNED_ONLY`; another compares the pin of every git-tracked
+file with the committed blob, so changing such a table fails that test until
+`push` has run. `med_pos_lookup.json` is in git as well, but no code reads it
+(`build_data.py` writes it beside the Medieval lookup), so it is pinned in
+`PINNED_ONLY`.
+
+`push` uploads a changed file of either list and rewrites its pin. It hashes
+the `PINNED_ONLY` files the checkout has and keeps the pins of the rest, so a
+checkout that rebuilt only the runtime artifacts can still push. `check` also
+lists what the Hub serves and fails on a file under `data/` or `model/` that
+is in neither list: a file uploaded by hand must be added to a list (and
+pushed) or deleted from the Hub. `UNPINNED` names what the manifest leaves
+out, with the reasons: `data/kaikki_inputs/` is pinned by Hub revision and
+sha256 in `data/kaikki_inputs.json`, and the tagger weights under `tagger/`
+are not pinned yet.
+
+CI waits for the Hub to serve the manifest's bytes, both lists, before
+downloading (`hf_data.py wait`) and re-checks the downloaded files afterwards
+(`hf_data.py verify`). That way a `git push` that beats a slow upload just
+makes the test job wait rather than run new tests against the previous
+artifacts, and an upload that never happened fails with a message saying so.
+The pre-push hook runs `hf_data.py check` and catches both cases before they
+reach CI; `git push --no-verify` skips it.
 
 ## Release
 

@@ -75,8 +75,10 @@ Lexica and dictionaries
 - A lexicon of Byzantine Greek (literary vocabulary of the 9th-12th c.):
   bare headword strings and genders only. The headwords are lookup
   self-maps, and their paradigms are generated with Wiktionary's grc-decl and
-  grc-conj modules (build/expand_lbg.py). Definitions and other lexicon
-  content are not read or redistributed.
+  grc-conj modules (build/expand_lbg.py). An -ος headword without an article
+  is an adjective there, and Dilemma declines it by its own rule
+  (dilemma/grc_os_gaps.py). Definitions and other lexicon content are not
+  read or redistributed.
 
 - Nestle 1904 Greek New Testament, lowfat syntax trees. License: CC BY 4.0.
   Koine form-lemma pairs, lookup gap-fill only.

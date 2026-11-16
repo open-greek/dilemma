@@ -19,7 +19,10 @@ def inputs(tmp_path, monkeypatch):
     for source in ['GLAUX', 'DIORISIS', 'NT', 'PTNK', 'PEDALION']:
         monkeypatch.setattr(build, source+'_PAIRS_PATH', tmp_path/(source.lower()+'_pairs.json'))
     monkeypatch.setattr(build, 'LOOKUP_DB_PATH', tmp_path/'lookup.db')
-    def write(rows, bare, lower, definitions=None):
+    # The recovery pass is tested alone here: the one agreeing vote a verb
+    # keeps to stay known as a verb has its tests in test_treebank_head_votes.
+    monkeypatch.setattr(build, '_verb_witness_cells', lambda *a, **k: {})
+    def write(rows, bare, lower, definitions=None, heads=None):
         definitions = definitions if definitions is not None else [{
             "word": r["lemma"], "lang_code":"grc", "pos":r["pos"],
             "senses":[{"glosses":["A distinct lexical meaning."]}]} for r in rows]
@@ -28,8 +31,9 @@ def inputs(tmp_path, monkeypatch):
         from dilemma_build.build_grc_lexical_heads import has_definition
         (tmp_path/'grc_lexical_heads.json').write_text(json.dumps({
             'schema_version': 2,
-            'heads': {entry['word']: ['wiktionary_en_grc']
-                      for entry in definitions if has_definition(entry)},
+            'heads': {**{entry['word']: ['wiktionary_en_grc']
+                         for entry in definitions if has_definition(entry)},
+                      **(heads or {})},
         }, ensure_ascii=False))
         for directory in ["en-el", "el"]:
             path = build.KAIKKI_DIR/directory/"kaikki.org-dictionary-AncientGreek.jsonl"
@@ -116,6 +120,105 @@ def test_missing_dump_does_not_authorize_new_override(inputs, monkeypatch):
            {'lsj9_pos_lookup.json':{'ἀκρασία':{'NOUN':'ἀκράτεια'}}})
     monkeypatch.setattr(build, 'KAIKKI_DIR', None)
     assert 'ἀκρασία' not in build.build_lookup()
+
+
+def diminutive(lemma, base):
+    """A Wiktionary page that only refers to another head defines nothing."""
+    return [{'word': lemma, 'lang_code': 'grc', 'pos': 'noun',
+             'senses': [{'glosses': ['diminutive of ' + base],
+                         'form_of': [{'word': base}]}]}]
+
+
+@pytest.mark.parametrize('form', ['ψηφίς', 'ψηφὶς'])
+@pytest.mark.parametrize('dump', [True, False])
+def test_listed_head_keeps_its_own_vote(inputs, monkeypatch, form, dump):
+    # Wiktionary has ψηφίς only as a diminutive of ψῆφος, so the definition
+    # test fails; LSJ lists it, and the corpus and the lookup read it as itself.
+    inputs([{'form': form, 'lemma': 'ψηφίς', 'pos': 'noun'}], {form: 'ψηφίς'},
+           {'lsj9_pos_lookup.json': {form: {'NOUN': 'ψῆφος'}}},
+           diminutive('ψηφίς', 'ψῆφος'), heads={'ψηφίς': ['lsj9_headwords']})
+    scalar_models(monkeypatch, {form: 'ψηφίς'})
+    if not dump:
+        monkeypatch.setattr(build, 'KAIKKI_DIR', None)
+    assert build.build_lookup()[form] == {'NOUN': 'ψηφίς'}
+    audit = json.loads((build.OUTPUT_PATH.with_suffix('.audit.json')).read_text())
+    assert audit['listed_head_votes'] == {form: {'upos': 'NOUN', 'lemma': 'ψηφίς'}}
+
+
+def test_defined_vote_is_not_recorded_as_a_listed_head(inputs):
+    inputs([{'form': 'ἀκρασία', 'lemma': 'ἀκρασία', 'pos': 'noun'}],
+           {'ἀκρασία': 'ἀκρασία'},
+           {'lsj9_pos_lookup.json': {'ἀκρασία': {'NOUN': 'ἀκράτεια'}}},
+           heads={'ἀκρασία': ['lsj9_headwords', 'wiktionary_en_grc']})
+    assert build.build_lookup()['ἀκρασία'] == {'NOUN': 'ἀκρασία'}
+    audit = json.loads((build.OUTPUT_PATH.with_suffix('.audit.json')).read_text())
+    assert audit['listed_head_votes'] == {}
+
+
+@pytest.mark.parametrize('sources', [
+    ['pd_headwords'], ['lgpn_names'], ['wiktionary_el_grc'],
+    ['pd_headwords', 'wiktionary_en_grc', 'lgpn_names']])
+def test_fragment_name_and_wiktionary_listings_do_not_keep_a_vote(
+        inputs, monkeypatch, sources):
+    inputs([{'form': 'ψηφίς', 'lemma': 'ψηφίς', 'pos': 'noun'}], {'ψηφίς': 'ψηφίς'},
+           {'lsj9_pos_lookup.json': {'ψηφίς': {'NOUN': 'ψῆφος'}}},
+           diminutive('ψηφίς', 'ψῆφος'), heads={'ψηφίς': sources})
+    scalar_models(monkeypatch, {'ψηφίς': 'ψηφίς'})
+    assert 'ψηφίς' not in build.build_lookup()
+
+
+@pytest.mark.parametrize(('form', 'lemma', 'pos', 'owner'), [
+    ('ψηφῖδος', 'ψηφίς', 'noun', 'ψηφίς'),      # an inflection, not the head
+    ('Ψηφίς', 'Ψηφίς', 'noun', 'Ψηφίς'),        # a capitalized spelling
+    ('φιλ', 'φιλ', 'adj', 'φιλ'),               # an unaccented fragment
+    ('ί', 'ί', 'noun', 'ί'),                    # a single letter
+    ('ἰχθῦς', 'ἰχθῦς', 'noun', 'ἰχθύς'),        # the lookup accents it otherwise
+    ('ἀμφίς', 'ἀμφίς', 'prep', 'ἀμφίς'),        # a closed-class word
+])
+def test_listed_head_rule_is_limited_to_the_head_spelling(
+        inputs, monkeypatch, form, lemma, pos, owner):
+    upos = {'noun': 'NOUN', 'adj': 'ADJ', 'prep': 'ADP'}[pos]
+    inputs([{'form': form, 'lemma': lemma, 'pos': pos}], {form: owner},
+           {'lsj9_pos_lookup.json': {form: {upos: 'ἄλλος'}}}, [],
+           heads={lemma: ['lsj9_headwords'], owner: ['lsj9_headwords']})
+    scalar_models(monkeypatch, {form: owner})
+    assert form not in build.build_lookup()
+
+
+def test_listed_head_vote_without_a_conflict_remains_redundant(inputs, monkeypatch):
+    inputs([{'form': 'ψηφίς', 'lemma': 'ψηφίς', 'pos': 'noun'}], {'ψηφίς': 'ψηφίς'},
+           {'lsj9_pos_lookup.json': {'ψηφίς': {'NOUN': 'ψηφίς'}}},
+           diminutive('ψηφίς', 'ψῆφος'), heads={'ψηφίς': ['lsj9_headwords']})
+    scalar_models(monkeypatch, {'ψηφίς': 'ψηφίς'})
+    assert 'ψηφίς' not in build.build_lookup()
+
+
+def test_capitalized_twin_in_a_lower_table_is_no_conflict_for_a_listed_head(
+        inputs, monkeypatch):
+    # The runtime answers a lower-case form with the lower-case twin itself.
+    # Keeping the vote would only withhold the name's cell from other keys.
+    inputs([{'form': 'σταφυλὶς', 'lemma': 'σταφυλίς', 'pos': 'noun'}],
+           {'σταφυλὶς': 'σταφυλίς'},
+           {'lsj9_pos_lookup.json': {'σταφυλὶς': {'NOUN': 'Σταφυλίς'}}}, [],
+           heads={'σταφυλίς': ['lsj9_headwords']})
+    scalar_models(monkeypatch, {'σταφυλὶς': 'σταφυλίς'})
+    assert not build.build_lookup()
+
+
+def test_listed_head_needs_its_own_row_in_every_language_scope(inputs, monkeypatch):
+    # The flat table reads the form as itself, but one scope's own row is a
+    # name: the tagged answer would leave that scope's untagged one.
+    inputs([{'form': 'θύτης', 'lemma': 'θύτης', 'pos': 'noun'}], {'θύτης': 'θύτης'},
+           {'lsj9_pos_lookup.json': {'θύτης': {'NOUN': 'θυτήρ'}}}, [],
+           heads={'θύτης': ['lsj9_headwords']})
+    original = build._lower_priority_pos_models
+    def models():
+        result = original()
+        result[0]._lookup = {'θύτης': 'Θύτης'}
+        result[1]._lookup = {'θύτης': 'θύτης'}
+        return result
+    monkeypatch.setattr(build, '_lower_priority_pos_models', models)
+    assert 'θύτης' not in build.build_lookup()
 
 
 def test_new_projected_corpus_entry_cannot_hide_an_exact_supported_vote(inputs):
@@ -441,6 +544,16 @@ def test_all_supported_case_queries_find_scalar_conflict(inputs, monkeypatch, qu
     assert build.build_lookup()['παρούσῃ'] == {'VERB': 'πάρειμι'}
 
 
+def test_listed_head_is_not_kept_for_a_capitalized_query_alone(inputs, monkeypatch):
+    # Θύτης has its own row. Without a definition, the lower-case head's vote
+    # must not take the capitalized spelling away from it.
+    bare = {'θύτης': 'θύτης', 'Θύτης': 'Θύτης'}
+    inputs([{'form': 'θύτης', 'lemma': 'θύτης', 'pos': 'noun'}], bare, {}, [],
+           heads={'θύτης': ['lsj9_headwords']})
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
+
+
 @pytest.mark.parametrize('query', ['Παρούση', 'ΠΑΡΟΎΣΗ', 'Παρούσῃ'])
 def test_same_owner_case_query_is_still_redundant(inputs, monkeypatch, query):
     bare = {'παρούσῃ': 'πάρειμι', query: 'πάρειμι'}
@@ -505,3 +618,154 @@ def test_retained_vote_repairs_pos_api_without_changing_proper_noun(inputs, monk
         assert model.lemmatize_pos('Παρούση', 'VERB', guess=False) == 'πάρειμι'
         assert model.lemmatize_pos('Παρούση', 'PROPN', guess=False) == 'Παρούση'
 
+
+
+THERMON_DEFINITIONS = [
+    {'word': 'Θέρμος', 'lang_code': 'grc', 'pos': 'name',
+     'senses': [{'glosses': ['A town in Aetolia.']}]},
+    {'word': 'θέρμος', 'lang_code': 'grc', 'pos': 'noun',
+     'senses': [{'glosses': ['lupine']}]},
+]
+
+
+def thermon(inputs, monkeypatch, name=10, other=0, lower=4, *, fallback='θέρμος',
+            owners=None):
+    """A capitalized name beside the lower-case noun of the same letters."""
+    rows = [{'form': 'Θέρμον', 'lemma': 'Θέρμος', 'pos': 'noun', 'count': name}]
+    if lower:
+        rows.append({'form': 'θέρμον', 'lemma': 'θέρμος', 'pos': 'noun', 'count': lower})
+    if other:
+        # A reading without a part of speech counts as a token, not as a vote.
+        rows.append({'form': 'Θέρμον', 'lemma': 'θέρμος', 'pos': None, 'count': other})
+    bare = {'Θέρμον': 'Θέρμος', 'θέρμον': 'θέρμος'}
+    table = {'θέρμον': {'NOUN': fallback}} if fallback else {}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': table}, THERMON_DEFINITIONS)
+    scalar_models(monkeypatch, owners or bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    return result, audit['capital_name_cells']
+
+
+@pytest.mark.parametrize(('name', 'other', 'lower'), [(10, 0, 4), (10, 0, 40), (18, 2, 0)])
+def test_attested_capitalized_name_keeps_its_exact_noun_cell(
+        inputs, monkeypatch, name, other, lower):
+    result, cells = thermon(inputs, monkeypatch, name, other, lower)
+    assert result['Θέρμον'] == {'NOUN': 'Θέρμος'}
+    # The lower-case key stays with the common noun.
+    assert 'θέρμον' not in result
+    assert cells == {'Θέρμον': {'lemma': 'Θέρμος', 'form_tokens': name + other,
+                                'name_tokens': name, 'lowercase_nominal_tokens': lower}}
+
+
+@pytest.mark.parametrize(('name', 'other', 'lower'), [
+    (9, 0, 0),      # fewer than ten tokens of the capitalized spelling
+    (17, 3, 0),     # under nine tenths of them are the name
+    (10, 0, 41),    # the lower-case noun has over four times the name's tokens
+])
+def test_capitalized_name_failing_a_token_test_gets_no_cell(
+        inputs, monkeypatch, name, other, lower):
+    result, cells = thermon(inputs, monkeypatch, name, other, lower)
+    assert 'Θέρμον' not in result
+    assert cells == {}
+
+
+def test_capitalized_name_cell_needs_a_different_lower_answer(inputs, monkeypatch):
+    result, cells = thermon(inputs, monkeypatch, lower=0, fallback=None)
+    assert not result and cells == {}
+
+
+def test_name_cell_answers_the_lower_case_vote_kept_for_the_capital_query(
+        inputs, monkeypatch):
+    # No lower table has the form. The noun's own vote is kept because the
+    # capitalized query would otherwise miss it, and that kept vote is what
+    # the name's exact cell then has to answer.
+    result, cells = thermon(inputs, monkeypatch, fallback=None)
+    assert result == {'θέρμον': {'NOUN': 'θέρμος'}, 'Θέρμον': {'NOUN': 'Θέρμος'}}
+    assert set(cells) == {'Θέρμον'}
+
+
+def test_capitalized_name_cell_needs_the_names_own_row(inputs, monkeypatch):
+    result, cells = thermon(inputs, monkeypatch,
+                            owners={'Θέρμον': 'θέρμος', 'θέρμον': 'θέρμος'})
+    assert 'Θέρμον' not in result and cells == {}
+
+
+def aiakos(inputs, monkeypatch, grave, acute, other=0):
+    """An oxytone name in its grave and its acute spelling."""
+    rows = [{'form': 'Αἰακὸς', 'lemma': 'Αἰακός', 'pos': 'noun', 'count': grave},
+            {'form': 'Αἰακός', 'lemma': 'Αἰακός', 'pos': 'noun', 'count': acute}]
+    if other:
+        rows.append({'form': 'Αἰακός', 'lemma': 'αἰακός', 'pos': None, 'count': other})
+    bare = {'Αἰακὸς': 'Αἰακός', 'Αἰακός': 'Αἰακός'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'αἰακός': {'NOUN': 'Αἴας'}}},
+           [{'word': 'Αἰακός', 'lang_code': 'grc', 'pos': 'name',
+             'senses': [{'glosses': ['A son of Zeus.']}]}])
+    scalar_models(monkeypatch, bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    return result, audit['capital_name_cells']
+
+
+def test_grave_and_acute_spellings_share_the_name_evidence(inputs, monkeypatch):
+    # Neither spelling has ten tokens; the word has eleven. A capitalized
+    # key is read by its exact spelling, so each spelling needs its cell.
+    result, cells = aiakos(inputs, monkeypatch, grave=6, acute=5)
+    assert result['Αἰακὸς'] == result['Αἰακός'] == {'NOUN': 'Αἰακός'}
+    counts = {'lemma': 'Αἰακός', 'form_tokens': 11, 'name_tokens': 11,
+              'lowercase_nominal_tokens': 0}
+    assert cells == {'Αἰακὸς': counts, 'Αἰακός': counts}
+
+
+def test_other_readings_of_the_acute_spelling_count_against_the_grave_one(
+        inputs, monkeypatch):
+    # 24 of 24 grave tokens are the name, but only 24 of the word's 31.
+    result, cells = aiakos(inputs, monkeypatch, grave=24, acute=2, other=5)
+    assert 'Αἰακὸς' not in result and 'Αἰακός' not in result and cells == {}
+
+
+@pytest.mark.parametrize(('pos', 'kept'), [('adj', False), ('noun', False),
+                                           ('verb', True)])
+def test_lower_case_adjective_counts_against_the_name_like_a_noun(
+        inputs, monkeypatch, pos, kept):
+    # Φίλων (Philo) beside φίλων "of friends": GLAUx tags the common word as
+    # an adjective, other tagsets as a noun. A verb of the same spelling is
+    # no reading of a NOUN request.
+    rows = [{'form': 'Φίλων', 'lemma': 'Φίλων', 'pos': 'noun', 'count': 60},
+            {'form': 'φίλων', 'lemma': 'φίλος', 'pos': pos, 'count': 2036}]
+    bare = {'Φίλων': 'Φίλων', 'φίλων': 'φίλος'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'φίλων': {'NOUN': 'φίλος'}}},
+           [{'word': 'Φίλων', 'lang_code': 'grc', 'pos': 'name',
+             'senses': [{'glosses': ['A male given name.']}]},
+            {'word': 'φίλος', 'lang_code': 'grc', 'pos': pos,
+             'senses': [{'glosses': ['dear; a friend']}]}])
+    scalar_models(monkeypatch, bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    assert ('Φίλων' in result) is kept
+    assert ('Φίλων' in audit['capital_name_cells']) is kept
+    if kept:
+        assert audit['capital_name_cells']['Φίλων']['lowercase_nominal_tokens'] == 0
+
+
+def test_capital_letter_label_gets_no_name_cell(inputs, monkeypatch):
+    # GLAUx reads the labels of a geometric figure as capitalized nouns, with
+    # thousands of tokens. A single letter is a siglum, not a name.
+    rows = [{'form': 'Γ', 'lemma': 'Γ', 'pos': 'noun', 'count': 3040},
+            {'form': 'γ', 'lemma': 'γ', 'pos': 'noun', 'count': 445}]
+    bare = {'Γ': 'Γ', 'γ': 'γ'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'γ': {'NOUN': 'γάμμα'}}}, [],
+           heads={'Γ': ['dge_headwords'], 'γ': ['lsj9_headwords']})
+    scalar_models(monkeypatch, bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    assert 'Γ' not in result and audit['capital_name_cells'] == {}
+
+
+def test_capitalized_adjective_gets_no_name_cell(inputs, monkeypatch):
+    rows = [{'form': 'Κορκυραῖος', 'lemma': 'Κορκυραῖος', 'pos': 'adj', 'count': 50}]
+    bare = {'Κορκυραῖος': 'Κορκυραῖος'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'κορκυραῖος': {'ADJ': 'ἄλλος'}}},
+           [{'word': 'Κορκυραῖος', 'lang_code': 'grc', 'pos': 'name',
+             'senses': [{'glosses': ['A Corcyraean.']}]}])
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()

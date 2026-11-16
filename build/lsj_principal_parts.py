@@ -19,17 +19,25 @@ present-only expansion when the parser returns nothing.
 The parser handles:
   - Leading prosody bracket (``[ᾰ]``, ``[α]``)
   - Bold/wikitext-style headword echo (``**βάλλω** βάλλω,``)
-  - Section markers ``:—Med.``, ``:—Pass.``, ``Med. and Pass.``
-  - Dual aorist labels (``aor. 1``, ``aor. 2``)
+  - Section markers ``:—Med.``, ``:—Pass.``, ``Med. and Pass.``, also
+    at the start of a text that opens inside a section
+  - Dual aorist labels (``aor. 1``, ``aor. 2``, ``aor. I``, ``aor. II``),
+    and two numbered passive aorists of one verb
   - Author-attribution citation suffixes after each form
 
 What it deliberately does NOT do:
   - Resolve cross-reference verbs (``v. καταχέω``)
-  - Expand suffix-only abbreviations (``fut. -ψω``) - those would need
-    to know which letters of the headword to drop, which is itself a
-    morphological judgement; we leave that to downstream Lua expansion
-    when a full form is given instead.
+  - Expand suffix-only abbreviations (``fut. -ψω``, ``fut. ύσω``) - those
+    would need to know which letters of the headword to drop, which is
+    itself a morphological judgement; we leave that to downstream Lua
+    expansion when a full form is given instead.
   - Pick variant forms; the first attestation wins.
+
+:func:`derive_grc_conj_args` turns the parts into ``{{grc-conj}}``
+arguments. A past tense needs the stem without its augment for every form
+but the indicative; :func:`unaugmented_stem` derives it from the printed
+indicative and the headword, and declines to when the augment cannot be
+read, in which case only the indicative is built.
 """
 
 from __future__ import annotations
@@ -45,7 +53,7 @@ PART_KEYS = (
     "impf", "fut", "aor", "aor1", "aor2",
     "pf", "plpf",
     "fut_med", "aor_med",
-    "fut_p", "aor_p", "pf_mp", "futp",
+    "fut_p", "aor_p", "aor_p2", "pf_mp", "futp",
 )
 
 
@@ -79,10 +87,12 @@ _LABEL_RE = re.compile(
     r"(?<![A-Za-zΑ-Ωα-ωἀ-ῶ])"
     r"(?P<label>[Ff]ut|[Aa]or|[Pp]f|[Pp]erf|[Pp]lpf|[Pp]lupf|[Ii]mpf|[Ii]mperf)"
     r"\.\s*"
-    r"(?:(?P<num>[12])\s*)?"
+    r"(?:(?P<num>[12]|II?(?![A-Za-z]))\s*)?"
     r"(?P<voice>(?:m\.\s*/\s*p\.|m\.|p\.|mid\.|pass\.|m/p\.))?",
     re.UNICODE,
 )
+# LSJ numbers the two aorists with Arabic or Roman figures (aor. 1, aor. I).
+_LABEL_NUMBERS = {"1": "1", "2": "2", "I": "1", "II": "2"}
 
 
 # Section marker like ":—Med.", ":—Pass.", ":-Med.,", "—Med.".
@@ -90,6 +100,13 @@ _LABEL_RE = re.compile(
 _SECTION_RE = re.compile(
     r"(?::|—|:-)\s*(?:—\s*)?"
     r"(?P<sect>Med\.\s+and\s+Pass\.?|Mediopass\.?|Med\.?|Pass\.?|Mid\.?)",
+)
+# The same marker when a text opens inside a section: the earlier glosses
+# export begins many entries after the dash (λῃστεύω: "Pass. (v. infr.), aor.
+# ἐλῃστεύθην").
+_LEADING_SECTION_RE = re.compile(
+    r"\s*(?P<sect>Med\.\s+and\s+Pass\.|Mediopass\.|Med\.|Pass\.|Mid\.)"
+    r"(?=[\s,(])",
 )
 
 
@@ -116,6 +133,24 @@ _STOP_WORDS = {
     "ep", "ion", "att", "dor", "aeol", "hom", "hdt",
     "hp", "pi", "lat",
 }
+
+
+def _is_suffix_fragment(word: str) -> bool:
+    """Whether a token is the tail of a word (φιτύω: "fut. ύσω").
+
+    A Greek word that begins with a vowel carries a breathing on its first
+    vowel or diphthong; LSJ prints such endings without one, and usually
+    with a hyphen.
+    """
+    nfd = unicodedata.normalize("NFD", word.lower())
+    if not nfd or nfd[0] not in "αεηιουω":
+        return False
+    for char in nfd[1:]:
+        if char in "\u0313\u0314":
+            return False
+        if not unicodedata.combining(char) and char not in "ιυ":
+            break
+    return True
 
 
 def _grab_form(text: str, start: int) -> tuple[str, int]:
@@ -192,6 +227,8 @@ def _grab_form(text: str, start: int) -> tuple[str, int]:
         if not _has_tonal_accent(word):
             i = j
             continue
+        if _is_suffix_fragment(word):
+            return "", start
         return unicodedata.normalize("NFC", word), j
 
     return "", start
@@ -225,7 +262,8 @@ def _split_sections(text: str) -> list[tuple[str, str]]:
     ``:-Med.``, ``Mediopass.``) to introduce non-active sections.
     """
     markers: list[tuple[int, str]] = []
-    for m in _SECTION_RE.finditer(text):
+    leading = _LEADING_SECTION_RE.match(text)
+    for m in ([leading] if leading else []) + list(_SECTION_RE.finditer(text)):
         sect_text = m.group("sect").lower()
         if sect_text.startswith("med") and "and pass" in sect_text:
             # "Med. and Pass." merges middle and passive into one
@@ -478,6 +516,17 @@ def _find_chained_aor_passive(sect_text: str, label_match: re.Match
     return None
 
 
+def ends_at_label(text: str) -> bool:
+    """Whether a text stops right after a label ("... fut. -ήσω: aor.").
+
+    The current glosses export cuts some entries there; the earlier export
+    of the same entry then opens with the form the label announces.
+    """
+    cleaned = text.rstrip()
+    labels = [m for m in _LABEL_RE.finditer(cleaned)]
+    return bool(labels) and labels[-1].end() == len(cleaned)
+
+
 def parse_principal_parts(text: str, headword: str) -> dict[str, str]:
     """Extract canonical principal parts from an LSJ head text.
 
@@ -493,7 +542,7 @@ def parse_principal_parts(text: str, headword: str) -> dict[str, str]:
     for sect_name, sect_text in _split_sections(cleaned):
         for m in _LABEL_RE.finditer(sect_text):
             label = m.group("label")
-            num = m.group("num")
+            num = _LABEL_NUMBERS.get(m.group("num"))
             voice = m.group("voice")
             key = _section_part_key(label, num, voice, sect_name)
             if key is None:
@@ -508,9 +557,13 @@ def parse_principal_parts(text: str, headword: str) -> dict[str, str]:
                 continue
             # First attestation wins; later occurrences are usually
             # variants ("Ion. βαλέω", "later γεγράφηκα") that we want
-            # to ignore for the canonical principal-part slot.
+            # to ignore for the canonical principal-part slot. A verb
+            # with two numbered passive aorists keeps both (ἀποπνίγω:
+            # aor. I ἀπεπνίχθην, aor. 2 ἀπεπνίγην).
             if key not in out:
                 out[key] = form
+            elif key == "aor_p" and num and out[key] != form:
+                out.setdefault("aor_p2", form)
 
             # Chained passive aorist: in ``:—Med. and Pass.`` (and
             # ``:—Pass.``) sections, LSJ may bundle the middle and
@@ -547,19 +600,477 @@ def parse_principal_parts(text: str, headword: str) -> dict[str, str]:
     return out
 
 
-def _stem_active_indicative_singular(form: str, ending: str) -> str | None:
-    """Strip the given ending from ``form`` if it matches.
+# ---------------------------------------------------------------------------
+# Augment and preverb analysis
+# ---------------------------------------------------------------------------
+#
+# Module:grc-conj takes two stems for a past tense: the augmented one for the
+# indicative and the unaugmented one for every other mood, the infinitive and
+# the participle. LSJ prints the augmented indicative, so the second stem has
+# to be derived. In a compound the augment follows the preverb, and the
+# preverb stands before it in its prevocalic form (ἀπο-λύω: ἀπ-έ-λυσα,
+# ἐκ-βάλλω: ἐξ-έ-βαλον, συλ-λέγω: συν-έ-λεξα), so removing the augment also
+# restores the preverb the present shows.
 
-    Comparison is on the diacritic-free lowercase form so the strip
-    works on both ``ἔγραψα`` (ε + accent) and ``εγραψα``.
+_PERISPOMENI = chr(0x0342)
+_TONE_MARKS = frozenset((chr(0x0300), chr(0x0301), _PERISPOMENI))
+_SMOOTH, _ROUGH = chr(0x0313), chr(0x0314)
+_BREATHINGS = (_SMOOTH, _ROUGH)
+_SUBSCRIPT, _DIAERESIS = chr(0x0345), chr(0x0308)
+_MACRON, _BREVE = chr(0x0304), chr(0x0306)
+_VOWEL_LETTERS = frozenset("αεηιουω")
+_DIPHTHONGS = frozenset(("αι", "ει", "οι", "υι", "αυ", "ευ", "ου", "ηυ"))
+# Sounds that answer each other at the start of a stem: an aspirate and its
+# plain stop (θάπτω, ἐτάφην), a stop and its fusion with σ (ἅπτω, ἧψα).
+_ONSET_CLASSES = ("τθ", "πφ", "κχ", "πβφψ", "κγχξ", "τδθζσ")
+_LABIALS, _GUTTURALS = frozenset("πβφψμ"), frozenset("κγχξ")
+
+# Preverb -> (its spellings in composition, its spellings before the augment).
+# A composition spelling stands only before the sounds that call for it
+# (_composition_fits).
+_PREVERBS = {
+    "ανα": (("ανα", "αν"), ("αν",)),
+    "αντι": (("αντι", "αντ", "ανθ"), ("αντ", "ανθ")),
+    "απο": (("απο", "απ", "αφ"), ("απ", "αφ")),
+    "δια": (("δια", "δι"), ("δι",)),
+    "εισ": (("εισ", "εσ"), ("εισ", "εσ")),
+    "εκ": (("εκ", "εξ"), ("εξ",)),
+    "εν": (("εν", "εμ", "εγ", "ελ"), ("εν",)),
+    "επι": (("επι", "επ", "εφ"), ("επ", "εφ")),
+    "κατα": (("κατα", "κατ", "καθ"), ("κατ", "καθ")),
+    "μετα": (("μετα", "μετ", "μεθ"), ("μετ", "μεθ")),
+    "παρα": (("παρα", "παρ"), ("παρ",)),
+    "περι": (("περι",), ("περι",)),
+    "προ": (("προ",), ("προ",)),
+    "προσ": (("προσ",), ("προσ",)),
+    "συν": (("συν", "συμ", "συγ", "συλ", "συρ", "συσ", "συ",
+             "ξυν", "ξυμ", "ξυγ", "ξυλ", "ξυρ", "ξυσ", "ξυ"), ("συν", "ξυν")),
+    "υπερ": (("υπερ",), ("υπερ",)),
+    "υπο": (("υπο", "υπ", "υφ"), ("υπ", "υφ")),
+    "αμφι": (("αμφι", "αμφ"), ("αμφ", "αμφι")),
+}
+_ELIDED = frozenset(("αν", "αντ", "ανθ", "απ", "αφ", "δι", "επ", "εφ", "κατ",
+                     "καθ", "μετ", "μεθ", "παρ", "υπ", "υφ", "εξ", "αμφ"))
+_FULL = frozenset(("ανα", "αντι", "απο", "δια", "επι", "κατα", "μετα",
+                   "παρα", "υπο", "εκ"))
+_ALWAYS = frozenset(("περι", "προ", "προσ", "υπερ", "εισ", "εσ", "αμφι"))
+
+# Aorist stems that share no letters with their present: augmented ->
+# unaugmented (ἤνεγκα ἐνεγκεῖν, ἦλθον ἐλθεῖν, εἶδον ἰδεῖν, εἷλον ἑλεῖν).
+_SUPPLETIVE_AORISTS = {
+    "ηνεγκ": "ενεγκ", "ηνεικ": "ενεικ", "ηνεχθ": "ενεχθ",
+    "ηλθ": "ελθ", "ηλυθ": "ελυθ", "ειπ": "ειπ", "ειδ": "ιδ", "ειλ": "ελ",
+}
+# The same stems where an entry prints them without the augment.
+_SUPPLETIVE_STEMS = frozenset(
+    stem for stem in _SUPPLETIVE_AORISTS.values() if stem[0] == "ε")
+_TEMPORAL_AUGMENTS = {
+    "α": ("η",), "ε": ("η", "ει"), "ο": ("ω",), "αι": ("η",),
+    "ει": ("η",), "οι": ("ω",), "αυ": ("ηυ",), "ευ": ("ηυ",),
+}
+
+
+def _letters(word: str) -> list[str]:
+    """Lowercase letters, each with its marks, tone accents removed.
+
+    A circumflex on α, ι or υ shows a long vowel; it is kept as a macron,
+    which the conjugation module needs to place the accent again.
     """
-    plain = strip_diacritics(form).lower()
-    if not plain.endswith(ending):
+    out: list[str] = []
+    for char in unicodedata.normalize("NFD", word.lower()):
+        if not unicodedata.combining(char):
+            out.append("σ" if char == "ς" else char)
+        elif not out:
+            continue
+        elif char not in _TONE_MARKS:
+            out[-1] += char
+        elif (char == _PERISPOMENI and out[-1][0] in "αιυ"
+              and _MACRON not in out[-1] and _BREVE not in out[-1]
+              and not (len(out) > 1 and _DIAERESIS not in out[-1]
+                       and out[-2][0] + out[-1][0] in _DIPHTHONGS)):
+            out[-1] += _MACRON
+    return [letter.replace(_MACRON, "") if _SUBSCRIPT in letter else letter
+            for letter in out]
+
+
+def _spell(letters: list[str]) -> str:
+    return unicodedata.normalize("NFC", "".join(letters))
+
+
+def _bare(letters: list[str]) -> str:
+    return "".join(letter[0] for letter in letters)
+
+
+def _unbreathed(letter: str) -> str:
+    return "".join(char for char in letter if char not in _BREATHINGS)
+
+
+def _vowel_group(letters: list[str]) -> int:
+    """Number of letters in the initial vowel or diphthong (0, 1 or 2)."""
+    if not letters or letters[0][0] not in _VOWEL_LETTERS:
+        return 0
+    if (len(letters) > 1 and letters[0][0] + letters[1][0] in _DIPHTHONGS
+            and _DIAERESIS not in letters[1]
+            and not any(mark in letters[0] for mark in _BREATHINGS)):
+        return 2
+    return 1
+
+
+def _same_onset(left: str, right: str) -> bool:
+    """Whether a stem ``left`` goes on like the present ``right``.
+
+    The same sound (θάπτω, ἐτάφην), or anything at all where the present
+    has only its ending left (εὕω, εὗσα).
+    """
+    if not left or not right:
+        return True
+    if right in ("ω", "ομαι") and left[0] not in _VOWEL_LETTERS:
+        return True
+    return left[0] == right[0] or any(
+        left[0] in sounds and right[0] in sounds for sounds in _ONSET_CLASSES)
+
+
+def _composition_fits(spelling: str, following: str) -> bool:
+    """Whether a preverb spelling can stand before ``following``."""
+    if not following:
+        return False
+    nxt = following[0]
+    vowel = nxt in _VOWEL_LETTERS
+    if spelling in _ALWAYS:
+        return True
+    if spelling in _FULL:
+        return not vowel
+    if spelling in _ELIDED:
+        return vowel
+    if spelling in ("εν", "συν", "ξυν"):
+        return vowel or nxt in "τδθνζσ"
+    if spelling in ("εμ", "συμ", "ξυμ"):
+        return nxt in _LABIALS
+    if spelling in ("εγ", "συγ", "ξυγ"):
+        return nxt in _GUTTURALS
+    if spelling in ("ελ", "συλ", "ξυλ"):
+        return nxt == "λ"
+    if spelling in ("συρ", "ξυρ"):
+        return nxt == "ρ"
+    if spelling in ("συσ", "ξυσ"):
+        return nxt == "σ"
+    if spelling in ("συ", "ξυ"):
+        return nxt in "ζσ"
+    return False
+
+
+def _compose(canonical: str, following: str, xi: bool = False) -> str:
+    """The spelling of a preverb before a consonant-initial stem."""
+    nxt = following[:1]
+    if canonical == "συν":
+        base = "ξυ" if xi else "συ"
+        if nxt in _LABIALS:
+            return base + "μ"
+        if nxt in _GUTTURALS:
+            return base + "γ"
+        if nxt in "λρ":
+            return base + nxt
+        if nxt == "ζ" or (nxt == "σ" and following[1:2]
+                          and following[1] not in _VOWEL_LETTERS):
+            return base
+        if nxt == "σ":
+            return base + "σ"
+        return base + "ν"
+    if canonical == "εν":
+        if nxt in _LABIALS:
+            return "εμ"
+        if nxt in _GUTTURALS:
+            return "εγ"
+        if nxt == "λ":
+            return "ελ"
+        return "εν"
+    return canonical
+
+
+def _preverb_splits(bare: str) -> list[tuple[int, str, str]]:
+    """Preverb chains that can open ``bare``, longest first.
+
+    Each is (length of the chain, last preverb, its spelling there). At
+    least two letters must remain as the verb.
+    """
+    found: dict[int, tuple[int, str, str]] = {}
+
+    def walk(start: int, depth: int) -> None:
+        if depth == 3:
+            return
+        for canonical, (spellings, _) in _PREVERBS.items():
+            for spelling in spellings:
+                end = start + len(spelling)
+                if (bare.startswith(spelling, start) and len(bare) - end >= 2
+                        and _composition_fits(spelling, bare[end:])):
+                    found.setdefault(end, (end, canonical, spelling))
+                    walk(end, depth + 1)
+
+    walk(0, 0)
+    return sorted(found.values(), reverse=True)
+
+
+def _unaugmented_base(base: list[str], rest: list[str], simplex: bool
+                      ) -> tuple[list[str] | None, bool]:
+    """Remove the augment that opens ``rest``.
+
+    ``base`` is the present from the same point (the verb without its
+    preverbs) and ``rest`` the augmented stem from that point. Returns the
+    unaugmented letters and whether an augment was seen; ``None`` when the
+    stem cannot be read against the present.
+    """
+    b, r = _bare(base), _bare(rest)
+    if not r or not b:
+        return None, False
+    if r in _SUPPLETIVE_AORISTS:
+        plain = list(_SUPPLETIVE_AORISTS[r])
+        if simplex:
+            breathing = "".join(mark for letter in rest[:2] for mark in letter
+                                if mark in _BREATHINGS)[:1]
+            plain[1 if "".join(plain[:2]) in _DIPHTHONGS else 0] += breathing
+        return plain, True
+    if r in _SUPPLETIVE_STEMS and not _same_onset(r[1:], b):
+        # Ionic ἔνεικα beside ἤνεικα: the ε belongs to the stem, and the
+        # other moods are built on the stem as printed (ἐνεῖκαι). The
+        # passive ἐλύθην of λύω has the augment.
+        return rest, False
+    if b in ("αιρω", "αιρομαι") and r[:2] == "ηρ":
+        # αἴρω: ἦρα, ἤρθην. The aorist stem is ἀρ-, not the present's αἰρ-.
+        breathing = "".join(mark for mark in rest[0] if mark in _BREATHINGS)
+        return ["α" + (breathing if simplex else "")] + rest[1:], True
+    group = _vowel_group(base)
+    if not group:
+        if r[0] == "ε" and len(r) > 1 and r[1] not in _VOWEL_LETTERS:
+            # The syllabic augment. ρ doubles after it (ἔρρηξα), and in
+            # epic so do λ, μ, ν and σ (ἔμμορον); a compound keeps the
+            # doubled ρ after a vowel (ἀπορρήξω), as its present shows.
+            tail = rest[1:]
+            if r[1:2] == r[2:3] and r[1] in "ρλμνσ" and b[:2] != r[1:3]:
+                tail = rest[2:]
+                if simplex and r[1] == "ρ":
+                    tail = ["ρ" + _ROUGH] + rest[3:]
+            return tail, True
+        if r[0] == "η" and r[1:2] == b[0] and b[0] in "βδμ":
+            return rest[1:], True  # ἠβουλήθην, ἠδυνήθην, ἤμελλον
+        if r[:2] == b[:2]:
+            return rest, False  # no augment (epic θάλησα)
+        return None, False
+    vowel, after = b[:group], b[group:]
+    if r.startswith("ερρ") and not b.startswith("ερρ"):
+        # ἐρρήθην beside ἐρῶ: the stem is ῥη-.
+        return (["ρ" + _ROUGH] if simplex else ["ρ"]) + rest[3:], True
+    if r.startswith(vowel) and _same_onset(r[group:], after):
+        return rest, False  # ἵδρυσα, ὠφέλησα, εὗρον, epic ἄμειψα
+    for augment in _TEMPORAL_AUGMENTS.get(vowel, ()):
+        # ηὐ- for αὐ- or εὐ- is evidence enough (αὐαίνω, ηὔηνα).
+        if r.startswith(augment) and (len(augment) == 2 or _same_onset(
+                r[len(augment):], after)):
+            restored = [letter if simplex else _unbreathed(letter)
+                        for letter in base[:group]]
+            return restored + rest[len(augment):], True
+    if r[0] == "ε" and len(r) > 1 and r[1] not in _VOWEL_LETTERS:
+        if r[1:2] == r[2:3]:
+            # ἕσσα beside ἕννυμι: no stem begins with a doubled consonant,
+            # so the ε is the stem's own and there is no augment to remove.
+            return (rest, False) if vowel == "ε" else (None, False)
+        # A consonant-initial aorist beside a vowel-initial present
+        # (ἔχω ἔσχον, ἵστημι ἔστησα).
+        return rest[1:], True
+    return None, False
+
+
+def unaugmented_stem(headword: str, augmented: str) -> tuple[str | None, str]:
+    """The non-indicative stem of an augmented one, and the stem's preverb.
+
+    ``augmented`` is a past indicative stem as LSJ prints it (ἀπελυσ,
+    ἀντεταφ, εἰσηνεγκ, ἠκουσ). The first value is the stem without its
+    augment, with the preverb as the present has it (ἀπολυσ, ἀντιταφ,
+    εἰσενεγκ, ἀκουσ), or ``None`` when the augment cannot be identified
+    against ``headword``: then only the indicative is safe to build. The
+    second value is the part of ``augmented`` that precedes the augment (""
+    for a simplex); the module needs it to keep the accent off the preverb.
+    """
+    head = _letters(headword)
+    stem = _letters(augmented)
+    h, a = _bare(head), _bare(stem)
+    if not h or not a:
+        return None, ""
+    splits = _preverb_splits(h)
+
+    def second_augment(whole: list[str], end: int) -> bool:
+        # Where the present allows a preverb to end later than this reading
+        # takes it, the letter after that point must not be an augment the
+        # present lacks: ἠμφεσβήτουν, ἐπηνώρθωσα and ἐδιῄτησα carry a second
+        # augment there, προὔβαλον a contracted one.
+        bare = _bare(whole)
+        for later, _, _ in splits:
+            if end < later < len(bare) and bare[later] != h[later] and (
+                    bare[later] in "εηω"
+                    or (bare[later] in _VOWEL_LETTERS
+                        and h[later] not in _VOWEL_LETTERS)):
+                return True
+        return False
+
+    other: tuple[str | None, str] | None = None
+    for end, canonical, spelling in splits:
+        earlier = end - len(spelling)
+        xi = spelling.startswith("ξ")
+        for before in _PREVERBS[canonical][1]:
+            if canonical == "συν" and before.startswith("ξ") != xi:
+                continue
+            lead = earlier + len(before)
+            if a[:lead] != h[:earlier] + before or len(a) <= lead:
+                continue
+            prefix = _spell(stem[:lead])
+            base, seen = _unaugmented_base(head[end:], stem[lead:],
+                                           simplex=False)
+            if base is None:
+                whole = None
+            elif not seen:
+                whole = stem
+            elif _bare(base)[0] in _VOWEL_LETTERS:
+                whole = stem[:lead] + base
+            elif (not _vowel_group(head[end:])
+                  and _same_onset(_bare(base), h[end:])):
+                whole = head[:end] + base
+            else:
+                composed = h[:earlier] + _compose(canonical, _bare(base), xi)
+                if base[0][0] == "ρ" and composed[-1] in _VOWEL_LETTERS:
+                    base = ["ρ"] + base
+                whole = [head[0] if composed[0] == h[0] else composed[0]]
+                whole += list(composed[1:]) + base
+            if whole is not None and second_augment(whole, end):
+                whole = None
+            if whole is not None and seen:
+                return _spell(whole), prefix
+            # Without a visible augment the accent is held back only by an
+            # augment that may be there unseen: a lengthened vowel (ἀφῑκόμην,
+            # ἐνεῖρα), or the vowel of a stem that could not be read
+            # (διαφῆκα). Epic περίχευε has none.
+            if whole is None and a[lead] not in "εηω":
+                continue
+            if whole is not None and not _vowel_group(head[end:]):
+                prefix = ""
+            if other is None or (other[0] is None and whole is not None
+                                 and other[1] == prefix):
+                other = (_spell(whole) if whole is not None else None, prefix)
+    # An augment seen at the front (ἐκάθισα, εἱστίασα beside ἑστιάω, whose
+    # letters also allow ἐσ-) outweighs a preverb without one.
+    base, seen = _unaugmented_base(head, stem, simplex=True)
+    if base is not None and second_augment(base, 0):
+        base = None
+    if base is not None and (seen or other is None):
+        return _spell(base), ""
+    if other is not None:
+        return other
+    return None, ""
+
+
+def _stem_preverb(head: list[str], letters: list[str]
+                  ) -> tuple[int, int, str] | None:
+    """Where the preverb of ``head`` ends in a perfect stem.
+
+    Returns (length of the preverb, length of the preverbs before the last
+    one, the last preverb), or ``None`` for a simplex or a stem that does
+    not show the present's preverb followed by a perfect of the rest:
+    its reduplication (ἀπο-λελυκ, δια-πεφυκ), an ἐ- (ἀπ-εσταλκ, παρ-εικ),
+    or the vowel of a vowel-initial verb, lengthened or not (ἀπ-ηλλαχ,
+    ἀφ-ῑγ, μετ-αγηοχ). The letters alone often allow two divisions
+    (ἀπαν-αλίσκω, ἀπανα-λίσκω), and a wrong one misplaces the accent.
+    """
+    h, s = _bare(head), _bare(letters)
+    for end, canonical, spelling in _preverb_splits(h):
+        earlier = end - len(spelling)
+        base = h[end:]
+        spellings, before = _PREVERBS[canonical]
+        for candidate in sorted(set(spellings) | set(before), key=len,
+                                reverse=True):
+            lead = earlier + len(candidate)
+            rest = s[lead:]
+            if s[:lead] != h[:earlier] + candidate or len(rest) < 2:
+                continue
+            if base[0] in _VOWEL_LETTERS:
+                fits = (rest[0] == base[0]
+                        or (base[0] in "αεο" and rest[0] in "ηω")
+                        or (base[0] in "ιε" and rest[0] == "ε"))
+            else:
+                fits = ((rest[1] == "ε" and _same_onset(rest, base))
+                        or (rest[0] == "ε" and (rest[1] not in _VOWEL_LETTERS
+                                                or rest[1] == "ι")))
+            if fits:
+                return lead, earlier, canonical
+    return None
+
+
+def stem_preverb(headword: str, stem: str) -> str:
+    """The preverb that opens an unaugmented or reduplicated ``stem``.
+
+    The perfect of a compound keeps the accent off its preverb (ἀφῖγμαι),
+    so the module is told where the preverb ends. "" for a simplex or when
+    the stem does not open with a preverb of ``headword``.
+    """
+    letters = _letters(stem)
+    found = _stem_preverb(_letters(headword), letters)
+    return _spell(letters[:found[0]]) if found else ""
+
+
+def _augmented_pluperfect(headword: str, stem: str) -> tuple[str, str] | None:
+    """The augmented pluperfect stem of a perfect stem, and its preverb.
+
+    λελυκ gives ἐλελυκ and ἀπολελυκ gives ἀπελελυκ. A perfect stem that
+    begins with a vowel takes no further augment (ἠγγέλκειν, ἐστάλκειν),
+    and only a visibly reduplicated one is augmented here.
+    """
+    letters = _letters(stem)
+    if not letters:
         return None
-    # Slice the original form by the same number of characters since
-    # NFC code points correspond 1:1 with the stripped string here
-    # (the combining marks are folded into base codepoints).
-    return form[: -len(ending)]
+    found = _stem_preverb(_letters(headword), letters)
+    if not found:
+        if (letters[0][0] in _VOWEL_LETTERS or len(letters) < 3
+                or letters[1][0] != "ε"
+                or not _same_onset(letters[0][0], letters[2][0])):
+            return None
+        return _spell(["ε" + _SMOOTH] + letters), ""
+    lead, earlier, canonical = found
+    if letters[lead][0] in _VOWEL_LETTERS or letters[lead + 1][0] != "ε":
+        return None
+    before = _PREVERBS[canonical][1][0]
+    if _bare(letters)[earlier:lead].startswith("ξ"):
+        before = "ξυν"
+    opening = letters[:earlier] + list(before)
+    if not earlier:
+        # The breathing is on the first vowel, or on the second of a
+        # diphthong (εἰσ-).
+        for index, letter in enumerate(letters[:2]):
+            breathing = "".join(mark for mark in letter if mark in _BREATHINGS)
+            if breathing:
+                opening[index] = before[index] + breathing
+    return _spell(opening + ["ε"] + letters[lead:]), _spell(opening)
+
+
+def _accent_position(form: str) -> int:
+    """Index of the letter that carries the tone accent, -1 without one."""
+    index = -1
+    for char in unicodedata.normalize("NFD", form):
+        if not unicodedata.combining(char):
+            index += 1
+        elif char in _TONE_MARKS:
+            return index
+    return -1
+
+
+def _contract_class(headword: str) -> str:
+    """"e", "a" or "o" for a contract verb, else ""."""
+    plain = strip_diacritics(headword).lower()
+    for ending, vowel in (("εω", "e"), ("εομαι", "e"), ("αω", "a"),
+                          ("αομαι", "a"), ("οω", "o"), ("οομαι", "o")):
+        if plain.endswith(ending):
+            return vowel
+    return ""
+
+
+# A generator directive, not a template argument: build the indicative only.
+INDICATIVE_ONLY = "@indicative"
 
 
 def derive_grc_conj_args(parts: dict[str, str], headword: str
@@ -570,120 +1081,170 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
     Returns a dict like::
 
         {"fut": ["fut", "λυσ", "λυθ"],
-         "aor-1": ["aor-1", "ελυσ", "λυσ", "λυθ", "ελυθ"],
+         "aor-1": ["aor-1", "ἐλυσ", "λυσ"],
+         "aor-pass": ["aor-1", "", "", "ἐλυθ", "λυθ", "form=pass"],
          "perf": ["perf", "λελυκ", "λελυ"]}
 
-    Each value is the argument vector to feed to grc-conj (tense code
-    first, then positional stems). Tenses for which we cannot derive a
-    usable stem are simply omitted.
+    Each value is the argument vector to feed to grc-conj: the tense code,
+    the positional stems, then named arguments. Tenses for which no usable
+    stem can be derived are omitted.
+
+    A past tense takes its augmented stem (the indicative) before its
+    unaugmented one (every other form), in the active and in the passive
+    alike. The unaugmented stem comes from :func:`unaugmented_stem`, which
+    reads the augment after the preverb of a compound; when it cannot, the
+    list ends in :data:`INDICATIVE_ONLY` and only the indicative is built.
+    A compound passes ``prefix=``, so that the accent stays on or after the
+    augment (παρέσχον), unless the printed part itself has it on the
+    preverb (ἄφευσα, epic περίχευα). A middle principal part (ἐδεξάμην,
+    δέξομαι) passes ``form=mid`` and builds no active cells.
 
     The grc-conj template computes tone accents but requires lexical
     breathings, diaeresis, iota subscript, and length marks. Remove only
-    acute, grave, and perispomeni, retaining all other marks in NFC.
+    acute, grave, and perispomeni, retaining all other marks in NFC; a
+    circumflex on α, ι or υ becomes a macron.
     """
     args: dict[str, list[str]] = {}
+    plain_head = strip_diacritics(headword).lower()
 
     def stripped(form: str) -> str:
         """Remove tone accents without discarding lexical marks."""
-        return unicodedata.normalize("NFC", "".join(
-            char for char in unicodedata.normalize("NFD", form)
-            if char not in {"\u0300", "\u0301", "\u0342"}
-        )).lower()
+        return _spell(_letters(form))
 
-    # Future: stem1 = active future stem (strip ω from λύσω -> λυσ),
-    # stem2 = passive future stem (strip ησομαι from λυθήσομαι -> λυθ).
-    # Deponent futures (πεσοῦμαι, ἐλεύσομαι) don't have an active
-    # principal part, so we synthesize stem1 from the middle form
-    # by stripping ομαι/ουμαι and feeding it as ``form=mp`` to grc-conj
-    # by leaving stem1 empty. This matches Wiktionary's convention.
-    if "fut" in parts or "fut_med" in parts:
-        fut_form = parts.get("fut", "")
-        fut_stem = ""
-        if fut_form:
-            fp = stripped(fut_form)
-            if fp.endswith("ω"):
-                fut_stem = fp[:-1]
-            elif fp.endswith("ουμαι"):
-                # Deponent active-coded as middle: keep the οῦμαι form
-                # but strip "ουμαι" -> contract-future stem; we treat
-                # it as fut_med below instead and leave fut_stem empty.
-                fut_stem = ""
-        if not fut_stem and "fut_med" in parts:
-            fp = stripped(parts["fut_med"])
-            for end in ("ουμαι", "ομαι"):
-                if fp.endswith(end):
-                    # We don't currently have a stem slot for the
-                    # middle, so we skip - conservative default.
-                    break
-        fut_p = parts.get("fut_p", "")
-        fut_p_stem = ""
-        if fut_p:
-            fp = stripped(fut_p)
-            for end in ("ησομαι", "ησεται"):
-                if fp.endswith(end):
-                    fut_p_stem = fp[: -len(end)]
-                    break
-        if fut_stem:
-            args["fut"] = ["fut", fut_stem]
+    def cut(form: str, endings: tuple[str, ...]) -> tuple[str, str] | None:
+        """Stem and matched ending of ``form``, compared by letters."""
+        letters = _letters(form)
+        bare = _bare(letters)
+        for ending in endings:
+            if bare.endswith(ending) and len(bare) > len(ending):
+                return _spell(letters[:len(letters) - len(ending)]), ending
+        return None
+
+    def named(prefix: str = "", form: str = "", resolved: bool = True,
+              printed: str = "") -> list[str]:
+        extra = []
+        if form:
+            extra.append("form=" + form)
+        # The printed part shows whether the accent may stand on the
+        # preverb: ἄφευσα and περίχευα have it there, παρέσχον does not.
+        if prefix and not (printed and 0 <= _accent_position(printed)
+                           < len(_letters(prefix))):
+            extra.append("prefix=" + prefix)
+        if not resolved:
+            extra.append(INDICATIVE_ONLY)
+        return extra
+
+    def past(code: str, printed: str, augmented: str, voice: str,
+             sure: bool = True, passive: bool = False) -> list[str]:
+        """Arguments of a past tense from its augmented stem."""
+        plain, prefix = unaugmented_stem(headword, augmented)
+        resolved = sure and plain is not None
+        stems = [augmented, plain if plain is not None else augmented]
+        if passive:
+            stems = ["", ""] + stems
+        return [code] + stems + named(prefix, voice, resolved, printed)
+
+    # Future. An active future in -ω builds the active and the middle, a
+    # contracted one (-ῶ, by its circumflex, or uncontracted -έω) the
+    # contract paradigm; a middle future (-ομαι, -οῦμαι) builds the middle
+    # alone. The passive future stem (λυθήσομαι -> λυθ) joins the active
+    # template or stands by itself.
+    future = parts.get("fut") or parts.get("fut_med") or ""
+    found = cut(future, ("ουμαι", "ομαι", "ω")) if future else None
+    fut_p = cut(parts.get("fut_p", ""), ("ησομαι", "ησεται"))
+    fut_p_stem = fut_p[0] if fut_p else ""
+    if found:
+        stem, ending = found
+        contracted = _PERISPOMENI in unicodedata.normalize("NFD", future)[-2:]
+        if ending == "ομαι":
+            args["fut"] = ["fut", stem, "form=mid"]
+        elif ending == "ουμαι":
+            args["fut"] = ["fut-con-e", stem, "form=mid"]
+        elif contracted and plain_head.endswith(
+                ("αζω", "αννυμι", "αυνω", "αω")):
+            args["fut"] = ["fut-con-a", stem]
+        elif contracted:
+            args["fut"] = ["fut-con-e", stem]
+        elif stem.endswith("ε"):
+            args["fut"] = ["fut-con-e", stem[:-1]]
+        else:
+            args["fut"] = ["fut", stem]
             if fut_p_stem:
                 args["fut"].append(fut_p_stem)
+                fut_p_stem = ""
+    if fut_p_stem:
+        args["fut-pass"] = ["fut", "", fut_p_stem]
 
-    # Aorist: aor-1 takes augmented + non-augmented + passive +
-    # augmented-passive stems. ``ἔλυσα`` -> "ελυσ"; non-augmented
-    # ``λύσω``-derived "λυσ"; passive "λυθ" from ``ἐλύθην`` -> "λυθ"
-    # after stripping "ην" + augment.
+    # Aorist. aor-1 and aor-2 take the augmented stem, then the unaugmented
+    # one; the passive takes its own pair in a call of its own, so that an
+    # unresolved augment on one side does not cost the other its paradigm.
     aor1 = parts.get("aor1") or (parts.get("aor") if parts.get("aor", "")
                                   and not parts.get("aor2")
                                   else None)
     aor2 = parts.get("aor2") or (parts.get("aor") if parts.get("aor", "")
                                   and not parts.get("aor1")
                                   else None)
+    plain_aor = strip_diacritics(parts.get("aor", "")).lower()
+    if (not aor1 and aor2 and parts.get("aor") != aor2
+            and plain_aor.endswith(("α", "αμην"))):
+        # A plain "aor." beside a numbered second aorist is the first one
+        # (ἀναθάλλω: aor. ἀνέθηλα, aor. 2 ἀνέθαλον).
+        aor1 = parts["aor"]
+    if (not aor2 and aor1 and parts.get("aor") != aor1
+            and plain_aor.endswith(("ον", "ομην"))):
+        aor2 = parts["aor"]
+    if not aor1 and not aor2 and parts.get("aor_med"):
+        aor1 = aor2 = parts["aor_med"]
     aor_p = parts.get("aor_p")
-
-    aor_p_stem = ""
-    aor_p_aug_stem = ""
+    if aor_p and strip_diacritics(aor_p).lower().endswith("μην"):
+        # A middle aorist printed in the passive section (ἐσεχύμην).
+        if not aor1 and not aor2:
+            aor1 = aor2 = aor_p
+        aor_p = None
+    for form in (aor1, aor2, parts.get("aor")):
+        # A passive deponent prints its aorist in -θην under the plain label
+        # (ἐβουλήθην); a root aorist in -ην (ἔβην) is not passive.
+        if form and not aor_p and strip_diacritics(form).lower().endswith("θην"):
+            aor_p = form
     if aor_p:
-        ap = stripped(aor_p)
-        # ἐλύθην -> ελυθην; strip "ην" -> ελυθ (augmented). The
-        # non-augmented form is the same minus the leading "ε" if
-        # the head starts with augment "ε" + consonant.
-        if ap.endswith("ην"):
-            aug = ap[:-2]
-            aor_p_aug_stem = aug
-            aor_p_stem = _strip_augment(aug)
-
+        found = cut(aor_p, ("ην",))
+        if found:
+            # ἔστην, ἔβην and ἔφθην are root aorists: only their
+            # indicative goes like a passive one.
+            root = plain_head.endswith("φθανω") or (
+                plain_head.endswith(("ιστημι", "ισταμαι", "βαινω"))
+                and not found[0].endswith("θ"))
+            args["aor-pass"] = past("aor-1", aor_p, found[0], "pass",
+                                    not root, passive=True)
+        found = cut(parts.get("aor_p2", ""), ("ην",))
+        if found:
+            args["aor-pass-2"] = past("aor-1", parts["aor_p2"], found[0],
+                                      "pass", passive=True)
     if aor1:
-        a = stripped(aor1)
-        if a.endswith("α") or a.endswith("ᾰ"):
-            aug_stem = a[:-1]
-            non_aug_stem = _strip_augment(aug_stem)
-            grc_args = ["aor-1", aug_stem, non_aug_stem]
-            if aor_p_stem:
-                grc_args.append(aor_p_stem)
-            if aor_p_aug_stem:
-                grc_args.append(aor_p_aug_stem)
-            args["aor-1"] = grc_args
-
+        found = cut(aor1, ("αμην", "α"))
+        if found and not found[0].endswith(("μεθ", "σθ")):
+            stem, ending = found
+            if ending == "αμην":
+                args["aor-1"] = past("aor-1", aor1, stem, "mid")
+            elif (plain_head.endswith(("ημι", "ωμι"))
+                  and stem.endswith(("ηκ", "ωκ"))):
+                # ἔθηκα, ἔδωκα, ἧκα: in the active the κ stem belongs to
+                # the indicative alone (θῶ, θεῖναι); the middle on it is
+                # late but whole (προσηκάμην, προσήκασθαι).
+                args["aor-1"] = past("aor-1", aor1, stem, "act", sure=False)
+                middle = past("aor-1", aor1, stem, "mid")
+                if plain_head.endswith("ιημι") and INDICATIVE_ONLY in middle:
+                    # ἡκ- is augmented and unaugmented alike.
+                    middle.remove(INDICATIVE_ONLY)
+                args["aor-mid"] = middle
+            else:
+                args["aor-1"] = past("aor-1", aor1, stem, "")
     if aor2:
-        a = stripped(aor2)
-        if a.endswith("ον") or a.endswith("ομην"):
-            # ἔλιπον -> ελιπον; strip "ον" -> ελιπ
-            cut = 3 if a.endswith("ομην") else 2
-            aug_stem = a[:-cut]
-            non_aug_stem = _strip_augment(aug_stem)
-            grc_args = ["aor-2", aug_stem, non_aug_stem]
-            if aor_p_stem:
-                grc_args.append(aor_p_stem)
-            if aor_p_aug_stem:
-                grc_args.append(aor_p_aug_stem)
-            args["aor-2"] = grc_args
-
-    # Aorist passive standalone (when no active aorist is provided
-    # but a passive aorist is). grc-conj requires an active stem,
-    # so we leave stem1 empty (the template treats this as
-    # passive-only via args.form='pass').
-    if not aor1 and not aor2 and aor_p_stem:
-        args["aor-1"] = ["aor-1", "", "", aor_p_stem, aor_p_aug_stem]
+        found = cut(aor2, ("ομην", "ον"))
+        if found:
+            stem, ending = found
+            args["aor-2"] = past("aor-2", aor2, stem,
+                                 "mid" if ending == "ομην" else "")
 
     # Perfect: stem1 = active perf stem ("λελυκ" from λέλυκα -> strip
     # "α"), stem2 = mediopassive perf stem.
@@ -736,86 +1297,485 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
                     mp_stem = mp_stem[:-1] + act_stem[-1]
                 elif mp_stem.endswith("σ") and act_stem[-1] in "τδθ":
                     mp_stem = mp_stem[:-1] + act_stem[-1]
-                # Same logic when the act_stem ends in a vowel + κ
-                # (e.g. λελυκ from λέλυκα): leave the MP stem at the
-                # vowel since the κ is the perfect-active marker.
-                elif act_stem.endswith("κ"):
-                    # MP form's stem doesn't include κ; trust the
-                    # surface mp_stem.
-                    pass
         if act_stem or mp_stem:
-            args["perf"] = ["perf", act_stem, mp_stem]
+            prefixes = {stem_preverb(headword, stem)
+                        for stem in (act_stem, mp_stem) if stem}
+            prefix = prefixes.pop() if len(prefixes) == 1 else ""
+            for printed in (act, mp_form):
+                if printed and not named(prefix, printed=printed):
+                    prefix = ""
+            args["perf"] = ["perf", act_stem, mp_stem] + named(prefix)
+            # Pluperfect: the unaugmented one on the perfect stems (Homer,
+            # the Koine) and the augmented one beside it (ἐλελύκειν).
+            args["plup"] = ["plup", act_stem, mp_stem] + named(prefix)
+            augmented = [_augmented_pluperfect(headword, stem) if stem else ("", "")
+                         for stem in (act_stem, mp_stem)]
+            if all(augmented) and len({pair[1] for pair in augmented
+                                       if pair[0]}) == 1:
+                args["plup-aug"] = (
+                    ["plup"] + [pair[0] for pair in augmented]
+                    + named(next(pair[1] for pair in augmented if pair[0])))
 
-    # Pluperfect: same stems as perfect plus an augment that grc-conj
-    # adds itself, so we just rebuild from pf/pf_mp.
-    if "perf" in args:
-        args["plup"] = ["plup", args["perf"][1], args["perf"][2]]
-
-    # Imperfect: stem1 is the augmented imperfect stem; the present
-    # template handles non-augmented forms separately.
+    # Imperfect: the augmented stem, for the indicative it alone has. A
+    # contracted imperfect (ἠγνόουν, ἀτίμων) takes the contract template
+    # of its present.
     if "impf" in parts:
-        imp = stripped(parts["impf"])
-        for end in ("ον", "ομην"):
-            if imp.endswith(end):
-                args["imperf"] = ["imperf", imp[: -len(end)]]
-                break
+        found = cut(parts["impf"],
+                    ("ουμην", "ωμην", "ομην", "ουν", "ων", "ον"))
+        if found:
+            stem, ending = found
+            contract = _contract_class(headword)
+            code = "imperf"
+            if ending in ("ουν", "ουμην"):
+                code = {"e": "imperf-con-e", "o": "imperf-con-o"}.get(
+                    contract, "")
+            elif ending in ("ων", "ωμην"):
+                code = "imperf-con-a" if contract == "a" else ""
+            if code:
+                prefix = unaugmented_stem(headword, stem)[1]
+                args["imperf"] = [code, stem] + named(
+                    prefix, "mp" if ending.endswith("μην") else "",
+                    printed=parts["impf"])
 
     return args
 
 
-# Greek vowel set used for augment recognition.
-_GREEK_VOWELS = set("αεηιουωᾰᾱ")
-_AUG_REPLACEMENTS = {
-    "ε": "",     # ε-augment (ε + consonant -> consonant), ἔλυσα -> λυσ
-    "η": "α",    # temporal augment α -> η: ἤγαγον -> αγαγον
-    "ω": "ο",    # temporal augment ο -> ω: ὤφειλον -> οφειλ-
-    "ηυ": "αυ",
-    "ευ": "ευ",  # diphthong unchanged
-    "οι": "οι",
-    "ου": "ου",
-    "ει": "ει",
-    "ι": "ι",
-    "υ": "υ",
+def future_stems(calls: dict[str, list[str]]) -> frozenset[str]:
+    """The stems of the futures among the calls of
+    :func:`derive_grc_conj_args`, by their letters."""
+    return frozenset(
+        _bare(_letters(arg))
+        for tense, tense_args in calls.items() if tense.startswith("fut")
+        for arg in tense_args[1:]
+        if arg and "=" not in arg and arg != INDICATIVE_ONLY)
+
+
+def derived_cells(tense: str, tense_args: list[str], cells,
+                  printed_stems=frozenset()) -> set[str]:
+    """The cells of one call of :func:`derive_grc_conj_args` that stand on
+    a stem the entry does not print.
+
+    An entry prints a past tense with its augment (ἀντετάφην, ἤγαγον). The
+    stem without it (ἀντιταφ-, ἀγαγ-), which carries every form outside the
+    indicative, is derived from the headword, and so is the augmented
+    pluperfect (ἐλελύκειν beside the printed λέλυκα). A plain ἐ- before the
+    stem is no derivation: the conjugation module takes it off by itself
+    (ἐζημίωσα, ζημιῶσαι). Neither is a stem that the entry prints in its
+    future (``printed_stems``, from :func:`future_stems`): ἀμφιεσ- of
+    ἠμφίεσα stands in ἀμφιέσω. The cells of every other call begin with a
+    stem the entry prints.
+    """
+    if tense == "plup-aug":
+        return set(cells)
+    if not tense.startswith("aor") or INDICATIVE_ONLY in tense_args:
+        return set()
+    stems = [arg for arg in tense_args[1:] if arg and "=" not in arg]
+    if len(stems) < 2:
+        return set()
+    printed, plain = (_bare(_letters(stem)) for stem in stems[:2])
+    if printed in (plain, "ε" + plain) or plain in printed_stems:
+        return set()
+    return {cell for cell in cells
+            if not _bare(_letters(cell)).startswith(printed)}
+
+
+_ACUTE = chr(0x0301)
+# The endings of a participle in -μενος after μεν-, by the length of the
+# last syllable: before a long one the accent stands on μέν.
+_PARTICIPLE_SHORT = ("ον", "ε", "οι", "α", "αι")
+_PARTICIPLE_LONG = ("ου", "ῳ", "ων", "οις", "ους", "η", "ης", "ῃ", "ην",
+                    "αις", "ας")
+
+
+def participle_cases(nominative: str) -> list[str]:
+    """The other case forms of a participle in -μενος.
+
+    λυόμενος gives λυόμενον, λυομένου, λυομένη and the rest, with the
+    accent on μέν before a long ending; the perfect λελυμένος keeps it
+    there throughout. Any other spelling gives nothing.
+    """
+    nfd = unicodedata.normalize("NFD", nominative)
+    if nfd.endswith("με" + _ACUTE + "νος"):
+        stem = nfd[:-len("με" + _ACUTE + "νος")]
+        if any(mark in stem for mark in _TONE_MARKS):
+            return []
+        short = long = stem + "με" + _ACUTE + "ν"
+    elif nfd.endswith("μενος"):
+        stem = nfd[:-len("μενος")]
+        if stem.count(_ACUTE) != 1 or _PERISPOMENI in stem:
+            return []
+        short = stem + "μεν"
+        long = stem.replace(_ACUTE, "") + "με" + _ACUTE + "ν"
+    else:
+        return []
+    return [unicodedata.normalize("NFC", base + ending)
+            for base, endings in ((short, _PARTICIPLE_SHORT),
+                                  (long, _PARTICIPLE_LONG))
+            for ending in endings]
+
+
+# --- Principal parts that no entry prints -----------------------------------
+#
+# Most LSJ verbs print no principal parts: a compound leaves them to its
+# simplex (συγκατατρίβω to τρίβω), a denominative to its class (εἰκονίζω
+# goes like νομίζω). The functions below state those parts. They are
+# hypotheses, so the caller keeps only the cells a corpus attests.
+
+# The tenses a compound takes from its simplex. The imperfect belongs to the
+# present system, which the compound builds itself.
+INFERRED_KEYS = ("fut", "fut_med", "aor", "aor1", "aor2", "aor_med", "pf",
+                 "pf_mp", "fut_p", "aor_p", "aor_p2")
+# Tenses that stand or fall together when an entry prints some of them.
+INFERRED_FAMILIES = (
+    ("fut", "fut_med"), ("aor", "aor1", "aor2", "aor_med"), ("pf",),
+    ("pf_mp",), ("fut_p", "aor_p", "aor_p2"),
+)
+_ASPIRATES = {"τ": "θ", "π": "φ", "κ": "χ"}
+_ASPIRATED_SPELLINGS = frozenset(("ανθ", "αφ", "εφ", "καθ", "μεθ", "υφ"))
+_PLAIN_SPELLINGS = frozenset(("αντ", "απ", "επ", "κατ", "μετ", "υπ"))
+
+
+def _is_rough(letters: list[str]) -> bool:
+    return any(_ROUGH in letter for letter in letters[:2])
+
+
+def _join_preverb(head: list[str], end: int, canonical: str, spelling: str,
+                  part: list[str]) -> list[str] | None:
+    """The preverbs of a compound before a form of its simplex.
+
+    ``head[:end]`` is the preverb chain of the present, whose last preverb
+    is ``canonical``, spelled ``spelling`` there. That preverb is spelled
+    again for the sound ``part`` begins with: elided before a vowel and
+    aspirated before a rough one (κατ-έτριψα, καθ-εῖλκον), assimilated
+    before a consonant (συλ-λήψομαι, ἐγ-κέκλικα), ἐξ before a vowel.
+    """
+    if not part:
+        return None
+    earlier = end - len(spelling)
+    xi = spelling.startswith("ξ")
+    part = list(part)
+    if part[0][0] in _VOWEL_LETTERS:
+        group = _vowel_group(part)
+        if canonical == "συν":
+            preverb = "ξυν" if xi else "συν"
+        elif canonical == "εισ":
+            preverb = spelling
+        else:
+            preverb = _PREVERBS[canonical][1][0]
+            if _is_rough(part) and preverb[-1] in _ASPIRATES:
+                preverb = preverb[:-1] + _ASPIRATES[preverb[-1]]
+        part[:2] = [_unbreathed(letter) for letter in part[:2]]
+        if (preverb[-1] in _VOWEL_LETTERS and group == 1
+                and part[0][0] in "ιυ"):
+            part[0] += _DIAERESIS  # προϊδεῖν
+    elif part[0][0] == "ρ":
+        if canonical == "εν":
+            return None
+        preverb = _compose(canonical, "ρ", xi)
+        part[0] = "ρ"
+        if preverb[-1] in _VOWEL_LETTERS:
+            part = ["ρ"] + part  # καταρρεύσω
+    else:
+        preverb = (spelling if canonical == "εισ"
+                   else _compose(canonical, _bare(part), xi))
+    opening = head[:earlier] + list(preverb)
+    if not earlier:
+        # The breathing of the present's preverb (ἀπ-, εἰσ-).
+        for index in range(min(2, len(preverb))):
+            if head[index][0] == preverb[index]:
+                opening[index] += "".join(
+                    mark for mark in head[index] if mark in _BREATHINGS)
+    return opening + part
+
+
+def _compound_split(headword: str, simplex: str
+                    ) -> tuple[list[str], int, str, str] | None:
+    """Where ``headword`` divides into its preverbs and ``simplex``."""
+    head, base = _letters(headword), _letters(simplex)
+    end = len(head) - len(base)
+    if end <= 0 or _bare(head[end:]) != _bare(base):
+        return None
+    if base[0][0] == "ρ" and head[end - 1][0] == "ρ":
+        end -= 1  # κατα-ρρέω
+    for found, canonical, spelling in _preverb_splits(_bare(head)):
+        if found == end:
+            return head, end, canonical, spelling
+    return None
+
+
+def compound_parts(headword: str, simplex: str, parts: dict[str, str]
+                   ) -> dict[str, str]:
+    """The principal parts of a compound, from those of its simplex.
+
+    ``parts`` are forms of ``simplex`` (ἔτριψα, τρίψω); the result has the
+    same tenses with the preverbs of ``headword`` (συγκατέτριψα,
+    συγκατατρίψω), without tone accents. A contracted future keeps its
+    circumflex, which names its conjugation.
+    """
+    split = _compound_split(headword, simplex)
+    if split is None:
+        return {}
+    head, end, canonical, spelling = split
+    out: dict[str, str] = {}
+    for key in INFERRED_KEYS:
+        form = parts.get(key)
+        if not form:
+            continue
+        joined = _join_preverb(head, end, canonical, spelling, _letters(form))
+        if joined is None:
+            continue
+        if _PERISPOMENI in unicodedata.normalize("NFD", form)[-2:]:
+            joined[-1] += _PERISPOMENI
+        out[key] = _spell(joined)
+    return out
+
+
+def compound_simplexes(headword: str, verbs: dict[str, list[str]]
+                       ) -> list[str]:
+    """The verbs ``headword`` is a compound of, by its letters.
+
+    ``verbs`` maps the bare letters of every known verb to its spellings.
+    The answer is the verb left after the longest chain of preverbs (τρίβω
+    for συγκατατρίβω), provided every shorter chain that also leaves a verb
+    leaves a compound of it (κατατρίβω). Two readings that disagree
+    (ὑπ-ερείδω, ὑπερ-είδω) give none. An aspirated preverb needs a rough
+    verb after it and a plain elided one a smooth verb (καθ-έλκω, not
+    κατ-έλκω).
+    """
+    head = _letters(headword)
+    bare = _bare(head)
+    found: dict[int, list[str]] = {}
+    for end, _, spelling in _preverb_splits(bare):
+        rest = bare[end:]
+        if rest.startswith("ρρ") and spelling[-1] in _VOWEL_LETTERS:
+            rest = rest[1:]
+        fitting = []
+        for verb in verbs.get(rest, ()):
+            if rest[0] in _VOWEL_LETTERS:
+                rough = _is_rough(_letters(verb))
+                if ((spelling in _ASPIRATED_SPELLINGS and not rough)
+                        or (spelling in _PLAIN_SPELLINGS and rough)):
+                    continue
+            fitting.append(verb)
+        if fitting:
+            found[end] = fitting
+    if not found:
+        return []
+    longest = max(found)
+    for end in found:
+        if end != longest and longest - end not in {
+                split[0] for split in _preverb_splits(bare[end:])}:
+            return []
+    return found[longest]
+
+
+# Verb classes whose other tenses follow from the present: the ending of
+# the present, the letters that replace it before the tense suffix, and
+# whether the stem ends in a dental (νομίζω, ἐνόμισα, νενόμισμαι).
+_REGULAR_CLASSES = (
+    ("ιζω", "ι", True), ("αζω", "α", True), ("ευω", "ευ", False),
+    ("εω", "η", False), ("οω", "ω", False), ("αω", "η", False),
+)
+_AUGMENTED_VOWELS = {
+    "α": ("η",), "ε": ("η",), "ο": ("ω",), "αι": ("ῃ", "αι"),
+    "ει": ("ῃ", "ει"), "οι": ("ῳ", "οι"), "αυ": ("ηυ", "αυ"),
+    "ευ": ("ηυ", "ευ"),
 }
 
 
-def _strip_augment(stem: str) -> str:
-    """Best-effort stripping of the syllabic / temporal augment.
+def _augmented(stem: list[str]) -> list[list[str]]:
+    """``stem`` with the augment, in each spelling the augment takes.
 
-    Returns the stem unchanged when no recognizable augment is found.
-    Heuristics:
-      - Leading ``ε`` followed by a consonant -> drop ``ε``
-        (syllabic augment)
-      - Leading ``η`` -> ``α`` (temporal augment of α-)
-      - Leading ``ω`` -> ``ο`` (temporal augment of ο-)
-      - Leading ``η`` followed by ``υ`` -> ``α`` + ``υ``
-
-    This preserves the existing simple augment policy while retaining
-    marks on every surviving letter.
-    Compounds with preposition prefixes (e.g. προσέλιπον) are NOT
-    handled; those need a separate prefix table.
+    A diphthong is also left as it is: εἰκόνισα and εὐλόγησα stand beside
+    ᾐκόνισα and ηὐλόγησα.
     """
-    nfd = unicodedata.normalize("NFD", stem)
-    if not nfd:
-        return stem
-    boundary = 1
-    while boundary < len(nfd) and unicodedata.combining(nfd[boundary]):
-        boundary += 1
-    following = nfd[boundary:]
-    if nfd[0] == "ε" and following and following[0] not in _GREEK_VOWELS:
-        # The augment and its marks disappear together.
-        return unicodedata.normalize("NFC", following)
-    if nfd[0] in {"η", "ω"}:
-        first = "α" if nfd[0] == "η" else "ο"
-        return unicodedata.normalize("NFC", first + nfd[1:])
-    return unicodedata.normalize("NFC", stem)
+    first = stem[0][0]
+    if first == "ρ":
+        return [["ε" + _SMOOTH, "ρ", "ρ"] + stem[1:]]
+    if first not in _VOWEL_LETTERS:
+        return [["ε" + _SMOOTH] + stem]
+    group = _vowel_group(stem)
+    vowel = _bare(stem[:group])
+    breathing = "".join(mark for letter in stem[:group] for mark in letter
+                        if mark in _BREATHINGS)[:1]
+    out = []
+    for augment in _AUGMENTED_VOWELS.get(vowel, ()):
+        if augment == vowel:
+            out.append(list(stem))
+        elif augment in ("ῃ", "ῳ"):
+            long = "η" if augment == "ῃ" else "ω"
+            out.append([long + breathing + _SUBSCRIPT] + stem[group:])
+        elif len(augment) == 2:
+            out.append([augment[0], augment[1] + breathing] + stem[group:])
+        else:
+            out.append([augment + breathing] + stem[group:])
+    return out or [list(stem)]
+
+
+def _reduplicated(stem: list[str]) -> list[list[str]]:
+    """``stem`` as a perfect: reduplicated, or augmented where a verb
+    cannot reduplicate (a vowel, ῥ, a double consonant, most clusters)."""
+    first = stem[0][0]
+    second = stem[1][0] if len(stem) > 1 else ""
+    if first in _VOWEL_LETTERS or first == "ρ":
+        return _augmented(stem)
+    stop_and_liquid = (first in "πβφτδθκγχ" and second in "λρμν"
+                       and first + second != "γν")
+    if first in "ζξψ" or not (second in _VOWEL_LETTERS or stop_and_liquid):
+        return [["ε" + _SMOOTH] + stem]
+    plain = {"φ": "π", "θ": "τ", "χ": "κ"}.get(first, first)
+    return [[plain, "ε"] + stem]
+
+
+def regular_parts(verb: str) -> list[dict[str, str]]:
+    """The principal parts a regular denominative verb would have.
+
+    For a verb in -ίζω, -άζω, -εύω, -έω, -όω or -άω (or the middle of one)
+    with a syllable before that ending: one dict per spelling of the
+    augment, each with the future, the aorist, the perfect and the passive
+    (εἰκονίζω: εἰκονίσω, ᾐκόνισα or εἰκόνισα, ...), without tone accents.
+    A verb in -ίζω also gets its Attic future (νομιῶ) in a dict of its own.
+    Anything else gives an empty list.
+    """
+    letters = _letters(verb)
+    bare = _bare(letters)
+    for ending, vowel, dental in _REGULAR_CLASSES:
+        middle = bare.endswith(ending[:-1] + "ομαι")
+        if not middle and not bare.endswith(ending):
+            continue
+        size = len(ending) + (3 if middle else 0)
+        root = letters[:len(letters) - size]
+        # A short verb is not a denominative (ἐρέω, ὁράω, ἀρόω, χέω).
+        if len(root) < 3 or not any(letter[0] in _VOWEL_LETTERS
+                                    for letter in root):
+            return []
+        if dental or ending == "ευω":
+            theme = letters[len(root):len(root) + len(vowel)]
+        elif ending == "αω" and root[-1][0] in "ειρ":
+            theme = ["α" + _MACRON]
+        else:
+            theme = [vowel]
+        stem = root + theme
+        sigma = ["σ"] if dental else []
+        variants = []
+        augmented, reduplicated = _augmented(stem), _reduplicated(stem)
+        for index, past in enumerate(augmented):
+            perfect = reduplicated[min(index, len(reduplicated) - 1)]
+            parts = {
+                "aor_p": _spell(past + sigma + list("θην")),
+                "pf_mp": _spell(perfect + sigma + list("μαι")),
+                "fut_p": _spell(stem + sigma + list("θησομαι")),
+            }
+            if middle:
+                parts["fut_med"] = _spell(stem + list("σομαι"))
+                parts["aor_med"] = _spell(past + list("σαμην"))
+            else:
+                parts["fut"] = _spell(stem + list("σω"))
+                parts["aor"] = _spell(past + list("σα"))
+                # A dental stem with nothing before it to mark the perfect
+                # would give the adjective in -ικός, -ακός as its participle
+                # (ἱππίζω: ἱππικός).
+                if not dental or perfect != stem:
+                    parts["pf"] = _spell(perfect + list("κα"))
+            variants.append(parts)
+        if ending == "ιζω":
+            if middle:
+                variants.append({"fut_med": _spell(stem + list("ουμαι"))})
+            else:
+                contracted = stem + ["ω" + _PERISPOMENI]
+                variants.append({"fut": _spell(contracted)})
+        return variants
+    return []
+
+
+def other_voice(bare: str) -> str:
+    """The bare spelling of the same verb in the other voice, or ""."""
+    for ending, other in (("ομαι", "ω"), ("μαι", "μι"), ("ω", "ομαι"),
+                          ("μι", "μαι")):
+        if bare.endswith(ending):
+            return bare[:-len(ending)] + other
+    return ""
+
+
+# Classes whose regular tenses coincide: -ᾱσα of -άω and -ασα of -άζω, -ησα
+# of -έω and of -άω, and the aorist of -όω with the feminine participle of
+# -άω (δαπανῶσαι).
+_RIVAL_ENDINGS = {"αω": ("αζω", "εω", "οω"), "αζω": ("αω",), "εω": ("αω",),
+                  "οω": ("αω",)}
+
+
+def regular_rivals(verb: str) -> list[str]:
+    """Bare spellings of the verbs that would share ``verb``'s regular
+    tenses: the same stem in a class with the same tense stems, and the
+    same verb with the other of ἀ- and ἐ-, which take one augment
+    (ἠπόρημαι is the perfect of ἀπορέω). Each in both voices."""
+    bare = _bare(_letters(verb))
+    active = bare[:-4] + "ω" if bare.endswith("ομαι") else bare
+    rivals = []
+    for ending, others in _RIVAL_ENDINGS.items():
+        if active.endswith(ending):
+            rivals += [active[:-len(ending)] + other for other in others]
+            break
+    if active[0] in "αε" and active[1:2] not in ("ι", "υ"):
+        rivals.append(("ε" if active[0] == "α" else "α") + active[1:])
+    return rivals + [other_voice(rival) for rival in rivals]
+
+
+def regular_compound_parts(headword: str) -> list[dict[str, str]]:
+    """Regular parts with the augment after a preverb of ``headword``.
+
+    A denominative whose first element is a preposition takes its augment
+    after it (ἐπιστατέω, ἐπεστάτησα) whether or not the rest is a verb.
+    One set of :func:`regular_parts` for each preverb chain the letters
+    allow; the rest is read as rough after an aspirated preverb (ἐφ-).
+    """
+    head = _letters(headword)
+    out: list[dict[str, str]] = []
+    for end, _, spelling in _preverb_splits(_bare(head)):
+        rest = list(head[end:])
+        if rest[0][0] == "ρ" and head[end - 1][0] in _VOWEL_LETTERS:
+            continue
+        if rest[0][0] in _VOWEL_LETTERS:
+            breathing = _ROUGH if spelling in _ASPIRATED_SPELLINGS else _SMOOTH
+            rest[_vowel_group(rest) - 1] += breathing
+        simplex = _spell(rest)
+        for parts in regular_parts(simplex):
+            parts = compound_parts(headword, simplex, parts)
+            if parts and parts not in out:
+                out.append(parts)
+    return out
+
+
+def short_verb_compound(headword: str) -> bool:
+    """Whether ``headword`` may be a compound of a verb too short to be a
+    denominative: ἀπο-θέω, ἐμ-πλέω, κατα-ρρέω. Its tenses are not those of
+    its ending's class (ἀποθήσω is the future of ἀποτίθημι)."""
+    head = _letters(headword)
+    return any(not regular_parts(_spell(head[end:]))
+               for end, _, _ in _preverb_splits(_bare(head)))
 
 
 __all__ = [
+    "INDICATIVE_ONLY",
+    "INFERRED_FAMILIES",
+    "INFERRED_KEYS",
     "PART_KEYS",
+    "compound_parts",
+    "compound_simplexes",
     "parse_principal_parts",
     "derive_grc_conj_args",
+    "ends_at_label",
+    "other_voice",
+    "regular_compound_parts",
+    "regular_parts",
+    "regular_rivals",
+    "derived_cells",
+    "future_stems",
+    "participle_cases",
+    "short_verb_compound",
+    "stem_preverb",
     "strip_diacritics",
+    "unaugmented_stem",
 ]
 
 

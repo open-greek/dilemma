@@ -3,6 +3,7 @@
 [README](../README.md)
 
 - [Build commands](#build-commands)
+- [LSJ heads](#lsj-heads)
 - [Sophocles heads](#sophocles-heads)
 - [Historical expansion overlay](#historical-expansion-overlay)
 - [Corpus and lexical evidence](#corpus-and-lexical-evidence)
@@ -26,6 +27,14 @@ python overlay_lsj.py --lsj9-dir LSJ9          # recover pinned historical expan
 python build/expand_lbg.py                    # inflect Byzantine headwords (gated gap-fill)
 ```
 
+`--expand-verbs` also reads `data/form_profile.db` (`python -m dilemma
+download --with-attestation`), `data/grc_lexical_heads.json`
+(`build/build_grc_lexical_heads.py`) and the treebank pair files in `data/`
+(`perseus_pairs.json`, `glaux_pairs.json`, `diorisis_pairs.json`,
+`nt_pairs.json`, `ptnk_pairs.json`, `tagnt_pairs.json`,
+`pedalion_pairs.json`), and stops when one is missing; see
+[Principal parts that no entry prints](#principal-parts-that-no-entry-prints).
+
 This requires LSJ9 data from [lsj9](https://github.com/ciscoriordan/lsj9)
 (included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`; the
 exports `lsj9_forms.tsv`, `lsj9_headwords.json` and `lsj9_glosses.jsonl` are
@@ -33,7 +42,9 @@ read from `--lsj9-dir`, `$DILEMMA_LSJ9_DIR` or `~/Documents/lsj9`), the
 Sophocles TEI data (included in `data/sophocles/`), and a current
 `data/grc_lexical_heads.json`, whose `sophocles_breathing` record supplies the
 breathings the Sophocles OCR lost (`expand_sophocles.py` refuses to run
-without it) and whose heads decide two of the [head rules](#sophocles-heads).
+without it, or with one built against other head corrections than
+`data/sophocles_head_corrections.json`) and whose heads decide two of the
+[head rules](#sophocles-heads).
 `--kaikki` names the dump directory in either layout
 ([Dump directories](development.md#dump-directories)).
 
@@ -56,14 +67,78 @@ citations. The verb pass reads it only for principal parts: a tense the current
 text gives stands, a tense it lacks is taken from the earlier text, and the
 three aorist slots are filled only together. 978 verb entries gain 3,018
 principal parts this way. Entry rejections still read the current text alone.
+Both files give the text under the entry's own spelling, which the verb pass
+matches to the headword list as described under
+[Verb expansion](#verb-expansion).
+
+## LSJ heads
+
+`build/expand_lsj.py` reads its entries from two LSJ9 exports.
+`lsj9_forms.tsv` has the grammar of 63,381 entries and prints 41,956 of their
+heads divided at the stem with a hyphen (`Βακχ-εία`, `ἀασι-φρονία`,
+`καθ-ηδύνω`). `lsj9_headwords.json` lists every entry under the joined word
+and keeps the divided spelling in its `hyphenated` field. The hyphen is the
+export's notation, not part of the word, so a divided head is read under the
+joined word (`settle_lsj_head`):
+
+- Joining only drops the hyphens. The head keeps the accent and breathing LSJ
+  prints, including a coronis inside the word (`καλοκἀγαθ-ία` is
+  `καλοκἀγαθία`).
+- The joined word must be a headword of `lsj9_headwords.json`. All 41,956
+  are. A divided head whose joined word LSJ does not list would be set aside
+  (`inner-hyphen`); a head is never keyed with its hyphen.
+- The joined head takes the grammar of its `lsj9_forms.tsv` row and is
+  generated where the headword list has the entry, so the paradigms come out
+  in the same order as before. A row printed without a hyphen keeps its key
+  and its grammar when a divided row has the same joined spelling
+  (`λοῖσθος, ὁ` beside `λοῖσθ-ος, ον`).
+
+The headword list has artefacts of its own, and the same rule reads them: 76
+headwords are broken by soft hyphens (U+00AD, invisible in print), and 39
+carry a dash, most of them a whole run of entry text and one a verb in shape
+(`ἐπιθρύξω—ἐω`). Eight of the soft-hyphen spellings join to a listed headword
+(`βραγχάω`), which has its own entry; the others are not words LSJ has and
+are set aside.
+
+Up to 1.3.26 a divided head was keyed as printed. It got a paradigm of its
+own with the hyphen in every key and in the lemma (`Βακχ-είας` under
+`Βακχ-εία`), beside the paradigm of the joined entry from the headword list.
+No text spells a word that way, so those rows matched nothing. Six soft-hyphen
+headwords and `ἐπιθρύξω—ἐω` got verb paradigms the same way.
+
+The noun step records the decisions in `data/ag_noun_generation_audit.json`
+under `head_rules`: `joined_heads` (every divided head and the head it is read
+under) and `malformed_heads` (every divided head set aside), each with its
+`count`. `superseded_lemmas` and `resolutions` name the joined head. The verb
+step reads the same heads.
 
 ## Sophocles heads
 
 `build/expand_sophocles.py` reads each entry's head from its `<orth>` element.
-The text is OCR, so the first word is not taken as it stands: five rules
+The text is OCR, so the first word is not taken as it stands: six rules
 decide what is generated, and under which head. Nouns, adverbs and verbs
 are read through the same rules.
 
+- **The OCR's letters are settled first** (`build/sophocles_ocr.py`, which
+  `build/build_grc_lexical_heads.py` applies to the same text). The micro
+  sign (U+00B5) the OCR prints for part of its `μ` is that letter: `µέρος`
+  is `μέρος`, in the head and in the entry text. A koronis before a capital
+  is its smooth breathing. The asterisk the lexicon puts before some heads
+  and the OCR's guillemets, quotation marks, bars and angle brackets are
+  dropped from the edges (`*πιάζω`, `«ἀθεμιστία`), and so is a run of Latin
+  letters joined to the end of the word, which is entry text (`ἀββᾶςI`). A
+  word that still has a Latin letter inside it is no head: the letter is a
+  Greek one the OCR misread, and deleting it made another word
+  (`Kούβρικος` was read `ούβρικος`). Which letter it is, like an accent the
+  OCR got wrong, is a reviewed decision recorded in
+  `data/sophocles_head_corrections.json`: each record names the `<orth>`
+  text as the chunk prints it, the head it stands for, the chunk and the
+  reason (`ορνιθείον` is `ὀρνιθεῖον`, `Kούβρικος` is `Κούβρικος`,
+  `τζαγγάριo` is `τζαγγάριον`, and the phi symbol U+03D5 of `Ἀπϕία` is
+  the letter; `κληρονομμέω`, where the OCR gave one mu as the micro sign
+  and as the letter, is `κληρονομέω`; `μεταναστείω` is `μεταναστεύω`). A
+  record with a head that is not one accented Greek word, or without a
+  reason, stops the build.
 - **A phrase is not an entry.** When another Greek word follows the first
   one inside the `<orth>`, before its first comma, the head is a phrase or a
   word the OCR split, and nothing is generated from its first word:
@@ -72,7 +147,26 @@ are read through the same rules.
   hyphens is entry text, and so is a parenthesis, a digit or a Latin word
   (`or`, `for`, a citation); the first word then stays the head
   (`βιοθανέω ---- βιαιοθανατέω`, `γιγαντιάω (γίγας)`,
-  `Ἱριάδιτζα or Τριαδίτζα`).
+  `Ἱριάδιτζα or Τριαδίτζα`). One Greek word after the head is entry text
+  too in three cases, and the head is then a one-word entry:
+  the ending the lexicon prints after a head, which the OCR ran on without
+  its comma, in the shape that head takes (an unaccented genitive after a
+  noun: `κομίτιον ου`, `φύσημα ατος`; an adjective's other ending:
+  `θεοηχής ές`, `κελευστός ἡ`; a future: `σχολιάζω άσω`), which is read as
+  the entry's first field; one of the nouns `οἶνος`, `λίθος`, `ἀγών`,
+  `μέτρον` after a lowercase head in citation form, which the head
+  qualifies (`γληχωνίτης οἶνος`, `δωρίτης ἀγών`); and `ἔχειν` or `ἔχω`
+  after an adverb in -ως (`ἑτερολέκτως ἔχειν`). Such a head must have its
+  breathing; without one the phrase stays a phrase (`ορθο-πρίων ονος`).
+  A phrase of two words is one word the OCR split after its first part,
+  with the lexicon's division hyphen or without it, when the joined word has
+  a single accent, a lexical source other than Sophocles lists it and the
+  two parts are not both listed as words of their own: `κατα- φθάνω` is
+  `καταφθάνω`, `κηνσο φύλαξ` is `κηνσοφύλαξ`, and `μή τις` stays a phrase
+  beside `μήτις`. An unaccented first part that is no proclitic is a
+  combining form (`κατα`, `συμ`, `ψευδο`), though the lexica list it as a
+  head. The entry is then generated under the joined word like a repaired
+  hyphenated head.
 - **A stated gender wins over the ending.** An article that is the first
   field after the head, or that follows one field (the genitive, which the
   OCR may garble), states the noun's gender: `καισάριης, ἡ`,
@@ -98,7 +192,16 @@ are read through the same rules.
   table already has that head. A breathing the OCR prints as a separate mark
   before the capital is joined to it for this comparison. A capitalized head
   another source lists (`Πέτρα` beside `πέτρα`), or one without a lowercase
-  twin, is a name and stays.
+  twin, is a name and stays. The rule cannot tell a name that shares its
+  spelling with a common word: `Νοητός` (Noetus), `Σκόπελος` (an island) and
+  `Κοπρώνυμος` (the emperor's epithet) are generated under the lowercase
+  head too, as in 1.3.26. The `names` section of
+  `data/sophocles_head_corrections.json` lists the 36 such heads the lexicon
+  glosses as a person, a god or a place, each with its chunk and what the
+  entry says, so that the rows the earlier tables have under the name stay
+  the name's (`Κοπρωνύμου` reads `Κοπρώνυμος`): such a head is not
+  superseded as printed and its rows are not read under the common word.
+  Names of sects and feasts are not listed.
 - **A capitalized unaccented key does not shadow a lowercase reading.** Every
   generated form also gets an accent-stripped key. A capitalized one is
   withheld when its lowercase spelling already reads another lemma:
@@ -107,7 +210,28 @@ are read through the same rules.
 The noun step records the decisions in
 `data/ag_sophocles_noun_generation_audit.json`, each record with its `count`:
 
-- `head_rules.multi_word_heads`: every phrase and its first word;
+- `head_rules.multi_word_heads`: every phrase and its first word (a phrase
+  read as a split word is listed among `head_rules.repaired_heads` instead,
+  with the joined word);
+- `head_rules.one_word_heads`: every phrase read as a one-word entry, with
+  the head and the rule (`run-on-ending`, `qualified-noun`, `adverb-idiom`);
+- `head_rules.corrected_heads`: every `<orth>` text a reviewed correction
+  replaced, with the head generated;
+- `head_rules.proper_names`: every lowercased head the reviewed record lists
+  as a proper name, with the record's reason; its earlier rows stay under
+  the capitalized lemma;
+- `head_rules.reread_heads`: every head that the tables up to 1.3.26 read
+  otherwise (`ούβρικος`, `*σχῆμα`, `᾽Αντινώ`), with the present reading.
+  Those tables key rows by the old reading, so it is listed among
+  `superseded_lemmas` and the overlay does not recover them, unless an
+  entry prints that word or another lexical source lists it (`κίκι`);
+- `superseded_reread_lemmas`: the superseded heads that no entry gave
+  under their present spelling before the letters were settled (`σχῆμα`
+  from `*σχῆμα`, `μέρος` from `µέρος`, `κόρος` from `κόρoς`). The historical
+  expansion has their old paradigm under the old spelling only, so the
+  overlay drops the rows it reads from the micro sign and keeps the rows
+  the expansion itself spells with the present lemma (`σχήματός`, `κοῦρ’`
+  under `κόρος`), which come from other sources;
 - `head_rules.stated_gender`: every noun whose stated gender is not the
   gender of its ending's class, with both and the result (`expanded`, or the
   reason the noun was withheld);
@@ -122,13 +246,99 @@ The head records cover verbs and adverbs as well, because every step reads
 the same heads. The verb step writes its own withheld keys to
 `data/ag_sophocles_verb_generation_audit.json`. The lexical heads the repair
 and the lowercase rule read are pinned among the noun audit's inputs
-(`input_sha256.lexical_heads`), so the overlay refuses an audit made against
-other heads.
+(`input_sha256.lexical_heads`), and so are the head corrections and the
+proper names (`input_sha256.sophocles_head_corrections`,
+`input_sha256.sophocles_proper_names`), so the overlay refuses an audit made
+against other heads.
 
-The rules change what the generator writes, not what the overlay recovers.
-`superseded_lemmas` still names a lemma as the lexicon prints it, because the
-historical layer keyed its rows that way, so a rejected or re-keyed head that
-is not superseded keeps the marked rows the pinned reference has for it.
+The rules change what the generator writes. What the overlay recovers is
+decided there: it never restores a row under a hyphenated lemma (see
+[below](#historical-expansion-overlay)), so the rows the historical layer
+keyed under a divided head are gone whether the head was repaired or
+rejected.
+
+A verb entry whose text opens with an equals sign is expanded like any
+other verb: the lexicon glosses the verb by a synonym or by its neighbour
+(`ἀκρατεύω, = ἀκρατεύομαι`; `ἀνακοσμοποιέω, = preceding`), and the entry is
+its only one. Such a head is skipped when it is capitalized or ends in an
+accented or subscribed omega (`ἐπισηκρήτῳ`), which no verb's citation form
+does. An entry that only sends the reader on (`ἀπάχθομαι, see ἀπέχθομαι`)
+is not expanded, since the lexicon enters the word under the other head.
+Nouns and adverbs of either kind are still skipped.
+
+The historical expansion that `overlay_lsj.py` recovers was made from the
+same OCR and spells 753 lemmas and their forms with the micro sign. The
+overlay reads those rows with the Greek letter before any other test
+(`historical_overlay_counts.micro_sign_entries`), and drops one whose key
+the expansion also has in its Greek spelling (`micro_sign_duplicates`), so
+no key or lemma of the table carries U+00B5.
+
+Those paradigms were built like the rest of the layer, part of them in the
+wrong class: an adjective in `-ής, -ές` as a noun of the first declension
+(`μελισταγοῦ`, `μελισταγῇ` under `μελισταγής`), one in `-ικός` as a consonant
+stem (`μυριστικκά`). With the micro sign such a row matched no text; read with
+mu it would stand under a sound lemma, and the wrong cells of `μελισταγής`
+also kept its real ones from being generated. The Sophocles audit therefore
+records how each of these heads declines (`micro_sign_endings`, by the test
+described below for a re-read head), and the overlay reads a paradigm only
+when one of its keys ends in those letters (`confirmed_micro_sign_lemmas`,
+`historical_overlay_counts.micro_sign_lemmas_confirmed` and
+`micro_sign_lemmas_unconfirmed`); the rows of the others are dropped
+(`micro_sign_unconfirmed_entries`). A verb or an adverb has no ending to show
+and is read as it is.
+
+`superseded_lemmas` names a lemma as the lexicon prints it, because the
+historical layer keyed its rows that way. Two kinds of printed head are
+superseded as a class, since neither is a lemma of the table: a head rejected
+for its two accents (`οἷές`, and the ones the breathing review withholds
+because the OCR read the breathing as an acute, `όψαποίημα`) and a capitalized
+head generated under its lowercase spelling (`Βαρύπυκνος`, `Θεοτήρητος`). Most
+heads printed with two accents have a reviewed correction
+(`ἄμάντευτος` is `ἀμάντευτος`, `Άσιάρχης` is `Ἀσιάρχης`, `ἀπράῦντος` is
+`ἀπράϋντος`), and the printed reading is then superseded as a reread head. No
+row is recovered under such a lemma, and a noun among them keeps no published
+key either (it gets no entry in `resolutions`). A two-accent spelling that
+another lexical source lists (`οἶκόνδε`) is that source's head and is not
+superseded. A head printed without its breathing is not superseded: the
+unbreathed keys of the historical layer are how a breathed form reaches such
+a head at runtime.
+
+`reread_lemmas` maps a superseded printed head to the head it is read as now,
+where the two differ only in accents, breathing, diaeresis or case
+(`ἄμάντευτος` to `ἀμάντευτος`, `ἀραχνοῦφής` to `ἀραχνοϋφής`, `Θεοτήρητος` to
+`θεοτήρητος`). Where the forms of such an entry were spelled from the same
+letters in the right class, the overlay keeps their keys and reads them under
+the present head (`historical_overlay_counts.reread_lemma_entries`) before any
+other test: `Θεοτηρήτων` reads `θεοτήρητος`, `ἀμαντεύτου` reads `ἀμάντευτος`.
+Most of these entries are adjectives, which the Sophocles steps do not expand,
+so the historical rows are their only paradigm. A head whose reading changes a
+letter is not in the map and its rows are dropped, because its forms were
+built on the misreading (`ἀνικμαέει` under `ἀνικμάέω` for `ἀνικμάζω`); nor is
+a head written with an asterisk or a spacing breathing, whose keys match no
+text.
+
+The historical layer built many of these paradigms on the misread head or in
+the wrong class, so the overlay reads one again only when the layer's own rows
+confirm it (`confirmed_reread_lemmas`,
+`historical_overlay_counts.reread_lemmas_confirmed` and
+`reread_lemmas_unconfirmed`). Two things are required. One key must be the
+present head itself, capital aside, with its accent, breathing and diaeresis
+(a key that only lacks the breathing counts): the paradigms of `ἐκκήρυκτός`
+(`ἐκκηρυκτοῦ`), `οἷηκοφόρος` (`οἱηκοφόρου`), `Ἰουδαῖσμός` (`Ἰουδαισμοῦ`) and
+`Ἕρμαῖος` (`Ἕρμαιον`) were built on another accent, on the rough breathing or
+without the diaeresis. And another key must end in the letters the entry
+implies, which the audit records per head as `reread_endings`: the genitive
+ending the entry prints as its first field (`ίδος`, `ατος`, `τος`; `ου` also
+where the OCR gives it as `ov`), `ου` for an adjective in `-ος`, `ους` for one
+in `-ης, -ες`, and without a printed ending the genitive the shared resolver
+gives for the head's ending. That rejects an adjective in `-ικός` declined as a
+consonant stem (`Θεαρχιξί`), one in `-ώδης` declined like `πολίτης`
+(`Βληχηματώδου`, `εἰλεώδου`), a noun in `-ίς, -ίδος` declined like `πόλις`
+(`Εἰλωτέως`) and the nouns whose printed genitive the layer could not use
+(`Θεοπρεπότου`). A verb, an adverb and an indeclinable word need their own
+cell only; a plural head and a head of no known class are not read again. A
+paradigm that is not confirmed stays under the superseded spelling and is
+dropped with it.
 
 ## Historical expansion overlay
 
@@ -145,6 +355,29 @@ skeleton. The generated `data/ag_expansion_exclusions.json` also removes
 historical rows that conflict with the pinned 1.3.1 resolved lookup or with
 Dilemma's nonlexical classifier. Its generator is
 `build/build_ag_expansion_exclusions.py`.
+
+A row whose lemma has a hyphen, a soft hyphen or a dash between two letters
+is not restored (`hyphenated_lemma`). The historical layer keyed a head as its lexicon printed
+it: LSJ9's export divides compounds and derivatives (`Βοιωτ-άρχης`), the
+Sophocles lexicon divides compounds and its OCR keeps line-break hyphens
+(`καθ-ηδύνω`, `Σινα-ῖτις`), and a few rows name a corpus lemma with its preverb
+apart (`ἐπί-εἰσκομίζω`). None is a citation form. The generators now read such
+a head under its joined word ([LSJ heads](#lsj-heads),
+[Sophocles heads](#sophocles-heads)) or reject it, so the old rows are
+superseded by the joined head's paradigm, or outright. The rule looks at the
+lemma only, so it also covers a spelling of a head the current parse no longer
+prints (`ριγο-πύρετος`, now read with its breathing). The keys of these rows
+carry the hyphen too (`Βοιωτ-άρχου`), apart from a few hundred corpus
+spellings, and are not re-keyed: the joined head has its own paradigm from the
+current generators or from the reference (`Βοιωτάρχου` under `Βοιωτάρχης`),
+and the overlay restores historical rows as they stand or not at all. The
+rows count as `hyphenated_lemma_entries`; an unaccented key under such a
+lemma is no candidate for the last rule below either. The test is
+`dilemma.citation.hyphenated_lemma`. `build_lookup_db.py` applies it to the
+Ancient corpus pairs as well, which name some of the same lemmas: a pair
+under a preverb lemma is kept under the compound verb when a head list has
+it (`ἐπεισεκόμισαν` under `ἐπεισκομίζω`), and the others are dropped
+(docs/usage.md, "hyphenated_lemma").
 
 The table published from 1.3.7 to 1.3.25 was built on top of earlier tables,
 so it carried keys that a build from fresh dumps withholds or that no current
@@ -233,9 +466,9 @@ the carried table likewise comes from its pinned Hub revision unless
 
 `build_lookup_db.py` checks the readings this layer supplies once more: a
 lemma without any diacritic that no list in `grc_lexical_heads.json` has
-(transliterated Latin such as `αελιυς`, OCR such as `λαβλυμι`, hyphenated
-compounds such as `προ-ανακηρυσσω`) is dropped, or moved to the single
-Ancient head with the same letters when the lookup maps that head to itself
+(transliterated Latin such as `αελιυς`, OCR such as `λαβλυμι`) is dropped, or
+moved to the single Ancient head with the same letters when the lookup maps
+that head to itself
 (`συνοχος` → `σύνοχος`; a cross-reference head such as `κλεῖδα` drops the
 reading instead). A corpus pair naming one of these lemmas gets the same
 verdict. Each such reading is listed in
@@ -376,13 +609,216 @@ when it is built from an older local pair file.
    parts LSJ has labeled (`fut.`, `aor.`, `pf.`, `pf. m./p.`,
    `aor. p.`, `impf.`, `plpf.`).
 3. Re-invokes `Module:grc-conj` for each extracted tense, merging the
-   results into the verb's paradigm. Verbs without parsable principal
-   parts fall back to present-only behavior, so the path is strictly
-   additive.
+   results into the verb's paradigm. For a verb without parsable
+   principal parts the pass infers them from its simplex or its class and
+   keeps the cells a corpus attests
+   ([Principal parts that no entry prints](#principal-parts-that-no-entry-prints)).
 
-About 712 LSJ-only verbs receive at least one parsed principal part
-through path 2; full-pipeline success on the 28,745 LSJ-only verb
-candidates is 99.27%.
+794 of the 28,493 LSJ-only verb candidates receive at least one parsed
+principal part through path 2 (217 of them from the earlier export), and
+27,747 candidates are expanded.
+
+The entry text is found by the headword's spelling. The headword list drops
+quantity marks, and prints `θρώσκω` for the entry `θρῴσκω`, while the glosses
+keep the entry's own spelling (`ἀγῑνέω`), so the exact spelling alone misses
+the text of 6,883 candidates. `head_text_finder` takes the exact spelling
+first, then the one entry with the same letters without quantity marks, then
+the one without iota subscript either. A spelling that two entries share
+(`θᾱλέω`, `θᾰλέω`) gets no text.
+
+The parser reads Arabic and Roman aorist numbers (`aor. 1`, `aor. I`), a text
+that opens inside a section (`Pass., aor. ἀντετάφην`), and two numbered
+passive aorists of one verb (`ἀπεπνίχθην`, `ἀπεπνίγην`). A token that begins
+with a vowel and has no breathing is the tail of a word (`fut. ύσω`), never a
+form. Where the current text stops right after a label (`ἀνοιδέω`: "fut.
+-ήσω: aor.") and the earlier text opens with a Greek word (`ἀνῴδησα`), the two
+are read as one text. Hyphenated abbreviations (`fut. -ήσω`, `aor. -έτεμον`)
+are still not expanded.
+
+### Stems of the past tenses
+
+`Module:grc-conj` takes two stems for a past tense: the augmented one for the
+indicative and the unaugmented one for every other mood, the infinitive and
+the participle (`aor-1|ἐλυσ|λυσ`, and for the passive `aor-1|||ἐλυθ|λυθ`).
+LSJ prints the augmented indicative, so `unaugmented_stem` derives the other
+stem from it and from the headword:
+
+- In a compound the augment follows the preverb, which stands before it in
+  its prevocalic form; removing the augment restores the preverb of the
+  present: `ἀντετάφην` gives `ἀντιταφ-`, `ἐξέβαλον` `ἐκβαλ-`, `συνέλεξα`
+  `συλλεξ-`, `ἐνέθορον` `ἐνθορ-`, `κατέστησα` `καταστησ-`.
+- A temporal augment restores the vowel of the headword (`ἤκουσα` `ἀκουσ-`,
+  `ἤλπισα` `ἐλπισ-`, `ἀνῴδησα` `ἀνοιδησ-`), never a fixed vowel.
+- The suppletive aorists have their own stems (`εἰσήνεγκα` `εἰσενεγκ-`,
+  `ἀπῆλθον` `ἀπελθ-`, `συνεῖδον` `συνιδ-`, `ἀφεῖλον` `ἀφελ-`).
+- An `ε` that belongs to the stem is not an augment: an Ionic aorist printed
+  without one keeps its stem (`ἀπένεικα` `ἀπενεικ-`, not `ἀπονεικ-`), and so
+  does an aorist whose `ε` is followed by a doubled consonant, which opens
+  no stem (`ἕσσα` of `ἕννυμι`: `περιεσσ-`, not `περισσ-`). `ἔσχον` and
+  `ἔστησα` lose theirs (`σχ-`, `στησ-`).
+- A stem that cannot be read against the headword is not guessed: a second
+  augment after the preverb (`ἠμφεσβήτησα`, `ἐπηνώρθωσα`), a contracted one
+  (`προὔβαλον`), a syllabic augment before a vowel (`ἔωσα`). Then only the
+  indicative is built. The same holds for the κ aorists of the -μι verbs in
+  the active (`ἔθηκα`, not `θήκας`) and for root aorists that go like a
+  passive in the indicative alone (`ἀνθυπέστην`, `ὑπέφθην`).
+
+A compound also passes `prefix=`, so that the accent of the indicative, the
+perfect and the pluperfect stays on or after the augment or reduplication
+(`παρέσχον`, `ἀπῆρα`, `ἀφῖγμαι`). The printed part decides: where LSJ has the
+accent on the preverb (`ἄφευσα`, epic `περίχευα`), none is passed. For a
+perfect the preverb is taken only where the stem shows a perfect of the rest
+after it (`δια-πεφυκ`, `μετ-αγηοχ`), because the letters often allow two
+divisions (`ἀπαν-αλίσκω`, `ἀπανα-λίσκω`).
+
+Other tenses:
+
+- A middle principal part builds the middle alone (`ἐδεξάμην`, `δέξομαι`,
+  `ἀφικόμην`: `form=mid`), and a passive aorist in `-θην` under the plain
+  label is a passive one (`ἐβουλήθην`).
+- A future with a circumflex is contracted (`βαλῶ` `fut-con-e|βαλ`, `βιβῶ`
+  of a verb in `-άζω` `fut-con-a|βιβ`); read as an ordinary future it gave
+  `βάλεις`.
+- The pluperfect is built on the perfect stems as before (`λελύκειν`) and,
+  for a visibly reduplicated stem, with the augment too (`ἐλελύκειν`,
+  `ἀπελελύκειν`).
+- A contracted imperfect takes the contract template of its present
+  (`ἀτίμων`, `ἠγνόουν`).
+
+The present system of every verb is written before any principal part, so a
+cell a headword spells out itself (`φιαλοῦμαι` of `φιαλόω`) outranks the same
+form derived from another verb's printed part (the future `φιαλῶ` of
+`φιάλλω`). A headword that another verb prints as its principal part
+(`ὑπομνήσω` under `ὑπομιμνήσκω`) is written after the printed parts, and the
+inferred parts below come last.
+
+### Principal parts that no entry prints
+
+Most LSJ verbs print no principal parts: a compound leaves them to its
+simplex, a denominative to its class. Such a verb had its present system
+only, so `εἰκόνισεν` had no Ancient row. The pass states the missing parts
+as hypotheses and keeps the cells a corpus attests. On the 1.3.26 inputs,
+8,206 compounds take parts from a simplex and 12,439 verbs from their class;
+8,953 of them keep at least one cell, 50,329 cells in all (99,405 keys with
+the unaccented spellings).
+
+- A compound takes the parts its simplex prints (`compound_parts`):
+  `συγκατατρίβω` gets `συγκατέτριψα` and `συγκατατρίψω` from `ἔτριψα` and
+  `τρίψω` under `τρίβω`. The last preverb is spelled for the sound that
+  follows: elided before a vowel and aspirated before a rough one
+  (`κατ-έτριψα`, `καθ-είλκυσα`), assimilated before a consonant
+  (`συλ-λήψομαι`, `ἐγ-κεχλίαγκα`), `ἐξ` before a vowel, with the `ρ` doubled
+  after a vowel (`καταρρεύσομαι`). The simplex is the verb left after the
+  longest chain of preverbs, and only when every shorter chain that also
+  leaves a verb leaves a compound of it; two readings that disagree
+  (`ὑπ-ερείδω`, `ὑπερ-είδω`) or two homographs give none, and an aspirated
+  preverb needs a rough verb after it (`καθ-έλκω`).
+- A verb in `-ίζω`, `-άζω`, `-εύω`, `-έω`, `-όω` or `-άω`, or the middle of
+  one, takes the regular parts of its class (`regular_parts`): `εἰκονίζω`
+  gets `εἰκονίσω`, `ᾐκόνισα` and also `εἰκόνισα` (a diphthong is tried with
+  and without the augment), `ᾐκόνικα`, `ᾐκόνισμαι`, `ᾐκονίσθην`, and the
+  Attic future `εἰκονιῶ`. The augment stands in front and, in further
+  candidate sets, after each preverb the letters allow (`ἐπιστατέω`:
+  `ἠπιστάτησα` and `ἐπεστάτησα`). A compound whose simplex prints nothing
+  takes the regular parts of the simplex.
+- Nothing is inferred from a class for a stem under three letters (`ἐρέω`,
+  `ὁράω`, `ἀρόω`), for a headword that may be a compound of such a verb
+  (`ἀπο-θέω`: `ἀποθήσω` is the future of `ἀποτίθημι`), or where another
+  dictionary verb would share the tenses (`regular_rivals`): `-άω` beside
+  `-άζω`, `-έω` or `-όω` on the same stem (`βοάζω`, `βοάω`; `δαπανῶσαι` is the
+  aorist of `δαπανόω` and a participle of `δαπανάω`), or the same verb with
+  the other of `ἀ-` and `ἐ-`, which take one augment (`ἠπόρημαι`). Nothing is
+  inferred at all for a capitalised headword (`Βακχεύω`, which the corpora
+  file under `βακχεύω`) or for a verb whose other voice has an entry of its
+  own (`θεάω` beside `θεάομαι`). A tense the entry prints itself is never
+  inferred.
+
+These parts are hypotheses, so they are expanded like printed ones but only
+the cells a corpus attests are kept: the exact spelling must be in
+`data/form_profile.db` (grave folded to acute, case folded, as in the output
+gate of the attestation runtime). The template gives a participle in its
+nominatives only, and the runtime resolves the other cases of a participle in
+`-μενος` through the masculine nominative, so that cell is also kept when a
+corpus has another case of it (`ἐσκοτισμένους` for `ἐσκοτισμένος`). A
+template call is skipped when no attested form begins with one of its stems.
+Further:
+
+- a cell the table already has, or that is a dictionary headword itself, is
+  left alone (the "perfect participle" `ἱππικός` of `ἱππίζω`; a perfect
+  without visible reduplication is not inferred for a dental stem at all);
+- a cell that two verbs infer goes to neither;
+- a cell that a noun also spells is kept only where a treebank reads it as
+  this verb: a future in `-σει` or `-σεις` (`-ξει`, `-ψει`) is the dative or
+  plural of the action noun in `-σις` (`ἐπισκιάσει`, `ἀμοιρήσεις`), and the
+  participle of an Attic future in `-ιῶν`, or of its uncontracted `-ιέων`, a
+  genitive plural (`κοσμιῶν`, `πεδιέων`).
+
+### Treebank readings
+
+The lookup build fills gaps from the treebank pair files in a fixed order
+(`perseus_pairs.json`, `glaux_pairs.json`, `diorisis_pairs.json`,
+`nt_pairs.json`, `ptnk_pairs.json`, `tagnt_pairs.json`,
+`pedalion_pairs.json`): the first file that has a form speaks for it, and
+within the file its first pair. The verb pass reads the pair files the same
+way (`load_treebank_readings`). The grave counts as the acute. A file that
+has the form only with a capital (`Κατεδέξατο`) speaks for it when no file
+has it as spelled, unless the lemma is capitalised too (`Φιαλέων` of
+`Φιαλεύς` says nothing about `φιαλέων`). The reading that counts is the
+first usable one (`treebank_reading`): the verb itself, by its letters
+(`ἐνθρῴσκω` for `ἐνθρώσκω`), a headword of some dictionary in
+`data/grc_lexical_heads.json` that is no reviewed non-lemma, or the verb in
+its other voice (`ἐπιλανθάνομαι` for `ἐπιλανθάνω`). A lemma that no
+dictionary heads (`σύν-εἶδον`, `ὑπαλειψάννυμι`) is passed over.
+
+A principal-part cell is checked against that reading, and how much the
+reading weighs depends on the stem under the cell:
+
+- **A stem no entry prints.** A cell of an inferred part, a cell on the
+  unaugmented stem that the generator derives for a printed past tense
+  (`καταδέξας` beside `κατέδεξα`, `ἀγαγών` beside `ἤγαγον`) and the augmented
+  pluperfect are the generator's own. A derived stem that the entry prints
+  in its future is not among them (`ἀμφιεσ-` of `ἠμφίεσα` stands in
+  `ἀμφιέσω`). Such a cell is left out when the
+  treebanks read the form as another word, and the lookup build takes the
+  treebank reading as before: `ἠβουλήθη` stays with `βούλομαι`, not
+  `ἀβουλέω`, and `ἀνακλάσεις` with the noun `ἀνάκλασις`, which the first
+  pair names.
+- **A stem the entry prints.** The future, the perfect, the imperfect and the
+  augmented indicative of a printed past tense are the dictionary's. So are
+  the other moods of a past tense with a plain `ἐ-` before the stem
+  (`ἐζημίωσα`, `ζημιῶσαι`), which the conjugation module takes off by
+  itself. Another verb in a treebank does not move such a cell: `ἀμφιέσομαι`
+  stays the future LSJ prints under `ἀμφιέννυμι`, though a treebank files it
+  under `ἀμφιάζω`. The cell is left out only when the verb the treebanks
+  read has it among its own principal parts, printed or inferred
+  (`κατεδέξατο` is the aorist of `καταδέχομαι` in the treebanks, a compound of
+  `δέχομαι`, while LSJ prints `κατέδεξα` as the Ionic aorist of
+  `καταδείκνυμι`: both verbs give the cell, and the treebanks decide), when
+  the treebanks read the form as no verb at all (`φιαλέων` is the genitive of
+  `φιάλη` before it is a participle of the future `φιαλῶ`), or when they file
+  it under the same verb in its other voice (`ἐνόσφισεν` under `νοσφίζομαι`).
+- **A present cell of another verb.** The present systems are written first,
+  so a present holds the form when a printed part of another verb spells it
+  too (`περιειλόμεθα` of `περιείλω` and of the aorist `περιειλόμην` under
+  `περιαιρέω`). Where the treebanks read the form as the verb of the printed
+  part, that verb takes it.
+  A headword that holds its own key keeps it (`μεθήκω`); a cross-reference
+  headword that is a cell of the other present goes with the part
+  (`ὑπερεῖδον`, held by `ὑπερείδω`, is the aorist of `ὑπεροράω`).
+
+The corpus tables only withhold or confirm cells; no form or lemma enters the
+table from them.
+
+The pass therefore needs `data/form_profile.db`, `data/grc_lexical_heads.json`
+and the seven pair files, and stops when one is missing. `--no-corpus-checks`
+runs without them (no inferred parts, no treebank check); that is not the
+published build. What the corpus tables decided is written to
+`data/ag_verb_generation_audit.json`: the content hash of `form_profile.db`
+and the sha256 of the other inputs, the inferred cells by verb with the kind
+of inference and the simplex, the cells two verbs inferred, the cells left
+to a treebank reading, each with that reading and the kind of stem
+(`printed`, `derived`, `inferred`), and the present cells that went to a
+printed part.
 
 ## Finite-form synthesis
 

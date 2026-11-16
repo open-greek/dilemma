@@ -3,10 +3,11 @@
 #
 #   ./scripts/install_git_hooks.sh
 #
-# pre-push: refuses to push while the data artifacts CI downloads
-# (data/hf_manifest.json) are out of sync with the Hub - either rebuilt
+# pre-push: refuses to push while the artifacts pinned in
+# data/hf_manifest.json are out of sync with the Hub - either rebuilt
 # locally and not uploaded, or uploaded but still in flight. Both make CI test
-# new code against old data. Bypass with `git push --no-verify` or
+# new code against old data. It also refuses while the Hub serves a data or
+# model file the manifest does not pin. Bypass with `git push --no-verify` or
 # DILEMMA_SKIP_HF_CHECK=1.
 set -e
 cd "$(dirname "$0")/.."

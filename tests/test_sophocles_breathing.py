@@ -110,3 +110,62 @@ def test_sophocles_expansion_reads_the_review(tmp_path, monkeypatch):
         S.load_breathing_review(heads, required=True)
     heads.write_text(json.dumps({"heads": {}, "sophocles_breathing": rev}))
     assert S.load_breathing_review(heads, required=True) == rev
+
+
+def test_lexical_heads_settle_the_ocr_letters_before_the_review(tmp_path):
+    """The micro sign is mu and a reviewed correction replaces the head, in
+    the lexical heads as in the expansion (build/sophocles_ocr.py)."""
+    from dilemma_build.build_grc_lexical_heads import (
+        EDITED_INPUTS, KAIKKI_INPUTS, VERNACULAR_INPUTS, build_heads)
+    micro = "µ"
+    data, kaikki = tmp_path / "data", tmp_path / "kaikki"
+    data.mkdir(); kaikki.mkdir()
+    for name in EDITED_INPUTS:
+        (data / name).write_text(json.dumps(
+            ["ὁμοούσιος", "ὀρνίθειος"] if name == "dge_headwords.json" else []))
+    for _, filename, _ in KAIKKI_INPUTS + VERNACULAR_INPUTS:
+        (kaikki / filename).write_text("")
+    lsj = tmp_path / "lsj.json"
+    lsj.write_text("[]")
+    chunks = data / "sophocles" / "chunks"; chunks.mkdir(parents=True)
+    (chunks / "0800.xml").write_text(
+        f"<root><entry><orth>ο{micro}οούσιος</orth>, ον</entry>"
+        "<entry><orth>ορνιθείον</orth>, ου, το, hen-coop</entry>"
+        f"<entry><orth>{micro}έρος</orth>, ους, τὸ</entry>"
+        "<entry><orth>᾽Αβραμιαῖος</orth>, α, ον</entry></root>")
+    plain = build_heads(kaikki, data, lsj)
+    assert "sophocles_head_corrections" not in plain["inputs"]
+    assert "ὀρνιθεῖον" not in plain["heads"]
+    (data / "sophocles_head_corrections.json").write_text(json.dumps({
+        "schema_version": 1, "corrections": {"ορνιθείον": {
+            "head": "ὀρνιθεῖον", "source": "sophocles/0800.xml",
+            "reason": "accent"}}}, ensure_ascii=False), encoding="utf-8")
+    result = build_heads(kaikki, data, lsj)
+    heads = result["heads"]
+    assert heads["ὁμοούσιος"] == ["dge_headwords", "sophocles/0800.xml"]
+    assert heads["μέρος"] == heads["ὀρνιθεῖον"] == ["sophocles/0800.xml"]
+    assert heads["Ἀβραμιαῖος"] == ["sophocles/0800.xml"]
+    assert not any(micro in head for head in heads)
+    review = result["sophocles_breathing"]
+    assert review["corrected"]["ομοούσιος"]["head"] == "ὁμοούσιος"
+    assert "ορνιθείον" not in review["corrected"]
+    assert "ορνιθείον" not in review["withheld"]
+    assert len(result["inputs"]["sophocles_head_corrections"]["sha256"]) == 64
+    assert "build/sophocles_ocr.py" in result["source_sha256"]
+
+
+def test_sophocles_expansion_refuses_heads_built_with_other_corrections(tmp_path):
+    sys.path.insert(0, str(ROOT / "build"))
+    import expand_sophocles as S
+    import hashlib
+    rev = review("οφφίκιον")
+    heads = tmp_path / "heads.json"
+    current = hashlib.sha256(S.HEAD_CORRECTIONS.read_bytes()).hexdigest()
+    heads.write_text(json.dumps({"heads": {}, "sophocles_breathing": rev, "inputs": {
+        "sophocles_head_corrections": {"sha256": current, "size": 1}}}))
+    assert S.load_breathing_review(heads, required=True) == rev
+    for inputs in ({}, {"sophocles_head_corrections": {"sha256": "0" * 64, "size": 1}}):
+        heads.write_text(json.dumps(
+            {"heads": {}, "sophocles_breathing": rev, "inputs": inputs}))
+        with pytest.raises(SystemExit, match="head corrections"):
+            S.load_breathing_review(heads, required=True)

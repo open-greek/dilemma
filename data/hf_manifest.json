@@ -1,17 +1,17 @@
 {
-  "_comment": "sha256 of every artifact CI downloads from the Hub. Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
+  "_comment": "sha256 of every artifact CI downloads from the Hub (files) and of the other files the Hub serves that builds and tools read (pinned_only). Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-15T22:21:52Z",
+  "generated": "2026-11-16T21:01:07Z",
   "files": {
     "data/lookup.db": {
-      "size": 1533190144,
-      "sha256": "cd46adcdfe203b007e6f22a9e5e6b4edd0850724730c4c406eb78540423d0a81",
-      "git_sha1": "737f0780127ad319bda27bb737a25ee46f9303dc"
+      "size": 1448988672,
+      "sha256": "7c4216ddaac3f840fe58c7566c39ffc4a4f488bbb63f5aaa10453dd2fbd08240",
+      "git_sha1": "604ad462771caa8367843affff6d5e064f057334"
     },
     "data/spell_index.db": {
-      "size": 637923328,
-      "sha256": "4e212100ae7aecebde46d9f9c1c2ed7e0a6c5322647d29d665ed5a3804b58ff7",
-      "git_sha1": "0da96c10f189dac2233474d6db8757ded0c1fbf2"
+      "size": 601460736,
+      "sha256": "4c591fbfad7a71bd9bd82f69ddf72da088ab3b4aaa09f5ecbbaa8e90d7f94e41",
+      "git_sha1": "4a36a1ffaf5c5fc70560f43f23b9f6297f42ede2"
     },
     "data/lemma_attestation.json": {
       "size": 48258266,
@@ -84,14 +84,14 @@
       "git_sha1": "c8241a655652fb2232f283a7ac0279688a6bb290"
     },
     "data/ag_noun_generation_audit.json": {
-      "size": 8936339,
-      "sha256": "8ade4dc2b8e32dda546c222a0f806e9465f86317b4b92be4bc31d599a7338071",
-      "git_sha1": "148931367fdadcbf1d0938153e568f59c5b1fa2f"
+      "size": 7328293,
+      "sha256": "533c8b0efa64de795df12147156e5f9eaaeffa8790ec5d1e79797591cc15b8e3",
+      "git_sha1": "b68d58319109b5efe4e35977c2c20e73843fee33"
     },
     "data/ag_sophocles_noun_generation_audit.json": {
-      "size": 1834422,
-      "sha256": "8496e8a139218eec9a07a9368846f47a21c4bf4110a5655115b0f2db11773e89",
-      "git_sha1": "6dc0bb4f0b44a29e9e14d4105dd6a7d1edcc54e2"
+      "size": 1929382,
+      "sha256": "6c0c2eb46139249e5be7bb58e5c3b7c4195946561db1cdb75777e1e9f1d3b6a3",
+      "git_sha1": "69e59295721629db27120e3acdba285e450f7be8"
     },
     "data/mg_pairs.json": {
       "size": 529904801,
@@ -143,10 +143,25 @@
       "sha256": "7927a45da3e2b239ca553f1fe185e827c35e265dcb01fc70d6dc9eab153c5b1b",
       "git_sha1": "68f741c959ed1990e1978e3820885aa7c2e7b3ff"
     },
+    "data/ag_pos_lookup.json": {
+      "size": 2384810,
+      "sha256": "d9ae633bafe88fc3f4b38a0aa9f1e639754a3ce7d5ed7877196ae2bc24b7dfa9",
+      "git_sha1": "63a5533f97ce8b3c5608a71b2af730d7414697b5"
+    },
+    "data/glaux_pos_lookup.json": {
+      "size": 645948,
+      "sha256": "9b07318bbddccec9866b15833585606077a966a785b2e1aa787027d2ae081b49",
+      "git_sha1": "9133cdc639826f27ae09311fc3080b54f8b33bd0"
+    },
+    "data/treebank_pos_lookup.json": {
+      "size": 5994547,
+      "sha256": "ef935b3ab40c05a39e7ed7b597cb5628fb56e3ef8adc4a34980db3e0cf01c669",
+      "git_sha1": "2b1b0e5fd08691551e37479ca9c180143d9a2047"
+    },
     "data/ag_headwords.json": {
-      "size": 5061093,
-      "sha256": "f394a8759a7e94aa17ab710b52f1033e0e90206d66a0eeb021e47e30a3da1a77",
-      "git_sha1": "df19ec2193309431a175d088b899c29f2ae077d2"
+      "size": 4885645,
+      "sha256": "102e75b7022260eefff696755c180efb8d541688caa1061c810996b1bb329684",
+      "git_sha1": "b6271067349f55acb4796041ceda394fa88ee95a"
     },
     "data/cunliffe_headwords.json": {
       "size": 241110,
@@ -234,14 +249,14 @@
       "git_sha1": "917e607515bc09b91e54c2a4e1bf4af91cf4e7a8"
     },
     "data/grc_lexical_heads.json": {
-      "size": 43564541,
-      "sha256": "f68ef982ed723883d5a03f3e6f9816b7f4348e3583887a22586c51b7efc64037",
-      "git_sha1": "df8fdf5575c06e1e939948b093950281456c0172"
+      "size": 43586910,
+      "sha256": "de71937064593f77a4956deaae3ae3f36fb2516008961357927a12d225023094",
+      "git_sha1": "086136c1a24620d05399e74cc464a4873b530c62"
     },
     "data/grc_contracted_verb_aliases.json": {
       "size": 162336,
-      "sha256": "f96ca172375f6fde3c8b9e76739d41dab13288906e852a528f0ad04a88a5080f",
-      "git_sha1": "04864ddb1ea79d46cd914967c417f0763fc5fa18"
+      "sha256": "ef5303d7299fede41b3eeeafd2b6876349fbadef6a25cf424f6d04154c964933",
+      "git_sha1": "0afaa666887928c7486ebc491a65508227bb56aa"
     },
     "data/el_closed_class_heads.json": {
       "size": 16158,
@@ -254,14 +269,14 @@
       "git_sha1": "4f31f60b3244797b795b148b256caef2c49f186f"
     },
     "data/grc_adverb_heads.json": {
-      "size": 756827,
-      "sha256": "d90a93267e7a37d91179fa01588d42144931ce9cb85f11f7dbeaa2578b66785f",
-      "git_sha1": "d09361df001f3c61b736a5fbe2b7fa96483c6967"
+      "size": 756632,
+      "sha256": "abfd4cbbca60c244656fad4baed72902b3b5c7c1078aca6b045ee484d101ca79",
+      "git_sha1": "a4d784b1ca2238e6b29c5e325aeeb561f3cec306"
     },
     "data/pos_cell_corrections.json": {
-      "size": 97835,
-      "sha256": "7d75cd19fd02608c4cba584dc4f576fce8beea8130fdb496aadf48be84ff8c0b",
-      "git_sha1": "09e87fb2a59b544dfddf77c528c349a2036ad788"
+      "size": 86480,
+      "sha256": "e723597b02a4a7c53df4f91ccb2548aa6bb37a5e36ac54847e8f48cee91eff5e",
+      "git_sha1": "6bec2918f5ace6fed545bd820d58b037c3ed08b8"
     },
     "data/verb_subjects.json": {
       "size": 725737,
@@ -284,9 +299,9 @@
       "git_sha1": "9da3a6736fc122ceb1f2e87f84ab37584ff19aa6"
     },
     "data/treebank_pos_lookup.audit.json": {
-      "size": 10399325,
-      "sha256": "6fe32d4945fab0054fca523cba195cfa93a005cf9e78790e6639524fb646e266",
-      "git_sha1": "ed8f76a776e250aad83255e2d1af18d1323e23d4"
+      "size": 12116762,
+      "sha256": "0fa1de235ec472448e1b7138467e1b3f45d83f46e3ea3c493e3cb4a527cf6e00",
+      "git_sha1": "0acdb7c10c5b298078edeaf56d7d77f9c8af8783"
     },
     "model/combined-s3/vocab.json": {
       "size": 9127,
@@ -317,6 +332,148 @@
       "size": 129058,
       "sha256": "cc34d967e634ae425035f6eb9716c3c37fb95afb3de137ec5718946d7435dea1",
       "git_sha1": "7e721a30ad9314ee592079209e65ba198fb19001"
+    }
+  },
+  "pinned_only": {
+    "data/ag_lookup.json": {
+      "size": 456539236,
+      "sha256": "4773bea9deeca134bdd78d871501137c795b31a99b84bda5c1fb9985068d7158",
+      "git_sha1": "ca4c6f373b1ae71b1381c1e1f9036a3b2ea8b9bd"
+    },
+    "data/ag_pairs.json": {
+      "size": 435451673,
+      "sha256": "10ad47aec2d0654d8263b8bc9a33bf37dd497a9ed15a684792d9a95e397c6c79",
+      "git_sha1": "a165f040dd2885741a2c75d6f0d842ac96e66bbf"
+    },
+    "data/med_lookup.json": {
+      "size": 287742,
+      "sha256": "794bd2802eb1afb87d217ebd3fadac815c6492f441fbd2c03c6a1c7b00fd6870",
+      "git_sha1": "97a37d6178db6b10ebfd68d2d05d91d5d1b3732e"
+    },
+    "data/med_pairs.json": {
+      "size": 547027,
+      "sha256": "a33fb48d8029fc3eb16fb522d80f618474c19e83d7f327faeb21489a4cc3d5c2",
+      "git_sha1": "fbf2d0f8a8faedf30db87823611a37525d9b607f"
+    },
+    "data/ag_source_alias_audit.json": {
+      "size": 16895088,
+      "sha256": "067e1414a301c79903ae4fd5d23186492a9718702dfa60411734052551847492",
+      "git_sha1": "7d7e15e158d12ae4c21e23495a211badd9cf4c53"
+    },
+    "data/ag_source_alias_manifest.json": {
+      "size": 7563,
+      "sha256": "ef404f0029585fe9d9b9ff6904724786f762ad463ae22ab0fe2e5fe9af4581ae",
+      "git_sha1": "6460f244afabb9fe3d17c1eca875c568d45f419e"
+    },
+    "data/ag_verb_generation_audit.json": {
+      "size": 2680855,
+      "sha256": "c794fe746c7a5c2bf2347897c9428ea499b1527a7bfb14b73d77b3b028461942",
+      "git_sha1": "d4e385d9f8ce59ed0d9574ef7f801c8745d5b0aa"
+    },
+    "data/med_pos_lookup.json": {
+      "size": 3340,
+      "sha256": "99f09191414ed507d971b844b7faf75545bbc14ab7220a5f719974d27a0395b5",
+      "git_sha1": "d788842348616be2082b6730815ad52be93c79ab"
+    },
+    "data/glaux_pairs.json": {
+      "size": 103000664,
+      "sha256": "45a88a70c21f8a0048968c7ecda1db64c7022c983f80361f4f4d5eeb97c574f8",
+      "git_sha1": "4de3954aef7165ffb124b25264dab9a21742fc2e"
+    },
+    "data/lbg_pairs.json": {
+      "size": 81739239,
+      "sha256": "ce164010064df026cffec2e66440599f346f5dc0a57fffb2c0ee833f992f5ce4",
+      "git_sha1": "e3f07f8d270cea0dafbddcf55a82fb6fef1ed1a6"
+    },
+    "data/nt_pairs.json": {
+      "size": 1845945,
+      "sha256": "a920cf40cb6dffbea671aa358e81cad1a469c1b75a7a6132b36eb0affea434ea",
+      "git_sha1": "af0ece209e5683ab163151608892249d7585fe83"
+    },
+    "data/ptnk_pairs.json": {
+      "size": 235134,
+      "sha256": "29466e6151bf13cdcbe281a19ca7052226b6234bfe2f504d1816f4fba36d25b4",
+      "git_sha1": "a748d6c019a7f37e27702578ea9f298ca446fa12"
+    },
+    "data/tagnt_pairs.json": {
+      "size": 1427825,
+      "sha256": "42b5b70d4db76236b0e847c32dd5a803cdf48a4b5abb73e65ac13f625480bc83",
+      "git_sha1": "e02b40f4d90b258a3f7b49995a194ff7c18849e4"
+    },
+    "data/pedalion_pairs.json": {
+      "size": 1240468,
+      "sha256": "702b6d6fec7ef36d043a6b3030a49223a61ef28d8b271842a53b910c4160d4be",
+      "git_sha1": "9c016a5e6f221b98926ed86d396e2ff4b66f4d01"
+    },
+    "data/glaux_freq.json": {
+      "size": 24873841,
+      "sha256": "1452c3de69583173f921084d87ec789c1765b0df1c6f272fecb4fd55bafe1b7c",
+      "git_sha1": "5c2b7ba6cf6c2346909020376c8a78cd008e006c"
+    },
+    "data/diorisis_freq.json": {
+      "size": 20527628,
+      "sha256": "49b16357c4563b40e6597dd196f71e790b457e32929393659c75083f313b9241",
+      "git_sha1": "9d0ddebe969d787b8ef6015e623118e836371a4f"
+    },
+    "data/pta_freq.json": {
+      "size": 6018074,
+      "sha256": "2330dcaa5d9eb9595934506712d7418b4148d8d55d6178d431966e1518c21b65",
+      "git_sha1": "0fcc1da4f3e89ded0fe2ebdda100d86465f9a3cd"
+    },
+    "data/cog_public_freq.json": {
+      "size": 50236758,
+      "sha256": "f4a3ce9b84bfde103a75f1782452ea988641ff1e586db68af7c51a824dc8ab0e",
+      "git_sha1": "8bf83339fd985091ff86eb5bedca4940f3fa5b41"
+    },
+    "data/first1kgreek_freq.json": {
+      "size": 34499069,
+      "sha256": "f817bdd45e6872e9dc118af6bf1102656a4ee56342b6a84970bdaf6e7ddda819",
+      "git_sha1": "8a87e28980be08a975b95da8480bb49da929530c"
+    },
+    "data/canonical_greeklit_freq.json": {
+      "size": 20767175,
+      "sha256": "acc4aa77685b564b10aea93de05fdb9044cf88917115cac3a7a52e6d3a7f82e4",
+      "git_sha1": "b33829914dfd0f297fa1cabe8f87aa7f4318a241"
+    },
+    "data/ag_verb_paradigms.json": {
+      "size": 163446030,
+      "sha256": "3660f7bf0797e48ec4dd306ce3f467e73c240bbb222482af20724b790187f684",
+      "git_sha1": "153de54eff2c2e747174b397d706b3c5bf806dc0"
+    },
+    "data/vesuvius_index.json.gz": {
+      "size": 44377493,
+      "sha256": "cfae6c142793a16afd076e1b29a8c5f1d7cfc9a2c886b8d8daac41a1d87fb818",
+      "git_sha1": "1987b179be918871a3deb378aaed0bb96988fd59"
+    },
+    "model/grc-s3/vocab.json": {
+      "size": 8981,
+      "sha256": "e858fd9988f57762b01270c3300b07c17b155a5c484187924247c9aaa201a1fc",
+      "git_sha1": "d09775cadc45e784e08cc84a419c4aca6a57564c"
+    },
+    "model/grc-s3/encoder.onnx": {
+      "size": 6862227,
+      "sha256": "67fa5fff6307202ba213bfadf5848ac9ee8df17d5891f9af13071ccc873aab2d",
+      "git_sha1": "6654876e90c5c18da4bb1025145583e46834f551"
+    },
+    "model/grc-s3/decoder_step.onnx": {
+      "size": 10511158,
+      "sha256": "0f5868d6c36b2551b343e8b78881659b89064c906079dec2baa27d062464ea01",
+      "git_sha1": "eae9db7c4b789dbf18fbc996af367760521b13bd"
+    },
+    "model/grc-s3/model.pt": {
+      "size": 16804003,
+      "sha256": "21b778268399160f3bcf7f7f4c87074788851c9948bdbdc4223e24c7fedd6104",
+      "git_sha1": "86015bf488d0c079f98bb41a1904e5f8a8378764"
+    },
+    "model/grc-s3/head_labels.json": {
+      "size": 2853,
+      "sha256": "fdebad682cd7e423a66635d24707e41b0f183ed74e6245a83dbcfcf47b9ec70c",
+      "git_sha1": "9438869fbfa4dcc00632b54830c60bcd2b44d153"
+    },
+    "model/grc-s3/heads.npz": {
+      "size": 129058,
+      "sha256": "fc14e7e39020c41062afcc967613fc9054f327c280d41498cb1c8b7613651828",
+      "git_sha1": "974e58e4c7bed9a3582b8464a996dff02994e6d3"
     }
   }
 }

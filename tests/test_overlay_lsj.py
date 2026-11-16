@@ -500,7 +500,7 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
     reference = {
         **reference_base,
         "ἀποκλείεται": "historical-lemma",
-        "ῥαψάμενοι": "new-historical-lemma",
+        "ῥαψάμενοι": "ῥάπτω",
         "δακτύλι": "historical-lemma",
         "κατεβρεχθῶσι(ν": "βρέχω",
         "unmarked": "generated-fallback",
@@ -519,7 +519,7 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
         "base": "new-base",
         "δακτύλι": "current-lemma",
         "new": "new-lemma",
-        "ῥαψάμενοι": "new-historical-lemma",
+        "ῥαψάμενοι": "ῥάπτω",
     }
     assert stats["expansion_entries"] == 5
     assert stats["unmarked_entries"] == 1
@@ -527,6 +527,78 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
     assert stats["excluded_entries"] == 1
     assert stats["added"] == 1
     assert stats["conflicts_preserved"] == 1
+
+
+@pytest.mark.parametrize("lemma,hyphenated", [
+    ("Βακχ-εία", True),            # LSJ9's export divides the head
+    ("καθ-ηδύνω", True),           # the Sophocles lexicon divides a compound
+    ("Σινα-ῖτις", True),           # an OCR line-break hyphen
+    ("προσ-ανα-στίζω", True),
+    ("ἐπί-εἰσκομίζω", True),       # a corpus lemma naming the preverb apart
+    ("παρά,εἰσ-δυάω", True),
+    ("στρέφω—τρέπω", True),        # a dash between two words
+    ("ἐμ\u0301-βλῴσκω", True),      # a stray accent before the hyphen
+    ("βου\u00adμα\u00adστόω", True),  # soft hyphens from LSJ9's headword list
+    ("γναμπτ\u00ad\u00adω", True),
+    ("ἐπιθρύξω—ἐω", True),
+    ("α-⏑β", False),
+    ("Βακχεία", False),
+    ("καθηδύνω", False),
+    ("ὁτ-", False),                # a hyphen at either end is not inside
+    ("-σον", False),
+    ("–⏑τατος", False),
+    ("", False),
+    ("-", False),
+])
+def test_hyphenated_lemma_has_a_hyphen_between_two_letters(lemma, hyphenated):
+    from dilemma.citation import hyphenated_lemma
+    import overlay_lsj
+    assert hyphenated_lemma(lemma) is hyphenated
+    assert overlay_lsj.hyphenated_lemma is hyphenated_lemma
+
+
+def test_overlay_never_restores_a_row_under_a_hyphenated_lemma():
+    reference = {
+        # LSJ: the historical layer has the divided and the joined head
+        "Βοιωτ-άρχου": "Βοιωτ-άρχης", "Βοιωτάρχου": "Βοιωτάρχης",
+        # Sophocles: a head the generator now reads as καθηδύνω, and one it rejects
+        "καθ-ήδυνε": "καθ-ηδύνω", "Σινα-ίτιδος": "Σινα-ῖτις",
+        # a spelling without a hyphen under such a lemma
+        "ἐπεισεκόμισαν": "ἐπί-εἰσκομίζω",
+        "Βακχ-είας": "Βακχ-εία",
+        "ὁτέων": "ὁτ-",
+    }
+    target = {"Βακχ-είας": "current"}
+    stats = overlay_expansion(
+        reference, {}, target,
+        # naming the printed head superseded changes nothing
+        superseded_noun_lemmas={"Σινα-ῖτις"},
+        withheld_noun_lemmas={"Σινα-ῖτις": ("ιδος",)},
+        carried={"Σινα-ίτιδος": "Σινα-ῖτις"}, lexical_heads={"Σινα-ῖτις"})
+    assert target == {"Βακχ-είας": "current", "Βοιωτάρχου": "Βοιωτάρχης",
+                      "ὁτέων": "ὁτ-"}
+    assert stats["hyphenated_lemma_entries"] == 4
+    assert stats["already_present"] == 1 and stats["conflicts_preserved"] == 1
+    assert stats["superseded_noun_entries"] == 0
+    assert stats["withheld_noun_entries_kept"] == 0
+    assert stats["added"] == 2
+
+
+def test_unaccented_key_under_a_hyphenated_lemma_stays_out():
+    from overlay_lsj import restore_unmarked_keys
+    reference = {"Βοιωτ-άρχου": "Βοιωτ-άρχης", "Βοιωτ-αρχου": "Βοιωτ-άρχης",
+                 "ἐπεισεκόμισαν": "ἐπί-εἰσκομίζω",
+                 "επεισεκομισαν": "ἐπί-εἰσκομίζω",
+                 "Βοιωτάρχου": "Βοιωτάρχης", "Βοιωταρχου": "Βοιωτάρχης"}
+    # even a table that still has the marked rows gives the keys no backing
+    target = {"Βοιωτ-άρχου": "Βοιωτ-άρχης", "ἐπεισεκόμισαν": "ἐπί-εἰσκομίζω",
+              "Βοιωτάρχου": "Βοιωτάρχης"}
+    carried = {key: lemma for key, lemma in reference.items()
+               if key in {"Βοιωτ-αρχου", "επεισεκομισαν", "Βοιωταρχου"}}
+    stats = restore_unmarked_keys(reference, {}, target, carried)
+    assert target["Βοιωταρχου"] == "Βοιωτάρχης"
+    assert "Βοιωτ-αρχου" not in target and "επεισεκομισαν" not in target
+    assert stats["unmarked_candidates"] == 1 and stats["unmarked_restored"] == 1
 
 
 def test_target_editorial_cleanup_resolves_only_movable_nu():
@@ -1252,3 +1324,284 @@ def test_carried_cells_return_only_with_their_own_lemma_spelling():
     assert stats["unmarked_oxytone_cell_restored"] == 1
     assert stats["unmarked_corrected_head_restored"] == 1
     assert stats["unmarked_disputed"] == 1 and stats["unmarked_unbacked"] == 1
+
+
+MICRO = "µ"
+
+
+def test_overlay_reads_the_micro_sign_as_mu():
+    reference_base = {"μέρος": "μέρος"}
+    reference = {
+        **reference_base,
+        # the head and its forms exist only with the micro sign
+        f"σχη{MICRO}ατοποιεῖ": f"σχη{MICRO}ατοποιέω",
+        f"σχη{MICRO}ατοποιοῦσι": f"σχη{MICRO}ατοποιέω",
+        f"σχη{MICRO}ατοποιει": f"σχη{MICRO}ατοποιέω",
+        # the fresh table has the Greek spelling: it stands
+        f"{MICRO}ετριάσεως": f"{MICRO}ετρίασις",
+        # the expansion has the key with mu too: that row decides
+        f"γνω{MICRO}οδοτῶν": f"γνω{MICRO}οδότης",
+        "γνωμοδοτῶν": "γνωμοδοτέω",
+        f"{MICRO}έρους": f"{MICRO}έρος",
+        "μέρους": "μέρος",
+        # a superseded lemma is named with mu
+        f"ὁ{MICRO}οίου": f"ὁ{MICRO}οῖον",
+        # a Greek form under a lemma spelled with the micro sign
+        "ἐσχηματοποίησε": f"σχη{MICRO}ατοποιέω",
+    }
+    target = {"μέρος": "μέρος", "μετριάσεως": "μετρίασις"}
+    carried = dict(reference)
+
+    stats = overlay_expansion(reference, reference_base, target,
+                              superseded_noun_lemmas={"ὁμοῖον"}, carried=carried)
+
+    assert target == {
+        "μέρος": "μέρος", "μετριάσεως": "μετρίασις",
+        "σχηματοποιεῖ": "σχηματοποιέω", "σχηματοποιοῦσι": "σχηματοποιέω",
+        "γνωμοδοτῶν": "γνωμοδοτέω", "μέρους": "μέρος",
+        "ἐσχηματοποίησε": "σχηματοποιέω",
+    }
+    assert MICRO not in "".join(f"{form}{lemma}" for form, lemma in target.items())
+    assert stats["micro_sign_entries"] == 7
+    assert stats["micro_sign_duplicates"] == 2
+    assert stats["already_present"] == 1
+    assert stats["superseded_noun_entries"] == 1
+    assert stats["added"] == 5
+    # the counts the manifest pins are those of the expansion as it is
+    assert stats["expansion_entries"] == 10
+    assert stats["unmarked_entries"] == 1
+
+    from overlay_lsj import restore_unmarked_keys
+    restored = restore_unmarked_keys(reference, reference_base, target, carried)
+    assert target["σχηματοποιει"] == "σχηματοποιέω"
+    assert restored["unmarked_restored"] == 1
+    assert MICRO not in "".join(f"{form}{lemma}" for form, lemma in target.items())
+
+
+def test_overlay_supersedes_a_reread_head_only_under_its_old_spelling():
+    """σχῆμα is superseded through a Sophocles entry the expansion read as
+    σχῆµα: the old paradigm is under that spelling, and the rows the
+    expansion spells with the Greek letter are another source's."""
+    reference = {
+        f"σχή{MICRO}ατι": f"σχῆ{MICRO}α",      # the old Sophocles paradigm
+        "σχήματός": "σχῆμα", "σχῆμ’": "σχῆμα",  # readings of another layer
+        "πρᾶγμά": "πρᾶγμα",                     # superseded as it is printed
+    }
+    superseded = {"σχῆμα", "πρᾶγμα"}
+
+    target = {}
+    stats = overlay_expansion(reference, {}, target,
+                              superseded_noun_lemmas=superseded,
+                              reread_noun_lemmas={"σχῆμα"})
+    assert target == {"σχήματός": "σχῆμα", "σχῆμ’": "σχῆμα"}
+    assert stats["superseded_noun_entries"] == 2
+
+    target = {}
+    overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded)
+    assert target == {}
+
+
+def test_reread_lemmas_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_reread_noun_lemmas
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"superseded_lemmas": ["σχῆμα", "λόγος"],
+                                 "superseded_reread_lemmas": ["σχῆμα"]},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_reread_noun_lemmas(audit) == {"σχῆμα"}
+    audit.write_text(json.dumps({"superseded_lemmas": ["λόγος"]}), encoding="utf-8")
+    assert load_reread_noun_lemmas(audit) == frozenset()
+    audit.write_text(json.dumps({"superseded_reread_lemmas": "σχῆμα"}), encoding="utf-8")
+    with pytest.raises(SystemExit):
+        load_reread_noun_lemmas(audit)
+
+
+def test_overlay_reads_a_printed_head_as_the_present_head():
+    """The expansion keyed a Sophocles paradigm by the head as printed. Where
+    the present reading changes no letter the rows keep their keys and take
+    the present head; they are then judged like any other row."""
+    reference = {
+        # printed with two accents, corrected: an adjective, no fresh paradigm
+        "εἰλεώδους": "εἶλεώδης", "εἰλεωδῶν": "εἶλεώδης", "ειλεωδων": "εἶλεώδης",
+        # a typographic capital, generated under the lowercase head
+        "Θεοτηρήτου": "Θεοτήρητος", "Θεοτηρητου": "Θεοτήρητος",
+        "Ἱερείας": "Ἱερεία",
+        # the table has the key: its reading stands
+        "Θεοτήρητος": "Θεοτήρητος",
+        # the present head has a fresh paradigm and is superseded
+        "ἀερίτιδες": "ἄερῖτις",
+        # a head superseded as printed and not read otherwise
+        "οἷέσι": "οἷές",
+    }
+    reread = {"εἶλεώδης": "εἰλεώδης", "Θεοτήρητος": "θεοτήρητος",
+              "Ἱερεία": "ἱερεία", "ἄερῖτις": "ἀερῖτις"}
+    superseded = {"εἶλεώδης", "Θεοτήρητος", "Ἱερεία", "ἄερῖτις", "ἀερῖτις", "οἷές"}
+    target = {"Θεοτήρητος": "θεοτήρητος", "ἱερείας": "ἱέρεια"}
+    carried = dict(reference)
+
+    stats = overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded,
+                              carried=carried, reread_lemmas=reread)
+
+    assert target == {
+        "Θεοτήρητος": "θεοτήρητος", "ἱερείας": "ἱέρεια",
+        "εἰλεώδους": "εἰλεώδης", "εἰλεωδῶν": "εἰλεώδης",
+        "Θεοτηρήτου": "θεοτήρητος", "Ἱερείας": "ἱερεία",
+    }
+    assert stats["reread_lemma_entries"] == 6
+    assert stats["already_present"] == 1 and stats["conflicts_preserved"] == 0
+    assert stats["superseded_noun_entries"] == 2
+    assert stats["added"] == 4
+
+    # the unaccented keys follow the marked forms
+    from overlay_lsj import restore_unmarked_keys
+    restored = restore_unmarked_keys(reference, {}, target, carried,
+                                     reread_lemmas=reread)
+    assert target["ειλεωδων"] == "εἰλεώδης"
+    assert target["Θεοτηρητου"] == "θεοτήρητος"
+    assert restored["unmarked_restored"] == 2
+
+    # without the record the printed lemmas are superseded as before
+    target = {}
+    overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded,
+                      carried=carried)
+    assert target == {}
+
+
+def test_only_a_paradigm_the_entry_confirms_is_read_again():
+    """The expansion built part of its Sophocles paradigms on a misread head
+    or in the wrong class. Such a paradigm is not read under the present
+    head: its spellings are no forms of the word."""
+    from overlay_lsj import confirmed_reread_lemmas
+    reference = {
+        # the head's own cell and the genitive the entry prints
+        "Θεοτήρητος": "Θεοτήρητος", "Θεοτηρήτου": "Θεοτήρητος",
+        "Θεοτηρητου": "Θεοτήρητος",
+        "Θρύλλημα": "Θρύλλημα", "Θρυλλήματος": "Θρύλλημα",
+        # the breathing joined to the capital; a key without its breathing
+        "᾿Αθεότης": "᾿Αθεότης", "᾿Αθεότητος": "᾿Αθεότης",
+        "αδούλωτος": "άδούλωτος", "αδουλώτου": "άδούλωτος",
+        # a verb and an adverb need their own cell only
+        "Ιπποθυτέω": "Ἱπποθυτέω", "Ιπποθυτέει": "Ἱπποθυτέω",
+        "Θεοπρεπῶς": "Θεοπρεπῶς",
+        # an adjective in -ικός declined as a consonant stem
+        "Θεαρχικός": "Θεαρχικός", "Θεαρχικές": "Θεαρχικός",
+        "Θεαρχιξί": "Θεαρχικός", "Θεαρχικου": "Θεαρχικός",
+        # one in -ης, -ες and a noun in -ότης, -τος declined like πολίτης
+        "Βληχηματώδης": "Βληχηματώδης", "Βληχηματώδου": "Βληχηματώδης",
+        "Θεοπρεπότης": "Θεοπρεπότης", "Θεοπρεπότου": "Θεοπρεπότης",
+        # a noun in -ίς, -ίδος declined like πόλις
+        "Εἰλωτίς": "Εἰλωτίς", "Εἰλωτέως": "Εἰλωτίς",
+        # built on another accent, breathing or without the diaeresis
+        "ἐκκηρυκτός": "ἐκκήρυκτός", "ἐκκηρυκτοῦ": "ἐκκήρυκτός",
+        "οἱηκοφόρος": "οἷηκοφόρος", "οἱηκοφόρου": "οἷηκοφόρος",
+        "Ἰουδαισμός": "Ἰουδαῖσμός", "Ἰουδαισμοῦ": "Ἰουδαῖσμός",
+        "επιπραύνω": "ἐπιπραῦνω",
+        # the micro sign of the expansion is read as mu
+        f"Ψηγ{MICRO}άτιον": f"Ψηγ{MICRO}άτιον", f"Ψηγ{MICRO}ατίου": f"Ψηγ{MICRO}άτιον",
+    }
+    reread = {"Θεοτήρητος": "θεοτήρητος", "Θρύλλημα": "θρύλλημα",
+              "᾿Αθεότης": "ἀθεότης", "άδούλωτος": "ἀδούλωτος",
+              "Ἱπποθυτέω": "ἱπποθυτέω", "Θεοπρεπῶς": "θεοπρεπῶς",
+              "Θεαρχικός": "θεαρχικός", "Βληχηματώδης": "βληχηματώδης",
+              "Θεοπρεπότης": "θεοπρεπότης", "Εἰλωτίς": "εἰλωτίς",
+              "ἐκκήρυκτός": "ἐκκήρυκτος", "οἷηκοφόρος": "οἰηκοφόρος",
+              "Ἰουδαῖσμός": "Ἰουδαϊσμός", "ἐπιπραῦνω": "ἐπιπραΰνω",
+              "Ψηγμάτιον": "ψηγμάτιον", "Χλοανός": "χλοανός",
+              "Νικάδιον": "νικάδιον"}
+    endings = {"Θεοτήρητος": "ου", "Θρύλλημα": "ατος", "᾿Αθεότης": "ητος",
+               "άδούλωτος": "ου", "Ἱπποθυτέω": "", "Θεοπρεπῶς": "",
+               "Θεαρχικός": "ου", "Βληχηματώδης": "ους", "Θεοπρεπότης": "τος",
+               "Εἰλωτίς": "ιδος", "ἐκκήρυκτός": "ου", "οἷηκοφόρος": "ου",
+               "Ἰουδαῖσμός": "ου", "ἐπιπραῦνω": "", "Ψηγμάτιον": "ου",
+               "Χλοανός": "ου"}
+    assert confirmed_reread_lemmas(reference, reread, endings) == {
+        "Θεοτήρητος": "θεοτήρητος", "Θρύλλημα": "θρύλλημα",
+        "᾿Αθεότης": "ἀθεότης", "άδούλωτος": "ἀδούλωτος",
+        "Ἱπποθυτέω": "ἱπποθυτέω", "Θεοπρεπῶς": "θεοπρεπῶς",
+        "Ψηγμάτιον": "ψηγμάτιον"}
+    # the unaccented key of a genitive is no evidence of it
+    assert "Θεαρχικός" not in confirmed_reread_lemmas(reference, reread, endings)
+    # without the record of endings nothing is read again
+    assert confirmed_reread_lemmas(reference, reread, {}) == {}
+
+
+def test_micro_sign_paradigms_need_the_ending_of_their_entry():
+    from overlay_lsj import confirmed_micro_sign_lemmas
+    reference = {
+        # an adjective in -ής, -ές that the expansion declined as a noun of
+        # the first declension
+        f"{MICRO}ελισταγής": f"{MICRO}ελισταγής",
+        f"{MICRO}ελισταγοῦ": f"{MICRO}ελισταγής",
+        f"{MICRO}ελισταγῇ": f"{MICRO}ελισταγής",
+        # the same word from another source, spelled with mu
+        "μελισταγέος": "μελισταγής",
+        # a noun declined as its entry says
+        f"σχή{MICRO}ατος": f"σχῆ{MICRO}α",
+        f"σχή{MICRO}ατα": f"σχῆ{MICRO}α",
+        # a verb is not declined
+        f"σχη{MICRO}ατοποιεῖ": f"σχη{MICRO}ατοποιέω",
+        # no entry gives this head a class
+        f"{MICRO}αιώτραι": f"{MICRO}αίωτρα",
+    }
+    endings = {"μελισταγής": "ους", "σχῆμα": "ατος", "σχηματοποιέω": ""}
+
+    confirmed = confirmed_micro_sign_lemmas(reference, endings)
+    assert confirmed == {"σχῆμα", "σχηματοποιέω"}
+    target = {}
+    stats = overlay_expansion(reference, {}, target, micro_sign_lemmas=confirmed)
+    assert target == {
+        "μελισταγέος": "μελισταγής", "σχήματος": "σχῆμα", "σχήματα": "σχῆμα",
+        "σχηματοποιεῖ": "σχηματοποιέω",
+    }
+    assert stats["micro_sign_entries"] == 7
+    assert stats["micro_sign_unconfirmed_entries"] == 4
+
+    # a build without the record reads every such row, as before
+    target = {}
+    stats = overlay_expansion(reference, {}, target)
+    assert target["μελισταγοῦ"] == "μελισταγής"
+    assert stats["micro_sign_unconfirmed_entries"] == 0
+
+
+def test_micro_sign_endings_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_micro_sign_endings
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"micro_sign_endings": {"μελισταγής": "ους", "μέσως": ""}},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_micro_sign_endings(audit) == {"μελισταγής": "ους", "μέσως": ""}
+    audit.write_text(json.dumps({"superseded_lemmas": []}), encoding="utf-8")
+    assert load_micro_sign_endings(audit) is None
+    for bad in (["μελισταγής"], {"μελισταγής": None}, {"μελισταγής": 1}):
+        audit.write_text(json.dumps({"micro_sign_endings": bad}, ensure_ascii=False),
+                         encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_micro_sign_endings(audit)
+
+
+def test_reread_endings_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_reread_endings
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"reread_endings": {"Θεοτήρητος": "ου", "Θεοπρεπῶς": ""}},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_reread_endings(audit) == {"Θεοτήρητος": "ου", "Θεοπρεπῶς": ""}
+    audit.write_text(json.dumps({"superseded_lemmas": []}), encoding="utf-8")
+    assert load_reread_endings(audit) == {}
+    for bad in (["Θεοτήρητος"], {"Θεοτήρητος": None}, {"Θεοτήρητος": 1}):
+        audit.write_text(json.dumps({"reread_endings": bad}, ensure_ascii=False),
+                         encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_reread_endings(audit)
+
+
+def test_reread_heads_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_reread_lemmas
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"reread_lemmas": {"Θεοτήρητος": "θεοτήρητος"}},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_reread_lemmas(audit) == {"Θεοτήρητος": "θεοτήρητος"}
+    audit.write_text(json.dumps({"superseded_lemmas": []}), encoding="utf-8")
+    assert load_reread_lemmas(audit) == {}
+    for bad in (["Θεοτήρητος"], {"Θεοτήρητος": ""}, {"Θεοτήρητος": 1}):
+        audit.write_text(json.dumps({"reread_lemmas": bad}, ensure_ascii=False),
+                         encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_reread_lemmas(audit)

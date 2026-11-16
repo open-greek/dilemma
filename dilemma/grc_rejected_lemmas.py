@@ -113,6 +113,16 @@ REJECTED_LEMMA_TARGETS: dict[str, dict[str, str]] = {
         "evidence": "GLAUx files διέσμηκται, the perfect middle of διασμήχω, "
                     "under it; no dictionary heads it.",
     },
+    # A head-list entry that is no word. The lookup has no row for it, so
+    # the rule that repairs an unaccented expansion lemma to its accented
+    # head would otherwise send word fragments to it (#127).
+    "μός": {
+        "reason": "dictionary_run_on_entry",
+        "evidence": "The LSJ headword list carries it as the bare run-on "
+                    "entry -μός, with no grammar and no gloss; no other list "
+                    "has it. GLAUx files the line-break fragments μος, μον "
+                    "and μῳ under the unaccented μος.",
+    },
 }
 
 REJECTED_LEMMAS = frozenset(REJECTED_LEMMA_TARGETS)

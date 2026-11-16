@@ -68,12 +68,13 @@ def test_driver_uses_original_quantity_marked_headword(monkeypatch, tmp_path):
     monkeypatch.setattr(expand_lsj, "AG_LOOKUP", lookup)
     calls = []
 
-    def expand(_wtp, word, head_text="", supplement_text=""):
+    def expand(_wtp, word, head_text="", supplement_text="",
+               principal_part_forms=None):
         calls.append(word)
         return {"λύω", "λύεις"}, ""
 
     monkeypatch.setattr(expand_lsj, "expand_verb", expand)
-    expand_lsj.expand_verbs()
+    expand_lsj.expand_verbs(corpus_checks=False)
     result = json.loads(lookup.read_text())
     assert calls == ["λύω"]
     assert result["ἡμι"] == "independent_source"

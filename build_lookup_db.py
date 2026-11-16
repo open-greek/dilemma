@@ -30,7 +30,12 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import (  # noqa: E402
     MIN_POLYTONIC_SHARE, has_editorial_sigla, polytonic_share, sanitize_form,
 )
-from dilemma.citation import malformed_tonal_reason  # noqa: E402
+from dilemma.citation import (  # noqa: E402
+    hyphenated_lemma, malformed_tonal_reason,
+)
+from dilemma.preverb_lemma import (  # noqa: E402
+    heads_by_accent_fold, joined_preverb_lemma, preverb_lemma_head,
+)
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
 from dilemma.nonlexical import classify_nonlexical  # noqa: E402
@@ -40,9 +45,15 @@ from dilemma.elision_tails import (  # noqa: E402
     open_profile_attestation,
 )
 from dilemma.el_paradigm_gaps import complete_lookup  # noqa: E402
-from dilemma.grc_adjective_gaps import complete_ikos_adjectives  # noqa: E402
+from dilemma.grc_adjective_gaps import (  # noqa: E402
+    ES_KIND, SOURCE as GRC_ADJECTIVE_GAPS_SOURCE, complete_ikos_adjectives,
+    es_paradigms, select_es_adjectives)
 from dilemma.grc_noun_gaps import (  # noqa: E402
-    SOURCE as GRC_NOUN_GAPS_SOURCE, complete_noun_gaps, select_noun_gap_lemmas)
+    SOURCE as GRC_NOUN_GAPS_SOURCE, fill_gap_cells, noun_gap_paradigms,
+    select_noun_gap_lemmas)
+from dilemma.grc_os_gaps import (  # noqa: E402
+    KINDS as GRC_OS_KINDS, RIVAL_KIND as GRC_OS_RIVAL_KIND, os_paradigms,
+    os_rivals, read_classes, rival_paradigms, select_os_lemmas)
 from dilemma.grc_rejected_lemmas import (  # noqa: E402
     CLOSED_PRONOMINAL_LEMMAS, REJECTED_LEMMAS,
 )
@@ -59,6 +70,7 @@ CITATION_REJECTIONS_PATH = DATA_DIR / "citation_hygiene_rejections.tsv"
 AG_PATH = DATA_DIR / "ag_lookup.json"
 LOOKUP_SOURCES_PATH = DATA_DIR / "lookup_sources.json"
 GRC_IKOS_ADJECTIVES_PATH = DATA_DIR / "grc_ikos_adjectives.json"
+GRC_SECOND_DECLENSION_PATH = DATA_DIR / "grc_second_declension.json"
 # Inputs that say which layer of a merged file supplied a reading.
 AG_WIKTIONARY_BASE_PATH = DATA_DIR / "ag_lookup_wikt.json"
 AG_EXPANSION_MANIFEST_PATH = DATA_DIR / "ag_expansion_reference.json"
@@ -75,6 +87,7 @@ AG_HEADWORDS_PATH = DATA_DIR / "ag_headwords.json"
 DGE_HEADWORDS_PATH = DATA_DIR / "dge_headwords.json"
 LGPN_NAMES_PATH = DATA_DIR / "lgpn_names.json"
 PD_HEADWORDS_PATH = DATA_DIR / "pd_headwords.json"
+TRIANTAFYLLIDIS_HEADWORDS_PATH = DATA_DIR / "triantafyllidis_headwords.json"
 VLG_HEADWORDS_PATH = DATA_DIR / "vlg_headwords.json"
 WIP_HEADWORDS_PATH = DATA_DIR / "wip_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
@@ -334,7 +347,7 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     # genitive plural of Σηρικός as the land Σηρική.
     "παραθετέον": "παραθετέον", "Σηρικῶν": "Σηρικός",
     # Oblique cells of ὀρνίθειος (GLAUx: 4 keys) taken by the paradigm of
-    # ὀρνιθείον, a head of Sophocles' lexicon alone.
+    # ὀρνιθεῖον, a head of Sophocles' lexicon alone.
     **{form: "ὀρνίθειος" for form in (
         "ὀρνιθείου", "ὀρνιθείων", "ὀρνιθείῳ", "ὀρνιθείοις")},
     # Keys that left the expansion layer and fell to a treebank gap-fill row
@@ -346,6 +359,125 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     # (1.3.25: ἐννύω).
     "Ιερου": "ἱερός", "Ἀστροάρχην": "ἀστροάρχη", "ἔσσαν": "ἕννυμι",
 }
+
+# Readings reviewed against the treebanks for 1.3.27 (GLAUx form-lemma
+# counts in parentheses).
+REVIEWED_TREEBANK_READINGS = {
+    # GLAUx files the Νέα of place names under a name lemma Νέη (Νέαν 24
+    # tokens, 20 of them before πόλιν; Νέᾳ πόλει), which the build lowercases
+    # to the listed head νέη, itself a form of νέος, and the gap-fill rows
+    # then read νέη (#141). Νέαν, Νέᾳ and Νέης are νέος, as the New
+    # Testament pairs read Νέαν. The one Νεῶν is the Catalogue of Ships (ἐν
+    # Νεῶν καταλόγῳ), the one Νέαις the islands Νέαι, a head of their own.
+    "Νέαν": "νέος", "Νέᾳ": "νέος", "Νέης": "νέος",
+    "Νεῶν": "ναῦς", "Νέαις": "Νέαι",
+    # The genitive plural of ναῦς (974; AGDT and Pedalion likewise), read as
+    # νέος, whose genitive plural is νέων.
+    "νεῶν": "ναῦς",
+    # Accented ὥς, the demonstrative adverb the dictionaries file under ὡς
+    # (ὡς 3,016, ὅς 1; AGDT, Diorisis and the New Testament pairs ὡς), read
+    # as a form of ὅς.
+    "ὥς": "ὡς",
+    # The dative of σύ, read as the possessive σός (σοι: σύ 10,033; σοί: σύ
+    # 743, σός 1). The pinned Wiktionary-only base reads σύ. The other keys
+    # of σύ are restored with the γραφή paradigm in the build (#110).
+    "σοι": "σύ", "σοί": "σύ",
+    # Elided keys whose dictionary-expansion reading is the reading of none
+    # of their full forms, where AGDT, GLAUx and Diorisis agree on another
+    # (GLAUx: χαίρετ’ χαίρω 40, ζῶντ’ ζάω 25, ἔνερθ’ ἔνερθε 10). The el copy
+    # of the GLAUx pair answered lang="el" with that reading until the copy
+    # was removed (drop_el_corpus_readings). μαχώμεθ’ read συμμαχέω, as AGDT
+    # has it; GLAUx and Diorisis read μάχομαι. The three forms of ζάω keep
+    # the treebanks' name of the verb, not the ζῶ that the table reads
+    # ζῶντα as: a reviewed reading also answers a tagged lookup, where the
+    # POS table has ζάω for every form. The keys end in U+1FBD.
+    **{stem + "\u1fbd": lemma for stem, lemma in (
+        ("χαίρετ", "χαίρω"), ("ζῶντ", "ζάω"), ("ζῶνθ", "ζάω"),
+        ("ζώοντ", "ζάω"),
+        ("ἔνερθ", "ἔνερθε"), ("θέρμετ", "θέρμω"), ("μύρονθ", "μύρω"),
+        ("μαχώμεθ", "μάχομαι"), ("ἔνδικ", "ἔνδικος"), ("ἔννομ", "ἔννομος"),
+        ("κρατερόφρον", "κρατερόφρων"), ("παιδέρωτ", "παιδέρως"))},
+    # Elided keys whose reading is no lemma of the table: the string has no
+    # row, or its own row reads another lemma. The removed el copy of the
+    # GLAUx or Diorisis pair was the one answer with a lemma, so without
+    # these lang="el" would answer like the other two. Each key takes the
+    # reading of its full form, or of its lowercase key; ἤρατ’ and ἀρέσθ’,
+    # whose full forms are also read as ἔραμαι and ἄρνυμαι, keep their verb
+    # under the name the table gives it (ἀείρω, as GLAUx has them). The
+    # first-seen reading was:
+    # - a verb form, a vocative, Beta Code or a misprint in AGDT (καθέζετ’
+    #   καθέζετο, Ἰδαῖ’ Ἰδαῖε, κείν’ κει~νος, ἰοῦσ’ εἷμι, οὐπώποτ’ οὐπωποτε,
+    #   -δ’ δε; GLAUx has -δ’ 17,835 times under δέ);
+    # - a lemma the table reads as another (κατακείω, κτέομαι, πεύθομαι,
+    #   πρώτιστος, αἴρω, ἔβραχε);
+    # - a spelling without its diaeresis or with the wrong accent, which has
+    #   no row or a Modern one (ληίζομαι, ληίς, λοισθήιος, πλωίζω, ἀπαίσσω,
+    #   παμπολύς, ἀνόρουω, ὑπένδύω, Δήμοφων; ὄψε reads ὄπτω);
+    # - the capitalised lemma of a sentence-initial word (Ἐπί, Ὥστε, Ὄφρα,
+    #   Ἔπειτα, Εὖτε, Ὅς, Ὑπό, Τροπαῖος, and Ἔντος for Ἔνθ’).
+    **{stem + "\u1fbd": lemma for stem, lemma in (
+        ("-δ", "δέ"), ("καθέζετ", "καθέζομαι"), ("Ἰδαῖ", "Ἰδαῖος"),
+        ("κείν", "ἐκεῖνος"), ("ἰοῦσ", "εἶμι"), ("οὐπώποτ", "οὐπώποτε"),
+        ("κατάκειτ", "κατάκειμαι"), ("κατέκειτ", "κατάκειμαι"),
+        ("ἐκτήσαθ", "κτάομαι"), ("πευθόμεθ", "πυνθάνομαι"),
+        ("πεύθετ", "πυνθάνομαι"), ("πευθοίαθ", "πυνθάνομαι"),
+        ("πρώτισθ", "πρῶτος"), ("πρώτιστ", "πρῶτος"),
+        ("αἴρετ", "ἀείρω"), ("ἀρθέντ", "ἀείρω"), ("ἤρατ", "ἀείρω"),
+        ("ἀρέσθ", "ἀείρω"), ("ἔβραχ", "ἔβραχον"),
+        ("ληίζετ", "ληΐζομαι"), ("ληΐδ", "ληΐς"), ("λοισθήϊ", "λοισθήϊος"),
+        ("πλωίζεσκ", "πλωΐζω"), ("ἀπῇξ", "ἀπαΐσσω"), ("πάμπολλ", "πάμπολυς"),
+        ("ἀνόρουσ", "ἀνορούω"), ("ὑπενέδυσ", "ὑπενδύω"), ("ὄψ", "ὀψέ"),
+        ("Δημοφόωνθ", "Δημοφῶν"),
+        ("Ἐφ", "ἐπί"), ("Ὥστ", "ὥστε"), ("Ὄφρ", "ὄφρα"), ("Ἔπειθ", "ἔπειτα"),
+        ("Εὖτ", "εὖτε"), ("Ὅτ", "ὅτε"), ("Ὑφ", "ὑπό"), ("Τροπαῖ", "τροπαῖος"),
+        ("Ἔνθ", "ἔνθα"))},
+    # Elided keys that read a lemma of the table, but of another word than
+    # their full forms: χείρον’ is χείρονα, which reads χείρων as AGDT and
+    # Diorisis have it, not the centaur Χείρων; μήτιν’ is μήτινα (μήτις 4),
+    # not μῆτις, which has a circumflex, and λῆμ’ is λῆμα (9), not λήμη,
+    # which has an acute; ἐϊκυῖ’ is the participle of ἔοικα, not εἰκός;
+    # ἐπίστασ’ is ἐπίστασαι (ἐπίσταμαι 5), not a form of ἐφίστημι; γαῖ’ is
+    # γαῖα as γαῖαν is, not the goddess (GLAUx files its 25 under γῆ, AGDT
+    # and Diorisis under γαῖα); ἔρωτ’ is ἔρως in all three treebanks (4),
+    # not the god; four verb forms read a capitalised Βακχεύω or
+    # Κορυβαντίζω, as GLAUx names a verb made from a name, where βακχεύω
+    # and κορυβαντίζω have rows of their own.
+    **{stem + "\u1fbd": lemma for stem, lemma in (
+        ("χείρον", "χείρων"), ("μήτιν", "μήτις"), ("λῆμ", "λῆμα"),
+        ("ἐϊκυῖ", "ἔοικα"), ("ἐπίστασ", "ἐπίσταμαι"), ("γαῖ", "γαῖα"),
+        ("ἔρωτ", "ἔρως"), ("βάκχευσ", "βακχεύω"), ("βακχεύητ", "βακχεύω"),
+        ("βακχεύοντ", "βακχεύω"), ("ἐκορυβάντιζ", "κορυβαντίζω"))},
+    # The genitive of ὁ δεῖνα (58, and Diorisis), which the name page Δεῖνος
+    # held and the case-twin rule would hand to the rare δεῖνος (5), as it
+    # hands δεῖνα its own key. δεῖνός and δεῖνι already read δεῖνα.
+    "δεῖνος": "δεῖνα",
+    # The accusative plural of ἐμός without its accent (ἐμοὺς 158, ἐμούς
+    # 36), which followed the Doric genitive ἐμοῦς (2) to μου and would
+    # follow it to ἐγώ (ANCIENT_FORM_LEMMA_READINGS).
+    "εμούς": "ἐμός", "εμους": "ἐμός",
+    # Genitives of Roman names whose only Ancient reading was a Latin lemma
+    # read as Beta Code (GLAUx μοδεστυς, πιυς, one token each), which the
+    # build drops; a Modern surname page then answered with the genitive
+    # itself (#127). Μόδεστος is a listed head, and Πίος reads Πῖος.
+    "Μοδέστου": "Μόδεστος", "Πίου": "Πῖος",
+    # The dative plural of οἰκεῖος (345), read as οἰκέω through Wiktionary's
+    # οἰκείοισ, a second-person optative printed as οἰκείοισ(θα), which the
+    # sanitizer folds onto the same key ahead of the adjective's own. The
+    # el copy of the GLAUx pair answered lang="el" with οἰκεῖος. A rule that
+    # let the exact key win every such fold was measured and dropped: of
+    # 135 keys most lose a good Wiktionary reading to an expansion one
+    # (ᾔδης οἶδα, ἀνῇς ἀνίημι, σαώσῃς σῴζω).
+    "οἰκείοις": "οἰκεῖος", "οικείοις": "οἰκεῖος", "οικειοις": "οἰκεῖος",
+}
+
+# Ancient readings that name an inflected form, with the lemma each key
+# that holds one reads instead. The Greek Wiktionary page μου is a form-of
+# entry of ἐγώ that carries the whole pronoun grid, and the genitive row of
+# the grid comes out as forms of the page: ἐμοῦ, ἐμεῦ, ἐμέο, ἐμεῖο, ἐμέθεν,
+# μευ, μου and their looser keys read μου. The pinned Wiktionary-only base
+# and the treebanks read ἐγώ (GLAUx: μου 8,943, ἐμοῦ 3,578 beside ἐμός 115,
+# ἐμεῖο 146, μευ 141, ἐμεῦ 92).
+ANCIENT_FORM_LEMMA_READINGS = {"μου": "ἐγώ"}
 
 # Reviewed readings that are written even when no source has the key. An
 # override changes only a key the tables hold, so a form whose single
@@ -376,6 +508,14 @@ REVIEWED_ABSENT_KEY_READINGS = {
     # A misprint of Ionic ἀπίκηται in a Hippocratic text (ἄχρις ἂν ἀρίκηται
     # ἐς τοὺς ἑκατὸν σταδίους); ἀπίκηται reads ἀφικνέομαι. 1.3.25: ἐρείκω.
     "ἀρίκηται": "ἀφικνέομαι",
+    # Capitalized spellings of names that have no row of their own and
+    # fell to a lowercase cell of the verb parts inferred in 1.3.27: the
+    # corpora print the dative of Ἔφεσος without its subscript (34 tokens)
+    # and its accusative with the accent of the dative (2), which in
+    # lowercase are the future and an aorist imperative of ἐφέννυμι; the
+    # genitive of the Γραῖαι is a participle of γραΐζω. 1.3.26 read the
+    # names through its looser keys.
+    "Ἐφέσω": "Ἔφεσος", "Ἐφέσον": "Ἔφεσος", "Γραϊῶν": "Γραῖα",
 }
 
 # The input every reviewed reading is recorded under (lookup_sources.json).
@@ -392,9 +532,10 @@ ANCIENT_CORPUS_PAIR_INPUTS = frozenset(path.name for path in (
 # corpus pair the gap-fill copied into the el table before that would
 # otherwise be written as an el row and answer lang="el" with the reading
 # the review rejected (εἴσομαι -> εἶμι, ἀπεικός -> ἀφίημι, Μάγων -> Μάγων).
-# Limited to the readings reviewed for the 2026-11 rebuild: about fifty
-# older el-only corpus rows disagree with an override too (ᾔει, ᾔδετε), and
-# the published tables answer lang="el" with those.
+# Limited to the readings reviewed for the 2026-11 rebuild. The about fifty
+# older el-only corpus rows that disagree with an override too (ᾔει, ᾔδετε)
+# are removed by drop_el_corpus_readings, with every other el copy of an
+# Ancient corpus pair that the combined row contradicts.
 EL_CORPUS_ROW_OVERRIDE_FORMS = (
     frozenset(KAIKKI_2026_11_READING_OVERRIDES)
     | frozenset(REVIEWED_ABSENT_KEY_READINGS) | {"Μάγων"})
@@ -454,6 +595,9 @@ MODERN_READING_OVERRIDES = {
     "εμφράξεις": "έμφραξη",                                   # ἐμφράσσω
     "δακτυλίδι": "δαχτυλίδι", "δακτυλιδι": "δαχτυλίδι",       # δακτυλίς
     "Βιέννης": "Βιέννη",                                      # Βίεννα
+    # The Ancient table reads μου as ἐγώ (ANCIENT_FORM_LEMMA_READINGS); the
+    # combined row keeps the Modern weak pronoun it has always answered with.
+    "μου": "μου",
 }
 
 
@@ -556,16 +700,18 @@ def unaccented_expansion_lemma(lemma: str, heads, heads_by_letters,
 
     The expansion layer holds lemmas that are source-text artefacts, not
     citation forms: Latin words read as Beta Code (αελιυς, σερvιλια), OCR
-    garble (λαβλυμι, λαβ’μι), hyphenated composition lemmas
-    (προ-ανακηρυσσω) and unaccented doublets of real heads (συνοχος). A
+    garble (λαβλυμι, λαβ’μι) and unaccented doublets of real heads
+    (συνοχος). A hyphenated composition lemma (προ-ανακηρυσσω) no longer
+    reaches this check: the overlay restores no row under one. A
     lemma with any combining mark, or one a head list has (τε, που, κρεω),
     is kept: None. Otherwise the reading is repaired to the single Ancient
     head with the same letters, ``("unaccented_expansion_lemma_repaired",
     head)``, or dropped, ``("unaccented_expansion_lemma_unlisted", None)``.
     With ``is_citation``, the head must also pass it (the build asks for a
-    head the lookup maps to itself): the head lists carry inflected
-    cross-reference entries (κλεῖδα, κλεῖδες, of κλείς), and a reading
-    repaired to one of them is another non-lemma, so it is dropped instead,
+    head the lookup does not read as another lemma, ``citation_head``): the
+    head lists carry inflected cross-reference entries (κλεῖδα, κλεῖδες, of
+    κλείς), and a reading repaired to one of them is another non-lemma, so
+    it is dropped instead,
     ``("unaccented_expansion_lemma_head_not_citation", None)``.
     """
     if not isinstance(lemma, str) or not lemma:
@@ -581,6 +727,24 @@ def unaccented_expansion_lemma(lemma: str, heads, heads_by_letters,
             return "unaccented_expansion_lemma_head_not_citation", None
         return "unaccented_expansion_lemma_repaired", head
     return "unaccented_expansion_lemma_unlisted", None
+
+
+def citation_head(head: str, ag: dict, el: dict) -> bool:
+    """Whether a listed head may be the target of a repaired lemma.
+
+    A head some table reads as itself is a citation form. So is a head no
+    table has a row for: the dictionaries list names the lookup holds no
+    paradigm of (Βάβυρσα), and requiring a self row turned their repairs
+    into drops, leaving Βάβυρσά without an answer (#127). Only a head whose
+    own reading is another lemma is refused (κλεῖδα reads κλείς, πέδιος the
+    name Πέδιος), and a reviewed non-lemma (``REJECTED_LEMMAS``: the
+    run-on entry μός).
+    """
+    if head in REJECTED_LEMMAS:
+        return False
+    if ag.get(head) == head or el.get(head) == head:
+        return True
+    return head not in ag and head not in el
 
 
 def capitalized_pronoun_twin(form: str, lemma: str, tables) -> str | None:
@@ -607,6 +771,112 @@ def capitalized_pronoun_twin(form: str, lemma: str, tables) -> str | None:
                 and not is_corpus(lower)):
             return twin
     return None
+
+
+def lowercase_twin_readings(forms, *, ag: dict, el: dict) -> dict[str, str]:
+    """Ancient readings for capitalised keys a filter emptied: {form: lemma}.
+
+    The pronoun-twin rule skips a corpus pair (Πάσας -> πάσσω) and the
+    reviewed non-lemma record drops a reading (Τούτος -> Τοῦτος), so that
+    the capitalised form falls back to its lowercase spelling at lookup
+    time. That fallback never runs when the el table has a row for the
+    capitalised key (the Modern names Πάσας, Τίνας, Τούτος): the Modern row
+    answered lang="grc" too (#127). Such a key takes the Ancient reading of
+    its lowercase spelling as a row of its own (Πάσας -> πᾶς). A key the
+    Ancient table still reads, a key the el table lacks and a key whose
+    lowercase spelling has no Ancient reading are left alone.
+    """
+    readings = {}
+    for form in forms:
+        if form in ag or form not in el or not form[:1].isupper():
+            continue
+        lower = form[0].lower() + form[1:]
+        lemma = ag.get(lower)
+        if lower != form and isinstance(lemma, str):
+            readings[form] = lemma
+    return readings
+
+
+def modern_word_key(word: str) -> str:
+    """The letters of a word, lowercase, without diacritics."""
+    return strip_accents(word.lower())
+
+
+# A Medieval reading gives way to an Ancient one only where the counted
+# corpus pairs read the form as the Ancient lemma at least this many times.
+MEDIEVAL_ANCIENT_FORM_MIN_TOKENS = 2
+
+
+def medieval_readings_held_back(med: dict, *, el: dict, ag: dict,
+                                evidence: dict, modern_words) -> dict[str, str]:
+    """Medieval readings kept out of the el table: {form: Ancient lemma}.
+
+    The Medieval table is merged into the el table wherever that lacks the
+    key, and the el table answers lang="el" before the combined one. A
+    Medieval entry spelled like an Ancient inflected form then answers for
+    it: the adverb παρέξω, a by-form of παρόξω, for the future of παρέχω
+    (GLAUx 45 tokens), ἀκούεις for ἀκούω (#141). A Medieval reading is held
+    back when
+
+    - the Ancient table reads the same spelling as another lemma, and the
+      counted corpus pairs (``evidence``, GLAUx) read the form as that lemma
+      at least ``MEDIEVAL_ANCIENT_FORM_MIN_TOKENS`` times, and
+    - the Medieval lemma is no Modern word: its letters are neither a
+      Modern headword nor a self row of the Modern table (``modern_words``,
+      folded by ``modern_word_key``). ἄνδρας, νά, θεωρῶ and ἀφοῦ keep their
+      Medieval rows.
+
+    A looser key of a held-back form (παρεξω) follows it when it has the
+    same Medieval reading and an Ancient reading of its own. A Medieval
+    lemma with the letters of the Ancient one is the same word (κωκυτός
+    beside Κωκυτός) and keeps its row.
+    """
+    held: dict[str, str] = {}
+    families = set()
+    for form, lemma in med.items():
+        ancient = ag.get(form)
+        if (form in el or not isinstance(ancient, str)
+                or not isinstance(lemma, str)
+                or modern_word_key(ancient) == modern_word_key(lemma)):
+            continue
+        if (evidence.get(form, {}).get(ancient, 0)
+                < MEDIEVAL_ANCIENT_FORM_MIN_TOKENS):
+            continue
+        if modern_word_key(lemma) in modern_words:
+            continue
+        held[form] = ancient
+        families.add((modern_word_key(form), lemma))
+    for form, lemma in med.items():
+        if (form not in held and form not in el and isinstance(ag.get(form), str)
+                and isinstance(lemma, str) and ag[form] != lemma
+                and (modern_word_key(form), lemma) in families):
+            held[form] = ag[form]
+    return held
+
+
+def drop_el_corpus_readings(*, combined: dict, el: dict,
+                            el_sources: dict) -> list[tuple[str, str, str]]:
+    """Remove el readings of Ancient corpus pairs that the combined row contradicts.
+
+    A corpus gap-fill copies a pair into the el table only where the Ancient
+    table agrees with it or lacks the form, so the copy should never be
+    written as an el-only row. It still was where the two tables drifted
+    apart afterwards (#141): the sanitizer folds a corpus key onto a key a
+    higher-priority source reads otherwise (elided λέγουσ’ and λέγουσ᾽, a
+    leading combining breathing, a final medial sigma), and a reviewed
+    override corrects the combined reading the pair agreed with. lang="el"
+    then answered with a treebank reading that lang="all" and lang="grc"
+    do not give (᾿Αβράμου -> ᾿Αβράμης, ᾔει -> εἶμι). An Ancient treebank
+    pair is Ancient evidence: where the combined table reads the key
+    otherwise, the el copy is removed and the combined row answers
+    lang="el" as well. Returns (form, removed lemma, source) per reading.
+    """
+    removed = []
+    for form in [form for form, source in el_sources.items()
+                 if source in ANCIENT_CORPUS_PAIR_INPUTS]:
+        if form in el and form in combined and el[form] != combined[form]:
+            removed.append((form, el.pop(form), el_sources.pop(form)))
+    return removed
 
 
 def _load_from_sqlite(table: str) -> dict:
@@ -847,23 +1117,44 @@ def displaced_head_candidates(ag: dict, wiktionary_heads, listed_heads=(),
     """Heads whose Ancient reading is another lemma: {head: lemma}.
 
     Every Wiktionary head qualifies; another listed head only where the
-    pinned Wiktionary-only base reads it as itself.
+    pinned Wiktionary-only base reads it as itself, or where it is lowercase
+    and reads as its capitalised twin: Wiktionary then has the name's page
+    alone (Αἰφνίδιος, Εὔδηλος, Θύτης), whose lowercase key took the word
+    the dictionaries head (αἰφνίδιος, εὔδηλος, θύτης).
     """
     base = base or {}
     heads = set(wiktionary_heads) | {head for head in listed_heads
-                                     if base.get(head) == head}
+                                     if base.get(head) == head
+                                     or _reads_capitalised_twin(head, ag.get(head))}
     return {head: ag[head] for head in sorted(heads)
             if isinstance(ag.get(head), str) and ag[head] != head}
 
 
-def corpus_form_evidence(pairs, forms) -> dict[str, dict[str, int]]:
-    """Token counts by lemma of each listed form in counted corpus pairs."""
+def _reads_capitalised_twin(head: str, lemma) -> bool:
+    """Whether ``lemma`` is the lowercase ``head`` with a capital letter."""
+    return (isinstance(lemma, str) and lemma != head and head[:1].islower()
+            and lemma[:1].isupper() and lemma.lower() == head.lower())
+
+
+def corpus_form_evidence(pairs, forms, grave_folded=()) -> dict[str, dict[str, int]]:
+    """Token counts by lemma of each listed form in counted corpus pairs.
+
+    A form in ``grave_folded`` is also counted under its grave spelling. An
+    oxytone word carries its acute only before a pause or an enclitic, so
+    running text has βακχικὸς far more often than βακχικός, and the exact
+    spelling alone leaves such a head without evidence.
+    """
     evidence: dict[str, dict[str, int]] = {}
     for pair in pairs:
         form = pair["form"]
-        if form in forms:
-            counts = evidence.setdefault(form, {})
-            counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
+        if form not in forms:
+            if not grave_folded:
+                continue
+            form = grave_to_acute(form)
+            if form not in grave_folded:
+                continue
+        counts = evidence.setdefault(form, {})
+        counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
     return evidence
 
 
@@ -923,11 +1214,12 @@ def restore_displaced_lexical_heads(ag: dict, *, wiktionary_heads, base: dict,
       Wiktionary-only base reads the head as itself.
 
     A head only a dictionary lists (``listed_heads``: σπαθίον, κατέναντι)
-    is considered where the base reads it as itself, and needs the corpus
-    majority of at least ``LISTED_HEAD_MIN_TOKENS`` tokens: those lists and
-    the base also hold inflected forms. Where the corpus prefers the other
-    lemma (τοῦ, ἴσον, θρόνον), or neither source supports the head, the
-    reading stays.
+    is considered where the base reads it as itself, or where it reads as
+    its capitalised twin (θύτης -> Θύτης, the lowercase key of a name page),
+    and needs the corpus majority of at least ``LISTED_HEAD_MIN_TOKENS``
+    tokens: those lists and the base also hold inflected forms. Where the
+    corpus prefers the other lemma (τοῦ, ἴσον, θρόνον), or neither source
+    supports the head, the reading stays.
 
     A case twin is no other lemma: a capitalized head never takes a key
     from its own lowercase lemma (Υἱός, Πατήρ keep υἱός, πατήρ), and a
@@ -1121,13 +1413,34 @@ def build():
     # Merge med into el: vernacular medieval Greek is the ancestor of
     # Modern Greek, and EL Wiktionary's "Medieval Greek" category contains
     # early MG vocabulary, not Byzantine literary Greek.
+    # A Medieval entry spelled like an Ancient inflected form stays out
+    # where GLAUx reads the form as the Ancient lemma and the Medieval lemma
+    # is no Modern word (medieval_readings_held_back; παρέξω).
+    modern_words = {modern_word_key(form) for form, lemma in el.items()
+                    if form == lemma}
+    if TRIANTAFYLLIDIS_HEADWORDS_PATH.exists():
+        modern_words.update(
+            modern_word_key(head) for head in json.loads(
+                TRIANTAFYLLIDIS_HEADWORDS_PATH.read_text(encoding="utf-8")))
+    med_candidates = {form for form, lemma in med.items()
+                      if form not in el and isinstance(ag.get(form), str)
+                      and ag[form] != lemma}
+    med_held = medieval_readings_held_back(
+        med, el=el, ag=ag, modern_words=modern_words,
+        evidence=corpus_form_evidence(glaux_pairs or (), med_candidates))
+    for form, ancient in sorted(med_held.items()):
+        _record_citation_rejection(
+            table="EL", source=med_default_source, form=form, lemma=med[form],
+            reason=f"medieval_reading_of_ancient_form_{ancient}")
+    del modern_words, med_candidates
     med_merged = 0
     for k, v in med.items():
-        if k not in el:
+        if k not in el and k not in med_held:
             el[k] = v
             el_source_overrides[k] = med_default_source
             med_merged += 1
-    print(f"  Merged {med_merged:,} med entries into el ({len(el):,} total)")
+    print(f"  Merged {med_merged:,} med entries into el ({len(el):,} total; "
+          f"{len(med_held):,} held back for an Ancient reading)")
 
     # Add HNC Golden Corpus pairs (gold-standard MG annotations).
     # Lower priority than Wiktionary: only add where form is not already present.
@@ -1234,6 +1547,45 @@ def build():
                 and "\u0300" in unicodedata.normalize("NFD", form)
                 and strip_accents(form.lower()) in _VOWEL_ONLY_ARTICLE_LETTERS)
 
+    # An Ancient corpus pair whose lemma has a hyphen between two letters
+    # names no citation form: AGDT writes some compound verbs with the
+    # preverbs apart (ἐπί-εἰσκομίζω, ἀντί,κατά-ἕζομαι), and GLAUx
+    # lemmatizes a line-broken token as it stands (αὐ-τός, πήν-τος). The
+    # dictionary expansion no longer supplies such a lemma (overlay_lsj.py).
+    # A preverb lemma is read as the compound it names when a lexical head
+    # list has that compound (dilemma/preverb_lemma.py: ἐπεισκομίζω,
+    # ἀντικαθέζομαι); every other pair under a hyphenated lemma is dropped.
+    corpus_hyphenated_dropped: dict[str, int] = {}
+    corpus_hyphenated_joined: dict[str, int] = {}
+    preverb_heads: frozenset = frozenset()
+    if GRC_LEXICAL_HEADS_PATH.exists():
+        preverb_heads = frozenset(json.loads(
+            GRC_LEXICAL_HEADS_PATH.read_text(encoding="utf-8"))["heads"])
+    preverb_folded_heads: dict = {}
+
+    def _hyphenated_corpus_lemma(form, lemma, source, known=None):
+        """A corpus pair's lemma, settled for a hyphen between two letters:
+        the lemma as it is when it has none, the listed compound a preverb
+        lemma names, or None (dropped). ``known`` is the source's own
+        headword validation set, which the compound must pass as well."""
+        if not hyphenated_lemma(lemma):
+            return lemma
+        head = None
+        if preverb_heads and joined_preverb_lemma(lemma) is not None:
+            if not preverb_folded_heads:
+                preverb_folded_heads.update(heads_by_accent_fold(preverb_heads))
+            head = preverb_lemma_head(lemma, preverb_heads,
+                                      preverb_folded_heads)
+            if head is not None and known and head not in known:
+                head = None
+        counts = corpus_hyphenated_joined if head else corpus_hyphenated_dropped
+        counts[source] = counts.get(source, 0) + 1
+        _record_citation_rejection(
+            table="AG", source=source, form=form, lemma=lemma,
+            reason=(f"hyphenated_lemma_joined_to_{head}" if head
+                    else "hyphenated_lemma"))
+        return head
+
     # A word with an entry of its own takes back the reading another lemma's
     # homograph entry or table took from it in the merged table, where GLAUx,
     # or for a Wiktionary head the pinned Wiktionary-only base, prefers it
@@ -1247,10 +1599,17 @@ def build():
         candidates = displaced_head_candidates(ag, wiktionary_heads, listed_heads,
                                                ag_base)
         alias_keys = set().union(*map(head_alias_keys, candidates)) if candidates else set()
+        # A case twin is the same word under both lemmas, so its grave
+        # spelling is evidence too (θεατρικὸς for θεατρικός). For other
+        # heads the grave spelling was measured and left out: it restores
+        # είς, τός and Δίς on a lemmatizer's choice of a few tokens.
+        case_twins = {head for head, lemma in candidates.items()
+                      if _reads_capitalised_twin(head, lemma)}
         restored_heads = restore_displaced_lexical_heads(
             ag, wiktionary_heads=wiktionary_heads, listed_heads=listed_heads,
             base=ag_base,
-            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys()),
+            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys(),
+                                          grave_folded=case_twins),
             key_evidence=corpus_key_evidence(glaux_pairs or (), alias_keys),
             lemma_totals=corpus_lemma_totals(glaux_pairs or ()),
             rejected=_is_article_map,
@@ -1280,6 +1639,10 @@ def build():
             perseus_pairs = json.load(f)
         for p in perseus_pairs:
             form, lemma = p["form"], p["lemma"]
+            lemma = _hyphenated_corpus_lemma(form, lemma,
+                                             PERSEUS_PAIRS_PATH.name)
+            if lemma is None:
+                continue
             if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = PERSEUS_PAIRS_PATH.name
@@ -1438,8 +1801,8 @@ def build():
     # _sanitize_table, and it applies to a corpus pair naming the same lemma
     # too, since GLAUx and Diorisis carry some of these artefacts (λαβῃ ->
     # λαβλυμι) and ag_headwords.json lists them, so a corpus pair would
-    # otherwise put the dropped lemma back. A repair goes only to a head the
-    # Ancient or Modern table maps to itself.
+    # otherwise put the dropped lemma back. A repair goes only to a head no
+    # table reads as another lemma (citation_head).
     expansion_heads = expansion_heads_by_letters = None
     if GRC_LEXICAL_HEADS_PATH.exists():
         expansion_heads, expansion_heads_by_letters = (
@@ -1451,7 +1814,7 @@ def build():
     expansion_verdicts: dict[str, tuple[str, str | None]] = {}
     if expansion_heads is not None:
         def _is_citation_head(head):
-            return ag.get(head) == head or el.get(head) == head
+            return citation_head(head, ag, el)
         for form, layer in ag_source_overrides.items():
             if layer != AG_EXPANSION_LAYER or not isinstance(ag.get(form), str):
                 continue
@@ -1468,7 +1831,13 @@ def build():
 
     def _corpus_expansion_lemma(form, lemma, source):
         """A corpus pair's lemma after the #103 verdict on the same expansion
-        lemma: the repaired head, the lemma unchanged, or None (dropped)."""
+        lemma: the repaired head, the lemma unchanged, or None (dropped).
+        A hyphenated lemma is first read as the compound it names, or
+        dropped (_hyphenated_corpus_lemma)."""
+        lemma = _hyphenated_corpus_lemma(form, lemma, source,
+                                         ag_headwords_exact)
+        if lemma is None:
+            return None
         verdict = expansion_verdicts.get(sanitize_form(lemma))
         if verdict is None:
             return lemma
@@ -1480,10 +1849,26 @@ def build():
             reason=f"{reason}_to_{head}" if head else reason)
         return head
 
+    def _dropped_expansion_reading(form):
+        """The #103 verdict's reason when ``ag[form]`` is an expansion
+        reading the sanitizer will drop, else None."""
+        if ag_source_overrides.get(form) != AG_EXPANSION_LAYER:
+            return None
+        value = ag.get(form)
+        if not isinstance(value, str):
+            return None
+        verdict = expansion_verdicts.get(sanitize_form(value))
+        return verdict[0] if verdict is not None and verdict[1] is None else None
+
+    # Capitalised forms whose corpus pair the pronoun-twin rule skipped,
+    # with the pronoun their lowercase spelling reads as.
+    pronoun_twin_forms: dict[str, str] = {}
+
     # Reject pairs whose lemma is not a known AG headword to filter
     # out annotation errors (e.g. Ἔστι -> Ἔσθι, corrupt -δήποτε lemmas).
     # Reviewed non-lemmas (dilemma/grc_rejected_lemmas.py) are rejected too.
     glaux_added_ag = 0
+    glaux_replaced_expansion = 0
     glaux_added_med = 0
     glaux_skipped_med = 0
     glaux_bad_lemma = 0
@@ -1502,7 +1887,9 @@ def build():
             if lemma is None:
                 glaux_bad_lemma += 1
                 continue
-            if capitalized_pronoun_twin(form, lemma, twin_tables):
+            twin = capitalized_pronoun_twin(form, lemma, twin_tables)
+            if twin:
+                pronoun_twin_forms.setdefault(form, twin)
                 glaux_twin_skipped += 1
                 continue
             # Validate lemma against known AG headwords
@@ -1515,6 +1902,22 @@ def build():
                 ag[form] = lemma
                 ag_source_overrides[form] = GLAUX_PAIRS_PATH.name
                 glaux_added_ag += 1
+            else:
+                # An expansion reading the #103 check drops (Κέλσου ->
+                # ξελσυς, Latin read as Beta Code) would hold the key until
+                # the sanitizer removes it, and shut this pair out: the
+                # form then had no Ancient reading, or a Modern one. The
+                # pair, whose lemma passed every check above, takes the
+                # key now (Κέλσου -> Κέλσος, 176 tokens). GLAUx only:
+                # Diorisis reads most of these keys wrongly (#127).
+                reason = _dropped_expansion_reading(form)
+                if reason:
+                    _record_citation_rejection(
+                        table="AG", source=AG_EXPANSION_LAYER, form=form,
+                        lemma=sanitize_form(ag[form]), reason=reason)
+                    ag[form] = lemma
+                    ag_source_overrides[form] = GLAUX_PAIRS_PATH.name
+                    glaux_replaced_expansion += 1
             # Selectively add to el: only when the pair won't cause
             # a priority override conflict in the combined merge.
             if form not in el:
@@ -1532,8 +1935,9 @@ def build():
               f"+{glaux_added_med:,} to el, "
               f"{glaux_skipped_med:,} el conflicts skipped, "
               f"{glaux_bad_lemma:,} bad lemmas rejected, "
-              f"{glaux_twin_skipped:,} capitalised pronoun twins skipped "
-              f"({time.time()-t_g:.1f}s)")
+              f"{glaux_twin_skipped:,} capitalised pronoun twins skipped, "
+              f"{glaux_replaced_expansion:,} dropped expansion readings "
+              f"replaced ({time.time()-t_g:.1f}s)")
         glaux_pairs = None
 
     # Expand AG and el with Diorisis corpus pairs (456K forms from
@@ -1562,7 +1966,9 @@ def build():
             if lemma is None:
                 dior_bad_lemma += 1
                 continue
-            if capitalized_pronoun_twin(form, lemma, twin_tables):
+            twin = capitalized_pronoun_twin(form, lemma, twin_tables)
+            if twin:
+                pronoun_twin_forms.setdefault(form, twin)
                 dior_twin_skipped += 1
                 continue
             # Validate lemma against known AG headwords
@@ -1667,6 +2073,13 @@ def build():
               f"{bad_lemma:,} bad lemmas rejected ({time.time()-t_g:.1f}s)")
 
 
+    for label, counts in (("read as the listed compound",
+                           corpus_hyphenated_joined),
+                          ("dropped", corpus_hyphenated_dropped)):
+        if counts:
+            print(f"  Corpus pairs under a hyphenated lemma {label}: "
+                  + ", ".join(f"{source} {count:,}" for source, count
+                              in sorted(counts.items())))
     for label, counts in (("dropped", corpus_expansion_dropped),
                           ("repaired", corpus_expansion_repaired)):
         if counts:
@@ -1692,7 +2105,8 @@ def build():
 
     def _sanitize_table(name: str, table: dict, *, default_source: str,
                         source_overrides: dict[str, str],
-                        sources_out: dict[str, str]) -> dict:
+                        sources_out: dict[str, str],
+                        rejected_target_keys: set = None) -> dict:
         out: dict = {}
         changed = 0
         dropped_elided = 0
@@ -1729,6 +2143,8 @@ def build():
                 _record_citation_rejection(
                     table=name, source=source, form=k, lemma=sv,
                     reason="reviewed_rejected_target")
+                if rejected_target_keys is not None:
+                    rejected_target_keys.add(sk)
                 continue
             if source == AG_EXPANSION_LAYER:
                 verdict = expansion_verdicts.get(sv)
@@ -1826,12 +2242,26 @@ def build():
     ag_sources: dict[str, str] = {}
     el_sources: dict[str, str] = {}
     combined_sources: dict[str, str] = {}
+    emptied_keys = {sanitize_form(form) for form in pronoun_twin_forms}
     ag = _sanitize_table(
         "AG", ag, default_source=ag_default_source,
-        source_overrides=ag_source_overrides, sources_out=ag_sources)
+        source_overrides=ag_source_overrides, sources_out=ag_sources,
+        rejected_target_keys=emptied_keys)
     el = _sanitize_table(
         "EL", el, default_source=el_default_source,
         source_overrides=el_source_overrides, sources_out=el_sources)
+
+    # A capitalised key the pronoun-twin rule or the reviewed non-lemma
+    # record emptied, and that a Modern row would answer, takes the Ancient
+    # reading of its lowercase spelling (lowercase_twin_readings; Πάσας).
+    twin_readings = lowercase_twin_readings(sorted(emptied_keys), ag=ag, el=el)
+    for form, lemma in twin_readings.items():
+        ag[form] = lemma
+        ag_sources[form] = ag_sources[form[0].lower() + form[1:]]
+    if twin_readings:
+        print(f"  Emptied capitalised keys given their lowercase reading: "
+              f"{len(twin_readings):,} "
+              f"({', '.join(sorted(twin_readings)[:8])})")
 
     # Build combined lookup (AG-first priority)
     print("\nBuilding combined lookup (AG-first)...")
@@ -2068,29 +2498,75 @@ def build():
         print("  Fix: python -m dilemma download --with-attestation")
         print(f"{banner}\n")
 
-    # Regular cells of Ancient -σις nouns and s-stem neuters that no source
-    # declined (dilemma/grc_noun_gaps.py): headword-only -σις nouns (σύναρσις)
-    # and the Attic contracted cells of neuters whose tables are Ionic only
-    # (στέφους beside στέφεος). Generated by rule, so they run on the final
-    # combined table, after every source (the Byzantine headwords reach only
-    # `combined`) and after the word-tail filter, and fill absent keys only;
-    # the reviewed overrides below still win. Keys the merge left out on
-    # purpose (article forms) stay out.
-    # The selection weighs each row by its source (a Modern Greek row is no
+    # Regular cells that no source gives (dilemma/grc_noun_gaps.py,
+    # grc_os_gaps.py, grc_adjective_gaps.py): headword-only -σις nouns
+    # (σύναρσις), the Attic contracted cells of s-stem neuters and of
+    # adjectives in -ής whose tables are Ionic only (στέφους beside στέφεος,
+    # δυσπενθοῦς beside δυσπενθέος), and second-declension -ος words that a
+    # lexicon classes and no table declines (ἔμφλογος, ἐμφλόγου). Generated
+    # by rule, so they run on the final combined table, after every source
+    # (the Byzantine headwords reach only `combined`) and after the
+    # word-tail filter, and fill absent keys only; the reviewed overrides
+    # below still win. Keys the merge left out on purpose (article forms)
+    # stay out.
+    # The selections weigh each row by its source (a Modern Greek row is no
     # evidence of an Ancient declension), and a cell is not added when its
     # lowercase, grave-to-acute or monotonic spelling already reads as
-    # another lemma.
+    # another lemma; for the -ος and -ής cells the accentless key is weighed
+    # too, and they are stored under the accented form only (another
+    # accentuation of a rare headword's letters is as often another word).
+    # A key two lemmas of one fill would give is left to neither, and so is
+    # a key an -ος cell shares with an accent doublet that is not declined
+    # here (εὐπροσόδων: εὐπροσόδος beside εὐπρόσοδος). The -σις and s-stem
+    # cells are filled first, so the cells added in 1.3.25 do not depend on
+    # the later generators.
+    def _row_source(form: str):
+        return source_of_input.get(combined_sources.get(form))
+
     noun_sis, noun_sstem = select_noun_gap_lemmas(
-        (form, lemma, source_of_input.get(combined_sources.get(form)))
-        for form, lemma in combined.items())
+        (form, lemma, _row_source(form)) for form, lemma in combined.items())
+    es_adjectives = select_es_adjectives(
+        (form, lemma, _row_source(form)) for form, lemma in combined.items()
+        if lemma.endswith("ής"))
+    if GRC_SECOND_DECLENSION_PATH.exists():
+        os_listed = read_classes(json.loads(
+            GRC_SECOND_DECLENSION_PATH.read_text(encoding="utf-8")))
+        os_lemmas = select_os_lemmas(combined, os_listed, _row_source)
+        os_rival_words = os_rivals(combined, os_listed, os_lemmas, _row_source)
+    else:
+        os_lemmas, os_rival_words = {}, {}
+        print(f"  NOTE: {GRC_SECOND_DECLENSION_PATH.name} not found; "
+              "headword-only -ος nouns and adjectives stay undeclined")
+    # A listed second-declension word is no s-stem neuter, whatever -εος
+    # rows sit under it (ἀδράνεος).
+    noun_sstem = [lemma for lemma in noun_sstem if lemma not in os_lemmas]
     left_out = {k for table in (ag, el) for k in table if k not in combined}
-    noun_cells = complete_noun_gaps(combined, noun_sis, noun_sstem, taken=left_out)
-    for cell in noun_cells:
-        combined_sources[cell["form"]] = GRC_NOUN_GAPS_SOURCE
-    for kind, label in (("sis", "-σις noun"), ("sstem", "s-stem neuter")):
-        cells = [c for c in noun_cells if c["kind"] == kind]
-        print(f"  Ancient {label} cells ({GRC_NOUN_GAPS_SOURCE}): +{len(cells):,} "
+    gap_cells = fill_gap_cells(
+        combined, list(noun_gap_paradigms(combined, noun_sis, noun_sstem)),
+        taken=left_out)
+    gap_cells += fill_gap_cells(
+        combined,
+        [*os_paradigms(os_lemmas), *rival_paradigms(os_rival_words),
+         *es_paradigms(es_adjectives)],
+        taken=left_out, strict=GRC_OS_KINDS | {ES_KIND},
+        claims_only={GRC_OS_RIVAL_KIND})
+    for cell in gap_cells:
+        combined_sources[cell["form"]] = (
+            GRC_NOUN_GAPS_SOURCE if cell["kind"] in ("sis", "sstem", "os_noun")
+            else GRC_ADJECTIVE_GAPS_SOURCE)
+    for kind, label in (
+            ("sis", "-σις noun"), ("sstem", "s-stem neuter"),
+            ("os_noun", "-ος noun"), ("os_adjective", "-ος adjective"),
+            ("os_adjective_eta", "-ος, -η, -ον adjective"),
+            ("os_adjective_alpha", "-ος, -α, -ον adjective"),
+            (ES_KIND, "-ής adjective")):
+        cells = [c for c in gap_cells if c["kind"] == kind]
+        source = (GRC_NOUN_GAPS_SOURCE if kind in ("sis", "sstem", "os_noun")
+                  else GRC_ADJECTIVE_GAPS_SOURCE)
+        print(f"  Ancient {label} cells ({source}): +{len(cells):,} "
               f"keys for {len({c['lemma'] for c in cells}):,} lemmas")
+    print(f"  Ancient -ος accent doublets: {len(os_rival_words):,} words "
+          "that are not declined here keep the cells they share out")
 
     _write_citation_rejection_report(citation_rejections)
     print(f"  Citation rejection report: {CITATION_REJECTIONS_PATH} "
@@ -2189,9 +2665,45 @@ def build():
         "ἄριστα": "ἀγαθός",      # was ἄριστον (as ἄριστος, ἀρίστους -> ἀγαθός)
         "ἀρίστοις": "ἀγαθός",    # was ἄριστον
         "ἀρὰν": "ἀρά",           # was ἀρή (expansion); ἀράν -> ἀρά
+        # Treebank readings that two heads of Sophocles' lexicon alone took
+        # once the OCR's micro sign was read as mu: the Ionic genitive
+        # plural of μάντις (GLAUx 1) is a cell of μαντίον, and two aorist
+        # imperatives of μετατίθημι (GLAUx 3 and 1) are cells of μετάθετος.
+        "μαντίων": "μάντις",
+        "μεταθέτω": "μετατίθημι", "μετάθετε": "μετατίθημι",
+        # Treebank readings that cells of three Sophocles verbs took once
+        # the entries glossed with "=" were expanded: the genitive of
+        # ὑπόπτερος (GLAUx 3) is an imperative of ὑποπτερόω, the dative of
+        # παιδομανής (GLAUx 1) the third person of παιδομανέω, and the
+        # imperfect of ἐπικλύω (GLAUx 1, AGDT 1) an imperative of ἐπεκλύω.
+        "ὑποπτέρου": "ὑπόπτερος", "παιδομανεῖ": "παιδομανής",
+        "ἐπέκλυε": "ἐπικλύω",
+        # Readings that cells of the LSJ verb pass and of a Sophocles verb
+        # the micro sign had hidden took in 1.3.27: the imperfect of ἀποδέω
+        # (GLAUx 11) is a future of ἀπεσθίω (Diorisis 1), the dative of
+        # ὑπαγόρευσις (GLAUx 7, Diorisis 1) the future of ὑπαγορεύω (GLAUx
+        # 3, Diorisis 1), the aorist of ἐνίημι a perfect of ἐνήκω, the
+        # Attic participle of προσέοικα one of προσίημι, and the adjective
+        # τυμπανόεις an uncontracted cell of τυμπανόω.
+        "ἀπέδει": "ἀποδέω", "ὑπαγορεύσει": "ὑπαγόρευσις",
+        "ἐνῆκα": "ἐνίημι", "προσεικώς": "προσέοικα",
+        "τυμπανόεις": "τυμπανόεις",
+        # The capitalized third person of κεῖμαι (GLAUx: κεῖται 1,285) had
+        # only a Diorisis row under κέω.
+        "Κεῖται": "κεῖμαι",
         **KAIKKI_2026_11_READING_OVERRIDES,
+        **REVIEWED_TREEBANK_READINGS,
         **REVIEWED_ABSENT_KEY_READINGS,
     }
+    # Keys whose Ancient reading names an inflected form read its lemma.
+    form_lemma_keys = 0
+    for k, v in ag.items():
+        if v in ANCIENT_FORM_LEMMA_READINGS and k not in _LOOKUP_OVERRIDES:
+            _LOOKUP_OVERRIDES[k] = ANCIENT_FORM_LEMMA_READINGS[v]
+            form_lemma_keys += 1
+    if form_lemma_keys:
+        print(f"  Ancient readings naming an inflected form: {form_lemma_keys:,} "
+              "keys read the lemma")
     # Also fix corrupt -δήποτε lemmas from pipeline
     for k, v in list(combined.items()):
         if "δήποτε" in k and "δήποτε" in v and v != k:
@@ -2210,6 +2722,16 @@ def build():
         combined_sources=combined_sources, el=el, el_sources=el_sources)
     if modern_forms:
         print(f"  Modern readings kept under lang=all: {len(modern_forms):,}")
+    el_corpus_removed = drop_el_corpus_readings(
+        combined=combined, el=el, el_sources=el_sources)
+    if el_corpus_removed:
+        by_source: dict[str, int] = {}
+        for _, _, source in el_corpus_removed:
+            by_source[source] = by_source.get(source, 0) + 1
+        print("  el readings of Ancient corpus pairs that the combined row "
+              f"contradicts, removed: {len(el_corpus_removed):,} ("
+              + ", ".join(f"{source} {count:,}"
+                          for source, count in sorted(by_source.items())) + ")")
 
     print(f"  Combined: {len(combined):,} entries")
 

@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 from dilemma.form_sanitize import nonlexical_generated_lemma, sanitize_form
 from dilemma_build.kaikki_dumps import DUMPS, resolve_dump
 from dilemma_build.sophocles_breathing import correct as correct_breathing, review_heads
+from dilemma_build.sophocles_ocr import load_head_corrections, settle_orth
 from build_data import (
     _is_verb_inflection_gloss, _is_ancient_reference_gloss,
     _is_closed_class_inflection_gloss, _declared_ancient_nominal_form,
@@ -252,6 +253,13 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
     if not chunks:
         raise FileNotFoundError("required lexical source missing: sophocles/chunks")
     chunk_heads: dict[str, set[str]] = defaultdict(set)
+    # The OCR's micro signs and the reviewed single-head corrections are
+    # settled in the text first (build/sophocles_ocr.py), as the expansion
+    # reads it.
+    corrections_path = data / "sophocles_head_corrections.json"
+    corrections = load_head_corrections(corrections_path)
+    if corrections_path.is_file():
+        pin("sophocles_head_corrections", corrections_path)
     for path in chunks:
         source = f"sophocles/{path.name}"
         pin(source, path)
@@ -263,7 +271,7 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
         for entry in root.findall(".//entry"):
             orth = entry.find("orth")
             if orth is not None and orth.text:
-                add(orth.text, source, chunk_heads)
+                add(settle_orth(orth.text, corrections), source, chunk_heads)
     # The OCR lost most initial breathings of the ο and ρ chunks; restore
     # them from the other sources' heads, or withhold the head.
     breathing = review_heads(chunk_heads, set(heads))
@@ -275,7 +283,8 @@ def build_heads(kaikki: Path, data: Path, lsj9_headwords: Path) -> dict:
     return {"schema_version": 2, "builder_sha256": sha256(Path(__file__)),
             "source_sha256": {name: sha256(ROOT / name) for name in
                               ("build_data.py", "dilemma/form_sanitize.py",
-                               "build/sophocles_breathing.py")},
+                               "build/sophocles_breathing.py",
+                               "build/sophocles_ocr.py")},
             "inputs": dict(sorted(inputs.items())),
             "source_head_counts": dict(sorted(counts.items())),
             "heads": {word: sorted(heads[word]) for word in sorted(heads)},

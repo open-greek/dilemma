@@ -31,10 +31,14 @@ adjective φίλος) are not declined either.
 
 The vocative singular of a -σις noun (σύναρσι) is not generated: it is the
 only cell that collides with corpus names (Κίμωσι, of Κίμων).
+
+``fill_gap_cells`` is the one place where a generated cell becomes a key.
+The second-declension cells of dilemma/grc_os_gaps.py and the -ής cells of
+dilemma/grc_adjective_gaps.py go through it too, after the cells above.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping, MutableMapping
+from collections.abc import Callable, Container, Iterable, Mapping, MutableMapping
 import unicodedata
 
 ACUTE, GRAVE, CIRCUMFLEX = "́", "̀", "͂"
@@ -89,7 +93,10 @@ _BREATHINGS = frozenset(("\u0313", "\u0314"))
 # neuters. φῖλος is Homer's masculine "friend" (φίλος); its -εος/-εα rows in
 # the Wiktionary tables are spellings of other words. ἀδράνεος is LSJ's
 # adjective (η, ον, = ἀδρανής); the expansion layer declines it as a neuter
-# (ἀδρανέεος, ἀδρανέεα), and no table lists its second-declension cells.
+# (ἀδρανέεος, ἀδρανέεα). Its second-declension cells come from
+# dilemma/grc_os_gaps.py, and the build takes every word that module
+# declines out of the s-stem selection; the entry here covers a build
+# without the second-declension list.
 NOT_SSTEM_NEUTERS = frozenset(("φῖλος", "ἀδράνεος"))
 
 
@@ -270,6 +277,94 @@ def reading_spellings(form: str) -> tuple[str, ...]:
                                 to_monotonic(form.lower()))))
 
 
+def fill_gap_cells(
+        lookup: MutableMapping[str, str],
+        paradigms: Iterable[tuple[str, str, Iterable[tuple[str, str]]]],
+        *,
+        taken: Mapping[str, object] | None = None,
+        variants: Callable[[str], Iterable[str]] | None = None,
+        strict: Container[str] = (),
+        claims_only: Container[str] = ()) -> list[dict]:
+    """Fill absent keys with generated cells; return one row per added key.
+
+    ``paradigms`` yields (kind, lemma, cells), ``cells`` being (form, cell
+    name) pairs. Each cell is added under its accented form, its lowercase
+    and its accentless lowercase key, the way the paradigm expansions key
+    their forms. A key already in ``lookup`` (or in ``taken``, for keys a
+    table left out on purpose, such as article forms) keeps its reading. A
+    cell one of whose spellings (``variants``, by default
+    ``reading_spellings``) already reads as another lemma is not added under
+    any key: the new accented key would hide the reading the runtime gave
+    the form through that spelling (λαθῶν, whose monotonic λαθών reads
+    λανθάνω).
+
+    The kinds in ``strict`` are paradigms of rare headwords, and two rules
+    are tighter for them. The accentless key is weighed like the other
+    spellings: a cell that differs only in its accent from a form of a known
+    word is, in the texts, that word with a misprinted accent (δικῆς for
+    δίκης, not the feminine of δικός). And the cell is stored under its
+    accented form and its lowercase only, never under the accentless key:
+    that key answers every accentuation of the letters, and for a rare
+    headword the other accentuations in the texts are as often another word
+    or a misprint as this one (οἴκτον is οἶκτον, not a form of οἰκτός).
+
+    When two lemmas of one call give the same absent key, neither takes it:
+    the key is ambiguous and the table has no evidence to choose. The kinds
+    in ``claims_only`` take part in that rule and nothing else: their cells
+    claim keys, without the checks above, and never fill one (the accent
+    doublets of dilemma/grc_os_gaps.py). A later call finds the keys of an
+    earlier one in ``lookup`` and leaves them.
+    """
+    taken = taken or {}
+    variants = variants or reading_spellings
+    # key -> {lemma: (cell, kind)}; a lemma's own cell replaces its claim.
+    claims: dict[str, dict[str, tuple[str, str]]] = {}
+    for kind, lemma, cells in paradigms:
+        claim_only = kind in claims_only
+        for form, cell in cells:
+            keys = (tuple(dict.fromkeys((form, form.lower())))
+                    if kind in strict else _spellings(form))
+            if not claim_only:
+                spellings = list(variants(form))
+                if kind in strict:
+                    spellings.append(strip_accents(form).lower())
+                if any(lookup.get(spelling, lemma) != lemma
+                       for spelling in spellings):
+                    continue
+            for key in keys:
+                if key in lookup or key in taken:
+                    continue
+                rows = claims.setdefault(key, {})
+                if lemma not in rows or (
+                        rows[lemma][1] in claims_only and not claim_only):
+                    rows[lemma] = (cell, kind)
+    added = []
+    for key in sorted(claims):
+        rows = claims[key]
+        if len(rows) != 1:
+            continue
+        (lemma, (cell, kind)), = rows.items()
+        if kind in claims_only:
+            continue
+        lookup[key] = lemma
+        added.append({"form": key, "lemma": lemma, "cell": cell, "kind": kind})
+    return added
+
+
+def noun_gap_paradigms(
+        lookup: Mapping[str, str],
+        sis_lemmas: Iterable[str],
+        sstem_lemmas: Iterable[str]) -> Iterable[tuple[str, str, list]]:
+    """(kind, lemma, cells) of the -σις nouns and s-stem neuters, for
+    ``fill_gap_cells``. A -σις lemma must map to itself in ``lookup`` (see
+    select_noun_gap_lemmas)."""
+    for lemma in sis_lemmas:
+        if lookup.get(lemma) == lemma:
+            yield "sis", lemma, sis_cells(lemma)
+    for lemma in sstem_lemmas:
+        yield "sstem", lemma, sstem_cells(lemma)
+
+
 def complete_noun_gaps(
         lookup: MutableMapping[str, str],
         sis_lemmas: Iterable[str],
@@ -279,42 +374,8 @@ def complete_noun_gaps(
         variants: Callable[[str], Iterable[str]] | None = None) -> list[dict]:
     """Fill absent keys with the lemmas' cells; return one row per added key.
 
-    Each cell is added under its accented form, its lowercase and its
-    accentless lowercase key, the way the paradigm expansions key their
-    forms. A key already in ``lookup`` (or in ``taken``, for keys a table
-    left out on purpose, such as article forms) keeps its reading. A cell
-    one of whose spellings (``variants``, by default ``reading_spellings``)
-    already reads as another lemma is not added under any key: the new
-    accented key would hide the reading the runtime gave the form through
-    that spelling (λαθῶν, whose monotonic λαθών reads λανθάνω). When two
-    lemmas give the same absent key, neither takes it: the key is ambiguous
-    and the table has no evidence to choose. A -σις lemma must map to itself
-    in ``lookup`` (see select_noun_gap_lemmas).
+    The -σις and s-stem paradigms alone, through ``fill_gap_cells``.
     """
-    taken = taken or {}
-    variants = variants or reading_spellings
-    claims: dict[str, list[tuple[str, str, str]]] = {}
-    for kind, lemmas, cells_of in (("sis", sis_lemmas, sis_cells),
-                                   ("sstem", sstem_lemmas, sstem_cells)):
-        for lemma in lemmas:
-            if kind == "sis" and lookup.get(lemma) != lemma:
-                continue
-            for form, cell in cells_of(lemma):
-                if any(lookup.get(spelling, lemma) != lemma
-                       for spelling in variants(form)):
-                    continue
-                for key in _spellings(form):
-                    if key in lookup or key in taken:
-                        continue
-                    rows = claims.setdefault(key, [])
-                    if all(row[0] != lemma for row in rows):
-                        rows.append((lemma, cell, kind))
-    added = []
-    for key in sorted(claims):
-        rows = claims[key]
-        if len(rows) != 1:
-            continue
-        lemma, cell, kind = rows[0]
-        lookup[key] = lemma
-        added.append({"form": key, "lemma": lemma, "cell": cell, "kind": kind})
-    return added
+    return fill_gap_cells(
+        lookup, list(noun_gap_paradigms(lookup, sis_lemmas, sstem_lemmas)),
+        taken=taken, variants=variants)

@@ -600,10 +600,11 @@ _LEMMA_GENDER_HINTS = {
     "ον": "n", "ος": "m", "μα": "n", "ον": "n",
 }
 
-# Vernacular contractions of σε with the article (στὸ, στὸν, στὴν, ...),
-# accent-stripped. In polytonic spelling with lang="all" they give the
-# article under DET and σε under ADP (#121); their Ancient readings (στόν
-# as ἀστός, στῆς as ἵστημι) stand under the other tags.
+# Vernacular contractions of σε with the article (στο, στον, στην, στὸ,
+# στὴν, ...), accent-stripped. With lang="all" or "el" they give the
+# article under DET and σε under ADP, in monotonic and in polytonic
+# spelling (#121, #134); their Ancient readings (στόν as ἀστός, στῆς as
+# ἵστημι) stand under the other tags.
 _VERNACULAR_ARTICLE_CONTRACTIONS = frozenset({
     "στο", "στον", "στη", "στην", "στα", "στου", "στης", "στων", "στους",
     "στις",
@@ -732,6 +733,40 @@ def to_standard_sigma(s: str) -> str:
     if s.endswith("σ"):
         s = s[:-1] + "ς"
     return s
+
+
+# A lowercase rho with or without a breathing, composed or decomposed. Two
+# of them in a row inside a word are a double rho however they are marked:
+# ῤῥ, the half-marked ρῥ and ῤρ, and the ῥῥ, ῤῤ, ῥρ and ῥῤ that the OCR of
+# the same editions produces. Not at either end of the word: a doubled
+# initial ῥ is a misprint, not this spelling, and a marked final rho is an
+# elision.
+_LOWERCASE_RHO = "(?:\u1fe4|\u1fe5|\u03c1[\u0313\u0314]?)"
+_DOUBLE_RHO = re.compile(
+    "(?<=.)" + _LOWERCASE_RHO + _LOWERCASE_RHO + "(?=[^\u0313\u0314])")
+
+
+def to_plain_double_rho(s: str) -> str:
+    """Write a double rho printed with breathings (ῤῥ) as plain ρρ.
+
+    Older editions print a medial double rho with a smooth breathing on the
+    first rho and a rough one on the second (παῤῥησία, ἄῤῥητος, Βοῤῥᾶς).
+    The marks are an editorial convention and carry no lexical distinction:
+    the dictionaries and the lookup spell these words with plain ρρ. In the
+    form-attestation corpora one double-rho token in six is printed with a
+    breathing on either rho (13,450 of 78,989, mostly Migne and
+    First1KGreek): ῤῥ in 12,936, and in the rest the pair is half-marked
+    or its breathings are confused (ρῥ, ῤρ, ῥῥ, ῤῤ, ῥρ, ῥῤ). Without this
+    the word has no row of its own and is read, if at all, through its
+    accent-stripped key (ἀπεῤῥάγησαν had none, #141), and a tagged lookup
+    reads the Modern Greek table (Βοῤῥᾶ PROPN -> Βορράς, #134).
+
+    A word-initial ῥ and the elision mark on a final rho (γάῤ) are left
+    alone: only a rho pair inside the word is rewritten.
+    """
+    if not any(ch in s for ch in "\u1fe4\u1fe5\u0313\u0314"):
+        return s
+    return _DOUBLE_RHO.sub("ρρ", s)
 
 
 def _is_self_map(form: str, lemma: str) -> bool:
@@ -2349,22 +2384,25 @@ class Dilemma:
 
     def _vernacular_contraction_pos_lemma(self, word: str,
                                           upos: str) -> str | None:
-        """The DET or ADP lemma of a polytonic contraction of σε + article.
+        """The DET or ADP lemma of a contraction of σε + article.
 
-        With lang="all", a polytonic στὸ, στὸν, στὴν, στοὺς, ... tagged DET
+        With lang="all" or "el", στο, στον, στην, στους, ... tagged DET
         gives the Modern article ο and tagged ADP gives σε, under every
-        convention (#121). The spelling must carry only accents (acute,
-        grave or circumflex): a breathing, iota subscript or diaeresis
-        is no vernacular contraction.
+        convention, in monotonic spelling (#134) as in polytonic (στὸ,
+        στὴν; #121). Neither tag fits an Ancient reading of these letters
+        (στῆν is a verb form, στόν the aphaeresis of ἀστόν), and the Modern
+        POS table records the article for seven of the ten forms only,
+        three of them behind a case-twin family (στο DET gave σε, στον
+        στον, στην ἵστημι). The spelling may carry accents (acute, grave
+        or circumflex) or none: a breathing, iota subscript or diaeresis
+        is no vernacular contraction. lang="grc" reads Ancient Greek only.
         """
-        if upos not in ("DET", "ADP") or self.lang != "all" or not word:
+        if upos not in ("DET", "ADP") or self.lang not in ("all", "el") \
+                or not word:
             return None
         nfd = unicodedata.normalize("NFD", word)
         marks = {ord(ch) for ch in nfd if unicodedata.combining(ch)}
-        if not marks or not marks <= {0x0300, 0x0301, 0x0342}:
-            return None
-        if not any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
-                   for ch in nfd):
+        if not marks <= {0x0300, 0x0301, 0x0342}:
             return None
         if strip_accents(to_standard_sigma(word).lower()) \
                 not in _VERNACULAR_ARTICLE_CONTRACTIONS:
@@ -2415,8 +2453,71 @@ class Dilemma:
             return _PRONOUN_LEMMAS[normalized]
         return _MONOTONIC_PRONOUN_LEMMAS.get(to_monotonic(normalized))
 
+    @staticmethod
+    def _loose_keys(word: str, *, monotonic: bool = True,
+                    stripped: bool = True) -> list[str]:
+        """The lowercase monotonic and accent-stripped keys of *word*."""
+        lower = word.lower()
+        keys = []
+        if monotonic:
+            keys.append(to_monotonic(lower))
+        if stripped:
+            keys.append(strip_accents(lower))
+        return list(dict.fromkeys(keys))
+
+    @staticmethod
+    def _capitalized_loose_keys(word: str, *, monotonic: bool = True,
+                                stripped: bool = True) -> list[str]:
+        """The monotonic and accent-stripped keys of a capitalized word, with its capital.
+
+        The loose keys are lowercase, as the Wiktionary-derived rows are
+        keyed. The generated dictionary paradigms key the accent-stripped
+        spelling of a capitalized form with its capital (Σαμαρειτις for
+        Σαμαρεῖτις), so a capitalized word that no lowercase key answers
+        tries these keys too. No key for a lowercase word.
+        """
+        if word == word.lower():
+            return []
+        keys = []
+        if monotonic:
+            keys.append(to_monotonic(word))
+        if stripped:
+            keys.append(strip_accents(word))
+        lowercase = Dilemma._loose_keys(word)
+        return [key for key in dict.fromkeys(keys) if key not in lowercase]
+
+    @staticmethod
+    def _is_capitalized_ancient_head(lemma: str) -> bool:
+        """Whether *lemma* is written as a capitalized Ancient citation form.
+
+        Capitalized, accented, and with a breathing when it opens with a
+        vowel or rho: the head of a generated paradigm (Σαμαρεῖτις), not a
+        Modern Greek name (Ολυμπιακούς), a corpus lemma printed without
+        accents (Εζεκιος) or a letter name.
+        """
+        if not is_capitalized(lemma) or _initial_breathing(lemma) == "":
+            return False
+        return any(mark in unicodedata.normalize("NFD", lemma)
+                   for mark in "\u0300\u0301\u0342")
+
+    def _capitalized_key_reading(self, table, keys: list[str]) -> str | None:
+        """The first capitalized Ancient head *table* holds under *keys*."""
+        for key in keys:
+            hit = table.get(key)
+            hit = self._normalize_grave_citation_lemma(hit) if hit else None
+            if hit and self._is_capitalized_ancient_head(hit):
+                return hit
+        return None
+
+    # The steps of the _lookup_word cascade, tightest first: the word's own
+    # rows (as written, lowercase, grave folded to acute), its monotonic
+    # key (the accent stays in place; breathing, accent type and iota
+    # subscript are dropped) and its accent-stripped key.
+    _OWN_ROWS, _MONOTONIC_KEY, _STRIPPED_KEY = 0, 1, 2
+
     def _lookup_word(self, word: str, *,
-                     prefer_modern: bool | None = None) -> str | None:
+                     prefer_modern: bool | None = None,
+                     step: int | None = None) -> str | None:
         """Try lookup cascade: exact -> lowercase -> grave_to_acute -> monotonic -> stripped.
 
         Grave-to-acute is tried before monotonic because it preserves
@@ -2436,11 +2537,24 @@ class Dilemma:
         *prefer_modern* overrides whether the MG-specific entries are
         checked first; a caller that wants the Ancient reading whatever
         the convention passes False.
+
+        *step* runs one step of the cascade alone (_OWN_ROWS,
+        _MONOTONIC_KEY or _STRIPPED_KEY): a caller that has already
+        changed the spelling asks, for all its respellings, first for a
+        row that needs no further change.
         """
-        if self.lang in ("all", "grc"):
+        own = step in (None, self._OWN_ROWS)
+        if own and self.lang in ("all", "grc"):
             grammar = reviewed_verb_grammar(word)
             if grammar is not None:
                 return grammar["lemma"]
+        loose_keys, capitalized_keys = [], []
+        if step != self._OWN_ROWS:
+            kinds = {"monotonic": step in (None, self._MONOTONIC_KEY),
+                     "stripped": step in (None, self._STRIPPED_KEY)}
+            loose_keys = self._loose_keys(word, **kinds)
+            # Read after the lowercase keys, in the Ancient rows only.
+            capitalized_keys = self._capitalized_loose_keys(word, **kinds)
 
         # For MG mode or triantafyllidis convention, try MG-specific
         # lookup first. MG entries take priority over AG when there's a
@@ -2451,12 +2565,10 @@ class Dilemma:
                              or self._convention_name == "triantafyllidis")
         if prefer_modern and self._mg_lookup:
             tbl = self._mg_lookup
-            hit = tbl.get(word) or tbl.get(word.lower())
+            hit = (tbl.get(word) or tbl.get(word.lower())) if own else None
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
-                mono = to_monotonic(word.lower())
-                stripped = strip_accents(word.lower())
-                for variant in [mono, stripped]:
+                for variant in loose_keys:
                     hit = tbl.get(variant)
                     hit = self._normalize_grave_citation_lemma(hit) if hit else None
                     if hit and not (len(variant) <= 2 and hit == variant):
@@ -2473,16 +2585,15 @@ class Dilemma:
                        for ch in nfd)
         if has_poly and self.lang == "all" and self._ag_lookup:
             tbl = self._ag_lookup
-            hit = tbl.get(word) or tbl.get(word.lower())
+            hit = (tbl.get(word) or tbl.get(word.lower())) if own else None
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
-            if not hit:
+            if own and not hit:
                 acute = grave_to_acute(word)
                 if acute != word:
                     hit = tbl.get(acute) or tbl.get(acute.lower())
                     hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
-                for variant in [to_monotonic(word.lower()),
-                                strip_accents(word.lower())]:
+                for variant in loose_keys:
                     hit = tbl.get(variant)
                     hit = self._normalize_grave_citation_lemma(hit) if hit else None
                     # A loose key may not drop the form's breathing (#109).
@@ -2490,23 +2601,24 @@ class Dilemma:
                     if hit and not (len(variant) <= 2 and hit == variant):
                         break
                     hit = None
+            if not hit:
+                hit = self._capitalized_key_reading(tbl, capitalized_keys)
             if hit:
                 return hit
 
-        lemma = self._lookup.get(word) or self._lookup.get(word.lower())
-        lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
-        if lemma:
-            return lemma
-        # Grave → acute (lightest normalization, preserves breathings)
-        acute = grave_to_acute(word)
-        if acute != word:
-            lemma = self._lookup.get(acute) or self._lookup.get(acute.lower())
+        if own:
+            lemma = self._lookup.get(word) or self._lookup.get(word.lower())
             lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
             if lemma:
                 return lemma
-        mono = to_monotonic(word.lower())
-        stripped = strip_accents(word.lower())
-        for variant in [mono, stripped]:
+            # Grave → acute (lightest normalization, preserves breathings)
+            acute = grave_to_acute(word)
+            if acute != word:
+                lemma = self._lookup.get(acute) or self._lookup.get(acute.lower())
+                lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
+                if lemma:
+                    return lemma
+        for variant in loose_keys:
             hit = self._lookup.get(variant)
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if hit and not prefer_modern:
@@ -2514,7 +2626,7 @@ class Dilemma:
                 hit = self._restore_breathing(word, hit)
             if hit and not (len(variant) <= 2 and hit == variant):
                 return hit
-        return None
+        return self._capitalized_key_reading(self._lookup, capitalized_keys)
 
     def _positive_elision_target(self, lemma: str) -> bool:
         """Whether merged lexical definitions support an exact elision target."""
@@ -2970,6 +3082,20 @@ class Dilemma:
         'προ',
     ]
 
+    @staticmethod
+    def _other_breathing(word: str) -> str | None:
+        """*word* with the breathing of its initial vowel or diphthong
+        changed to the other one; None when it has none there."""
+        nfd = unicodedata.normalize("NFD", word)
+        for at, char in enumerate(nfd):
+            if char in "\u0313\u0314":
+                swapped = "\u0314" if char == "\u0313" else "\u0313"
+                return unicodedata.normalize(
+                    "NFC", nfd[:at] + swapped + nfd[at + 1:])
+            if char.lower() not in "αεηιουω" and not unicodedata.combining(char):
+                return None
+        return None
+
     def _normalize_byzantine(self, word: str,
                              use_normalizer: bool = True) -> str | None:
         """Try Byzantine-specific normalizations to find a lookup match.
@@ -2980,6 +3106,7 @@ class Dilemma:
           - Final medial sigma (σ instead of ς at word end)
           - Iota adscript (ωι, ηι instead of subscript ῳ, ῃ)
           - Missing breathings on initial vowels
+          - The wrong breathing on an initial vowel (with the normalizer)
           - Hyphens and editorial marks in transcriptions
 
         When use_normalizer=True, also chains with the orthographic
@@ -3072,6 +3199,16 @@ class Dilemma:
                 self._byz_normalizer = Normalizer(period="byzantine")
             norm = self._normalizer or self._byz_normalizer
 
+            # A breathing slip changes no letter and no accent, which is
+            # less than any respelling below: ἅπατον is ἄπατον before it
+            # is ἅπαθον (τ for θ) or the letters of ἀπάτων (ο for ω).
+            other = self._other_breathing(word)
+            if other:
+                lemma = self._lookup_word(other, step=self._OWN_ROWS)
+                if lemma and self._normalization_reading_supported(
+                        other, lemma, source_word=word):
+                    return lemma
+
             # Collect all forms to try: original + Byzantine-fixed variants
             forms_to_try = [word]
             # Final sigma fix
@@ -3091,19 +3228,44 @@ class Dilemma:
             # (avoid double-normalizing). For pre-model normalizer,
             # only the original form was tried, so skip it here.
             start_idx = 1 if self._normalizer else 0
-            for variant in forms_to_try[start_idx:]:
-                for candidate in norm.normalize(variant):
-                    lemma = self._lookup_grammatical_word(
-                        candidate, normalization=True, source_word=word)
-                    if lemma:
-                        lemma_s = strip_accents(lemma.lower())
-                        cand_s = strip_accents(candidate.lower())
-                        # Guard: only accept if the lookup found a real
-                        # lemma (different from the candidate form).
-                        # This prevents accepting identity lookups where
-                        # the normalizer just tweaked the form slightly.
-                        if lemma_s != cand_s:
-                            return lemma
+            # NFC, so that a row is found as it is written (the tagged
+            # entry points pass an oxia through).
+            respellings = list(dict.fromkeys(
+                unicodedata.normalize("NFC", candidate)
+                for variant in forms_to_try[start_idx:]
+                for candidate in norm.normalize(variant)))
+            # Every respelling changes the spelling of one sound, and the
+            # normalizer ranks them by how common that confusion is. The
+            # lookup cascade can then change the accents as well: the
+            # monotonic key drops breathing, accent type and subscript,
+            # the accent-stripped key also moves the accent. That is a
+            # second change, so it ranks after every respelling that
+            # reads a row as it is written, whatever the rule weights:
+            # αναγνώστει is αναγνώστη (ει for η), not the letters of
+            # ἀναγνωστέοι reached through αναγνώστεοι (ι for οι).
+            answered = set()
+            for step in (self._OWN_ROWS, self._MONOTONIC_KEY,
+                         self._STRIPPED_KEY):
+                for candidate in respellings:
+                    if candidate in answered:
+                        continue
+                    lemma = self._lookup_word(candidate, step=step)
+                    if not lemma:
+                        continue
+                    # The first row the cascade reaches decides for this
+                    # respelling, as in a single lookup of it.
+                    answered.add(candidate)
+                    if not self._normalization_reading_supported(
+                            candidate, lemma, source_word=word):
+                        continue
+                    lemma_s = strip_accents(lemma.lower())
+                    cand_s = strip_accents(candidate.lower())
+                    # Guard: only accept if the lookup found a real
+                    # lemma (different from the candidate form).
+                    # This prevents accepting identity lookups where
+                    # the normalizer just tweaked the form slightly.
+                    if lemma_s != cand_s:
+                        return lemma
 
         return None
 
@@ -3682,6 +3844,9 @@ class Dilemma:
         # Attested-only gate: drop forms that don't occur in the corpus.
         if attested_only and self._resolve_attested_form(word) is None:
             return None
+        # ῤῥ is an editorial spelling of ρρ (after the gate, which matches
+        # the corpus spelling as printed).
+        word = to_plain_double_rho(word)
 
         # Resolve articles/pronouns to canonical lemma
         closed = self._resolve_closed_class(word)
@@ -3999,6 +4164,9 @@ class Dilemma:
     # (να, με, σε, σαν, ας, στους) carry them, and no verb form does.
     _CLOSED_CLASS_TAGS = frozenset(
         {"PRON", "DET", "ADP", "CCONJ", "SCONJ", "PART", "INTJ"})
+    # The last key variant of _pos_table_hit that is the word's own
+    # spelling (as written, lowercased, grave folded to acute).
+    _OWN_SPELLING_POS_VARIANT = 2
     _TONAL_ACCENTS = frozenset({0x0301, 0x0300, 0x0342})
 
     @classmethod
@@ -4030,8 +4198,10 @@ class Dilemma:
         A lemma that is itself an Ancient head written without breathings
         (the Sophocles lexicon's οφφίκιον) takes the form's breathing.
         A capitalized lemma (a name only Modern Greek Wiktionary lists,
-        Ραχίλ) is returned as it is. With ``lang="all"``, a Modern Greek
-        lexical head is returned as it is too: polytonic vernacular Greek
+        Ραχίλ) is returned as it is for a capitalized form; a lowercase
+        form is not that name (ἀνάβη is not the surname Ανάβης, nor the
+        fragment εἴπ the abbreviation ΕΙΠ). With ``lang="all"``, a Modern
+        Greek lexical head is returned as it is too: polytonic vernacular Greek
         reads as Modern there (1.3.24, #104), so ἀκόμη keeps ακόμη and
         ἀξίζει αξίζω. Otherwise there is no Ancient lemma with those
         letters: None (ἀστοχήσει with ``lang="grc"``).
@@ -4065,9 +4235,12 @@ class Dilemma:
                     return spelling
         if tried and self._is_ancient_headword(lemma):
             return tried[0]
-        if is_capitalized(lemma):
+        if is_capitalized(lemma) and is_capitalized(word):
             # A name has one citation form in both languages; one that
             # only Modern Greek lists (Ραχίλ for Ῥαχὶλ) is still the name.
+            # A lowercase word is not a name the lookup lists without its
+            # breathing: the loose keys of ἀνάβη, ὅτ and εἴπ are rows of
+            # the surname Ανάβης and of the abbreviations Οτ and ΕΙΠ.
             return lemma
         if self.lang == "all":
             if self._vernacular_lexical_heads is None:
@@ -4222,7 +4395,10 @@ class Dilemma:
           them (ὧρες, matched to ὄρνυμι through ώρες, is ώρες), or that
           the lookup holds under the form's own accents but that has a
           verb ending when a closed-class tag is requested (σεῖς PRON is
-          not a form of σέω);
+          not a form of σέω). A form written with a smooth breathing whose
+          rough-breathing spelling the Ancient lookup holds under the same
+          reading counts as a spelling the Ancient side knows (ἄπαν NOUN
+          stays ἅπας, like ἅπαν);
         * a capitalized name with no recorded part of speech, when the
           word and the Modern lemma are lowercase and the tag is not a
           noun's (κακὸ ADJ is not the name Κακό, nor πιὰ ADV Πῖα).
@@ -4276,12 +4452,37 @@ class Dilemma:
             return True
         if known:
             return False
-        if not self._ancient_lookup_has_spelling(word):
+        if not self._ancient_lookup_has_spelling(word) \
+                and not self._rough_spelling_reads(word, ancient):
             # Neither reading is one of this spelling. A Modern entry
             # reached the same way, under the bare key, is no better
             # evidence than the Ancient one (ἐφη VERB stays φημί).
             return self._modern_pos_entry_keeps_accent(word, upos, modern)
         return closed_class and ancient_key.endswith(("ω", "μι", "μαι"))
+
+    def _rough_spelling_reads(self, word: str, lemma: str) -> bool:
+        """Whether the Ancient lookup reads *word* with a rough breathing as *lemma*.
+
+        A smooth breathing written for a rough one is the commonest slip
+        of Byzantine and later polytonic spelling, and no evidence for
+        Modern Greek. When the Ancient lookup lacks the form as written
+        and holds it with the rough breathing, under the lemma the loose
+        key gave, the Ancient side knows the spelling: ἄπαν NOUN is the
+        ἅπας of ἅπαν, as ἅπαν NOUN is, not the Modern noun άπαν (#134).
+        The reverse does not hold: a rough breathing is written on
+        purpose, and ὧρες is the Modern ώρες, not the Ancient ὦρες.
+        """
+        if _initial_breathing(word) != _SMOOTH_BREATHING or not self._ag_lookup:
+            return False
+        nfd = unicodedata.normalize("NFD", word)
+        swapped = unicodedata.normalize(
+            "NFC", nfd.replace(_SMOOTH_BREATHING, _ROUGH_BREATHING, 1))
+        acute = grave_to_acute(swapped)
+        return any(
+            self._normalize_grave_citation_lemma(
+                self._ag_lookup.get(variant) or "") == lemma
+            for variant in dict.fromkeys(
+                (swapped, swapped.lower(), acute, acute.lower())))
 
     def _lowercase_ancient_twin(self, word: str, modern: str) -> str | None:
         """The lowercase Ancient headword a Modern POS reading stands for.
@@ -4459,6 +4660,15 @@ class Dilemma:
     # reading (#105). Other tags keep the override: Byzantine misspellings
     # rely on it (οῦν PART, τῆδε PRON, μᾶλα ADV).
     _LOOSE_OVERRIDE_BLOCKED_TAGS = frozenset({"NOUN", "PROPN"})
+    # Tags under which it may not replace one either when every such
+    # reading is a lemma an Ancient dictionary lists (#130: ταύτην ADJ
+    # keeps οὗτος, not the ταὐτός of ταὐτήν). A row whose lemma no
+    # dictionary lists is a corpus artifact of a misaccented form and
+    # still yields (μεγά ADJ -> μέγας, not the row's μεγός). lang="el" and
+    # the triantafyllidis convention prefer Modern rows and keep the
+    # override. DET and NUM are left out: the entries they would stop are
+    # right (τοῖϊν DET -> ὁ, ιέ NUM -> ιε).
+    _LOOSE_OVERRIDE_LISTED_TAGS = frozenset({"ADJ", "PRON"})
 
     def _pos_entry_is_loose(self, word: str, upos: str, pos_lemma: str) -> bool:
         """Whether *pos_lemma* was found only under the accent-stripped key.
@@ -4523,9 +4733,17 @@ class Dilemma:
         PROPN, exact lookup rows that inflect to lemmas without a verb
         shape (ὅλων NOUN keeps ὅλος, Ἄργους PROPN keeps Ἄργος). An exact
         verb row still yields to a nominal tag (the Byzantine μοχθῶ NOUN ->
-        μόχθος). Under the VERB case-twin rule (#42) a loose entry may not
-        replace an exact case-twin family (πόθῳ VERB keeps πόθος, not the
-        πίνω of ποθῶ).
+        μόχθος). Under ADJ or PRON the same holds when every such row
+        reads a lemma an Ancient dictionary lists (#130: ταύτην ADJ keeps
+        οὗτος, ἀθληταί ADJ ἀθλητής), except with lang="el" or the
+        triantafyllidis convention; a row whose lemma no dictionary lists
+        still yields (μεγά ADJ -> μέγας), and so does the row of a
+        capitalized word when the row of its lowercase spelling reads the
+        entry's lemma (see _lowercase_row_reads). Under PRON the row
+        must also be a reading the tables record as a pronoun's for
+        these letters (see _tables_record_pronoun). Under the VERB
+        case-twin rule (#42) a loose entry may not replace an exact
+        case-twin family (πόθῳ VERB keeps πόθος, not the πίνω of ποθῶ).
         """
         if any(self._is_closed_class_reading(c) for c in candidates):
             return self._pos_entry_is_loose(word, upos, pos_lemma)
@@ -4533,7 +4751,11 @@ class Dilemma:
         if not exact:
             return False
         if not case_twin_family:
-            if upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS:
+            listed_only = upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS
+            if listed_only and (
+                    upos not in self._LOOSE_OVERRIDE_LISTED_TAGS
+                    or self.lang == "el"
+                    or self._convention_name == "triantafyllidis"):
                 return False
             stripped = strip_accents(word.lower())
             inflected = [c for c in exact
@@ -4541,7 +4763,135 @@ class Dilemma:
             if not inflected or any(self._is_verb_shaped_lemma(c.lemma)
                                     for c in inflected):
                 return False
+            if listed_only and (
+                    not all(self._is_ancient_headword(c.lemma)
+                            for c in inflected)
+                    or self._lowercase_row_reads(word, pos_lemma)):
+                return False
+            if upos == "PRON" and not all(
+                    self._tables_record_pronoun(word, c.lemma)
+                    for c in inflected):
+                return False
         return self._pos_entry_is_loose(word, upos, pos_lemma)
+
+    def _tables_record_pronoun(self, word: str, lemma: str) -> bool:
+        """Whether the POS tables record *lemma* for the word's letters under PRON or DET.
+
+        The pronouns are a closed class the tables cover, so a row that
+        stands against a pronoun entry must itself be a recorded pronoun
+        reading of these letters (οὕ PRON keeps ἕ: the tables hold οὗ
+        PRON ἕ; ταύτὴν PRON keeps οὗτος). A row that reads another kind
+        of word does not stand in a pronoun's place: a word tagged PRON
+        that is misaccented or has the wrong breathing still reads its
+        pronoun (ὁδὲ PRON is ὅδε, not the ὁδός of its row; ἐκάτερος
+        PRON is ἑκάτερος, not ἐκάς; the Modern μάς PRON is μας, not μής).
+        An adjective's row is such another word (κεινὸς PRON is ἐκεῖνος,
+        not the κενός the tables record under ADJ).
+        """
+        self._load_fallback_readings()
+        readings = self._fallback_readings.get(strip_accents(word.lower()), {})
+        return any(lemma in readings.get(tag, ()) for tag in ("PRON", "DET"))
+
+    def _lowercase_row_reads(self, word: str, lemma: str) -> bool:
+        """Whether the lookup reads a capitalized word's lowercase spelling as *lemma*.
+
+        A capitalized word tagged other than PROPN may be a sentence-initial
+        common word, so the row of its lowercase spelling is a reading of
+        the word too. A loose POS entry that row agrees with is supported
+        by the form's letters and by one of its spellings (Ἀντίαν ADJ gives
+        ἀντίος with ἀντίαν, not the ἀντία of the capitalized row).
+        """
+        lower = word.lower()
+        if lower == word:
+            return False
+        target = strip_accents(lemma.lower())
+        tables = []
+        if self.lang in ("all", "el"):
+            tables += [self._mg_lookup, self._med_lookup]
+        if self.lang in ("all", "grc"):
+            tables.append(self._ag_lookup)
+        for table in tables:
+            if not table:
+                continue
+            for variant in dict.fromkeys((lower, grave_to_acute(lower))):
+                hit = table.get(variant)
+                if hit and strip_accents(hit.lower()) == target:
+                    return True
+        return False
+
+    def _closed_class_entry_decides(self, word: str, upos: str, pos_lemma: str,
+                                    candidates) -> bool:
+        """Whether a closed-class POS entry outranks a case-twin family.
+
+        A lookup reading and its case alternate are one reading (αἶα
+        beside Αἶα for αἶ, τίσις beside Τίσις for τίσι), and a lone
+        reading yields to a supported POS entry. Under a tag of the small
+        closed classes the pair yields as well, when the entry stands
+        under the word's own spelling: no noun or name is a pronoun, a
+        preposition or a conjunction, so αἶ CCONJ is εἰ, ἐμέο PRON ἐγώ
+        and ἄνα ADP ἀνά. An entry of the monotonic or the accent-stripped
+        key, which other words share, leaves the lookup reading. So does
+        an entry whose lemma the lookup reads as a form of that reading:
+        it names the same word under another citation form (πᾶσι PRON
+        keeps πᾶς against the cell's πᾶν, οἷα CCONJ οἷος against οἷα).
+        """
+        if upos not in self._CLOSED_CLASS_TAGS or len(candidates) < 2:
+            return False
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        if (lemma is None or lemma != pos_lemma or index is None
+                or index > self._OWN_SPELLING_POS_VARIANT):
+            return False
+        family = {c.lemma.lower() for c in candidates}
+        read = self._lookup_word(pos_lemma)
+        return not (read and read.lower() in family)
+
+    def _is_recorded_verb_lemma(self, lemma: str) -> bool:
+        """Whether *lemma* has a verb's ending and a verb entry in the POS tables.
+
+        The ending alone also fits nouns (the Modern ποτάμι, ἠχώ), and a
+        verb entry alone can be a mistagged cell of another word.
+        """
+        if not strip_accents(lemma.lower()).endswith(("ω", "μαι", "μι")):
+            return False
+        self._load_fallback_readings()
+        return lemma in self._fallback_verb_lemmas
+
+    def _name_entry_decides(self, word: str, upos: str, pos_lemma: str,
+                            candidates) -> bool:
+        """Whether a PROPN entry outranks the capitalized twin of a verb row.
+
+        Under PROPN a lookup reading answers as its capitalized twin. When
+        the row reads a verb (φάων as the participle of φάω, μέλητον as a
+        dual of μέλω), that twin (Φάω, Μέλω) is a name that only shares
+        the verb's citation spelling: no form of a verb is a form of a
+        name. An entry under the word's own spelling that names a
+        capitalized lemma then decides (Φάων, Μέλητος), as it already does
+        against a verb row that has no capitalized twin (#138).
+
+        A row that reads a noun or an adjective keeps its twin (ἵππων
+        PROPN stays Ἵππος, not the entry's Ἵππων): the form may be a case
+        of that name, and on the names of the Perseus, Diorisis and GLAUx
+        pairs the entry was wrong about as often as right there, and
+        more often for capitalized words. So does a reading whose own row
+        is a capitalized lemma: the lookup holds a name for the form.
+        """
+        if upos != "PROPN" or len(candidates) < 2 or not is_capitalized(pos_lemma):
+            return False
+        direct = [c for c in candidates
+                  if not getattr(c, "via", "").endswith("+case_alt")]
+        if not direct or any(is_capitalized(c.lemma)
+                             or not self._is_recorded_verb_lemma(c.lemma)
+                             for c in direct):
+            return False
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        return (lemma is not None and lemma == pos_lemma and index is not None
+                and index <= self._OWN_SPELLING_POS_VARIANT)
 
     @staticmethod
     def _is_name_row_family(word: str, candidates) -> bool:
@@ -4791,6 +5141,12 @@ class Dilemma:
         if attested_only and word and not word.isdigit() \
                 and self._resolve_attested_form(word) is None:
             return None
+        plain = to_plain_double_rho(word)
+        if plain != word:
+            # ῤῥ is an editorial spelling of ρρ: the tables are read under
+            # the plain spelling (Βοῤῥᾶ PROPN like Βορρᾶ). The gate above
+            # has matched the corpus spelling as printed.
+            word, attested_only = plain, False
 
         article_lemma = self._article_pos_lemma(word, upos)
         if article_lemma is not None:
@@ -4864,7 +5220,11 @@ class Dilemma:
                                                       candidates):
                         return checked(pos_lemma_conv)
                 elif ((upos == "VERB"
-                         or self._is_name_row_family(word, candidates))
+                         or self._is_name_row_family(word, candidates)
+                         or self._closed_class_entry_decides(
+                             word, upos, pos_lemma, candidates)
+                         or self._name_entry_decides(
+                             word, upos, pos_lemma, candidates))
                         and len({c.lemma.lower() for c in candidates}) == 1
                         and not self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
@@ -4993,11 +5353,16 @@ class Dilemma:
         assert len(words) == len(upos_tags), (
             f"words and upos_tags must have same length: {len(words)} vs {len(upos_tags)}"
         )
+        # ῤῥ is an editorial spelling of ρρ: the tables are read under the
+        # plain spelling, as in lemmatize_pos(). The attested-only gate
+        # matches the corpus spelling as printed.
+        printed = words
+        words = [to_plain_double_rho(word) for word in words]
         for word, upos in zip(words, upos_tags):
             self._pos_rejections(word, upos)
 
         # Step 1: Get baseline results from regular batch lemmatization
-        results = self.lemmatize_batch(words, attested_only=attested_only,
+        results = self.lemmatize_batch(printed, attested_only=attested_only,
                                        guess=guess)
         rejected_baselines = [lemma is not None
             and self._checked_pos_result(word, upos, lemma) is None
@@ -5016,7 +5381,7 @@ class Dilemma:
             # evidence, so it MAY resurrect that - re-check the gate to tell
             # the two kinds of None apart, matching lemmatize_pos().)
             if attested_only and results[i] is None and (
-                    self._resolve_attested_form(word) is None
+                    self._resolve_attested_form(printed[i]) is None
                     or (guess and not rejected_baselines[i])):
                 continue
             article_lemma = self._article_pos_lemma(word, upos)
@@ -5070,7 +5435,11 @@ class Dilemma:
                     word, upos, candidates)
                 if not matched and (len(candidates) <= 1 or one_reading
                         or ((upos == "VERB"
-                             or self._is_name_row_family(word, candidates))
+                             or self._is_name_row_family(word, candidates)
+                             or self._closed_class_entry_decides(
+                                 word, upos, pos_lemma, candidates)
+                             or self._name_entry_decides(
+                                 word, upos, pos_lemma, candidates))
                             and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
                     # supported explicit verb tag selects a different lemma,
@@ -5312,6 +5681,8 @@ class Dilemma:
             return candidates
         # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
         word = to_standard_sigma(word)
+        # ῤῥ is an editorial spelling of ρρ.
+        word = to_plain_double_rho(word)
 
         if self.lang in ("all", "grc"):
             readings = reviewed_verb_readings(word)
@@ -5386,6 +5757,18 @@ class Dilemma:
             (word, "exact"), (lower, "lower"),
             (mono, "mono"), (stripped, "stripped"),
         ]
+        # The capitalized loose keys of the generated paradigms, after
+        # the lowercase ones and for an Ancient head only, as in
+        # _lookup_word.
+        capitalized_keys = set()
+        if variants:
+            tried = {variant for variant, _via in variants}
+            for via, kinds in (("mono", {"stripped": False}),
+                               ("stripped", {"monotonic": False})):
+                for variant in self._capitalized_loose_keys(word, **kinds):
+                    if variant not in tried:
+                        variants.append((variant, via))
+                        capitalized_keys.add(variant)
 
         # Respect self.lang: when constructed with lang='el' (MG mode),
         # don't leak AG candidates (and vice versa). This matters for
@@ -5404,6 +5787,10 @@ class Dilemma:
         for table, lang in _tables:
             for variant, via in variants:
                 lemma = table.get(variant)
+                if lemma and variant in capitalized_keys and not (
+                        lang == "grc"
+                        and self._is_capitalized_ancient_head(lemma)):
+                    continue
                 if lemma:
                     # Skip trivial short self-mappings (accent artifacts)
                     if len(variant) <= 2 and lemma == variant and via in ("mono", "stripped"):
@@ -5678,9 +6065,11 @@ class Dilemma:
                     for c in word):
                 results.append(word)
                 continue
-            # NFC-normalize (sources may emit NFD), then lunate sigma -> σ/ς.
+            # NFC-normalize (sources may emit NFD), then lunate sigma -> σ/ς
+            # and the editorial ῤῥ -> ρρ.
             word = unicodedata.normalize("NFC", word)
             word = to_standard_sigma(word)
+            word = to_plain_double_rho(word)
             # Article/pronoun resolution
             closed = self._resolve_closed_class(word)
             if closed is not None:

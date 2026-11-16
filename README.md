@@ -220,8 +220,9 @@ python3 -m pip install -e ".[dev,onnx,lm]"
 
 The [development guide](https://github.com/open-greek/dilemma/blob/main/docs/development.md)
 covers data downloads, rebuild order, model training, testing, and numbered
-GitHub/PyPI releases. Generated artifacts are stored on HuggingFace; the
-repository manifest records the hashes used by CI.
+GitHub/PyPI releases. Generated artifacts are stored on HuggingFace;
+`data/hf_manifest.json` records the hashes of the data and model files that
+belong to a commit, for CI and for `python -m dilemma download`.
 
 Report defects and propose changes in
 [GitHub issues](https://github.com/open-greek/dilemma/issues). For data errors,

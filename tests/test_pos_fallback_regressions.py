@@ -221,6 +221,10 @@ def pos_model(lemmas, pos_lemma):
     model.lemmatize = lambda word, **kwargs: lemmas[0]
     model._using_db = False
     model._mg_lookup = {}  # No lemma is a Modern Greek citation form.
+    # No POS table records a reading or a verb lemma.
+    model._fallback_readings = {}
+    model._fallback_exact_readings = {}
+    model._fallback_verb_lemmas = set()
     return model
 
 
@@ -300,6 +304,160 @@ def test_capitalized_word_keeps_the_reading_of_its_own_row(word, rows, incoming,
         assert core.Dilemma._prefer_case_twin(
             word, "PROPN", incoming, candidates,
             row_decides=row_decides) == capital
+
+
+def closed_class_model(rows, pos_lemma, *, index=0, lookup=None, verbs=()):
+    """twin_model() whose POS entry stands at key variant *index*.
+
+    *verbs* are the lemmas the POS tables record as verbs.
+    """
+    model = twin_model(rows, pos_lemma)
+    model._pos_table_hit = lambda word, upos: (pos_lemma, index)
+    model._lookup_word = lambda word, **kwargs: (lookup or {}).get(word)
+    model._headword_sets = {"lsj": {lemma for lemma, _ in rows}}
+    model._ancient_lexical_heads = set()
+    model._fallback_verb_lemmas = set(verbs)
+    return model
+
+
+AI_ROWS = [("αἶα", "exact"), ("Αἶα", "exact+case_alt")]
+
+
+@pytest.mark.parametrize("word,upos,rows,pos_lemma", [
+    ("αἶ", "CCONJ", AI_ROWS, "εἰ"),
+    ("ἄνα", "ADP", [("ἄναξ", "exact"), ("Ἄναξ", "exact+case_alt")], "ἀνά"),
+    ("ἐμέο", "PRON", [("μου", "exact"), ("Μου", "exact+case_alt")], "ἐγώ"),
+    # A capitalized word: the row reads the name, the entry the function word.
+    ("Διά", "ADP", [("ζεύς", "exact+case_alt"), ("Ζεύς", "exact")], "διά"),
+])
+def test_closed_class_entry_outranks_a_case_twin_family(word, upos, rows, pos_lemma):
+    model = closed_class_model(rows, pos_lemma)
+    assert _scalar_and_batch(model, word, upos) == pos_lemma
+
+
+@pytest.mark.parametrize("upos", ["NOUN", "ADJ", "ADV", "NUM"])
+def test_open_class_entry_leaves_a_case_twin_family(upos):
+    model = closed_class_model(AI_ROWS, "εἰ")
+    assert _scalar_and_batch(model, "αἶ", upos) == "αἶα"
+
+
+@pytest.mark.parametrize("index", [3, 4])
+def test_closed_class_entry_of_a_shared_key_leaves_the_family(index):
+    # The monotonic and the accent-stripped key hold other words' readings.
+    model = closed_class_model(AI_ROWS, "εἰ", index=index)
+    assert _scalar_and_batch(model, "αἶ", "CCONJ") == "αἶα"
+
+
+def test_closed_class_entry_naming_a_form_of_the_reading_leaves_the_family():
+    # The cell's πᾶν is the neuter of the lookup's πᾶς: the same word.
+    rows = [("πᾶς", "exact"), ("Πᾶς", "exact+case_alt")]
+    model = closed_class_model(rows, "πᾶν", lookup={"πᾶν": "πᾶς"})
+    assert _scalar_and_batch(model, "πᾶσι", "PRON") == "πᾶς"
+    model = closed_class_model(rows, "πᾶν", lookup={"πᾶν": "πᾶν"})
+    assert _scalar_and_batch(model, "πᾶσι", "PRON") == "πᾶν"
+
+
+def test_closed_class_entry_does_not_decide_between_distinct_lemmas():
+    model = closed_class_model([("αἶα", "exact"), ("αἴξ", "exact")], "εἰ")
+    assert _scalar_and_batch(model, "αἶ", "CCONJ") == "αἶα"
+
+
+SHIPPED_CLOSED_CLASS = [
+    ("αἶ", "CCONJ", "εἰ"), ("ἄνα", "ADP", "ἀνά"), ("ἐμέο", "PRON", "ἐγώ"),
+    ("ἐμεῦ", "PRON", "ἐγώ"), ("ἧος", "CCONJ", "ἕως"), ("πὸ", "ADP", "ἀπό"),
+    # kept: the same word under another citation form, and open classes
+    ("πᾶσι", "PRON", "πᾶς"), ("οἷα", "CCONJ", "οἷος"), ("αἶ", "NOUN", "αἶα"),
+]
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_shipped_closed_class_entries_against_twin_families(lang):
+    _assert_scalar_and_batch(_shipped_capital_model(lang=lang),
+                             SHIPPED_CLOSED_CLASS)
+
+
+PHAON_ROWS = [("φάω", "exact"), ("Φάω", "exact+case_alt")]
+VERB_LEMMAS = {"φάω", "μέλω", "κλέω"}
+
+
+@pytest.mark.parametrize("word,rows,name", [
+    ("φάων", PHAON_ROWS, "Φάων"),
+    ("μέλητον", [("μέλω", "exact"), ("Μέλω", "exact+case_alt")], "Μέλητος"),
+    ("κλεῖτον", [("κλέω", "exact"), ("Κλέω", "exact+case_alt")], "Κλεῖτος"),
+    # A capitalized word without a row of its own meets the same verb row.
+    ("Μέλητον", [("μέλω", "lower"), ("Μέλω", "lower+case_alt")], "Μέλητος"),
+])
+def test_propn_entry_outranks_the_capitalized_twin_of_a_verb_row(word, rows, name):
+    model = closed_class_model(rows, name, verbs=VERB_LEMMAS)
+    assert _scalar_and_batch(model, word, "PROPN") == name
+    # Under another tag the lookup reading stands.
+    assert _scalar_and_batch(model, word, "NOUN") == rows[0][0]
+
+
+@pytest.mark.parametrize("word,rows,name", [
+    # The form may be a case of the twin's name (Ἵππων of Ἵππος, Νόμων of
+    # Νόμοι), and the corpora do not side with the entry.
+    ("ἵππων", [("ἵππος", "exact"), ("Ἵππος", "exact+case_alt")], "Ἵππων"),
+    ("νόμων", [("νόμος", "exact"), ("Νόμος", "exact+case_alt")], "Νόμων"),
+    ("ἀττικὴν", [("ἀττικός", "exact"), ("Ἀττικός", "exact+case_alt")], "Ἀττική"),
+    ("Φοίνικα", [("φοῖνιξ", "lower"), ("Φοῖνιξ", "lower+case_alt")], "Φοίνικας"),
+])
+def test_propn_entry_leaves_the_capitalized_twin_of_a_nominal_row(word, rows, name):
+    model = closed_class_model(rows, name, verbs=VERB_LEMMAS)
+    assert _scalar_and_batch(model, word, "PROPN") == rows[1][0]
+
+
+def test_propn_entry_leaves_a_name_the_lookup_reads_for_the_form():
+    # The row itself reads a capitalized lemma: the lookup holds a name for
+    # this form, and the entry's other name does not replace it.
+    rows = [("μέλω", "exact+case_alt"), ("Μέλω", "exact")]
+    model = closed_class_model(rows, "Μέλητος", verbs=VERB_LEMMAS)
+    assert _scalar_and_batch(model, "Μέλητον", "PROPN") == "Μέλω"
+
+
+@pytest.mark.parametrize("index", [3, 4])
+def test_propn_entry_of_a_shared_key_leaves_the_case_alternate(index):
+    model = closed_class_model(PHAON_ROWS, "Φάων", index=index,
+                               verbs=VERB_LEMMAS)
+    assert _scalar_and_batch(model, "φάων", "PROPN") == "Φάω"
+
+
+def test_propn_entry_naming_a_common_word_leaves_the_case_alternate():
+    model = closed_class_model(PHAON_ROWS, "φάος", verbs=VERB_LEMMAS)
+    assert _scalar_and_batch(model, "φάων", "PROPN") == "Φάω"
+
+
+@pytest.mark.parametrize("lemma,expected", [
+    ("φάω", True), ("κεῖμαι", True), ("δίδωμι", True),
+    # a verb's ending without a verb entry (Modern nouns in -μι, names in -ώ)
+    ("ποτάμι", False), ("ἠχώ", False),
+    # a verb entry of a junk cell for a lemma with no verb's ending
+    ("βαρύς", False),
+])
+def test_recorded_verb_lemma_needs_a_verb_entry_and_a_verb_ending(lemma, expected):
+    model = closed_class_model(PHAON_ROWS, "Φάων",
+                               verbs={"φάω", "κεῖμαι", "δίδωμι", "βαρύς"})
+    assert model._is_recorded_verb_lemma(lemma) is expected
+
+
+SHIPPED_NAME_ENTRIES = [
+    # a verb row and its capitalized twin (1.3.26: Φάω, Μέλω, Κλέω, Ἀλέξω,
+    # Θάλλω, Μένω)
+    ("φάων", "PROPN", "Φάων"), ("μέλητον", "PROPN", "Μέλητος"),
+    ("κλεῖτον", "PROPN", "Κλεῖτος"), ("ἀλέξων", "PROPN", "Ἀλέξων"),
+    ("θαλοῦ", "PROPN", "Θαλῆς"), ("μίνω", "PROPN", "Μίνως"),
+    # kept: a nominal row and its twin, the capitalized spellings, and the
+    # lookup reading under the other tags
+    ("ἵππων", "PROPN", "Ἵππος"), ("ἀττικὴν", "PROPN", "Ἀττικός"),
+    ("Φάων", "PROPN", "Φάων"), ("Ἵππων", "PROPN", "Ἵππων"),
+    ("ἵππων", "NOUN", "ἵππος"), ("φάων", "VERB", "φάω"),
+]
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_shipped_propn_entries_against_case_alternates(lang):
+    _assert_scalar_and_batch(_shipped_capital_model(lang=lang),
+                             SHIPPED_NAME_ENTRIES)
 
 
 def capital_model(rows, pos_lemma=None, *, lang="grc", convention=None,
@@ -433,9 +591,12 @@ def test_shipped_noun_homographs_and_supported_fallbacks(shipped_models, normali
         model._normalizer = Normalizer(period="byzantine") if normalize else None
         assert model.lemmatize("φάσκονται", guess=False) is None
         assert model._strip_verb_morphology("ἔπιναι") is None
-        # The old augment path returned the noun πίνη. The normalizer may
-        # still resolve ἐπεῖναι, an attested infinitive of ἔπειμι.
-        assert model.lemmatize("ἔπιναι", guess=False) == "ἔπειμι"
+        # The old augment path returned the noun πίνη. The Byzantine
+        # fallback reads ἔπινε, a row as it is written (αι for ε), before
+        # ἐπεῖναι, an infinitive of ἔπειμι that also needs the accent moved.
+        # The optional normalizer still takes its respellings in rule order.
+        assert model.lemmatize("ἔπιναι", guess=False) == (
+            "ἔπειμι" if normalize else "πίνω")
         assert model.lemmatize("διηγουμένην", guess=False) == "διηγέομαι"
         assert model.lemmatize_batch(["φάσκονται", "διηγουμένην"], guess=False) == [
             None, "διηγέομαι"]
@@ -536,6 +697,23 @@ def test_shipped_modern_sentence_starts_agree_in_scalar_and_batch(convention):
     kwargs = {"convention": convention} if convention else {}
     _assert_scalar_and_batch(_shipped_capital_model(lang="el", **kwargs),
                              SHIPPED_MODERN_CAPITALS)
+
+
+@pytest.mark.parametrize("convention,lower,name", [
+    (None, "εὔξενος", "Εὔξενος"), ("triantafyllidis", "εύξενος", "Εύξενος")])
+def test_shipped_ancient_name_in_modern_mode_needs_the_propn_tag(
+        convention, lower, name):
+    # #138: lang="el" cannot tell a name from a word that opens a sentence
+    # (Γῆς, Αἴσθησις); the PROPN tag can.
+    kwargs = {"convention": convention} if convention else {}
+    _assert_scalar_and_batch(
+        _shipped_capital_model(lang="el", **kwargs),
+        [("Εὐξένου", "NOUN", lower), ("Εὐξένου", "PROPN", name)])
+    if convention is None:
+        _assert_scalar_and_batch(
+            _shipped_capital_model(lang="el"),
+            [("Γῆς", "NOUN", "γῆ"), ("Αἴσθησις", "NOUN", "αἴσθησις"),
+             ("Πρᾶξις", "NOUN", "πρᾶξις")])
 
 
 def _all_model(fallback_model, lookup, ancient_pos, modern_pos, headwords=()):
