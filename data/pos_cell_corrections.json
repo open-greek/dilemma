@@ -1431,6 +1431,166 @@
    "reason": "New name cell of the 1.3.27 treebank builder (#138) with a wrong lemma. Κήτεος is the genitive of Κῆτος, the constellation of the Sea-monster (κῆτος, an s-stem neuter); a name in -εύς is oxytone and its genitive is Κητέως or Κητέος. GLAUx lemmatizes its 10 tokens as Κήτευς, a spelling no lexicon lists, and the lookup row agrees, so the cell passed the token tests. Without it the lower tables answer κῆτος, as 1.3.26 did.",
    "evidence": "GLAUx: Κήτεος -> Κήτευς 10, κήτεος -> κῆτος 7; grc_lexical_heads lists Κητεύς (personal-name list, VLG) and no Κήτευς; LSJ κῆτος II, the constellation; 1.3.26 gave κῆτος for Κήτεος/NOUN.",
    "issue": 138
+  },
+  {
+   "table": "treebank",
+   "form": "αἶ",
+   "upos": "SCONJ",
+   "action": "add",
+   "corrected": "εἰ",
+   "reason": "The table holds only a CCONJ cell for the Doric conjunction written with a circumflex, and an SCONJ request reads a CCONJ cell only for Modern Greek conjunctions, so it fell to the lookup row of αἶ, which reads αἶα (the elided αἶ᾽).",
+   "evidence": "GLAUx: αἶ -> εἰ (conjunction) 9; Diorisis: αἶ -> εἰ; αἶ CCONJ gives εἰ since 1.3.27, and αἴ and αἲ SCONJ give εἰ through reviewed cells.",
+   "issue": 129
+  },
+  {
+   "table": "treebank",
+   "form": "αἶ",
+   "upos": "PART",
+   "action": "add",
+   "corrected": "αἴ",
+   "reason": "No table has a PART cell for αἶ, so a PART request fell to the lookup row, which reads αἶα (the elided αἶ᾽). Tagged as a particle the word is the Doric αἴ, which keeps its own headword under PART and INTJ.",
+   "evidence": "αἴ and αἲ PART give αἴ; GLAUx reads every αἶ token as the conjunction (εἰ 9) and none as αἶα; the untagged answer stays αἶα.",
+   "issue": 129
+  },
+  {
+   "table": "treebank",
+   "form": "ὑμέν",
+   "upos": "PRON",
+   "target": "σύν",
+   "action": "drop",
+   "reason": "One GLAUx token of ὑμέν is annotated with the lemma σύν, a preposition; ὑμέν is no form of σύν under any tag.",
+   "evidence": "GLAUx: ὑμέν -> σύν (pronoun) 1, the only token; no dictionary lists the form under σύν.",
+   "issue": 129
+  },
+  {
+   "table": "treebank",
+   "form": "υμέν",
+   "upos": "PRON",
+   "target": "σύν",
+   "action": "drop",
+   "reason": "The monotonic key of the ὑμέν cell above.",
+   "evidence": "GLAUx: ὑμέν -> σύν (pronoun) 1, the only token.",
+   "issue": 129
+  },
+  {
+   "table": "treebank",
+   "form": "πᾶσι",
+   "upos": "PRON",
+   "target": "πᾶν",
+   "action": "drop",
+   "reason": "The cell names the neuter πᾶν as a lemma of its own; πᾶσι is the dative plural of πᾶς, which the lookup and the ADJ cell give.",
+   "evidence": "GLAUx: πᾶσι -> πᾶς 3,556 (tagged pronoun); πᾶσι PRON already gave πᾶς, because the lookup reads πᾶν as a form of πᾶς.",
+   "issue": 129
+  },
+  {
+   "table": "treebank",
+   "form": "κάλλιστον",
+   "upos": "ADP",
+   "target": "κατά",
+   "action": "drop",
+   "reason": "A mistagged κάλλιστον voted for the preposition κατά; κάλλιστον is no form of κατά.",
+   "evidence": "Diorisis: κάλλιστον -> κατά (preposition) 1 pair; GLAUx: κάλλιστον -> καλός 746.",
+   "issue": 129
+  },
+  {
+   "table": "treebank",
+   "form": "κεῖται",
+   "upos": "NOUN",
+   "target": "Κίτης",
+   "action": "drop",
+   "reason": "One GLAUx token of κεῖται is annotated as a name Κίτης; κεῖται is the third person of κεῖμαι.",
+   "evidence": "GLAUx: κεῖται -> κεῖμαι 1,285, Κίτης 1; no head list has a Κίτης.",
+   "issue": 138
+  },
+  {
+   "table": "treebank",
+   "form": "κείται",
+   "upos": "NOUN",
+   "target": "Κίτης",
+   "action": "drop",
+   "reason": "The monotonic key of the κεῖται cell above.",
+   "evidence": "GLAUx: κεῖται -> κεῖμαι 1,285, Κίτης 1; no head list has a Κίτης.",
+   "issue": 138
+  },
+  {
+   "table": "glaux",
+   "form": "κεῖται",
+   "upos": "PROPN",
+   "target": "Κίτης",
+   "action": "drop",
+   "reason": "One GLAUx token of κεῖται is annotated as a name Κίτης. Since 1.3.27 a PROPN entry that names a capitalized lemma decides against the capitalized twin of a verb row, so κεῖται PROPN answered Κίτης.",
+   "evidence": "GLAUx: κεῖται -> κεῖμαι 1,285, Κίτης 1; no head list has a Κίτης.",
+   "issue": 138
+  },
+  {
+   "table": "glaux",
+   "form": "κεῖται",
+   "upos": "NOUN",
+   "target": "Κίτης",
+   "action": "drop",
+   "reason": "The same GLAUx token as the PROPN cell.",
+   "evidence": "GLAUx: κεῖται -> κεῖμαι 1,285, Κίτης 1; no head list has a Κίτης.",
+   "issue": 138
+  },
+  {
+   "table": "glaux",
+   "form": "κείται",
+   "upos": "PROPN",
+   "target": "Κίτης",
+   "action": "drop",
+   "reason": "The monotonic key of the κεῖται cell.",
+   "evidence": "GLAUx: κεῖται -> κεῖμαι 1,285, Κίτης 1; no head list has a Κίτης.",
+   "issue": 138
+  },
+  {
+   "table": "glaux",
+   "form": "κείται",
+   "upos": "NOUN",
+   "target": "Κίτης",
+   "action": "drop",
+   "reason": "The monotonic key of the κεῖται cell.",
+   "evidence": "GLAUx: κεῖται -> κεῖμαι 1,285, Κίτης 1; no head list has a Κίτης.",
+   "issue": 138
+  },
+  {
+   "table": "glaux",
+   "form": "καλόν",
+   "upos": "PROPN",
+   "target": "Κηλόν",
+   "action": "drop",
+   "reason": "GLAUx files four tokens of a capitalized Καλὸν, part of a place name, under a lemma Κηλόν, and the table keys the cell in lowercase, so the adjective καλόν tagged PROPN or NOUN answered that name under lang=\"all\".",
+   "evidence": "GLAUx: Καλὸν -> Κηλόν 4, καλόν -> καλός 956; no head list has a Κηλόν, and καλόν has an alpha where the lemma has an eta.",
+   "issue": 138
+  },
+  {
+   "table": "glaux",
+   "form": "καλόν",
+   "upos": "NOUN",
+   "target": "Κηλόν",
+   "action": "drop",
+   "reason": "The same cell under NOUN.",
+   "evidence": "GLAUx: Καλὸν -> Κηλόν 4, καλόν -> καλός 956; no head list has a Κηλόν.",
+   "issue": 138
+  },
+  {
+   "table": "ag",
+   "form": "ποίησιν",
+   "upos": "DET",
+   "target": "ποῖος",
+   "action": "drop",
+   "reason": "Wiktionary lists the Ionic dative plural ποίῃσιν of ποῖος also without its subscript, which is the accusative of ποίησις. Since 1.3.27 a closed-class entry under the form's own spelling outranks the lookup reading, so ποίησιν DET answered ποῖος.",
+   "evidence": "GLAUx: ποίησιν -> ποίησις 264 and no token under ποῖος; 1.3.26 gave ποίησις under DET; the lookup still reads ποίῃσιν as ποῖος.",
+   "issue": 129
+  },
+  {
+   "table": "ag",
+   "form": "ποίησι",
+   "upos": "DET",
+   "target": "ποῖος",
+   "action": "drop",
+   "reason": "As ποίησιν: the Ionic ποίῃσι listed without its subscript.",
+   "evidence": "1.3.26 gave ποίησις under DET; the lookup still reads ποίῃσι as ποῖος.",
+   "issue": 129
   }
  ]
 }

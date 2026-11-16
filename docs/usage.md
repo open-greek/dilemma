@@ -81,7 +81,8 @@ tagged CCONJ, through a reviewed cell: the Ancient POS tables hold only a
 CCONJ entry for the Doric conjunction, and an SCONJ request reads a CCONJ
 entry only for Modern Greek conjunctions (see the polytonic Modern Greek
 rule below). Tagged PART or INTJ, and without a tag, they stay `αἴ`. `αἶ`
-still gives `αἶα` under PART and CCONJ too, from its lookup row (#129).
+gives `εἰ` under CCONJ and SCONJ and `αἴ` under PART (the last two through
+reviewed cells); without a tag it gives `αἶα`, from its lookup row (#129).
 The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
@@ -753,7 +754,8 @@ accent-stripped key leaves the lookup reading, and so does one whose lemma
 the lookup reads as a form of that reading, since it names the same word
 under another citation form (`πᾶσι` PRON stays `πᾶς` against a cell's
 `πᾶν`, `οἷα` CCONJ `οἷος`). A form with no entry for the tag still follows
-the lookup (`αἶ` PART gives `αἶα` until the tables hold a PART cell for it).
+the lookup (`αἶ` INTJ gives `αἶα`; its SCONJ and PART cells are reviewed
+additions in `data/pos_cell_corrections.json`).
 Under PROPN a lookup reading answers as its capitalized twin. When the row
 reads a verb, that twin is a name that only shares the verb's citation
 spelling, and a PROPN entry under the form's own spelling that names a
