@@ -765,6 +765,7 @@ def overlay_expansion(
     withheld_noun_lemmas: dict[str, tuple[str, ...]] | None = None,
     lexical_heads: set[str] | frozenset[str] = frozenset(),
     reread_noun_lemmas: set[str] | frozenset[str] = frozenset(),
+    reread_lemmas: dict[str, str] | None = None,
 ) -> dict[str, int]:
     """Add only historical expansion keys, preserving current mappings.
 
@@ -785,6 +786,13 @@ def overlay_expansion(
     where the expansion also has the Greek spelling of the key, that row
     decides and this one is dropped (``micro_sign_duplicates``). The pinned
     counts of the expansion are taken before this and do not change.
+
+    ``reread_lemmas`` maps a Sophocles head as the expansion keyed it to the
+    head the rules read now, where the two differ in accents, breathing or
+    case only (ἄμάντευτος is ἀμάντευτος, Θεοτήρητος is θεοτήρητος). Such a
+    row keeps its key and is read under the present head
+    (``reread_lemma_entries``), then judged like any other: a head with a
+    fresh paradigm still loses the old one.
 
     A superseded lemma in ``reread_noun_lemmas`` is a Sophocles head that
     the expansion read otherwise (with the micro sign, an asterisk or a
@@ -815,8 +823,10 @@ def overlay_expansion(
         "withheld_noun_citation_only_lemmas": 0,
         "micro_sign_entries": 0,
         "micro_sign_duplicates": 0,
+        "reread_lemma_entries": 0,
         "added": 0,
     }
+    reread_lemmas = reread_lemmas or {}
     for form, lemma in reference.items():
         if form in reference_base:
             continue
@@ -842,6 +852,9 @@ def overlay_expansion(
             if form != published[0] and form in reference:
                 stats["micro_sign_duplicates"] += 1
                 continue
+        if lemma in reread_lemmas:
+            stats["reread_lemma_entries"] += 1
+            lemma = reread_lemmas[lemma]
         if form in target:
             stats["already_present"] += 1
             if target[form] != lemma:
@@ -1072,6 +1085,7 @@ def restore_unmarked_keys(
     head_evidence: dict[str, tuple[str, ...]] | None = None,
     breathing_corrections: dict[str, str] | None = None,
     carried_cells: dict[str, tuple[str, str]] | None = None,
+    reread_lemmas: dict[str, str] | None = None,
 ) -> dict[str, int]:
     """Give back the unaccented expansion keys the published table carried.
 
@@ -1112,16 +1126,18 @@ def restore_unmarked_keys(
     A key or lemma the expansion spells with the micro sign is read with
     the Greek mu, as overlay_expansion() reads the marked forms; the key
     with the Greek letter that the expansion or the table already has
-    stands.
+    stands. A lemma in ``reread_lemmas`` is read as the head it maps to,
+    like the marked forms.
 
     The keys are appended to ``target`` in order, and ``restored_rows``
     receives each (key, lemma), so the caller can record a digest that lets
     scripts/build_source_alias_manifest.py remove exactly these rows again.
     """
     corrections = breathing_corrections or {}
+    reread_lemmas = reread_lemmas or {}
 
     def canonical(lemma: str) -> str:
-        lemma = fold_leading_breathing(lemma)
+        lemma = fold_leading_breathing(reread_lemmas.get(lemma, lemma))
         return corrections.get(lemma, lemma)
 
     wanted: dict[str, str] = {}
@@ -1244,6 +1260,17 @@ def load_reread_noun_lemmas(path: Path) -> frozenset[str]:
     if not isinstance(lemmas, list) or not all(isinstance(x, str) for x in lemmas):
         raise SystemExit("invalid noun generation audit")
     return frozenset(lemmas)
+
+
+def load_reread_lemmas(path: Path) -> dict[str, str]:
+    """The Sophocles audit's ``reread_lemmas``: a head as the expansion
+    keyed it and the head the rules read now (none in an audit without it)."""
+    lemmas = json.loads(path.read_text(encoding="utf-8")).get("reread_lemmas", {})
+    if not isinstance(lemmas, dict) or not all(
+            isinstance(old, str) and isinstance(new, str) and new
+            for old, new in lemmas.items()):
+        raise SystemExit("invalid noun generation audit")
+    return lemmas
 
 
 def load_withheld_noun_lemmas(
@@ -1412,6 +1439,7 @@ def main() -> None:
     # old paradigm; a lemma the LSJ audit supersedes too is superseded.
     reread_nouns = (load_reread_noun_lemmas(args.sophocles_noun_audit)
                     - load_noun_generation_audit(args.noun_audit))
+    reread_lemmas = load_reread_lemmas(args.sophocles_noun_audit)
 
     manifest = load_manifest(args.manifest)
     reference_path = resolve_reference(manifest, args.reference)
@@ -1487,6 +1515,7 @@ def main() -> None:
         superseded_noun_lemmas=superseded_nouns, released_forms=released_forms,
         carried=carried, withheld_noun_lemmas=withheld_nouns,
         lexical_heads=lexical_heads, reread_noun_lemmas=reread_nouns,
+        reread_lemmas=reread_lemmas,
     )
     stats["unaccented_head_readings_kept"] = (
         keep_published_over_unaccented_heads(target, carried, lexical_heads))
@@ -1510,7 +1539,7 @@ def main() -> None:
         restored_rows=unmarked_rows,
         head_evidence=head_evidence if carried else None,
         breathing_corrections=breathing_corrections,
-        carried_cells=carried_cells))
+        carried_cells=carried_cells, reread_lemmas=reread_lemmas))
     stats["unmarked_withheld_noun_restored"] = sum(
         lemma in withheld_nouns for _key, lemma in unmarked_rows)
     del carried
@@ -1550,6 +1579,8 @@ def main() -> None:
     print(f"Nonlexical generated lemma entries skipped: {stats['nonlexical_lemma_entries']:,}")
     print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
     print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
+    print(f"Entries read under the present Sophocles head: "
+          f"{stats['reread_lemma_entries']:,}")
     print(f"Released baseline conflicts: {stats['released_conflict_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
     print(f"Published keys of nouns without a fresh paradigm kept: "

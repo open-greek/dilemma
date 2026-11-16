@@ -837,6 +837,48 @@ def unread_printed_heads(head_audit, other_heads=frozenset(), breathing=None):
             if head not in other_heads and sanitize_form(head) not in other_heads}
 
 
+def same_letters(old, new):
+    """True when two head spellings differ only in accents, breathings, the
+    diaeresis or the case of their letters."""
+    def letters(head):
+        return "".join(char for char in unicodedata.normalize("NFD", head)
+                       if not unicodedata.combining(char)).lower()
+    return letters(old) == letters(new)
+
+
+def reread_printed_heads(head_audit, other_heads=frozenset()):
+    """``{printed head: the head it is read as}`` for the rows of the
+    historical layer that only need their lemma read again.
+
+    The layer keyed an entry's paradigm by the head as it was read then. A
+    capitalized head that is generated under its lowercase spelling
+    (``lowercased_heads``: Θεοτήρητος, θεοτήρητος) and a head whose reviewed
+    correction changes no letter (``reread_heads``: ἄμάντευτος, ἀμάντευτος;
+    ἀραχνοῦφής, ἀραχνοϋφής) keep the spellings of their forms, so those
+    rows are right under the head read now, and the overlay reads them so
+    before it judges them. Left out, and so not recovered at all: a head
+    whose reading changes a letter (ούβρικος for Κούβρικος; the forms were
+    built on the misreading), one written with a micro sign, an asterisk or
+    a spacing breathing (the overlay reads the micro sign itself, and no
+    text matches the other keys), and a spelling another lexical source
+    lists as its own head.
+    """
+    lowercased = head_audit.get("lowercased_heads", {})
+    candidates = dict(head_audit.get("reread_heads", {}))
+    candidates.update(lowercased)
+    reread = {}
+    for old, new in candidates.items():
+        new = lowercased.get(new, new)
+        if (not new or new == old or old in other_heads
+                or sanitize_form(old) in other_heads
+                or not all(char.isalpha() or unicodedata.combining(char)
+                           for char in old)
+                or not same_letters(old, new)):
+            continue
+        reread[old] = new
+    return reread
+
+
 def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
     breathing_review = load_breathing_review(required=True)
@@ -853,12 +895,14 @@ def expand_all():
     wikt_genitives = load_wiktionary_genitives()
     other_heads = load_lexical_heads() or frozenset()
     # Printed heads that are no lemma of the table: a head rejected for its
-    # two accents (ἄμάντευτος) and a capitalized common word read under its
+    # two accents (οἷές) and a capitalized common word read under its
     # lowercase head (Βαρύπυκνος). The historical layer keyed its rows by
-    # the printed head (ἀμάντευτον, Βαρυπύκνου), so both are superseded:
-    # those rows are not recovered, and no published key is kept for a noun
-    # among them (they get no entry in ``resolutions``).
+    # the printed head (Βαρυπύκνου), so both are superseded: no row is
+    # recovered under that lemma, and no published key is kept for a noun
+    # among them (they get no entry in ``resolutions``). The rows of the
+    # ones in ``reread`` are read under the present head instead.
     unread = unread_printed_heads(head_audit, other_heads, breathing_review)
+    reread = reread_printed_heads(head_audit, other_heads)
     superseded = set(unread)
     resolutions = {}
     # Superseded lemmas are named as the lexicon prints them: the historical
@@ -975,6 +1019,7 @@ def expand_all():
             "input_sha256": input_hashes,
             "superseded_lemmas": sorted(superseded),
             "superseded_reread_lemmas": reread_superseded,
+            "reread_lemmas": dict(sorted(reread.items())),
             "failures": dict(sorted(failures.items())),
             "resolutions": dict(sorted(resolutions.items())),
             "head_rules": head_rules_record(head_audit),

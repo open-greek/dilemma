@@ -739,6 +739,11 @@ def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeyp
     # unlike a name whose genitive was completed
     assert set(audit["resolutions"]) == {"Πέτρα"}
     assert audit["superseded_reread_lemmas"] == []
+    # the rows of the capitalized heads are read under the lowercase head; a
+    # head rejected for its two accents has no reading to take them
+    assert audit["reread_lemmas"] == {
+        "Βαρύπυκνος": "βαρύπυκνος", "Ἱπποθυτέω": "ἱπποθυτέω",
+        "Θεοπρεπότης": "θεοπρεπότης"}
     assert S.unread_printed_heads(
         {"malformed_heads": {"ἄμάντευτος": "two-accents", "Σινα-ῖτις": "inner-hyphen"},
          "lowercased_heads": {"᾿Αθεότης": "ἀθεότης"}}) == {"ἄμάντευτος", "᾿Αθεότης"}
@@ -767,6 +772,40 @@ def test_two_accent_heads_are_corrected_from_the_record(tmp_path, monkeypatch):
     # the printed readings keyed rows of the earlier tables
     assert {"ἄμάντευτος", "Άσιάρχης", "Ἰουδαῖσμός", "κρεᾶνομία",
             "δρυφακτόώὠ"} <= set(audit["superseded_lemmas"])
+    # their rows are read under the corrected head where it has the same
+    # letters; the forms of δρυφακτόώὠ were built on the misreading
+    assert audit["reread_lemmas"] == {
+        "ἄμάντευτος": "ἀμάντευτος", "Άσιάρχης": "Ἀσιάρχης",
+        "Ἰουδαῖσμός": "Ἰουδαϊσμός", "κρεᾶνομία": "κρεανομία"}
+
+
+def test_reread_printed_heads_keeps_only_a_reading_with_the_same_letters():
+    micro = "\u00b5"
+    audit = {
+        "reread_heads": {
+            "ἄμάντευτος": "ἀμάντευτος",          # a second accent
+            "ἀραχνοῦφής": "ἀραχνοϋφής",          # a circumflex for the diaeresis
+            "Άσμοδαῖος": "Ἀσμοδαῖος",            # an acute for the breathing
+            "ούβρικος": "Κούβρικος",             # a letter was lost
+            "ἀνικμάέω": "ἀνικμάζω",              # a letter was misread
+            f"σχη{micro}ατοποιέω": "σχηματοποιέω",  # the overlay reads the micro sign
+            "*Περσικός": "Περσικός",             # no text matches its keys
+            "᾽Αβραμιαῖος": "᾿Αβραμιαῖος",
+            "οἶκόνδε": "οἰκόνδε",                # another source's head
+            "αῦ": "",                            # no reading at all
+        },
+        "lowercased_heads": {"Θεοτήρητος": "θεοτήρητος",
+                             "᾿Αβραμιαῖος": "ἀβραμιαῖος",
+                             "Ἀσμοδαῖος": "ἀσμοδαῖος",
+                             "Πέτρα": "πέτρα"},
+    }
+    assert S.reread_printed_heads(audit, frozenset({"οἶκόνδε", "Πέτρα"})) == {
+        "ἄμάντευτος": "ἀμάντευτος", "ἀραχνοῦφής": "ἀραχνοϋφής",
+        # corrected, then generated under the lowercase head
+        "Άσμοδαῖος": "ἀσμοδαῖος", "Ἀσμοδαῖος": "ἀσμοδαῖος",
+        "Θεοτήρητος": "θεοτήρητος"}
+    assert S.same_letters("Ἰουδαῖσμός", "Ἰουδαϊσμός")
+    assert not S.same_letters("καταγωγύός", "καταγωγός")
 
 
 def test_every_correction_names_an_orth_of_its_chunk():

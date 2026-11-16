@@ -203,17 +203,29 @@ historical layer keyed its rows that way. Two kinds of printed head are
 superseded as a class, since neither is a lemma of the table: a head rejected
 for its two accents (`οἷές`, and the ones the breathing review withholds
 because the OCR read the breathing as an acute, `όψαποίημα`) and a capitalized
-head generated under its lowercase spelling (`Βαρύπυκνος`, `Δυσδαιμονέω`). Most
+head generated under its lowercase spelling (`Βαρύπυκνος`, `Θεοτήρητος`). Most
 heads printed with two accents have a reviewed correction
 (`ἄμάντευτος` is `ἀμάντευτος`, `Άσιάρχης` is `Ἀσιάρχης`, `ἀπράῦντος` is
-`ἀπράϋντος`), and the printed reading is then superseded as a reread head. The
-overlay then recovers none of the rows the historical layer has under them
-(`ἀμάντευτον`, `Βαρυπύκνου`), and a noun among them keeps no published key
-either (it gets no entry in `resolutions`). A two-accent spelling that
+`ἀπράϋντος`), and the printed reading is then superseded as a reread head. No
+row is recovered under such a lemma, and a noun among them keeps no published
+key either (it gets no entry in `resolutions`). A two-accent spelling that
 another lexical source lists (`οἶκόνδε`) is that source's head and is not
 superseded. A head printed without its breathing is not superseded: the
 unbreathed keys of the historical layer are how a breathed form reaches such
 a head at runtime.
+
+`reread_lemmas` maps a superseded printed head to the head it is read as now,
+where the two differ only in accents, breathing, diaeresis or case
+(`ἄμάντευτος` to `ἀμάντευτος`, `ἀραχνοῦφής` to `ἀραχνοϋφής`, `Θεοτήρητος` to
+`θεοτήρητος`). The forms of such an entry were spelled from the same letters,
+so the overlay keeps their keys and reads them under the present head
+(`historical_overlay_counts.reread_lemma_entries`) before any other test:
+`Θεοτηρήτων` reads `θεοτήρητος`, `εἰλεωδῶν` reads `εἰλεώδης`. Most of these
+entries are adjectives, which the Sophocles steps do not expand, so the
+historical rows are their only paradigm. A head whose reading changes a letter
+is not in the map and its rows are dropped, because its forms were built on
+the misreading (`ἀνικμαέει` under `ἀνικμάέω` for `ἀνικμάζω`); nor is a head
+written with an asterisk or a spacing breathing, whose keys match no text.
 
 ## Historical expansion overlay
 

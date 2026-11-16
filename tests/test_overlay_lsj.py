@@ -1341,3 +1341,69 @@ def test_reread_lemmas_come_from_the_sophocles_audit(tmp_path):
     audit.write_text(json.dumps({"superseded_reread_lemmas": "σχῆμα"}), encoding="utf-8")
     with pytest.raises(SystemExit):
         load_reread_noun_lemmas(audit)
+
+
+def test_overlay_reads_a_printed_head_as_the_present_head():
+    """The expansion keyed a Sophocles paradigm by the head as printed. Where
+    the present reading changes no letter the rows keep their keys and take
+    the present head; they are then judged like any other row."""
+    reference = {
+        # printed with two accents, corrected: an adjective, no fresh paradigm
+        "εἰλεώδους": "εἶλεώδης", "εἰλεωδῶν": "εἶλεώδης", "ειλεωδων": "εἶλεώδης",
+        # a typographic capital, generated under the lowercase head
+        "Θεοτηρήτου": "Θεοτήρητος", "Θεοτηρητου": "Θεοτήρητος",
+        "Μακέλλης": "Μακέλλης",
+        # the table has the key: its reading stands
+        "Θεοτήρητος": "Θεοτήρητος",
+        # the present head has a fresh paradigm and is superseded
+        "ἀερίτιδες": "ἄερῖτις",
+        # a head superseded as printed and not read otherwise
+        "οἷέσι": "οἷές",
+    }
+    reread = {"εἶλεώδης": "εἰλεώδης", "Θεοτήρητος": "θεοτήρητος",
+              "Μακέλλης": "μακέλλης", "ἄερῖτις": "ἀερῖτις"}
+    superseded = {"εἶλεώδης", "Θεοτήρητος", "Μακέλλης", "ἄερῖτις", "ἀερῖτις", "οἷές"}
+    target = {"Θεοτήρητος": "θεοτήρητος", "μακέλλης": "μάκελλα"}
+    carried = dict(reference)
+
+    stats = overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded,
+                              carried=carried, reread_lemmas=reread)
+
+    assert target == {
+        "Θεοτήρητος": "θεοτήρητος", "μακέλλης": "μάκελλα",
+        "εἰλεώδους": "εἰλεώδης", "εἰλεωδῶν": "εἰλεώδης",
+        "Θεοτηρήτου": "θεοτήρητος", "Μακέλλης": "μακέλλης",
+    }
+    assert stats["reread_lemma_entries"] == 6
+    assert stats["already_present"] == 1 and stats["conflicts_preserved"] == 0
+    assert stats["superseded_noun_entries"] == 2
+    assert stats["added"] == 4
+
+    # the unaccented keys follow the marked forms
+    from overlay_lsj import restore_unmarked_keys
+    restored = restore_unmarked_keys(reference, {}, target, carried,
+                                     reread_lemmas=reread)
+    assert target["ειλεωδων"] == "εἰλεώδης"
+    assert target["Θεοτηρητου"] == "θεοτήρητος"
+    assert restored["unmarked_restored"] == 2
+
+    # without the record the printed lemmas are superseded as before
+    target = {}
+    overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded,
+                      carried=carried)
+    assert target == {}
+
+
+def test_reread_heads_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_reread_lemmas
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"reread_lemmas": {"Θεοτήρητος": "θεοτήρητος"}},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_reread_lemmas(audit) == {"Θεοτήρητος": "θεοτήρητος"}
+    audit.write_text(json.dumps({"superseded_lemmas": []}), encoding="utf-8")
+    assert load_reread_lemmas(audit) == {}
+    for bad in (["Θεοτήρητος"], {"Θεοτήρητος": ""}, {"Θεοτήρητος": 1}):
+        audit.write_text(json.dumps({"reread_lemmas": bad}, ensure_ascii=False),
+                         encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_reread_lemmas(audit)
