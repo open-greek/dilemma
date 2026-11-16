@@ -508,6 +508,14 @@ REVIEWED_ABSENT_KEY_READINGS = {
     # A misprint of Ionic ἀπίκηται in a Hippocratic text (ἄχρις ἂν ἀρίκηται
     # ἐς τοὺς ἑκατὸν σταδίους); ἀπίκηται reads ἀφικνέομαι. 1.3.25: ἐρείκω.
     "ἀρίκηται": "ἀφικνέομαι",
+    # Capitalized spellings of names that have no row of their own and
+    # fell to a lowercase cell of the verb parts inferred in 1.3.27: the
+    # corpora print the dative of Ἔφεσος without its subscript (34 tokens)
+    # and its accusative with the accent of the dative (2), which in
+    # lowercase are the future and an aorist imperative of ἐφέννυμι; the
+    # genitive of the Γραῖαι is a participle of γραΐζω. 1.3.26 read the
+    # names through its looser keys.
+    "Ἐφέσω": "Ἔφεσος", "Ἐφέσον": "Ἔφεσος", "Γραϊῶν": "Γραῖα",
 }
 
 # The input every reviewed reading is recorded under (lookup_sources.json).
@@ -2670,6 +2678,16 @@ def build():
         # imperfect of ἐπικλύω (GLAUx 1, AGDT 1) an imperative of ἐπεκλύω.
         "ὑποπτέρου": "ὑπόπτερος", "παιδομανεῖ": "παιδομανής",
         "ἐπέκλυε": "ἐπικλύω",
+        # Readings that cells of the LSJ verb pass and of a Sophocles verb
+        # the micro sign had hidden took in 1.3.27: the imperfect of ἀποδέω
+        # (GLAUx 11) is a future of ἀπεσθίω (Diorisis 1), the dative of
+        # ὑπαγόρευσις (GLAUx 7, Diorisis 1) the future of ὑπαγορεύω (GLAUx
+        # 3, Diorisis 1), the aorist of ἐνίημι a perfect of ἐνήκω, the
+        # Attic participle of προσέοικα one of προσίημι, and the adjective
+        # τυμπανόεις an uncontracted cell of τυμπανόω.
+        "ἀπέδει": "ἀποδέω", "ὑπαγορεύσει": "ὑπαγόρευσις",
+        "ἐνῆκα": "ἐνίημι", "προσεικώς": "προσέοικα",
+        "τυμπανόεις": "τυμπανόεις",
         **KAIKKI_2026_11_READING_OVERRIDES,
         **REVIEWED_TREEBANK_READINGS,
         **REVIEWED_ABSENT_KEY_READINGS,
