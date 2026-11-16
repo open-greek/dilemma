@@ -221,6 +221,10 @@ def pos_model(lemmas, pos_lemma):
     model.lemmatize = lambda word, **kwargs: lemmas[0]
     model._using_db = False
     model._mg_lookup = {}  # No lemma is a Modern Greek citation form.
+    # No POS table records a reading or a verb lemma.
+    model._fallback_readings = {}
+    model._fallback_exact_readings = {}
+    model._fallback_verb_lemmas = set()
     return model
 
 
@@ -302,13 +306,17 @@ def test_capitalized_word_keeps_the_reading_of_its_own_row(word, rows, incoming,
             row_decides=row_decides) == capital
 
 
-def closed_class_model(rows, pos_lemma, *, index=0, lookup=None):
-    """twin_model() whose POS entry stands at key variant *index*."""
+def closed_class_model(rows, pos_lemma, *, index=0, lookup=None, verbs=()):
+    """twin_model() whose POS entry stands at key variant *index*.
+
+    *verbs* are the lemmas the POS tables record as verbs.
+    """
     model = twin_model(rows, pos_lemma)
     model._pos_table_hit = lambda word, upos: (pos_lemma, index)
     model._lookup_word = lambda word, **kwargs: (lookup or {}).get(word)
     model._headword_sets = {"lsj": {lemma for lemma, _ in rows}}
     model._ancient_lexical_heads = set()
+    model._fallback_verb_lemmas = set(verbs)
     return model
 
 
@@ -369,46 +377,80 @@ def test_shipped_closed_class_entries_against_twin_families(lang):
 
 
 PHAON_ROWS = [("φάω", "exact"), ("Φάω", "exact+case_alt")]
+VERB_LEMMAS = {"φάω", "μέλω", "κλέω"}
 
 
 @pytest.mark.parametrize("word,rows,name", [
     ("φάων", PHAON_ROWS, "Φάων"),
-    ("ἵππων", [("ἵππος", "exact"), ("Ἵππος", "exact+case_alt")], "Ἵππων"),
-    ("ἀττικὴν", [("ἀττικός", "exact"), ("Ἀττικός", "exact+case_alt")], "Ἀττική"),
+    ("μέλητον", [("μέλω", "exact"), ("Μέλω", "exact+case_alt")], "Μέλητος"),
+    ("κλεῖτον", [("κλέω", "exact"), ("Κλέω", "exact+case_alt")], "Κλεῖτος"),
+    # A capitalized word without a row of its own meets the same verb row.
+    ("Μέλητον", [("μέλω", "lower"), ("Μέλω", "lower+case_alt")], "Μέλητος"),
 ])
-def test_propn_entry_naming_a_name_outranks_the_case_alternate(word, rows, name):
-    model = closed_class_model(rows, name)
+def test_propn_entry_outranks_the_capitalized_twin_of_a_verb_row(word, rows, name):
+    model = closed_class_model(rows, name, verbs=VERB_LEMMAS)
     assert _scalar_and_batch(model, word, "PROPN") == name
     # Under another tag the lookup reading stands.
     assert _scalar_and_batch(model, word, "NOUN") == rows[0][0]
 
 
+@pytest.mark.parametrize("word,rows,name", [
+    # The form may be a case of the twin's name (Ἵππων of Ἵππος, Νόμων of
+    # Νόμοι), and the corpora do not side with the entry.
+    ("ἵππων", [("ἵππος", "exact"), ("Ἵππος", "exact+case_alt")], "Ἵππων"),
+    ("νόμων", [("νόμος", "exact"), ("Νόμος", "exact+case_alt")], "Νόμων"),
+    ("ἀττικὴν", [("ἀττικός", "exact"), ("Ἀττικός", "exact+case_alt")], "Ἀττική"),
+    ("Φοίνικα", [("φοῖνιξ", "lower"), ("Φοῖνιξ", "lower+case_alt")], "Φοίνικας"),
+])
+def test_propn_entry_leaves_the_capitalized_twin_of_a_nominal_row(word, rows, name):
+    model = closed_class_model(rows, name, verbs=VERB_LEMMAS)
+    assert _scalar_and_batch(model, word, "PROPN") == rows[1][0]
+
+
 def test_propn_entry_leaves_a_name_the_lookup_reads_for_the_form():
-    # The row itself reads the capitalized lemma: the lookup holds a name
-    # for this form, and the entry's other name does not replace it.
-    rows = [("ἵππος", "exact+case_alt"), ("Ἵππος", "exact")]
-    model = closed_class_model(rows, "Ἵππων")
-    assert _scalar_and_batch(model, "Ἵππων", "PROPN") == "Ἵππος"
+    # The row itself reads a capitalized lemma: the lookup holds a name for
+    # this form, and the entry's other name does not replace it.
+    rows = [("μέλω", "exact+case_alt"), ("Μέλω", "exact")]
+    model = closed_class_model(rows, "Μέλητος", verbs=VERB_LEMMAS)
+    assert _scalar_and_batch(model, "Μέλητον", "PROPN") == "Μέλω"
 
 
 @pytest.mark.parametrize("index", [3, 4])
 def test_propn_entry_of_a_shared_key_leaves_the_case_alternate(index):
-    model = closed_class_model(PHAON_ROWS, "Φάων", index=index)
+    model = closed_class_model(PHAON_ROWS, "Φάων", index=index,
+                               verbs=VERB_LEMMAS)
     assert _scalar_and_batch(model, "φάων", "PROPN") == "Φάω"
 
 
 def test_propn_entry_naming_a_common_word_leaves_the_case_alternate():
-    model = closed_class_model(PHAON_ROWS, "φάος")
+    model = closed_class_model(PHAON_ROWS, "φάος", verbs=VERB_LEMMAS)
     assert _scalar_and_batch(model, "φάων", "PROPN") == "Φάω"
 
 
+@pytest.mark.parametrize("lemma,expected", [
+    ("φάω", True), ("κεῖμαι", True), ("δίδωμι", True),
+    # a verb's ending without a verb entry (Modern nouns in -μι, names in -ώ)
+    ("ποτάμι", False), ("ἠχώ", False),
+    # a verb entry of a junk cell for a lemma with no verb's ending
+    ("βαρύς", False),
+])
+def test_recorded_verb_lemma_needs_a_verb_entry_and_a_verb_ending(lemma, expected):
+    model = closed_class_model(PHAON_ROWS, "Φάων",
+                               verbs={"φάω", "κεῖμαι", "δίδωμι", "βαρύς"})
+    assert model._is_recorded_verb_lemma(lemma) is expected
+
+
 SHIPPED_NAME_ENTRIES = [
-    ("φάων", "PROPN", "Φάων"), ("ἵππων", "PROPN", "Ἵππων"),
-    ("ἀττικὴν", "PROPN", "Ἀττική"), ("γλαῦκε", "PROPN", "Γλαῦκος"),
-    ("αἰγίνῃ", "PROPN", "Αἴγινα"),
-    # kept: the capitalized spellings, and the lookup reading under NOUN
+    # a verb row and its capitalized twin (1.3.26: Φάω, Μέλω, Κλέω, Ἀλέξω,
+    # Θάλλω, Μένω)
+    ("φάων", "PROPN", "Φάων"), ("μέλητον", "PROPN", "Μέλητος"),
+    ("κλεῖτον", "PROPN", "Κλεῖτος"), ("ἀλέξων", "PROPN", "Ἀλέξων"),
+    ("θαλοῦ", "PROPN", "Θαλῆς"), ("μίνω", "PROPN", "Μίνως"),
+    # kept: a nominal row and its twin, the capitalized spellings, and the
+    # lookup reading under the other tags
+    ("ἵππων", "PROPN", "Ἵππος"), ("ἀττικὴν", "PROPN", "Ἀττικός"),
     ("Φάων", "PROPN", "Φάων"), ("Ἵππων", "PROPN", "Ἵππων"),
-    ("ἵππων", "NOUN", "ἵππος"),
+    ("ἵππων", "NOUN", "ἵππος"), ("φάων", "VERB", "φάω"),
 ]
 
 

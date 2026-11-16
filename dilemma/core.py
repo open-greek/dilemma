@@ -4658,23 +4658,43 @@ class Dilemma:
         read = self._lookup_word(pos_lemma)
         return not (read and read.lower() in family)
 
+    def _is_recorded_verb_lemma(self, lemma: str) -> bool:
+        """Whether *lemma* has a verb's ending and a verb entry in the POS tables.
+
+        The ending alone also fits nouns (the Modern ποτάμι, ἠχώ), and a
+        verb entry alone can be a mistagged cell of another word.
+        """
+        if not strip_accents(lemma.lower()).endswith(("ω", "μαι", "μι")):
+            return False
+        self._load_fallback_readings()
+        return lemma in self._fallback_verb_lemmas
+
     def _name_entry_decides(self, word: str, upos: str, pos_lemma: str,
                             candidates) -> bool:
-        """Whether a PROPN entry naming a name outranks a case-twin family.
+        """Whether a PROPN entry outranks the capitalized twin of a verb row.
 
-        Under PROPN a lookup reading answers as its capitalized twin, and
-        that twin is often only the case alternate of a common word's row
-        (φάων reads φάω, so Φάω; ἵππων reads ἵππος, so Ἵππος). An entry
-        under the word's own spelling that names a capitalized lemma is
-        the name the tables hold for this form (Φάων, Ἵππων) and outranks
-        the alternate. A reading whose own row is the capitalized lemma
-        stands: there the lookup holds a name for the form itself.
+        Under PROPN a lookup reading answers as its capitalized twin. When
+        the row reads a verb (φάων as the participle of φάω, μέλητον as a
+        dual of μέλω), that twin (Φάω, Μέλω) is a name that only shares
+        the verb's citation spelling: no form of a verb is a form of a
+        name. An entry under the word's own spelling that names a
+        capitalized lemma then decides (Φάων, Μέλητος), as it already does
+        against a verb row that has no capitalized twin (#138).
+
+        A row that reads a noun or an adjective keeps its twin (ἵππων
+        PROPN stays Ἵππος, not the entry's Ἵππων): the form may be a case
+        of that name, and on the names of the Perseus, Diorisis and GLAUx
+        pairs the entry was wrong about as often as right there, and
+        more often for capitalized words. So does a reading whose own row
+        is a capitalized lemma: the lookup holds a name for the form.
         """
         if upos != "PROPN" or len(candidates) < 2 or not is_capitalized(pos_lemma):
             return False
-        if any(is_capitalized(c.lemma)
-               and not getattr(c, "via", "").endswith("+case_alt")
-               for c in candidates):
+        direct = [c for c in candidates
+                  if not getattr(c, "via", "").endswith("+case_alt")]
+        if not direct or any(is_capitalized(c.lemma)
+                             or not self._is_recorded_verb_lemma(c.lemma)
+                             for c in direct):
             return False
         try:
             lemma, index = self._pos_table_hit(word, upos)

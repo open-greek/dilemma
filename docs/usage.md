@@ -691,14 +691,22 @@ the lookup reads as a form of that reading, since it names the same word
 under another citation form (`πᾶσι` PRON stays `πᾶς` against a cell's
 `πᾶν`, `οἷα` CCONJ `οἷος`). A form with no entry for the tag still follows
 the lookup (`αἶ` PART gives `αἶα` until the tables hold a PART cell for it).
-Under PROPN a lookup reading answers as its capitalized twin, which for the
-row of a common word is only that word with a capital. A PROPN entry under
-the form's own spelling that names a capitalized lemma is the name the
-tables hold for the form and outranks that twin: `φάων` PROPN gives `Φάων`
-(not the `Φάω` of the row's `φάω`), `ἵππων` PROPN `Ἵππων`, `ἀττικὴν` PROPN
-`Ἀττική`, and with `lang="all"` `Δευτέρα` PROPN `Δευτέρα`. A form whose own
-row reads a capitalized lemma keeps it. This matters for text written
-without capitals; a capitalized name usually has its own row.
+Under PROPN a lookup reading answers as its capitalized twin. When the row
+reads a verb, that twin is a name that only shares the verb's citation
+spelling, and a PROPN entry under the form's own spelling that names a
+capitalized lemma outranks it: `φάων` PROPN gives `Φάων` (not the `Φάω` of
+the row's `φάω`), `μέλητον` PROPN `Μέλητος` (not `Μέλω`), `κλεῖτον` PROPN
+`Κλεῖτος`, as such an entry already did against a verb row without a
+capitalized twin. The row counts as a verb's when its lemma has a verb's
+ending and a verb entry in the POS tables. A row that reads a noun or an
+adjective keeps its twin (`ἵππων` PROPN gives `Ἵππος`, `ἀττικὴν` PROPN
+`Ἀττικός`), since the form may be a case of that name. Letting the entry
+decide there too was measured on the names of the Perseus, Diorisis and
+GLAUx pairs and not adopted: for the names as written it moved 33 answers
+to the corpus lemma and 86 away from it (Modern Greek entries such as
+`Φοίνικα` PROPN `Φοίνικας` replaced `Φοῖνιξ`), for the same names
+lowercased 337 and 240. Against verb rows it moves 28 to the corpus lemma
+and none away. A form whose own row reads a capitalized lemma keeps it.
 
 A capitalized word tagged other than PROPN follows a POS entry that names
 one of its case twins, in `lemmatize_pos()` as in `lemmatize_batch_pos()`:
