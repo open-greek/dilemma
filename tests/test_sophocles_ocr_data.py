@@ -114,3 +114,14 @@ def test_artefacts_of_the_older_tables_stay_out(db):
 ])
 def test_other_sources_rows_of_a_reread_head_stay(db, form, lemma):
     assert lemmas(db, form) == {lemma}
+
+
+@pytest.mark.parametrize("form,lemma", [
+    # cells of μαντίον and μετάθετος, heads the micro sign had hidden
+    ("μαντίων", "μάντις"),
+    ("μεταθέτω", "μετατίθημι"),
+    ("μετάθετε", "μετατίθημι"),
+])
+def test_treebank_readings_keep_their_keys(db, form, lemma):
+    assert lemmas(db, form) == {lemma}
+    assert lemmas(db, "μαντίου") == {"μαντίον"}
