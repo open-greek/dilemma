@@ -26,6 +26,13 @@ python overlay_lsj.py --lsj9-dir LSJ9          # recover pinned historical expan
 python build/expand_lbg.py                    # inflect Byzantine headwords (gated gap-fill)
 ```
 
+`--expand-verbs` also reads `data/form_profile.db` (`python -m dilemma
+download --with-attestation`) and the treebank pair files in `data/`
+(`perseus_pairs.json`, `glaux_pairs.json`, `diorisis_pairs.json`,
+`nt_pairs.json`, `ptnk_pairs.json`, `tagnt_pairs.json`,
+`pedalion_pairs.json`), and stops when one is missing; see
+[Principal parts that no entry prints](#principal-parts-that-no-entry-prints).
+
 This requires LSJ9 data from [lsj9](https://github.com/ciscoriordan/lsj9)
 (included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`; the
 exports `lsj9_forms.tsv`, `lsj9_headwords.json` and `lsj9_glosses.jsonl` are
@@ -453,7 +460,83 @@ The present system of every verb is written before any principal part, so a
 cell a headword spells out itself (`φιαλοῦμαι` of `φιαλόω`) outranks the same
 form derived from another verb's printed part (the future `φιαλῶ` of
 `φιάλλω`). A headword that another verb prints as its principal part
-(`ὑπομνήσω` under `ὑπομιμνήσκω`) is written last.
+(`ὑπομνήσω` under `ὑπομιμνήσκω`) is written after the printed parts, and the
+inferred parts below come last.
+
+### Principal parts that no entry prints
+
+INFERRED_COUNTS_PLACEHOLDER
+
+- A compound takes the parts its simplex prints (`compound_parts`):
+  `συγκατατρίβω` gets `συγκατέτριψα` and `συγκατατρίψω` from `ἔτριψα` and
+  `τρίψω` under `τρίβω`. The last preverb is spelled for the sound that
+  follows: elided before a vowel and aspirated before a rough one
+  (`κατ-έτριψα`, `καθ-είλκυσα`), assimilated before a consonant
+  (`συλ-λήψομαι`, `ἐγ-κεχλίαγκα`), `ἐξ` before a vowel, with the `ρ` doubled
+  after a vowel (`καταρρεύσομαι`). The simplex is the verb left after the
+  longest chain of preverbs, and only when every shorter chain that also
+  leaves a verb leaves a compound of it; two readings that disagree
+  (`ὑπ-ερείδω`, `ὑπερ-είδω`) or two homographs give none, and an aspirated
+  preverb needs a rough verb after it (`καθ-έλκω`).
+- A verb in `-ίζω`, `-άζω`, `-εύω`, `-έω`, `-όω` or `-άω`, or the middle of
+  one, takes the regular parts of its class (`regular_parts`): `εἰκονίζω`
+  gets `εἰκονίσω`, `ᾐκόνισα` and also `εἰκόνισα` (a diphthong is tried with
+  and without the augment), `ᾐκόνικα`, `ᾐκόνισμαι`, `ᾐκονίσθην`, and the
+  Attic future `εἰκονιῶ`. The augment stands in front and, in further
+  candidate sets, after each preverb the letters allow (`ἐπιστατέω`:
+  `ἠπιστάτησα` and `ἐπεστάτησα`). A compound whose simplex prints nothing
+  takes the regular parts of the simplex.
+- Nothing is inferred from a class for a stem under three letters (`ἐρέω`,
+  `ὁράω`, `ἀρόω`), for a headword that may be a compound of such a verb
+  (`ἀπο-θέω`: `ἀποθήσω` is the future of `ἀποτίθημι`), or where another
+  dictionary verb would share the tenses (`regular_rivals`): `-άω` beside
+  `-άζω`, `-έω` or `-όω` on the same stem (`βοάζω`, `βοάω`; `δαπανῶσαι` is the
+  aorist of `δαπανόω` and a participle of `δαπανάω`), or the same verb with
+  the other of `ἀ-` and `ἐ-`, which take one augment (`ἠπόρημαι`). Nothing is
+  inferred at all for a capitalised headword (`Βακχεύω`, which the corpora
+  file under `βακχεύω`) or for a verb whose other voice has an entry of its
+  own (`θεάω` beside `θεάομαι`). A tense the entry prints itself is never
+  inferred.
+
+These parts are hypotheses, so they are expanded like printed ones but only
+the cells a corpus attests are kept: the exact spelling must be in
+`data/form_profile.db` (grave folded to acute, case folded, as in the output
+gate of the attestation runtime). A template call is skipped when no attested
+form begins with one of its stems. Further:
+
+- a cell the table already has, or that is a dictionary headword itself, is
+  left alone (the "perfect participle" `ἱππικός` of `ἱππίζω`; a perfect
+  without visible reduplication is not inferred for a dental stem at all);
+- a cell that two verbs infer goes to neither;
+- a future in `-σει` or `-σεις` (`-ξει`, `-ψει`) is also the dative or plural
+  of the action noun in `-σις` (`ἐπισκιάσει`, `ἀμοιρήσεις`), so it is kept
+  only where a treebank reads it as this verb.
+
+### Treebank readings
+
+A principal-part cell, printed or inferred, does not take a form the
+treebanks read otherwise. The lookup build fills gaps from the treebank pair
+files in a fixed order (`perseus_pairs.json`, `glaux_pairs.json`,
+`diorisis_pairs.json`, `nt_pairs.json`, `ptnk_pairs.json`,
+`tagnt_pairs.json`, `pedalion_pairs.json`), so the reading of a form is that
+of the first file that has it. When that reading is another dictionary
+headword, or the same verb in its other voice (`ἐπιλανθάνομαι` for
+`ἐπιλανθάνω`), the cell is left out and the lookup build takes the treebank
+reading as before: `κατεδέξατο` stays with `καταδέχομαι`, though LSJ also
+prints `κατέδεξα` as the Ionic aorist of `καταδείκνυμι`, and `ἠβουλήθη` stays
+with `βούλομαι`, not `ἀβουλέω`. A treebank lemma that is no headword
+(`σύν-εἶδον`, `νεπεπυρίζω`) decides nothing, and a reading under the same
+letters is agreement (`ἐνθρῴσκω` for `ἐνθρώσκω`). The corpus tables only
+withhold or confirm cells; no form or lemma enters the table from them.
+
+The pass therefore needs `data/form_profile.db` and the seven pair files, and
+stops when one is missing. `--no-corpus-checks` runs without them (no
+inferred parts, no treebank check); that is not the published build. What the
+corpus tables decided is written to `data/ag_verb_generation_audit.json`: the
+content hash of `form_profile.db` and the sha256 of each pair file, the
+inferred cells by verb with the kind of inference and the simplex, the cells
+two verbs inferred, and the cells left to a treebank reading with that
+reading.
 
 ## Finite-form synthesis
 

@@ -229,14 +229,15 @@ def test_only_attested_cells_of_an_inferred_part_are_kept(tmp_path,
 
     def expand(_wtp, headword, tense_args):
         calls.append(tuple(tense_args))
-        return {"εἰκόνισεν", "εἰκονίσας", "εἰκόνισα", "εἰκονίσαιμι"}
+        return {"εἰκόνισε(ν)", "εἰκονίσας", "εἰκόνισα", "εἰκονίσαιμι"}
 
     monkeypatch.setattr(expand_lsj, "_expand_principal_part", expand)
     stats = Counter()
     cells = expand_lsj.expand_inferred_parts(
         None, "εἰκονίζω", regular_parts("εἰκονίζω"), attested, spellings,
         stats)
-    # Lua gives the cells; the corpus decides which are kept.
+    # Lua gives the cells; the corpus decides which are kept. The movable
+    # nu makes two spellings, and only εἰκόνισεν is attested.
     assert cells == {"εἰκόνισεν", "εἰκονίσας"}
     assert ("aor-1", "ᾐκονισ", "εἰκονισ") in calls
     # No attested form begins with ᾐκονισθ- or εἰκονισθ-: no passive aorist.
@@ -321,6 +322,7 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     pairs = tmp_path / "pairs.json"
     pairs.write_text(json.dumps([
         {"form": "κατεδέξατο", "lemma": "καταδέχομαι"},
+        {"form": "κατέδεξεν", "lemma": "καταδέχομαι"},
         {"form": "εἰκονίσεις", "lemma": "εἰκονίζω"}], ensure_ascii=False),
         encoding="utf-8")
     monkeypatch.setattr(expand_lsj, "TREEBANK_PAIRS", (pairs,))
@@ -330,14 +332,14 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     def expand(_wtp, word, head_text="", supplement_text="",
                principal_part_forms=None):
         if word == "καταδείκνυμι":
-            principal_part_forms |= {"κατέδεξε", "κατεδέξατο"}
+            principal_part_forms |= {"κατέδεξε(ν)", "κατεδέξατο"}
         return {word}, ""
 
     monkeypatch.setattr(expand_lsj, "expand_verb", expand)
     monkeypatch.setattr(
         expand_lsj, "_expand_principal_part",
         lambda _wtp, headword, tense_args: (
-            {"εἰκόνισεν", "εἰκόνισα", "εἰκονικός", "εἰκονίσει",
+            {"εἰκόνισε(ν)", "εἰκόνισα", "εἰκονικός", "εἰκονίσει",
              "εἰκονίσεις"}
             if headword == "εἰκονίζω" else set()))
     expand_lsj.expand_verbs()
@@ -346,19 +348,24 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     assert result["εἰκόνισεν"] == "εἰκονίζω"
     # an unattested one, and one that is a headword itself
     assert "εἰκόνισα" not in result and "εἰκονικός" not in result
+    assert "εἰκόνισε" not in result
     # a future that the noun in -σις also spells needs a treebank
     assert "εἰκονίσει" not in result
     assert result["εἰκονίσεις"] == "εἰκονίζω"
-    # a printed part keeps the cell no treebank reads otherwise
+    # a printed part keeps the cell no treebank reads otherwise, one
+    # spelling at a time
     assert result["κατέδεξε"] == "καταδείκνυμι"
+    assert "κατέδεξεν" not in result
     assert "κατεδέξατο" not in result and "κατεδεξατο" not in result
     recorded = json.loads(audit.read_text(encoding="utf-8"))
     assert recorded["inferred"] == {"εἰκονίζω": {
         "kind": "regular", "from": "",
         "cells": ["εἰκονίσεις", "εἰκόνισεν"]}}
-    assert recorded["left_to_treebank"] == [{
-        "form": "κατεδέξατο", "verb": "καταδείκνυμι", "part": "printed",
-        "treebank": ["καταδέχομαι"]}]
+    assert recorded["left_to_treebank"] == [
+        {"form": "κατέδεξεν", "verb": "καταδείκνυμι", "part": "printed",
+         "treebank": ["καταδέχομαι"]},
+        {"form": "κατεδέξατο", "verb": "καταδείκνυμι", "part": "printed",
+         "treebank": ["καταδέχομαι"]}]
     assert recorded["counts"]["inferred_noun_twins"] == 1
     assert set(recorded["inputs"]) == {"form_profile.db", "pairs.json"}
 

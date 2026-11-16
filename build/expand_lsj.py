@@ -2100,6 +2100,8 @@ def expand_inferred_parts(wtp, headword: str, variants: list[dict[str, str]],
     Each set of ``variants`` is expanded like printed parts, one template
     call per tense, but only the cells whose exact spelling a corpus has
     are returned (``attested``, the keys of :func:`load_attested_forms`).
+    A cell with a movable nu is two spellings (ἔλυσε, ἔλυσεν), each kept
+    on its own attestation.
     """
     forms: set[str] = set()
     seen: set[tuple] = set()
@@ -2118,7 +2120,9 @@ def expand_inferred_parts(wtp, headword: str, variants: list[dict[str, str]],
             cells = _expand_principal_part(wtp, headword, tense_args)
             if stats is not None:
                 stats["inferred_cells"] += len(cells)
-            forms |= {form for form in cells if norm_key(form) in attested}
+            forms |= {form for cell in cells
+                      for form in resolve_editorial_form(cell)
+                      if norm_key(form) in attested}
     return forms
 
 
@@ -2403,7 +2407,11 @@ def expand_verbs(corpus_checks: bool = True):
         print(f"  {time.time() - t0:.0f}s elapsed")
 
         # A principal-part cell does not take a form the treebanks read as
-        # another headword.
+        # another headword. Each spelling of a cell is checked by itself
+        # (ἔλυσε, ἔλυσεν).
+        deferred = [({form for cell in forms
+                      for form in resolve_editorial_form(cell)}, hw_clean)
+                    for forms, hw_clean in deferred]
         wanted = {norm_key(form) for forms, _ in deferred for form in forms}
         wanted |= {norm_key(form) for _, forms in inferred for form in forms}
         readings = load_treebank_readings(TREEBANK_PAIRS, wanted)

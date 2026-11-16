@@ -713,6 +713,13 @@ the other moods, which is derived from the headword (`ἀντετάφην` gives
 `ἀντιταφείς`, `εἰσήνεγκα` `εἰσενέγκας`); where the augment cannot be read
 only the indicative is built
 ([Stems of the past tenses](lexicon-expansion.md#stems-of-the-past-tenses)).
+The other verbs print no principal parts. A compound takes those its simplex
+prints (`συγκατατρίβω`: `συγκατέτριψα`), and a verb in `-ίζω`, `-άζω`, `-εύω`,
+`-έω`, `-όω` or `-άω` the regular ones of its class (`εἰκονίζω`: `εἰκόνισα`),
+but only the cells whose exact spelling `form_profile.db` attests are kept,
+and a principal-part cell never takes a form the treebanks read as another
+headword
+([Principal parts that no entry prints](lexicon-expansion.md#principal-parts-that-no-entry-prints)).
 The classifier itself
 (`build/expand_lsj.py::_classify_verb`) routes athematic and
 irregular verbs explicitly: -ννυμι / -νυμι / -ημι / -ωμι / -αμι /
