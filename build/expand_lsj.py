@@ -397,8 +397,9 @@ def parse_lsj_entries(head_rules=None):
     first, then lsj9_headwords.json fills in remaining entries (those without
     grammar in forms.tsv but present in the full headword list).
 
-    ``head_rules`` (``new_lsj_head_rules()``) receives the heads
-    lsj9_forms.tsv prints with a hyphen (see ``settle_lsj_head``).
+    ``head_rules`` (``new_lsj_head_rules()``) receives the heads either
+    export prints with a hyphen (see ``settle_lsj_head``); none of them is
+    an entry under that spelling.
     """
     hw_entries = _parse_lsj9_headwords()
 
@@ -413,7 +414,23 @@ def parse_lsj_entries(head_rules=None):
     # Fill in from headwords.json for entries not covered by forms.tsv
     hw_only = 0
     gen_fills = 0
+    list_joined = list_set_aside = 0
     for hw, entry in hw_entries.items():
+        head, rule = settle_lsj_head(hw, hw_entries)
+        if rule:
+            # The headword list's own artefacts: a word the export broke
+            # with soft hyphens has its entry under the joined word
+            # (βραγ\u00adχάω beside βραγχάω); anything else is no head.
+            if head:
+                list_joined += 1
+            else:
+                list_set_aside += 1
+            if head_rules is not None:
+                if head:
+                    head_rules["joined_heads"][hw] = head
+                else:
+                    head_rules["malformed_heads"][hw] = rule
+            continue
         if hw not in entries and hw in forms_entries:
             entries[hw] = forms_entries[hw]
         if hw not in entries:
@@ -425,6 +442,10 @@ def parse_lsj_entries(head_rules=None):
             entries[hw]["itype"] = entry.get("itype", "")
             gen_fills += 1
 
+    if list_joined or list_set_aside:
+        print(f"  headword-list spellings with a soft hyphen or a dash: "
+              f"{list_joined:,} listed under the joined word, "
+              f"{list_set_aside:,} set aside")
     if hw_only:
         print(f"  headwords-only: {hw_only:,} additional entries")
     if gen_fills:
@@ -482,8 +503,10 @@ def _parse_lsj9_headwords():
 # lsj9_forms.tsv divides a compound or a derivative at its stem (Βακχ-εία,
 # ἀασι-φρονία, καθ-ηδύνω). The hyphen is the export's, not the word's:
 # lsj9_headwords.json lists the same entry under the joined word and keeps the
-# divided spelling in its ``hyphenated`` field.
-_HEAD_HYPHEN = "-"
+# divided spelling in its ``hyphenated`` field. The headword list itself has
+# a few words broken by soft hyphens (βραγ\u00adχάω) and entry text with dashes
+# (ἐπιθρύξω—ἐω).
+_HEAD_HYPHENS = "-\u00ad—–"
 
 
 def new_lsj_head_rules():
@@ -502,11 +525,11 @@ def settle_lsj_head(printed, headwords):
     Joining only drops the hyphens, so the head keeps the accent and
     breathing LSJ prints. A hyphenated head whose joined word LSJ does not
     list is set aside ("inner-hyphen", ``head`` is ""): a head is never
-    keyed with its hyphen.
+    keyed with its hyphen. A soft hyphen and a dash count as hyphens.
     """
-    if _HEAD_HYPHEN not in printed:
+    if not any(mark in printed for mark in _HEAD_HYPHENS):
         return printed, ""
-    joined = printed.replace(_HEAD_HYPHEN, "")
+    joined = "".join(ch for ch in printed if ch not in _HEAD_HYPHENS)
     if joined and joined in headwords:
         return joined, "joined"
     return "", "inner-hyphen"
@@ -572,7 +595,7 @@ def parse_lsj9_entries(forms_path: Path | None = None, headwords=None,
                 head_rules["joined_heads"][printed] = hw
                 # The joined spelling with its quantity marks, as
                 # lsj9_headwords.json spells the entry.
-                hw_raw = hw_raw.replace(_HEAD_HYPHEN, "")
+                hw_raw = "".join(ch for ch in hw_raw if ch not in _HEAD_HYPHENS)
 
             article_info = _grammar_to_article.get(grammar, ("", ""))
             article, gender = article_info

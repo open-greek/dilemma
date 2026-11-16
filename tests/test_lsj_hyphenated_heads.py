@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT / "build"))
 import expand_lsj as L  # noqa: E402
 
 LISTED = frozenset({"Βακχεία", "ἀασιφρονία", "καθηδύνω", "ἀδαμαντοπέδιλος",
-                    "καλοκἀγαθία", "λοῖσθος"})
+                    "καλοκἀγαθία", "λοῖσθος", "βραγχάω"})
 
 
 @pytest.mark.parametrize("printed,head,rule", [
@@ -27,6 +27,11 @@ LISTED = frozenset({"Βακχεία", "ἀασιφρονία", "καθηδύνω
     # LSJ does not list the joined word: never a hyphenated key
     ("Σινα-ῖτις", "", "inner-hyphen"),
     ("-", "", "inner-hyphen"),
+    # the headword list's soft hyphens and dashes are no part of a word either
+    ("βραγ\u00adχάω", "βραγχάω", "joined"),
+    ("βου\u00adμα\u00adστόω", "", "inner-hyphen"),
+    ("ἐπιθρύξω—ἐω", "", "inner-hyphen"),
+    ("βιβλ–", "", "inner-hyphen"),
 ])
 def test_settle_lsj_head_reads_a_divided_head_under_the_joined_headword(
         printed, head, rule):
@@ -64,7 +69,15 @@ HEADWORDS = [
     {"id": 5, "headword": "λοῖσθος", "grammar": "ὁ"},
     {"id": 6, "headword": "καθηδύνω", "hyphenated": "καθ-ηδύνω"},
     {"id": 7, "headword": "Βακχεῖον", "hyphenated": "Βακχ-εῖον", "grammar": "τό"},
+    # the list's own artefacts: a soft hyphen inside a listed word, a soft
+    # hyphen inside a word LSJ does not have, and a dash between two words
+    {"id": 8, "headword": "καθ\u00adηδύνω"},
+    {"id": 9, "headword": "βου\u00adμα\u00adστόω"},
+    {"id": 10, "headword": "ἐπιθρύξω—ἐω"},
 ]
+LIST_JOINED = {"καθ\u00adηδύνω": "καθηδύνω"}
+LIST_MALFORMED = {"βου\u00adμα\u00adστόω": "inner-hyphen",
+                  "ἐπιθρύξω—ἐω": "inner-hyphen"}
 
 
 @pytest.fixture
@@ -109,8 +122,10 @@ def test_merged_entries_have_one_entry_per_joined_headword(lsj9):
     # only the headword list has this entry
     assert entries["Βακχεῖον"]["gender"] == "n"
     assert rules["joined_heads"]["Βακχ-εία"] == "Βακχεία"
+    assert rules["joined_heads"]["καθ\u00adηδύνω"] == "καθηδύνω"
     assert L.head_rules_record(rules)["malformed_heads"] == {
-        "count": 1, "heads": {"Σινα-ῖτις": "inner-hyphen"}}
+        "count": 3, "heads": {"Σινα-ῖτις": "inner-hyphen", **LIST_MALFORMED}}
+    assert not any(mark in head for head in entries for mark in "-\u00ad—–")
 
 
 def test_noun_step_generates_under_the_joined_head_and_records_the_rule(
@@ -139,10 +154,11 @@ def test_noun_step_generates_under_the_joined_head_and_records_the_rule(
     audit = json.loads((lsj9 / "ag_noun_generation_audit.json")
                        .read_text(encoding="utf-8"))
     assert audit["head_rules"] == {
-        "joined_heads": {"count": 4, "heads": {
+        "joined_heads": {"count": 5, "heads": {
             "Βακχ-εία": "Βακχεία", "Βακχ-εύς": "Βακχεύς",
-            "καθ-ηδύνω": "καθηδύνω", "λοῖσθ-ος": "λοῖσθος"}},
-        "malformed_heads": {"count": 1, "heads": {"Σινα-ῖτις": "inner-hyphen"}}}
+            "καθ-ηδύνω": "καθηδύνω", "λοῖσθ-ος": "λοῖσθος", **LIST_JOINED}},
+        "malformed_heads": {"count": 3, "heads": {
+            "Σινα-ῖτις": "inner-hyphen", **LIST_MALFORMED}}}
     # superseded lemmas and resolutions name the joined head
     assert not any("-" in lemma for lemma in audit["superseded_lemmas"])
     assert not any("-" in lemma for lemma in audit["resolutions"])
@@ -166,7 +182,9 @@ def test_verb_step_never_expands_a_hyphenated_head(lsj9, monkeypatch):
 
     monkeypatch.setattr(L, "expand_verb", expand_verb)
     L.expand_verbs()
+    # not καθ-ηδύνω, and none of the list's broken spellings
     assert calls == ["καθηδύνω"]
     lookup = json.loads(table.read_text(encoding="utf-8"))
     assert lookup["καθηδύνεις"] == "καθηδύνω"
-    assert not any("-" in form or "-" in lemma for form, lemma in lookup.items())
+    assert not any(mark in form or mark in lemma
+                   for form, lemma in lookup.items() for mark in "-\u00ad—–")
