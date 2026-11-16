@@ -1,17 +1,17 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub (files) and of the other files the Hub serves that builds and tools read (pinned_only). Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-16T17:36:40Z",
+  "generated": "2026-11-16T21:01:07Z",
   "files": {
     "data/lookup.db": {
-      "size": 1533190144,
-      "sha256": "cd46adcdfe203b007e6f22a9e5e6b4edd0850724730c4c406eb78540423d0a81",
-      "git_sha1": "737f0780127ad319bda27bb737a25ee46f9303dc"
+      "size": 1448988672,
+      "sha256": "7c4216ddaac3f840fe58c7566c39ffc4a4f488bbb63f5aaa10453dd2fbd08240",
+      "git_sha1": "604ad462771caa8367843affff6d5e064f057334"
     },
     "data/spell_index.db": {
-      "size": 637923328,
-      "sha256": "4e212100ae7aecebde46d9f9c1c2ed7e0a6c5322647d29d665ed5a3804b58ff7",
-      "git_sha1": "0da96c10f189dac2233474d6db8757ded0c1fbf2"
+      "size": 601460736,
+      "sha256": "4c591fbfad7a71bd9bd82f69ddf72da088ab3b4aaa09f5ecbbaa8e90d7f94e41",
+      "git_sha1": "4a36a1ffaf5c5fc70560f43f23b9f6297f42ede2"
     },
     "data/lemma_attestation.json": {
       "size": 48258266,
@@ -84,14 +84,14 @@
       "git_sha1": "c8241a655652fb2232f283a7ac0279688a6bb290"
     },
     "data/ag_noun_generation_audit.json": {
-      "size": 8936339,
-      "sha256": "8ade4dc2b8e32dda546c222a0f806e9465f86317b4b92be4bc31d599a7338071",
-      "git_sha1": "148931367fdadcbf1d0938153e568f59c5b1fa2f"
+      "size": 7328293,
+      "sha256": "533c8b0efa64de795df12147156e5f9eaaeffa8790ec5d1e79797591cc15b8e3",
+      "git_sha1": "b68d58319109b5efe4e35977c2c20e73843fee33"
     },
     "data/ag_sophocles_noun_generation_audit.json": {
-      "size": 1834422,
-      "sha256": "8496e8a139218eec9a07a9368846f47a21c4bf4110a5655115b0f2db11773e89",
-      "git_sha1": "6dc0bb4f0b44a29e9e14d4105dd6a7d1edcc54e2"
+      "size": 1929382,
+      "sha256": "6c0c2eb46139249e5be7bb58e5c3b7c4195946561db1cdb75777e1e9f1d3b6a3",
+      "git_sha1": "69e59295721629db27120e3acdba285e450f7be8"
     },
     "data/mg_pairs.json": {
       "size": 529904801,
@@ -154,14 +154,14 @@
       "git_sha1": "9133cdc639826f27ae09311fc3080b54f8b33bd0"
     },
     "data/treebank_pos_lookup.json": {
-      "size": 4956527,
-      "sha256": "0bb954669fef4b2a13c3dee844b6557b648f7360b1a5e66f3eca6ce3c2a85f79",
-      "git_sha1": "adb3d007d03fb834d161152da514cb5b77cda4a2"
+      "size": 5994547,
+      "sha256": "ef935b3ab40c05a39e7ed7b597cb5628fb56e3ef8adc4a34980db3e0cf01c669",
+      "git_sha1": "2b1b0e5fd08691551e37479ca9c180143d9a2047"
     },
     "data/ag_headwords.json": {
-      "size": 5061093,
-      "sha256": "f394a8759a7e94aa17ab710b52f1033e0e90206d66a0eeb021e47e30a3da1a77",
-      "git_sha1": "df19ec2193309431a175d088b899c29f2ae077d2"
+      "size": 4885645,
+      "sha256": "102e75b7022260eefff696755c180efb8d541688caa1061c810996b1bb329684",
+      "git_sha1": "b6271067349f55acb4796041ceda394fa88ee95a"
     },
     "data/cunliffe_headwords.json": {
       "size": 241110,
@@ -249,14 +249,14 @@
       "git_sha1": "917e607515bc09b91e54c2a4e1bf4af91cf4e7a8"
     },
     "data/grc_lexical_heads.json": {
-      "size": 43564541,
-      "sha256": "f68ef982ed723883d5a03f3e6f9816b7f4348e3583887a22586c51b7efc64037",
-      "git_sha1": "df8fdf5575c06e1e939948b093950281456c0172"
+      "size": 43586910,
+      "sha256": "de71937064593f77a4956deaae3ae3f36fb2516008961357927a12d225023094",
+      "git_sha1": "086136c1a24620d05399e74cc464a4873b530c62"
     },
     "data/grc_contracted_verb_aliases.json": {
       "size": 162336,
-      "sha256": "f96ca172375f6fde3c8b9e76739d41dab13288906e852a528f0ad04a88a5080f",
-      "git_sha1": "04864ddb1ea79d46cd914967c417f0763fc5fa18"
+      "sha256": "ef5303d7299fede41b3eeeafd2b6876349fbadef6a25cf424f6d04154c964933",
+      "git_sha1": "0afaa666887928c7486ebc491a65508227bb56aa"
     },
     "data/el_closed_class_heads.json": {
       "size": 16158,
@@ -269,14 +269,14 @@
       "git_sha1": "4f31f60b3244797b795b148b256caef2c49f186f"
     },
     "data/grc_adverb_heads.json": {
-      "size": 756827,
-      "sha256": "d90a93267e7a37d91179fa01588d42144931ce9cb85f11f7dbeaa2578b66785f",
-      "git_sha1": "d09361df001f3c61b736a5fbe2b7fa96483c6967"
+      "size": 756632,
+      "sha256": "abfd4cbbca60c244656fad4baed72902b3b5c7c1078aca6b045ee484d101ca79",
+      "git_sha1": "a4d784b1ca2238e6b29c5e325aeeb561f3cec306"
     },
     "data/pos_cell_corrections.json": {
-      "size": 97835,
-      "sha256": "7d75cd19fd02608c4cba584dc4f576fce8beea8130fdb496aadf48be84ff8c0b",
-      "git_sha1": "09e87fb2a59b544dfddf77c528c349a2036ad788"
+      "size": 86480,
+      "sha256": "e723597b02a4a7c53df4f91ccb2548aa6bb37a5e36ac54847e8f48cee91eff5e",
+      "git_sha1": "6bec2918f5ace6fed545bd820d58b037c3ed08b8"
     },
     "data/verb_subjects.json": {
       "size": 725737,
@@ -299,9 +299,9 @@
       "git_sha1": "9da3a6736fc122ceb1f2e87f84ab37584ff19aa6"
     },
     "data/treebank_pos_lookup.audit.json": {
-      "size": 10399325,
-      "sha256": "6fe32d4945fab0054fca523cba195cfa93a005cf9e78790e6639524fb646e266",
-      "git_sha1": "ed8f76a776e250aad83255e2d1af18d1323e23d4"
+      "size": 12116762,
+      "sha256": "0fa1de235ec472448e1b7138467e1b3f45d83f46e3ea3c493e3cb4a527cf6e00",
+      "git_sha1": "0acdb7c10c5b298078edeaf56d7d77f9c8af8783"
     },
     "model/combined-s3/vocab.json": {
       "size": 9127,
@@ -336,9 +336,9 @@
   },
   "pinned_only": {
     "data/ag_lookup.json": {
-      "size": 505333453,
-      "sha256": "40f6782c534a90351c6a9df85c03a4b9620528c3aa3cbab7654d0cca0e131ad7",
-      "git_sha1": "0cb3d6bb32f638b2cce7cd21eb296d4c79db6c53"
+      "size": 456539236,
+      "sha256": "4773bea9deeca134bdd78d871501137c795b31a99b84bda5c1fb9985068d7158",
+      "git_sha1": "ca4c6f373b1ae71b1381c1e1f9036a3b2ea8b9bd"
     },
     "data/ag_pairs.json": {
       "size": 435451673,
@@ -356,14 +356,19 @@
       "git_sha1": "fbf2d0f8a8faedf30db87823611a37525d9b607f"
     },
     "data/ag_source_alias_audit.json": {
-      "size": 16894050,
-      "sha256": "83b45b4c6d39a4eccacd87a137a45167194211f145c20a224e6c39edd9d871b5",
-      "git_sha1": "91736d331e07ba5e67a6680372926239599bd826"
+      "size": 16895088,
+      "sha256": "067e1414a301c79903ae4fd5d23186492a9718702dfa60411734052551847492",
+      "git_sha1": "7d7e15e158d12ae4c21e23495a211badd9cf4c53"
     },
     "data/ag_source_alias_manifest.json": {
-      "size": 7566,
-      "sha256": "085303c8e2ebfffc88c9e35080d112c8eb447b41c04d5a257213b95bf56396c3",
-      "git_sha1": "306fdc015ae8165aaa9ab65ef97d9d2f4b8bd395"
+      "size": 7563,
+      "sha256": "ef404f0029585fe9d9b9ff6904724786f762ad463ae22ab0fe2e5fe9af4581ae",
+      "git_sha1": "6460f244afabb9fe3d17c1eca875c568d45f419e"
+    },
+    "data/ag_verb_generation_audit.json": {
+      "size": 2680855,
+      "sha256": "c794fe746c7a5c2bf2347897c9428ea499b1527a7bfb14b73d77b3b028461942",
+      "git_sha1": "d4e385d9f8ce59ed0d9574ef7f801c8745d5b0aa"
     },
     "data/med_pos_lookup.json": {
       "size": 3340,
