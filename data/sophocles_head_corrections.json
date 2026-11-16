@@ -221,6 +221,486 @@
       "head": "ψιμυθιοφανής",
       "source": "sophocles/1150.xml",
       "reason": "nu for upsilon (looking like ψιμύθιον)"
+    },
+    "άβροχία": {
+      "head": "ἀβροχία",
+      "source": "sophocles/0057.xml",
+      "reason": "an acute for the smooth breathing (from ἄβροχος)"
+    },
+    "άγκυρηβόλιον": {
+      "head": "ἀγκυρηβόλιον",
+      "source": "sophocles/0057.xml",
+      "reason": "an acute for the smooth breathing (= ἀγκυροβόλιον)"
+    },
+    "άδούλωτος": {
+      "head": "ἀδούλωτος",
+      "source": "sophocles/0057.xml",
+      "reason": "an acute for the smooth breathing (from δουλόω)"
+    },
+    "άειπάρθενος": {
+      "head": "ἀειπάρθενος",
+      "source": "sophocles/0057.xml",
+      "reason": "an acute for the smooth breathing (ever-virgin)"
+    },
+    "Άρποκράτης": {
+      "head": "Ἁρποκράτης",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the rough breathing (Harpocrates)"
+    },
+    "Άσιανῶς": {
+      "head": "Ἀσιανῶς",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (adverb, in Asiatic style)"
+    },
+    "Άσιάρχης": {
+      "head": "Ἀσιάρχης",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (Asiarch)"
+    },
+    "Άσιδαῖοι": {
+      "head": "Ἀσιδαῖοι",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (the Asidaeans of the Septuagint)"
+    },
+    "Άσμοδαῖος": {
+      "head": "Ἀσμοδαῖος",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (Asmodaeus)"
+    },
+    "Άσσυρίηθεν": {
+      "head": "Ἀσσυρίηθεν",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (adverb, from Assyria)"
+    },
+    "Άσταρώθ": {
+      "head": "Ἀσταρώθ",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (Astaroth)"
+    },
+    "άσύνδετος": {
+      "head": "ἀσύνδετος",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (from συνδέω)"
+    },
+    "άφθαρσία": {
+      "head": "ἀφθαρσία",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (from ἄφθαρτος)"
+    },
+    "Άφθαρτοδοκηταί": {
+      "head": "Ἀφθαρτοδοκηταί",
+      "source": "sophocles/0250.xml",
+      "reason": "an acute for the smooth breathing (ῶν, οἱ, from ἄφθαρτος and δοκητής)"
+    },
+    "έγκράτεια": {
+      "head": "ἐγκράτεια",
+      "source": "sophocles/0400.xml",
+      "reason": "an acute for the smooth breathing (continence)"
+    },
+    "εὶμί": {
+      "head": "εἰμί",
+      "source": "sophocles/0400.xml",
+      "reason": "a grave for the smooth breathing (to be)"
+    },
+    "έμμενετέος": {
+      "head": "ἐμμενετέος",
+      "source": "sophocles/0450.xml",
+      "reason": "an acute for the smooth breathing (= ὃν δεῖ ἐμμένειν)"
+    },
+    "έξοδιάζω": {
+      "head": "ἐξοδιάζω",
+      "source": "sophocles/0450.xml",
+      "reason": "an acute for the smooth breathing (to spend)"
+    },
+    "έπαίσθησις": {
+      "head": "ἐπαίσθησις",
+      "source": "sophocles/0450.xml",
+      "reason": "an acute for the smooth breathing (perception)"
+    },
+    "έπιτλοκή": {
+      "head": "ἐπιπλοκή",
+      "source": "sophocles/0500.xml",
+      "reason": "an acute for the smooth breathing and tau for pi (from ἐπιπλέκω)"
+    },
+    "ίκματώδης": {
+      "head": "ἰκματώδης",
+      "source": "sophocles/0550.xml",
+      "reason": "an acute for the smooth breathing (from ἰκμάς)"
+    },
+    "ίλλέκεβρα": {
+      "head": "ἰλλέκεβρα",
+      "source": "sophocles/0550.xml",
+      "reason": "an acute for the smooth breathing (the Latin illecebra)"
+    },
+    "όμοιοχρώματος": {
+      "head": "ὁμοιοχρώματος",
+      "source": "sophocles/0800.xml",
+      "reason": "an acute for the rough breathing (of like color)"
+    },
+    "όπλοδοτέω": {
+      "head": "ὁπλοδοτέω",
+      "source": "sophocles/0800.xml",
+      "reason": "an acute for the rough breathing (ὅπλα δίδωμι)"
+    },
+    "οπτίλέτις": {
+      "head": "ὀπτιλέτις",
+      "source": "sophocles/0800.xml",
+      "reason": "no breathing and a second accent (from ὀπτίλος; the other lexica have ὀπτιλέτις)"
+    },
+    "ἀνθρωποῦπόστατος": {
+      "head": "ἀνθρωποϋπόστατος",
+      "source": "sophocles/0150.xml",
+      "reason": "the diaeresis was read as a circumflex (from ὑπόστασις)"
+    },
+    "ἀπράῦντος": {
+      "head": "ἀπράϋντος",
+      "source": "sophocles/0200.xml",
+      "reason": "the diaeresis was read as a circumflex (from πραΰνω)"
+    },
+    "ἀραχνοῦφής": {
+      "head": "ἀραχνοϋφής",
+      "source": "sophocles/0200.xml",
+      "reason": "the diaeresis was read as a circumflex (from ὕφος)"
+    },
+    "ἀστεῖσμός": {
+      "head": "ἀστεϊσμός",
+      "source": "sophocles/0250.xml",
+      "reason": "the diaeresis was read as a circumflex (from ἀστεΐζομαι)"
+    },
+    "Ἰουδαῖσμός": {
+      "head": "Ἰουδαϊσμός",
+      "source": "sophocles/0600.xml",
+      "reason": "the diaeresis was read as a circumflex (from ἰουδαΐζω)"
+    },
+    "ἰσοῦψής": {
+      "head": "ἰσοϋψής",
+      "source": "sophocles/0600.xml",
+      "reason": "the diaeresis was read as a circumflex (of equal ὕψος)"
+    },
+    "κερέῖνος": {
+      "head": "κερέϊνος",
+      "source": "sophocles/0650.xml",
+      "reason": "the diaeresis was read as a circumflex (η, ον, from κέρας)"
+    },
+    "λεπτοῦφής": {
+      "head": "λεπτοϋφής",
+      "source": "sophocles/0700.xml",
+      "reason": "the diaeresis was read as a circumflex (from ὑφαίνω)"
+    },
+    "Μωῦσῆς": {
+      "head": "Μωϋσῆς",
+      "source": "sophocles/0750.xml",
+      "reason": "the diaeresis was read as a circumflex (Moses)"
+    },
+    "προὔποθετέον": {
+      "head": "προϋποθετέον",
+      "source": "sophocles/0950.xml",
+      "reason": "the diaeresis was read as a breathing with an acute (= δεῖ προϋποτιθέναι)"
+    },
+    "᾿ἸἸουδαΐϊστί": {
+      "head": "Ἰουδαϊστί",
+      "source": "sophocles/0600.xml",
+      "reason": "the capital and the iota with its diaeresis are printed twice (adverb, = Ἑβραϊστί)"
+    },
+    "ἄερῖτις": {
+      "head": "ἀερῖτις",
+      "source": "sophocles/0057.xml",
+      "reason": "two accents: the noun in -ῖτις (ιδος, ἡ, from ἀήρ)"
+    },
+    "αἴθριάζω": {
+      "head": "αἰθριάζω",
+      "source": "sophocles/0057.xml",
+      "reason": "two accents: the verb in -άζω (future άσω)"
+    },
+    "Ἀβίσώπειος": {
+      "head": "Αἰσώπειος",
+      "source": "sophocles/0057.xml",
+      "reason": "Ἀβί for Αἰ, with a second accent (from Αἴσωπος, Esopic)"
+    },
+    "ἄμάντευτος": {
+      "head": "ἀμάντευτος",
+      "source": "sophocles/0100.xml",
+      "reason": "two accents: the verbal adjective of μαντεύομαι with alpha privative"
+    },
+    "ἄναχωρητής": {
+      "head": "ἀναχωρητής",
+      "source": "sophocles/0150.xml",
+      "reason": "two accents: the noun in -τής (οῦ, ὁ)"
+    },
+    "ἀνείλέω": {
+      "head": "ἀνειλέω",
+      "source": "sophocles/0150.xml",
+      "reason": "two accents: the compound of εἰλέω"
+    },
+    "ἀνθρρίκοειδής": {
+      "head": "ἀνθρακοειδής",
+      "source": "sophocles/0150.xml",
+      "reason": "ρί for alpha, with a second accent (ές, like coal)"
+    },
+    "ἀνικμάέω": {
+      "head": "ἀνικμάζω",
+      "source": "sophocles/0150.xml",
+      "reason": "an accented epsilon for zeta (future άσω; the entry goes on with ἀνικμάζομαι)"
+    },
+    "ἅπλός": {
+      "head": "ἁπλός",
+      "source": "sophocles/0200.xml",
+      "reason": "two accents: the adjective ἁπλός (ή, όν, = ἁπλόος)"
+    },
+    "ἀποτέλεσμός": {
+      "head": "ἀποτελεσμός",
+      "source": "sophocles/0200.xml",
+      "reason": "two accents: the noun in -σμός (οῦ, ὁ, from ἀποτελέω)"
+    },
+    "ἄπωσμός": {
+      "head": "ἀπωσμός",
+      "source": "sophocles/0200.xml",
+      "reason": "two accents: the noun in -σμός (οῦ, ὁ, from ἀπωθέω)"
+    },
+    "Ἄργυρός": {
+      "head": "Ἀργυρός",
+      "source": "sophocles/0200.xml",
+      "reason": "two accents: the name is oxytone (genitive οῦ)"
+    },
+    "ἄστροθεσία": {
+      "head": "ἀστροθεσία",
+      "source": "sophocles/0250.xml",
+      "reason": "two accents: the noun in -ία (from ἀστρόθετος)"
+    },
+    "αὔλίσκος": {
+      "head": "αὐλίσκος",
+      "source": "sophocles/0250.xml",
+      "reason": "two accents: the diminutive in -ίσκος"
+    },
+    "αὔλῳδός": {
+      "head": "αὐλῳδός",
+      "source": "sophocles/0250.xml",
+      "reason": "two accents: the compound in -ῳδός (οῦ, ὁ)"
+    },
+    "Βασκάνω(βάσκανος)": {
+      "head": "βασκάνως",
+      "source": "sophocles/0300.xml",
+      "reason": "the adverb's final sigma is lost before the etymology joined to it, and the capital is the OCR's (adv. enviously)"
+    },
+    "γεντιᾶνή": {
+      "head": "γεντιανή",
+      "source": "sophocles/0300.xml",
+      "reason": "a circumflex for the length mark over the alpha (ῆς, ἡ, gentian)"
+    },
+    "διάκοίλος": {
+      "head": "διάκοιλος",
+      "source": "sophocles/0350.xml",
+      "reason": "two accents: the compound of κοῖλος"
+    },
+    "διαλλακτήρίος": {
+      "head": "διαλλακτήριος",
+      "source": "sophocles/0350.xml",
+      "reason": "two accents: the adjective in -ήριος (from διαλλακτήρ)"
+    },
+    "δρυφακτόώὠ": {
+      "head": "δρυφακτόω",
+      "source": "sophocles/0350.xml",
+      "reason": "the final omega is printed three times (future όσω, from δρύφακτον)"
+    },
+    "Ἔγκρατηταί": {
+      "head": "Ἐγκρατηταί",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the plural in -ταί (see Ἐγκρατῖται)"
+    },
+    "εἶδέα": {
+      "head": "εἰδέα",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the noun in -έα (ας, ἡ, = ἰδέα)"
+    },
+    "εἶδοί": {
+      "head": "εἰδοί",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the oxytone plural (see ἰδοί)"
+    },
+    "εἴκοσιπεντάκις": {
+      "head": "εἰκοσιπεντάκις",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the numeral adverb in -άκις"
+    },
+    "εἶλεώδης": {
+      "head": "εἰλεώδης",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the adjective in -ώδης (ες, from εἰλεός)"
+    },
+    "εἴληματικός": {
+      "head": "εἰληματικός",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the adjective in -ικός (ή, όν, from εἴλημα)"
+    },
+    "εἴλητάριον": {
+      "head": "εἰλητάριον",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the diminutive in -άριον (ου, τό)"
+    },
+    "εἷλιγμός": {
+      "head": "εἱλιγμός",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the noun in -μός (οῦ, ὁ, = ἑλιγμός)"
+    },
+    "ἐκκήρυκτός": {
+      "head": "ἐκκήρυκτος",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the compound verbal adjective is recessive (ον, from ἐκκηρύσσω)"
+    },
+    "ἔλάφρωσις": {
+      "head": "ἐλάφρωσις",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the noun in -ωσις (εως, ἡ)"
+    },
+    "ἔνζῴδος": {
+      "head": "ἔνζῳδος",
+      "source": "sophocles/0450.xml",
+      "reason": "two accents: the compound adjective is recessive (ον, from ζῴδιον)"
+    },
+    "ἐννάκόσιοι": {
+      "head": "ἐννακόσιοι",
+      "source": "sophocles/0450.xml",
+      "reason": "two accents: the numeral in -κόσιοι"
+    },
+    "ἐνσώρεύω": {
+      "head": "ἐνσωρεύω",
+      "source": "sophocles/0450.xml",
+      "reason": "two accents: the compound of σωρεύω"
+    },
+    "Ἔρετριάς": {
+      "head": "Ἐρετριάς",
+      "source": "sophocles/0500.xml",
+      "reason": "two accents: the feminine in -άς (άδος, ἡ)"
+    },
+    "Ἕρμαῖος": {
+      "head": "Ἑρμαῖος",
+      "source": "sophocles/0500.xml",
+      "reason": "two accents: the adjective in -αῖος (α, ον, of Hermes)"
+    },
+    "εὔάνετος": {
+      "head": "εὐάνετος",
+      "source": "sophocles/0500.xml",
+      "reason": "two accents: the compound with εὐ- (ον, from ἀνίημι)"
+    },
+    "εὔληθάργητος": {
+      "head": "εὐληθάργητος",
+      "source": "sophocles/0500.xml",
+      "reason": "two accents: the compound with εὐ- (ον, from ληθαργέω)"
+    },
+    "Ἐύνομιανοί": {
+      "head": "Εὐνομιανοί",
+      "source": "sophocles/0500.xml",
+      "reason": "the breathing stands on the first vowel of the diphthong and its accent was added (the followers of Εὐνόμιος)"
+    },
+    "ζῴοτρόφος": {
+      "head": "ζῳοτρόφος",
+      "source": "sophocles/0550.xml",
+      "reason": "two accents: the active compound of τρέφω (keeping animals)"
+    },
+    "ζῴωτός": {
+      "head": "ζῳωτός",
+      "source": "sophocles/0550.xml",
+      "reason": "two accents: the adjective in -ωτός (ή, όν, from ζῷον)"
+    },
+    "κακιστέύω": {
+      "head": "κακιστεύω",
+      "source": "sophocles/0600.xml",
+      "reason": "two accents: the verb in -εύω (= κακίζω)"
+    },
+    "καρπόύβρωτος. ον": {
+      "head": "καρπόβρωτος",
+      "source": "sophocles/0600.xml",
+      "reason": "όύ for ό (ον, from βρωτός; Deut. 20, 20)"
+    },
+    "καταγωγύός": {
+      "head": "καταγωγός",
+      "source": "sophocles/0600.xml",
+      "reason": "ύό for ό (όν, bringing down; opposed to ἀναγωγός)"
+    },
+    "καταδαπάνή": {
+      "head": "καταδαπάνη",
+      "source": "sophocles/0600.xml",
+      "reason": "two accents: the compound of δαπάνη (ης, ἡ)"
+    },
+    "κήπευτικός": {
+      "head": "κηπευτικός",
+      "source": "sophocles/0650.xml",
+      "reason": "two accents: the adjective in -ικός (ή, όν)"
+    },
+    "κνᾶκίας": {
+      "head": "κνακίας",
+      "source": "sophocles/0650.xml",
+      "reason": "a circumflex for the length mark over the alpha (see κνηκίας)"
+    },
+    "κουαιστόρισσᾶ": {
+      "head": "κουαιστόρισσα",
+      "source": "sophocles/0650.xml",
+      "reason": "a circumflex on the short final alpha (ης, ἡ, the wife of a κουαίστωρ)"
+    },
+    "κρεᾶνομία": {
+      "head": "κρεανομία",
+      "source": "sophocles/0650.xml",
+      "reason": "a circumflex for the length mark over the alpha (ας, ἡ, from κρεανόμος)"
+    },
+    "κυνᾶγεσία": {
+      "head": "κυναγεσία",
+      "source": "sophocles/0650.xml",
+      "reason": "a circumflex for the length mark over the alpha (ας, ἡ, Doric, = κυνηγεσία)"
+    },
+    "κυνᾶγέτις": {
+      "head": "κυναγέτις",
+      "source": "sophocles/0650.xml",
+      "reason": "a circumflex for the length mark over the alpha (ιδος, ἡ, Doric, = κυνηγέτις)"
+    },
+    "Κυρινάλιὰ": {
+      "head": "Κυρινάλια",
+      "source": "sophocles/0650.xml",
+      "reason": "a grave on the final alpha (ων, τά, Quirinalia)"
+    },
+    "κυριόλεκτέω": {
+      "head": "κυριολεκτέω",
+      "source": "sophocles/0650.xml",
+      "reason": "two accents: the verb in -έω (future ήσω, from κυριόλεκτος)"
+    },
+    "οἷηκοφόρος": {
+      "head": "οἰηκοφόρος",
+      "source": "sophocles/0750.xml",
+      "reason": "a rough breathing with a circumflex for the smooth breathing (Ionic, = οἰακοφόρος)"
+    },
+    "οἴηματικός": {
+      "head": "οἰηματικός",
+      "source": "sophocles/0750.xml",
+      "reason": "two accents: the adjective in -ικός (ή, όν, opinionated)"
+    },
+    "παραμονόάριος": {
+      "head": "παραμονάριος",
+      "source": "sophocles/0800.xml",
+      "reason": "όά for ά (ου, ὁ, from παραμονή; called also προσμονάριος)"
+    },
+    "περινόστήσις": {
+      "head": "περινόστησις",
+      "source": "sophocles/0850.xml",
+      "reason": "two accents: the noun in -ησις (εως, ἡ, from περινοστέω)"
+    },
+    "σιέλοποιός": {
+      "head": "σιελοποιός",
+      "source": "sophocles/0950.xml",
+      "reason": "two accents: the compound in -ποιός (όν, causing salivation)"
+    },
+    "σύμπλήξις": {
+      "head": "σύμπληξις",
+      "source": "sophocles/1000.xml",
+      "reason": "two accents: the noun in -ξις is recessive (εως, ἡ)"
+    },
+    "σχηματοποίία": {
+      "head": "σχηματοποιία",
+      "source": "sophocles/1050.xml",
+      "reason": "two accents: the noun in -ποιία (ας, ἡ)"
+    },
+    "ὦμός": {
+      "head": "ὠμός",
+      "source": "sophocles/1150.xml",
+      "reason": "two accents: the adjective ὠμός (ή, όν, raw)"
     }
   }
 }
