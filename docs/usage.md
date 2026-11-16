@@ -668,8 +668,8 @@ the corpus reading of a misaccented token and still yields (`μεγά` ADJ
 gives `μέγας`), and so does the row of a capitalized word when the row of
 its lowercase spelling reads the entry's lemma (`Ἀντίαν` ADJ gives
 `ἀντίος`). Under PRON the row must also be a reading the POS tables record
-for these letters under PRON, DET, ADJ or NUM. The row of another kind of
-word does not stand in a pronoun's place, so a pronoun with a wrong
+for these letters under PRON or DET. The row of another kind of word
+does not stand in a pronoun's place, so a pronoun with a wrong
 accent or breathing still reads as the pronoun: `ὁδὲ` PRON gives `ὅδε` (not
 the `ὁδός` of its row), `ἐκάτερος` PRON `ἑκάτερος`, and with `lang="all"`
 the accented clitic `μάς` PRON gives `μας` (not the month `μής`).

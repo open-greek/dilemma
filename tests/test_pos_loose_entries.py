@@ -4,7 +4,7 @@ An entry reached only through the accent-stripped key (ὄρους finds the
 ὀρός of ὀροῦς under ορους) may not respell or replace the reading of the
 form's own spelling. Under ADJ and PRON that holds for rows whose lemma an
 Ancient dictionary lists (#130); under PRON the row must also be a reading
-the tables record as a pronoun's.
+the tables record under PRON or DET.
 """
 import pytest
 
@@ -117,10 +117,11 @@ def listed_model(table_model, candidates, tables, listed, *, lang="grc",
 @pytest.mark.parametrize("word,upos,exact,entry,recorded", [
     ("ταύτην", "ADJ", "οὗτος", "ταὐτός", None),
     ("ἀθληταί", "ADJ", "ἀθλητής", "ἄθλητος", None),
-    # Under PRON the tables record the row's lemma as a pronoun's reading
-    # of these letters (οὗ PRON ἕ), or as a possessive adjective's.
+    # Under PRON the tables record the row's lemma as a pronoun's or a
+    # determiner's reading of these letters (οὗ PRON ἕ, ταύτων DET οὗτος).
     ("οὕ", "PRON", "ἕ", "ὅς", {"ου": {"PRON": ["ἕ", "ὅς"]}}),
-    ("σάς", "PRON", "σός", "σας", {"σας": {"ADJ": ["σός"], "PRON": ["σας"]}}),
+    ("ταύτων", "PRON", "οὗτος", "αὐτός",
+     {"ταυτων": {"PRON": ["αὐτός"], "DET": ["οὗτος"]}}),
 ])
 @pytest.mark.parametrize("lang", ["grc", "all"])
 def test_stripped_key_entry_does_not_replace_a_listed_row_under_adj_or_pron(
@@ -133,9 +134,12 @@ def test_stripped_key_entry_does_not_replace_a_listed_row_under_adj_or_pron(
 
 
 @pytest.mark.parametrize("word,exact,entry,recorded", [
-    # The row reads a noun the tables record for these letters: a misaccented
-    # ὅδε is not the vocative of ὁδός.
+    # The row reads a noun or an adjective the tables record for these
+    # letters: a misaccented ὅδε is not the vocative of ὁδός, nor κεινὸς
+    # PRON the epic κενός.
     ("ὁδὲ", "ὁδός", "ὅδε", {"οδε": {"NOUN": ["ὁδός"], "PRON": ["ὅδε"]}}),
+    ("κεινὸς", "κενός", "ἐκεῖνος",
+     {"κεινος": {"ADJ": ["κενός", "ἐκεῖνος"], "PRON": ["ἐκεῖνος"]}}),
     # No table records the row's lemma for these letters: ἑκάτερος with a
     # smooth breathing, the accented Modern clitic μάς beside the month μής.
     ("ἐκάτερος", "ἐκάς", "ἑκάτερος", {"εκατερος": {"PRON": ["ἑκάτερος"]}}),
@@ -268,6 +272,7 @@ SHIPPED_105 = [
     ("ταύτὴν", "PRON", "οὗτος"), ("αὕται", "PRON", "οὗτος"),
     ("ὁδὲ", "PRON", "ὅδε"), ("ἐκάτερος", "PRON", "ἑκάτερος"),
     ("οὔδεσι", "PRON", "οὐδείς"), ("σφησί", "PRON", "σφός"),
+    ("κεινὸς", "PRON", "ἐκεῖνος"), ("παντὰ", "PRON", "πᾶς"),
 ]
 
 
