@@ -634,6 +634,38 @@ def test_a_head_printed_plainly_too_is_superseded_outright(tmp_path, monkeypatch
     assert audit["superseded_reread_lemmas"] == ["σχῆμα"]
 
 
+def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeypatch):
+    sources = ["lsj9_headwords"]
+    _, audit, calls = run_noun_step(
+        tmp_path, monkeypatch, {"βαρύπυκνος": "βαρύπυκνος"},
+        # two accents: adjective, verb and a noun whose genitive is no use
+        "<orth>καταγωγύός</orth>, ὄν, bringing down.",
+        "<orth>οἷές = ἐές</orth>, Porph. Cer. 47, 18.",
+        "<orth>ἀστεῖσμός</orth>, οὔ, ὁ, (ἀστεΐζομαι) urbanity.",
+        # another source lists the spelling with its two accents
+        "<orth>οἶκόνδε</orth>, adv. homeward.",
+        # capitalized common words: adjective, verb, a withheld noun
+        "<orth>Βαρύπυκνος</orth>, ον, (πυκνός) in music.",
+        "<orth>Ἱπποθυτέω</orth>, to sacrifice horses.",
+        "<orth>Θεοπρεπότης</orth>, τος, ἡ, the being θεοπρεπής.",
+        # a name: another source has the capital
+        "<orth>Πέτρα</orth>, ας, ἡ, Petra, a city.",
+        heads={"βαρύπυκνος": sources, "ἱπποθυτέω": sources,
+               "θεοπρεπότης": sources, "οἶκόνδε": sources,
+               "πέτρα": sources, "Πέτρα": ["pd_headwords"]})
+    superseded = set(audit["superseded_lemmas"])
+    assert {"καταγωγύός", "οἷές", "ἀστεῖσμός",
+            "Βαρύπυκνος", "Ἱπποθυτέω", "Θεοπρεπότης"} <= superseded
+    assert not {"οἶκόνδε", "βαρύπυκνος", "θεοπρεπότης"} & superseded
+    # a noun among them keeps no published key: it has no resolution record,
+    # unlike a name whose genitive was completed
+    assert set(audit["resolutions"]) == {"Πέτρα"}
+    assert audit["superseded_reread_lemmas"] == []
+    assert S.unread_printed_heads(
+        {"malformed_heads": {"ἄμάντευτος": "two-accents", "Σινα-ῖτις": "inner-hyphen"},
+         "lowercased_heads": {"᾿Αθεότης": "ἀθεότης"}}) == {"ἄμάντευτος", "᾿Αθεότης"}
+
+
 def test_every_correction_names_an_orth_of_its_chunk():
     corrections = S.load_head_corrections()
     assert len(corrections) >= 30

@@ -187,10 +187,18 @@ overlay reads those rows with the Greek letter before any other test
 the expansion also has in its Greek spelling (`micro_sign_duplicates`), so
 no key or lemma of the table carries U+00B5.
 
-The rules change what the generator writes, not what the overlay recovers.
-`superseded_lemmas` still names a lemma as the lexicon prints it, because the
-historical layer keyed its rows that way, so a rejected or re-keyed head that
-is not superseded keeps the marked rows the pinned reference has for it.
+`superseded_lemmas` names a lemma as the lexicon prints it, because the
+historical layer keyed its rows that way. Two kinds of printed head are
+superseded as a class, since neither is a lemma of the table: a head rejected
+for its two accents (`ἄμάντευτος`, `καταγωγύός`) and a capitalized head
+generated under its lowercase spelling (`Βαρύπυκνος`, `Δυσδαιμονέω`). The
+overlay then recovers none of the rows the historical layer has under them
+(`ἀμάντευτον`, `Βαρυπύκνου`), and a noun among them keeps no published key
+either (it gets no entry in `resolutions`). A two-accent spelling that
+another lexical source lists (`οἶκόνδε`) is that source's head and is not
+superseded. A head printed without its breathing is not superseded: the
+unbreathed keys of the historical layer are how a breathed form reaches such
+a head at runtime.
 
 ## Historical expansion overlay
 

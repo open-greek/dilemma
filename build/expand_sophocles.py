@@ -759,6 +759,22 @@ def analyze(audit=None):
     return entries, expandable, adverb_list
 
 
+def unread_printed_heads(head_audit, other_heads=frozenset()):
+    """The printed heads the head rules do not read as printed and that the
+    historical layer still keyed that way: a head rejected for two accents
+    ("two-accents" in ``malformed_heads``) and a capitalized head generated
+    under its lowercase spelling (``lowercased_heads``). A spelling another
+    lexical source lists is that source's head and is left out. A head with
+    an inner hyphen is not included; the overlay has its own rule for a
+    hyphenated lemma.
+    """
+    printed = {head for head, rule in head_audit.get("malformed_heads", {}).items()
+               if rule == "two-accents"}
+    printed.update(head_audit.get("lowercased_heads", {}))
+    return {head for head in printed
+            if head not in other_heads and sanitize_form(head) not in other_heads}
+
+
 def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
     load_breathing_review(required=True)
@@ -773,13 +789,21 @@ def expand_all():
 
     wtp = get_wtp()
     wikt_genitives = load_wiktionary_genitives()
-    superseded = set()
+    other_heads = load_lexical_heads() or frozenset()
+    # Printed heads that are no lemma of the table: a head rejected for its
+    # two accents (ἄμάντευτος) and a capitalized common word read under its
+    # lowercase head (Βαρύπυκνος). The historical layer keyed its rows by
+    # the printed head (ἀμάντευτον, Βαρυπύκνου), so both are superseded:
+    # those rows are not recovered, and no published key is kept for a noun
+    # among them (they get no entry in ``resolutions``).
+    unread = unread_printed_heads(head_audit, other_heads)
+    superseded = set(unread)
     resolutions = {}
     # Superseded lemmas are named as the lexicon prints them: the historical
     # layer keyed its rows that way, also for a first word that is no entry.
     for hw, entry in (head_audit["printed"] or entries).items():
         supplied = entry.get("supplied_genitive", "")
-        if not entry["gender"]:
+        if not entry["gender"] or hw in unread:
             continue
         resolved, error = resolve_noun_genitive(hw, entry["gender"], entry["genitive"],
                                                wikt_genitives)
@@ -794,7 +818,6 @@ def expand_all():
     # A head 1.3.26 read otherwise (legacy_head) keyed rows of the historical
     # layer under that reading. No entry prints it and no other source lists
     # it, so those rows are not recovered.
-    other_heads = load_lexical_heads() or frozenset()
     superseded.update(
         old for old in head_audit["reread_heads"]
         if old not in head_audit["printed"] and old not in other_heads
