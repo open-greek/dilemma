@@ -1,8 +1,9 @@
-"""POS-table entries found only under a shared key (#105).
+"""POS-table entries found only under a shared key (#105, #130).
 
 An entry reached only through the accent-stripped key (ὄρους finds the
 ὀρός of ὀροῦς under ορους) may not respell or replace the reading of the
-form's own spelling.
+form's own spelling. Under ADJ and PRON that holds for rows whose lemma an
+Ancient dictionary lists (#130).
 """
 import pytest
 
@@ -92,6 +93,86 @@ def test_other_tags_keep_the_stripped_key_override(table_model):
     assert both(model, "τῆδε", "PRON") == "ὅδε"
 
 
+# --- #130: ADJ and PRON ------------------------------------------------------
+
+def listed_model(table_model, candidates, tables, listed, *, lang="grc",
+                 rows=None):
+    """A model whose Ancient dictionaries list *listed* and whose lookup
+    holds *rows* (for the lowercase spelling of a capitalized word)."""
+    model = table_model(candidates, tables, lang=lang)
+    model._is_ancient_headword = lambda lemma: lemma in listed
+    model._ag_lookup = dict(rows or {})
+    model._mg_lookup = {}
+    model._med_lookup = {}
+    return model
+
+
+@pytest.mark.parametrize("word,upos,exact,entry", [
+    ("ταύτην", "ADJ", "οὗτος", "ταὐτός"),
+    ("ἀθληταί", "ADJ", "ἀθλητής", "ἄθλητος"),
+    ("οὕ", "PRON", "ἕ", "ὅς"),
+])
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_stripped_key_entry_does_not_replace_a_listed_row_under_adj_or_pron(
+        table_model, word, upos, exact, entry, lang):
+    from dilemma.core import strip_accents
+    model = listed_model(table_model, [(exact, *EXACT)],
+                         {strip_accents(word.lower()): {upos: entry}},
+                         {exact, entry}, lang=lang)
+    assert both(model, word, upos) == exact
+
+
+def test_row_with_an_unlisted_lemma_still_yields_under_adj(table_model):
+    # μεγός is the corpus lemma of a misaccented token, no headword.
+    model = listed_model(table_model, [("μεγός", *EXACT)],
+                         {"μεγα": {"ADJ": "μέγας"}}, {"μέγας"})
+    assert both(model, "μεγά", "ADJ") == "μέγας"
+
+
+@pytest.mark.parametrize("word,upos,exact,entry", [
+    ("τοῖϊν", "DET", "ὅς", "ὁ"),
+    ("ιέ", "NUM", "ἰός", "ιε"),
+    ("μᾶλα", "ADV", "μῆλον", "μάλα"),
+])
+def test_det_num_and_other_tags_keep_the_stripped_key_override(
+        table_model, word, upos, exact, entry):
+    from dilemma.core import strip_accents
+    model = listed_model(table_model, [(exact, *EXACT)],
+                         {strip_accents(word.lower()): {upos: entry}},
+                         {exact, entry})
+    assert both(model, word, upos) == entry
+
+
+def test_modern_settings_keep_the_stripped_key_override_under_adj(table_model):
+    tables = {"τεταρτου": {"ADJ": "τέταρτος"}}
+    model = listed_model(table_model, [("τέταρτο", *EXACT)], tables,
+                         {"τέταρτο", "τέταρτος"}, lang="el")
+    assert both(model, "τετάρτου", "ADJ") == "τέταρτος"
+    model = listed_model(table_model, [("τέταρτο", *EXACT)], tables,
+                         {"τέταρτο", "τέταρτος"}, lang="all")
+    model._convention_name = "triantafyllidis"
+    assert both(model, "τετάρτου", "ADJ") == "τέταρτος"
+
+
+def test_exact_verb_row_still_yields_under_adj(table_model):
+    model = listed_model(table_model, [("πιστόω", *EXACT)],
+                         {"πιστω": {"ADJ": "πιστός"}}, {"πιστόω", "πιστός"})
+    assert both(model, "πιστῶ", "ADJ") == "πιστός"
+
+
+@pytest.mark.parametrize("rows,expected", [
+    ({"ἀντίαν": "ἀντίος"}, "ἀντίος"),   # the lowercase spelling's row agrees
+    ({"ἀντίαν": "ἀντία"}, "ἀντία"),
+    ({}, "ἀντία"),
+])
+def test_capitalized_row_yields_to_an_entry_its_lowercase_row_reads(
+        table_model, rows, expected):
+    model = listed_model(table_model, [("ἀντία", *EXACT)],
+                         {"αντιαν": {"ADJ": "ἀντίος"}}, {"ἀντία", "ἀντίος"},
+                         rows=rows)
+    assert both(model, "Ἀντίαν", "ADJ") == expected
+
+
 @pytest.mark.parametrize("upos", ["NOUN", "ADJ"])
 def test_stripped_key_entry_does_not_replace_an_article_reading(table_model, upos):
     model = table_model([("αὐτός", "article", "")], {"αυτη": {upos: "ἀϋτή"}})
@@ -139,6 +220,14 @@ SHIPPED_105 = [
     ("σοφῶ", "ADJ", "σοφός"), ("καμοῦ", "PRON", "ἐγώ"),
     ("τῆδε", "PRON", "ὅδε"), ("ἤδει", "VERB", "οἶδα"),
     ("Ὦρα", "NOUN", "ὥρα"), ("Λάμπε", "VERB", "λάμπω"),
+    # #130: ADJ and PRON keep an exact row with a listed lemma
+    ("ταύτην", "ADJ", "οὗτος"), ("ταῦτα", "ADJ", "οὗτος"),
+    ("ἀθληταί", "ADJ", "ἀθλητής"), ("ἑνός", "ADJ", "εἷς"),
+    ("βάθη", "ADJ", "βάθος"), ("οὕ", "PRON", "ἕ"),
+    # and its controls: an unlisted row lemma, DET, a capitalized word whose
+    # lowercase row agrees with the entry
+    ("μεγά", "ADJ", "μέγας"), ("τοῖϊν", "DET", "ὁ"),
+    ("Ἀντίαν", "ADJ", "ἀντίος"), ("ταύτην", "PRON", "οὗτος"),
 ]
 
 

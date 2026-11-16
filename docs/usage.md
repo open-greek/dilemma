@@ -659,8 +659,18 @@ reading the lookup holds for the form as written (`ὄρους` NOUN stays
 `αὐτός`), and under NOUN or PROPN does not replace exact lookup readings
 that are not verbs (`ὅλων` NOUN stays `ὅλος`, `Ἄργους` PROPN `Ἄργος`).
 It still replaces an exact verb reading under a nominal tag, as Byzantine
-misspellings need (`μοχθῶ` NOUN gives `μόχθος`), and keeps its effect under
-the other tags. The verb rule for case twins above likewise needs an entry
+misspellings need (`μοχθῶ` NOUN gives `μόχθος`). Under ADJ or PRON it does
+not replace exact readings that are not verbs either, when an Ancient
+dictionary lists every such lemma (`ταύτην` ADJ gives `οὗτος`, not the
+`ταὐτός` of `ταὐτήν`; `ἀθληταί` ADJ gives `ἀθλητής`, not the `ἄθλητος` of
+`ἄθληται`; `οὕ` PRON gives `ἕ`). A row whose lemma no dictionary lists is
+the corpus reading of a misaccented token and still yields (`μεγά` ADJ
+gives `μέγας`), and so does the row of a capitalized word when the row of
+its lowercase spelling reads the entry's lemma (`Ἀντίαν` ADJ gives
+`ἀντίος`). With `lang="el"` or `convention="triantafyllidis"` the entry
+keeps its effect under ADJ and PRON, and under the remaining tags it does
+with every setting (`τοῖϊν` DET gives `ὁ`, `οῦν` PART `οὖν`, `μᾶλα` ADV
+`μάλα`). The verb rule for case twins above likewise needs an entry
 under the form's own or monotonic spelling (`πόθῳ` VERB stays `πόθος`).
 Entries under the monotonic key keep their authority, since that key keeps
 the accent's place (`ἰδῶν` VERB gives `ὁράω`). Under tags other than VERB,

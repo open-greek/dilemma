@@ -4459,6 +4459,15 @@ class Dilemma:
     # reading (#105). Other tags keep the override: Byzantine misspellings
     # rely on it (οῦν PART, τῆδε PRON, μᾶλα ADV).
     _LOOSE_OVERRIDE_BLOCKED_TAGS = frozenset({"NOUN", "PROPN"})
+    # Tags under which it may not replace one either when every such
+    # reading is a lemma an Ancient dictionary lists (#130: ταύτην ADJ
+    # keeps οὗτος, not the ταὐτός of ταὐτήν). A row whose lemma no
+    # dictionary lists is a corpus artifact of a misaccented form and
+    # still yields (μεγά ADJ -> μέγας, not the row's μεγός). lang="el" and
+    # the triantafyllidis convention prefer Modern rows and keep the
+    # override. DET and NUM are left out: the entries they would stop are
+    # right (τοῖϊν DET -> ὁ, ιέ NUM -> ιε).
+    _LOOSE_OVERRIDE_LISTED_TAGS = frozenset({"ADJ", "PRON"})
 
     def _pos_entry_is_loose(self, word: str, upos: str, pos_lemma: str) -> bool:
         """Whether *pos_lemma* was found only under the accent-stripped key.
@@ -4523,9 +4532,15 @@ class Dilemma:
         PROPN, exact lookup rows that inflect to lemmas without a verb
         shape (ὅλων NOUN keeps ὅλος, Ἄργους PROPN keeps Ἄργος). An exact
         verb row still yields to a nominal tag (the Byzantine μοχθῶ NOUN ->
-        μόχθος). Under the VERB case-twin rule (#42) a loose entry may not
-        replace an exact case-twin family (πόθῳ VERB keeps πόθος, not the
-        πίνω of ποθῶ).
+        μόχθος). Under ADJ or PRON the same holds when every such row
+        reads a lemma an Ancient dictionary lists (#130: ταύτην ADJ keeps
+        οὗτος, ἀθληταί ADJ ἀθλητής), except with lang="el" or the
+        triantafyllidis convention; a row whose lemma no dictionary lists
+        still yields (μεγά ADJ -> μέγας), and so does the row of a
+        capitalized word when the row of its lowercase spelling reads the
+        entry's lemma (see _lowercase_row_reads). Under the VERB
+        case-twin rule (#42) a loose entry may not replace an exact
+        case-twin family (πόθῳ VERB keeps πόθος, not the πίνω of ποθῶ).
         """
         if any(self._is_closed_class_reading(c) for c in candidates):
             return self._pos_entry_is_loose(word, upos, pos_lemma)
@@ -4533,7 +4548,11 @@ class Dilemma:
         if not exact:
             return False
         if not case_twin_family:
-            if upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS:
+            listed_only = upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS
+            if listed_only and (
+                    upos not in self._LOOSE_OVERRIDE_LISTED_TAGS
+                    or self.lang == "el"
+                    or self._convention_name == "triantafyllidis"):
                 return False
             stripped = strip_accents(word.lower())
             inflected = [c for c in exact
@@ -4541,7 +4560,39 @@ class Dilemma:
             if not inflected or any(self._is_verb_shaped_lemma(c.lemma)
                                     for c in inflected):
                 return False
+            if listed_only and (
+                    not all(self._is_ancient_headword(c.lemma)
+                            for c in inflected)
+                    or self._lowercase_row_reads(word, pos_lemma)):
+                return False
         return self._pos_entry_is_loose(word, upos, pos_lemma)
+
+    def _lowercase_row_reads(self, word: str, lemma: str) -> bool:
+        """Whether the lookup reads a capitalized word's lowercase spelling as *lemma*.
+
+        A capitalized word tagged other than PROPN may be a sentence-initial
+        common word, so the row of its lowercase spelling is a reading of
+        the word too. A loose POS entry that row agrees with is supported
+        by the form's letters and by one of its spellings (Ἀντίαν ADJ gives
+        ἀντίος with ἀντίαν, not the ἀντία of the capitalized row).
+        """
+        lower = word.lower()
+        if lower == word:
+            return False
+        target = strip_accents(lemma.lower())
+        tables = []
+        if self.lang in ("all", "el"):
+            tables += [self._mg_lookup, self._med_lookup]
+        if self.lang in ("all", "grc"):
+            tables.append(self._ag_lookup)
+        for table in tables:
+            if not table:
+                continue
+            for variant in dict.fromkeys((lower, grave_to_acute(lower))):
+                hit = table.get(variant)
+                if hit and strip_accents(hit.lower()) == target:
+                    return True
+        return False
 
     @staticmethod
     def _is_name_row_family(word: str, candidates) -> bool:
