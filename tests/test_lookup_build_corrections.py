@@ -455,11 +455,13 @@ def test_reviewed_readings_displace_el_only_corpus_rows(tmp_path):
     assert answers["Μάγων"] == "μάγος" and answers["εἴσομαι"] == "οἶδα"
     assert answers["ἀπεικός"] == "ἀπεικός"
     assert not {"Μάγων", "εἴσομαι", "ἀπεικός"} & el.keys()
-    # A Modern Wiktionary reading keeps its el row, and so does the corpus
-    # row of an override the published tables already ship (ᾔει -> εἶμι).
+    # A Modern Wiktionary reading keeps its el row. The corpus row of an
+    # older override (ᾔει -> εἶμι) goes with every other el copy of an
+    # Ancient corpus pair that the combined row contradicts (#141).
     assert el["μεγάλα"] == "μεγάλος"
-    assert combined["ᾔει"] == "εἶμι" and el["ᾔει"] == "ἔρχομαι"
+    assert combined["ᾔει"] == "εἶμι" and "ᾔει" not in el
     assert "3 el-only corpus readings removed" in result.stdout
+    assert "contradicts, removed: 1 (glaux_pairs.json 1)" in result.stdout
 
 
 def test_reviewed_absent_key_reading_is_added(tmp_path):
