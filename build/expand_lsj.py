@@ -37,10 +37,11 @@ from dilemma.form_sanitize import (  # noqa: E402
     sanitize_form,
 )
 from dilemma._attest_db import norm_key  # noqa: E402
+from dilemma.grc_rejected_lemmas import REJECTED_LEMMAS  # noqa: E402
 from lsj_principal_parts import (  # noqa: E402
     INDICATIVE_ONLY, INFERRED_FAMILIES, compound_parts, compound_simplexes,
     derive_grc_conj_args, ends_at_label, other_voice, parse_principal_parts,
-    regular_compound_parts, regular_parts, regular_rivals,
+    derived_cells, regular_compound_parts, regular_parts, regular_rivals,
     short_verb_compound,
 )
 
@@ -1235,6 +1236,24 @@ def expand_principal_parts(wtp, headword: str, head_text: str,
     return forms
 
 
+def derived_principal_part_cells(wtp, headword: str, head_text: str,
+                                 supplement_text: str = "") -> set[str]:
+    """The principal-part cells of an entry that stand only on a stem the
+    entry does not print (:func:`derived_cells`): καταδέξας beside the
+    printed κατέδεξα, not κατέδεξε, and not a cell that a printed stem
+    gives as well (λύσω of the aorist subjunctive and of the future)."""
+    headword = unicodedata.normalize("NFC", headword)
+    parts = merged_principal_parts(headword, head_text, supplement_text)
+    derived: set[str] = set()
+    printed: set[str] = set()
+    for tense, tense_args in derive_grc_conj_args(parts, headword).items():
+        cells = _expand_principal_part(wtp, headword, tense_args)
+        on_derived = derived_cells(tense, tense_args, cells)
+        derived |= on_derived
+        printed |= cells - on_derived
+    return derived - printed
+
+
 # Common verbal preverb endings (preposition-prefixes) used in compound -μι
 # verbs. We list the diacritic-stripped, lowercased forms only. The
 # splitter below matches the longest known prefix that leaves at least the
@@ -1982,6 +2001,7 @@ def expand_all():
 # admit nothing: the attested forms decide which cells of an inferred part
 # are kept, and the treebank readings which cells are left alone.
 FORM_PROFILE = DATA_DIR / "form_profile.db"
+LEXICAL_HEADS = DATA_DIR / "grc_lexical_heads.json"
 VERB_AUDIT = DATA_DIR / "ag_verb_generation_audit.json"
 TREEBANK_PAIRS = tuple(DATA_DIR / name for name in (
     "perseus_pairs.json", "glaux_pairs.json", "diorisis_pairs.json",
@@ -2131,62 +2151,151 @@ def _pair_lemma(lemma: str) -> str:
     return unicodedata.normalize("NFC", lemma).rstrip("0123456789")
 
 
-def load_treebank_readings(paths, wanted: set[str]) -> dict[str, list[str]]:
-    """The lemmas the treebank pair files give each wanted form.
+def reading_key(form: str) -> str:
+    """A spelling as the treebank readings are keyed: the grave folded to
+    the acute, the case kept."""
+    folded = unicodedata.normalize("NFD", form).replace("\u0300", "\u0301")
+    return unicodedata.normalize("NFC", folded)
+
+
+def load_lexical_heads(path: Path) -> frozenset[str]:
+    """The headwords of every dictionary the build knows
+    (``grc_lexical_heads.json``), without the reviewed non-lemmas. The
+    lookup build accepts a treebank lemma on the same grounds."""
+    with open(path, encoding="utf-8") as f:
+        heads = json.load(f)["heads"]
+    return frozenset(heads) - REJECTED_LEMMAS
+
+
+def load_treebank_readings(paths, forms) -> dict[str, list[tuple[str, str]]]:
+    """The readings the treebank pair files give each of ``forms``.
 
     The lookup build lets the pair files fill gaps in the order of
-    ``paths``, so the reading that counts for a form is that of the first
-    file that has it; the result holds that file's lemmas for the form.
-    ``wanted`` and the keys of the result are output-gate keys
-    (:func:`dilemma._attest_db.norm_key`).
+    ``paths``, and within a file the first pair of a form does. The result
+    holds, for each form (:func:`reading_key`), the lemmas and parts of
+    speech of the first file that has it, in the file's order. A file that
+    has the form only with a capital (sentence-initial Κατεδέξατο) speaks
+    for it when no file has it as spelled, unless the lemma is capitalised
+    too: Φιαλέων of Φιαλεύς is not φιαλέων.
     """
-    readings: dict[str, list[str]] = {}
+    wanted = {reading_key(form) for form in forms}
+    folded_wanted = {key.casefold() for key in wanted}
+    exact: dict[str, list[tuple[str, str]]] = {}
+    folded: dict[str, list[tuple[str, str]]] = {}
     for path in paths:
         with open(path, encoding="utf-8") as f:
             pairs = json.load(f)
-        found: dict[str, list[str]] = {}
+        found_exact: dict[str, list[tuple[str, str]]] = {}
+        found_folded: dict[str, list[tuple[str, str]]] = {}
         for pair in pairs:
-            key = norm_key(pair["form"])
-            if key in wanted and key not in readings and pair.get("lemma"):
-                lemma = _pair_lemma(pair["lemma"])
-                if lemma not in found.setdefault(key, []):
-                    found[key].append(lemma)
-        readings.update(found)
+            lemma = pair.get("lemma")
+            if not lemma:
+                continue
+            key = reading_key(pair["form"])
+            if key in wanted:
+                if key in exact:
+                    continue
+                found = found_exact.setdefault(key, [])
+            else:
+                key = key.casefold()
+                if (key not in folded_wanted or key in folded
+                        or lemma[:1] != lemma[:1].lower()):
+                    continue
+                found = found_folded.setdefault(key, [])
+            reading = (_pair_lemma(lemma), pair.get("pos") or "")
+            if reading not in found:
+                found.append(reading)
+        exact.update(found_exact)
+        folded.update(found_folded)
         del pairs
+    readings = {}
+    for key in wanted:
+        found = exact.get(key) or folded.get(key.casefold())
+        if found:
+            readings[key] = found
     return readings
 
 
-def treebank_agrees(form: str, lemma: str, readings: dict[str, list[str]]
-                    ) -> bool:
-    """Whether the treebank reading of ``form`` is this verb, compared by
-    letters (ἐνθρώσκω agrees with ἐνθρῴσκω)."""
-    own = bare_letters(lemma)
-    return any(bare_letters(other) == own
-               for other in readings.get(norm_key(form), ()))
+def treebank_reading(form: str, lemma: str, readings, lexical_heads
+                     ) -> tuple[str, str]:
+    """The treebank reading that counts for a cell of the verb ``lemma``.
 
-
-def left_to_treebank(form: str, lemma: str, readings: dict[str, list[str]],
-                     heads) -> bool:
-    """Whether a principal-part cell gives way to the treebank reading.
-
-    It does when the treebanks have the form under another lemma that is a
-    dictionary headword, or under the same verb in its other voice
-    (ἐπιλανθάνομαι for ἐπιλανθάνω): κατεδέξατο is the aorist of καταδέχομαι
-    in the treebanks, though LSJ also prints κατέδεξα as the Ionic aorist
-    of καταδείκνυμι. A treebank lemma that is no headword (σύν-εἶδον)
-    decides nothing.
+    Returns ``lemma`` itself where the treebanks read the form as this
+    verb, another lemma (with its part of speech) where they read it
+    otherwise, and ``("", "")`` where they have nothing usable. As in the
+    gap fill of the lookup build, the first usable reading decides: one
+    under this verb's letters (ἐνθρῴσκω for ἐνθρώσκω), under a headword of
+    some dictionary, or under this verb in its other voice (ἐπιλανθάνομαι
+    for ἐπιλανθάνω). A lemma that no dictionary heads (σύν-εἶδον,
+    νεπεπυρίζω) is passed over.
     """
-    lemmas = readings.get(norm_key(form))
-    if not lemmas or treebank_agrees(form, lemma, readings):
-        return False
     own = bare_letters(lemma)
-    return any(other in heads or other_voice(bare_letters(other)) == own
-               for other in lemmas)
+    for other, pos in readings.get(reading_key(form), ()):
+        letters = bare_letters(other)
+        if letters == own:
+            return lemma, pos
+        if (other in lexical_heads
+                or other[:1].lower() + other[1:] in lexical_heads
+                or other_voice(letters) == own):
+            return other, pos
+    return "", ""
 
 
-# The future of a verb in -σω and the dative of its action noun in -σις are
-# one spelling (ἐπισκιάσει, ἀμοιρήσεις).
-_ACTION_NOUN_ENDINGS = ("σει", "ξει", "ψει", "σεις", "ξεις", "ψεις")
+def treebank_agrees(form: str, lemma: str, readings, lexical_heads) -> bool:
+    """Whether the treebank reading of ``form`` is this verb."""
+    return treebank_reading(form, lemma, readings, lexical_heads)[0] == lemma
+
+
+def left_to_treebank(form: str, lemma: str, readings, lexical_heads) -> bool:
+    """Whether a cell on a stem no entry prints gives way to the treebank
+    reading: a cell of an inferred part, or one on the unaugmented stem
+    derived for a printed past tense.
+
+    It does when the treebanks read the form as another word
+    (:func:`treebank_reading`): ἠβουλήθη is the aorist of βούλομαι, not of
+    ἀβουλέω, and ἐπελάθοντο stays with ἐπιλανθάνομαι.
+    """
+    reading = treebank_reading(form, lemma, readings, lexical_heads)[0]
+    return bool(reading) and reading != lemma
+
+
+def left_to_rival(form: str, lemma: str, readings, lexical_heads,
+                  yields: dict[str, set[str]]) -> bool:
+    """Whether a cell on a stem the entry prints gives way to another word.
+
+    The dictionary states such a cell, so another verb in a treebank does
+    not move it by itself (ἀμφιέσομαι stays the future that LSJ prints
+    under ἀμφιέννυμι). It gives way where the verb the treebanks read has
+    the cell among its own principal parts, printed or inferred
+    (``yields``: the verbs, by their letters, for each
+    :func:`reading_key`): κατεδέξατο is the aorist of καταδέχομαι there, a
+    compound of δέχομαι, while LSJ prints κατέδεξα as the Ionic aorist of
+    καταδείκνυμι. It also gives way where the treebanks read the form as
+    no verb at all (φιαλέων is the genitive of φιάλη before it is a
+    participle of the future φιαλῶ).
+    """
+    reading, pos = treebank_reading(form, lemma, readings, lexical_heads)
+    if not reading or reading == lemma:
+        return False
+    if pos not in ("verb", ""):
+        return True
+    return bare_letters(reading) in yields.get(reading_key(form), ())
+
+
+# An inferred cell that a noun also spells is kept only where a treebank
+# reads it as the verb: the future in -σει or -σεις is a case of the action
+# noun in -σις (ἐπισκιάσει, ἀμοιρήσεις), and the participle of an Attic
+# future in -ιῶν, or of its uncontracted -ιέων, a genitive plural (κοσμιῶν,
+# πεδιέων).
+_ACTION_NOUN_ENDINGS = ("σει", "ξει", "ψει", "σεισ", "ξεισ", "ψεισ")
+_GENITIVE_PLURAL_ENDINGS = ("ιῶν", "ιέων")
+
+
+def noun_twin(form: str) -> bool:
+    """Whether a noun paradigm spells this verb cell too."""
+    return (bare_letters(form).endswith(_ACTION_NOUN_ENDINGS)
+            or unicodedata.normalize("NFC", form).endswith(
+                _GENITIVE_PLURAL_ENDINGS))
 
 
 def sha256_file(path: Path) -> str:
@@ -2203,21 +2312,24 @@ def expand_verbs(corpus_checks: bool = True):
     With ``corpus_checks`` (the published build), the pass reads
     ``form_profile.db`` and the treebank pair files: principal parts that
     no entry prints are inferred and their attested cells kept, and a
-    principal-part cell that the treebanks read as another headword is
-    left out. Without it neither happens.
+    principal-part cell that the treebanks read as another verb is left
+    out (:func:`left_to_treebank`, :func:`left_to_rival`). Without it
+    neither happens.
     """
     import time
 
     if corpus_checks:
-        missing = [path.name for path in (FORM_PROFILE, *TREEBANK_PAIRS)
+        missing = [path.name for path in (FORM_PROFILE, LEXICAL_HEADS,
+                                           *TREEBANK_PAIRS)
                    if not path.exists()]
         if missing:
             sys.exit(
                 f"{', '.join(missing)}: missing from {DATA_DIR}. The verb "
                 "pass checks its principal-part cells against them (python "
                 "-m dilemma download --with-attestation fetches "
-                "form_profile.db). --no-corpus-checks runs without them, "
-                "which is not the published build.")
+                "form_profile.db; build/build_grc_lexical_heads.py writes "
+                "grc_lexical_heads.json). --no-corpus-checks runs without "
+                "them, which is not the published build.")
 
     print("Loading data...")
     lsj_entries = parse_lsj_entries()
@@ -2341,7 +2453,10 @@ def expand_verbs(corpus_checks: bool = True):
         else:
             add_forms(forms, hw_clean)
         if extra:
-            deferred.append((extra, hw_clean))
+            derived = (derived_principal_part_cells(
+                wtp, hw, head_text, supplement_text) if corpus_checks
+                else set())
+            deferred.append((extra, hw_clean, derived))
         inferable.append((hw, hw_clean, all_parts))
 
         if (i + 1) % 500 == 0:
@@ -2407,37 +2522,63 @@ def expand_verbs(corpus_checks: bool = True):
         print(f"  {time.time() - t0:.0f}s elapsed")
 
         # A principal-part cell does not take a form the treebanks read as
-        # another headword. Each spelling of a cell is checked by itself
+        # another verb. Each spelling of a cell is checked by itself
         # (ἔλυσε, ἔλυσεν).
-        deferred = [({form for cell in forms
-                      for form in resolve_editorial_form(cell)}, hw_clean)
-                    for forms, hw_clean in deferred]
-        wanted = {norm_key(form) for forms, _ in deferred for form in forms}
-        wanted |= {norm_key(form) for _, forms in inferred for form in forms}
+        def spellings_of(cells):
+            return {form for cell in cells
+                    for form in resolve_editorial_form(cell)}
+
+        deferred = [(spellings_of(forms), hw_clean, spellings_of(derived))
+                    for forms, hw_clean, derived in deferred]
+        wanted = {form for forms, _, _ in deferred for form in forms}
+        wanted |= {form for _, forms in inferred for form in forms}
         readings = load_treebank_readings(TREEBANK_PAIRS, wanted)
+        lexical_heads = load_lexical_heads(LEXICAL_HEADS)
+        # The verbs that have a form among their own principal parts.
+        yields: dict[str, set[str]] = {}
+        for forms, hw_clean, _ in deferred:
+            for form in forms:
+                yields.setdefault(reading_key(form), set()).add(
+                    bare_letters(hw_clean))
+        for form, claimants in claims.items():
+            yields.setdefault(reading_key(form), set()).update(
+                bare_letters(verb) for verb in claimants)
         withheld = []
 
-        def uncontested(forms, hw_clean, kind):
+        def uncontested(forms, hw_clean, kind, derived=frozenset()):
             kept = set()
             for form in forms:
-                if left_to_treebank(form, hw_clean, readings, heads):
-                    stats[kind + "_withheld"] += 1
-                    withheld.append((form, hw_clean, kind))
-                elif (kind == "inferred"
-                      and bare_letters(form).endswith(_ACTION_NOUN_ENDINGS)
-                      and not treebank_agrees(form, hw_clean, readings)):
-                    # Only a treebank tells such a future from the noun.
+                # A cell on a stem the entry prints is the dictionary's; one
+                # on a derived stem is the generator's, like an inferred one.
+                part = "derived" if form in derived else kind
+                if part == "printed":
+                    gives_way = left_to_rival(
+                        form, hw_clean, readings, lexical_heads, yields)
+                else:
+                    gives_way = left_to_treebank(
+                        form, hw_clean, readings, lexical_heads)
+                if gives_way:
+                    stats[part + "_withheld"] += 1
+                    withheld.append((form, hw_clean, part, treebank_reading(
+                        form, hw_clean, readings, lexical_heads)[0]))
+                elif (kind == "inferred" and noun_twin(form)
+                      and not treebank_agrees(
+                          form, hw_clean, readings, lexical_heads)):
+                    # Only a treebank tells such a cell from the noun.
                     stats["inferred_noun_twins"] += 1
                 else:
                     kept.add(form)
             return kept
 
-        deferred = [(uncontested(forms, hw_clean, "printed"), hw_clean)
-                    for forms, hw_clean in deferred]
+        deferred = [(uncontested(forms, hw_clean, "printed", derived),
+                     hw_clean, derived)
+                    for forms, hw_clean, derived in deferred]
         inferred = [(hw_clean, uncontested(forms, hw_clean, "inferred"))
                     for hw_clean, forms in inferred]
 
-    for forms, hw_clean in deferred + late:
+    for forms, hw_clean, _ in deferred:
+        add_forms(forms, hw_clean)
+    for forms, hw_clean in late:
         add_forms(forms, hw_clean)
     before_inferred = stats["new_forms"]
     for hw_clean, forms in inferred:
@@ -2462,15 +2603,16 @@ def expand_verbs(corpus_checks: bool = True):
         print(f"    Cells: {stats['inferred_cells']:,} generated, "
               f"{stats['inferred_kept']:,} attested and kept, "
               f"{stats['inferred_shared']:,} left out as inferred by two "
-              f"verbs, {stats['inferred_noun_twins']:,} as futures that an "
-              "action noun also spells; keys added: "
+              f"verbs, {stats['inferred_noun_twins']:,} as cells that a "
+              "noun also spells; keys added: "
               f"{stats['new_forms'] - before_inferred:,}")
         print("  Cells left to a treebank reading: "
-              f"{stats['printed_withheld']:,} of printed parts, "
-              f"{stats['inferred_withheld']:,} of inferred parts")
-        for form, hw_clean, _ in sorted(withheld)[:40]:
-            print(f"    {form} ({hw_clean}): "
-                  f"{', '.join(readings[norm_key(form)])}")
+              f"{stats['printed_withheld']:,} on a printed stem (the other "
+              f"verb has the cell too), {stats['derived_withheld']:,} on a "
+              f"derived stem, {stats['inferred_withheld']:,} of inferred "
+              "parts")
+        for form, hw_clean, _, reading in sorted(withheld)[:40]:
+            print(f"    {form} ({hw_clean}): {reading}")
     print(f"  Failed: {stats['failed']:,}")
     for reason, count in failure_reasons.most_common():
         print(f"    {reason}: {count:,} ({', '.join(failure_examples[reason])})")
@@ -2501,10 +2643,11 @@ def expand_verbs(corpus_checks: bool = True):
             "inputs": {
                 FORM_PROFILE.name: {"content_hash": row[0] if row else None},
                 **{path.name: {"sha256": sha256_file(path)}
-                   for path in TREEBANK_PAIRS},
+                   for path in (LEXICAL_HEADS, *TREEBANK_PAIRS)},
             },
             "counts": {key: stats[key] for key in sorted(stats)
-                       if key.startswith(("inferred_", "printed_"))},
+                       if key.startswith(("inferred_", "printed_",
+                                          "derived_"))},
             "inferred": {
                 hw_clean: {"kind": inferred_from[hw_clean][0],
                            "from": inferred_from[hw_clean][1],
@@ -2512,9 +2655,9 @@ def expand_verbs(corpus_checks: bool = True):
                 for hw_clean, forms in inferred if forms},
             "shared": dict(sorted(shared.items())),
             "left_to_treebank": [
-                {"form": form, "verb": hw_clean, "part": kind,
-                 "treebank": readings[norm_key(form)]}
-                for form, hw_clean, kind in sorted(withheld)],
+                {"form": form, "verb": hw_clean, "part": part,
+                 "treebank": reading}
+                for form, hw_clean, part, reading in sorted(withheld)],
         }
         with open(VERB_AUDIT, "w", encoding="utf-8") as f:
             json.dump(audit, f, ensure_ascii=False, indent=1, sort_keys=True)

@@ -1,6 +1,8 @@
 """Principal parts that no LSJ entry prints: a compound takes those of its
 simplex, a denominative those of its class, and only the cells a corpus
-attests are kept. A principal-part cell gives way to a treebank reading."""
+attests are kept. A principal-part cell gives way to a treebank reading:
+one on a stem no entry prints to any headword, one on a printed stem to a
+verb that has the cell too."""
 
 import json
 import sqlite3
@@ -13,8 +15,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "build"))
 import expand_lsj
 from lsj_principal_parts import (
-    compound_parts, compound_simplexes, derive_grc_conj_args, other_voice,
-    regular_compound_parts, regular_parts, regular_rivals,
+    INDICATIVE_ONLY, compound_parts, compound_simplexes, derive_grc_conj_args,
+    derived_cells, other_voice, regular_compound_parts, regular_parts,
+    regular_rivals,
 )
 
 
@@ -246,68 +249,182 @@ def test_only_attested_cells_of_an_inferred_part_are_kept(tmp_path,
     assert stats["inferred_calls"] == len(calls)
 
 
-def test_a_cell_gives_way_to_a_treebank_reading(tmp_path):
-    pairs = tmp_path / "pairs.json"
-    pairs.write_text(json.dumps([
-        {"form": "κατεδέξατο", "lemma": "καταδέχομαι"},
-        {"form": "Κατεδέξατο", "lemma": "καταδέχομαι"},
-        {"form": "συνεῖδον", "lemma": "σύν-εἶδον"},
-        {"form": "ἔνθορε", "lemma": "ἐνθρῴσκω"},
-        {"form": "κατέδεξε", "lemma": "καταδείκνυμι"},
-        {"form": "κατέδεξε", "lemma": "καταδέχομαι"},
-        {"form": "ἄλλο", "lemma": "ἄλλος"},
-    ], ensure_ascii=False), encoding="utf-8")
-    later = tmp_path / "later.json"
-    later.write_text(json.dumps([
-        {"form": "κατεδέξατο", "lemma": "καταδείκνυμι"},
-        {"form": "ἠβουλήθη", "lemma": "ἀβουλέω"},
-        {"form": "ἐπελάθοντο", "lemma": "ἐπιλανθάνομαι"},
-    ], ensure_ascii=False), encoding="utf-8")
-    earlier = tmp_path / "earlier.json"
-    earlier.write_text(json.dumps([
-        {"form": "ἠβουλήθη", "lemma": "βούλομαι"}], ensure_ascii=False),
-        encoding="utf-8")
-    key = expand_lsj.norm_key
-    wanted = {key(form) for form in (
-        "κατεδέξατο", "συνεῖδον", "ἔνθορε", "κατέδεξε", "κατέδεξα",
-        "ἠβουλήθη", "ἐπελάθοντο")}
+def write_pairs(path, rows):
+    path.write_text(json.dumps(
+        [{"form": form, "lemma": lemma, "pos": pos}
+         for form, lemma, pos in rows], ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_treebank_readings_follow_the_gap_fill(tmp_path):
+    earlier = write_pairs(tmp_path / "earlier.json", [
+        ("ἠβουλήθη", "βούλομαι", "verb"),
+        ("Φιαλέων", "Φιαλεύς", "noun"),
+        ("Κατέδεξα", "καταδείκνυμι", "verb")])
+    pairs = write_pairs(tmp_path / "pairs.json", [
+        ("κατεδέξατο", "καταδέχομαι", "verb"),
+        ("Κατεδέξατο", "καταδείκνυμι", "verb"),
+        ("συνεῖδον", "σύν-εἶδον", "verb"),
+        ("ἔνθορε", "ἐνθρῴσκω1", "verb"),
+        ("κατέδεξε", "καταδείκνυμι", "verb"),
+        ("κατέδεξε", "καταδέχομαι", "verb"),
+        ("λαβὼν", "λαμβάνω", "verb"),
+        ("ἄλλο", "ἄλλος", "adj")])
+    later = write_pairs(tmp_path / "later.json", [
+        ("κατεδέξατο", "καταδείκνυμι", "verb"),
+        ("ἠβουλήθη", "ἀβουλέω", "verb"),
+        ("φιαλέων", "φιάλη", "noun")])
     readings = expand_lsj.load_treebank_readings(
-        [earlier, pairs, later], wanted)
-    # the first file that has a form speaks for it
+        [earlier, pairs, later],
+        {"κατεδέξατο", "συνεῖδον", "ἔνθορε", "κατέδεξε", "κατέδεξα",
+         "ἠβουλήθη", "φιαλέων", "λαβών", "ἀπέδεξα"})
+    key = expand_lsj.reading_key
     assert readings == {
-        key("κατεδέξατο"): ["καταδέχομαι"], key("συνεῖδον"): ["σύν-εἶδον"],
-        key("ἔνθορε"): ["ἐνθρῴσκω"], key("ἠβουλήθη"): ["βούλομαι"],
-        key("κατέδεξε"): ["καταδείκνυμι", "καταδέχομαι"],
-        key("ἐπελάθοντο"): ["ἐπιλανθάνομαι"]}
-    heads = {"καταδέχομαι", "καταδείκνυμι", "ἐνθρῴσκω", "συνοράω",
-             "βούλομαι", "ἀβουλέω"}
+        # the first file that has a form speaks for it, in its own order
+        key("ἠβουλήθη"): [("βούλομαι", "verb")],
+        key("κατεδέξατο"): [("καταδέχομαι", "verb")],
+        key("κατέδεξε"): [("καταδείκνυμι", "verb"), ("καταδέχομαι", "verb")],
+        key("συνεῖδον"): [("σύν-εἶδον", "verb")],
+        # a homograph number is no part of the lemma, a grave is an acute
+        key("ἔνθορε"): [("ἐνθρῴσκω", "verb")],
+        key("λαβών"): [("λαμβάνω", "verb")],
+        # the form as spelled before a capitalised one: Φιαλέων is a name
+        key("φιαλέων"): [("φιάλη", "noun")],
+        # a capitalised form speaks where no file has the form itself
+        key("κατέδεξα"): [("καταδείκνυμι", "verb")],
+    }
+
+
+def test_a_cell_gives_way_to_a_treebank_reading():
+    key = expand_lsj.reading_key
+    readings = {
+        key("κατεδέξατο"): [("καταδέχομαι", "verb")],
+        key("ἠβουλήθη"): [("βούλομαι", "verb")],
+        key("ἐπελάθοντο"): [("ἐπιλανθάνομαι", "verb")],
+        key("κατέδεξε"): [("καταδείκνυμι", "verb"), ("καταδέχομαι", "verb")],
+        key("ἀνακλάσεις"): [("ἀνάκλασις", "noun"), ("ἀνακλάω", "verb")],
+        key("συνεῖδον"): [("σύν-εἶδον", "verb")],
+        key("συνιδεῖν"): [("σύν-εἶδον", "verb"), ("συνοράω", "verb")],
+        key("ἔνθορε"): [("ἐνθρῴσκω", "verb")],
+        key("ἦλθεν"): [("Ἔρχομαι", "verb")],
+        key("ταύτης"): [("Ταύτη", "noun")],
+        key("φιαλέων"): [("φιάλη", "noun")],
+        key("ἀμφιέσομαι"): [("ἀμφιάζω", "verb")],
+    }
+    heads = frozenset({
+        "καταδέχομαι", "καταδείκνυμι", "ἐνθρῴσκω", "συνοράω", "βούλομαι",
+        "ἀβουλέω", "ἀνάκλασις", "ἀνακλάω", "ἔρχομαι", "φιάλη", "ἀμφιάζω"})
+    reading = expand_lsj.treebank_reading
     left = expand_lsj.left_to_treebank
+    agrees = expand_lsj.treebank_agrees
     # the treebank reads it as another headword
+    assert reading("κατεδέξατο", "καταδείκνυμι", readings, heads) == (
+        "καταδέχομαι", "verb")
     assert left("κατεδέξατο", "καταδείκνυμι", readings, heads)
     assert left("ἠβουλήθη", "ἀβουλέω", readings, heads)
     # or as this verb in its other voice
     assert left("ἐπελάθοντο", "ἐπιλανθάνω", readings, heads)
-    # it reads it as this verb too
+    # The first usable reading decides: this verb's,
     assert not left("κατέδεξε", "καταδείκνυμι", readings, heads)
+    assert agrees("κατέδεξε", "καταδείκνυμι", readings, heads)
+    # or the noun's, though the verb is read further down.
+    assert left("ἀνακλάσεις", "ἀνακλάω", readings, heads)
+    assert not agrees("ἀνακλάσεις", "ἀνακλάω", readings, heads)
     # no treebank has it
     assert not left("κατέδεξα", "καταδείκνυμι", readings, heads)
-    # a treebank lemma that is no headword decides nothing
+    assert not agrees("κατέδεξα", "καταδείκνυμι", readings, heads)
+    # a treebank lemma that no dictionary heads is passed over
     assert not left("συνεῖδον", "συνοράω", readings, heads)
+    assert agrees("συνιδεῖν", "συνοράω", readings, heads)
     # the same verb in another spelling
     assert not left("ἔνθορε", "ἐνθρώσκω", readings, heads)
-    assert expand_lsj.treebank_agrees("ἔνθορε", "ἐνθρώσκω", readings)
-    assert not expand_lsj.treebank_agrees("κατέδεξα", "καταδείκνυμι",
-                                          readings)
+    assert agrees("ἔνθορε", "ἐνθρώσκω", readings, heads)
+    # a capitalised lemma counts as its lowercase headword
+    assert left("ἦλθεν", "ἤλθω", readings, heads)
+
+    # A cell on a stem the entry prints gives way to a verb that has the
+    # cell among its own principal parts, and to a reading that is no verb.
+    rival = expand_lsj.left_to_rival
+    yields = {key("κατεδέξατο"): {"καταδεικνυμι", "καταδεχομαι"},
+              key("ἠβουλήθη"): {"αβουλεω"},
+              key("κατέδεξε"): {"καταδεικνυμι", "καταδεχομαι"}}
+    assert rival("κατεδέξατο", "καταδείκνυμι", readings, heads, yields)
+    assert rival("φιαλέων", "φιάλλω", readings, heads, yields)
+    # βούλομαι and ἀμφιάζω are treebank readings no part of theirs gives
+    assert not rival("ἠβουλήθη", "ἀβουλέω", readings, heads, yields)
+    assert not rival("ἀμφιέσομαι", "ἀμφιέννυμι", readings, heads, yields)
+    # the treebank reads it as this verb, or not at all
+    assert not rival("κατέδεξε", "καταδείκνυμι", readings, heads, yields)
+    assert not rival("κατέδεξα", "καταδείκνυμι", readings, heads, yields)
+
+
+def test_lexical_heads_leave_out_the_reviewed_non_lemmas(tmp_path):
+    path = tmp_path / "grc_lexical_heads.json"
+    path.write_text(json.dumps({"heads": {
+        "οὗτος": ["lsj9_headwords"], "Ταύτη": ["wiktionary_el_grc"]}},
+        ensure_ascii=False), encoding="utf-8")
+    assert expand_lsj.load_lexical_heads(path) == {"οὗτος"}
+
+
+def test_noun_twins():
+    twin = expand_lsj.noun_twin
+    assert twin("ἐπισκιάσει") and twin("ἀμοιρήσεις") and twin("συνόψει")
+    assert twin("κοσμιῶν") and twin("πεδιέων")
+    # the aorist participle of πίνω is no genitive plural
+    assert not twin("καταπιών") and not twin("εἰκονίσας")
+
+
+def test_derived_cells():
+    cells = {"κατέδεξε(ν)", "κατεδέξατο", "καταδέξας", "καταδέξασθαι"}
+    assert derived_cells(
+        "aor-1", ["aor-1", "κατεδεξ", "καταδεξ", "prefix=κατα"], cells) == {
+            "καταδέξας", "καταδέξασθαι"}
+    # the passive stems stand after two empty ones
+    assert derived_cells(
+        "aor-pass", ["aor-1", "", "", "ἀντεταφ", "ἀντιταφ", "form=pass"],
+        {"ἀντετάφην", "ἀντιταφείς"}) == {"ἀντιταφείς"}
+    assert derived_cells("aor-2", ["aor-2", "ἠγαγ", "ἀγαγ"],
+                         {"ἤγαγον", "ἀγαγών"}) == {"ἀγαγών"}
+    # A plain ἐ- before the stem: the module takes it off by itself.
+    assert derived_cells("aor-1", ["aor-1", "ἐζημιωσ", "ζημιωσ"],
+                         {"ἐζημίωσα", "ζημιῶσαι"}) == set()
+    # one stem with and without the augment, or the indicative alone
+    assert derived_cells("aor-2", ["aor-2", "κατειπ", "κατειπ"],
+                         {"κατεῖπον", "κατειπεῖν"}) == set()
+    assert derived_cells("aor-2", ["aor-2", "ἠγαγ", "ἠγαγ", INDICATIVE_ONLY],
+                         {"ἤγαγον"}) == set()
+    # the augmented pluperfect is built from the printed perfect
+    assert derived_cells("plup-aug", ["plup", "ἐλελυκ", "ἐλελυ"],
+                         {"ἐλελύκειν"}) == {"ἐλελύκειν"}
+    # the future, the perfect and the imperfect stand on printed stems
+    assert derived_cells("fut", ["fut", "λυσ"], {"λύσω"}) == set()
+    assert derived_cells("perf", ["perf", "λελυκ", "λελυ"],
+                         {"λέλυκα"}) == set()
+    assert derived_cells("imperf", ["imperf", "ἐλυ"], {"ἔλυον"}) == set()
+
+
+def test_cells_only_a_derived_stem_gives(monkeypatch):
+    cells = {"aor-2": {"ἤγαγον", "ἄξω", "ἀγαγών"}, "fut": {"ἄξω", "ἄξεις"}}
+    monkeypatch.setattr(
+        expand_lsj, "_expand_principal_part",
+        lambda _wtp, headword, tense_args: cells[tense_args[0]])
+    # ἄξω is the future too, on the printed stem
+    assert expand_lsj.derived_principal_part_cells(
+        None, "ἄγω", "fut. ἄξω: aor. 2 ἤγαγον") == {"ἀγαγών"}
+    assert expand_lsj.derived_principal_part_cells(None, "ἄγω", "") == set()
 
 
 def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     entries = {hw: {"orth_orig": hw, "gender": ""}
-               for hw in ("εἰκονίζω", "καταδείκνυμι", "καταδέχομαι")}
+               for hw in ("εἰκονίζω", "καταδείκνυμι", "καταδέχομαι",
+                          "δέχομαι", "ἀμφιέννυμι", "ἀμφιάζω")}
     entries["εἰκονικός"] = {"orth_orig": "εἰκονικός", "gender": "m"}
     monkeypatch.setattr(expand_lsj, "parse_lsj_entries", lambda: entries)
     monkeypatch.setattr(expand_lsj, "load_wiktionary_forms", lambda: {})
     monkeypatch.setattr(expand_lsj, "load_lsj_head_texts", lambda: {
-        "καταδείκνυμι": "Ion. aor. κατέδεξα Hdt.: discover."})
+        "καταδείκνυμι": "Ion. aor. κατέδεξα Hdt.: discover.",
+        "δέχομαι": "fut. δέξομαι: aor. ἐδεξάμην: take.",
+        "ἀμφιέννυμι": "fut. ἀμφιέσω: put round."})
     monkeypatch.setattr(expand_lsj, "load_lsj_supplement_head_texts",
                         lambda: {})
     monkeypatch.setattr(expand_lsj, "verify_lsj_glosses",
@@ -319,29 +436,39 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     monkeypatch.setattr(expand_lsj, "FORM_PROFILE", profile(tmp_path, [
         "εἰκόνισεν", "εἰκονικός", "κατεδέξατο", "κατέδεξε", "εἰκονίσει",
         "εἰκονίσεις"]))
-    pairs = tmp_path / "pairs.json"
-    pairs.write_text(json.dumps([
-        {"form": "κατεδέξατο", "lemma": "καταδέχομαι"},
-        {"form": "κατέδεξεν", "lemma": "καταδέχομαι"},
-        {"form": "εἰκονίσεις", "lemma": "εἰκονίζω"}], ensure_ascii=False),
-        encoding="utf-8")
+    pairs = write_pairs(tmp_path / "pairs.json", [
+        ("κατεδέξατο", "καταδέχομαι", "verb"),
+        ("κατέδεξεν", "καταδέχομαι", "verb"),
+        ("καταδέξασθαι", "καταδέχομαι", "verb"),
+        ("ἀμφιέσομαι", "ἀμφιάζω", "verb"),
+        ("εἰκονίσεις", "εἰκονίζω", "verb")])
     monkeypatch.setattr(expand_lsj, "TREEBANK_PAIRS", (pairs,))
+    heads = tmp_path / "grc_lexical_heads.json"
+    heads.write_text(json.dumps(
+        {"heads": {hw: ["lsj9_headwords"] for hw in entries}},
+        ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(expand_lsj, "LEXICAL_HEADS", heads)
     audit = tmp_path / "audit.json"
     monkeypatch.setattr(expand_lsj, "VERB_AUDIT", audit)
 
+    cells = {
+        "εἰκονίζω": {"εἰκόνισε(ν)", "εἰκόνισα", "εἰκονικός", "εἰκονίσει",
+                     "εἰκονίσεις"},
+        "καταδείκνυμι": {"κατέδεξε(ν)", "κατεδέξατο", "καταδέξασθαι"},
+        "καταδέχομαι": {"κατεδέξατο"},
+        "ἀμφιέννυμι": {"ἀμφιέσομαι"},
+    }
+
     def expand(_wtp, word, head_text="", supplement_text="",
                principal_part_forms=None):
-        if word == "καταδείκνυμι":
-            principal_part_forms |= {"κατέδεξε(ν)", "κατεδέξατο"}
+        if head_text and word in cells:
+            principal_part_forms |= cells[word]
         return {word}, ""
 
     monkeypatch.setattr(expand_lsj, "expand_verb", expand)
     monkeypatch.setattr(
         expand_lsj, "_expand_principal_part",
-        lambda _wtp, headword, tense_args: (
-            {"εἰκόνισε(ν)", "εἰκόνισα", "εἰκονικός", "εἰκονίσει",
-             "εἰκονίσεις"}
-            if headword == "εἰκονίζω" else set()))
+        lambda _wtp, headword, tense_args: cells.get(headword, set()))
     expand_lsj.expand_verbs()
     result = json.loads(lookup.read_text(encoding="utf-8"))
     # an attested cell of an inferred aorist
@@ -352,22 +479,32 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     # a future that the noun in -σις also spells needs a treebank
     assert "εἰκονίσει" not in result
     assert result["εἰκονίσεις"] == "εἰκονίζω"
-    # a printed part keeps the cell no treebank reads otherwise, one
-    # spelling at a time
+    # A cell on the stem the entry prints stands, whatever a treebank
+    # reads, one spelling at a time,
     assert result["κατέδεξε"] == "καταδείκνυμι"
-    assert "κατέδεξεν" not in result
-    assert "κατεδέξατο" not in result and "κατεδεξατο" not in result
+    assert result["κατέδεξεν"] == "καταδείκνυμι"
+    assert result["ἀμφιέσομαι"] == "ἀμφιέννυμι"
+    # unless the verb the treebank reads has the cell too: καταδέχομαι
+    # takes ἐδεξάμην from δέχομαι.
+    assert result["κατεδέξατο"] == "καταδέχομαι"
+    assert result["κατεδεξατο"] == "καταδέχομαι"
+    # A cell on the unaugmented stem, which no entry prints, gives way to
+    # the headword the treebank reads.
+    assert "καταδέξασθαι" not in result
     recorded = json.loads(audit.read_text(encoding="utf-8"))
-    assert recorded["inferred"] == {"εἰκονίζω": {
-        "kind": "regular", "from": "",
-        "cells": ["εἰκονίσεις", "εἰκόνισεν"]}}
+    assert recorded["inferred"] == {
+        "εἰκονίζω": {"kind": "regular", "from": "",
+                     "cells": ["εἰκονίσεις", "εἰκόνισεν"]},
+        "καταδέχομαι": {"kind": "compound", "from": "δέχομαι",
+                        "cells": ["κατεδέξατο"]}}
     assert recorded["left_to_treebank"] == [
-        {"form": "κατέδεξεν", "verb": "καταδείκνυμι", "part": "printed",
-         "treebank": ["καταδέχομαι"]},
+        {"form": "καταδέξασθαι", "verb": "καταδείκνυμι", "part": "derived",
+         "treebank": "καταδέχομαι"},
         {"form": "κατεδέξατο", "verb": "καταδείκνυμι", "part": "printed",
-         "treebank": ["καταδέχομαι"]}]
+         "treebank": "καταδέχομαι"}]
     assert recorded["counts"]["inferred_noun_twins"] == 1
-    assert set(recorded["inputs"]) == {"form_profile.db", "pairs.json"}
+    assert set(recorded["inputs"]) == {
+        "form_profile.db", "grc_lexical_heads.json", "pairs.json"}
 
 
 def test_verb_pass_names_a_missing_corpus_table(monkeypatch, tmp_path):

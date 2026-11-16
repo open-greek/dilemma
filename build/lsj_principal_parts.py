@@ -1324,6 +1324,32 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
     return args
 
 
+def derived_cells(tense: str, tense_args: list[str], cells) -> set[str]:
+    """The cells of one call of :func:`derive_grc_conj_args` that stand on
+    a stem the entry does not print.
+
+    An entry prints a past tense with its augment (ἀντετάφην, ἤγαγον). The
+    stem without it (ἀντιταφ-, ἀγαγ-), which carries every form outside the
+    indicative, is derived from the headword, and so is the augmented
+    pluperfect (ἐλελύκειν beside the printed λέλυκα). A plain ἐ- before the
+    stem is no derivation: the conjugation module takes it off by itself
+    (ἐζημίωσα, ζημιῶσαι). The cells of every other call begin with a stem
+    the entry prints.
+    """
+    if tense == "plup-aug":
+        return set(cells)
+    if not tense.startswith("aor") or INDICATIVE_ONLY in tense_args:
+        return set()
+    stems = [arg for arg in tense_args[1:] if arg and "=" not in arg]
+    if len(stems) < 2:
+        return set()
+    printed, plain = (_bare(_letters(stem)) for stem in stems[:2])
+    if printed in (plain, "ε" + plain):
+        return set()
+    return {cell for cell in cells
+            if not _bare(_letters(cell)).startswith(printed)}
+
+
 # --- Principal parts that no entry prints -----------------------------------
 #
 # Most LSJ verbs print no principal parts: a compound leaves them to its
@@ -1679,6 +1705,7 @@ __all__ = [
     "regular_compound_parts",
     "regular_parts",
     "regular_rivals",
+    "derived_cells",
     "short_verb_compound",
     "stem_preverb",
     "strip_diacritics",

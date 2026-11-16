@@ -27,7 +27,8 @@ python build/expand_lbg.py                    # inflect Byzantine headwords (gat
 ```
 
 `--expand-verbs` also reads `data/form_profile.db` (`python -m dilemma
-download --with-attestation`) and the treebank pair files in `data/`
+download --with-attestation`), `data/grc_lexical_heads.json`
+(`build/build_grc_lexical_heads.py`) and the treebank pair files in `data/`
 (`perseus_pairs.json`, `glaux_pairs.json`, `diorisis_pairs.json`,
 `nt_pairs.json`, `ptnk_pairs.json`, `tagnt_pairs.json`,
 `pedalion_pairs.json`), and stops when one is missing; see
@@ -508,35 +509,66 @@ form begins with one of its stems. Further:
   left alone (the "perfect participle" `ἱππικός` of `ἱππίζω`; a perfect
   without visible reduplication is not inferred for a dental stem at all);
 - a cell that two verbs infer goes to neither;
-- a future in `-σει` or `-σεις` (`-ξει`, `-ψει`) is also the dative or plural
-  of the action noun in `-σις` (`ἐπισκιάσει`, `ἀμοιρήσεις`), so it is kept
-  only where a treebank reads it as this verb.
+- a cell that a noun also spells is kept only where a treebank reads it as
+  this verb: a future in `-σει` or `-σεις` (`-ξει`, `-ψει`) is the dative or
+  plural of the action noun in `-σις` (`ἐπισκιάσει`, `ἀμοιρήσεις`), and the
+  participle of an Attic future in `-ιῶν`, or of its uncontracted `-ιέων`, a
+  genitive plural (`κοσμιῶν`, `πεδιέων`).
 
 ### Treebank readings
 
-A principal-part cell, printed or inferred, does not take a form the
-treebanks read otherwise. The lookup build fills gaps from the treebank pair
-files in a fixed order (`perseus_pairs.json`, `glaux_pairs.json`,
-`diorisis_pairs.json`, `nt_pairs.json`, `ptnk_pairs.json`,
-`tagnt_pairs.json`, `pedalion_pairs.json`), so the reading of a form is that
-of the first file that has it. When that reading is another dictionary
-headword, or the same verb in its other voice (`ἐπιλανθάνομαι` for
-`ἐπιλανθάνω`), the cell is left out and the lookup build takes the treebank
-reading as before: `κατεδέξατο` stays with `καταδέχομαι`, though LSJ also
-prints `κατέδεξα` as the Ionic aorist of `καταδείκνυμι`, and `ἠβουλήθη` stays
-with `βούλομαι`, not `ἀβουλέω`. A treebank lemma that is no headword
-(`σύν-εἶδον`, `νεπεπυρίζω`) decides nothing, and a reading under the same
-letters is agreement (`ἐνθρῴσκω` for `ἐνθρώσκω`). The corpus tables only
-withhold or confirm cells; no form or lemma enters the table from them.
+The lookup build fills gaps from the treebank pair files in a fixed order
+(`perseus_pairs.json`, `glaux_pairs.json`, `diorisis_pairs.json`,
+`nt_pairs.json`, `ptnk_pairs.json`, `tagnt_pairs.json`,
+`pedalion_pairs.json`): the first file that has a form speaks for it, and
+within the file its first pair. The verb pass reads the pair files the same
+way (`load_treebank_readings`). The grave counts as the acute. A file that
+has the form only with a capital (`Κατεδέξατο`) speaks for it when no file
+has it as spelled, unless the lemma is capitalised too (`Φιαλέων` of
+`Φιαλεύς` says nothing about `φιαλέων`). The reading that counts is the
+first usable one (`treebank_reading`): the verb itself, by its letters
+(`ἐνθρῴσκω` for `ἐνθρώσκω`), a headword of some dictionary in
+`data/grc_lexical_heads.json` that is no reviewed non-lemma, or the verb in
+its other voice (`ἐπιλανθάνομαι` for `ἐπιλανθάνω`). A lemma that no
+dictionary heads (`σύν-εἶδον`, `ὑπαλειψάννυμι`) is passed over.
 
-The pass therefore needs `data/form_profile.db` and the seven pair files, and
-stops when one is missing. `--no-corpus-checks` runs without them (no
-inferred parts, no treebank check); that is not the published build. What the
-corpus tables decided is written to `data/ag_verb_generation_audit.json`: the
-content hash of `form_profile.db` and the sha256 of each pair file, the
-inferred cells by verb with the kind of inference and the simplex, the cells
-two verbs inferred, and the cells left to a treebank reading with that
-reading.
+A principal-part cell is checked against that reading, and how much the
+reading weighs depends on the stem under the cell:
+
+- **A stem no entry prints.** A cell of an inferred part, a cell on the
+  unaugmented stem that the generator derives for a printed past tense
+  (`καταδέξας` beside `κατέδεξα`, `ἀγαγών` beside `ἤγαγον`) and the augmented
+  pluperfect are the generator's own. Such a cell is left out when the
+  treebanks read the form as another word, and the lookup build takes the
+  treebank reading as before: `ἠβουλήθη` stays with `βούλομαι`, not
+  `ἀβουλέω`, and `ἀνακλάσεις` with the noun `ἀνάκλασις`, which the first
+  pair names.
+- **A stem the entry prints.** The future, the perfect, the imperfect and the
+  augmented indicative of a printed past tense are the dictionary's. So are
+  the other moods of a past tense with a plain `ἐ-` before the stem
+  (`ἐζημίωσα`, `ζημιῶσαι`), which the conjugation module takes off by
+  itself. Another verb in a treebank does not move such a cell: `ἀμφιέσομαι`
+  stays the future LSJ prints under `ἀμφιέννυμι`, though a treebank files it
+  under `ἀμφιάζω`. The cell is left out only when the verb the treebanks
+  read has it among its own principal parts, printed or inferred
+  (`κατεδέξατο` is the aorist of `καταδέχομαι` in the treebanks, a compound of
+  `δέχομαι`, while LSJ prints `κατέδεξα` as the Ionic aorist of
+  `καταδείκνυμι`: both verbs give the cell, and the treebanks decide), or
+  when the treebanks read the form as no verb at all (`φιαλέων` is the
+  genitive of `φιάλη` before it is a participle of the future `φιαλῶ`).
+
+The corpus tables only withhold or confirm cells; no form or lemma enters the
+table from them.
+
+The pass therefore needs `data/form_profile.db`, `data/grc_lexical_heads.json`
+and the seven pair files, and stops when one is missing. `--no-corpus-checks`
+runs without them (no inferred parts, no treebank check); that is not the
+published build. What the corpus tables decided is written to
+`data/ag_verb_generation_audit.json`: the content hash of `form_profile.db`
+and the sha256 of the other inputs, the inferred cells by verb with the kind
+of inference and the simplex, the cells two verbs inferred, and the cells
+left to a treebank reading, each with that reading and the kind of stem
+(`printed`, `derived`, `inferred`).
 
 ## Finite-form synthesis
 
