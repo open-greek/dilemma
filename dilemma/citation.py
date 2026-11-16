@@ -18,6 +18,40 @@ def _is_greek_letter(char: str) -> bool:
             and char.isalpha())
 
 
+# The hyphens and dashes a lexicon, its export, its OCR or a line break
+# leaves inside a word; the soft hyphen is invisible.
+HEAD_HYPHENS = "-\u00ad\u2014\u2013"
+
+
+def hyphenated_lemma(lemma: str) -> bool:
+    """Whether a lemma has a hyphen (also a soft one) or a dash between two
+    of its letters.
+
+    No Ancient citation form is spelled that way. A lexicon divides a
+    compound or a derivative at its stem (Βακχ-εία, καθ-ηδύνω), OCR keeps a
+    line-break hyphen (Σινα-ῖτις), and a corpus names a preverb apart
+    (ἐπί-εἰσκομίζω) or lemmatizes a line-broken token as it stands (αὐ-τός).
+    Accents and breathings are ignored (ἐμ\u0301-βλῴσκω); a hyphen at either
+    end is not between letters (ὁτ-), and neither is one beside a metrical
+    sign. Two marks in a row are still inside the word.
+    """
+    if not isinstance(lemma, str) or not any(
+            mark in lemma for mark in HEAD_HYPHENS):
+        return False
+    letter_before = after_letter = False
+    for char in unicodedata.normalize("NFD", lemma):
+        if unicodedata.combining(char):
+            continue
+        if char in HEAD_HYPHENS:
+            after_letter = after_letter or letter_before
+        elif after_letter and char.isalpha():
+            return True
+        else:
+            after_letter = False
+            letter_before = char.isalpha()
+    return False
+
+
 def malformed_tonal_reason(text: str) -> str | None:
     """Return a reason for structurally impossible tonal-mark placement.
 

@@ -30,7 +30,9 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from dilemma.form_sanitize import (  # noqa: E402
     MIN_POLYTONIC_SHARE, has_editorial_sigla, polytonic_share, sanitize_form,
 )
-from dilemma.citation import malformed_tonal_reason  # noqa: E402
+from dilemma.citation import (  # noqa: E402
+    hyphenated_lemma, malformed_tonal_reason,
+)
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
 from dilemma.nonlexical import classify_nonlexical  # noqa: E402
@@ -1234,6 +1236,23 @@ def build():
                 and "\u0300" in unicodedata.normalize("NFD", form)
                 and strip_accents(form.lower()) in _VOWEL_ONLY_ARTICLE_LETTERS)
 
+    # An Ancient corpus pair whose lemma has a hyphen between two letters
+    # names no citation form: AGDT writes some compound verbs with the
+    # preverb apart (ἐπί-εἰσκομίζω), and GLAUx lemmatizes a line-broken
+    # token as it stands (αὐ-τός, πήν-τος). ag_headwords.json lists those
+    # spellings, so headword validation lets them through. The dictionary
+    # expansion no longer supplies such a lemma either (overlay_lsj.py).
+    corpus_hyphenated_dropped: dict[str, int] = {}
+
+    def _hyphenated_corpus_lemma(form, lemma, source):
+        if not hyphenated_lemma(lemma):
+            return False
+        corpus_hyphenated_dropped[source] = (
+            corpus_hyphenated_dropped.get(source, 0) + 1)
+        _record_citation_rejection(table="AG", source=source, form=form,
+                                   lemma=lemma, reason="hyphenated_lemma")
+        return True
+
     # A word with an entry of its own takes back the reading another lemma's
     # homograph entry or table took from it in the merged table, where GLAUx,
     # or for a Wiktionary head the pinned Wiktionary-only base, prefers it
@@ -1280,6 +1299,8 @@ def build():
             perseus_pairs = json.load(f)
         for p in perseus_pairs:
             form, lemma = p["form"], p["lemma"]
+            if _hyphenated_corpus_lemma(form, lemma, PERSEUS_PAIRS_PATH.name):
+                continue
             if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = PERSEUS_PAIRS_PATH.name
@@ -1468,7 +1489,10 @@ def build():
 
     def _corpus_expansion_lemma(form, lemma, source):
         """A corpus pair's lemma after the #103 verdict on the same expansion
-        lemma: the repaired head, the lemma unchanged, or None (dropped)."""
+        lemma: the repaired head, the lemma unchanged, or None (dropped).
+        A hyphenated lemma is dropped as well."""
+        if _hyphenated_corpus_lemma(form, lemma, source):
+            return None
         verdict = expansion_verdicts.get(sanitize_form(lemma))
         if verdict is None:
             return lemma
@@ -1667,6 +1691,10 @@ def build():
               f"{bad_lemma:,} bad lemmas rejected ({time.time()-t_g:.1f}s)")
 
 
+    if corpus_hyphenated_dropped:
+        print("  Corpus pairs under a hyphenated lemma dropped: "
+              + ", ".join(f"{source} {count:,}" for source, count
+                          in sorted(corpus_hyphenated_dropped.items())))
     for label, counts in (("dropped", corpus_expansion_dropped),
                           ("repaired", corpus_expansion_repaired)):
         if counts:

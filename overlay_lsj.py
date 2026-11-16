@@ -37,6 +37,7 @@ from dilemma.form_sanitize import (
     sanitize_form, canonicalize_final_elision,
 )
 from dilemma import grave_to_acute, to_monotonic
+from dilemma.citation import hyphenated_lemma
 
 
 ROOT = Path(__file__).resolve().parent
@@ -65,10 +66,6 @@ _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
 _ACCENT_MARKS = frozenset("\u0300\u0301\u0342")
 _BREATHING_MARKS = ("\u0313", "\u0314")
 _LEADING_BREATHINGS = frozenset("\u0313\u0314\u1fbf\u1ffe")
-# The hyphens and dashes a lexicon, its export or its OCR leaves inside a
-# printed head (build/expand_lsj.py _HEAD_HYPHENS, build/expand_sophocles.py
-# _INNER_HYPHENS); the soft hyphen is invisible.
-_HEAD_HYPHENS = "-\u00ad—–"
 # Regular masculine and neuter cells of a second-declension oxytone.
 _OXYTONE_OS_ENDINGS = ("ός", "οῦ", "ῷ", "όν", "έ", "ώ", "οῖν", "οί", "ῶν",
                        "οῖς", "ούς", "ά")
@@ -102,36 +99,6 @@ def strip_marks(text: str) -> str:
     return unicodedata.normalize("NFC", "".join(
         char for char in unicodedata.normalize("NFD", text)
         if not unicodedata.combining(char)))
-
-
-def hyphenated_lemma(lemma: str) -> bool:
-    """Whether a lemma has a hyphen (also a soft one) or a dash between two
-    of its letters.
-
-    The historical layer keyed a head as its lexicon printed it. LSJ9's
-    export divides compounds and derivatives (Βακχ-εία, ἀασι-φρονία), the
-    Sophocles lexicon divides compounds and its OCR keeps line-break
-    hyphens (καθ-ηδύνω, Σινα-ῖτις), and a few corpus lemmas name the preverb
-    apart (ἐπί-εἰσκομίζω). None is a citation form. The current generators
-    read such a head under its joined word (build/expand_lsj.py
-    settle_lsj_head, build/expand_sophocles.py settle_head) or reject it,
-    so its rows are superseded: by the joined head's paradigm, or outright.
-    Accents and breathings are ignored (ἐμ́-βλῴσκω); a hyphen at either end
-    is not between letters (ὁτ-). LSJ9's headword list also has words
-    broken by soft hyphens, sometimes two in a row.
-    """
-    if not any(mark in lemma for mark in _HEAD_HYPHENS):
-        return False
-    letter_before = after_letter = False
-    for char in strip_marks(lemma):
-        if char in _HEAD_HYPHENS:
-            after_letter = after_letter or letter_before
-        elif after_letter and char.isalpha():
-            return True
-        else:
-            after_letter = False
-            letter_before = char.isalpha()
-    return False
 
 
 def superseded_verb_generation(lemma: str) -> bool:

@@ -285,8 +285,8 @@ every citation value removed by the build-time gate.
 The gate also checks the dictionary-expansion layer (`grc_lexicon_expansion`)
 for lemmas with no diacritic at all, which are source-text artefacts rather
 than citation forms: Latin words read as Beta Code (`αελιυς`), OCR garble
-(`λαβλυμι`, which `λαβηι` used to return), hyphenated composition lemmas
-(`προ-ανακηρυσσω`) and unaccented doublets (`συνοχος`). A lemma that
+(`λαβλυμι`, which `λαβηι` used to return) and unaccented doublets
+(`συνοχος`). A lemma that
 `grc_lexical_heads.json` lists (`τε`, `που`) is kept. Otherwise the reading is
 moved to the single Ancient head with the same letters, recorded as
 `unaccented_expansion_lemma_repaired_to_<head>` (`σύνοχα` → `σύνοχος`), when
@@ -297,7 +297,14 @@ has no row of its own is no citation form, and the reading is dropped as
 dropped as `unaccented_expansion_lemma_unlisted`. A GLAUx, Diorisis, NT or
 cog pair whose lemma is one of these judged expansion lemmas gets the same
 verdict, since `ag_headwords.json` lists some of them and the pair would put
-the dropped lemma back (`λαβῃ` → `λαβλυμι` from GLAUx). Other Wiktionary,
+the dropped lemma back (`λαβῃ` → `λαβλυμι` from GLAUx). An AGDT, GLAUx,
+Diorisis, NT or cog pair whose lemma has a hyphen between two letters is
+dropped as `hyphenated_lemma`: AGDT writes some compound verbs with the
+preverb apart (`ἐπεισεκόμισαν` under `ἐπί-εἰσκομίζω`) and GLAUx lemmatizes a
+line-broken token as it stands (`αὐ-τοῖς` under `αὐ-τός`), and neither is a
+citation form. The expansion layer has no such lemma since 1.3.27
+(docs/lexicon-expansion.md, "LSJ heads" and "Historical expansion overlay");
+Modern Greek compounds keep their hyphen (`Ελλάδα-Βουλγαρία`). Other Wiktionary,
 corpus and merged readings are not checked this way, so real unaccented LBG
 and LSJ10 headwords stay.
 

@@ -551,8 +551,10 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
     ("-", False),
 ])
 def test_hyphenated_lemma_has_a_hyphen_between_two_letters(lemma, hyphenated):
-    from overlay_lsj import hyphenated_lemma
+    from dilemma.citation import hyphenated_lemma
+    import overlay_lsj
     assert hyphenated_lemma(lemma) is hyphenated
+    assert overlay_lsj.hyphenated_lemma is hyphenated_lemma
 
 
 def test_overlay_never_restores_a_row_under_a_hyphenated_lemma():

@@ -207,6 +207,49 @@ def test_corpus_pairs_cannot_bring_back_a_dropped_expansion_lemma(tmp_path):
             "λαβῇ", "λαβλυμι") in rejected
 
 
+def test_corpus_pairs_under_a_hyphenated_lemma_are_dropped(tmp_path):
+    # AGDT writes some compound verbs with the preverb apart and GLAUx
+    # lemmatizes a line-broken token as it stands. ag_headwords.json lists
+    # those spellings, so headword validation let the pairs through.
+    perseus = [{"form": "ἐπεισεκόμισαν", "lemma": "ἐπί-εἰσκομίζω", "pos": "verb"},
+               {"form": "λόγου", "lemma": "λόγος", "pos": "noun"}]
+    glaux = [{"form": "αὐ-τοῖς", "lemma": "αὐ-τός", "pos": "pron"},
+             {"form": "προσθῶμεν", "lemma": "προσ-τίθημι", "pos": "verb"},
+             {"form": "βραγχᾷ", "lemma": "βραγ\u00adχάω", "pos": "verb"},
+             {"form": "λόγῳ", "lemma": "λόγος", "pos": "noun"}]
+    diorisis = [{"form": "προσθῶμέν", "lemma": "προσ-τίθημι", "pos": "verb"}]
+    data, env = _fixture(tmp_path, {
+        "ag_headwords.json": ["ἐπί-εἰσκομίζω", "αὐ-τός", "προσ-τίθημι",
+                              "βραγ\u00adχάω", "λόγος"],
+        "perseus_pairs.json": perseus,
+        "glaux_pairs.json": glaux,
+        "diorisis_pairs.json": diorisis,
+        # a Modern Greek compound is spelled with its hyphen
+        "hnc_pairs.json": {"Ελλάδα-Βουλγαρία": "Ελλάδα-Βουλγαρία"},
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "hyphenated lemma dropped: diorisis_pairs.json 1, " \
+           "glaux_pairs.json 3, perseus_pairs.json 1" in result.stdout
+    for lang in ("all", "grc", "el"):
+        rows = _rows(data, lang)
+        assert not any(B.hyphenated_lemma(lemma) for lemma in rows.values()
+                       if lemma != "Ελλάδα-Βουλγαρία")
+        for form in ("ἐπεισεκόμισαν", "αὐ-τοῖς", "προσθῶμεν", "προσθῶμέν",
+                     "βραγχᾷ"):
+            assert form not in rows
+    rows = _rows(data)
+    assert rows["λόγου"] == "λόγος" and rows["λόγῳ"] == "λόγος"
+    assert rows["Ελλάδα-Βουλγαρία"] == "Ελλάδα-Βουλγαρία"
+    rejected = _rejections(data)
+    assert ("AG", B.PERSEUS_PAIRS_PATH.name, "hyphenated_lemma",
+            "ἐπεισεκόμισαν", "ἐπί-εἰσκομίζω") in rejected
+    assert ("AG", B.GLAUX_PAIRS_PATH.name, "hyphenated_lemma",
+            "αὐ-τοῖς", "αὐ-τός") in rejected
+    assert ("AG", B.DIORISIS_PAIRS_PATH.name, "hyphenated_lemma",
+            "προσθῶμέν", "προσ-τίθημι") in rejected
+
+
 def test_missing_lexical_heads_stop_a_build_with_expansion_readings(tmp_path):
     data, env = _fixture(tmp_path)
     (data / "grc_lexical_heads.json").unlink()
