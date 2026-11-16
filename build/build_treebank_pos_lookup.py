@@ -14,7 +14,12 @@ corpus targets, tied owner votes, and complete capital name/ethnic owner votes
 collected before the sparse runtime-table filter).
 
 Only forms that are genuinely ambiguous (2+ distinct UPOS->lemma mappings)
-are included. Monotonic and lowercase variants are added for lookup cascade.
+are included, plus single corpus votes the runtime needs: one that disagrees
+with the bare lookup, and one that agrees with it while a lower-priority
+table or a case variant would answer differently, when Wiktionary defines the
+lemma for the tag or when the form is itself a head an edited lexicon lists.
+Monotonic and lowercase variants are added for lookup cascade. A capitalized
+name that GLAUx attests well keeps its NOUN vote under its exact spelling.
 """
 
 import argparse
@@ -186,6 +191,32 @@ def _input_fingerprint(path):
     return {"size": path.stat().st_size, "sha256": digest.hexdigest()}
 
 
+# A listing in one of these does not show that a lower-case word is a
+# dictionary head of its own: pd_headwords also lists inflected fragments
+# (ὁρώ, ἵε) and lgpn_names lists personal names. Wiktionary is consulted
+# separately, with its own test that the page defines the lemma for the tag.
+_HEAD_SOURCES_NOT_COUNTED = frozenset({"pd_headwords", "lgpn_names"})
+# Closed-class words are left to the reviewed grammatical lemmas.
+_HEAD_VOTE_UPOS = frozenset({"NOUN", "ADJ", "ADV", "VERB"})
+
+
+# Tests for the NOUN cell of a capitalized name, on GLAUx token counts: the
+# capitalized spelling has enough tokens, nearly all of them are this name,
+# and the name is not rare beside the lower-case word of the same spelling,
+# so that capitals at the start of a sentence cannot pass for the name. The
+# lower-case word counts as a noun or as an adjective: a NOUN tag also covers
+# the substantive use of an adjective (φίλων beside Φίλων). A final grave is
+# the acute of running text, so the two spellings are counted as one.
+_NAME_MIN_FORM_TOKENS = 10
+_NAME_MIN_SHARE = (9, 10)
+_NAME_PER_LOWERCASE_NOMINAL = (1, 4)
+
+
+def _listed_by_lexicon(sources):
+    return any(not source.startswith("wiktionary_")
+               and source not in _HEAD_SOURCES_NOT_COUNTED for source in sources)
+
+
 def _load_lexical_targets():
     """Generated lookup membership cannot establish a corpus lemma's status."""
     path = DATA_DIR / "grc_lexical_heads.json"
@@ -197,7 +228,35 @@ def _load_lexical_targets():
     keys = {_lexical_target_key(head) for head, sources in payload["heads"].items()
             if isinstance(sources, list) and sources}
     keys.discard(None)
-    return keys, _input_fingerprint(path)
+    listed = frozenset(head for head, sources in payload["heads"].items()
+                       if isinstance(sources, list) and _listed_by_lexicon(sources))
+    return keys, _input_fingerprint(path), listed
+
+
+def _letter_count(text):
+    return sum(1 for char in unicodedata.normalize("NFD", text)
+               if not unicodedata.combining(char))
+
+
+def _grave_as_acute(text):
+    """The spelling before a pause: a final grave is the acute of running text."""
+    return unicodedata.normalize("NFC", unicodedata.normalize(
+        "NFD", text).replace("\u0300", "\u0301"))
+
+
+def _is_own_listed_head(form, upos, lemma, listed_heads):
+    """The corpus reads a lower-case head of an edited lexicon as itself."""
+    if (upos not in _HEAD_VOTE_UPOS or is_capitalized(form)
+            or lemma not in listed_heads):
+        return False
+    # Unaccented spellings and single letters are fragments and sigla,
+    # whatever a lexicon lists.
+    spelled = _grave_as_acute(form)
+    if spelled != lemma:
+        return False
+    return (_letter_count(spelled) >= 2
+            and any(char in "\u0301\u0342"
+                    for char in unicodedata.normalize("NFD", spelled)))
 
 
 def _unique_owner(counts):
@@ -244,6 +303,12 @@ def _lower_priority_pos_models():
 
 def _different_owner(lemma, other):
     return bool(other) and strip_accents(lemma) != strip_accents(other)
+
+
+def _different_word(lemma, other):
+    """Another word, not the same letters in the other case."""
+    return (bool(other)
+            and strip_accents(lemma).lower() != strip_accents(other).lower())
 
 
 def _defined_pos_targets(wanted):
@@ -358,8 +423,119 @@ def _scalar_query_conflict(model, form, upos, lemma):
     return False
 
 
-def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_corpus=None):
-    """Restore defined votes hidden by POS or case-sensitive scalar entries."""
+class _NameTokens:
+    """GLAUx token counts behind the capitalized-name tests.
+
+    Spellings are keyed with a final grave read as an acute, so Αἰακὸς and
+    Αἰακός share their counts and pass or fail together.
+    """
+
+    def __init__(self):
+        self.spelling = defaultdict(int)     # capitalized spelling, any reading
+        self.name = defaultdict(int)         # (spelling, capitalized noun lemma)
+        # lower-case spelling as a common noun or adjective
+        self.lower_nominal = defaultdict(int)
+
+    def add(self, form, lemma, upos, tokens):
+        spelling = _grave_as_acute(form)
+        if is_capitalized(form):
+            self.spelling[spelling] += tokens
+            if upos == "NOUN" and is_capitalized(lemma):
+                self.name[spelling, lemma] += tokens
+        elif upos in ("NOUN", "ADJ") and not is_capitalized(lemma):
+            self.lower_nominal[spelling] += tokens
+
+    def evidence(self, form, lemma):
+        """The counts, when they show the capitalized spelling is this name."""
+        spelling = _grave_as_acute(form)
+        total = self.spelling.get(spelling, 0)
+        name = self.name.get((spelling, lemma), 0)
+        lower = self.lower_nominal.get(spelling.lower(), 0)
+        share, ratio = _NAME_MIN_SHARE, _NAME_PER_LOWERCASE_NOMINAL
+        if (total < _NAME_MIN_FORM_TOKENS or share[1] * name < share[0] * total
+                or ratio[1] * name < ratio[0] * lower):
+            return None
+        return {"form_tokens": total, "name_tokens": name,
+                "lowercase_nominal_tokens": lower}
+
+
+def _capital_name_cells(lookup, candidates, tokens, cascade):
+    """Exact NOUN cells for capitalized names the corpus attests well.
+
+    A capitalized spelling without a cell of its own is answered through the
+    lower-case keys, by its lower-case twin or by another word (Θέρμον NOUN
+    gave θέρμος). Keep the name's agreeing vote where GLAUx shows that the
+    capitalized spelling is the name and every language scope reads it so
+    without a tag. The grave and the acute spelling of an oxytone share the
+    evidence, and each gets its own cell, because a capitalized key is read
+    by its exact spelling only (Πενθεὺς and Πενθεύς). The cell is not
+    projected: a lower-case or monotonic key belongs to the common word. A
+    single capital letter is a numeral or the label of a figure, not a name.
+    """
+    attested = {}
+    for form, (upos, lemma) in candidates.items():
+        if (upos != "NOUN" or form in lookup or not is_capitalized(form)
+                or not is_capitalized(lemma) or _letter_count(form) < 2):
+            continue
+        evidence = tokens.evidence(form, lemma)
+        if evidence is not None:
+            attested[form] = (lemma, evidence)
+    if not attested:
+        return {}
+    models = cascade.overlay(lookup)
+    return {form: {"lemma": lemma, **evidence}
+            for form, (lemma, evidence) in sorted(attested.items())
+            if _own_row(models, form, lemma) and any(
+                _different_owner(lemma, model._pos_table_lookup(form, "NOUN"))
+                for model in models)}
+
+
+def _own_row(models, form, lemma):
+    """Every language scope reads the spelling as this lemma without a tag."""
+    return all(model._lookup_word(form) == lemma for model in models)
+
+
+class _LowerCascade:
+    """The runtime's lower-priority tables, loaded once and only when needed."""
+
+    def __init__(self):
+        self._loaded = None
+
+    def models(self):
+        if self._loaded is None:
+            models = _lower_priority_pos_models()
+            self._loaded = (models, [(model._pos_ag_lookup, model._pos_lookup)
+                                     for model in models])
+        return self._loaded[0]
+
+    def overlay(self, projected):
+        """Put the table being built in front of the lower tables."""
+        models, lower = self.models(), self._loaded[1]
+        for model, tables in zip(models, lower):
+            combined = []
+            for table in tables:
+                overlaid = table.copy()
+                for form, values in projected.items():
+                    overlaid[form] = {**table.get(form, {}), **values}
+                combined.append(overlaid)
+            model._pos_ag_lookup, model._pos_lookup = combined
+        return models
+
+
+def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_corpus=None,
+                                   head_votes=frozenset(), kept_heads=None,
+                                   cascade=None):
+    """Restore supported votes hidden by POS or case-sensitive scalar entries.
+
+    A vote is supported when Wiktionary defines its lemma for the tag, or when
+    its form is in head_votes: a lower-case head of an edited lexicon that the
+    corpus and the bare lookup both read as itself. The second ground alone
+    keeps a vote only where every language scope reads the form as that head
+    without a tag and a lower table answers the form itself with another
+    word. A differently cased query is no reason, nor is an answer that is
+    the head's capitalized twin, which the runtime settles by the case of the
+    form. kept_heads, when given, receives the votes kept on that ground.
+    """
     unambiguous = {}
     for form, (upos, lemma) in candidates.items():
         counts = corpus[form][upos]
@@ -372,30 +548,30 @@ def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_cor
     candidates = unambiguous
     wanted = {(lemma, upos) for upos, lemma in candidates.values()}
     defined = _defined_pos_targets(wanted)
+    listed_only = {form for form, value in candidates.items()
+                   if form in head_votes and (value[1], value[0]) not in defined}
     candidates = {form: value for form, value in candidates.items()
-                  if (value[1], value[0]) in defined}
+                  if (value[1], value[0]) in defined or form in listed_only}
     if not candidates:
         return 0, {}
-    models = _lower_priority_pos_models()
-    lower = [(model._pos_ag_lookup, model._pos_lookup) for model in models]
+    cascade = cascade or _LowerCascade()
     added = 0
     protected = set()
     conflicts = {}
     while candidates:
-        projected = _project_pos_entries(lookup, conflicts)
-        for model, tables in zip(models, lower):
-            combined = []
-            for table in tables:
-                overlaid = table.copy()
-                for form, values in projected.items():
-                    overlaid[form] = {**table.get(form, {}), **values}
-                combined.append(overlaid)
-            model._pos_ag_lookup, model._pos_lookup = combined
+        models = cascade.overlay(_project_pos_entries(lookup, conflicts))
         corrections = {}
         for form, (upos, lemma) in candidates.items():
-            if any(_different_owner(lemma, model._pos_table_lookup(form, upos))
-                   or _scalar_query_conflict(model, form, upos, lemma)
-                   for model in models):
+            if form in listed_only:
+                needed = (_own_row(models, form, lemma) and any(
+                    _different_word(lemma, model._pos_table_lookup(form, upos))
+                    for model in models))
+            else:
+                needed = any(
+                    _different_owner(lemma, model._pos_table_lookup(form, upos))
+                    or _scalar_query_conflict(model, form, upos, lemma)
+                    for model in models)
+            if needed:
                 corrections[form] = {upos: lemma}
         if not corrections:
             break
@@ -403,6 +579,10 @@ def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_cor
         # exact corpus votes are compared with the same projected table.
         lookup.update(corrections)
         added += len(corrections)
+        if kept_heads is not None:
+            for form in sorted(listed_only & set(corrections)):
+                (upos, lemma), = corrections[form].items()
+                kept_heads[form] = {"upos": upos, "lemma": lemma}
         for form in corrections:
             protected.update({form.lower(), to_monotonic(form.lower())} - {form})
             del candidates[form]
@@ -415,7 +595,7 @@ def build_lookup():
     # Load required evidence before touching either output. A SQLite lemma can
     # itself be an inferred or corrupt corpus target, so it is only a second
     # gate after the merged independent lexical-head inventory.
-    lexical_targets, lexical_fingerprint = _load_lexical_targets()
+    lexical_targets, lexical_fingerprint, listed_heads = _load_lexical_targets()
     audit = {
         "schema_version": 2,
         "language": "grc",
@@ -424,6 +604,8 @@ def build_lookup():
         "rejected_corpus_targets": {},
         "tied_owners": {},
         "capital_name_owners": {},
+        "listed_head_votes": {},
+        "capital_name_cells": {},
     }
     for relative in ("dilemma/core.py", "dilemma/form_sanitize.py",
                      "build/build_grc_lexical_heads.py", "build_data.py"):
@@ -510,6 +692,7 @@ def build_lookup():
     # Keep those claims to prevent a newly projected spelling from silently
     # absorbing a different source form when its target lacks lexical support.
     projection_corpus = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    name_tokens = _NameTokens()
     lemma_set = set()
     if LOOKUP_DB_PATH.exists():
         audit["inputs"]["lookup"] = _input_fingerprint(LOOKUP_DB_PATH)
@@ -531,6 +714,8 @@ def build_lookup():
         for p in json.load(open(path, encoding="utf-8")):
             form, lemma = p.get("form"), p.get("lemma")
             upos = _CORPUS_POS_TO_UPOS.get(p.get("pos"))
+            if src == "glaux" and form and lemma:
+                name_tokens.add(form, lemma, upos, int(p.get("count", 1)))
             if not form or not lemma or not upos:
                 continue
             if not _clean_lemma(lemma):
@@ -615,6 +800,7 @@ def build_lookup():
                 bare[_f] = _l
         _c.close()
     fallback_candidates = {}
+    head_votes = set()
     disagree_added = 0
     for form, upos_dict in corpus_upos_lemmas.items():
         if form in lookup or form not in bare:
@@ -637,14 +823,30 @@ def build_lookup():
             disagree_added += 1
         else:
             fallback_candidates[form] = (upos, lemma)
+            # The lookup's own row must be the head too, accent for accent:
+            # a tagged answer that leaves the untagged one helps nobody.
+            if cur == lemma and _is_own_listed_head(form, upos, lemma, listed_heads):
+                head_votes.add(form)
+    cascade = _LowerCascade()
     restored, conflicts = _restore_shadowed_corpus_votes(
         lookup, fallback_candidates, corpus_upos_lemmas,
-        projection_corpus=projection_corpus)
+        projection_corpus=projection_corpus, head_votes=head_votes,
+        kept_heads=audit["listed_head_votes"], cascade=cascade)
     print(f"Corpus-disagreement POS entries added: {disagree_added}; "
-          f"defined votes retained against POS fallback: {restored}")
+          f"defined votes retained against POS fallback: {restored} "
+          f"({len(audit['listed_head_votes'])} as listed heads)")
 
     lookup = _project_pos_entries(lookup, conflicts)
     print(f"After adding lowercase/monotonic variants: {len(lookup)}")
+
+    # After the projection, so that the lower-case keys a capitalized
+    # spelling falls back to are the ones the runtime will read.
+    audit["capital_name_cells"] = _capital_name_cells(
+        lookup, fallback_candidates, name_tokens, cascade)
+    for form, cell in audit["capital_name_cells"].items():
+        lookup[form] = {"NOUN": cell["lemma"]}
+    print(f"Capitalized names kept under their exact spelling: "
+          f"{len(audit['capital_name_cells'])}")
 
     for form, readings in lookup.items():
         for upos in ("VERB", "AUX"):
