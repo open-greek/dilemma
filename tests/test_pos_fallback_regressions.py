@@ -368,6 +368,56 @@ def test_shipped_closed_class_entries_against_twin_families(lang):
                              SHIPPED_CLOSED_CLASS)
 
 
+PHAON_ROWS = [("φάω", "exact"), ("Φάω", "exact+case_alt")]
+
+
+@pytest.mark.parametrize("word,rows,name", [
+    ("φάων", PHAON_ROWS, "Φάων"),
+    ("ἵππων", [("ἵππος", "exact"), ("Ἵππος", "exact+case_alt")], "Ἵππων"),
+    ("ἀττικὴν", [("ἀττικός", "exact"), ("Ἀττικός", "exact+case_alt")], "Ἀττική"),
+])
+def test_propn_entry_naming_a_name_outranks_the_case_alternate(word, rows, name):
+    model = closed_class_model(rows, name)
+    assert _scalar_and_batch(model, word, "PROPN") == name
+    # Under another tag the lookup reading stands.
+    assert _scalar_and_batch(model, word, "NOUN") == rows[0][0]
+
+
+def test_propn_entry_leaves_a_name_the_lookup_reads_for_the_form():
+    # The row itself reads the capitalized lemma: the lookup holds a name
+    # for this form, and the entry's other name does not replace it.
+    rows = [("ἵππος", "exact+case_alt"), ("Ἵππος", "exact")]
+    model = closed_class_model(rows, "Ἵππων")
+    assert _scalar_and_batch(model, "Ἵππων", "PROPN") == "Ἵππος"
+
+
+@pytest.mark.parametrize("index", [3, 4])
+def test_propn_entry_of_a_shared_key_leaves_the_case_alternate(index):
+    model = closed_class_model(PHAON_ROWS, "Φάων", index=index)
+    assert _scalar_and_batch(model, "φάων", "PROPN") == "Φάω"
+
+
+def test_propn_entry_naming_a_common_word_leaves_the_case_alternate():
+    model = closed_class_model(PHAON_ROWS, "φάος")
+    assert _scalar_and_batch(model, "φάων", "PROPN") == "Φάω"
+
+
+SHIPPED_NAME_ENTRIES = [
+    ("φάων", "PROPN", "Φάων"), ("ἵππων", "PROPN", "Ἵππων"),
+    ("ἀττικὴν", "PROPN", "Ἀττική"), ("γλαῦκε", "PROPN", "Γλαῦκος"),
+    ("αἰγίνῃ", "PROPN", "Αἴγινα"),
+    # kept: the capitalized spellings, and the lookup reading under NOUN
+    ("Φάων", "PROPN", "Φάων"), ("Ἵππων", "PROPN", "Ἵππων"),
+    ("ἵππων", "NOUN", "ἵππος"),
+]
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_shipped_propn_entries_against_case_alternates(lang):
+    _assert_scalar_and_batch(_shipped_capital_model(lang=lang),
+                             SHIPPED_NAME_ENTRIES)
+
+
 def capital_model(rows, pos_lemma=None, *, lang="grc", convention=None,
                   modern=()):
     """twin_model() for a capitalized word.

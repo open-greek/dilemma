@@ -4005,7 +4005,7 @@ class Dilemma:
         {"PRON", "DET", "ADP", "CCONJ", "SCONJ", "PART", "INTJ"})
     # The last key variant of _pos_table_hit that is the word's own
     # spelling (as written, lowercased, grave folded to acute).
-    _CLOSED_CLASS_OWN_SPELLING = 2
+    _OWN_SPELLING_POS_VARIANT = 2
     _TONAL_ACCENTS = frozenset({0x0301, 0x0300, 0x0342})
 
     @classmethod
@@ -4652,11 +4652,36 @@ class Dilemma:
         except AttributeError:
             return False
         if (lemma is None or lemma != pos_lemma or index is None
-                or index > self._CLOSED_CLASS_OWN_SPELLING):
+                or index > self._OWN_SPELLING_POS_VARIANT):
             return False
         family = {c.lemma.lower() for c in candidates}
         read = self._lookup_word(pos_lemma)
         return not (read and read.lower() in family)
+
+    def _name_entry_decides(self, word: str, upos: str, pos_lemma: str,
+                            candidates) -> bool:
+        """Whether a PROPN entry naming a name outranks a case-twin family.
+
+        Under PROPN a lookup reading answers as its capitalized twin, and
+        that twin is often only the case alternate of a common word's row
+        (φάων reads φάω, so Φάω; ἵππων reads ἵππος, so Ἵππος). An entry
+        under the word's own spelling that names a capitalized lemma is
+        the name the tables hold for this form (Φάων, Ἵππων) and outranks
+        the alternate. A reading whose own row is the capitalized lemma
+        stands: there the lookup holds a name for the form itself.
+        """
+        if upos != "PROPN" or len(candidates) < 2 or not is_capitalized(pos_lemma):
+            return False
+        if any(is_capitalized(c.lemma)
+               and not getattr(c, "via", "").endswith("+case_alt")
+               for c in candidates):
+            return False
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        return (lemma is not None and lemma == pos_lemma and index is not None
+                and index <= self._OWN_SPELLING_POS_VARIANT)
 
     @staticmethod
     def _is_name_row_family(word: str, candidates) -> bool:
@@ -4981,6 +5006,8 @@ class Dilemma:
                 elif ((upos == "VERB"
                          or self._is_name_row_family(word, candidates)
                          or self._closed_class_entry_decides(
+                             word, upos, pos_lemma, candidates)
+                         or self._name_entry_decides(
                              word, upos, pos_lemma, candidates))
                         and len({c.lemma.lower() for c in candidates}) == 1
                         and not self._pos_override_blocked(
@@ -5189,6 +5216,8 @@ class Dilemma:
                         or ((upos == "VERB"
                              or self._is_name_row_family(word, candidates)
                              or self._closed_class_entry_decides(
+                                 word, upos, pos_lemma, candidates)
+                             or self._name_entry_decides(
                                  word, upos, pos_lemma, candidates))
                             and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
