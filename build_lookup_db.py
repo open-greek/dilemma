@@ -2688,6 +2688,9 @@ def build():
         "ἀπέδει": "ἀποδέω", "ὑπαγορεύσει": "ὑπαγόρευσις",
         "ἐνῆκα": "ἐνίημι", "προσεικώς": "προσέοικα",
         "τυμπανόεις": "τυμπανόεις",
+        # The capitalized third person of κεῖμαι (GLAUx: κεῖται 1,285) had
+        # only a Diorisis row under κέω.
+        "Κεῖται": "κεῖμαι",
         **KAIKKI_2026_11_READING_OVERRIDES,
         **REVIEWED_TREEBANK_READINGS,
         **REVIEWED_ABSENT_KEY_READINGS,
