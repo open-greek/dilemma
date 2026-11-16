@@ -1,6 +1,7 @@
 """Head rules of the Sophocles expansion (build/expand_sophocles.py)."""
 import json
 from pathlib import Path
+import re
 import sys
 
 import pytest
@@ -285,7 +286,7 @@ HEADS = {"καταμαρτυρία": ["lbg_headwords", "sophocles/0600.xml"],
 def test_noun_step_rejects_and_repairs_malformed_heads(tmp_path, monkeypatch):
     lookup, audit, calls = run_noun_step(
         tmp_path, monkeypatch, {"ἡλιοκάμινος": "ἡλιοκάμινος"},
-        "<orth>Ἔρετριάς</orth>, άδος, ἡ, of Eretria.",
+        "<orth>Ἔρετρίάς</orth>, άδος, ἡ, of Eretria.",
         "<orth>Σινα-ῖτις</orth>, ιδος, ἡ, of Sinai.",
         "<orth>ὕπο-κατασκευή</orth>, ῆς, ἡ, preparation.",
         "<orth>κατα-μαρτυρία</orth>, ας, ἡ, testimony against one.",
@@ -300,14 +301,17 @@ def test_noun_step_rejects_and_repairs_malformed_heads(tmp_path, monkeypatch):
         "καταμαρτυρία": "καταμαρτυρία", "καταμαρτυρια": "καταμαρτυρία",
         "καταμαρτυρίας": "καταμαρτυρία", "καταμαρτυριας": "καταμαρτυρία"}
     assert audit["head_rules"]["malformed_heads"] == {"count": 4, "heads": {
-        "Ἔρετριάς": "two-accents", "Σινα-ῖτις": "inner-hyphen",
+        "Ἔρετρίάς": "two-accents", "Σινα-ῖτις": "inner-hyphen",
         "ἀνα-πλήρως": "inner-hyphen", "ὕπο-κατασκευή": "inner-hyphen"}}
     assert audit["head_rules"]["repaired_heads"] == {"count": 2, "heads": {
         "κατα-μαρτυρία": "καταμαρτυρία", "ἡλιο-κάμινος": "ἡλιοκάμινος"}}
     # the historical layer keyed its rows by the printed head, so a completed
-    # genitive still supersedes that name, rejected and repaired heads alike
+    # genitive still supersedes that name, rejected and repaired heads alike;
+    # the head with two accents is superseded as such
     assert set(audit["superseded_lemmas"]) == {
-        "Σινα-ῖτις", "Ἔρετριάς", "κατα-μαρτυρία", "ἡλιο-κάμινος"}
+        "Σινα-ῖτις", "Ἔρετρίάς", "κατα-μαρτυρία", "ἡλιο-κάμινος"}
+    assert set(audit["resolutions"]) == {
+        "Σινα-ῖτις", "κατα-μαρτυρία", "ἡλιο-κάμινος"}
 
 
 def test_verb_step_rejects_and_repairs_malformed_heads(tmp_path, monkeypatch):
@@ -639,9 +643,9 @@ def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeyp
     _, audit, calls = run_noun_step(
         tmp_path, monkeypatch, {"βαρύπυκνος": "βαρύπυκνος"},
         # two accents: adjective, verb and a noun whose genitive is no use
-        "<orth>καταγωγύός</orth>, ὄν, bringing down.",
+        "<orth>κατάγωγός</orth>, ὄν, bringing down.",
         "<orth>οἷές = ἐές</orth>, Porph. Cer. 47, 18.",
-        "<orth>ἀστεῖσμός</orth>, οὔ, ὁ, (ἀστεΐζομαι) urbanity.",
+        "<orth>ἀττικῖσμός</orth>, οὔ, ὁ, (ἀττικίζω) Atticism.",
         # another source lists the spelling with its two accents
         "<orth>οἶκόνδε</orth>, adv. homeward.",
         # capitalized common words: adjective, verb, a withheld noun
@@ -654,7 +658,7 @@ def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeyp
                "θεοπρεπότης": sources, "οἶκόνδε": sources,
                "πέτρα": sources, "Πέτρα": ["pd_headwords"]})
     superseded = set(audit["superseded_lemmas"])
-    assert {"καταγωγύός", "οἷές", "ἀστεῖσμός",
+    assert {"κατάγωγός", "οἷές", "ἀττικῖσμός",
             "Βαρύπυκνος", "Ἱπποθυτέω", "Θεοπρεπότης"} <= superseded
     assert not {"οἶκόνδε", "βαρύπυκνος", "θεοπρεπότης"} & superseded
     # a noun among them keeps no published key: it has no resolution record,
@@ -666,13 +670,33 @@ def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeyp
          "lowercased_heads": {"᾿Αθεότης": "ἀθεότης"}}) == {"ἄμάντευτος", "᾿Αθεότης"}
 
 
+def test_two_accent_heads_are_corrected_from_the_record(tmp_path, monkeypatch):
+    _, audit, _ = run_noun_step(
+        tmp_path, monkeypatch, {},
+        # a second accent, an acute for the breathing, a circumflex for the
+        # diaeresis, a circumflex for a length mark
+        "<orth>ἄμάντευτος</orth>, ον, (μαντεύομαι) not prophesied.",
+        "<orth>Άσιάρχης</orth>, ου, ὁ, Asiarch of proconsular Asia.",
+        "<orth>Ἰουδαῖσμός</orth>, οῦ, ὁ, (ἰουδαΐζω) Judaism.",
+        "<orth>κρεᾶνομία</orth>, ας, ἡ, (κρεανόμος) distribution of meat.",
+        "<orth>δρυφακτόώὠ</orth>, όσω, (δρύφακτον) to fence, fortify.")
+    assert audit["head_rules"]["corrected_heads"]["heads"] == {
+        "ἄμάντευτος": "ἀμάντευτος", "Άσιάρχης": "Ἀσιάρχης",
+        "Ἰουδαῖσμός": "Ἰουδαϊσμός", "κρεᾶνομία": "κρεανομία",
+        "δρυφακτόώὠ": "δρυφακτόω"}
+    assert audit["head_rules"]["malformed_heads"] == {"count": 0, "heads": {}}
+    # the printed readings keyed rows of the earlier tables
+    assert {"ἄμάντευτος", "Άσιάρχης", "Ἰουδαῖσμός", "κρεᾶνομία",
+            "δρυφακτόώὠ"} <= set(audit["superseded_lemmas"])
+
+
 def test_every_correction_names_an_orth_of_its_chunk():
     corrections = S.load_head_corrections()
     assert len(corrections) >= 30
     for orth, record in corrections.items():
         chunk = (S.SOPH_DIR.parent / "chunks" / record["source"].split("/")[1])
         text = S.greek_mu(chunk.read_text(encoding="utf-8"))
-        assert f"<orth>{orth}</orth>" in text, orth
+        assert re.search(rf"<orth>\s*{re.escape(orth)}\s*</orth>", text), orth
         # the record changes the reading
         assert S.read_orth(orth)[0] != record["head"], orth
         assert S.read_orth(S.settle_orth(orth, corrections))[:2] == (record["head"], "")
