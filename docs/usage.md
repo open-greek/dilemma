@@ -702,9 +702,10 @@ fixed a cell leaves the row inert. An `add` row supplies a cell only while
 the table has none for that form and tag: the Modern table lists only forms
 with several Modern readings, so `ας` PART (the Modern particle) needs one
 under `lang="all"`, where the Ancient `ὅς` would otherwise answer (#128).
-The rebuilt 1.3.26 treebank table keeps a corpus vote only where the bare
-lookup disagrees with it, so cells whose loss let a lower table answer are
-added back (`δήτα` ADV gives `δῆτα`, `ζώδιον` NOUN `ζῴδιον`, `ουδέν` ADJ
+The 1.3.26 treebank builder drops most corpus votes that agree with the
+bare lookup, and the restored heads make many more votes agree, so reviewed
+cells whose loss let a lower table answer are added back (`δήτα` ADV gives
+`δῆτα`, `ζώδιον` NOUN `ζῴδιον`, `ουδέν` ADJ
 `οὐδείς`), new cells that displaced a 1.3.25 answer are corrected or
 dropped (`εισήεσαν` VERB gives `εἴσειμι`, `ήμεν` VERB `εἰμί`), and the
 monotonic keys of `ἤν` get an SCONJ cell (`ην` SCONJ gives `ἐάν`; `ἣν`
