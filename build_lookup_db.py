@@ -372,15 +372,65 @@ REVIEWED_TREEBANK_READINGS = {
     "σοι": "σύ", "σοί": "σύ",
     # Elided keys whose dictionary-expansion reading is the reading of none
     # of their full forms, where AGDT, GLAUx and Diorisis agree on another
-    # (GLAUx: χαίρετ’ χαίρω 40, ζῶντ’ ζάω 25, ἔνερθ’ ἔνερθε 10). The el copy
-    # of the GLAUx pair answered lang="el" with that reading until the copy
-    # was removed (drop_el_corpus_readings). μαχώμεθ’ read συμμαχέω, as AGDT
-    # has it; GLAUx and Diorisis read μάχομαι. The keys end in U+1FBD.
+    # (GLAUx: χαίρετ’ χαίρω 40, ἔνερθ’ ἔνερθε 10). The el copy of the GLAUx
+    # pair answered lang="el" with that reading until the copy was removed
+    # (drop_el_corpus_readings). μαχώμεθ’ read συμμαχέω, as AGDT has it;
+    # GLAUx and Diorisis read μάχομαι. The keys end in U+1FBD.
     **{stem + "\u1fbd": lemma for stem, lemma in (
-        ("χαίρετ", "χαίρω"), ("ζῶντ", "ζάω"), ("ζῶνθ", "ζάω"),
+        ("χαίρετ", "χαίρω"),
         ("ἔνερθ", "ἔνερθε"), ("θέρμετ", "θέρμω"), ("μύρονθ", "μύρω"),
         ("μαχώμεθ", "μάχομαι"), ("ἔνδικ", "ἔνδικος"), ("ἔννομ", "ἔννομος"),
         ("κρατερόφρον", "κρατερόφρων"), ("παιδέρωτ", "παιδέρως"))},
+    # Elided keys whose reading is no lemma of the table: the string has no
+    # row, or its own row reads another lemma. The removed el copy of the
+    # GLAUx or Diorisis pair was the one answer with a lemma, so without
+    # these lang="el" would answer like the other two. Each key takes the
+    # reading of its full form, or of its lowercase key. The first-seen
+    # reading was:
+    # - a verb form, a vocative, Beta Code or a misprint in AGDT (καθέζετ’
+    #   καθέζετο, Ἰδαῖ’ Ἰδαῖε, κείν’ κει~νος, ἰοῦσ’ εἷμι, οὐπώποτ’ οὐπωποτε,
+    #   -δ’ δε; GLAUx has -δ’ 17,835 times under δέ);
+    # - a lemma the table reads as another (κατακείω, κτέομαι, πεύθομαι,
+    #   πρώτιστος, αἴρω, ἔβραχε, and ζάω and ζήω, which read ζῶ as ζῶντα
+    #   does);
+    # - a spelling without its diaeresis or with the wrong accent, which has
+    #   no row or a Modern one (ληίζομαι, ληίς, λοισθήιος, πλωίζω, ἀπαίσσω,
+    #   παμπολύς, ἀνόρουω, ὑπένδύω, Δήμοφων; ὄψε reads ὄπτω);
+    # - the capitalised lemma of a sentence-initial word (Ἐπί, Ὥστε, Ὄφρα,
+    #   Ἔπειτα, Εὖτε, Ὅς, Ὑπό, Τροπαῖος, and Ἔντος for Ἔνθ’).
+    **{stem + "\u1fbd": lemma for stem, lemma in (
+        ("-δ", "δέ"), ("καθέζετ", "καθέζομαι"), ("Ἰδαῖ", "Ἰδαῖος"),
+        ("κείν", "ἐκεῖνος"), ("ἰοῦσ", "εἶμι"), ("οὐπώποτ", "οὐπώποτε"),
+        ("κατάκειτ", "κατάκειμαι"), ("κατέκειτ", "κατάκειμαι"),
+        ("ἐκτήσαθ", "κτάομαι"), ("πευθόμεθ", "πυνθάνομαι"),
+        ("πεύθετ", "πυνθάνομαι"), ("πευθοίαθ", "πυνθάνομαι"),
+        ("πρώτισθ", "πρῶτος"), ("πρώτιστ", "πρῶτος"),
+        ("αἴρετ", "ἀείρω"), ("ἀρθέντ", "ἀείρω"), ("ἔβραχ", "ἔβραχον"),
+        ("ζῶντ", "ζῶ"), ("ζῶνθ", "ζῶ"), ("ζώοντ", "ζῶ"),
+        ("ληίζετ", "ληΐζομαι"), ("ληΐδ", "ληΐς"), ("λοισθήϊ", "λοισθήϊος"),
+        ("πλωίζεσκ", "πλωΐζω"), ("ἀπῇξ", "ἀπαΐσσω"), ("πάμπολλ", "πάμπολυς"),
+        ("ἀνόρουσ", "ἀνορούω"), ("ὑπενέδυσ", "ὑπενδύω"), ("ὄψ", "ὀψέ"),
+        ("Δημοφόωνθ", "Δημοφῶν"),
+        ("Ἐφ", "ἐπί"), ("Ὥστ", "ὥστε"), ("Ὄφρ", "ὄφρα"), ("Ἔπειθ", "ἔπειτα"),
+        ("Εὖτ", "εὖτε"), ("Ὅτ", "ὅτε"), ("Ὑφ", "ὑπό"), ("Τροπαῖ", "τροπαῖος"),
+        ("Ἔνθ", "ἔνθα"))},
+    # Elided keys that read a lemma of the table, but of another word, where
+    # the removed treebank copy had the form's own: χείρον’ is χείρονα, not
+    # the centaur Χείρων; μήτιν’ is μήτινα (μήτις 4), not μῆτις, which has a
+    # circumflex; ἐϊκυῖ’ is the participle of ἔοικα, not εἰκός; Τίτυρ’ read
+    # Σάτυρος; three forms of βακχεύω read a capitalised Βακχεύω.
+    **{stem + "\u1fbd": lemma for stem, lemma in (
+        ("χείρον", "χείρων"), ("μήτιν", "μήτις"), ("ἐϊκυῖ", "ἔοικα"),
+        ("Τίτυρ", "Τίτυρος"), ("βάκχευσ", "βακχεύω"),
+        ("βακχεύητ", "βακχεύω"), ("βακχεύοντ", "βακχεύω"))},
+    # The genitive of ὁ δεῖνα (58, and Diorisis), which the name page Δεῖνος
+    # held and the case-twin rule would hand to the rare δεῖνος (5), as it
+    # hands δεῖνα its own key. δεῖνός and δεῖνι already read δεῖνα.
+    "δεῖνος": "δεῖνα",
+    # The accusative plural of ἐμός without its accent (ἐμοὺς 158, ἐμούς
+    # 36), which followed the Doric genitive ἐμοῦς (2) to μου and would
+    # follow it to ἐγώ (ANCIENT_FORM_LEMMA_READINGS).
+    "εμούς": "ἐμός", "εμους": "ἐμός",
     # Genitives of Roman names whose only Ancient reading was a Latin lemma
     # read as Beta Code (GLAUx μοδεστυς, πιυς, one token each), which the
     # build drops; a Modern surname page then answered with the genitive
@@ -1053,14 +1103,25 @@ def _reads_capitalised_twin(head: str, lemma) -> bool:
             and lemma[:1].isupper() and lemma.lower() == head.lower())
 
 
-def corpus_form_evidence(pairs, forms) -> dict[str, dict[str, int]]:
-    """Token counts by lemma of each listed form in counted corpus pairs."""
+def corpus_form_evidence(pairs, forms, grave_folded=()) -> dict[str, dict[str, int]]:
+    """Token counts by lemma of each listed form in counted corpus pairs.
+
+    A form in ``grave_folded`` is also counted under its grave spelling. An
+    oxytone word carries its acute only before a pause or an enclitic, so
+    running text has βακχικὸς far more often than βακχικός, and the exact
+    spelling alone leaves such a head without evidence.
+    """
     evidence: dict[str, dict[str, int]] = {}
     for pair in pairs:
         form = pair["form"]
-        if form in forms:
-            counts = evidence.setdefault(form, {})
-            counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
+        if form not in forms:
+            if not grave_folded:
+                continue
+            form = grave_to_acute(form)
+            if form not in grave_folded:
+                continue
+        counts = evidence.setdefault(form, {})
+        counts[pair["lemma"]] = counts.get(pair["lemma"], 0) + int(pair.get("count", 1))
     return evidence
 
 
@@ -1466,10 +1527,17 @@ def build():
         candidates = displaced_head_candidates(ag, wiktionary_heads, listed_heads,
                                                ag_base)
         alias_keys = set().union(*map(head_alias_keys, candidates)) if candidates else set()
+        # A case twin is the same word under both lemmas, so its grave
+        # spelling is evidence too (θεατρικὸς for θεατρικός). For other
+        # heads the grave spelling was measured and left out: it restores
+        # είς, τός and Δίς on a lemmatizer's choice of a few tokens.
+        case_twins = {head for head, lemma in candidates.items()
+                      if _reads_capitalised_twin(head, lemma)}
         restored_heads = restore_displaced_lexical_heads(
             ag, wiktionary_heads=wiktionary_heads, listed_heads=listed_heads,
             base=ag_base,
-            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys()),
+            evidence=corpus_form_evidence(glaux_pairs or (), candidates.keys(),
+                                          grave_folded=case_twins),
             key_evidence=corpus_key_evidence(glaux_pairs or (), alias_keys),
             lemma_totals=corpus_lemma_totals(glaux_pairs or ()),
             rejected=_is_article_map,
