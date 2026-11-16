@@ -734,6 +734,34 @@ def to_standard_sigma(s: str) -> str:
     return s
 
 
+# A double rho printed with breathings: ῤῥ, and the half-marked ρῥ and ῤρ
+# that the same editions and their OCR produce, composed or decomposed.
+_MARKED_DOUBLE_RHO = re.compile(
+    "(?:\u1fe4|\u03c1\u0313|\u03c1)(?:\u1fe5|\u03c1\u0314)"
+    "|(?:\u1fe4|\u03c1\u0313)\u03c1")
+
+
+def to_plain_double_rho(s: str) -> str:
+    """Write a double rho printed with breathings (ῤῥ) as plain ρρ.
+
+    Older editions print a medial double rho with a smooth breathing on the
+    first rho and a rough one on the second (παῤῥησία, ἄῤῥητος, Βοῤῥᾶς).
+    The marks are an editorial convention and carry no lexical distinction:
+    the dictionaries and the lookup spell these words with plain ρρ. In the
+    form-attestation corpora one double-rho token in six is printed this
+    way (12,936 of 78,475, mostly Migne and First1KGreek). Without this the
+    word has no row of its own and is read, if at all, through its
+    accent-stripped key (ἀπεῤῥάγησαν had none, #141), and a tagged lookup
+    reads the Modern Greek table (Βοῤῥᾶ PROPN -> Βορράς, #134).
+
+    A word-initial ῥ and the elision mark on a final rho (γάῤ) are left
+    alone: only a rho pair is rewritten.
+    """
+    if not any(ch in s for ch in "\u1fe4\u1fe5\u0313\u0314"):
+        return s
+    return _MARKED_DOUBLE_RHO.sub("ρρ", s)
+
+
 def _is_self_map(form: str, lemma: str) -> bool:
     """Check if a lookup entry is a trivial self-map (form ≈ lemma)."""
     return (form == lemma
@@ -3682,6 +3710,9 @@ class Dilemma:
         # Attested-only gate: drop forms that don't occur in the corpus.
         if attested_only and self._resolve_attested_form(word) is None:
             return None
+        # ῤῥ is an editorial spelling of ρρ (after the gate, which matches
+        # the corpus spelling as printed).
+        word = to_plain_double_rho(word)
 
         # Resolve articles/pronouns to canonical lemma
         closed = self._resolve_closed_class(word)
@@ -4791,6 +4822,12 @@ class Dilemma:
         if attested_only and word and not word.isdigit() \
                 and self._resolve_attested_form(word) is None:
             return None
+        plain = to_plain_double_rho(word)
+        if plain != word:
+            # ῤῥ is an editorial spelling of ρρ: the tables are read under
+            # the plain spelling (Βοῤῥᾶ PROPN like Βορρᾶ). The gate above
+            # has matched the corpus spelling as printed.
+            word, attested_only = plain, False
 
         article_lemma = self._article_pos_lemma(word, upos)
         if article_lemma is not None:
@@ -4993,11 +5030,16 @@ class Dilemma:
         assert len(words) == len(upos_tags), (
             f"words and upos_tags must have same length: {len(words)} vs {len(upos_tags)}"
         )
+        # ῤῥ is an editorial spelling of ρρ: the tables are read under the
+        # plain spelling, as in lemmatize_pos(). The attested-only gate
+        # matches the corpus spelling as printed.
+        printed = words
+        words = [to_plain_double_rho(word) for word in words]
         for word, upos in zip(words, upos_tags):
             self._pos_rejections(word, upos)
 
         # Step 1: Get baseline results from regular batch lemmatization
-        results = self.lemmatize_batch(words, attested_only=attested_only,
+        results = self.lemmatize_batch(printed, attested_only=attested_only,
                                        guess=guess)
         rejected_baselines = [lemma is not None
             and self._checked_pos_result(word, upos, lemma) is None
@@ -5016,7 +5058,7 @@ class Dilemma:
             # evidence, so it MAY resurrect that - re-check the gate to tell
             # the two kinds of None apart, matching lemmatize_pos().)
             if attested_only and results[i] is None and (
-                    self._resolve_attested_form(word) is None
+                    self._resolve_attested_form(printed[i]) is None
                     or (guess and not rejected_baselines[i])):
                 continue
             article_lemma = self._article_pos_lemma(word, upos)
@@ -5312,6 +5354,8 @@ class Dilemma:
             return candidates
         # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
         word = to_standard_sigma(word)
+        # ῤῥ is an editorial spelling of ρρ.
+        word = to_plain_double_rho(word)
 
         if self.lang in ("all", "grc"):
             readings = reviewed_verb_readings(word)
@@ -5678,9 +5722,11 @@ class Dilemma:
                     for c in word):
                 results.append(word)
                 continue
-            # NFC-normalize (sources may emit NFD), then lunate sigma -> σ/ς.
+            # NFC-normalize (sources may emit NFD), then lunate sigma -> σ/ς
+            # and the editorial ῤῥ -> ρρ.
             word = unicodedata.normalize("NFC", word)
             word = to_standard_sigma(word)
+            word = to_plain_double_rho(word)
             # Article/pronoun resolution
             closed = self._resolve_closed_class(word)
             if closed is not None:

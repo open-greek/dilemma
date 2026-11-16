@@ -147,6 +147,11 @@ normalizer, which may find an unrelated Ancient word (`ἀλλιῶς` gives
 An Ancient form whose Modern twin is listed can take it under `lang="all"`
 (`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
 
+A double rho printed with breathings, as older editions have it (`ῤῥ`, and
+the half-marked `ρῥ` and `ῤρ`), is read as plain `ρρ` by every method:
+`ἀπεῤῥάγησαν` gives `ἀπορρήγνυμι`, and `Βοῤῥᾶ` reads like `Βορρᾶ` with or
+without a tag. `attested_only=True` still matches the spelling as printed.
+
 ## Conventions
 
 Different dictionaries cite the same Greek word differently. LSJ uses
@@ -834,8 +839,8 @@ known gaps in both directions:
   Greek headword. So can a form under its own part of speech when the lookup
   lacks its spelling, through an accent slip or a gap in the lookup, and
   Modern Greek records a word with that accent (`ἄπαν` NOUN gives `άπαν`,
-  not `ἅπας`; `συνῃρημένῃ` VERB gives `συναιρώ`; `Βοῤῥᾶ` PROPN gives
-  `Βορράς`). The rule cannot tell a correctly spelled form the lookup lacks
+  not `ἅπας`; `συνῃρημένῃ` VERB gives `συναιρώ`). The rule cannot tell a
+  correctly spelled form the lookup lacks
   from a misspelling; such forms need lookup rows, not a rule (treating an
   iota subscript as Ancient evidence was measured mixed: `συνῃρημένῃ` was
   fixed, `ἐνιαίᾳ` and `λαλᾷ` broke).
