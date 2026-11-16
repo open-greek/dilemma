@@ -176,12 +176,14 @@ def test_verb_step_never_expands_a_hyphenated_head(lsj9, monkeypatch):
     monkeypatch.setattr(L, "get_wtp", lambda: None)
     calls = []
 
-    def expand_verb(wtp, head, head_text="", supplement_text=""):
+    def expand_verb(wtp, head, head_text="", supplement_text="",
+                    principal_part_forms=None):
         calls.append(head)
         return {head, head[:-1] + "εις"}, ""
 
     monkeypatch.setattr(L, "expand_verb", expand_verb)
-    L.expand_verbs()
+    # the corpus checks read the attestation and treebank tables of data/
+    L.expand_verbs(corpus_checks=False)
     # not καθ-ηδύνω, and none of the list's broken spellings
     assert calls == ["καθηδύνω"]
     lookup = json.loads(table.read_text(encoding="utf-8"))
