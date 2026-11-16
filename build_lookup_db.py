@@ -381,6 +381,11 @@ REVIEWED_TREEBANK_READINGS = {
         ("ἔνερθ", "ἔνερθε"), ("θέρμετ", "θέρμω"), ("μύρονθ", "μύρω"),
         ("μαχώμεθ", "μάχομαι"), ("ἔνδικ", "ἔνδικος"), ("ἔννομ", "ἔννομος"),
         ("κρατερόφρον", "κρατερόφρων"), ("παιδέρωτ", "παιδέρως"))},
+    # Genitives of Roman names whose only Ancient reading was a Latin lemma
+    # read as Beta Code (GLAUx μοδεστυς, πιυς, one token each), which the
+    # build drops; a Modern surname page then answered with the genitive
+    # itself (#127). Μόδεστος is a listed head, and Πίος reads Πῖος.
+    "Μοδέστου": "Μόδεστος", "Πίου": "Πῖος",
 }
 
 # Ancient readings that name an inflected form, with the lemma each key
