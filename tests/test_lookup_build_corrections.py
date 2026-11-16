@@ -250,6 +250,73 @@ def test_corpus_pairs_under_a_hyphenated_lemma_are_dropped(tmp_path):
             "προσθῶμέν", "προσ-τίθημι") in rejected
 
 
+def test_preverb_corpus_lemma_is_read_as_the_listed_compound(tmp_path):
+    # AGDT's preverb-verb lemma names a compound verb. The pair is kept
+    # under the compound when a lexical head list has it, with the list's
+    # accent; GLAUx and cog pairs pass their own headword validation too.
+    heads = ["σύνοχος", "γε", "λόγος", "μοναχικός", "λαβή", "κλεῖδα",
+             "ἐπεισκομίζω", "συγκαταφεύγω", "περίειμι", "ἀντικαθέζομαι",
+             "προϊστορέω", "ἐμπεριλαμβάνω", "ἀφελίσσω", "λέγω"]
+    perseus = [
+        {"form": "ἐπεισεκόμισαν", "lemma": "ἐπί-εἰσκομίζω", "pos": "verb"},
+        {"form": "συγκατέφυγεν", "lemma": "σύν-καταφεύγω", "pos": "verb"},
+        {"form": "περιῄει", "lemma": "περί-εἶμι", "pos": "verb"},
+        {"form": "ἀντικαθεζόμενοι", "lemma": "ἀντί,κατά-ἕζομαι", "pos": "verb"},
+        {"form": "προϊστορημένων", "lemma": "πρό-ἱστορέω", "pos": "verb"},
+        # no list has παρεισδυάω: dropped as before
+        {"form": "παρεισδυῇ", "lemma": "παρά,εἰσ-δυάω", "pos": "verb"},
+        # a corpus pair only fills a gap: Wiktionary's reading stays
+        {"form": "λόγος", "lemma": "ἐπί-εἰσκομίζω", "pos": "verb"},
+    ]
+    glaux = [
+        {"form": "ἐμπεριειλημμένου", "lemma": "ἐν-περιλαμβάνω", "pos": "verb"},
+        # a lexical head, but not one GLAUx lemmas are validated against
+        {"form": "ἀπειλισσόμενον", "lemma": "ἀπό-ἑλίσσω", "pos": "verb"},
+        # a line-broken token is no preverb lemma
+        {"form": "προσ-θῶμεν", "lemma": "προσ-τίθημι", "pos": "verb"},
+    ]
+    data, env = _fixture(tmp_path, {
+        "grc_lexical_heads.json": {"heads": heads, "vernacular_heads": []},
+        "ag_headwords.json": ["ἐμπεριλαμβάνω", "ἐν-περιλαμβάνω",
+                              "ἀπό-ἑλίσσω", "προσ-τίθημι", "λόγος"],
+        "perseus_pairs.json": perseus,
+        "glaux_pairs.json": glaux,
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert ("hyphenated lemma read as the listed compound: "
+            "glaux_pairs.json 1, perseus_pairs.json 6") in result.stdout
+    assert ("hyphenated lemma dropped: glaux_pairs.json 2, "
+            "perseus_pairs.json 1") in result.stdout
+    rows = _rows(data)
+    assert rows["ἐπεισεκόμισαν"] == "ἐπεισκομίζω"
+    assert rows["συγκατέφυγεν"] == "συγκαταφεύγω"
+    assert rows["περιῄει"] == "περίειμι"
+    assert rows["ἀντικαθεζόμενοι"] == "ἀντικαθέζομαι"
+    assert rows["προϊστορημένων"] == "προϊστορέω"
+    assert rows["ἐμπεριειλημμένου"] == "ἐμπεριλαμβάνω"
+    assert rows["λόγος"] == "λόγος"
+    for lang in ("all", "grc", "el"):
+        rows = _rows(data, lang)
+        for form in ("παρεισδυῇ", "ἀπειλισσόμενον", "προσ-θῶμεν"):
+            assert form not in rows
+        assert not any(B.hyphenated_lemma(lemma) for lemma in rows.values())
+    rejected = _rejections(data)
+    perseus_name, glaux_name = B.PERSEUS_PAIRS_PATH.name, B.GLAUX_PAIRS_PATH.name
+    assert ("AG", perseus_name, "hyphenated_lemma_joined_to_ἐπεισκομίζω",
+            "ἐπεισεκόμισαν", "ἐπί-εἰσκομίζω") in rejected
+    assert ("AG", perseus_name, "hyphenated_lemma_joined_to_περίειμι",
+            "περιῄει", "περί-εἶμι") in rejected
+    assert ("AG", perseus_name, "hyphenated_lemma", "παρεισδυῇ",
+            "παρά,εἰσ-δυάω") in rejected
+    assert ("AG", glaux_name, "hyphenated_lemma_joined_to_ἐμπεριλαμβάνω",
+            "ἐμπεριειλημμένου", "ἐν-περιλαμβάνω") in rejected
+    assert ("AG", glaux_name, "hyphenated_lemma", "ἀπειλισσόμενον",
+            "ἀπό-ἑλίσσω") in rejected
+    assert ("AG", glaux_name, "hyphenated_lemma", "προσ-θῶμεν",
+            "προσ-τίθημι") in rejected
+
+
 def test_missing_lexical_heads_stop_a_build_with_expansion_readings(tmp_path):
     data, env = _fixture(tmp_path)
     (data / "grc_lexical_heads.json").unlink()

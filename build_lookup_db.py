@@ -33,6 +33,9 @@ from dilemma.form_sanitize import (  # noqa: E402
 from dilemma.citation import (  # noqa: E402
     hyphenated_lemma, malformed_tonal_reason,
 )
+from dilemma.preverb_lemma import (  # noqa: E402
+    heads_by_accent_fold, joined_preverb_lemma, preverb_lemma_head,
+)
 from dilemma import grave_to_acute, to_monotonic  # noqa: E402
 from dilemma.core import trusted_ag_citation_headwords  # noqa: E402
 from dilemma.nonlexical import classify_nonlexical  # noqa: E402
@@ -558,8 +561,9 @@ def unaccented_expansion_lemma(lemma: str, heads, heads_by_letters,
 
     The expansion layer holds lemmas that are source-text artefacts, not
     citation forms: Latin words read as Beta Code (αελιυς, σερvιλια), OCR
-    garble (λαβλυμι, λαβ’μι), hyphenated composition lemmas
-    (προ-ανακηρυσσω) and unaccented doublets of real heads (συνοχος). A
+    garble (λαβλυμι, λαβ’μι) and unaccented doublets of real heads
+    (συνοχος). A hyphenated composition lemma (προ-ανακηρυσσω) no longer
+    reaches this check: the overlay restores no row under one. A
     lemma with any combining mark, or one a head list has (τε, που, κρεω),
     is kept: None. Otherwise the reading is repaired to the single Ancient
     head with the same letters, ``("unaccented_expansion_lemma_repaired",
@@ -1238,20 +1242,42 @@ def build():
 
     # An Ancient corpus pair whose lemma has a hyphen between two letters
     # names no citation form: AGDT writes some compound verbs with the
-    # preverb apart (ἐπί-εἰσκομίζω), and GLAUx lemmatizes a line-broken
-    # token as it stands (αὐ-τός, πήν-τος). ag_headwords.json lists those
-    # spellings, so headword validation lets them through. The dictionary
-    # expansion no longer supplies such a lemma either (overlay_lsj.py).
+    # preverbs apart (ἐπί-εἰσκομίζω, ἀντί,κατά-ἕζομαι), and GLAUx
+    # lemmatizes a line-broken token as it stands (αὐ-τός, πήν-τος). The
+    # dictionary expansion no longer supplies such a lemma (overlay_lsj.py).
+    # A preverb lemma is read as the compound it names when a lexical head
+    # list has that compound (dilemma/preverb_lemma.py: ἐπεισκομίζω,
+    # ἀντικαθέζομαι); every other pair under a hyphenated lemma is dropped.
     corpus_hyphenated_dropped: dict[str, int] = {}
+    corpus_hyphenated_joined: dict[str, int] = {}
+    preverb_heads: frozenset = frozenset()
+    if GRC_LEXICAL_HEADS_PATH.exists():
+        preverb_heads = frozenset(json.loads(
+            GRC_LEXICAL_HEADS_PATH.read_text(encoding="utf-8"))["heads"])
+    preverb_folded_heads: dict = {}
 
-    def _hyphenated_corpus_lemma(form, lemma, source):
+    def _hyphenated_corpus_lemma(form, lemma, source, known=None):
+        """A corpus pair's lemma, settled for a hyphen between two letters:
+        the lemma as it is when it has none, the listed compound a preverb
+        lemma names, or None (dropped). ``known`` is the source's own
+        headword validation set, which the compound must pass as well."""
         if not hyphenated_lemma(lemma):
-            return False
-        corpus_hyphenated_dropped[source] = (
-            corpus_hyphenated_dropped.get(source, 0) + 1)
-        _record_citation_rejection(table="AG", source=source, form=form,
-                                   lemma=lemma, reason="hyphenated_lemma")
-        return True
+            return lemma
+        head = None
+        if preverb_heads and joined_preverb_lemma(lemma) is not None:
+            if not preverb_folded_heads:
+                preverb_folded_heads.update(heads_by_accent_fold(preverb_heads))
+            head = preverb_lemma_head(lemma, preverb_heads,
+                                      preverb_folded_heads)
+            if head is not None and known and head not in known:
+                head = None
+        counts = corpus_hyphenated_joined if head else corpus_hyphenated_dropped
+        counts[source] = counts.get(source, 0) + 1
+        _record_citation_rejection(
+            table="AG", source=source, form=form, lemma=lemma,
+            reason=(f"hyphenated_lemma_joined_to_{head}" if head
+                    else "hyphenated_lemma"))
+        return head
 
     # A word with an entry of its own takes back the reading another lemma's
     # homograph entry or table took from it in the merged table, where GLAUx,
@@ -1299,7 +1325,9 @@ def build():
             perseus_pairs = json.load(f)
         for p in perseus_pairs:
             form, lemma = p["form"], p["lemma"]
-            if _hyphenated_corpus_lemma(form, lemma, PERSEUS_PAIRS_PATH.name):
+            lemma = _hyphenated_corpus_lemma(form, lemma,
+                                             PERSEUS_PAIRS_PATH.name)
+            if lemma is None:
                 continue
             if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
@@ -1490,8 +1518,11 @@ def build():
     def _corpus_expansion_lemma(form, lemma, source):
         """A corpus pair's lemma after the #103 verdict on the same expansion
         lemma: the repaired head, the lemma unchanged, or None (dropped).
-        A hyphenated lemma is dropped as well."""
-        if _hyphenated_corpus_lemma(form, lemma, source):
+        A hyphenated lemma is first read as the compound it names, or
+        dropped (_hyphenated_corpus_lemma)."""
+        lemma = _hyphenated_corpus_lemma(form, lemma, source,
+                                         ag_headwords_exact)
+        if lemma is None:
             return None
         verdict = expansion_verdicts.get(sanitize_form(lemma))
         if verdict is None:
@@ -1691,10 +1722,13 @@ def build():
               f"{bad_lemma:,} bad lemmas rejected ({time.time()-t_g:.1f}s)")
 
 
-    if corpus_hyphenated_dropped:
-        print("  Corpus pairs under a hyphenated lemma dropped: "
-              + ", ".join(f"{source} {count:,}" for source, count
-                          in sorted(corpus_hyphenated_dropped.items())))
+    for label, counts in (("read as the listed compound",
+                           corpus_hyphenated_joined),
+                          ("dropped", corpus_hyphenated_dropped)):
+        if counts:
+            print(f"  Corpus pairs under a hyphenated lemma {label}: "
+                  + ", ".join(f"{source} {count:,}" for source, count
+                              in sorted(counts.items())))
     for label, counts in (("dropped", corpus_expansion_dropped),
                           ("repaired", corpus_expansion_repaired)):
         if counts:
