@@ -827,12 +827,16 @@ counts as one competing reading, and the entry is returned as under the
 default convention (`σεῖς` PRON gives `εσείς`, `κυροῦ` NOUN gives `κυρός`;
 1.3.24 gave `σέω` and `κυρώ`).
 
-The vernacular contractions of σε with the article in polytonic spelling
-(`στὸ`, `στὸν`, `στὴ(ν)`, `στὰ`, `στοῦ`, `στῆς`, `στῶν`, `στοὺς`, `στὶς`:
-accents only, no breathing, iota subscript or diaeresis) give `ο` under DET
-and `σε` under ADP with `lang="all"`, under every convention. Under other
-tags their Ancient readings stand (`στὸν` ADJ gives `ἀστός`, `στὴν` VERB
-gives `ἵστημι`).
+The vernacular contractions of σε with the article (`στο`, `στον`,
+`στη(ν)`, `στα`, `στου`, `στης`, `στων`, `στους`, `στις`) give `ο` under DET
+and `σε` under ADP with `lang="all"` or `lang="el"`, under every convention,
+in monotonic spelling and in polytonic (`στὸ`, `στὴν`, `στοῦ`: accents only,
+no breathing, iota subscript or diaeresis). Under other tags their other
+readings stand (`στὸν` ADJ gives `ἀστός`, `στὴν` VERB gives `ἵστημι`), and
+`lang="grc"` reads Ancient Greek only. Until 1.3.26 the monotonic
+spellings followed the Modern Greek POS table, which has an article entry
+for seven of the ten: `στο` DET gave `σε`, `στον` DET `στον` and `στην` DET
+`ἵστημι` with `lang="all"`.
 
 The rule reads the recorded evidence, not the surrounding text, so it has
 known gaps in both directions:

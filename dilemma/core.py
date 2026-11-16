@@ -600,10 +600,11 @@ _LEMMA_GENDER_HINTS = {
     "ον": "n", "ος": "m", "μα": "n", "ον": "n",
 }
 
-# Vernacular contractions of σε with the article (στὸ, στὸν, στὴν, ...),
-# accent-stripped. In polytonic spelling with lang="all" they give the
-# article under DET and σε under ADP (#121); their Ancient readings (στόν
-# as ἀστός, στῆς as ἵστημι) stand under the other tags.
+# Vernacular contractions of σε with the article (στο, στον, στην, στὸ,
+# στὴν, ...), accent-stripped. With lang="all" or "el" they give the
+# article under DET and σε under ADP, in monotonic and in polytonic
+# spelling (#121, #134); their Ancient readings (στόν as ἀστός, στῆς as
+# ἵστημι) stand under the other tags.
 _VERNACULAR_ARTICLE_CONTRACTIONS = frozenset({
     "στο", "στον", "στη", "στην", "στα", "στου", "στης", "στων", "στους",
     "στις",
@@ -2349,22 +2350,25 @@ class Dilemma:
 
     def _vernacular_contraction_pos_lemma(self, word: str,
                                           upos: str) -> str | None:
-        """The DET or ADP lemma of a polytonic contraction of σε + article.
+        """The DET or ADP lemma of a contraction of σε + article.
 
-        With lang="all", a polytonic στὸ, στὸν, στὴν, στοὺς, ... tagged DET
+        With lang="all" or "el", στο, στον, στην, στους, ... tagged DET
         gives the Modern article ο and tagged ADP gives σε, under every
-        convention (#121). The spelling must carry only accents (acute,
-        grave or circumflex): a breathing, iota subscript or diaeresis
-        is no vernacular contraction.
+        convention, in monotonic spelling (#134) as in polytonic (στὸ,
+        στὴν; #121). Neither tag fits an Ancient reading of these letters
+        (στῆν is a verb form, στόν the aphaeresis of ἀστόν), and the Modern
+        POS table records the article for seven of the ten forms only,
+        three of them behind a case-twin family (στο DET gave σε, στον
+        στον, στην ἵστημι). The spelling may carry accents (acute, grave
+        or circumflex) or none: a breathing, iota subscript or diaeresis
+        is no vernacular contraction. lang="grc" reads Ancient Greek only.
         """
-        if upos not in ("DET", "ADP") or self.lang != "all" or not word:
+        if upos not in ("DET", "ADP") or self.lang not in ("all", "el") \
+                or not word:
             return None
         nfd = unicodedata.normalize("NFD", word)
         marks = {ord(ch) for ch in nfd if unicodedata.combining(ch)}
-        if not marks or not marks <= {0x0300, 0x0301, 0x0342}:
-            return None
-        if not any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
-                   for ch in nfd):
+        if not marks <= {0x0300, 0x0301, 0x0342}:
             return None
         if strip_accents(to_standard_sigma(word).lower()) \
                 not in _VERNACULAR_ARTICLE_CONTRACTIONS:
