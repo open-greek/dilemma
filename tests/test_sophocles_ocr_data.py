@@ -121,6 +121,10 @@ def test_other_sources_rows_of_a_reread_head_stay(db, form, lemma):
     ("μαντίων", "μάντις"),
     ("μεταθέτω", "μετατίθημι"),
     ("μετάθετε", "μετατίθημι"),
+    # cells of ὑποπτερόω, παιδομανέω and ἐπεκλύω, verbs glossed by "="
+    ("ὑποπτέρου", "ὑπόπτερος"),
+    ("παιδομανεῖ", "παιδομανής"),
+    ("ἐπέκλυε", "ἐπικλύω"),
 ])
 def test_treebank_readings_keep_their_keys(db, form, lemma):
     assert lemmas(db, form) == {lemma}

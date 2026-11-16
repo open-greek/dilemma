@@ -2195,6 +2195,13 @@ def build():
         # imperatives of μετατίθημι (GLAUx 3 and 1) are cells of μετάθετος.
         "μαντίων": "μάντις",
         "μεταθέτω": "μετατίθημι", "μετάθετε": "μετατίθημι",
+        # Treebank readings that cells of three Sophocles verbs took once
+        # the entries glossed with "=" were expanded: the genitive of
+        # ὑπόπτερος (GLAUx 3) is an imperative of ὑποπτερόω, the dative of
+        # παιδομανής (GLAUx 1) the third person of παιδομανέω, and the
+        # imperfect of ἐπικλύω (GLAUx 1, AGDT 1) an imperative of ἐπεκλύω.
+        "ὑποπτέρου": "ὑπόπτερος", "παιδομανεῖ": "παιδομανής",
+        "ἐπέκλυε": "ἐπικλύω",
         **KAIKKI_2026_11_READING_OVERRIDES,
         **REVIEWED_ABSENT_KEY_READINGS,
     }
