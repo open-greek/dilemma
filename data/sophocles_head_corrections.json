@@ -151,6 +151,76 @@
       "head": "χορτολόγος",
       "source": "sophocles/1150.xml",
       "reason": "Latin s for the final sigma"
+    },
+    "γονιμοποίός": {
+      "head": "γονιμοποιός",
+      "source": "sophocles/0300.xml",
+      "reason": "two accents: the adjective in -ποιός (ον, fertilizing)"
+    },
+    "ἀτόνιάω": {
+      "head": "ἀτονιάω",
+      "source": "sophocles/0250.xml",
+      "reason": "two accents: the verb in -ιάω (= ἀτονέω)"
+    },
+    "ἐκθυσίάζω": {
+      "head": "ἐκθυσιάζω",
+      "source": "sophocles/0400.xml",
+      "reason": "two accents: the compound of θυσιάζω, which glosses it"
+    },
+    "ϊεραρχέω": {
+      "head": "ἱεραρχέω",
+      "source": "sophocles/0550.xml",
+      "reason": "a diaeresis for the rough breathing (to be ἱεράρχης)"
+    },
+    "καρπώσεμος": {
+      "head": "καρπώσιμος",
+      "source": "sophocles/0600.xml",
+      "reason": "epsilon for iota: the adjective in -ιμος from κάρπωσις (= κάρπιμος)"
+    },
+    "μεθοδευτῆς": {
+      "head": "μεθοδευτής",
+      "source": "sophocles/0700.xml",
+      "reason": "a circumflex for the acute of the noun in -τής (οῦ, ὁ)"
+    },
+    "μετριοπαθῆς": {
+      "head": "μετριοπαθής",
+      "source": "sophocles/0750.xml",
+      "reason": "a circumflex for the acute of the adjective in -ής (ές)"
+    },
+    "μνριό-χείλος": {
+      "head": "μυριόχειλος",
+      "source": "sophocles/0750.xml",
+      "reason": "nu for upsilon and a second accent after the division hyphen (ον, with ten thousand lips)"
+    },
+    "μνυριόγλωσσος": {
+      "head": "μυριόγλωσσος",
+      "source": "sophocles/0750.xml",
+      "reason": "a nu the OCR added after the mu (ον, with ten thousand tongues)"
+    },
+    "μυριοπαθῆς": {
+      "head": "μυριοπαθής",
+      "source": "sophocles/0750.xml",
+      "reason": "a circumflex for the acute of the adjective in -ής (ές)"
+    },
+    "παραπλασμμός": {
+      "head": "παραπλασμός",
+      "source": "sophocles/0800.xml",
+      "reason": "the mu is printed twice, once as the micro sign (οῦ, ὁ, from παραπλάσσω)"
+    },
+    "ραμμφώδης": {
+      "head": "ῥαμφώδης",
+      "source": "sophocles/0950.xml",
+      "reason": "the mu is printed twice, once as the micro sign, and the chunk prints no breathing (from ῥάμφος)"
+    },
+    "συμφαῆς": {
+      "head": "συμφαής",
+      "source": "sophocles/1000.xml",
+      "reason": "a circumflex for the acute of the adjective in -ής (ές, from φάος)"
+    },
+    "ψιμνθιοφανής": {
+      "head": "ψιμυθιοφανής",
+      "source": "sophocles/1150.xml",
+      "reason": "nu for upsilon (looking like ψιμύθιον)"
     }
   }
 }

@@ -146,6 +146,13 @@ The noun step records the decisions in
   Those tables key rows by the old reading, so it is listed among
   `superseded_lemmas` and the overlay does not recover them, unless an
   entry prints that word or another lexical source lists it (`κίκι`);
+- `superseded_reread_lemmas`: the superseded heads that no entry gave
+  under their present spelling before the letters were settled (`σχῆμα`
+  from `*σχῆμα`, `μέρος` from `µέρος`, `κόρος` from `κόρoς`). The historical
+  expansion has their old paradigm under the old spelling only, so the
+  overlay drops the rows it reads from the micro sign and keeps the rows
+  the expansion itself spells with the present lemma (`σχήματός`, `κοῦρ’`
+  under `κόρος`), which come from other sources;
 - `head_rules.stated_gender`: every noun whose stated gender is not the
   gender of its ending's class, with both and the result (`expanded`, or the
   reason the noun was withheld);
