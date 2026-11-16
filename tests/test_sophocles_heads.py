@@ -152,6 +152,59 @@ def test_noun_step_skips_and_records_a_phrase(tmp_path, monkeypatch):
         "count": 2, "heads": {"Νέα Ῥώμη": "Νέα", "Νεκρὰ Θάλασσα": "Νεκρὰ"}}
 
 
+@pytest.mark.parametrize("first,phrase,joined", [
+    ("κατα", "κατα- φθάνω", "καταφθάνω"),
+    ("κατα", "κατα λιπαίνω", "καταλιπαίνω"),
+    ("κοινό", "κοινό δημος", "κοινόδημος"),
+    ("ὀγδοηκοντα", "ὀγδοηκοντα- πέντε", "ὀγδοηκονταπέντε"),
+    ("μή", "μή τις", "μήτις"),
+    # two accents, a grave, an elision mark, three words: no single word
+    ("Νέα", "Νέα Ῥώμη", ""),
+    ("μέτα", "μέτα ποίησις", ""),
+    ("πὴ", "πὴ μὲν", ""),
+    ("ἀνθ᾽", "ἀνθ᾽ ὧν", ""),
+    ("οπου", "οπου δή ποτε", ""),
+])
+def test_split_word_joins_the_two_parts_of_a_phrase(first, phrase, joined):
+    assert S.split_word(first, phrase)[0] == joined
+
+
+def test_a_word_the_ocr_split_is_an_entry_under_the_joined_word(tmp_path, monkeypatch):
+    sources = ["lsj9_headwords"]
+    lookup, audit, calls = run_noun_step(
+        tmp_path, monkeypatch, {"καταφθάνω": "καταφθάνω"},
+        "<orth>κηνσο φύλαξ</orth>, ακος, ὁ, keeper of the census.",
+        "<orth>μοιχο σύνοδος</orth>, ου, ἡ, adulterous council.",
+        "<orth>κατα- φθάνω</orth>, to overtake.",
+        "<orth>μή τις</orth>, lest any one.",
+        "<orth>τετρα- πλατεῖα</orth>, ας, ἡ, a square.",
+        "<orth>Νέα Ῥώμη</orth>, ἡ, New Rome.",
+        heads={"κηνσοφύλαξ": sources, "μοιχοσύνοδος": sources,
+               "καταφθάνω": sources, "μήτις": sources, "μή": sources,
+               "τις": sources},
+        forms={"κηνσοφύλαξ": ["κηνσοφύλαξ", "κηνσοφύλακος"]})
+    # the joined nouns are expanded with the entry's genitive and gender
+    assert calls == [("κηνσοφύλαξ", "m", "ακος"), ("μοιχοσύνοδος", "f", "ου")]
+    assert lookup["κηνσοφύλακος"] == "κηνσοφύλαξ"
+    assert audit["head_rules"]["repaired_heads"] == {"count": 3, "heads": {
+        "κηνσο φύλαξ": "κηνσοφύλαξ", "μοιχο σύνοδος": "μοιχοσύνοδος",
+        "κατα- φθάνω": "καταφθάνω"}}
+    # no other source lists the joined word, or both parts are words: phrases
+    assert audit["head_rules"]["multi_word_heads"] == {"count": 3, "heads": {
+        "μή τις": "μή", "τετρα- πλατεῖα": "τετρα", "Νέα Ῥώμη": "Νέα"}}
+    assert "split_words" not in audit["head_rules"]
+
+
+def test_verb_step_expands_a_split_verb(tmp_path, monkeypatch):
+    lookup, calls = run_verb_step(
+        tmp_path, monkeypatch, {},
+        "<orth>συμ- ψάλλω</orth>, to sing with.",
+        "<orth>προ νύσσω</orth>, to prick before.",
+        heads={"συμψάλλω": ["lsj9_headwords"]})
+    assert calls == ["συμψάλλω"]
+    assert set(lookup.values()) == {"συμψάλλω"}
+
+
 def test_article_after_the_head_states_the_gender(tmp_path, monkeypatch):
     entries, _ = parse(
         tmp_path, monkeypatch,
@@ -668,6 +721,11 @@ def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeyp
     assert S.unread_printed_heads(
         {"malformed_heads": {"ἄμάντευτος": "two-accents", "Σινα-ῖτις": "inner-hyphen"},
          "lowercased_heads": {"᾿Αθεότης": "ἀθεότης"}}) == {"ἄμάντευτος", "᾿Αθεότης"}
+    # the breathing review withholds a head whose breathing was read as an
+    # acute; one withheld for its missing breathing alone keeps its rows
+    review = {"withheld": {"ίλλέκεβρα": {"reason": "two_accents"},
+                           "ολοκαρπεύω": {"reason": "both_breathings_attested"}}}
+    assert S.unread_printed_heads({}, frozenset(), review) == {"ίλλέκεβρα"}
 
 
 def test_two_accent_heads_are_corrected_from_the_record(tmp_path, monkeypatch):

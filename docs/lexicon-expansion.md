@@ -102,6 +102,13 @@ are read through the same rules.
   qualifies (`γληχωνίτης οἶνος`, `δωρίτης ἀγών`); and `ἔχειν` or `ἔχω`
   after an adverb in -ως (`ἑτερολέκτως ἔχειν`). Such a head must have its
   breathing; without one the phrase stays a phrase (`ορθο-πρίων ονος`).
+  A phrase of two words is one word the OCR split after its first part,
+  with the lexicon's division hyphen or without it, when the joined word has
+  a single accent, a lexical source other than Sophocles lists it and that
+  source does not list both parts as words of their own: `κατα- φθάνω` is
+  `καταφθάνω`, `κηνσο φύλαξ` is `κηνσοφύλαξ`, and `μή τις` stays a phrase
+  beside `μήτις`. The entry is then generated under the joined word like a
+  repaired hyphenated head.
 - **A stated gender wins over the ending.** An article that is the first
   field after the head, or that follows one field (the genitive, which the
   OCR may garble), states the noun's gender: `καισάριης, ἡ`,
@@ -136,7 +143,9 @@ are read through the same rules.
 The noun step records the decisions in
 `data/ag_sophocles_noun_generation_audit.json`, each record with its `count`:
 
-- `head_rules.multi_word_heads`: every phrase and its first word;
+- `head_rules.multi_word_heads`: every phrase and its first word (a phrase
+  read as a split word is listed among `head_rules.repaired_heads` instead,
+  with the joined word);
 - `head_rules.one_word_heads`: every phrase read as a one-word entry, with
   the head and the rule (`run-on-ending`, `qualified-noun`, `adverb-idiom`);
 - `head_rules.corrected_heads`: every `<orth>` text a reviewed correction
@@ -190,8 +199,12 @@ no key or lemma of the table carries U+00B5.
 `superseded_lemmas` names a lemma as the lexicon prints it, because the
 historical layer keyed its rows that way. Two kinds of printed head are
 superseded as a class, since neither is a lemma of the table: a head rejected
-for its two accents (`ἄμάντευτος`, `καταγωγύός`) and a capitalized head
-generated under its lowercase spelling (`Βαρύπυκνος`, `Δυσδαιμονέω`). The
+for its two accents (`οἷές`, and the ones the breathing review withholds
+because the OCR read the breathing as an acute, `ίλλέκεβρα`) and a capitalized
+head generated under its lowercase spelling (`Βαρύπυκνος`, `Δυσδαιμονέω`). Most
+heads printed with two accents have a reviewed correction
+(`ἄμάντευτος` is `ἀμάντευτος`, `Άσιάρχης` is `Ἀσιάρχης`, `ἀπράῦντος` is
+`ἀπράϋντος`), and the printed reading is then superseded as a reread head. The
 overlay then recovers none of the rows the historical layer has under them
 (`ἀμάντευτον`, `Βαρυπύκνου`), and a noun among them keeps no published key
 either (it gets no entry in `resolutions`). A two-accent spelling that

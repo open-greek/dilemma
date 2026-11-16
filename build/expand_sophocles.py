@@ -379,7 +379,7 @@ def adjective_endings(after_headword: str) -> str | None:
 def new_head_audit():
     """An empty record of one parse's head decisions (``head_rules`` in the
     noun generation audit)."""
-    return {"printed": {}, "legacy_printed": set(),
+    return {"printed": {}, "legacy_printed": set(), "split_words": {},
             "multi_word_heads": {}, "stated_gender": {},
             "malformed_heads": {}, "repaired_heads": {}, "lowercased_heads": {},
             "one_word_heads": {}, "corrected_heads": {}, "reread_heads": {}}
@@ -448,6 +448,30 @@ def settle_head(printed, lexical_heads=None):
     return printed, ""
 
 
+def split_word(first, phrase):
+    """``(joined, second)`` for a two-word phrase whose parts may be one
+    word, else ``("", "")``.
+
+    The lexicon divides a compound after its first part, and the OCR left a
+    space there, with the hyphen or without it (κατα- φθάνω, κατα λιπαίνω,
+    κοινό δημος). ``first`` is the first word as the head rules read it.
+    The joined word must consist of Greek letters and carry one accent that
+    is no grave; whether it is a word is for ``settle_heads`` to decide from
+    the other lexical sources.
+    """
+    words = phrase.split()
+    if len(words) != 2 or not first:
+        return "", ""
+    second = words[1].strip(_EDGE_PUNCTUATION)
+    joined = unicodedata.normalize("NFC", first + second)
+    decomposed = unicodedata.normalize("NFD", joined)
+    if (accent_count(joined) != 1 or "\u0300" in decomposed
+            or not all(char.isalpha() or unicodedata.combining(char)
+                       for char in decomposed)):
+        return "", ""
+    return joined, second
+
+
 def settle_heads(entries, lexical_heads, audit=None):
     """The parsed entries keyed by the head each is generated under.
 
@@ -455,6 +479,12 @@ def settle_heads(entries, lexical_heads, audit=None):
     in place (see ``settle_head``), and an entry the lexicon also prints
     under the new head keeps its own text. ``audit`` records the three
     groups by printed head.
+
+    A phrase of two words is a word the OCR split (``split_word``) when
+    another lexical source lists the joined word and does not list both
+    parts as words of their own (μή τις stays a phrase beside μήτις). It is
+    then an entry under the joined word, recorded among the repaired heads
+    and no longer among the phrases.
     """
     audit = audit if audit is not None else new_head_audit()
     malformed = audit.setdefault("malformed_heads", {})
@@ -472,6 +502,16 @@ def settle_heads(entries, lexical_heads, audit=None):
                 continue
             entry = dict(entry, headword=head, printed=printed)
         settled.setdefault(head, entry)
+    phrases = audit.setdefault("multi_word_heads", {})
+    for phrase, (joined, second, entry) in audit.get("split_words", {}).items():
+        first = entry["headword"]
+        if (not lexical_heads or joined not in lexical_heads
+                or (first in lexical_heads and second in lexical_heads)):
+            continue
+        phrases.pop(phrase, None)
+        changed["joined"][phrase] = joined
+        if joined not in entries:
+            settled.setdefault(joined, dict(entry, headword=joined, printed=phrase))
     return settled
 
 
@@ -489,7 +529,8 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
     (``corrected_heads``) and, under ``reread_heads``, each head 1.3.26 read
     otherwise (``legacy_head``) with the present reading ("" for none).
     ``legacy_printed`` holds the first words some entry also gave in that
-    earlier reading, letter for letter."""
+    earlier reading, letter for letter, and ``split_words`` the phrases that
+    may be one word the OCR split (``split_word``), for ``settle_heads``."""
     entries = {}
     if breathing is _DEFAULT:
         breathing = load_breathing_review()
@@ -503,6 +544,7 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
     corrected = audit.setdefault("corrected_heads", {})
     reread = audit.setdefault("reread_heads", {})
     legacy_printed = audit.setdefault("legacy_printed", set())
+    split_words = audit.setdefault("split_words", {})
 
     for xml_file in sorted(SOPH_DIR.glob("*.xml")):
         try:
@@ -606,7 +648,11 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
             printed_heads.setdefault(printed, entry)
 
             if reason == "multi-word":
-                multi_word.setdefault(phrase, printed)
+                if phrase not in multi_word:
+                    multi_word[phrase] = printed
+                    joined, second = split_word(printed, phrase)
+                    if joined:
+                        split_words[phrase] = (joined, second, entry)
                 continue
             if rule:
                 one_word.setdefault(phrase, {"head": printed, "rule": rule})
@@ -661,6 +707,7 @@ def withheld_keys_record(withheld):
 def analyze(audit=None):
     """Show stats about Sophocles entries."""
     print("Parsing Sophocles entries...")
+    audit = audit if audit is not None else new_head_audit()
     entries = settle_heads(parse_sophocles_entries(audit=audit),
                            load_lexical_heads(), audit)
     print(f"Total entries: {len(entries)}")
@@ -759,17 +806,22 @@ def analyze(audit=None):
     return entries, expandable, adverb_list
 
 
-def unread_printed_heads(head_audit, other_heads=frozenset()):
+def unread_printed_heads(head_audit, other_heads=frozenset(), breathing=None):
     """The printed heads the head rules do not read as printed and that the
     historical layer still keyed that way: a head rejected for two accents
-    ("two-accents" in ``malformed_heads``) and a capitalized head generated
-    under its lowercase spelling (``lowercased_heads``). A spelling another
-    lexical source lists is that source's head and is left out. A head with
-    an inner hyphen is not included; the overlay has its own rule for a
-    hyphenated lemma.
+    ("two-accents" in ``malformed_heads``, or withheld for them by the
+    ``breathing`` review, where the OCR read the breathing as an acute:
+    ίλλέκεβρα) and a capitalized head generated under its lowercase spelling
+    (``lowercased_heads``). A spelling another lexical source lists is that
+    source's head and is left out. A head with an inner hyphen is not
+    included; the overlay has its own rule for a hyphenated lemma. Nor is a
+    head withheld for its missing breathing alone: the unbreathed keys of
+    the historical layer serve breathed forms at runtime.
     """
     printed = {head for head, rule in head_audit.get("malformed_heads", {}).items()
                if rule == "two-accents"}
+    printed.update(head for head, record in ((breathing or {}).get("withheld") or {}).items()
+                   if record.get("reason") == "two_accents")
     printed.update(head_audit.get("lowercased_heads", {}))
     return {head for head in printed
             if head not in other_heads and sanitize_form(head) not in other_heads}
@@ -777,7 +829,7 @@ def unread_printed_heads(head_audit, other_heads=frozenset()):
 
 def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
-    load_breathing_review(required=True)
+    breathing_review = load_breathing_review(required=True)
     input_hashes = sophocles_noun_input_hashes()
     head_audit = new_head_audit()
     entries, expandable, adverb_list = analyze(head_audit)
@@ -796,7 +848,7 @@ def expand_all():
     # the printed head (ἀμάντευτον, Βαρυπύκνου), so both are superseded:
     # those rows are not recovered, and no published key is kept for a noun
     # among them (they get no entry in ``resolutions``).
-    unread = unread_printed_heads(head_audit, other_heads)
+    unread = unread_printed_heads(head_audit, other_heads, breathing_review)
     superseded = set(unread)
     resolutions = {}
     # Superseded lemmas are named as the lexicon prints them: the historical
@@ -925,7 +977,7 @@ def head_rules_record(head_audit):
     rules apply to every entry, so the verb step reads the same heads."""
     return {name: {"count": len(rows), "heads": dict(sorted(rows.items()))}
             for name, rows in sorted(head_audit.items())
-            if name not in ("printed", "legacy_printed")}
+            if name not in ("printed", "legacy_printed", "split_words")}
 
 
 def sophocles_noun_input_hashes():
@@ -993,7 +1045,11 @@ def expand_verbs():
     """Expand Sophocles verb headwords and merge into ag_lookup.json."""
     load_breathing_review(required=True)
     print("Parsing Sophocles entries...")
-    entries = settle_heads(parse_sophocles_entries(), load_lexical_heads())
+    # One record for both calls: the parse hands the split words to
+    # settle_heads through it.
+    head_audit = new_head_audit()
+    entries = settle_heads(parse_sophocles_entries(audit=head_audit),
+                           load_lexical_heads(), head_audit)
     print(f"Total entries: {len(entries)}")
 
     print(f"\nLoading {AG_LOOKUP}...")
