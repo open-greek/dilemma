@@ -3208,9 +3208,17 @@ class Dilemma:
             # reads a row as it is written, whatever the rule weights:
             # αναγνώστει is αναγνώστη (ει for η), not the letters of
             # ἀναγνωστέοι reached through αναγνώστεοι (ι for οι).
+            #
+            # A word that is already spelled as a Modern Greek word, and
+            # as no Ancient one, is respelled only into a row as written
+            # (ἀστράφτει -> ἀστράπτει). A respelling that also needs its
+            # accents changed is two changes against none: ἀλλιῶς is not
+            # ἁλιῶς (ἁλιεύς) and ἀνάβει not the surname Ανάβης (#132).
+            steps = ((self._OWN_ROWS,) if self._is_modern_spelling_only(word)
+                     else (self._OWN_ROWS, self._MONOTONIC_KEY,
+                           self._STRIPPED_KEY))
             answered = set()
-            for step in (self._OWN_ROWS, self._MONOTONIC_KEY,
-                         self._STRIPPED_KEY):
+            for step in steps:
                 for candidate in respellings:
                     if candidate in answered:
                         continue
@@ -4226,6 +4234,30 @@ class Dilemma:
             self._normalize_grave_citation_lemma(table.get(variant) or "")
             for variant in dict.fromkeys(
                 (word, word.lower(), acute, acute.lower())))
+
+    def _is_modern_spelling_only(self, word: str) -> bool:
+        """Whether *word* is spelled as a Modern Greek word and as no Ancient one.
+
+        True for a word written with a breathing whose monotonic spelling
+        is a row of a Modern Greek lexical head, where the Ancient lookup
+        has no row for the spelling and no Ancient headword has the head's
+        letters: the words _restore_breathing() answers None for under
+        ``lang="grc"`` and reads as Modern under ``lang="all"`` (ἀλλιῶς,
+        αλλιώς; ἀνάβει, ανάβω). Letters and accent are already those of a
+        word, so a further respelling has less to explain.
+        """
+        if self.lang != "grc" or _initial_breathing(word) not in (
+                _SMOOTH_BREATHING, _ROUGH_BREATHING):
+            return False
+        if self._ancient_lookup_has_spelling(word):
+            return False
+        head = self._lookup.get(to_monotonic(word.lower()))
+        head = self._normalize_grave_citation_lemma(head) if head else None
+        if not head or self._restore_breathing(word, head) is not None:
+            return False
+        if self._vernacular_lexical_heads is None:
+            self._vernacular_lexical_heads = _lexical_heads("el")
+        return head in self._vernacular_lexical_heads
 
     _SYLLABLE_NUCLEUS = re.compile("[αεο]ι|υι|[αεηο]υ|[αεηιουω]")
 

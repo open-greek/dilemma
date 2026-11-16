@@ -139,13 +139,21 @@ Modern (`ἀκόμη` gives `ακόμη`, `ἀξίζει` `αξίζω`, `ἔργ
 (`ἀστοχήσει` gives `None` with `guess=False`). `lang="el"` and
 `convention="triantafyllidis"` read the Modern rows as before. The Sophocles
 lexicon's omicron and rho heads get their breathings back before expansion,
-so `ὀφφικίου` gives `ὀφφίκιον` both untagged and with a NOUN tag. Known gaps:
-with `lang="grc"` a polytonic
-Modern Greek word that no Ancient head spells can still reach the Byzantine
-normalizer, which may find an unrelated Ancient word (`ἀλλιῶς` gives
-`ἁλιεύς`, `ἀνάβει` `Ανάβης`); with `lang="all"` these keep their Modern lemma.
-An Ancient form whose Modern twin is listed can take it under `lang="all"`
-(`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
+so `ὀφφικίου` gives `ὀφφίκιον` both untagged and with a NOUN tag.
+
+With `lang="grc"` a polytonic Modern Greek word that no Ancient head spells
+can still reach the Byzantine normalizer, which respells one sound at a time
+and looks the respelling up. A word whose letters and accent are already
+those of a Modern Greek word is respelled only into an Ancient row as it is
+written (`ἀστράφτει` gives `ἀστράπτω`, `ἐρώτησε` `ἐρωτάω`). A respelling that
+also needs its accents changed is not taken, so `ἀλλιῶς` and `ἀνάβει` give
+`None` with `guess=False` (they gave `ἁλιεύς` and `Ανάβης` through 1.3.26);
+with `lang="all"` these keep their Modern lemma. Known gaps: the word's own
+accent-stripped key still answers (`ἄνοιξη` gives `ἀνοίγω`, the row of
+`ἀνοίξῃ`), because the same key reads Ancient words printed with a misplaced
+accent or breathing (`ἕξης` gives `ἑξῆς`, `ἐνότητα` `ἑνότης`), and nothing in
+the spelling tells the two apart. An Ancient form whose Modern twin is listed
+can take it under `lang="all"` (`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
 
 A double rho printed with breathings, as older editions have it (`ῤῥ`, and
 the half-marked `ρῥ` and `ῤρ`), is read as plain `ρρ` by every method:
