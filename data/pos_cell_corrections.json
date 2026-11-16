@@ -1411,6 +1411,16 @@
    "reason": "The cell of the capitalized key reads the lowercase noun. 1.3.25 answered Ἔρως from the lookup row; with ἔρως restored as a head (#126) the cell names a case twin of the row's reading and decides, so the god loses his capital.",
    "evidence": "GLAUx: Ἔρως -> Ἔρως 227, ἔρως 1; Perseus gold: Ἔρως/noun -> Ἔρως; the lowercase key ἔρως keeps NOUN ἔρως (423 GLAUx tokens); 1.3.25 gave Ἔρως.",
    "issue": 126
+  },
+  {
+   "table": "treebank",
+   "form": "Κήτεος",
+   "upos": "NOUN",
+   "target": "Κήτευς",
+   "action": "drop",
+   "reason": "New name cell of the 1.3.27 treebank builder (#138) with a wrong lemma. Κήτεος is the genitive of Κῆτος, the constellation of the Sea-monster (κῆτος, an s-stem neuter); a name in -εύς is oxytone and its genitive is Κητέως or Κητέος. GLAUx lemmatizes its 10 tokens as Κήτευς, a spelling no lexicon lists, and the lookup row agrees, so the cell passed the token tests. Without it the lower tables answer κῆτος, as 1.3.26 did.",
+   "evidence": "GLAUx: Κήτεος -> Κήτευς 10, κήτεος -> κῆτος 7; grc_lexical_heads lists Κητεύς (personal-name list, VLG) and no Κήτευς; LSJ κῆτος II, the constellation; 1.3.26 gave κῆτος for Κήτεος/NOUN.",
+   "issue": 138
   }
  ]
 }

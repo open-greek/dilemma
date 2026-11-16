@@ -10,7 +10,8 @@ beside a restored lowercase head keep their capitalized lemma.
 #129: the Doric αἴ (if) gets an SCONJ cell.
 #141, #138: the treebank builder now keeps the vote of a listed head and of
 a well-attested capitalized name, so the rows that added those cells back
-are retired; the rebuilt table must supply every one of them.
+are retired; the rebuilt table must supply every one of them. A name cell
+the builder writes with a wrong lemma is dropped (Κήτεος is no Κήτευς).
 """
 import json
 from pathlib import Path
@@ -110,7 +111,7 @@ def test_shipped_correction_record_is_reviewed_and_current():
     seen = set()
     for row in record["corrections"]:
         assert row["reason"] and row["evidence"] and row["issue"] in (
-            105, 106, 125, 126, 128, 129)
+            105, 106, 125, 126, 128, 129, 138)
         key = (row["table"], row["form"], row["upos"])
         assert key not in seen
         seen.add(key)
@@ -304,6 +305,17 @@ def test_rebuilt_treebank_table_supplies_the_retired_add_rows(form, upos, lemma)
 def test_shipped_retired_rows_keep_their_tagged_reading(shipped_model, form, upos, lemma):
     assert shipped_model.lemmatize_pos(form, upos, guess=False) == lemma
     assert shipped_model.lemmatize_batch_pos([form], [upos], guess=False) == [lemma]
+
+
+# #138: a name cell of the builder whose lemma is wrong is dropped, and the
+# lower tables answer as before. Κήτεος is the genitive of Κῆτος, the
+# constellation; GLAUx and the lookup row read it as an unlisted Κήτευς.
+
+def test_shipped_138_wrong_name_cell_is_dropped(shipped_model):
+    assert "Κήτεος" not in shipped_model._pos_ag_lookup
+    assert shipped_model.lemmatize_pos("Κήτεος", "NOUN", guess=False) == "κῆτος"
+    assert shipped_model.lemmatize_batch_pos(
+        ["Κήτεος", "κήτεος"], ["NOUN", "NOUN"], guess=False) == ["κῆτος", "κῆτος"]
 
 
 # The Modern cells answer under lang="el" and, for monotonic keys, "all".

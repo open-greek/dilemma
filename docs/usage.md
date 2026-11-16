@@ -698,7 +698,12 @@ NOUN cell where GLAUx attests the name well (`Θέρμον` NOUN gives `Θέρμ
 corpus POS table" below), and a few more are reviewed cells (below). A name
 that fails a test keeps the common noun: `Τύχη` and `Νίκη` NOUN give `τύχη`
 and `νίκη` (the name has 3-15% as many tokens as the noun), and `Ἔρις` NOUN
-gives `ἔρις` (the name in 27 of its 38 capitalized tokens).
+gives `ἔρις` (the name in 27 of its 38 capitalized tokens). Such a cell is
+a POS entry for the capitalized spelling, so it decides wherever the
+Ancient tables are loaded: under `lang="all"` also for a name written
+without polytonic marks, and with `convention="triantafyllidis"` (`Σελήνη`
+NOUN gives `Σελήνη`). `lang="el"` does not load the Ancient tables and
+keeps the lowercase reading.
 
 Reviewed corrections to individual cells of the treebank, GLAUx,
 Wiktionary (Ancient and Modern) and LSJ9 POS tables are kept in
@@ -716,7 +721,10 @@ reviewed cells whose loss let a lower table answer are added back (`δήτα`
 ADV gives `δῆτα`, `ζώδιον` NOUN `ζῴδιον`, `ουδέν` ADJ
 `οὐδείς`). Since 1.3.27 the builder itself keeps the vote of a listed head
 and of a well-attested capitalized name (`πλοιάριον` NOUN, `Πρόξενος`
-NOUN), so the 32 rows that added those cells are retired. New cells that
+NOUN), so the 32 rows that added those cells are retired, and one name
+cell it writes with a wrong lemma is dropped (`Κήτεος`, the genitive of the
+constellation `Κῆτος`, stays `κῆτος` under NOUN, not the `Κήτευς` of GLAUx
+and of the lookup row). New cells that
 displaced a 1.3.25 answer are corrected or
 dropped (`εισήεσαν` VERB gives `εἴσειμι`, `ήμεν` VERB `εἰμί`), and the
 monotonic keys of `ἤν` get an SCONJ cell (`ην` SCONJ gives `ἐάν`; `ἣν`
