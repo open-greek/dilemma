@@ -69,6 +69,11 @@ def shipped_models():
     # Half-marked pairs, as the same editions and their OCR have them.
     ("παρῥησία", "παρρησία"),
     ("παῤρησία", "παρρησία"),
+    # The breathings confused: two rough, two smooth, rough first.
+    ("Γόμοῥῥα", "Γόμορρα"),
+    ("Βοῤῤᾶ", "Βορρᾶ"),
+    ("παῥρησίαν", "παρρησίαν"),
+    ("πόῥῤω", "πόρρω"),
     # Two pairs in one word.
     ("διαῤῥήξας καταῤῥεῖ", "διαρρήξας καταρρεῖ"),
 ])
@@ -81,9 +86,14 @@ def test_marked_double_rho_becomes_plain(printed, plain):
 
 @pytest.mark.parametrize("word", [
     "ῥήτωρ", "Ῥόδος", "ἄρρητος", "πυρρός", "γάῤ", "ῥαῤ", "ἀρετή", "ἔρως",
+    # A doubled initial ῥ is a misprint and a marked final rho an elision:
+    # only a pair inside the word is the editorial spelling.
+    "ῥρητὸν", "ῥῥῶσιν", "παρῤ", "ῤῥ",
     "ὁ", "ἡ", "abc", ""])
 def test_other_rhos_are_left_alone(word):
     assert to_plain_double_rho(word) == word
+    decomposed = unicodedata.normalize("NFD", word)
+    assert to_plain_double_rho(decomposed) == decomposed
 
 
 def test_marked_double_rho_reads_the_plain_row(model_from):

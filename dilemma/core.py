@@ -734,11 +734,15 @@ def to_standard_sigma(s: str) -> str:
     return s
 
 
-# A double rho printed with breathings: ῤῥ, and the half-marked ρῥ and ῤρ
-# that the same editions and their OCR produce, composed or decomposed.
-_MARKED_DOUBLE_RHO = re.compile(
-    "(?:\u1fe4|\u03c1\u0313|\u03c1)(?:\u1fe5|\u03c1\u0314)"
-    "|(?:\u1fe4|\u03c1\u0313)\u03c1")
+# A lowercase rho with or without a breathing, composed or decomposed. Two
+# of them in a row inside a word are a double rho however they are marked:
+# ῤῥ, the half-marked ρῥ and ῤρ, and the ῥῥ, ῤῤ, ῥρ and ῥῤ that the OCR of
+# the same editions produces. Not at either end of the word: a doubled
+# initial ῥ is a misprint, not this spelling, and a marked final rho is an
+# elision.
+_LOWERCASE_RHO = "(?:\u1fe4|\u1fe5|\u03c1[\u0313\u0314]?)"
+_DOUBLE_RHO = re.compile(
+    "(?<=.)" + _LOWERCASE_RHO + _LOWERCASE_RHO + "(?=[^\u0313\u0314])")
 
 
 def to_plain_double_rho(s: str) -> str:
@@ -748,18 +752,20 @@ def to_plain_double_rho(s: str) -> str:
     first rho and a rough one on the second (παῤῥησία, ἄῤῥητος, Βοῤῥᾶς).
     The marks are an editorial convention and carry no lexical distinction:
     the dictionaries and the lookup spell these words with plain ρρ. In the
-    form-attestation corpora one double-rho token in six is printed this
-    way (12,936 of 78,475, mostly Migne and First1KGreek). Without this the
-    word has no row of its own and is read, if at all, through its
+    form-attestation corpora one double-rho token in six is printed with a
+    breathing on either rho (13,450 of 78,989, mostly Migne and
+    First1KGreek): ῤῥ in 12,936, and in the rest the pair is half-marked
+    or its breathings are confused (ρῥ, ῤρ, ῥῥ, ῤῤ, ῥρ, ῥῤ). Without this
+    the word has no row of its own and is read, if at all, through its
     accent-stripped key (ἀπεῤῥάγησαν had none, #141), and a tagged lookup
     reads the Modern Greek table (Βοῤῥᾶ PROPN -> Βορράς, #134).
 
     A word-initial ῥ and the elision mark on a final rho (γάῤ) are left
-    alone: only a rho pair is rewritten.
+    alone: only a rho pair inside the word is rewritten.
     """
     if not any(ch in s for ch in "\u1fe4\u1fe5\u0313\u0314"):
         return s
-    return _MARKED_DOUBLE_RHO.sub("ρρ", s)
+    return _DOUBLE_RHO.sub("ρρ", s)
 
 
 def _is_self_map(form: str, lemma: str) -> bool:
