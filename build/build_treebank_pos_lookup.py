@@ -230,6 +230,11 @@ def _load_lexical_targets():
     return keys, _input_fingerprint(path), listed
 
 
+def _letter_count(text):
+    return sum(1 for char in unicodedata.normalize("NFD", text)
+               if not unicodedata.combining(char))
+
+
 def _is_own_listed_head(form, upos, lemma, listed_heads):
     """The corpus reads a lower-case head of an edited lexicon as itself."""
     if (upos not in _HEAD_VOTE_UPOS or is_capitalized(form)
@@ -240,8 +245,8 @@ def _is_own_listed_head(form, upos, lemma, listed_heads):
     spelled = unicodedata.normalize("NFD", form).replace("\u0300", "\u0301")
     if unicodedata.normalize("NFC", spelled) != lemma:
         return False
-    letters = sum(1 for char in spelled if not unicodedata.combining(char))
-    return letters >= 2 and any(char in "\u0301\u0342" for char in spelled)
+    return (_letter_count(spelled) >= 2
+            and any(char in "\u0301\u0342" for char in spelled))
 
 
 def _unique_owner(counts):
@@ -445,12 +450,13 @@ def _capital_name_cells(lookup, candidates, tokens, cascade):
     gave θέρμος). Keep the name's agreeing vote where GLAUx shows that the
     capitalized spelling is the name and every language scope reads it so
     without a tag. The cell is not projected: a lower-case or monotonic key
-    belongs to the common word.
+    belongs to the common word. A single capital letter is a numeral or the
+    label of a figure, not a name.
     """
     attested = {}
     for form, (upos, lemma) in candidates.items():
         if (upos != "NOUN" or form in lookup or not is_capitalized(form)
-                or not is_capitalized(lemma)):
+                or not is_capitalized(lemma) or _letter_count(form) < 2):
             continue
         evidence = tokens.evidence(form, lemma)
         if evidence is not None:

@@ -687,6 +687,20 @@ def test_capitalized_name_cell_needs_the_names_own_row(inputs, monkeypatch):
     assert 'Θέρμον' not in result and cells == {}
 
 
+def test_capital_letter_label_gets_no_name_cell(inputs, monkeypatch):
+    # GLAUx reads the labels of a geometric figure as capitalized nouns, with
+    # thousands of tokens. A single letter is a siglum, not a name.
+    rows = [{'form': 'Γ', 'lemma': 'Γ', 'pos': 'noun', 'count': 3040},
+            {'form': 'γ', 'lemma': 'γ', 'pos': 'noun', 'count': 445}]
+    bare = {'Γ': 'Γ', 'γ': 'γ'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'γ': {'NOUN': 'γάμμα'}}}, [],
+           heads={'Γ': ['dge_headwords'], 'γ': ['lsj9_headwords']})
+    scalar_models(monkeypatch, bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    assert 'Γ' not in result and audit['capital_name_cells'] == {}
+
+
 def test_capitalized_adjective_gets_no_name_cell(inputs, monkeypatch):
     rows = [{'form': 'Κορκυραῖος', 'lemma': 'Κορκυραῖος', 'pos': 'adj', 'count': 50}]
     bare = {'Κορκυραῖος': 'Κορκυραῖος'}

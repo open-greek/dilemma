@@ -919,7 +919,8 @@ many name tokens as tokens of the lower-case spelling read as a common noun
 (so that capitals at the start of a sentence cannot pass for the name); the
 lookup must read the spelling as the name without a tag under both
 settings, and the tables must otherwise answer it with something else
-(`Θέρμον` NOUN gave `θέρμος`). Such a cell is not projected to lower-case
+(`Θέρμον` NOUN gave `θέρμος`). A single capital letter, a numeral or the
+label of a figure, gets none. Such a cell is not projected to lower-case
 or monotonic keys. The audit lists each with its three counts under
 `capital_name_cells` (about 500 on the 1.3.26 lookup).
 Without `--kaikki`, only these two kinds of vote are recovered. Lowercase and
