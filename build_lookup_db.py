@@ -385,8 +385,10 @@ REVIEWED_TREEBANK_READINGS = {
     # row, or its own row reads another lemma. The removed el copy of the
     # GLAUx or Diorisis pair was the one answer with a lemma, so without
     # these lang="el" would answer like the other two. Each key takes the
-    # reading of its full form, or of its lowercase key. The first-seen
-    # reading was:
+    # reading of its full form, or of its lowercase key; ἤρατ’ and ἀρέσθ’,
+    # whose full forms are also read as ἔραμαι and ἄρνυμαι, keep their verb
+    # under the name the table gives it (ἀείρω, as GLAUx has them). The
+    # first-seen reading was:
     # - a verb form, a vocative, Beta Code or a misprint in AGDT (καθέζετ’
     #   καθέζετο, Ἰδαῖ’ Ἰδαῖε, κείν’ κει~νος, ἰοῦσ’ εἷμι, οὐπώποτ’ οὐπωποτε,
     #   -δ’ δε; GLAUx has -δ’ 17,835 times under δέ);
@@ -405,7 +407,8 @@ REVIEWED_TREEBANK_READINGS = {
         ("ἐκτήσαθ", "κτάομαι"), ("πευθόμεθ", "πυνθάνομαι"),
         ("πεύθετ", "πυνθάνομαι"), ("πευθοίαθ", "πυνθάνομαι"),
         ("πρώτισθ", "πρῶτος"), ("πρώτιστ", "πρῶτος"),
-        ("αἴρετ", "ἀείρω"), ("ἀρθέντ", "ἀείρω"), ("ἔβραχ", "ἔβραχον"),
+        ("αἴρετ", "ἀείρω"), ("ἀρθέντ", "ἀείρω"), ("ἤρατ", "ἀείρω"),
+        ("ἀρέσθ", "ἀείρω"), ("ἔβραχ", "ἔβραχον"),
         ("ζῶντ", "ζῶ"), ("ζῶνθ", "ζῶ"), ("ζώοντ", "ζῶ"),
         ("ληίζετ", "ληΐζομαι"), ("ληΐδ", "ληΐς"), ("λοισθήϊ", "λοισθήϊος"),
         ("πλωίζεσκ", "πλωΐζω"), ("ἀπῇξ", "ἀπαΐσσω"), ("πάμπολλ", "πάμπολυς"),
@@ -414,15 +417,17 @@ REVIEWED_TREEBANK_READINGS = {
         ("Ἐφ", "ἐπί"), ("Ὥστ", "ὥστε"), ("Ὄφρ", "ὄφρα"), ("Ἔπειθ", "ἔπειτα"),
         ("Εὖτ", "εὖτε"), ("Ὅτ", "ὅτε"), ("Ὑφ", "ὑπό"), ("Τροπαῖ", "τροπαῖος"),
         ("Ἔνθ", "ἔνθα"))},
-    # Elided keys that read a lemma of the table, but of another word, where
-    # the removed treebank copy had the form's own: χείρον’ is χείρονα, not
-    # the centaur Χείρων; μήτιν’ is μήτινα (μήτις 4), not μῆτις, which has a
-    # circumflex; ἐϊκυῖ’ is the participle of ἔοικα, not εἰκός; Τίτυρ’ read
-    # Σάτυρος; three forms of βακχεύω read a capitalised Βακχεύω.
+    # Elided keys that read a lemma of the table, but of another word than
+    # their full forms: χείρον’ is χείρονα, which reads χείρων as AGDT and
+    # Diorisis have it, not the centaur Χείρων; μήτιν’ is μήτινα (μήτις 4),
+    # not μῆτις, which has a circumflex; ἐϊκυῖ’ is the participle of ἔοικα,
+    # not εἰκός; four verb forms read a capitalised Βακχεύω or Κορυβαντίζω,
+    # as GLAUx names a verb made from a name, where βακχεύω and κορυβαντίζω
+    # have rows of their own.
     **{stem + "\u1fbd": lemma for stem, lemma in (
         ("χείρον", "χείρων"), ("μήτιν", "μήτις"), ("ἐϊκυῖ", "ἔοικα"),
-        ("Τίτυρ", "Τίτυρος"), ("βάκχευσ", "βακχεύω"),
-        ("βακχεύητ", "βακχεύω"), ("βακχεύοντ", "βακχεύω"))},
+        ("βάκχευσ", "βακχεύω"), ("βακχεύητ", "βακχεύω"),
+        ("βακχεύοντ", "βακχεύω"), ("ἐκορυβάντιζ", "κορυβαντίζω"))},
     # The genitive of ὁ δεῖνα (58, and Diorisis), which the name page Δεῖνος
     # held and the case-twin rule would hand to the rare δεῖνος (5), as it
     # hands δεῖνα its own key. δεῖνός and δεῖνι already read δεῖνα.

@@ -7,6 +7,7 @@ production data is read or written.
 """
 from pathlib import Path
 import sys
+import unicodedata
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -107,6 +108,45 @@ def test_listed_head_takes_its_reading_back_from_a_capitalised_twin():
     assert {r["form"] for r in restored} == {"θύτης", "θυτης"}
 
 
+def test_corpus_form_evidence_counts_the_grave_spelling_where_asked():
+    pairs = [{"form": "θεατρικὸς", "lemma": "θεατρικός", "count": 7},
+             {"form": "θεατρικός", "lemma": "θεατρικός", "count": 2},
+             {"form": "θεατρικὸς", "lemma": "Θεατρικός"},
+             {"form": "τὸς", "lemma": "τός", "count": 3},
+             {"form": "λόγον", "lemma": "λόγος", "count": 9}]
+    forms = {"θεατρικός", "τός"}
+    assert B.corpus_form_evidence(pairs, forms) == {
+        "θεατρικός": {"θεατρικός": 2}}
+    # Only the listed form takes its grave spelling; τός stays silent.
+    assert B.corpus_form_evidence(pairs, forms, grave_folded={"θεατρικός"}) == {
+        "θεατρικός": {"θεατρικός": 9, "Θεατρικός": 1}}
+
+
+def test_reviewed_readings_are_well_formed():
+    # A key the build cannot hold changes nothing and nothing reports it:
+    # keys are NFC, an elided key ends in U+1FBD (the table's elision mark,
+    # not an apostrophe or U+2019), and a reading is a plain Greek word.
+    elision = "\u1fbd"
+    for record in (B.REVIEWED_TREEBANK_READINGS,
+                   B.REVIEWED_ABSENT_KEY_READINGS,
+                   B.MODERN_READING_OVERRIDES):
+        for key, lemma in record.items():
+            for text in (key, lemma):
+                assert unicodedata.normalize("NFC", text) == text, (key, lemma)
+            assert not set(key) & set("'\u2019\u02bc\u1fbf"), key
+            assert elision not in key[:-1], key
+            assert all(unicodedata.name(char).startswith("GREEK")
+                       for char in lemma), (key, lemma)
+            assert all(unicodedata.name(char).startswith("GREEK")
+                       for char in key.lstrip("-")), key
+    elided = {key: lemma for key, lemma in B.REVIEWED_TREEBANK_READINGS.items()
+              if key.endswith(elision)}
+    assert len(elided) == 57
+    # An elided key never reads a capitalised lemma its lowercase stem lacks.
+    assert all(lemma[0].isupper() <= key[0].isupper()
+               for key, lemma in elided.items())
+
+
 def test_reviewed_treebank_readings_name_lemmas():
     readings = B.REVIEWED_TREEBANK_READINGS
     assert readings["Νέαν"] == readings["Νέᾳ"] == "νέος"
@@ -115,6 +155,12 @@ def test_reviewed_treebank_readings_name_lemmas():
     assert readings["σοι"] == readings["σοί"] == "σύ" and readings["ὥς"] == "ὡς"
     assert "νέη" not in readings.values()
     assert readings["χαίρετ\u1fbd"] == "χαίρω"
+    # The table reads ζῶντα, ζῶντες and the key ζάω itself as ζῶ.
+    assert readings["ζῶντ\u1fbd"] == readings["ζῶνθ\u1fbd"] == "ζῶ"
+    assert readings["κείν\u1fbd"] == "ἐκεῖνος"
+    assert readings["Ἐφ\u1fbd"] == "ἐπί" and readings["Ὥστ\u1fbd"] == "ὥστε"
+    assert readings["δεῖνος"] == "δεῖνα"
+    assert readings["εμούς"] == readings["εμους"] == "ἐμός"
     assert readings["οἰκείοις"] == "οἰκεῖος"
     assert all(len(key) > 1 for key in readings)
     assert B.ANCIENT_FORM_LEMMA_READINGS == {"μου": "ἐγώ"}
@@ -205,3 +251,60 @@ def test_el_rows_follow_the_ancient_reading_of_ancient_forms(tmp_path):
     assert combined["ἐμοῦ"] == "ἐγώ" and combined["σοι"] == "σύ"
     # The Modern weak pronoun keeps the combined row; lang="grc" reads ἐγώ.
     assert combined["μου"] == "μου" and grc["μου"] == "ἐγώ"
+
+
+def test_elided_keys_and_oxytone_case_twins_in_the_build(tmp_path):
+    # καθέζετ᾽ and Ἐφ᾽ hold readings that are no lemma (a verb form, the
+    # capitalised lemma of a sentence-initial word); the treebank copy in
+    # the el table was the one good answer and is removed when it differs.
+    # ζῶντ᾽ reads ζῶ like the full forms, so its ζάω copy goes too. The
+    # listed head θεατρικός reads the name page's lemma and GLAUx has it
+    # with a grave only. δεῖνος is the genitive of δεῖνα, and εμούς is not
+    # the Doric genitive ἐμοῦς.
+    glaux = [
+        {"form": "καθέζετ’", "lemma": "καθέζομαι", "pos": "verb", "count": 12},
+        {"form": "ζῶντ’", "lemma": "ζάω", "pos": "verb", "count": 25},
+        {"form": "θεατρικὸς", "lemma": "θεατρικός", "pos": "adj", "count": 6},
+        {"form": "σκηνικὸς", "lemma": "σκηνικός", "pos": "adj", "count": 1},
+        {"form": "δεῖνος", "lemma": "δεῖνα", "pos": "pron", "count": 58},
+        {"form": "δεῖνος", "lemma": "δεῖνος", "pos": "noun", "count": 5},
+        {"form": "ἐμοὺς", "lemma": "ἐμός", "pos": "adj", "count": 158}]
+    diorisis = [{"form": "Ἐφ’", "lemma": "ἐπί", "pos": "adp"}]
+    agdt = [{"form": "καθέζετ᾽", "lemma": "καθέζετο", "pos": "v"}]
+    data, env = T._fixture(tmp_path, {
+        "ag": {"Ἐφ᾽": "Ἐπί", "ζῶντ᾽": "ζάω",
+               "θεατρικός": "Θεατρικός", "θεατρικος": "Θεατρικός",
+               "σκηνικός": "Σκηνικός", "δεῖνος": "Δεῖνος",
+               "εμούς": "μου", "ἐμοῦς": "μου", "μου": "μου"},
+        "mg_lookup.json": {"λόγος": "λόγος", "μου": "μου"},
+        "grc_lexical_heads.json": {
+            "heads": {head: ["lsj9_headwords"] for head in (
+                "σύνοχος", "γε", "λόγος", "μοναχικός", "λαβή", "κλεῖδα",
+                "θεατρικός", "σκηνικός", "δεῖνος", "δεῖνα")},
+            "vernacular_heads": []},
+        "ag_headwords.json": ["καθέζομαι", "ἐπί", "ζάω", "ζῶ", "θεατρικός",
+                              "σκηνικός", "δεῖνα", "δεῖνος", "ἐμός", "ἐγώ",
+                              "λόγος"],
+        "perseus_pairs.json": agdt,
+        "glaux_pairs.json": glaux,
+        "diorisis_pairs.json": diorisis,
+    })
+    result = T._build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    combined, grc, el = (T._rows(data), T._rows(data, "grc"),
+                         T._rows(data, "el"))
+    # The grc and el tables hold only the rows that differ from the combined.
+    for table in (combined, {**combined, **grc}, {**combined, **el}):
+        assert table["καθέζετ᾽"] == "καθέζομαι" and table["Ἐφ᾽"] == "ἐπί"
+        assert table["ζῶντ᾽"] == "ζῶ"
+        assert table["θεατρικός"] == table["θεατρικος"] == "θεατρικός"
+        assert table["δεῖνος"] == "δεῖνα"
+        assert table["εμούς"] == "ἐμός"
+    assert {**combined, **grc}["ἐμοῦς"] == "ἐγώ"
+    # One grave token is no evidence: the head keeps the name's lemma.
+    assert combined["σκηνικός"] == "Σκηνικός"
+    # The case-twin rule gives δεῖνος its key (5 tokens to none for the
+    # name) before the reviewed reading takes it for δεῖνα.
+    assert ("AG", "ag_lookup.json",
+            "displaced_lexical_head_restored_to_δεῖνος", "δεῖνος",
+            "Δεῖνος") in T._rejections(data)
