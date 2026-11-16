@@ -87,7 +87,11 @@ def test_finder_lists_supported_ikos_adjectives(tmp_path):
         {"lemma": "Πλατωνικός", "decision": "adjective", "reason": "x"},
         {"lemma": "παθικός", "decision": "exclude", "reason": "x"},
     ]}, ensure_ascii=False))
+    import expand_sophocles
+    chunk_dir = expand_sophocles.SOPH_DIR
     record = F.find(data)
+    # the finder leaves the generator's chunk directory as it found it
+    assert expand_sophocles.SOPH_DIR == chunk_dir
     assert sorted(record["lemmas"], key=lambda r: r["lemma"]) == sorted([
         {"lemma": "μοναχικός", "evidence": ["sophocles"]},
         {"lemma": "ἀγγελτικός", "evidence": ["corpus"]},

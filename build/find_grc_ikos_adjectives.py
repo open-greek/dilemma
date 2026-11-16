@@ -63,10 +63,16 @@ def bare(word: str) -> str:
 
 def sophocles_endings(chunks: Path) -> dict[str, str]:
     import expand_sophocles
+    # The parser reads the module's directory; put it back, or every later
+    # reader in the same process gets these chunks.
+    previous = expand_sophocles.SOPH_DIR
     expand_sophocles.SOPH_DIR = chunks
-    return {headword: entry["adjective_endings"]
-            for headword, entry in expand_sophocles.parse_sophocles_entries().items()
-            if entry["adjective_endings"]}
+    try:
+        return {headword: entry["adjective_endings"]
+                for headword, entry in expand_sophocles.parse_sophocles_entries().items()
+                if entry["adjective_endings"]}
+    finally:
+        expand_sophocles.SOPH_DIR = previous
 
 
 def find(data: Path = DATA) -> dict:
