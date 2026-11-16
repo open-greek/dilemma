@@ -190,6 +190,18 @@ def test_listed_head_vote_without_a_conflict_remains_redundant(inputs, monkeypat
     assert 'ψηφίς' not in build.build_lookup()
 
 
+def test_capitalized_twin_in_a_lower_table_is_no_conflict_for_a_listed_head(
+        inputs, monkeypatch):
+    # The runtime answers a lower-case form with the lower-case twin itself.
+    # Keeping the vote would only withhold the name's cell from other keys.
+    inputs([{'form': 'σταφυλὶς', 'lemma': 'σταφυλίς', 'pos': 'noun'}],
+           {'σταφυλὶς': 'σταφυλίς'},
+           {'lsj9_pos_lookup.json': {'σταφυλὶς': {'NOUN': 'Σταφυλίς'}}}, [],
+           heads={'σταφυλίς': ['lsj9_headwords']})
+    scalar_models(monkeypatch, {'σταφυλὶς': 'σταφυλίς'})
+    assert not build.build_lookup()
+
+
 def test_listed_head_needs_its_own_row_in_every_language_scope(inputs, monkeypatch):
     # The flat table reads the form as itself, but one scope's own row is a
     # name: the tagged answer would leave that scope's untagged one.
@@ -603,3 +615,83 @@ def test_retained_vote_repairs_pos_api_without_changing_proper_noun(inputs, monk
         assert model.lemmatize_pos('Παρούση', 'VERB', guess=False) == 'πάρειμι'
         assert model.lemmatize_pos('Παρούση', 'PROPN', guess=False) == 'Παρούση'
 
+
+
+THERMON_DEFINITIONS = [
+    {'word': 'Θέρμος', 'lang_code': 'grc', 'pos': 'name',
+     'senses': [{'glosses': ['A town in Aetolia.']}]},
+    {'word': 'θέρμος', 'lang_code': 'grc', 'pos': 'noun',
+     'senses': [{'glosses': ['lupine']}]},
+]
+
+
+def thermon(inputs, monkeypatch, name=10, other=0, lower=4, *, fallback='θέρμος',
+            owners=None):
+    """A capitalized name beside the lower-case noun of the same letters."""
+    rows = [{'form': 'Θέρμον', 'lemma': 'Θέρμος', 'pos': 'noun', 'count': name}]
+    if lower:
+        rows.append({'form': 'θέρμον', 'lemma': 'θέρμος', 'pos': 'noun', 'count': lower})
+    if other:
+        # A reading without a part of speech counts as a token, not as a vote.
+        rows.append({'form': 'Θέρμον', 'lemma': 'θέρμος', 'pos': None, 'count': other})
+    bare = {'Θέρμον': 'Θέρμος', 'θέρμον': 'θέρμος'}
+    table = {'θέρμον': {'NOUN': fallback}} if fallback else {}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': table}, THERMON_DEFINITIONS)
+    scalar_models(monkeypatch, owners or bare)
+    result = build.build_lookup()
+    audit = json.loads(build.OUTPUT_PATH.with_suffix('.audit.json').read_text())
+    return result, audit['capital_name_cells']
+
+
+@pytest.mark.parametrize(('name', 'other', 'lower'), [(10, 0, 4), (10, 0, 40), (18, 2, 0)])
+def test_attested_capitalized_name_keeps_its_exact_noun_cell(
+        inputs, monkeypatch, name, other, lower):
+    result, cells = thermon(inputs, monkeypatch, name, other, lower)
+    assert result['Θέρμον'] == {'NOUN': 'Θέρμος'}
+    # The lower-case key stays with the common noun.
+    assert 'θέρμον' not in result
+    assert cells == {'Θέρμον': {'lemma': 'Θέρμος', 'form_tokens': name + other,
+                                'name_tokens': name, 'lowercase_noun_tokens': lower}}
+
+
+@pytest.mark.parametrize(('name', 'other', 'lower'), [
+    (9, 0, 0),      # fewer than ten tokens of the capitalized spelling
+    (17, 3, 0),     # under nine tenths of them are the name
+    (10, 0, 41),    # the lower-case noun has over four times the name's tokens
+])
+def test_capitalized_name_failing_a_token_test_gets_no_cell(
+        inputs, monkeypatch, name, other, lower):
+    result, cells = thermon(inputs, monkeypatch, name, other, lower)
+    assert 'Θέρμον' not in result
+    assert cells == {}
+
+
+def test_capitalized_name_cell_needs_a_different_lower_answer(inputs, monkeypatch):
+    result, cells = thermon(inputs, monkeypatch, lower=0, fallback=None)
+    assert not result and cells == {}
+
+
+def test_name_cell_answers_the_lower_case_vote_kept_for_the_capital_query(
+        inputs, monkeypatch):
+    # No lower table has the form. The noun's own vote is kept because the
+    # capitalized query would otherwise miss it, and that kept vote is what
+    # the name's exact cell then has to answer.
+    result, cells = thermon(inputs, monkeypatch, fallback=None)
+    assert result == {'θέρμον': {'NOUN': 'θέρμος'}, 'Θέρμον': {'NOUN': 'Θέρμος'}}
+    assert set(cells) == {'Θέρμον'}
+
+
+def test_capitalized_name_cell_needs_the_names_own_row(inputs, monkeypatch):
+    result, cells = thermon(inputs, monkeypatch,
+                            owners={'Θέρμον': 'θέρμος', 'θέρμον': 'θέρμος'})
+    assert 'Θέρμον' not in result and cells == {}
+
+
+def test_capitalized_adjective_gets_no_name_cell(inputs, monkeypatch):
+    rows = [{'form': 'Κορκυραῖος', 'lemma': 'Κορκυραῖος', 'pos': 'adj', 'count': 50}]
+    bare = {'Κορκυραῖος': 'Κορκυραῖος'}
+    inputs(rows, bare, {'lsj9_pos_lookup.json': {'κορκυραῖος': {'ADJ': 'ἄλλος'}}},
+           [{'word': 'Κορκυραῖος', 'lang_code': 'grc', 'pos': 'name',
+             'senses': [{'glosses': ['A Corcyraean.']}]}])
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
