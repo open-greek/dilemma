@@ -16,8 +16,8 @@ them (overlay_lsj.py) sees the same letters:
   ``data/sophocles_head_corrections.json``. Each names the ``<orth>`` text
   as the chunk prints it (micro signs aside), the head it stands for, the
   chunk and the reason. They cover what no rule can decide: an accent the
-  OCR misread, and letters it gave as Latin look-alikes, as a guillemet,
-  or dropped.
+  OCR misread, and letters it gave as Latin look-alikes, as the phi
+  symbol (U+03D5), as a guillemet, or dropped.
 """
 from __future__ import annotations
 

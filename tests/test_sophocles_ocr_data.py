@@ -69,6 +69,10 @@ def test_the_hen_coop_has_its_accent(db):
     "ούβρικος", "ῶνσος", "λημέντια", "λινυργία", "ἐπληπτικῶς", "αῦ",
     "*σχῆμα", "*πιάζω", "«ἀθεμιστία", "\u1fbdΑντινώ", "ἐκνεωτερίξω",
     "κατηγρρησείω", "ἐπιπραῦνω", "γονιμοποίός", "μυριοπαθῆς", "παραπλασμμός",
+    # the phi symbol (U+03D5) for the letter
+    "Ἀπ\u03d5ία", "Ἀφ\u03d5ιανός", "Ἄ\u03d5\u03d5ιον",
+    # a second accent, a wrong breathing or the OCR's capital
+    "εἶλεώδης", "Ἕρμαῖος", "ίλλέκεβρα", "ϊεραρχέω", "Θεοτήρητος",
 ])
 def test_misread_heads_are_no_lemmas(db, misread):
     assert lemma_rows(db, misread) == 0
@@ -97,6 +101,34 @@ def test_corrected_and_one_word_heads_have_their_forms(db, form, lemma):
 ])
 def test_verbs_glossed_by_an_equals_sign_have_their_cells(db, form, lemma):
     assert lemmas(db, form) == {lemma}
+
+
+@pytest.mark.parametrize("form,lemma", [
+    # the older paradigm of a head that was respelled, under the present head
+    ("εἰλεωδῶν", "εἰλεώδης"),
+    ("Ἑρμαίου", "Ἑρμαῖος"),
+    ("ἰλλεκέβρας", "ἰλλέκεβρα"),
+    ("Θεοτηρήτων", "θεοτήρητος"),
+    ("ἱεραρχεῖν", "ἱεραρχέω"),
+])
+def test_rows_of_a_respelled_head_are_read_under_the_present_head(db, form, lemma):
+    assert lemmas(db, form) == {lemma}
+
+
+@pytest.mark.parametrize("form,lemma", [
+    # a word the OCR split in two, which the phrase rule used to skip
+    ("κηνσοφύλακος", "κηνσοφύλαξ"),
+    ("μοιχοσυνόδου", "μοιχοσύνοδος"),
+    ("συμψάλλει", "συμψάλλω"),
+    ("προνύσσει", "προνύσσω"),
+])
+def test_split_words_have_their_forms(db, form, lemma):
+    assert lemmas(db, form) == {lemma}
+
+
+@pytest.mark.parametrize("first", ["κηνσο", "μοιχο", "σωματο", "χρυσο", "ραφαν"])
+def test_the_first_part_of_a_split_word_is_no_lemma(db, first):
+    assert lemma_rows(db, first) == 0
 
 
 def test_artefacts_of_the_older_tables_stay_out(db):

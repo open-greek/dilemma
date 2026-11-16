@@ -701,6 +701,21 @@
       "head": "ὠμός",
       "source": "sophocles/1150.xml",
       "reason": "two accents: the adjective ὠμός (ή, όν, raw)"
+    },
+    "Ἀπϕία": {
+      "head": "Ἀπφία",
+      "source": "sophocles/0200.xml",
+      "reason": "the phi symbol (U+03D5) for the letter phi (as, ἡ, Appia)"
+    },
+    "Ἀφϕιανός": {
+      "head": "Ἀφφιανός",
+      "source": "sophocles/0250.xml",
+      "reason": "the phi symbol (U+03D5) for the second phi (οῦ, ὁ, Appianus)"
+    },
+    "Ἄϕϕιον": {
+      "head": "Ἄφφιον",
+      "source": "sophocles/0250.xml",
+      "reason": "the phi symbol (U+03D5) for both letters phi (ου, ἡ, dear Ἄφφη)"
     }
   }
 }

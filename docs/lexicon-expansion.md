@@ -81,7 +81,8 @@ are read through the same rules.
   `data/sophocles_head_corrections.json`: each record names the `<orth>`
   text as the chunk prints it, the head it stands for, the chunk and the
   reason (`ορνιθείον` is `ὀρνιθεῖον`, `Kούβρικος` is `Κούβρικος`,
-  `τζαγγάριo` is `τζαγγάριον`). A record with a head that is not one
+  `τζαγγάριo` is `τζαγγάριον`, and the phi symbol U+03D5 of `Ἀπϕία` is
+  the letter). A record with a head that is not one
   accented Greek word, or without a reason, stops the build.
 - **A phrase is not an entry.** When another Greek word follows the first
   one inside the `<orth>`, before its first comma, the head is a phrase or a
