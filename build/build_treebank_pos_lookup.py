@@ -490,6 +490,47 @@ def _capital_name_cells(lookup, candidates, tokens, cascade):
                 for model in models)}
 
 
+def _verb_witness_cells(lookup, candidates, corpus, lexical_targets, bare):
+    """Keep one agreeing vote for a verb that no POS table names as a verb.
+
+    The runtime takes its known verb lemmas from the VERB and AUX cells of
+    the POS tables, and its verb-only fallbacks (an oblique participle read
+    through its nominative, a stripped augment) accept a lookup reading only
+    for such a lemma. A vote that agrees with the bare lookup is otherwise
+    dropped as redundant, so a verb whose every vote agrees is not known as
+    one, and a verb stops being known when the lookup row that disagreed
+    with its votes is corrected. One cell per lemma is enough: the form with
+    the most votes, the first in sort order among equals. The lemma has to
+    be a listed lexical head and, letter for letter, the reading of the bare
+    lookup, so that the cell never changes a tagged answer.
+    """
+    known = set()
+    tables = [lookup]
+    for name in ("ag_pos_lookup.json", "glaux_pos_lookup.json"):
+        path = DATA_DIR / name
+        if path.exists():
+            with open(path, encoding="utf-8") as stream:
+                tables.append(json.load(stream))
+    for table in tables:
+        for readings in table.values():
+            for upos in ("VERB", "AUX"):
+                if upos in readings:
+                    known.add(readings[upos])
+    best = {}
+    for form, (upos, lemma) in candidates.items():
+        if upos not in ("VERB", "AUX") or lemma in known or form in lookup:
+            continue
+        if bare.get(form) != lemma:
+            continue
+        if _lexical_target_key(lemma) not in lexical_targets:
+            continue
+        votes = corpus[form][upos][lemma]
+        if lemma not in best or (-votes, form) < (-best[lemma][1], best[lemma][0]):
+            best[lemma] = (form, votes, upos)
+    return {form: {"upos": upos, "lemma": lemma, "votes": votes}
+            for lemma, (form, votes, upos) in sorted(best.items())}
+
+
 def _own_row(models, form, lemma):
     """Every language scope reads the spelling as this lemma without a tag."""
     return all(model._lookup_word(form) == lemma for model in models)
@@ -606,6 +647,7 @@ def build_lookup():
         "capital_name_owners": {},
         "listed_head_votes": {},
         "capital_name_cells": {},
+        "verb_witness_cells": {},
     }
     for relative in ("dilemma/core.py", "dilemma/form_sanitize.py",
                      "build/build_grc_lexical_heads.py", "build_data.py"):
@@ -847,6 +889,13 @@ def build_lookup():
         lookup[form] = {"NOUN": cell["lemma"]}
     print(f"Capitalized names kept under their exact spelling: "
           f"{len(audit['capital_name_cells'])}")
+
+    audit["verb_witness_cells"] = _verb_witness_cells(
+        lookup, fallback_candidates, corpus_upos_lemmas, lexical_targets, bare)
+    for form, cell in audit["verb_witness_cells"].items():
+        lookup[form] = {cell["upos"]: cell["lemma"]}
+    print(f"Verbs kept known by one agreeing vote: "
+          f"{len(audit['verb_witness_cells'])}")
 
     for form, readings in lookup.items():
         for upos in ("VERB", "AUX"):

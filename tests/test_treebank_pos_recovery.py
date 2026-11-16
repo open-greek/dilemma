@@ -19,6 +19,9 @@ def inputs(tmp_path, monkeypatch):
     for source in ['GLAUX', 'DIORISIS', 'NT', 'PTNK', 'PEDALION']:
         monkeypatch.setattr(build, source+'_PAIRS_PATH', tmp_path/(source.lower()+'_pairs.json'))
     monkeypatch.setattr(build, 'LOOKUP_DB_PATH', tmp_path/'lookup.db')
+    # The recovery pass is tested alone here: the one agreeing vote a verb
+    # keeps to stay known as a verb has its tests in test_treebank_head_votes.
+    monkeypatch.setattr(build, '_verb_witness_cells', lambda *a, **k: {})
     def write(rows, bare, lower, definitions=None, heads=None):
         definitions = definitions if definitions is not None else [{
             "word": r["lemma"], "lang_code":"grc", "pos":r["pos"],

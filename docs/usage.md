@@ -978,6 +978,15 @@ qualify; `--lsj9-headwords PATH` also admits explicit LSJ noun/adjective grammar
 when the file matches the fingerprint and head membership in the merged lexical
 evidence. Without either source, the existing exact POS scope is retained.
 
+The builder also keeps one agreeing vote for each verb that no POS table
+would otherwise name as a verb (`verb_witness_cells` in the audit, about
+15,400). The runtime takes its known verb lemmas from the VERB and AUX cells,
+and its verb-only fallbacks, such as an oblique participle read through its
+nominative, accept a lookup reading only for such a lemma; without the cell a
+verb stopped being known when the lookup row that disagreed with its votes
+was corrected (`προσκαθημένας` lost `προσκάθημαι`). A kept cell repeats the
+bare lookup's reading letter for letter, so it changes no tagged answer.
+
 Explicit `DET` tags retain the established article lemma (`ὁ` or `ο`) when
 an auxiliary POS table instead returns a noncanonical form. This uses the
 same article inventory and accent-sensitive normalization as the optional

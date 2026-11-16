@@ -130,3 +130,72 @@ def test_audit_lists_the_kept_votes_with_their_evidence():
         assert cell["lemma"][:1] != cell["lemma"][:1].lower()
         # Exact spelling only: the lower-case key is not the name's.
         assert table.get(form.lower(), {}).get("NOUN") != cell["lemma"]
+
+
+# A verb the tables would otherwise not name as one keeps a single vote.
+
+def _witness_fixture(tmp_path, monkeypatch):
+    from dilemma_build import build_treebank_pos_lookup as builder
+
+    (tmp_path / "ag_pos_lookup.json").write_text(
+        json.dumps({"λύει": {"VERB": "λύω", "NOUN": "λύσις"}}), encoding="utf-8")
+    monkeypatch.setattr(builder, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(builder, "_lexical_target_key", lambda lemma: lemma)
+    return builder
+
+
+def test_verb_witness_keeps_one_exact_vote_per_unknown_verb(tmp_path, monkeypatch):
+    builder = _witness_fixture(tmp_path, monkeypatch)
+    lookup = {"γράφει": {"VERB": "γράφω", "NOUN": "γραφεύς"}}
+    candidates = {
+        "προσκαθῆσθαι": ("VERB", "προσκάθημαι"),
+        "προσκαθημένους": ("VERB", "προσκάθημαι"),
+        "γράφειν": ("VERB", "γράφω"),          # known from the table itself
+        "λύειν": ("VERB", "λύω"),              # known from a lower table
+        "συναποθανεῖν": ("VERB", "συναποθνῄσκω"),  # the lookup spells it otherwise
+        "ξύλου": ("NOUN", "ξύλον"),             # not a verb vote
+        "βλαψάτω": ("VERB", "βλάπτωω"),         # no listed head
+    }
+    corpus = {
+        "προσκαθῆσθαι": {"VERB": {"προσκάθημαι": 3}},
+        "προσκαθημένους": {"VERB": {"προσκάθημαι": 5}},
+        "γράφειν": {"VERB": {"γράφω": 9}},
+        "λύειν": {"VERB": {"λύω": 9}},
+        "συναποθανεῖν": {"VERB": {"συναποθνῄσκω": 4}},
+        "ξύλου": {"NOUN": {"ξύλον": 7}},
+        "βλαψάτω": {"VERB": {"βλάπτωω": 2}},
+    }
+    bare = {"προσκαθῆσθαι": "προσκάθημαι", "προσκαθημένους": "προσκάθημαι",
+            "γράφειν": "γράφω", "λύειν": "λύω",
+            "συναποθανεῖν": "συναποθνήσκω", "ξύλου": "ξύλον",
+            "βλαψάτω": "βλάπτωω"}
+    listed = {"προσκάθημαι", "γράφω", "λύω", "συναποθνῄσκω", "ξύλον"}
+    cells = builder._verb_witness_cells(lookup, candidates, corpus, listed, bare)
+    assert cells == {"προσκαθημένους": {"upos": "VERB", "lemma": "προσκάθημαι",
+                                         "votes": 5}}
+
+
+def test_verb_witness_breaks_a_vote_tie_by_sort_order(tmp_path, monkeypatch):
+    builder = _witness_fixture(tmp_path, monkeypatch)
+    candidates = {"φρυκτωροῦσι": ("VERB", "φρυκτωρέω"),
+                  "φρυκτωρεῖν": ("VERB", "φρυκτωρέω")}
+    corpus = {form: {"VERB": {"φρυκτωρέω": 2}} for form in candidates}
+    bare = {form: "φρυκτωρέω" for form in candidates}
+    cells = builder._verb_witness_cells({}, candidates, corpus, {"φρυκτωρέω"}, bare)
+    assert list(cells) == [min(candidates)]
+
+
+def test_shipped_table_keeps_verbs_known_by_an_agreeing_vote(shipped_model):
+    """A verb whose every vote agrees with the lookup is still a known verb,
+    so an oblique participle with no row resolves through its nominative."""
+    if not AUDIT_PATH.exists():
+        pytest.skip("The corpus target audit is not installed")
+    cells = json.loads(AUDIT_PATH.read_text(encoding="utf-8")).get(
+        "verb_witness_cells")
+    if not cells:
+        pytest.skip("The table predates the verb witness cells")
+    table = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
+    for form, cell in cells.items():
+        assert table[form] == {cell["upos"]: cell["lemma"]}
+        assert shipped_model.lemmatize(form, guess=False) == cell["lemma"]
+    assert shipped_model.lemmatize("προσκαθημένας", guess=False) == "προσκάθημαι"
