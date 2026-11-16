@@ -65,6 +65,9 @@ _SPACING_MARKS = frozenset({0x1FBD, 0x1FBF, 0x1FFE})
 _ACCENT_MARKS = frozenset("\u0300\u0301\u0342")
 _BREATHING_MARKS = ("\u0313", "\u0314")
 _LEADING_BREATHINGS = frozenset("\u0313\u0314\u1fbf\u1ffe")
+# The hyphen and the dashes a lexicon or its OCR leaves inside a printed
+# head (the same marks as build/expand_sophocles.py _INNER_HYPHENS).
+_HEAD_HYPHENS = "-—–"
 # Regular masculine and neuter cells of a second-declension oxytone.
 _OXYTONE_OS_ENDINGS = ("ός", "οῦ", "ῷ", "όν", "έ", "ώ", "οῖν", "οί", "ῶν",
                        "οῖς", "ούς", "ά")
@@ -98,6 +101,29 @@ def strip_marks(text: str) -> str:
     return unicodedata.normalize("NFC", "".join(
         char for char in unicodedata.normalize("NFD", text)
         if not unicodedata.combining(char)))
+
+
+def hyphenated_lemma(lemma: str) -> bool:
+    """Whether a lemma has a hyphen or a dash between two of its letters.
+
+    The historical layer keyed a head as its lexicon printed it. LSJ9's
+    export divides compounds and derivatives (Βακχ-εία, ἀασι-φρονία), the
+    Sophocles lexicon divides compounds and its OCR keeps line-break
+    hyphens (καθ-ηδύνω, Σινα-ῖτις), and a few corpus lemmas name the preverb
+    apart (ἐπί-εἰσκομίζω). None is a citation form. The current generators
+    read such a head under its joined word (build/expand_lsj.py
+    settle_lsj_head, build/expand_sophocles.py settle_head) or reject it,
+    so its rows are superseded: by the joined head's paradigm, or outright.
+    Accents and breathings are ignored (ἐμ́-βλῴσκω); a hyphen at either end
+    is not between letters (ὁτ-).
+    """
+    if not any(mark in lemma for mark in _HEAD_HYPHENS):
+        return False
+    plain = strip_marks(lemma)
+    return any(
+        char in _HEAD_HYPHENS and plain[index - 1].isalpha()
+        and plain[index + 1].isalpha()
+        for index, char in enumerate(plain[:-1]) if index)
 
 
 def superseded_verb_generation(lemma: str) -> bool:
@@ -770,6 +796,10 @@ def overlay_expansion(
     still take the expansion reading; they count among the pinned
     exclusions and separately as released.
 
+    A lemma with a hyphen between its letters is never restored
+    (hyphenated_lemma): the generators read that head under its joined
+    word, or reject it. Its rows count as ``hyphenated_lemma_entries``.
+
     A superseded noun lemma loses its old paradigm to the fresh one. A
     lemma in ``withheld_noun_lemmas`` has no fresh paradigm (the generator
     could not use its printed genitive), so it keeps the expansion keys
@@ -792,6 +822,7 @@ def overlay_expansion(
         "already_present": 0,
         "conflicts_preserved": 0,
         "nonlexical_lemma_entries": 0,
+        "hyphenated_lemma_entries": 0,
         "superseded_verb_entries": 0,
         "superseded_noun_entries": 0,
         "withheld_noun_lemmas_kept": 0,
@@ -824,6 +855,9 @@ def overlay_expansion(
             continue
         if nonlexical_generated_lemma(lemma):
             stats["nonlexical_lemma_entries"] += 1
+            continue
+        if hyphenated_lemma(lemma):
+            stats["hyphenated_lemma_entries"] += 1
             continue
         if superseded_verb_generation(lemma):
             stats["superseded_verb_entries"] += 1
@@ -1082,6 +1116,9 @@ def restore_unmarked_keys(
     come back under the same test, and only with exactly that lemma
     spelling among their backers.
 
+    A key under a hyphenated lemma (hyphenated_lemma) is no candidate, as
+    in overlay_expansion().
+
     The keys are appended to ``target`` in order, and ``restored_rows``
     receives each (key, lemma), so the caller can record a digest that lets
     scripts/build_source_alias_manifest.py remove exactly these rows again.
@@ -1098,7 +1135,8 @@ def restore_unmarked_keys(
         if (form in reference_base or has_orthographic_mark(form)
                 or form in target or form in excluded_forms
                 or carried.get(form) != lemma
-                or has_editorial_sigla(form) or has_editorial_sigla(lemma)):
+                or has_editorial_sigla(form) or has_editorial_sigla(lemma)
+                or hyphenated_lemma(lemma)):
             continue
         wanted[form] = canonical(lemma)
         published[form] = lemma
@@ -1497,6 +1535,7 @@ def main() -> None:
     print(f"Already present: {stats['already_present']:,}")
     print(f"Current mapping conflicts preserved: {stats['conflicts_preserved']:,}")
     print(f"Nonlexical generated lemma entries skipped: {stats['nonlexical_lemma_entries']:,}")
+    print(f"Entries under a hyphenated lemma skipped: {stats['hyphenated_lemma_entries']:,}")
     print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
     print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
     print(f"Released baseline conflicts: {stats['released_conflict_entries']:,}")
