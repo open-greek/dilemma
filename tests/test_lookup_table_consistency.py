@@ -171,22 +171,21 @@ def test_emptied_keys_are_not_left_to_a_modern_row_or_a_junk_reading(
 
 
 def test_el_rows_follow_the_ancient_reading_of_ancient_forms(tmp_path):
-    # #141. The GLAUx spelling χαίρετ’ folds onto the dictionary key
-    # χαίρετ᾽, which reads otherwise, and its el copy used to answer
-    # lang="el". The Medieval adverb παρέξω took the el row of the future
+    # #141. The GLAUx spelling ἴθ’ folds onto the dictionary key ἴθ᾽,
+    # which reads otherwise, and its el copy used to answer lang="el". The Medieval adverb παρέξω took the el row of the future
     # of παρέχω; ἄνδρας, a Modern word, keeps its Medieval row. GLAUx's
     # name lemma Νέη is lowercased to the head νέη, a form of νέος.
-    glaux = [{"form": "χαίρετ’", "lemma": "χαίρω", "pos": "verb", "count": 40},
+    glaux = [{"form": "ἴθ’", "lemma": "ἔρχομαι", "pos": "verb", "count": 59},
              {"form": "παρέξω", "lemma": "παρέχω", "pos": "verb", "count": 45},
              {"form": "ἄνδρας", "lemma": "ἀνήρ", "pos": "noun", "count": 4039},
              {"form": "Νέαν", "lemma": "Νέη", "pos": "noun", "count": 24}]
     data, env = T._fixture(tmp_path, {
-        "ag": {"χαίρετ᾽": "χαίρεω", "παρέξω": "παρέχω", "παρεξω": "παρέχω",
+        "ag": {"ἴθ᾽": "εἶμι", "παρέξω": "παρέχω", "παρεξω": "παρέχω",
                "ἄνδρας": "ἀνήρ", "ἐμοῦ": "μου", "μου": "μου", "σοι": "σός"},
         "mg_lookup.json": {"λόγος": "λόγος", "άνδρας": "άνδρας", "μου": "μου"},
         "med_lookup.json": {"παρέξω": "παρέξω", "παρεξω": "παρέξω",
                             "ἄνδρας": "ἄνδρας"},
-        "ag_headwords.json": ["χαίρω", "παρέχω", "ἀνήρ", "νέη", "νέος",
+        "ag_headwords.json": ["ἔρχομαι", "παρέχω", "ἀνήρ", "νέη", "νέος",
                               "λόγος"],
         "glaux_pairs.json": glaux,
     })
@@ -194,7 +193,7 @@ def test_el_rows_follow_the_ancient_reading_of_ancient_forms(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     combined, grc, el = (T._rows(data), T._rows(data, "grc"),
                          T._rows(data, "el"))
-    assert combined["χαίρετ᾽"] == "χαίρεω" and "χαίρετ᾽" not in el
+    assert combined["ἴθ᾽"] == "εἶμι" and "ἴθ᾽" not in el
     assert combined["παρέξω"] == combined["παρεξω"] == "παρέχω"
     assert "παρέξω" not in el and "παρεξω" not in el
     assert combined["ἄνδρας"] == "ἀνήρ" and el["ἄνδρας"] == "ἄνδρας"
