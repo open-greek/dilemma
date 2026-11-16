@@ -33,7 +33,9 @@ read from `--lsj9-dir`, `$DILEMMA_LSJ9_DIR` or `~/Documents/lsj9`), the
 Sophocles TEI data (included in `data/sophocles/`), and a current
 `data/grc_lexical_heads.json`, whose `sophocles_breathing` record supplies the
 breathings the Sophocles OCR lost (`expand_sophocles.py` refuses to run
-without it) and whose heads decide two of the [head rules](#sophocles-heads).
+without it, or with one built against other head corrections than
+`data/sophocles_head_corrections.json`) and whose heads decide two of the
+[head rules](#sophocles-heads).
 `--kaikki` names the dump directory in either layout
 ([Dump directories](development.md#dump-directories)).
 
@@ -60,10 +62,27 @@ principal parts this way. Entry rejections still read the current text alone.
 ## Sophocles heads
 
 `build/expand_sophocles.py` reads each entry's head from its `<orth>` element.
-The text is OCR, so the first word is not taken as it stands: five rules
+The text is OCR, so the first word is not taken as it stands: six rules
 decide what is generated, and under which head. Nouns, adverbs and verbs
 are read through the same rules.
 
+- **The OCR's letters are settled first** (`build/sophocles_ocr.py`, which
+  `build/build_grc_lexical_heads.py` applies to the same text). The micro
+  sign (U+00B5) the OCR prints for part of its `μ` is that letter: `µέρος`
+  is `μέρος`, in the head and in the entry text. A koronis before a capital
+  is its smooth breathing. The asterisk the lexicon puts before some heads
+  and the OCR's guillemets, quotation marks, bars and angle brackets are
+  dropped from the edges (`*πιάζω`, `«ἀθεμιστία`), and so is a run of Latin
+  letters joined to the end of the word, which is entry text (`ἀββᾶςI`). A
+  word that still has a Latin letter inside it is no head: the letter is a
+  Greek one the OCR misread, and deleting it made another word
+  (`Kούβρικος` was read `ούβρικος`). Which letter it is, like an accent the
+  OCR got wrong, is a reviewed decision recorded in
+  `data/sophocles_head_corrections.json`: each record names the `<orth>`
+  text as the chunk prints it, the head it stands for, the chunk and the
+  reason (`ορνιθείον` is `ὀρνιθεῖον`, `Kούβρικος` is `Κούβρικος`,
+  `τζαγγάριo` is `τζαγγάριον`). A record with a head that is not one
+  accented Greek word, or without a reason, stops the build.
 - **A phrase is not an entry.** When another Greek word follows the first
   one inside the `<orth>`, before its first comma, the head is a phrase or a
   word the OCR split, and nothing is generated from its first word:
@@ -72,7 +91,17 @@ are read through the same rules.
   hyphens is entry text, and so is a parenthesis, a digit or a Latin word
   (`or`, `for`, a citation); the first word then stays the head
   (`βιοθανέω ---- βιαιοθανατέω`, `γιγαντιάω (γίγας)`,
-  `Ἱριάδιτζα or Τριαδίτζα`).
+  `Ἱριάδιτζα or Τριαδίτζα`). One Greek word after the head is entry text
+  too in three cases, and the head is then a one-word entry:
+  the ending the lexicon prints after a head, which the OCR ran on without
+  its comma, in the shape that head takes (an unaccented genitive after a
+  noun: `κομίτιον ου`, `φύσημα ατος`; an adjective's other ending:
+  `θεοηχής ές`, `κελευστός ἡ`; a future: `σχολιάζω άσω`), which is read as
+  the entry's first field; one of the nouns `οἶνος`, `λίθος`, `ἀγών`,
+  `μέτρον` after a lowercase head in citation form, which the head
+  qualifies (`γληχωνίτης οἶνος`, `δωρίτης ἀγών`); and `ἔχειν` or `ἔχω`
+  after an adverb in -ως (`ἑτερολέκτως ἔχειν`). Such a head must have its
+  breathing; without one the phrase stays a phrase (`ορθο-πρίων ονος`).
 - **A stated gender wins over the ending.** An article that is the first
   field after the head, or that follows one field (the genitive, which the
   OCR may garble), states the noun's gender: `καισάριης, ἡ`,
@@ -108,6 +137,15 @@ The noun step records the decisions in
 `data/ag_sophocles_noun_generation_audit.json`, each record with its `count`:
 
 - `head_rules.multi_word_heads`: every phrase and its first word;
+- `head_rules.one_word_heads`: every phrase read as a one-word entry, with
+  the head and the rule (`run-on-ending`, `qualified-noun`, `adverb-idiom`);
+- `head_rules.corrected_heads`: every `<orth>` text a reviewed correction
+  replaced, with the head generated;
+- `head_rules.reread_heads`: every head that the tables up to 1.3.26 read
+  otherwise (`ούβρικος`, `*σχῆμα`, `᾽Αντινώ`), with the present reading.
+  Those tables key rows by the old reading, so it is listed among
+  `superseded_lemmas` and the overlay does not recover them, unless an
+  entry prints that word or another lexical source lists it (`κίκι`);
 - `head_rules.stated_gender`: every noun whose stated gender is not the
   gender of its ending's class, with both and the result (`expanded`, or the
   reason the noun was withheld);
@@ -122,8 +160,25 @@ The head records cover verbs and adverbs as well, because every step reads
 the same heads. The verb step writes its own withheld keys to
 `data/ag_sophocles_verb_generation_audit.json`. The lexical heads the repair
 and the lowercase rule read are pinned among the noun audit's inputs
-(`input_sha256.lexical_heads`), so the overlay refuses an audit made against
-other heads.
+(`input_sha256.lexical_heads`), and so are the head corrections
+(`input_sha256.sophocles_head_corrections`), so the overlay refuses an audit
+made against other heads.
+
+A verb entry whose text opens with an equals sign is expanded like any
+other verb: the lexicon glosses the verb by a synonym or by its neighbour
+(`ἀκρατεύω, = ἀκρατεύομαι`; `ἀνακοσμοποιέω, = preceding`), and the entry is
+its only one. Such a head is skipped when it is capitalized or ends in an
+accented or subscribed omega (`ἐπισηκρήτῳ`), which no verb's citation form
+does. An entry that only sends the reader on (`ἀπάχθομαι, see ἀπέχθομαι`)
+is not expanded, since the lexicon enters the word under the other head.
+Nouns and adverbs of either kind are still skipped.
+
+The historical expansion that `overlay_lsj.py` recovers was made from the
+same OCR and spells 753 lemmas and their forms with the micro sign. The
+overlay reads those rows with the Greek letter before any other test
+(`historical_overlay_counts.micro_sign_entries`), and drops one whose key
+the expansion also has in its Greek spelling (`micro_sign_duplicates`), so
+no key or lemma of the table carries U+00B5.
 
 The rules change what the generator writes, not what the overlay recovers.
 `superseded_lemmas` still names a lemma as the lexicon prints it, because the
