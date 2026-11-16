@@ -1598,6 +1598,16 @@
    "issue": 125
   },
   {
+   "table": "mg",
+   "form": "παρέξω",
+   "upos": "ADV",
+   "action": "add",
+   "corrected": "παρέξω",
+   "reason": "The lookup build no longer merges the Medieval adverb παρέξω into the Modern table, because the spelling is the attested future of παρέχω, so the untagged lang=\"el\" answer is παρέχω again. The Modern POS table has no cell for the form, and an ADV request would return the verb.",
+   "evidence": "Greek Wiktionary, Medieval Greek: παρέξω, adverb, a by-form of παρόξω; lang=\"all\" and lang=\"grc\" give παρέξω/ADV -> παρέξω from the Ancient POS table; 1.3.26 gave παρέξω/ADV -> παρέξω under lang=\"el\" through the lookup row (#141).",
+   "issue": 125
+  },
+  {
    "table": "treebank",
    "form": "Λευκαδία",
    "upos": "ADJ",
