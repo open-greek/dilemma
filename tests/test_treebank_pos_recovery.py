@@ -19,7 +19,7 @@ def inputs(tmp_path, monkeypatch):
     for source in ['GLAUX', 'DIORISIS', 'NT', 'PTNK', 'PEDALION']:
         monkeypatch.setattr(build, source+'_PAIRS_PATH', tmp_path/(source.lower()+'_pairs.json'))
     monkeypatch.setattr(build, 'LOOKUP_DB_PATH', tmp_path/'lookup.db')
-    def write(rows, bare, lower, definitions=None):
+    def write(rows, bare, lower, definitions=None, heads=None):
         definitions = definitions if definitions is not None else [{
             "word": r["lemma"], "lang_code":"grc", "pos":r["pos"],
             "senses":[{"glosses":["A distinct lexical meaning."]}]} for r in rows]
@@ -28,8 +28,9 @@ def inputs(tmp_path, monkeypatch):
         from dilemma_build.build_grc_lexical_heads import has_definition
         (tmp_path/'grc_lexical_heads.json').write_text(json.dumps({
             'schema_version': 2,
-            'heads': {entry['word']: ['wiktionary_en_grc']
-                      for entry in definitions if has_definition(entry)},
+            'heads': {**{entry['word']: ['wiktionary_en_grc']
+                         for entry in definitions if has_definition(entry)},
+                      **(heads or {})},
         }, ensure_ascii=False))
         for directory in ["en-el", "el"]:
             path = build.KAIKKI_DIR/directory/"kaikki.org-dictionary-AncientGreek.jsonl"
@@ -116,6 +117,93 @@ def test_missing_dump_does_not_authorize_new_override(inputs, monkeypatch):
            {'lsj9_pos_lookup.json':{'ἀκρασία':{'NOUN':'ἀκράτεια'}}})
     monkeypatch.setattr(build, 'KAIKKI_DIR', None)
     assert 'ἀκρασία' not in build.build_lookup()
+
+
+def diminutive(lemma, base):
+    """A Wiktionary page that only refers to another head defines nothing."""
+    return [{'word': lemma, 'lang_code': 'grc', 'pos': 'noun',
+             'senses': [{'glosses': ['diminutive of ' + base],
+                         'form_of': [{'word': base}]}]}]
+
+
+@pytest.mark.parametrize('form', ['ψηφίς', 'ψηφὶς'])
+@pytest.mark.parametrize('dump', [True, False])
+def test_listed_head_keeps_its_own_vote(inputs, monkeypatch, form, dump):
+    # Wiktionary has ψηφίς only as a diminutive of ψῆφος, so the definition
+    # test fails; LSJ lists it, and the corpus and the lookup read it as itself.
+    inputs([{'form': form, 'lemma': 'ψηφίς', 'pos': 'noun'}], {form: 'ψηφίς'},
+           {'lsj9_pos_lookup.json': {form: {'NOUN': 'ψῆφος'}}},
+           diminutive('ψηφίς', 'ψῆφος'), heads={'ψηφίς': ['lsj9_headwords']})
+    scalar_models(monkeypatch, {form: 'ψηφίς'})
+    if not dump:
+        monkeypatch.setattr(build, 'KAIKKI_DIR', None)
+    assert build.build_lookup()[form] == {'NOUN': 'ψηφίς'}
+    audit = json.loads((build.OUTPUT_PATH.with_suffix('.audit.json')).read_text())
+    assert audit['listed_head_votes'] == {form: {'upos': 'NOUN', 'lemma': 'ψηφίς'}}
+
+
+def test_defined_vote_is_not_recorded_as_a_listed_head(inputs):
+    inputs([{'form': 'ἀκρασία', 'lemma': 'ἀκρασία', 'pos': 'noun'}],
+           {'ἀκρασία': 'ἀκρασία'},
+           {'lsj9_pos_lookup.json': {'ἀκρασία': {'NOUN': 'ἀκράτεια'}}},
+           heads={'ἀκρασία': ['lsj9_headwords', 'wiktionary_en_grc']})
+    assert build.build_lookup()['ἀκρασία'] == {'NOUN': 'ἀκρασία'}
+    audit = json.loads((build.OUTPUT_PATH.with_suffix('.audit.json')).read_text())
+    assert audit['listed_head_votes'] == {}
+
+
+@pytest.mark.parametrize('sources', [
+    ['pd_headwords'], ['lgpn_names'], ['wiktionary_el_grc'],
+    ['pd_headwords', 'wiktionary_en_grc', 'lgpn_names']])
+def test_fragment_name_and_wiktionary_listings_do_not_keep_a_vote(
+        inputs, monkeypatch, sources):
+    inputs([{'form': 'ψηφίς', 'lemma': 'ψηφίς', 'pos': 'noun'}], {'ψηφίς': 'ψηφίς'},
+           {'lsj9_pos_lookup.json': {'ψηφίς': {'NOUN': 'ψῆφος'}}},
+           diminutive('ψηφίς', 'ψῆφος'), heads={'ψηφίς': sources})
+    scalar_models(monkeypatch, {'ψηφίς': 'ψηφίς'})
+    assert 'ψηφίς' not in build.build_lookup()
+
+
+@pytest.mark.parametrize(('form', 'lemma', 'pos', 'owner'), [
+    ('ψηφῖδος', 'ψηφίς', 'noun', 'ψηφίς'),      # an inflection, not the head
+    ('Ψηφίς', 'Ψηφίς', 'noun', 'Ψηφίς'),        # a capitalized spelling
+    ('φιλ', 'φιλ', 'adj', 'φιλ'),               # an unaccented fragment
+    ('ί', 'ί', 'noun', 'ί'),                    # a single letter
+    ('ἰχθῦς', 'ἰχθῦς', 'noun', 'ἰχθύς'),        # the lookup accents it otherwise
+    ('ἀμφίς', 'ἀμφίς', 'prep', 'ἀμφίς'),        # a closed-class word
+])
+def test_listed_head_rule_is_limited_to_the_head_spelling(
+        inputs, monkeypatch, form, lemma, pos, owner):
+    upos = {'noun': 'NOUN', 'adj': 'ADJ', 'prep': 'ADP'}[pos]
+    inputs([{'form': form, 'lemma': lemma, 'pos': pos}], {form: owner},
+           {'lsj9_pos_lookup.json': {form: {upos: 'ἄλλος'}}}, [],
+           heads={lemma: ['lsj9_headwords'], owner: ['lsj9_headwords']})
+    scalar_models(monkeypatch, {form: owner})
+    assert form not in build.build_lookup()
+
+
+def test_listed_head_vote_without_a_conflict_remains_redundant(inputs, monkeypatch):
+    inputs([{'form': 'ψηφίς', 'lemma': 'ψηφίς', 'pos': 'noun'}], {'ψηφίς': 'ψηφίς'},
+           {'lsj9_pos_lookup.json': {'ψηφίς': {'NOUN': 'ψηφίς'}}},
+           diminutive('ψηφίς', 'ψῆφος'), heads={'ψηφίς': ['lsj9_headwords']})
+    scalar_models(monkeypatch, {'ψηφίς': 'ψηφίς'})
+    assert 'ψηφίς' not in build.build_lookup()
+
+
+def test_listed_head_needs_its_own_row_in_every_language_scope(inputs, monkeypatch):
+    # The flat table reads the form as itself, but one scope's own row is a
+    # name: the tagged answer would leave that scope's untagged one.
+    inputs([{'form': 'θύτης', 'lemma': 'θύτης', 'pos': 'noun'}], {'θύτης': 'θύτης'},
+           {'lsj9_pos_lookup.json': {'θύτης': {'NOUN': 'θυτήρ'}}}, [],
+           heads={'θύτης': ['lsj9_headwords']})
+    original = build._lower_priority_pos_models
+    def models():
+        result = original()
+        result[0]._lookup = {'θύτης': 'Θύτης'}
+        result[1]._lookup = {'θύτης': 'θύτης'}
+        return result
+    monkeypatch.setattr(build, '_lower_priority_pos_models', models)
+    assert 'θύτης' not in build.build_lookup()
 
 
 def test_new_projected_corpus_entry_cannot_hide_an_exact_supported_vote(inputs):
@@ -439,6 +527,16 @@ def test_all_supported_case_queries_find_scalar_conflict(inputs, monkeypatch, qu
     inputs([{'form': 'παρούσῃ', 'lemma': 'πάρειμι', 'pos': 'verb'}], bare, {})
     scalar_models(monkeypatch, bare)
     assert build.build_lookup()['παρούσῃ'] == {'VERB': 'πάρειμι'}
+
+
+def test_listed_head_is_not_kept_for_a_capitalized_query_alone(inputs, monkeypatch):
+    # Θύτης has its own row. Without a definition, the lower-case head's vote
+    # must not take the capitalized spelling away from it.
+    bare = {'θύτης': 'θύτης', 'Θύτης': 'Θύτης'}
+    inputs([{'form': 'θύτης', 'lemma': 'θύτης', 'pos': 'noun'}], bare, {}, [],
+           heads={'θύτης': ['lsj9_headwords']})
+    scalar_models(monkeypatch, bare)
+    assert not build.build_lookup()
 
 
 @pytest.mark.parametrize('query', ['Παρούση', 'ΠΑΡΟΎΣΗ', 'Παρούσῃ'])

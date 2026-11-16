@@ -14,7 +14,11 @@ corpus targets, tied owner votes, and complete capital name/ethnic owner votes
 collected before the sparse runtime-table filter).
 
 Only forms that are genuinely ambiguous (2+ distinct UPOS->lemma mappings)
-are included. Monotonic and lowercase variants are added for lookup cascade.
+are included, plus single corpus votes the runtime needs: one that disagrees
+with the bare lookup, and one that agrees with it while a lower-priority
+table or a case variant would answer differently, when Wiktionary defines the
+lemma for the tag or when the form is itself a head an edited lexicon lists.
+Monotonic and lowercase variants are added for lookup cascade.
 """
 
 import argparse
@@ -186,6 +190,20 @@ def _input_fingerprint(path):
     return {"size": path.stat().st_size, "sha256": digest.hexdigest()}
 
 
+# A listing in one of these does not show that a lower-case word is a
+# dictionary head of its own: pd_headwords also lists inflected fragments
+# (ὁρώ, ἵε) and lgpn_names lists personal names. Wiktionary is consulted
+# separately, with its own test that the page defines the lemma for the tag.
+_HEAD_SOURCES_NOT_COUNTED = frozenset({"pd_headwords", "lgpn_names"})
+# Closed-class words are left to the reviewed grammatical lemmas.
+_HEAD_VOTE_UPOS = frozenset({"NOUN", "ADJ", "ADV", "VERB"})
+
+
+def _listed_by_lexicon(sources):
+    return any(not source.startswith("wiktionary_")
+               and source not in _HEAD_SOURCES_NOT_COUNTED for source in sources)
+
+
 def _load_lexical_targets():
     """Generated lookup membership cannot establish a corpus lemma's status."""
     path = DATA_DIR / "grc_lexical_heads.json"
@@ -197,7 +215,23 @@ def _load_lexical_targets():
     keys = {_lexical_target_key(head) for head, sources in payload["heads"].items()
             if isinstance(sources, list) and sources}
     keys.discard(None)
-    return keys, _input_fingerprint(path)
+    listed = frozenset(head for head, sources in payload["heads"].items()
+                       if isinstance(sources, list) and _listed_by_lexicon(sources))
+    return keys, _input_fingerprint(path), listed
+
+
+def _is_own_listed_head(form, upos, lemma, listed_heads):
+    """The corpus reads a lower-case head of an edited lexicon as itself."""
+    if (upos not in _HEAD_VOTE_UPOS or is_capitalized(form)
+            or lemma not in listed_heads):
+        return False
+    # A final grave is the acute of running text. Unaccented spellings and
+    # single letters are fragments and sigla, whatever a lexicon lists.
+    spelled = unicodedata.normalize("NFD", form).replace("\u0300", "\u0301")
+    if unicodedata.normalize("NFC", spelled) != lemma:
+        return False
+    letters = sum(1 for char in spelled if not unicodedata.combining(char))
+    return letters >= 2 and any(char in "\u0301\u0342" for char in spelled)
 
 
 def _unique_owner(counts):
@@ -358,8 +392,51 @@ def _scalar_query_conflict(model, form, upos, lemma):
     return False
 
 
-def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_corpus=None):
-    """Restore defined votes hidden by POS or case-sensitive scalar entries."""
+def _own_row(models, form, lemma):
+    """Every language scope reads the spelling as this lemma without a tag."""
+    return all(model._lookup_word(form) == lemma for model in models)
+
+
+class _LowerCascade:
+    """The runtime's lower-priority tables, loaded once and only when needed."""
+
+    def __init__(self):
+        self._loaded = None
+
+    def models(self):
+        if self._loaded is None:
+            models = _lower_priority_pos_models()
+            self._loaded = (models, [(model._pos_ag_lookup, model._pos_lookup)
+                                     for model in models])
+        return self._loaded[0]
+
+    def overlay(self, projected):
+        """Put the table being built in front of the lower tables."""
+        models, lower = self.models(), self._loaded[1]
+        for model, tables in zip(models, lower):
+            combined = []
+            for table in tables:
+                overlaid = table.copy()
+                for form, values in projected.items():
+                    overlaid[form] = {**table.get(form, {}), **values}
+                combined.append(overlaid)
+            model._pos_ag_lookup, model._pos_lookup = combined
+        return models
+
+
+def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_corpus=None,
+                                   head_votes=frozenset(), kept_heads=None,
+                                   cascade=None):
+    """Restore supported votes hidden by POS or case-sensitive scalar entries.
+
+    A vote is supported when Wiktionary defines its lemma for the tag, or when
+    its form is in head_votes: a lower-case head of an edited lexicon that the
+    corpus and the bare lookup both read as itself. The second ground alone
+    keeps a vote only where every language scope reads the form as that head
+    without a tag and a lower table answers the form itself with another
+    word; a differently cased query is no reason. kept_heads, when given,
+    receives the votes kept on that ground.
+    """
     unambiguous = {}
     for form, (upos, lemma) in candidates.items():
         counts = corpus[form][upos]
@@ -372,30 +449,30 @@ def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_cor
     candidates = unambiguous
     wanted = {(lemma, upos) for upos, lemma in candidates.values()}
     defined = _defined_pos_targets(wanted)
+    listed_only = {form for form, value in candidates.items()
+                   if form in head_votes and (value[1], value[0]) not in defined}
     candidates = {form: value for form, value in candidates.items()
-                  if (value[1], value[0]) in defined}
+                  if (value[1], value[0]) in defined or form in listed_only}
     if not candidates:
         return 0, {}
-    models = _lower_priority_pos_models()
-    lower = [(model._pos_ag_lookup, model._pos_lookup) for model in models]
+    cascade = cascade or _LowerCascade()
     added = 0
     protected = set()
     conflicts = {}
     while candidates:
-        projected = _project_pos_entries(lookup, conflicts)
-        for model, tables in zip(models, lower):
-            combined = []
-            for table in tables:
-                overlaid = table.copy()
-                for form, values in projected.items():
-                    overlaid[form] = {**table.get(form, {}), **values}
-                combined.append(overlaid)
-            model._pos_ag_lookup, model._pos_lookup = combined
+        models = cascade.overlay(_project_pos_entries(lookup, conflicts))
         corrections = {}
         for form, (upos, lemma) in candidates.items():
-            if any(_different_owner(lemma, model._pos_table_lookup(form, upos))
-                   or _scalar_query_conflict(model, form, upos, lemma)
-                   for model in models):
+            if form in listed_only:
+                needed = (_own_row(models, form, lemma) and any(
+                    _different_owner(lemma, model._pos_table_lookup(form, upos))
+                    for model in models))
+            else:
+                needed = any(
+                    _different_owner(lemma, model._pos_table_lookup(form, upos))
+                    or _scalar_query_conflict(model, form, upos, lemma)
+                    for model in models)
+            if needed:
                 corrections[form] = {upos: lemma}
         if not corrections:
             break
@@ -403,6 +480,10 @@ def _restore_shadowed_corpus_votes(lookup, candidates, corpus, *, projection_cor
         # exact corpus votes are compared with the same projected table.
         lookup.update(corrections)
         added += len(corrections)
+        if kept_heads is not None:
+            for form in sorted(listed_only & set(corrections)):
+                (upos, lemma), = corrections[form].items()
+                kept_heads[form] = {"upos": upos, "lemma": lemma}
         for form in corrections:
             protected.update({form.lower(), to_monotonic(form.lower())} - {form})
             del candidates[form]
@@ -415,7 +496,7 @@ def build_lookup():
     # Load required evidence before touching either output. A SQLite lemma can
     # itself be an inferred or corrupt corpus target, so it is only a second
     # gate after the merged independent lexical-head inventory.
-    lexical_targets, lexical_fingerprint = _load_lexical_targets()
+    lexical_targets, lexical_fingerprint, listed_heads = _load_lexical_targets()
     audit = {
         "schema_version": 2,
         "language": "grc",
@@ -424,6 +505,7 @@ def build_lookup():
         "rejected_corpus_targets": {},
         "tied_owners": {},
         "capital_name_owners": {},
+        "listed_head_votes": {},
     }
     for relative in ("dilemma/core.py", "dilemma/form_sanitize.py",
                      "build/build_grc_lexical_heads.py", "build_data.py"):
@@ -615,6 +697,7 @@ def build_lookup():
                 bare[_f] = _l
         _c.close()
     fallback_candidates = {}
+    head_votes = set()
     disagree_added = 0
     for form, upos_dict in corpus_upos_lemmas.items():
         if form in lookup or form not in bare:
@@ -637,11 +720,17 @@ def build_lookup():
             disagree_added += 1
         else:
             fallback_candidates[form] = (upos, lemma)
+            # The lookup's own row must be the head too, accent for accent:
+            # a tagged answer that leaves the untagged one helps nobody.
+            if cur == lemma and _is_own_listed_head(form, upos, lemma, listed_heads):
+                head_votes.add(form)
     restored, conflicts = _restore_shadowed_corpus_votes(
         lookup, fallback_candidates, corpus_upos_lemmas,
-        projection_corpus=projection_corpus)
+        projection_corpus=projection_corpus, head_votes=head_votes,
+        kept_heads=audit["listed_head_votes"])
     print(f"Corpus-disagreement POS entries added: {disagree_added}; "
-          f"defined votes retained against POS fallback: {restored}")
+          f"defined votes retained against POS fallback: {restored} "
+          f"({len(audit['listed_head_votes'])} as listed heads)")
 
     lookup = _project_pos_entries(lookup, conflicts)
     print(f"After adding lowercase/monotonic variants: {len(lookup)}")
