@@ -850,10 +850,24 @@ has labeled (`fut.`, `aor.` 1 / 2, `pf.`, `pf. m./p.`, `aor. p.`,
 positional argument. A principal part must carry a tonal accent. The parser
 skips an unaccented token when an intact accented form immediately follows
 in the same clause; it never supplies a missing accent to the source text.
-About 712 LSJ-only verbs receive at least one
+794 LSJ-only verbs receive at least one
 parsed principal part this way, lifting them from present-tense-only
-expansion to full paradigm coverage and adding ~+55 unique forms per
-eligible verb on average. The classifier itself
+expansion towards full paradigm coverage. A past tense is built on two stems,
+the printed augmented one for the indicative and one without the augment for
+the other moods, which is derived from the headword (`ἀντετάφην` gives
+`ἀντιταφείς`, `εἰσήνεγκα` `εἰσενέγκας`); where the augment cannot be read
+only the indicative is built
+([Stems of the past tenses](lexicon-expansion.md#stems-of-the-past-tenses)).
+The other verbs print no principal parts. A compound takes those its simplex
+prints (`συγκατατρίβω`: `συγκατέτριψα`), and a verb in `-ίζω`, `-άζω`, `-εύω`,
+`-έω`, `-όω` or `-άω` the regular ones of its class (`εἰκονίζω`: `εἰκόνισα`),
+but only the cells whose exact spelling `form_profile.db` attests are kept
+([Principal parts that no entry prints](lexicon-expansion.md#principal-parts-that-no-entry-prints)).
+A cell on a stem no entry prints gives way to the headword the treebank pair
+files read for the form, and a cell on a printed stem to a verb that has the
+cell among its own principal parts
+([Treebank readings](lexicon-expansion.md#treebank-readings)).
+The classifier itself
 (`build/expand_lsj.py::_classify_verb`) routes athematic and
 irregular verbs explicitly: -ννυμι / -νυμι / -ημι / -ωμι / -αμι /
 -μι suffix dispatch for the regular cases, plus a hand-coded Attic

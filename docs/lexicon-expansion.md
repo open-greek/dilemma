@@ -27,6 +27,14 @@ python overlay_lsj.py --lsj9-dir LSJ9          # recover pinned historical expan
 python build/expand_lbg.py                    # inflect Byzantine headwords (gated gap-fill)
 ```
 
+`--expand-verbs` also reads `data/form_profile.db` (`python -m dilemma
+download --with-attestation`), `data/grc_lexical_heads.json`
+(`build/build_grc_lexical_heads.py`) and the treebank pair files in `data/`
+(`perseus_pairs.json`, `glaux_pairs.json`, `diorisis_pairs.json`,
+`nt_pairs.json`, `ptnk_pairs.json`, `tagnt_pairs.json`,
+`pedalion_pairs.json`), and stops when one is missing; see
+[Principal parts that no entry prints](#principal-parts-that-no-entry-prints).
+
 This requires LSJ9 data from [lsj9](https://github.com/ciscoriordan/lsj9)
 (included in `data/lsjgr_bridges.json` and `data/lsj9_frequency.json`; the
 exports `lsj9_forms.tsv`, `lsj9_headwords.json` and `lsj9_glosses.jsonl` are
@@ -59,6 +67,9 @@ citations. The verb pass reads it only for principal parts: a tense the current
 text gives stands, a tense it lacks is taken from the earlier text, and the
 three aorist slots are filled only together. 978 verb entries gain 3,018
 principal parts this way. Entry rejections still read the current text alone.
+Both files give the text under the entry's own spelling, which the verb pass
+matches to the headword list as described under
+[Verb expansion](#verb-expansion).
 
 ## LSJ heads
 
@@ -584,13 +595,202 @@ when it is built from an older local pair file.
    parts LSJ has labeled (`fut.`, `aor.`, `pf.`, `pf. m./p.`,
    `aor. p.`, `impf.`, `plpf.`).
 3. Re-invokes `Module:grc-conj` for each extracted tense, merging the
-   results into the verb's paradigm. Verbs without parsable principal
-   parts fall back to present-only behavior, so the path is strictly
-   additive.
+   results into the verb's paradigm. For a verb without parsable
+   principal parts the pass infers them from its simplex or its class and
+   keeps the cells a corpus attests
+   ([Principal parts that no entry prints](#principal-parts-that-no-entry-prints)).
 
-About 712 LSJ-only verbs receive at least one parsed principal part
-through path 2; full-pipeline success on the 28,745 LSJ-only verb
-candidates is 99.27%.
+794 of the 28,503 LSJ-only verb candidates receive at least one parsed
+principal part through path 2 (215 of them from the earlier export), and
+27,754 candidates are expanded.
+
+The entry text is found by the headword's spelling. The headword list drops
+quantity marks, and prints `θρώσκω` for the entry `θρῴσκω`, while the glosses
+keep the entry's own spelling (`ἀγῑνέω`), so the exact spelling alone misses
+the text of 6,883 candidates. `head_text_finder` takes the exact spelling
+first, then the one entry with the same letters without quantity marks, then
+the one without iota subscript either. A spelling that two entries share
+(`θᾱλέω`, `θᾰλέω`) gets no text.
+
+The parser reads Arabic and Roman aorist numbers (`aor. 1`, `aor. I`), a text
+that opens inside a section (`Pass., aor. ἀντετάφην`), and two numbered
+passive aorists of one verb (`ἀπεπνίχθην`, `ἀπεπνίγην`). A token that begins
+with a vowel and has no breathing is the tail of a word (`fut. ύσω`), never a
+form. Where the current text stops right after a label (`ἀνοιδέω`: "fut.
+-ήσω: aor.") and the earlier text opens with a Greek word (`ἀνῴδησα`), the two
+are read as one text. Hyphenated abbreviations (`fut. -ήσω`, `aor. -έτεμον`)
+are still not expanded.
+
+### Stems of the past tenses
+
+`Module:grc-conj` takes two stems for a past tense: the augmented one for the
+indicative and the unaugmented one for every other mood, the infinitive and
+the participle (`aor-1|ἐλυσ|λυσ`, and for the passive `aor-1|||ἐλυθ|λυθ`).
+LSJ prints the augmented indicative, so `unaugmented_stem` derives the other
+stem from it and from the headword:
+
+- In a compound the augment follows the preverb, which stands before it in
+  its prevocalic form; removing the augment restores the preverb of the
+  present: `ἀντετάφην` gives `ἀντιταφ-`, `ἐξέβαλον` `ἐκβαλ-`, `συνέλεξα`
+  `συλλεξ-`, `ἐνέθορον` `ἐνθορ-`, `κατέστησα` `καταστησ-`.
+- A temporal augment restores the vowel of the headword (`ἤκουσα` `ἀκουσ-`,
+  `ἤλπισα` `ἐλπισ-`, `ἀνῴδησα` `ἀνοιδησ-`), never a fixed vowel.
+- The suppletive aorists have their own stems (`εἰσήνεγκα` `εἰσενεγκ-`,
+  `ἀπῆλθον` `ἀπελθ-`, `συνεῖδον` `συνιδ-`, `ἀφεῖλον` `ἀφελ-`).
+- A stem that cannot be read against the headword is not guessed: a second
+  augment after the preverb (`ἠμφεσβήτησα`, `ἐπηνώρθωσα`), a contracted one
+  (`προὔβαλον`), a syllabic augment before a vowel (`ἔωσα`). Then only the
+  indicative is built. The same holds for the κ aorists of the -μι verbs in
+  the active (`ἔθηκα`, not `θήκας`) and for root aorists that go like a
+  passive in the indicative alone (`ἀνθυπέστην`, `ὑπέφθην`).
+
+A compound also passes `prefix=`, so that the accent of the indicative, the
+perfect and the pluperfect stays on or after the augment or reduplication
+(`παρέσχον`, `ἀπῆρα`, `ἀφῖγμαι`). The printed part decides: where LSJ has the
+accent on the preverb (`ἄφευσα`, epic `περίχευα`), none is passed. For a
+perfect the preverb is taken only where the stem shows a perfect of the rest
+after it (`δια-πεφυκ`, `μετ-αγηοχ`), because the letters often allow two
+divisions (`ἀπαν-αλίσκω`, `ἀπανα-λίσκω`).
+
+Other tenses:
+
+- A middle principal part builds the middle alone (`ἐδεξάμην`, `δέξομαι`,
+  `ἀφικόμην`: `form=mid`), and a passive aorist in `-θην` under the plain
+  label is a passive one (`ἐβουλήθην`).
+- A future with a circumflex is contracted (`βαλῶ` `fut-con-e|βαλ`, `βιβῶ`
+  of a verb in `-άζω` `fut-con-a|βιβ`); read as an ordinary future it gave
+  `βάλεις`.
+- The pluperfect is built on the perfect stems as before (`λελύκειν`) and,
+  for a visibly reduplicated stem, with the augment too (`ἐλελύκειν`,
+  `ἀπελελύκειν`).
+- A contracted imperfect takes the contract template of its present
+  (`ἀτίμων`, `ἠγνόουν`).
+
+The present system of every verb is written before any principal part, so a
+cell a headword spells out itself (`φιαλοῦμαι` of `φιαλόω`) outranks the same
+form derived from another verb's printed part (the future `φιαλῶ` of
+`φιάλλω`). A headword that another verb prints as its principal part
+(`ὑπομνήσω` under `ὑπομιμνήσκω`) is written after the printed parts, and the
+inferred parts below come last.
+
+### Principal parts that no entry prints
+
+INFERRED_COUNTS_PLACEHOLDER
+
+- A compound takes the parts its simplex prints (`compound_parts`):
+  `συγκατατρίβω` gets `συγκατέτριψα` and `συγκατατρίψω` from `ἔτριψα` and
+  `τρίψω` under `τρίβω`. The last preverb is spelled for the sound that
+  follows: elided before a vowel and aspirated before a rough one
+  (`κατ-έτριψα`, `καθ-είλκυσα`), assimilated before a consonant
+  (`συλ-λήψομαι`, `ἐγ-κεχλίαγκα`), `ἐξ` before a vowel, with the `ρ` doubled
+  after a vowel (`καταρρεύσομαι`). The simplex is the verb left after the
+  longest chain of preverbs, and only when every shorter chain that also
+  leaves a verb leaves a compound of it; two readings that disagree
+  (`ὑπ-ερείδω`, `ὑπερ-είδω`) or two homographs give none, and an aspirated
+  preverb needs a rough verb after it (`καθ-έλκω`).
+- A verb in `-ίζω`, `-άζω`, `-εύω`, `-έω`, `-όω` or `-άω`, or the middle of
+  one, takes the regular parts of its class (`regular_parts`): `εἰκονίζω`
+  gets `εἰκονίσω`, `ᾐκόνισα` and also `εἰκόνισα` (a diphthong is tried with
+  and without the augment), `ᾐκόνικα`, `ᾐκόνισμαι`, `ᾐκονίσθην`, and the
+  Attic future `εἰκονιῶ`. The augment stands in front and, in further
+  candidate sets, after each preverb the letters allow (`ἐπιστατέω`:
+  `ἠπιστάτησα` and `ἐπεστάτησα`). A compound whose simplex prints nothing
+  takes the regular parts of the simplex.
+- Nothing is inferred from a class for a stem under three letters (`ἐρέω`,
+  `ὁράω`, `ἀρόω`), for a headword that may be a compound of such a verb
+  (`ἀπο-θέω`: `ἀποθήσω` is the future of `ἀποτίθημι`), or where another
+  dictionary verb would share the tenses (`regular_rivals`): `-άω` beside
+  `-άζω`, `-έω` or `-όω` on the same stem (`βοάζω`, `βοάω`; `δαπανῶσαι` is the
+  aorist of `δαπανόω` and a participle of `δαπανάω`), or the same verb with
+  the other of `ἀ-` and `ἐ-`, which take one augment (`ἠπόρημαι`). Nothing is
+  inferred at all for a capitalised headword (`Βακχεύω`, which the corpora
+  file under `βακχεύω`) or for a verb whose other voice has an entry of its
+  own (`θεάω` beside `θεάομαι`). A tense the entry prints itself is never
+  inferred.
+
+These parts are hypotheses, so they are expanded like printed ones but only
+the cells a corpus attests are kept: the exact spelling must be in
+`data/form_profile.db` (grave folded to acute, case folded, as in the output
+gate of the attestation runtime). The template gives a participle in its
+nominatives only, and the runtime resolves the other cases of a participle in
+`-μενος` through the masculine nominative, so that cell is also kept when a
+corpus has another case of it (`ἐσκοτισμένους` for `ἐσκοτισμένος`). A
+template call is skipped when no attested form begins with one of its stems.
+Further:
+
+- a cell the table already has, or that is a dictionary headword itself, is
+  left alone (the "perfect participle" `ἱππικός` of `ἱππίζω`; a perfect
+  without visible reduplication is not inferred for a dental stem at all);
+- a cell that two verbs infer goes to neither;
+- a cell that a noun also spells is kept only where a treebank reads it as
+  this verb: a future in `-σει` or `-σεις` (`-ξει`, `-ψει`) is the dative or
+  plural of the action noun in `-σις` (`ἐπισκιάσει`, `ἀμοιρήσεις`), and the
+  participle of an Attic future in `-ιῶν`, or of its uncontracted `-ιέων`, a
+  genitive plural (`κοσμιῶν`, `πεδιέων`).
+
+### Treebank readings
+
+The lookup build fills gaps from the treebank pair files in a fixed order
+(`perseus_pairs.json`, `glaux_pairs.json`, `diorisis_pairs.json`,
+`nt_pairs.json`, `ptnk_pairs.json`, `tagnt_pairs.json`,
+`pedalion_pairs.json`): the first file that has a form speaks for it, and
+within the file its first pair. The verb pass reads the pair files the same
+way (`load_treebank_readings`). The grave counts as the acute. A file that
+has the form only with a capital (`Κατεδέξατο`) speaks for it when no file
+has it as spelled, unless the lemma is capitalised too (`Φιαλέων` of
+`Φιαλεύς` says nothing about `φιαλέων`). The reading that counts is the
+first usable one (`treebank_reading`): the verb itself, by its letters
+(`ἐνθρῴσκω` for `ἐνθρώσκω`), a headword of some dictionary in
+`data/grc_lexical_heads.json` that is no reviewed non-lemma, or the verb in
+its other voice (`ἐπιλανθάνομαι` for `ἐπιλανθάνω`). A lemma that no
+dictionary heads (`σύν-εἶδον`, `ὑπαλειψάννυμι`) is passed over.
+
+A principal-part cell is checked against that reading, and how much the
+reading weighs depends on the stem under the cell:
+
+- **A stem no entry prints.** A cell of an inferred part, a cell on the
+  unaugmented stem that the generator derives for a printed past tense
+  (`καταδέξας` beside `κατέδεξα`, `ἀγαγών` beside `ἤγαγον`) and the augmented
+  pluperfect are the generator's own. A derived stem that the entry prints
+  in its future is not among them (`ἀμφιεσ-` of `ἠμφίεσα` stands in
+  `ἀμφιέσω`). Such a cell is left out when the
+  treebanks read the form as another word, and the lookup build takes the
+  treebank reading as before: `ἠβουλήθη` stays with `βούλομαι`, not
+  `ἀβουλέω`, and `ἀνακλάσεις` with the noun `ἀνάκλασις`, which the first
+  pair names.
+- **A stem the entry prints.** The future, the perfect, the imperfect and the
+  augmented indicative of a printed past tense are the dictionary's. So are
+  the other moods of a past tense with a plain `ἐ-` before the stem
+  (`ἐζημίωσα`, `ζημιῶσαι`), which the conjugation module takes off by
+  itself. Another verb in a treebank does not move such a cell: `ἀμφιέσομαι`
+  stays the future LSJ prints under `ἀμφιέννυμι`, though a treebank files it
+  under `ἀμφιάζω`. The cell is left out only when the verb the treebanks
+  read has it among its own principal parts, printed or inferred
+  (`κατεδέξατο` is the aorist of `καταδέχομαι` in the treebanks, a compound of
+  `δέχομαι`, while LSJ prints `κατέδεξα` as the Ionic aorist of
+  `καταδείκνυμι`: both verbs give the cell, and the treebanks decide), when
+  the treebanks read the form as no verb at all (`φιαλέων` is the genitive of
+  `φιάλη` before it is a participle of the future `φιαλῶ`), or when they file
+  it under the same verb in its other voice (`ἐνόσφισεν` under `νοσφίζομαι`).
+- **A present cell of another verb.** The present systems are written first,
+  so a present holds the form when a printed part of another verb spells it
+  too (`περιειλόμεθα` of `περιείλω` and of the aorist `περιειλόμην` under
+  `περιαιρέω`). Where the treebanks read the form as the verb of the printed
+  part, that verb takes it.
+
+The corpus tables only withhold or confirm cells; no form or lemma enters the
+table from them.
+
+The pass therefore needs `data/form_profile.db`, `data/grc_lexical_heads.json`
+and the seven pair files, and stops when one is missing. `--no-corpus-checks`
+runs without them (no inferred parts, no treebank check); that is not the
+published build. What the corpus tables decided is written to
+`data/ag_verb_generation_audit.json`: the content hash of `form_profile.db`
+and the sha256 of the other inputs, the inferred cells by verb with the kind
+of inference and the simplex, the cells two verbs inferred, the cells left
+to a treebank reading, each with that reading and the kind of stem
+(`printed`, `derived`, `inferred`), and the present cells that went to a
+printed part.
 
 ## Finite-form synthesis
 

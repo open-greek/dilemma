@@ -8,16 +8,18 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "build"))
 import expand_lsj
-from lsj_principal_parts import _strip_augment, derive_grc_conj_args
+from lsj_principal_parts import derive_grc_conj_args, unaugmented_stem
 
 
-@pytest.mark.parametrize("stem,expected", [
-    ("ἐλυσ", "λυσ"), ("ἠρπασ", "ἀρπασ"), ("ὡρισ", "ὁρισ"),
-    ("ἠυξ", "ἀυξ"), ("ἀϊσσ", "ἀϊσσ"), ("προσελυσ", "προσελυσ"),
+@pytest.mark.parametrize("headword,stem,expected", [
+    ("λύω", "ἐλυσ", "λυσ"), ("ἁρπάζω", "ἡρπασ", "ἁρπασ"),
+    ("ὁρίζω", "ὡρισ", "ὁρισ"), ("αὐξάνω", "ηὐξησ", "αὐξησ"),
+    ("ἀΐσσω", "ἀϊξ", "ἀϊξ"), ("προσλύω", "προσελυσ", "προσλυσ"),
+    ("ᾄδω", "ᾐσ", "ᾀσ"),
 ])
-def test_existing_augment_policy_retains_marks_on_surviving_letters(stem, expected):
-    assert _strip_augment(stem) == expected
-    assert _strip_augment(unicodedata.normalize("NFD", stem)) == expected
+def test_unaugmented_stem_retains_marks_on_surviving_letters(headword, stem, expected):
+    assert unaugmented_stem(headword, stem)[0] == expected
+    assert unaugmented_stem(headword, unicodedata.normalize("NFD", stem))[0] == expected
 
 
 def test_all_principal_part_stems_preserve_lexical_marks_and_normalize_unicode():

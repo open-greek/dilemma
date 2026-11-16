@@ -37,7 +37,10 @@ else:
     m.parse_sophocles_entries = lambda *a, **kw: entries
     m.find_verb_candidates = lambda *a: ["λύω"]
 m.expand_all()
-m.expand_verbs()
+if name == "expand_lsj":
+    m.expand_verbs(corpus_checks=False)
+else:
+    m.expand_verbs()
 '''
 
 
