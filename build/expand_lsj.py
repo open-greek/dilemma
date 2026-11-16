@@ -41,8 +41,8 @@ from dilemma.grc_rejected_lemmas import REJECTED_LEMMAS  # noqa: E402
 from lsj_principal_parts import (  # noqa: E402
     INDICATIVE_ONLY, INFERRED_FAMILIES, compound_parts, compound_simplexes,
     derive_grc_conj_args, ends_at_label, other_voice, parse_principal_parts,
-    derived_cells, regular_compound_parts, regular_parts, regular_rivals,
-    short_verb_compound,
+    derived_cells, future_stems, participle_cases, regular_compound_parts,
+    regular_parts, regular_rivals, short_verb_compound,
 )
 
 DATA_DIR = SCRIPT_DIR / "data"
@@ -1246,9 +1246,11 @@ def derived_principal_part_cells(wtp, headword: str, head_text: str,
     parts = merged_principal_parts(headword, head_text, supplement_text)
     derived: set[str] = set()
     printed: set[str] = set()
-    for tense, tense_args in derive_grc_conj_args(parts, headword).items():
+    calls = derive_grc_conj_args(parts, headword)
+    printed_stems = future_stems(calls)
+    for tense, tense_args in calls.items():
         cells = _expand_principal_part(wtp, headword, tense_args)
-        on_derived = derived_cells(tense, tense_args, cells)
+        on_derived = derived_cells(tense, tense_args, cells, printed_stems)
         derived |= on_derived
         printed |= cells - on_derived
     return derived - printed
@@ -2019,15 +2021,20 @@ def load_attested_forms(path: Path) -> tuple[frozenset[str], list[str]]:
 
     Returns their keys as the output gate compares them (grave folded to
     acute, case folded) and the sorted list of their bare letters, which
-    answers whether any attested form begins with a stem.
+    answers whether any attested form begins with a stem. The letters are
+    those of the form as spelled: case folding writes an iota subscript as
+    a letter (ᾐ as ἠι), which no stem has.
     """
     connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     try:
-        keys = frozenset(
-            row[0] for row in connection.execute("SELECT form_norm FROM forms"))
+        keys, spellings = set(), set()
+        for form, key in connection.execute(
+                "SELECT form, form_norm FROM forms"):
+            keys.add(key)
+            spellings.add(bare_letters(form))
     finally:
         connection.close()
-    return keys, sorted({bare_letters(key) for key in keys})
+    return frozenset(keys), sorted(spellings)
 
 
 def _begins_attested(spellings: list[str], prefix: str) -> bool:
@@ -2121,7 +2128,9 @@ def expand_inferred_parts(wtp, headword: str, variants: list[dict[str, str]],
     call per tense, but only the cells whose exact spelling a corpus has
     are returned (``attested``, the keys of :func:`load_attested_forms`).
     A cell with a movable nu is two spellings (ἔλυσε, ἔλυσεν), each kept
-    on its own attestation.
+    on its own attestation. A participle in -μενος stands for its whole
+    declension, which the template does not give: it is also kept when a
+    corpus has another case of it (ἐσκοτισμένους for ἐσκοτισμένος).
     """
     forms: set[str] = set()
     seen: set[tuple] = set()
@@ -2140,9 +2149,16 @@ def expand_inferred_parts(wtp, headword: str, variants: list[dict[str, str]],
             cells = _expand_principal_part(wtp, headword, tense_args)
             if stats is not None:
                 stats["inferred_cells"] += len(cells)
-            forms |= {form for cell in cells
-                      for form in resolve_editorial_form(cell)
-                      if norm_key(form) in attested}
+            for cell in cells:
+                for form in resolve_editorial_form(cell):
+                    if norm_key(form) in attested:
+                        forms.add(form)
+                    elif form not in forms and any(
+                            norm_key(case) in attested
+                            for case in participle_cases(form)):
+                        forms.add(form)
+                        if stats is not None:
+                            stats["inferred_participles_by_case"] += 1
     return forms
 
 
@@ -2272,14 +2288,17 @@ def left_to_rival(form: str, lemma: str, readings, lexical_heads,
     compound of δέχομαι, while LSJ prints κατέδεξα as the Ionic aorist of
     καταδείκνυμι. It also gives way where the treebanks read the form as
     no verb at all (φιαλέων is the genitive of φιάλη before it is a
-    participle of the future φιαλῶ).
+    participle of the future φιαλῶ), or as this verb in its other voice
+    (ἐνόσφισεν under νοσφίζομαι): that is the same verb.
     """
     reading, pos = treebank_reading(form, lemma, readings, lexical_heads)
     if not reading or reading == lemma:
         return False
     if pos not in ("verb", ""):
         return True
-    return bare_letters(reading) in yields.get(reading_key(form), ())
+    letters = bare_letters(reading)
+    return (letters in yields.get(reading_key(form), ())
+            or other_voice(letters) == bare_letters(lemma))
 
 
 # An inferred cell that a noun also spells is kept only where a treebank
@@ -2375,12 +2394,16 @@ def expand_verbs(corpus_checks: bool = True):
     failure_examples = {}
     t0 = time.time()
 
+    # The keys this pass has written itself, as against those it found.
+    written: set[str] = set()
+
     def add_forms(forms, hw_clean):
         # See sanitize_form() rationale in expand_all() above.
         for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
                     lookup[form] = hw_clean
+                    written.add(form)
                     stats["new_forms"] += 1
                 elif lookup[form] != hw_clean:
                     stats["collisions"] += 1
@@ -2389,6 +2412,7 @@ def expand_verbs(corpus_checks: bool = True):
                 if plain != form:
                     if plain not in lookup:
                         lookup[plain] = hw_clean
+                        written.add(plain)
                         stats["new_forms"] += 1
                     elif lookup[plain] != hw_clean:
                         stats["collisions"] += 1
@@ -2544,6 +2568,7 @@ def expand_verbs(corpus_checks: bool = True):
             yields.setdefault(reading_key(form), set()).update(
                 bare_letters(verb) for verb in claimants)
         withheld = []
+        over_present = []
 
         def uncontested(forms, hw_clean, kind, derived=frozenset()):
             kept = set()
@@ -2576,6 +2601,25 @@ def expand_verbs(corpus_checks: bool = True):
         inferred = [(hw_clean, uncontested(forms, hw_clean, "inferred"))
                     for hw_clean, forms in inferred]
 
+        # So far this pass has written present systems only. Where another
+        # verb's present holds the cell of a printed part (περιειλόμεθα of
+        # περιείλω and of the aorist περιειλόμην under περιαιρέω) and the
+        # treebanks read the form as the verb of the part, that verb takes
+        # it.
+        for forms, hw_clean, _ in deferred:
+            for form in sorted(forms):
+                held = lookup.get(form)
+                if (held is None or held == hw_clean or form not in written
+                        or not treebank_agrees(
+                            form, hw_clean, readings, lexical_heads)):
+                    continue
+                lookup[form] = hw_clean
+                plain = strip_diacritics(form)
+                if plain in written and lookup.get(plain) == held:
+                    lookup[plain] = hw_clean
+                stats["printed_over_present"] += 1
+                over_present.append((form, hw_clean, held))
+
     for forms, hw_clean, _ in deferred:
         add_forms(forms, hw_clean)
     for forms, hw_clean in late:
@@ -2604,13 +2648,16 @@ def expand_verbs(corpus_checks: bool = True):
               f"{stats['inferred_kept']:,} attested and kept, "
               f"{stats['inferred_shared']:,} left out as inferred by two "
               f"verbs, {stats['inferred_noun_twins']:,} as cells that a "
-              "noun also spells; keys added: "
+              "noun also spells; participles attested in another case only: "
+              f"{stats['inferred_participles_by_case']:,}; keys added: "
               f"{stats['new_forms'] - before_inferred:,}")
         print("  Cells left to a treebank reading: "
               f"{stats['printed_withheld']:,} on a printed stem (the other "
               f"verb has the cell too), {stats['derived_withheld']:,} on a "
               f"derived stem, {stats['inferred_withheld']:,} of inferred "
               "parts")
+        print("  Present cells that gave way to a printed part the treebanks "
+              f"read: {stats['printed_over_present']:,}")
         for form, hw_clean, _, reading in sorted(withheld)[:40]:
             print(f"    {form} ({hw_clean}): {reading}")
     print(f"  Failed: {stats['failed']:,}")
@@ -2658,6 +2705,9 @@ def expand_verbs(corpus_checks: bool = True):
                 {"form": form, "verb": hw_clean, "part": part,
                  "treebank": reading}
                 for form, hw_clean, part, reading in sorted(withheld)],
+            "taken_from_a_present": [
+                {"form": form, "verb": hw_clean, "present_of": held}
+                for form, hw_clean, held in sorted(over_present)],
         }
         with open(VERB_AUDIT, "w", encoding="utf-8") as f:
             json.dump(audit, f, ensure_ascii=False, indent=1, sort_keys=True)

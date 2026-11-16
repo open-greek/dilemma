@@ -1324,7 +1324,18 @@ def derive_grc_conj_args(parts: dict[str, str], headword: str
     return args
 
 
-def derived_cells(tense: str, tense_args: list[str], cells) -> set[str]:
+def future_stems(calls: dict[str, list[str]]) -> frozenset[str]:
+    """The stems of the futures among the calls of
+    :func:`derive_grc_conj_args`, by their letters."""
+    return frozenset(
+        _bare(_letters(arg))
+        for tense, tense_args in calls.items() if tense.startswith("fut")
+        for arg in tense_args[1:]
+        if arg and "=" not in arg and arg != INDICATIVE_ONLY)
+
+
+def derived_cells(tense: str, tense_args: list[str], cells,
+                  printed_stems=frozenset()) -> set[str]:
     """The cells of one call of :func:`derive_grc_conj_args` that stand on
     a stem the entry does not print.
 
@@ -1333,8 +1344,10 @@ def derived_cells(tense: str, tense_args: list[str], cells) -> set[str]:
     indicative, is derived from the headword, and so is the augmented
     pluperfect (ἐλελύκειν beside the printed λέλυκα). A plain ἐ- before the
     stem is no derivation: the conjugation module takes it off by itself
-    (ἐζημίωσα, ζημιῶσαι). The cells of every other call begin with a stem
-    the entry prints.
+    (ἐζημίωσα, ζημιῶσαι). Neither is a stem that the entry prints in its
+    future (``printed_stems``, from :func:`future_stems`): ἀμφιεσ- of
+    ἠμφίεσα stands in ἀμφιέσω. The cells of every other call begin with a
+    stem the entry prints.
     """
     if tense == "plup-aug":
         return set(cells)
@@ -1344,10 +1357,45 @@ def derived_cells(tense: str, tense_args: list[str], cells) -> set[str]:
     if len(stems) < 2:
         return set()
     printed, plain = (_bare(_letters(stem)) for stem in stems[:2])
-    if printed in (plain, "ε" + plain):
+    if printed in (plain, "ε" + plain) or plain in printed_stems:
         return set()
     return {cell for cell in cells
             if not _bare(_letters(cell)).startswith(printed)}
+
+
+_ACUTE = chr(0x0301)
+# The endings of a participle in -μενος after μεν-, by the length of the
+# last syllable: before a long one the accent stands on μέν.
+_PARTICIPLE_SHORT = ("ον", "ε", "οι", "α", "αι")
+_PARTICIPLE_LONG = ("ου", "ῳ", "ων", "οις", "ους", "η", "ης", "ῃ", "ην",
+                    "αις", "ας")
+
+
+def participle_cases(nominative: str) -> list[str]:
+    """The other case forms of a participle in -μενος.
+
+    λυόμενος gives λυόμενον, λυομένου, λυομένη and the rest, with the
+    accent on μέν before a long ending; the perfect λελυμένος keeps it
+    there throughout. Any other spelling gives nothing.
+    """
+    nfd = unicodedata.normalize("NFD", nominative)
+    if nfd.endswith("με" + _ACUTE + "νος"):
+        stem = nfd[:-len("με" + _ACUTE + "νος")]
+        if any(mark in stem for mark in _TONE_MARKS):
+            return []
+        short = long = stem + "με" + _ACUTE + "ν"
+    elif nfd.endswith("μενος"):
+        stem = nfd[:-len("μενος")]
+        if stem.count(_ACUTE) != 1 or _PERISPOMENI in stem:
+            return []
+        short = stem + "μεν"
+        long = stem.replace(_ACUTE, "") + "με" + _ACUTE + "ν"
+    else:
+        return []
+    return [unicodedata.normalize("NFC", base + ending)
+            for base, endings in ((short, _PARTICIPLE_SHORT),
+                                  (long, _PARTICIPLE_LONG))
+            for ending in endings]
 
 
 # --- Principal parts that no entry prints -----------------------------------
@@ -1706,6 +1754,8 @@ __all__ = [
     "regular_parts",
     "regular_rivals",
     "derived_cells",
+    "future_stems",
+    "participle_cases",
     "short_verb_compound",
     "stem_preverb",
     "strip_diacritics",

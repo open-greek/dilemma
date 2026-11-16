@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "build"))
 import expand_lsj
 from lsj_principal_parts import (
     INDICATIVE_ONLY, compound_parts, compound_simplexes, derive_grc_conj_args,
-    derived_cells, other_voice, regular_compound_parts, regular_parts,
-    regular_rivals,
+    derived_cells, future_stems, other_voice, participle_cases,
+    regular_compound_parts, regular_parts, regular_rivals,
 )
 
 
@@ -196,6 +196,7 @@ def test_nothing_is_inferred_where_another_verb_shares_the_tenses():
 
 
 def profile(tmp_path, forms):
+    tmp_path.mkdir(exist_ok=True)
     path = tmp_path / "form_profile.db"
     connection = sqlite3.connect(path)
     connection.execute("CREATE TABLE forms (form_id INTEGER PRIMARY KEY, "
@@ -222,6 +223,12 @@ def test_stems_attested(tmp_path):
         ["aor-1", "", "", "ἐλυθ", "λυθ", "form=pass"], spellings)
     assert not expand_lsj.stems_attested(["fut", "λυσ", "prefix=ἐλυθ"],
                                          spellings)
+    # An iota subscript is a mark of the stem, though the key of the form
+    # spells it as a letter (ᾐ, ἠι).
+    attested, spellings = expand_lsj.load_attested_forms(
+        profile(tmp_path / "subscript", ["ᾐκονισμένους"]))
+    assert attested == {expand_lsj.norm_key("ᾐκονισμένους")}
+    assert expand_lsj.stems_attested(["perf", "ᾐκονικ", "ᾐκονισ"], spellings)
 
 
 def test_only_attested_cells_of_an_inferred_part_are_kept(tmp_path,
@@ -353,6 +360,8 @@ def test_a_cell_gives_way_to_a_treebank_reading():
     # βούλομαι and ἀμφιάζω are treebank readings no part of theirs gives
     assert not rival("ἠβουλήθη", "ἀβουλέω", readings, heads, yields)
     assert not rival("ἀμφιέσομαι", "ἀμφιέννυμι", readings, heads, yields)
+    # this verb in its other voice is the same verb
+    assert rival("ἐπελάθοντο", "ἐπιλανθάνω", readings, heads, yields)
     # the treebank reads it as this verb, or not at all
     assert not rival("κατέδεξε", "καταδείκνυμι", readings, heads, yields)
     assert not rival("κατέδεξα", "καταδείκνυμι", readings, heads, yields)
@@ -396,6 +405,16 @@ def test_derived_cells():
     # the augmented pluperfect is built from the printed perfect
     assert derived_cells("plup-aug", ["plup", "ἐλελυκ", "ἐλελυ"],
                          {"ἐλελύκειν"}) == {"ἐλελύκειν"}
+    # A stem the entry prints in its future is no derivation either:
+    # ἀμφιεσ- of ἠμφίεσα stands in ἀμφιέσω, ζημιωθ- in ζημιωθήσομαι.
+    calls = {"fut": ["fut", "ἀμφιεσ"], "fut-pass": ["fut", "", "ζημιωθ"],
+             "aor-1": ["aor-1", "ἠμφιεσ", "ἀμφιεσ", "prefix=ἀμφ"]}
+    assert future_stems(calls) == {"αμφιεσ", "ζημιωθ"}
+    assert derived_cells("aor-1", calls["aor-1"], {"ἠμφίεσα", "ἀμφιέσαι"},
+                         future_stems(calls)) == set()
+    assert derived_cells("aor-1", calls["aor-1"], {"ἠμφίεσα", "ἀμφιέσαι"},
+                         future_stems({"fut": ["fut", "ἀμφιασ"]})) == {
+                             "ἀμφιέσαι"}
     # the future, the perfect and the imperfect stand on printed stems
     assert derived_cells("fut", ["fut", "λυσ"], {"λύσω"}) == set()
     assert derived_cells("perf", ["perf", "λελυκ", "λελυ"],
@@ -412,19 +431,58 @@ def test_cells_only_a_derived_stem_gives(monkeypatch):
     assert expand_lsj.derived_principal_part_cells(
         None, "ἄγω", "fut. ἄξω: aor. 2 ἤγαγον") == {"ἀγαγών"}
     assert expand_lsj.derived_principal_part_cells(None, "ἄγω", "") == set()
+    # the printed future λύσω confirms the stem of ἔλυσα
+    cells = {"aor-1": {"ἀνέλυσα", "ἀναλύσας"}, "fut": {"ἀναλύσω"}}
+    assert expand_lsj.derived_principal_part_cells(
+        None, "ἀναλύω", "fut. ἀναλύσω: aor. ἀνέλυσα") == set()
+    assert expand_lsj.derived_principal_part_cells(
+        None, "ἀναλύω", "aor. ἀνέλυσα") == {"ἀναλύσας"}
+
+
+def test_participle_cases():
+    cases = participle_cases("λυόμενος")
+    assert {"λυόμενον", "λυόμενοι", "λυόμενα", "λυομένου", "λυομένῳ",
+            "λυομένων", "λυομένους", "λυομένη", "λυομένης", "λυομένῃ",
+            "λυομένην", "λυόμεναι", "λυομέναις", "λυομένας"} <= set(cases)
+    assert "λυόμενος" not in cases and "λυομένον" not in cases
+    assert {"ἐσκοτισμένον", "ἐσκοτισμένους", "ἐσκοτισμένῃ"} <= set(
+        participle_cases("ἐσκοτισμένος"))
+    assert "ποιουμένου" in participle_cases("ποιούμενος")
+    # no participle in -μενος
+    assert participle_cases("λύσας") == []
+    assert participle_cases("λυομένη") == []
+
+
+def test_a_participle_is_attested_through_its_cases(tmp_path, monkeypatch):
+    attested, spellings = expand_lsj.load_attested_forms(
+        profile(tmp_path, ["ᾐκονισμένους", "ᾐκονισμένη"]))
+    monkeypatch.setattr(
+        expand_lsj, "_expand_principal_part",
+        lambda _wtp, headword, tense_args: {
+            "ᾐκονισμένος", "ᾐκονισμένη", "ᾐκονισμένον", "ᾐκόνισμαι"})
+    stats = Counter()
+    cells = expand_lsj.expand_inferred_parts(
+        None, "εἰκονίζω", regular_parts("εἰκονίζω"), attested, spellings,
+        stats)
+    # The masculine stands for the declension; the neuter is its own cell.
+    assert cells == {"ᾐκονισμένος", "ᾐκονισμένη"}
+    assert stats["inferred_participles_by_case"] == 1
 
 
 def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     entries = {hw: {"orth_orig": hw, "gender": ""}
                for hw in ("εἰκονίζω", "καταδείκνυμι", "καταδέχομαι",
-                          "δέχομαι", "ἀμφιέννυμι", "ἀμφιάζω")}
+                          "δέχομαι", "ἀμφιέννυμι", "ἀμφιάζω", "νοσφίζω",
+                          "περιαιρέω", "περιείλω")}
     entries["εἰκονικός"] = {"orth_orig": "εἰκονικός", "gender": "m"}
     monkeypatch.setattr(expand_lsj, "parse_lsj_entries", lambda: entries)
     monkeypatch.setattr(expand_lsj, "load_wiktionary_forms", lambda: {})
     monkeypatch.setattr(expand_lsj, "load_lsj_head_texts", lambda: {
         "καταδείκνυμι": "Ion. aor. κατέδεξα Hdt.: discover.",
         "δέχομαι": "fut. δέξομαι: aor. ἐδεξάμην: take.",
-        "ἀμφιέννυμι": "fut. ἀμφιέσω: put round."})
+        "ἀμφιέννυμι": "fut. ἀμφιέσω: put round.",
+        "νοσφίζω": "aor. ἐνόσφισα: turn away.",
+        "περιαιρέω": "aor. 2 περιεῖλον: take away."})
     monkeypatch.setattr(expand_lsj, "load_lsj_supplement_head_texts",
                         lambda: {})
     monkeypatch.setattr(expand_lsj, "verify_lsj_glosses",
@@ -441,11 +499,14 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         ("κατέδεξεν", "καταδέχομαι", "verb"),
         ("καταδέξασθαι", "καταδέχομαι", "verb"),
         ("ἀμφιέσομαι", "ἀμφιάζω", "verb"),
+        ("ἐνόσφισεν", "νοσφίζομαι", "verb"),
+        ("περιειλόμεθα", "περιαιρέω", "verb"),
         ("εἰκονίσεις", "εἰκονίζω", "verb")])
     monkeypatch.setattr(expand_lsj, "TREEBANK_PAIRS", (pairs,))
     heads = tmp_path / "grc_lexical_heads.json"
     heads.write_text(json.dumps(
-        {"heads": {hw: ["lsj9_headwords"] for hw in entries}},
+        {"heads": {hw: ["lsj9_headwords"]
+                   for hw in (*entries, "νοσφίζομαι")}},
         ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(expand_lsj, "LEXICAL_HEADS", heads)
     audit = tmp_path / "audit.json"
@@ -457,13 +518,16 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         "καταδείκνυμι": {"κατέδεξε(ν)", "κατεδέξατο", "καταδέξασθαι"},
         "καταδέχομαι": {"κατεδέξατο"},
         "ἀμφιέννυμι": {"ἀμφιέσομαι"},
+        "νοσφίζω": {"ἐνόσφισε(ν)"},
+        "περιαιρέω": {"περιειλόμεθα", "περιείλου"},
     }
+    presents = {"περιείλω": {"περιειλόμεθα", "περιείλου"}}
 
     def expand(_wtp, word, head_text="", supplement_text="",
                principal_part_forms=None):
         if head_text and word in cells:
             principal_part_forms |= cells[word]
-        return {word}, ""
+        return {word} | presents.get(word, set()), ""
 
     monkeypatch.setattr(expand_lsj, "expand_verb", expand)
     monkeypatch.setattr(
@@ -488,9 +552,17 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     # takes ἐδεξάμην from δέχομαι.
     assert result["κατεδέξατο"] == "καταδέχομαι"
     assert result["κατεδεξατο"] == "καταδέχομαι"
+    # It also gives way to its own verb in the other voice.
+    assert "ἐνόσφισεν" not in result
+    assert result["ἐνόσφισε"] == "νοσφίζω"
     # A cell on the unaugmented stem, which no entry prints, gives way to
     # the headword the treebank reads.
     assert "καταδέξασθαι" not in result
+    # Another verb's present holds a cell of a printed part: the treebank
+    # gives it to the verb of the part, and nothing else moves it.
+    assert result["περιειλόμεθα"] == "περιαιρέω"
+    assert result["περιειλομεθα"] == "περιαιρέω"
+    assert result["περιείλου"] == "περιείλω"
     recorded = json.loads(audit.read_text(encoding="utf-8"))
     assert recorded["inferred"] == {
         "εἰκονίζω": {"kind": "regular", "from": "",
@@ -501,7 +573,12 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         {"form": "καταδέξασθαι", "verb": "καταδείκνυμι", "part": "derived",
          "treebank": "καταδέχομαι"},
         {"form": "κατεδέξατο", "verb": "καταδείκνυμι", "part": "printed",
-         "treebank": "καταδέχομαι"}]
+         "treebank": "καταδέχομαι"},
+        {"form": "ἐνόσφισεν", "verb": "νοσφίζω", "part": "printed",
+         "treebank": "νοσφίζομαι"}]
+    assert recorded["taken_from_a_present"] == [
+        {"form": "περιειλόμεθα", "verb": "περιαιρέω",
+         "present_of": "περιείλω"}]
     assert recorded["counts"]["inferred_noun_twins"] == 1
     assert set(recorded["inputs"]) == {
         "form_profile.db", "grc_lexical_heads.json", "pairs.json"}

@@ -387,9 +387,10 @@ when it is built from an older local pair file.
    parts LSJ has labeled (`fut.`, `aor.`, `pf.`, `pf. m./p.`,
    `aor. p.`, `impf.`, `plpf.`).
 3. Re-invokes `Module:grc-conj` for each extracted tense, merging the
-   results into the verb's paradigm. Verbs without parsable principal
-   parts fall back to present-only behavior, so the path is strictly
-   additive.
+   results into the verb's paradigm. For a verb without parsable
+   principal parts the pass infers them from its simplex or its class and
+   keeps the cells a corpus attests
+   ([Principal parts that no entry prints](#principal-parts-that-no-entry-prints)).
 
 794 of the 28,503 LSJ-only verb candidates receive at least one parsed
 principal part through path 2 (215 of them from the earlier export), and
@@ -502,8 +503,12 @@ INFERRED_COUNTS_PLACEHOLDER
 These parts are hypotheses, so they are expanded like printed ones but only
 the cells a corpus attests are kept: the exact spelling must be in
 `data/form_profile.db` (grave folded to acute, case folded, as in the output
-gate of the attestation runtime). A template call is skipped when no attested
-form begins with one of its stems. Further:
+gate of the attestation runtime). The template gives a participle in its
+nominatives only, and the runtime resolves the other cases of a participle in
+`-μενος` through the masculine nominative, so that cell is also kept when a
+corpus has another case of it (`ἐσκοτισμένους` for `ἐσκοτισμένος`). A
+template call is skipped when no attested form begins with one of its stems.
+Further:
 
 - a cell the table already has, or that is a dictionary headword itself, is
   left alone (the "perfect participle" `ἱππικός` of `ἱππίζω`; a perfect
@@ -538,7 +543,9 @@ reading weighs depends on the stem under the cell:
 - **A stem no entry prints.** A cell of an inferred part, a cell on the
   unaugmented stem that the generator derives for a printed past tense
   (`καταδέξας` beside `κατέδεξα`, `ἀγαγών` beside `ἤγαγον`) and the augmented
-  pluperfect are the generator's own. Such a cell is left out when the
+  pluperfect are the generator's own. A derived stem that the entry prints
+  in its future is not among them (`ἀμφιεσ-` of `ἠμφίεσα` stands in
+  `ἀμφιέσω`). Such a cell is left out when the
   treebanks read the form as another word, and the lookup build takes the
   treebank reading as before: `ἠβουλήθη` stays with `βούλομαι`, not
   `ἀβουλέω`, and `ἀνακλάσεις` with the noun `ἀνάκλασις`, which the first
@@ -553,9 +560,15 @@ reading weighs depends on the stem under the cell:
   read has it among its own principal parts, printed or inferred
   (`κατεδέξατο` is the aorist of `καταδέχομαι` in the treebanks, a compound of
   `δέχομαι`, while LSJ prints `κατέδεξα` as the Ionic aorist of
-  `καταδείκνυμι`: both verbs give the cell, and the treebanks decide), or
-  when the treebanks read the form as no verb at all (`φιαλέων` is the
-  genitive of `φιάλη` before it is a participle of the future `φιαλῶ`).
+  `καταδείκνυμι`: both verbs give the cell, and the treebanks decide), when
+  the treebanks read the form as no verb at all (`φιαλέων` is the genitive of
+  `φιάλη` before it is a participle of the future `φιαλῶ`), or when they file
+  it under the same verb in its other voice (`ἐνόσφισεν` under `νοσφίζομαι`).
+- **A present cell of another verb.** The present systems are written first,
+  so a present holds the form when a printed part of another verb spells it
+  too (`περιειλόμεθα` of `περιείλω` and of the aorist `περιειλόμην` under
+  `περιαιρέω`). Where the treebanks read the form as the verb of the printed
+  part, that verb takes it.
 
 The corpus tables only withhold or confirm cells; no form or lemma enters the
 table from them.
@@ -566,9 +579,10 @@ runs without them (no inferred parts, no treebank check); that is not the
 published build. What the corpus tables decided is written to
 `data/ag_verb_generation_audit.json`: the content hash of `form_profile.db`
 and the sha256 of the other inputs, the inferred cells by verb with the kind
-of inference and the simplex, the cells two verbs inferred, and the cells
-left to a treebank reading, each with that reading and the kind of stem
-(`printed`, `derived`, `inferred`).
+of inference and the simplex, the cells two verbs inferred, the cells left
+to a treebank reading, each with that reading and the kind of stem
+(`printed`, `derived`, `inferred`), and the present cells that went to a
+printed part.
 
 ## Finite-form synthesis
 
