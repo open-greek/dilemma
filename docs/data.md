@@ -776,13 +776,15 @@ Five attested cells that are forms of another word are withheld by review
 `-γνώμων`), `ὑψίνους` (the contracted `ὑψίνοος`) and `φιλητέων` (Ionic
 genitive plural of `φιλητής`).
 
-The 1.3.27 build declines 16,640 `-ος` lemmas this way (178 keys for 32
-nouns, 93,852 for 13,497 adjectives of two endings or an unsettled
-feminine, 23,319 for 1,802 with a feminine in `-η`, 13,968 for 1,309 with
-one in `-α`) and adds 1,082 keys for 185 `-ής` adjectives: 132,399 keys in
-all, and no other row changes. Few nouns gain cells because most listed
-nouns already have a table, and the cells of the rest mostly read as a
-Modern Greek word of the same spelling. Of the cells, 2,147 (1.6%) occur in
+The 1.3.27 build declines 16,674 `-ος` lemmas this way (178 keys for 32
+nouns, 93,873 for 13,529 adjectives of two endings or an unsettled
+feminine, 23,301 for 1,802 with a feminine in `-η`, 13,953 for 1,311 with
+one in `-α`) and adds 1,082 keys for 185 `-ής` adjectives: 132,387 keys in
+all. Few nouns gain cells because most listed nouns already have a table,
+and the cells of the rest mostly read as a Modern Greek word of the same
+spelling. The measurements that follow are from a build of these two rules
+alone on the 1.3.26 inputs (132,399 keys, with no other row changed). Of
+the cells, 2,147 (1.6%) occur in
 the form-attestation corpora (3,801 tokens). With `guess=False`, 89,894 of
 them had no answer before, 36,330 already resolved to the same lemma through
 a fallback, and 6,175 resolved to another word through a respelling fallback

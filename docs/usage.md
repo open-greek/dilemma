@@ -1075,7 +1075,7 @@ evidence. Without either source, the existing exact POS scope is retained.
 
 The builder also keeps one agreeing vote for each verb that no POS table
 would otherwise name as a verb (`verb_witness_cells` in the audit, about
-15,400). The runtime takes its known verb lemmas from the VERB and AUX cells,
+15,500). The runtime takes its known verb lemmas from the VERB and AUX cells,
 and its verb-only fallbacks, such as an oblique participle read through its
 nominative, accept a lookup reading only for such a lemma; without the cell a
 verb stopped being known when the lookup row that disagreed with its votes

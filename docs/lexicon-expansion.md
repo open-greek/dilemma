@@ -614,9 +614,9 @@ when it is built from an older local pair file.
    keeps the cells a corpus attests
    ([Principal parts that no entry prints](#principal-parts-that-no-entry-prints)).
 
-794 of the 28,503 LSJ-only verb candidates receive at least one parsed
+794 of the 28,493 LSJ-only verb candidates receive at least one parsed
 principal part through path 2 (217 of them from the earlier export), and
-27,754 candidates are expanded.
+27,747 candidates are expanded.
 
 The entry text is found by the headword's spelling. The headword list drops
 quantity marks, and prints `θρώσκω` for the entry `θρῴσκω`, while the glosses
@@ -698,7 +698,7 @@ Most LSJ verbs print no principal parts: a compound leaves them to its
 simplex, a denominative to its class. Such a verb had its present system
 only, so `εἰκόνισεν` had no Ancient row. The pass states the missing parts
 as hypotheses and keeps the cells a corpus attests. On the 1.3.26 inputs,
-8,206 compounds take parts from a simplex and 12,443 verbs from their class;
+8,206 compounds take parts from a simplex and 12,439 verbs from their class;
 8,953 of them keep at least one cell, 50,329 cells in all (99,405 keys with
 the unaccented spellings).
 
