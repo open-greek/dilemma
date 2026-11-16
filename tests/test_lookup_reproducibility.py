@@ -170,12 +170,15 @@ builder.build()
         # A listed second-declension word that no table declines gains its
         # cells: a headword-list noun under the noun source, a Byzantine
         # adjective (which reaches only the combined table) under the
-        # adjective source. A stem of three letters is not declined.
-        assert rows["κόσμου"] == rows["κοσμου"] == rows["κόσμοις"] == "κόσμος"
+        # adjective source. A stem of three letters is not declined, and
+        # these cells have no accentless key.
+        assert rows["κόσμου"] == rows["κόσμοις"] == "κόσμος"
         assert origin["κόσμου|all"] == "grc_noun_gaps"
-        assert rows["ἐμφλόγου"] == rows["εμφλογου"] == rows["ἔμφλογα"] == "ἔμφλογος"
+        assert rows["ἐμφλόγου"] == rows["ἔμφλογα"] == "ἔμφλογος"
         assert origin["ἐμφλόγου|all"] == "grc_adjective_gaps"
         assert "νόμου" not in rows and "ἔμφλογε" not in rows
+        assert "κοσμου" not in rows and "εμφλογου" not in rows
+        assert "δυσπενθους" not in rows
         # An -ής adjective with an Ionic genitive gains its contracted cells.
         assert rows["δυσπενθοῦς"] == rows["δυσπενθεῖς"] == "δυσπενθής"
         assert origin["δυσπενθοῦς|all"] == "grc_adjective_gaps"

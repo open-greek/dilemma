@@ -14,9 +14,10 @@ import pytest
 from dilemma import core
 from dilemma.grc_noun_gaps import fill_gap_cells
 from dilemma.grc_os_gaps import (
-    ADJECTIVE_SOURCE, CLASSES, KINDS, MIN_STEM_LETTERS, NOUN_SOURCE,
-    accent_type, genitive_singular, has_only_initial_breathing, os_cells,
-    os_paradigms, read_classes, select_os_lemmas,
+    ADJECTIVE_SOURCE, CLASSES, KINDS, MIN_STEM_LETTERS, NOT_DECLINED,
+    NOUN_SOURCE, RIVAL_KIND, WITHHELD_CELLS, accent_type, genitive_singular,
+    has_only_initial_breathing, os_cells, os_paradigms, os_rivals,
+    read_classes, rival_paradigms, select_os_lemmas,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -112,9 +113,15 @@ def test_an_accent_that_lands_on_iota_after_a_vowel_takes_the_diaeresis():
         "λαΐνου", "λαΐνῳ", "λάινον"]
     assert genitive_singular("γήινος") == "γηΐνου"
     assert genitive_singular("πρώιος") == "πρωΐου"
+    assert genitive_singular("μονόιππος") == "μονοΐππου"
+    assert genitive_singular("ἄυπνος") == "ἀΰπνου"
     # A diphthong keeps its accent on the second letter.
     assert genitive_singular("ἀρχαῖος") == "ἀρχαίου"
     assert genitive_singular("ἄνοικος") == "ἀνοίκου"
+    # After a diphthong the ι is a syllable already: no diaeresis.
+    assert genitive_singular("εὔιος") == "εὐίου"
+    assert genitive_singular("φιλεύιος") == "φιλευίου"
+    assert genitive_singular("οὐῖκος") == "οὐίκου"
 
 
 def test_words_the_rule_does_not_decline():
@@ -153,6 +160,34 @@ def test_selection_takes_listed_heads_that_no_table_declines():
     assert MIN_STEM_LETTERS == 4
 
 
+def test_reviewed_lemmas_are_not_declined():
+    # Byzantine headwords whose cells are forms of μέγας, τοσοῦτος and of a
+    # compound of τοιοῦτος: μεγάλον would read as μεγάλος.
+    assert set(NOT_DECLINED) == {"μεγάλος", "τοσαῦτος", "μισοτοιοῦτος"}
+    assert all(len(reason) > 20 for reason in NOT_DECLINED.values())
+    lookup = {lemma: lemma for lemma in NOT_DECLINED} | {"μεγάλου": "μέγας"}
+    listed = {lemma: "adjective" for lemma in NOT_DECLINED}
+    assert select_os_lemmas(lookup, listed) == {}
+
+
+def test_reviewed_cells_are_not_generated():
+    assert all(len(reason) > 20 for reason in WITHHELD_CELLS.values())
+    selected = {"σιδηρόποδος": "adjective", "κακόγνωμος": "adjective",
+                "ὑψίνος": "adjective", "φιλητέος": "adjective_alpha"}
+    cells = {lemma: [form for form, _ in rows]
+             for _, lemma, rows in os_paradigms(selected)}
+    for lemma, form in (("σιδηρόποδος", "σιδηροπόδων"),
+                        ("κακόγνωμος", "κακόγνωμον"),
+                        ("ὑψίνος", "ὑψίνους"), ("φιλητέος", "φιλητέων")):
+        assert form in WITHHELD_CELLS
+        assert form in [cell for cell, _ in os_cells(lemma, selected[lemma])]
+        assert form not in cells[lemma]
+    # The lemma's other cells are generated.
+    assert "σιδηροπόδου" in cells["σιδηρόποδος"]
+    assert "κακογνώμου" in cells["κακόγνωμος"]
+    assert "φιλητέα" in cells["φιλητέος"]
+
+
 def test_a_genitive_from_a_corpus_or_a_modern_row_is_no_table():
     lookup = {"ψευδηγόρος": "ψευδηγόρος", "ψευδηγόρου": "ψευδηγόρος",
               "νοερός": "νοερός", "νοεροῦ": "νοερός",
@@ -175,9 +210,11 @@ def test_cells_fill_absent_keys_and_keep_other_readings():
     selected = {"ἔμφλογος": "adjective", "δικός": "adjective_eta",
                 "νοερός": "adjective_alpha"}
     added = fill_gap_cells(lookup, os_paradigms(selected), strict=KINDS)
-    # accented and accentless keys
-    assert lookup["ἐμφλόγου"] == lookup["εμφλογου"] == "ἔμφλογος"
-    assert lookup["ἔμφλογα"] == lookup["εμφλογα"] == "ἔμφλογος"
+    # The accented key only: the accentless key would answer every other
+    # accentuation of the letters too.
+    assert lookup["ἐμφλόγου"] == lookup["ἔμφλογα"] == "ἔμφλογος"
+    assert "εμφλογου" not in lookup and "εμφλογα" not in lookup
+    assert all(row["form"] != core.strip_accents(row["form"]) for row in added)
     # an existing reading is kept, and its cell is added under no key
     assert lookup["ἐμφλόγῳ"] == "ἐμφλογόω" and "εμφλογω" not in lookup
     # δικῆς differs from δίκης in its accent only: in a text it is that word
@@ -195,6 +232,17 @@ def test_without_the_strict_gate_the_accentless_key_is_not_weighed():
     lookup = {"δικός": "δικός", "δίκης": "δίκη", "δικης": "δίκη"}
     fill_gap_cells(lookup, os_paradigms({"δικός": "adjective_eta"}))
     assert lookup["δικῆς"] == "δικός" and lookup["δικης"] == "δίκη"
+    # ... and the accentless key is stored, as for the -σις cells.
+    assert lookup["δικου"] == "δικός"
+
+
+def test_a_strict_cell_is_stored_under_its_form_and_its_lowercase():
+    lookup = {}
+    added = fill_gap_cells(
+        lookup, [("os_noun", "Ἔμφλογος", [("Ἐμφλόγου", "genitive singular")])],
+        strict=KINDS)
+    assert {row["form"] for row in added} == {"Ἐμφλόγου", "ἐμφλόγου"}
+    assert "εμφλογου" not in lookup
 
 
 def test_accent_doublets_leave_their_shared_cells_to_neither():
@@ -208,6 +256,71 @@ def test_accent_doublets_leave_their_shared_cells_to_neither():
     assert "ευπροσοδον" not in lookup
 
 
+def test_an_accent_doublet_that_is_not_declined_keeps_shared_cells_out():
+    # εὐπρόσοδος is listed, but its headword key reads as the name, so it is
+    # not selected. Its Byzantine by-form must not take εὐπροσόδων from it.
+    lookup = {"εὐπρόσοδος": "Εὐπρόσοδος", "εὐπροσόδος": "εὐπροσόδος",
+              "ταχυλόγος": "ταχυλόγος", "ταχύλογος": "ταχύλογος",
+              "μετωπιαῖος": "μετωπιαῖος", "μετωπιαίος": "μετωπιαίος",
+              "ἔμφλογος": "ἔμφλογος", "Ἔμφλογος": "Ἔμφλογος"}
+    sources = {"ταχύλογος": "vlg_headwords", "μετωπιαίος": "wiktionary_el"}
+    listed = {"εὐπρόσοδος": "adjective", "εὐπροσόδος": "adjective",
+              "ταχυλόγος": "adjective", "μετωπιαῖος": "adjective_alpha",
+              "ἔμφλογος": "adjective"}
+    selected = select_os_lemmas(lookup, listed, sources.get)
+    assert sorted(selected) == [
+        "εὐπροσόδος", "μετωπιαῖος", "ταχυλόγος", "ἔμφλογος"]
+    rivals = os_rivals(lookup, listed, selected, sources.get)
+    # A listed word, and a head of an Ancient source that no lexicon
+    # classes. The Modern Greek head and the name are no rivals.
+    assert rivals == {"εὐπρόσοδος": "adjective", "ταχύλογος": None}
+    assert os_rivals(lookup, listed, selected) == {
+        "εὐπρόσοδος": "adjective", "ταχύλογος": None, "μετωπιαίος": None}
+    paradigms = list(rival_paradigms(rivals))
+    assert [(kind, word) for kind, word, _ in paradigms] == [
+        (RIVAL_KIND, "εὐπρόσοδος"), (RIVAL_KIND, "ταχύλογος")]
+    # A rival without a class claims the cells of three endings, with the
+    # feminine its stem takes (-η here; -α after ε, ι, ρ).
+    assert "ταχυλόγης" in dict(paradigms[1][2])
+    assert "ταχυλόγα" not in dict(paradigms[1][2])
+    assert "εὐπροσόδης" not in dict(paradigms[0][2])
+    assert "πορδαλέας" in dict(next(iter(rival_paradigms({"πορδαλέος": None})))[2])
+    added = fill_gap_cells(
+        lookup, [*os_paradigms(selected), *paradigms],
+        strict=KINDS, claims_only={RIVAL_KIND})
+    for form in ("εὐπροσόδων", "εὐπροσόδου", "ταχυλόγου", "ταχυλόγοις"):
+        assert form not in lookup, form
+    # Where the accent tells the two apart the declined word has its cell,
+    # and the rival fills nothing.
+    assert lookup["εὐπροσόδον"] == "εὐπροσόδος"
+    assert lookup["ταχυλόγον"] == lookup["ταχυλόγα"] == "ταχυλόγος"
+    assert "εὐπρόσοδον" not in lookup and "ταχύλογον" not in lookup
+    assert lookup["μετωπιαίοις"] == "μετωπιαῖος"
+    assert lookup["ἐμφλόγου"] == "ἔμφλογος"
+    assert RIVAL_KIND not in {row["kind"] for row in added}
+
+
+def test_claims_only_cells_skip_the_reading_checks():
+    # The accentless key reads as the declined word, so the rival's cell
+    # would fail the reading check. A claim is not checked: it says the key
+    # is ambiguous and nothing more.
+    cells = [("ταχυλόγου", "genitive singular")]
+    lookup = {"ταχυλογου": "ταχυλόγος"}
+    kinds = {"os_adjective", RIVAL_KIND}
+    assert fill_gap_cells(
+        lookup, [("os_adjective", "ταχυλόγος", cells),
+                 (RIVAL_KIND, "ταχύλογος", cells)],
+        strict=kinds, claims_only={RIVAL_KIND}) == []
+    assert fill_gap_cells(
+        lookup, [(RIVAL_KIND, "ταχύλογος", cells)],
+        strict=kinds, claims_only={RIVAL_KIND}) == []
+    assert lookup == {"ταχυλογου": "ταχυλόγος"}
+    # Without the rival the cell is filled.
+    assert [row["form"] for row in fill_gap_cells(
+        lookup, [("os_adjective", "ταχυλόγος", cells)],
+        strict=kinds)] == ["ταχυλόγου"]
+
+
 def test_fill_does_not_depend_on_input_order():
     def run(lemmas):
         lookup = {lemma: lemma for lemma in lemmas}
@@ -215,6 +328,19 @@ def test_fill_does_not_depend_on_input_order():
         return fill_gap_cells(lookup, os_paradigms(selected), strict=KINDS)
     lemmas = ["ἔμφλογος", "κολοβόρινος", "αὐτοσύστατος"]
     assert run(lemmas) == run(list(reversed(lemmas)))
+
+    def run_rivals(pairs):
+        lookup = dict(pairs)
+        listed = {"ταχυλόγος": "adjective"}
+        selected = select_os_lemmas(lookup, listed)
+        rivals = os_rivals(lookup, listed, selected)
+        return rivals, fill_gap_cells(
+            lookup, [*os_paradigms(selected), *rival_paradigms(rivals)],
+            strict=KINDS, claims_only={RIVAL_KIND})
+    pairs = [("ταχυλόγος", "ταχυλόγος"), ("ταχύλογος", "ταχύλογος"),
+             ("ταχυλογός", "ταχυλογός")]
+    assert run_rivals(pairs) == run_rivals(list(reversed(pairs)))
+    assert list(run_rivals(pairs)[0]) == ["ταχυλογός", "ταχύλογος"]
 
 
 def test_sources_by_class():
@@ -410,10 +536,19 @@ def test_shipped_cells_keep_other_words_readings():
     # ἀδράνεον, which the verb ἀδρανέω has as an unaugmented imperfect.
     for form in ("ἐμφλόγω", "ἔμφλογε", "ζῆναι", "ὕπου", "δικῆς", "ἀδράνεον"):
         assert form not in rows, form
+    # No accentless key, no cell shared with an accent doublet, no cell of a
+    # reviewed lemma and no reviewed cell.
+    for form in ("εμφλογου", "κολοβορινον", "οικτον", "εὐπροσόδων",
+                 "μεγάλον", "τοσαύτων", "σιδηροπόδων", "κακόγνωμον"):
+        assert form not in rows, form
     model = _model("grc")
     assert model.lemmatize("δίκης", guess=False) == "δίκη"
     assert model.lemmatize("λόγου", guess=False) == "λόγος"
     assert model.lemmatize("ἀδράνεον", guess=False) == "ἀδρανέω"
+    # οἴκτον is οἶκτον with another accent, not a form of οἰκτός.
+    assert model.lemmatize("οἴκτον", guess=False) == "οἶκτος"
+    assert model.lemmatize("μεγάλον", guess=False) == "μέγας"
+    assert model.lemmatize("τοσαύτων", guess=False) == "τοσοῦτος"
     # The cells added in 1.3.25 are untouched.
     assert rows["στέφους"] == "στέφος|grc_noun_gaps"
     assert rows["σκιφους"] == "σκίφος|grc_noun_gaps"

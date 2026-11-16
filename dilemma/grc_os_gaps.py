@@ -24,8 +24,9 @@ its acute to the penult before a long ultima (ἔμφλογος, ἐμφλόγο
 ἔμφλογον, ἔμφλογοι, ἔμφλογα: final -οι and -αι count as short), and a
 properispomenon takes the acute there (σπουδαῖος, σπουδαίου, σπουδαῖον).
 The feminine genitive plural of an adjective is the masculine's (δικαίων).
-An acute that lands on ι or υ right after another vowel takes the diaeresis
-(λάινος, λαΐνου; γήινος, γηΐνου).
+An acute that lands on ι or υ right after a vowel that is a syllable of its
+own takes the diaeresis (λάινος, λαΐνου; γήινος, γηΐνου); after a diphthong
+it does not (εὔιος, εὐίου).
 
 Two kinds of cell are left out. The dual: of 16,073 genitive-dative duals a
 trial generated, the corpora attest 4, and the attested forms in -ω are
@@ -36,7 +37,17 @@ is a verb), the same finding that keeps the -σις vocative out.
 
 Stems in -ο (εὔνοος, ἀθρόος) contract in Attic and are not declined.
 ``select_os_lemmas`` decides which listed lemmas are declined and
-``grc_noun_gaps.fill_gap_cells`` which of their cells fill a key.
+``grc_noun_gaps.fill_gap_cells`` which of their cells fill a key. A cell is
+stored under its accented form only: these are rare headwords, and the same
+letters with another accent are as often another word or a misprint (οἴκτον
+is οἶκτον, of οἶκτος, not a form of οἰκτός).
+
+Accent doublets share cells: εὐπροσόδος, a Byzantine by-form, and εὐπρόσοδος
+both have εὐπροσόδου, εὐπροσόδων. When both are declined here neither takes
+such a cell, and the same holds when the other word is not declined here at
+all, because its headword key reads as a name or as another lemma or because
+no lexicon gives its class: ``os_rivals`` finds those words and their cells
+claim keys without filling any (``RIVAL_KIND``).
 """
 from __future__ import annotations
 
@@ -44,13 +55,17 @@ from collections.abc import Callable, Iterable, Mapping
 import unicodedata
 
 from dilemma.grc_noun_gaps import (
-    ACUTE, ANCIENT_TABLE_SOURCES, CIRCUMFLEX, GRAVE,
+    ACUTE, ANCIENT_TABLE_SOURCES, CIRCUMFLEX, GRAVE, MODERN_SOURCES,
     _needs_breathing_and_lacks_it, is_plain_lemma, strip_accents)
 
 CLASSES = ("noun", "adjective", "adjective_eta", "adjective_alpha")
 # The kinds ``os_paradigms`` gives ``grc_noun_gaps.fill_gap_cells``, which
-# weighs the accentless key of their cells too (its ``strict``).
+# weighs the accentless key of their cells too and stores no cell under it
+# (its ``strict``).
 KINDS = frozenset("os_" + name for name in CLASSES)
+# The kind of the cells of ``os_rivals`` words, which claim keys and fill
+# none (``claims_only`` of ``fill_gap_cells``).
+RIVAL_KIND = "os_rival"
 # Lookup sources of the generated rows, by class.
 NOUN_SOURCE = "grc_noun_gaps"
 ADJECTIVE_SOURCE = "grc_adjective_gaps"
@@ -64,6 +79,30 @@ DECLINING_SOURCES = ANCIENT_TABLE_SOURCES | {"lbg_generated"}
 # elided λέγουσ᾽ or a misprint, not a form of λέγος), and ὕπου and ζῆναι
 # are likewise other words that would read as ὕπος and ζῆνος.
 MIN_STEM_LETTERS = 4
+# Reviewed listed lemmas that are not declined, with the reason. Each is a
+# Byzantine headword whose cells are forms of a pronominal or suppletive
+# word that the tables decline under its own lemma.
+NOT_DECLINED = {
+    "μεγάλος": "the oblique stem of μέγας as a headword: the table reads "
+               "μεγάλου and μεγάλοι as μέγας, and μεγάλον is its late "
+               "accusative",
+    "τοσαῦτος": "a by-form read off τοσαύτη, τοσαῦτα: in the texts "
+                "τοσαύτων is the late feminine genitive plural of τοσοῦτος",
+    "μισοτοιοῦτος": "a compound of τοιοῦτος, whose stem changes in the "
+                    "declension (τοιαῦτα, τοιαύτη): the regular -οῦτα "
+                    "does not exist",
+}
+# Reviewed cells that are not generated, with the reason: the corpora attest
+# the form, and there it is a form of another word.
+WITHHELD_CELLS = {
+    "σιδηροπόδων": "genitive plural of σιδηρόπους; σιδηρόποδος is its "
+                   "Byzantine by-form",
+    "κακόγνωμον": "neuter of κακογνώμων; κακόγνωμος is its by-form",
+    "καλόγνωμον": "neuter of καλογνώμων; καλόγνωμος is its by-form",
+    "ὑψίνους": "the contracted ὑψίνοος, not an accusative plural of ὑψίνος",
+    "φιλητέων": "Ionic genitive plural of φιλητής (φηλητής, a thief), not "
+                "of the verbal adjective φιλητέος",
+}
 
 _VOWELS = frozenset("αεηιουω")
 _BREATHINGS = frozenset(("̓", "̔"))
@@ -203,10 +242,13 @@ def _penult_acute_stem(lemma: str) -> str | None:
     last = nuclei[-1]
     target = clusters[last[-1]]
     base = target[0].lower()
-    if (len(last) == 1 and base in _HIATUS_FIRST and last[0] > 0
+    if (len(last) == 1 and base in _HIATUS_FIRST
+            and len(nuclei) > 1 and nuclei[-2] == [last[0] - 1]
             and clusters[last[0] - 1][0].lower() in _HIATUS_FIRST[base]
             and _DIAERESIS not in target):
-        # The acute leaves the vowel that showed the hiatus.
+        # The acute leaves the vowel that showed the hiatus. The vowel
+        # before must be a syllable of its own: after a diphthong (εὔιος,
+        # εὐίου) nothing can join the ι, and no diaeresis is written.
         target.append(_DIAERESIS)
     target.append(ACUTE)
     return _nfc("".join(ch for cluster in clusters for ch in cluster))
@@ -274,9 +316,10 @@ def select_os_lemmas(
     ``listed`` maps a lemma to its class (data/grc_second_declension.json).
     A lemma is declined here when it is a plain lowercase head that maps to
     itself in ``lookup``, has the breathing its first letter needs and no
-    other, has a stem of at least ``MIN_STEM_LETTERS`` letters, and no table
-    gives its genitive singular in -ου: a table that gives the genitive
-    declines the word already, and its gaps are its own business.
+    other, has a stem of at least ``MIN_STEM_LETTERS`` letters, is not one
+    of the reviewed ``NOT_DECLINED``, and no table gives its genitive
+    singular in -ου: a table that gives the genitive declines the word
+    already, and its gaps are its own business.
 
     ``source_of`` gives a key's lookup source code. With it, only a genitive
     from a ``DECLINING_SOURCES`` row counts as a table's: a corpus pair or a
@@ -286,6 +329,7 @@ def select_os_lemmas(
     selected = {}
     for lemma in sorted(listed):
         if (lookup.get(lemma) != lemma or not is_plain_lemma(lemma)
+                or lemma in NOT_DECLINED
                 or _needs_breathing_and_lacks_it(lemma)
                 or not has_only_initial_breathing(lemma)
                 or len(strip_accents(lemma)) - 2 < MIN_STEM_LETTERS):
@@ -309,6 +353,59 @@ def read_classes(record: Mapping) -> dict[str, str]:
 
 
 def os_paradigms(selected: Mapping[str, str]) -> Iterable[tuple[str, str, list]]:
-    """(kind, lemma, cells) for ``grc_noun_gaps.fill_gap_cells``."""
+    """(kind, lemma, cells) for ``grc_noun_gaps.fill_gap_cells``, without
+    the reviewed ``WITHHELD_CELLS``."""
     for lemma in sorted(selected):
-        yield "os_" + selected[lemma], lemma, os_cells(lemma, selected[lemma])
+        yield "os_" + selected[lemma], lemma, [
+            (form, cell) for form, cell in os_cells(lemma, selected[lemma])
+            if form not in WITHHELD_CELLS]
+
+
+def os_rivals(
+        lookup: Mapping[str, str],
+        listed: Mapping[str, str],
+        selected: Mapping[str, str],
+        source_of: Callable[[str], str | None] | None = None,
+        ) -> dict[str, str | None]:
+    """Words with a selected lemma's letters that are not declined here:
+    word -> class, None when no lexicon gives it.
+
+    A rival is a plain lowercase word, another accentuation or spelling of
+    a selected lemma's letters, that the sources know as a word: a listed
+    word that was not selected (εὐπρόσοδος, whose headword key reads as the
+    name Εὐπρόσοδος), or a self-mapped head of ``lookup`` from a source
+    outside ``MODERN_SOURCES`` (``source_of`` gives a key's source code;
+    without it every self-mapped head counts). A Modern Greek head is no
+    rival: its monotonic spelling of an Ancient cell (μετωπιαίοις) is that
+    cell. Which cells the two words share is left to ``fill_gap_cells``.
+    """
+    letters = {strip_accents(lemma).lower() for lemma in selected}
+
+    def is_rival(word: str) -> bool:
+        return (word not in selected and is_plain_lemma(word)
+                and strip_accents(word).lower() in letters)
+
+    rivals = {word for word in listed if is_rival(word)}
+    for key, lemma in lookup.items():
+        if (key == lemma and key.endswith("ς") and key not in rivals
+                and is_rival(key)
+                and (source_of is None
+                     or source_of(key) not in MODERN_SOURCES)):
+            rivals.add(key)
+    return {word: listed.get(word) for word in sorted(rivals)}
+
+
+def rival_paradigms(
+        rivals: Mapping[str, str | None]) -> Iterable[tuple[str, str, list]]:
+    """(``RIVAL_KIND``, word, cells) of the ``os_rivals`` words.
+
+    The cells of the word's class. A word no lexicon classes claims the
+    cells of an adjective of three endings, which include those of every
+    other class: the feminine in -α after ε, ι or ρ, in -η otherwise.
+    """
+    for word in sorted(rivals):
+        declension = rivals[word] or (
+            "adjective_alpha"
+            if strip_accents(word)[-3:-2] in ("ε", "ι", "ρ")
+            else "adjective_eta")
+        yield RIVAL_KIND, word, os_cells(word, declension)

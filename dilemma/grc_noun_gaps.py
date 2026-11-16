@@ -283,7 +283,8 @@ def fill_gap_cells(
         *,
         taken: Mapping[str, object] | None = None,
         variants: Callable[[str], Iterable[str]] | None = None,
-        strict: Container[str] = ()) -> list[dict]:
+        strict: Container[str] = (),
+        claims_only: Container[str] = ()) -> list[dict]:
     """Fill absent keys with generated cells; return one row per added key.
 
     ``paradigms`` yields (kind, lemma, cells), ``cells`` being (form, cell
@@ -295,36 +296,56 @@ def fill_gap_cells(
     ``reading_spellings``) already reads as another lemma is not added under
     any key: the new accented key would hide the reading the runtime gave
     the form through that spelling (λαθῶν, whose monotonic λαθών reads
-    λανθάνω). For the kinds in ``strict`` the accentless key is weighed the
-    same way: their lemmas are rare headwords, and a cell that differs only
-    in its accent from a form of a known word is, in the texts, that word
-    with a misprinted accent (δικῆς for δίκης, not the feminine of δικός).
+    λανθάνω).
+
+    The kinds in ``strict`` are paradigms of rare headwords, and two rules
+    are tighter for them. The accentless key is weighed like the other
+    spellings: a cell that differs only in its accent from a form of a known
+    word is, in the texts, that word with a misprinted accent (δικῆς for
+    δίκης, not the feminine of δικός). And the cell is stored under its
+    accented form and its lowercase only, never under the accentless key:
+    that key answers every accentuation of the letters, and for a rare
+    headword the other accentuations in the texts are as often another word
+    or a misprint as this one (οἴκτον is οἶκτον, not a form of οἰκτός).
+
     When two lemmas of one call give the same absent key, neither takes it:
-    the key is ambiguous and the table has no evidence to choose. A later
-    call finds the keys of an earlier one in ``lookup`` and leaves them.
+    the key is ambiguous and the table has no evidence to choose. The kinds
+    in ``claims_only`` take part in that rule and nothing else: their cells
+    claim keys, without the checks above, and never fill one (the accent
+    doublets of dilemma/grc_os_gaps.py). A later call finds the keys of an
+    earlier one in ``lookup`` and leaves them.
     """
     taken = taken or {}
     variants = variants or reading_spellings
-    claims: dict[str, list[tuple[str, str, str]]] = {}
+    # key -> {lemma: (cell, kind)}; a lemma's own cell replaces its claim.
+    claims: dict[str, dict[str, tuple[str, str]]] = {}
     for kind, lemma, cells in paradigms:
+        claim_only = kind in claims_only
         for form, cell in cells:
-            spellings = list(variants(form))
-            if kind in strict:
-                spellings.append(strip_accents(form).lower())
-            if any(lookup.get(spelling, lemma) != lemma for spelling in spellings):
-                continue
-            for key in _spellings(form):
+            keys = (tuple(dict.fromkeys((form, form.lower())))
+                    if kind in strict else _spellings(form))
+            if not claim_only:
+                spellings = list(variants(form))
+                if kind in strict:
+                    spellings.append(strip_accents(form).lower())
+                if any(lookup.get(spelling, lemma) != lemma
+                       for spelling in spellings):
+                    continue
+            for key in keys:
                 if key in lookup or key in taken:
                     continue
-                rows = claims.setdefault(key, [])
-                if all(row[0] != lemma for row in rows):
-                    rows.append((lemma, cell, kind))
+                rows = claims.setdefault(key, {})
+                if lemma not in rows or (
+                        rows[lemma][1] in claims_only and not claim_only):
+                    rows[lemma] = (cell, kind)
     added = []
     for key in sorted(claims):
         rows = claims[key]
         if len(rows) != 1:
             continue
-        lemma, cell, kind = rows[0]
+        (lemma, (cell, kind)), = rows.items()
+        if kind in claims_only:
+            continue
         lookup[key] = lemma
         added.append({"form": key, "lemma": lemma, "cell": cell, "kind": kind})
     return added

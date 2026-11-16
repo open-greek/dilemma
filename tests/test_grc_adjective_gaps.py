@@ -154,8 +154,10 @@ def test_es_cells_fill_absent_keys_and_keep_other_readings():
               "δυσπενθῶν": "δυσπενθέω", "δυσπενθων": "δυσπενθέω",
               "δυσπενθει": "δυσπενθέω"}
     added = fill_gap_cells(lookup, es_paradigms(["δυσπενθής"]), strict={ES_KIND})
-    assert lookup["δυσπενθοῦς"] == lookup["δυσπενθους"] == "δυσπενθής"
-    assert lookup["δυσπενθεῖς"] == lookup["δυσπενθές"] == "δυσπενθής"
+    assert lookup["δυσπενθοῦς"] == lookup["δυσπενθεῖς"] == "δυσπενθής"
+    assert lookup["δυσπενθές"] == "δυσπενθής"
+    # The accented key only.
+    assert "δυσπενθους" not in lookup and "δυσπενθες" not in lookup
     # The participle keeps δυσπενθῶν, and the dative that is the verb's form
     # but for its accent is not added.
     assert lookup["δυσπενθῶν"] == "δυσπενθέω"
