@@ -538,6 +538,10 @@ def test_overlay_adds_only_expansion_entries_and_preserves_current_values():
     ("παρά,εἰσ-δυάω", True),
     ("στρέφω—τρέπω", True),        # a dash between two words
     ("ἐμ\u0301-βλῴσκω", True),      # a stray accent before the hyphen
+    ("βου\u00adμα\u00adστόω", True),  # soft hyphens from LSJ9's headword list
+    ("γναμπτ\u00ad\u00adω", True),
+    ("ἐπιθρύξω—ἐω", True),
+    ("α-⏑β", False),
     ("Βακχεία", False),
     ("καθηδύνω", False),
     ("ὁτ-", False),                # a hyphen at either end is not inside
