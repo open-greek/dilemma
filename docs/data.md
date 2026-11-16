@@ -697,12 +697,17 @@ when one of them changes.
 `build_lookup_db.py` declines a listed lemma when it is a self-mapped head,
 its stem has at least four letters, and no dictionary table
 (`wiktionary_grc`, `grc_merged`, `grc_lexicon_expansion`, `lbg_generated`)
-gives its genitive singular in `-ου`. The cells are the genitive, dative and
+gives its genitive singular in `-ου`. Three reviewed heads are not declined
+(`NOT_DECLINED`): the Byzantine headwords `μεγάλος`, `τοσαῦτος` and
+`μισοτοιοῦτος`, whose cells are forms of `μέγας`, of `τοσοῦτος` and of a
+compound of `τοιοῦτος` (`μεγάλον` read `μέγας` before and still does). The
+cells are the genitive, dative and
 accusative singular and the four plural cases; an adjective adds the neuter
 plural in `-α`, and a three-ending adjective its feminine singular and
 plural. The accent is persistent (`ἐμφλόγου` but `ἔμφλογον`, `ἔμφλογοι`;
 `ἀγαθοῦ`, `ἀγαθῆς`; `σπουδαίου`), and an acute that lands on `ι` or `υ`
-after another vowel takes the diaeresis (`λάινος`, `λαΐνου`). Three kinds of
+after a vowel that is a syllable of its own takes the diaeresis (`λάινος`,
+`λαΐνου`; after a diphthong it does not: `εὔιος`, `εὐίου`). Three kinds of
 cell are left out on measurement. The dual: of 16,073 genitive-dative duals
 that a trial generated, the form-attestation corpora have 4. The vocative
 singular: they have 49 of 15,224, and two in five of those are other words
@@ -720,32 +725,74 @@ Greek, and no first-declension dictionary table (`δυσπενθέος`, so
 because `-ᾶ` is as common there (`ὑγιᾶ`).
 
 These cells are filled after the noun cells above, by the same rules and
-one more: a cell is not added when its accentless key already reads as
-another lemma. The lemmas are rare headwords, and a cell that differs from a
-form of a known word only in its accent is, in a text, more often that word
-(`δικῆς` beside `δίκης`, `οἰκτῶν` beside `οἴκτων`). The price is that some
-adjective forms keep the reading of a verb's form with the same letters:
-`αὐτονόητον` reads `αὐτονοέω` through the dual `αὐτονοῆτον`, and `ἀδράνεον`
-reads `ἀδρανέω`, whose unaugmented imperfect it also is. In a random sample
-of 200 attested cells, this rule withheld 39: 11 that would have been a
-wrong reading, 10 that would have corrected one, and 18 that already read as
-the same word, as a spelling of it, or could not be decided. The rows are
-recorded under `grc_noun_gaps` (nouns) and `grc_adjective_gaps`
-(adjectives).
+three more, because the lemmas are rare headwords. The rows are recorded
+under `grc_noun_gaps` (nouns) and `grc_adjective_gaps` (adjectives).
 
-The 1.3.27 build declines 17,296 `-ος` lemmas this way (373 keys for 50
-nouns, 189,087 for 14,004 adjectives of two endings or an unsettled
-feminine, 45,404 for 1,927 with a feminine in `-η`, 27,293 for 1,315 with
-one in `-α`) and adds 2,270 keys for 192 `-ής` adjectives: 264,427 keys in
+A cell is not added when its accentless key already reads as another lemma.
+A cell that differs from a form of a known word only in its accent is, in a
+text, more often that word (`δικῆς` beside `δίκης`, `οἰκτῶν` beside
+`οἴκτων`). The price is that some adjective forms keep the reading of a
+verb's form with the same letters: `αὐτονόητον` reads `αὐτονοέω` through the
+dual `αὐτονοῆτον`, `ἀδράνεον` reads `ἀδρανέω`, whose unaugmented imperfect
+it also is, and `θεοφόροις` reads `θεοφορέω` through the optative
+`θεοφοροῖς`. In a random sample of 200 attested cells, this rule withheld
+39: 11 that would have been a wrong reading, 10 that would have corrected
+one, and 18 that already read as the same word, as a spelling of it, or
+could not be decided. In all it withholds about 8,600 cells, 482 of them
+attested (1,150 tokens): 195 keep a verb's reading, which is mostly wrong
+(`διχρόνῳ`, `γαμοστόλου`) but right for the commonest (`παραίνων`, 66
+tokens, is the participle `παραινῶν`); 150 keep the reading of a word with
+the same letters, most often the Modern Greek spelling of the same word,
+which the runtime turns into the Ancient headword (`ἐνυποστάτου` reads
+`ἐνυπόστατος`); 137 keep another noun or a name.
+
+A cell is stored under its accented form (and its lowercase) only, without
+the accentless key that the cells above have. That key answers every other
+accentuation of the letters, and for these headwords the other accentuation
+is as often another word or a misprint. A trial with the keys changed the
+answer of 1,101 attested forms that are not a generated cell (1,407 tokens),
+343 of them from another reading; of 160 checked by hand about 62 were
+right, 38 wrong and 60 undecidable, and the wrong ones included readings
+that had been right (`οἴκτον`, 36 tokens, is `οἶκτον` and read `οἰκτός`;
+`ἅπατον`, `μέγαλον`). On the measured corpora the keys fixed one DBBE token
+and broke one. So unaccented input (`εμφλογου`) does not reach these cells.
+A grave accent and an enclitic's second accent do (`νοερὰν`, `ἔμφλογόν`):
+the runtime resolves those before the lookup.
+
+A cell that an accent doublet shares goes to neither word. `εὐπροσόδος`, a
+Byzantine by-form, and `εὐπρόσοδος` both have `εὐπροσόδου` and
+`εὐπροσόδων`. When both are declined here the shared key stays empty, as
+for the noun cells above, and it also does when the other word is known but
+not declined here (`os_rivals`): a listed word whose headword key reads as a
+name or as another lemma (`εὐπρόσοδος` reads `Εὐπρόσοδος`), or a self-mapped
+head from a source that is not Modern Greek and that no lexicon classes
+(`ταχύλογος` beside `ταχυλόγος`). On the 1.3.27 inputs 585 such words keep
+256 keys empty. A Modern Greek head is no rival: its monotonic spelling of
+an Ancient cell is that cell.
+
+Five attested cells that are forms of another word are withheld by review
+(`WITHHELD_CELLS`): `σιδηροπόδων` (of `σιδηρόπους`, not of the by-form
+`σιδηρόποδος`), `κακόγνωμον` and `καλόγνωμον` (neuters of the adjectives in
+`-γνώμων`), `ὑψίνους` (the contracted `ὑψίνοος`) and `φιλητέων` (Ionic
+genitive plural of `φιλητής`).
+
+The 1.3.27 build declines 16,640 `-ος` lemmas this way (178 keys for 32
+nouns, 93,852 for 13,497 adjectives of two endings or an unsettled
+feminine, 23,319 for 1,802 with a feminine in `-η`, 13,968 for 1,309 with
+one in `-α`) and adds 1,082 keys for 185 `-ής` adjectives: 132,399 keys in
 all, and no other row changes. Few nouns gain cells because most listed
 nouns already have a table, and the cells of the rest mostly read as a
-Modern Greek word of the same spelling. Of the 132,681 accented cells,
-2,381 (1.8%) occur in the form-attestation corpora. With `guess=False`,
-90,067 of them had no answer before, 36,403 already resolved to the same
-lemma through a fallback, and 6,211 resolved to another word through a
-respelling fallback (`ἀθήκτους` to `ἄτηκτος`) and now read as their own
-headword. A cell can still be another word: a rare headword's regular form
-may be a misprint of a common word that the table lacks.
+Modern Greek word of the same spelling. Of the cells, 2,147 (1.6%) occur in
+the form-attestation corpora (3,801 tokens). With `guess=False`, 89,894 of
+them had no answer before, 36,330 already resolved to the same lemma through
+a fallback, and 6,175 resolved to another word through a respelling fallback
+(`ἀθήκτους` to `ἄτηκτος`) and now read as their own headword. Of the
+attested ones, 233 (384 tokens) changed from another word's reading. Read by
+hand, nearly all are corrections (`κατώδυνον`, `τρισσῆς`, `παικτοῖς`) or
+another spelling of the same word; nine more that had been right before are
+not generated (the reviewed heads, cells and doublets above). A cell can
+still be another word: a rare headword's regular form may be a misprint of a
+common word that the table lacks.
 
 What stays undeclined: headwords known only as bare strings, with no class
 in LSJ 9 or the Byzantine list (the VLG, Words in Progress and LSJ 10th

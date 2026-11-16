@@ -18,7 +18,8 @@ only (δυσπενθέος, δυσπενθέϊ, δυσπενθέες), so the At
 with an accented -έος row under it is such an adjective: no noun in -ής has
 that genitive (ποιητής has -οῦ, ἐσθής -ῆτος). ``es_cells`` gives its
 contracted cells and ``select_es_adjectives`` the lemmas; the keys are filled
-by ``grc_noun_gaps.fill_gap_cells``.
+by ``grc_noun_gaps.fill_gap_cells``, under the accented form only (its
+``strict`` kinds).
 """
 from __future__ import annotations
 
