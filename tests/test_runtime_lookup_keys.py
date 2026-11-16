@@ -1,10 +1,13 @@
-"""Runtime lookup keys: marked double rho, capitalized loose keys.
+"""Runtime lookup keys: marked double rho, capitalized loose keys, respellings.
 
 #141, #134: a double rho printed with breathings (ῤῥ) is read as plain ρρ
 (ἀπεῤῥάγησαν, Βοῤῥᾶ PROPN).
 #141: a capitalized word also tries its monotonic and accent-stripped keys
 with the capital, where the generated paradigms put them, for a capitalized
 Ancient head (Σαμαρείτις).
+The Byzantine respelling fallback prefers a respelling that reads a row as
+it is written over one that also needs its accents changed, whatever the
+rule order (αναγνώστει).
 """
 
 import unicodedata
@@ -208,3 +211,50 @@ def test_shipped_capitalized_stripped_key(shipped_models, lang):
         assert model.lemmatize_batch(
             ["Ὀλυμπιακοὺς", "Ἑξαπλᾶ"], guess=False) == [
             "Ὀλυμπιακός", "ἑξαπλόος"]
+
+
+# ------------------------------------------------- respelling order
+
+def test_lookup_steps_run_alone(model_from):
+    model = model_from({"λόγου": "λόγος", "λογου": "λογάς", "ἀγαθῇ": "ἀγαθός",
+                        "αγαθή": "αγαθός"})
+    own, mono, stripped = (model._OWN_ROWS, model._MONOTONIC_KEY,
+                           model._STRIPPED_KEY)
+    assert model._lookup_word("λόγου", step=own) == "λόγος"
+    assert model._lookup_word("λόγου", step=stripped) == "λογάς"
+    assert model._lookup_word("λογοῦ", step=own) is None
+    assert model._lookup_word("λογοῦ", step=mono) is None
+    assert model._lookup_word("λογοῦ", step=stripped) == "λογάς"
+    assert model._lookup_word("λογοῦ") == "λογάς"
+    assert model._lookup_word("αγαθῆ", step=own) is None
+    assert model._lookup_word("αγαθῆ", step=mono) == "αγαθός"
+    assert model._lookup_word("αγαθῆ") == "αγαθός"
+
+
+def test_respelling_with_its_own_row_beats_an_earlier_loose_one(model_from):
+    from dilemma.normalize import Normalizer
+
+    respellings = list(Normalizer(period="byzantine").normalize("αναγνώστει"))
+    # The rule weights put ι -> οι before ει -> η.
+    assert respellings.index("αναγνώστεοι") < respellings.index("αναγνώστη")
+
+    loose = {"αναγνωστεοι": "ἀναγνωστέος"}
+    model = model_from(loose)
+    assert model._normalize_byzantine("αναγνώστει") == "ἀναγνωστέος"
+    model = model_from({**loose, "αναγνώστη": "αναγνώστης"})
+    assert model._normalize_byzantine("αναγνώστει") == "αναγνώστης"
+    # A monotonic key ranks between the two.
+    model = model_from({**loose, "αναγνώστη": "ἀναγνώστης"})
+    assert model._lookup_word("ἀναγνώστη", step=model._OWN_ROWS) is None
+    assert model._normalize_byzantine("ἀναγνώστει") == "ἀναγνώστης"
+    model = model_from({**loose, "αναγνώστη": "ἀναγνώστης",
+                        "ἀναγνώστι": "ἀνάγνωστις"})
+    assert model._normalize_byzantine("ἀναγνώστει") == "ἀνάγνωστις"
+
+
+def test_identity_reading_still_settles_a_respelling(model_from):
+    # The first row a respelling reaches decides for it: an identity hit
+    # (not a lemma for the word) is not replaced by a looser key's row.
+    model = model_from({"αναγνώστη": "αναγνώστη", "αναγνωστη": "ἀναγιγνώσκω"})
+    assert model._lookup_word("αναγνώστη") == "αναγνώστη"
+    assert model._normalize_byzantine("αναγνώστει") is None

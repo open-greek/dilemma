@@ -2499,8 +2499,15 @@ class Dilemma:
                 return hit
         return None
 
+    # The steps of the _lookup_word cascade, tightest first: the word's own
+    # rows (as written, lowercase, grave folded to acute), its monotonic
+    # key (the accent stays in place; breathing, accent type and iota
+    # subscript are dropped) and its accent-stripped key.
+    _OWN_ROWS, _MONOTONIC_KEY, _STRIPPED_KEY = 0, 1, 2
+
     def _lookup_word(self, word: str, *,
-                     prefer_modern: bool | None = None) -> str | None:
+                     prefer_modern: bool | None = None,
+                     step: int | None = None) -> str | None:
         """Try lookup cascade: exact -> lowercase -> grave_to_acute -> monotonic -> stripped.
 
         Grave-to-acute is tried before monotonic because it preserves
@@ -2520,14 +2527,24 @@ class Dilemma:
         *prefer_modern* overrides whether the MG-specific entries are
         checked first; a caller that wants the Ancient reading whatever
         the convention passes False.
+
+        *step* runs one step of the cascade alone (_OWN_ROWS,
+        _MONOTONIC_KEY or _STRIPPED_KEY): a caller that has already
+        changed the spelling asks, for all its respellings, first for a
+        row that needs no further change.
         """
-        if self.lang in ("all", "grc"):
+        own = step in (None, self._OWN_ROWS)
+        if own and self.lang in ("all", "grc"):
             grammar = reviewed_verb_grammar(word)
             if grammar is not None:
                 return grammar["lemma"]
-        loose_keys = self._loose_keys(word)
-        # Read after the lowercase keys, in the Ancient rows only.
-        capitalized_keys = self._capitalized_loose_keys(word)
+        loose_keys, capitalized_keys = [], []
+        if step != self._OWN_ROWS:
+            kinds = {"monotonic": step in (None, self._MONOTONIC_KEY),
+                     "stripped": step in (None, self._STRIPPED_KEY)}
+            loose_keys = self._loose_keys(word, **kinds)
+            # Read after the lowercase keys, in the Ancient rows only.
+            capitalized_keys = self._capitalized_loose_keys(word, **kinds)
 
         # For MG mode or triantafyllidis convention, try MG-specific
         # lookup first. MG entries take priority over AG when there's a
@@ -2538,7 +2555,7 @@ class Dilemma:
                              or self._convention_name == "triantafyllidis")
         if prefer_modern and self._mg_lookup:
             tbl = self._mg_lookup
-            hit = tbl.get(word) or tbl.get(word.lower())
+            hit = (tbl.get(word) or tbl.get(word.lower())) if own else None
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
             if not hit:
                 for variant in loose_keys:
@@ -2558,9 +2575,9 @@ class Dilemma:
                        for ch in nfd)
         if has_poly and self.lang == "all" and self._ag_lookup:
             tbl = self._ag_lookup
-            hit = tbl.get(word) or tbl.get(word.lower())
+            hit = (tbl.get(word) or tbl.get(word.lower())) if own else None
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
-            if not hit:
+            if own and not hit:
                 acute = grave_to_acute(word)
                 if acute != word:
                     hit = tbl.get(acute) or tbl.get(acute.lower())
@@ -2579,17 +2596,18 @@ class Dilemma:
             if hit:
                 return hit
 
-        lemma = self._lookup.get(word) or self._lookup.get(word.lower())
-        lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
-        if lemma:
-            return lemma
-        # Grave → acute (lightest normalization, preserves breathings)
-        acute = grave_to_acute(word)
-        if acute != word:
-            lemma = self._lookup.get(acute) or self._lookup.get(acute.lower())
+        if own:
+            lemma = self._lookup.get(word) or self._lookup.get(word.lower())
             lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
             if lemma:
                 return lemma
+            # Grave → acute (lightest normalization, preserves breathings)
+            acute = grave_to_acute(word)
+            if acute != word:
+                lemma = self._lookup.get(acute) or self._lookup.get(acute.lower())
+                lemma = self._normalize_grave_citation_lemma(lemma) if lemma else None
+                if lemma:
+                    return lemma
         for variant in loose_keys:
             hit = self._lookup.get(variant)
             hit = self._normalize_grave_citation_lemma(hit) if hit else None
@@ -3175,19 +3193,44 @@ class Dilemma:
             # (avoid double-normalizing). For pre-model normalizer,
             # only the original form was tried, so skip it here.
             start_idx = 1 if self._normalizer else 0
-            for variant in forms_to_try[start_idx:]:
-                for candidate in norm.normalize(variant):
-                    lemma = self._lookup_grammatical_word(
-                        candidate, normalization=True, source_word=word)
-                    if lemma:
-                        lemma_s = strip_accents(lemma.lower())
-                        cand_s = strip_accents(candidate.lower())
-                        # Guard: only accept if the lookup found a real
-                        # lemma (different from the candidate form).
-                        # This prevents accepting identity lookups where
-                        # the normalizer just tweaked the form slightly.
-                        if lemma_s != cand_s:
-                            return lemma
+            # NFC, so that a row is found as it is written (the tagged
+            # entry points pass an oxia through).
+            respellings = list(dict.fromkeys(
+                unicodedata.normalize("NFC", candidate)
+                for variant in forms_to_try[start_idx:]
+                for candidate in norm.normalize(variant)))
+            # Every respelling changes the spelling of one sound, and the
+            # normalizer ranks them by how common that confusion is. The
+            # lookup cascade can then change the accents as well: the
+            # monotonic key drops breathing, accent type and subscript,
+            # the accent-stripped key also moves the accent. That is a
+            # second change, so it ranks after every respelling that
+            # reads a row as it is written, whatever the rule weights:
+            # αναγνώστει is αναγνώστη (ει for η), not the letters of
+            # ἀναγνωστέοι reached through αναγνώστεοι (ι for οι).
+            answered = set()
+            for step in (self._OWN_ROWS, self._MONOTONIC_KEY,
+                         self._STRIPPED_KEY):
+                for candidate in respellings:
+                    if candidate in answered:
+                        continue
+                    lemma = self._lookup_word(candidate, step=step)
+                    if not lemma:
+                        continue
+                    # The first row the cascade reaches decides for this
+                    # respelling, as in a single lookup of it.
+                    answered.add(candidate)
+                    if not self._normalization_reading_supported(
+                            candidate, lemma, source_word=word):
+                        continue
+                    lemma_s = strip_accents(lemma.lower())
+                    cand_s = strip_accents(candidate.lower())
+                    # Guard: only accept if the lookup found a real
+                    # lemma (different from the candidate form).
+                    # This prevents accepting identity lookups where
+                    # the normalizer just tweaked the form slightly.
+                    if lemma_s != cand_s:
+                        return lemma
 
         return None
 
