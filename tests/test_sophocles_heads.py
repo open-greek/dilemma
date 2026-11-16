@@ -83,7 +83,15 @@ def run_verb_step(tmp_path, monkeypatch, lookup, *entries, forms=None, heads=Non
     ("ἀνθ᾽ ὧν", "ἀνθ᾽", "multi-word"),
     ("κατα- φθάνω", "κατα", "multi-word"),
     ("προ νύσσω", "προ", "multi-word"),
-    ("κομίτιον ου", "κομίτιον", "multi-word"),
+    ("όσπερ ον", "όσπερ", "multi-word"),
+    ("ἐπιχοριαμβικὸν μέτρον", "ἐπιχοριαμβικὸν", "multi-word"),
+    ("Ἀππία ὁδός", "Ἀππία", "multi-word"),
+    ("μή τις", "μή", "multi-word"),
+    ("ολεθρεία ου ολεθρία", "ολεθρεία", "multi-word"),
+    # the Greek words after the first one are entry text (one_word_head)
+    ("κομίτιον ου", "κομίτιον", ""),
+    ("γληχωνίτης οἶνος", "γληχωνίτης", ""),
+    ("ἑτερολέκτως ἔχειν", "ἑτερολέκτως", ""),
     # entry text follows the head: it stays the head
     ("βιοθανέω ---- βιαιοθανατέω", "βιοθανέω", ""),
     ("φυσιάω — φυσιλοω", "φυσιάω", ""),
@@ -106,7 +114,7 @@ def run_verb_step(tmp_path, monkeypatch, lookup, *entries, forms=None, heads=Non
 def test_read_orth_tells_a_head_from_a_phrase(orth, head, reason):
     got, why, rest = S.read_orth(orth)
     assert (got, why) == (head, reason)
-    assert orth.strip().endswith(rest)
+    assert S.greek_mu(orth).strip().endswith(rest)
     assert S.clean_headword(orth) == ("" if reason else head)
 
 
@@ -423,3 +431,258 @@ def test_verb_step_withholds_shadowing_capitalized_keys(tmp_path, monkeypatch):
     assert audit["schema_version"] == 1 and len(audit["generator_sha256"]) == 64
     assert audit["withheld_capitalized_keys"] == {"count": 1, "keys": {
         "Ιουδαιζεις": {"lemma": "Ἰουδαΐζω", "lowercase_reading": "ἰουδαΐζω"}}}
+
+
+MICRO = "µ"
+
+
+@pytest.mark.parametrize("orth,head", [
+    # the micro sign is the letter mu
+    (f"{MICRO}έρος", "μέρος"),
+    (f"σχη{MICRO}ατοποιέω", "σχηματοποιέω"),
+    (f"{MICRO}ετα-διαιτάω", "μετα-διαιτάω"),
+    # the lexicon's asterisk and the OCR's stray marks are no letters
+    ("*πιάζω", "πιάζω"),
+    ("«ἀθεμιστία", "ἀθεμιστία"),
+    ("καβάδιον»", "καβάδιον"),
+    ("“προικιμαῖος", "προικιμαῖος"),
+    ("|αἴρινος", "αἴρινος"),
+    ("φυτη-κομέω>", "φυτη-κομέω"),
+    # a koronis before the capital is its breathing
+    ("᾽Αβραμιαῖος", "᾿Αβραμιαῖος"),
+    # Latin letters after the word are entry text
+    ("ἀββᾶςI", "ἀββᾶς"),
+    ("συν-υποχωρέω.Plut. II", "συν-υποχωρέω"),
+    # Latin letters inside it are misread Greek ones: no head
+    ("Kούβρικος", ""),
+    ("κόρoς", ""),
+    ("Fαῦ", ""),
+    ("xnμίον", ""),
+])
+def test_read_orth_settles_the_ocr_letters(orth, head):
+    assert S.read_orth(orth)[:2] == (head, "")
+    assert MICRO not in S.read_orth(f"{orth}, for {MICRO}έρος")[2]
+
+
+def test_legacy_head_is_the_reading_of_the_earlier_tables():
+    assert S.legacy_head("Kούβρικος") == "ούβρικος"
+    assert S.legacy_head(f"{MICRO}έρος") == f"{MICRO}έρος"
+    assert S.legacy_head("*πιάζω") == "*πιάζω"
+    assert S.legacy_head("᾽Αντινώ") == "᾽Αντινώ"
+    assert S.legacy_head("κομίτιον ου") == "κομίτιον"
+    assert S.legacy_head("Plut. TL") == ""
+
+
+@pytest.mark.parametrize("phrase,rule,ending", [
+    ("κομίτιον ου", "run-on-ending", "ου"),
+    ("ἐξοδεία ας", "run-on-ending", "ας"),
+    ("ξηροφθαλμία ας", "run-on-ending", "ας"),
+    ("φύσημα ατος", "run-on-ending", "ατος"),
+    ("πολυ-άνθραξ ακος", "run-on-ending", "ακος"),
+    ("ορθο-πρίων ονος", "run-on-ending", "ονος"),
+    ("θεοηχής ές", "run-on-ending", "ές"),
+    ("κελευστός ἡ", "run-on-ending", "ἡ"),
+    ("ξηροφαγέω ἤσω", "run-on-ending", "ἤσω"),
+    ("πραοπαθέω ήσω", "run-on-ending", "ήσω"),
+    ("σχολιάζω άσω", "run-on-ending", "άσω"),
+    ("γληχωνίτης οἶνος", "qualified-noun", ""),
+    ("δωρίτης ἀγών", "qualified-noun", ""),
+    ("ἀστερίτης λίθος", "qualified-noun", ""),
+    ("ληκύθιον μέτρον", "qualified-noun", ""),
+    ("μελαμ-ψίθιος οἶνος", "qualified-noun", ""),
+    ("ἀπαλλακτικῶς ἔχειν", "adverb-idiom", ""),
+    ("δυσπαύστως έχω", "adverb-idiom", ""),
+    # phrases, names, split words and variants stay phrases
+    ("Νέα Ῥώμη", "", ""),
+    ("Κοίλη Συρία", "", ""),
+    ("κατα λιπαίνω", "", ""),
+    ("παρά ξηρος", "", ""),
+    ("κοινό δημος", "", ""),
+    ("ου μή", "", ""),
+    ("νόος νοῦς", "", ""),
+    ("ορίας άνεμος", "", ""),
+    ("ἐπιχοριαμβικὸν μέτρον", "", ""),
+    ("ἀεὶ βασιλεύς", "", ""),
+    ("ἕως οὗ", "", ""),
+    ("ρόσα ἡ rosa", "", ""),
+    ("ολεθρεία ου ολεθρία", "", ""),
+    ("ἀπίσσωτος ΟΥ ἀπίττωτος", "", ""),
+    # a genitive that does not fit the head's ending is no ending
+    ("φύσημα ου", "", ""),
+    ("κομίτιον ατος", "", ""),
+])
+def test_one_word_head_reads_entry_text_after_the_head(phrase, rule, ending):
+    head, *following = phrase.split()
+    assert S.one_word_head(head, following) == (rule, ending)
+
+
+def test_run_on_ending_is_the_entrys_first_field(tmp_path, monkeypatch):
+    entries, audit = parse(
+        tmp_path, monkeypatch,
+        "<orth>κομίτιον ου</orth>, τὸ, the Latin comitium. Jos.",
+        "<orth>πολυ-άνθραξ ακος</orth>, ὁ, ἡ, rich in coal. Schol.",
+        "<orth>θεοηχής ές</orth>, (ἠχέω) instructed by God.",
+        "<orth>κελευστός ἡ</orth>,όν, ordered, commanded. Lucian.",
+        "<orth>σχολιάζω άσω</orth>, to write σχόλια, to comment on",
+        "<orth>δωρίτης ἀγών</orth>, o, (δῶρον) a game in which the",
+        "<orth>δυσπαύστως έχω</orth>, = δύσπαυστός εἶμι.Martyr.",
+        # no breathing and no review of the first word: still a phrase
+        "<orth>ορθο-πρίων ονος</orth>, ό, a surgical instrument for")
+    assert set(entries) == {"κομίτιον", "πολυ-άνθραξ", "θεοηχής", "κελευστός",
+                            "σχολιάζω", "δωρίτης", "δυσπαύστως"}
+    assert (entries["κομίτιον"]["gender"], entries["κομίτιον"]["genitive"]) == ("n", "ου")
+    assert (entries["πολυ-άνθραξ"]["gender"],
+            entries["πολυ-άνθραξ"]["genitive"]) == ("m", "ακος")
+    assert entries["θεοηχής"]["adjective_endings"] == "two"
+    assert entries["κελευστός"]["adjective_endings"] == "three"
+    assert not entries["σχολιάζω"]["is_adj"] and not entries["σχολιάζω"]["is_xref"]
+    # the equals sign glosses the idiom, it is no reference of the adverb
+    assert not entries["δυσπαύστως"]["is_xref"]
+    assert audit["one_word_heads"] == {
+        "κομίτιον ου": {"head": "κομίτιον", "rule": "run-on-ending"},
+        "πολυ-άνθραξ ακος": {"head": "πολυ-άνθραξ", "rule": "run-on-ending"},
+        "θεοηχής ές": {"head": "θεοηχής", "rule": "run-on-ending"},
+        "κελευστός ἡ": {"head": "κελευστός", "rule": "run-on-ending"},
+        "σχολιάζω άσω": {"head": "σχολιάζω", "rule": "run-on-ending"},
+        "δωρίτης ἀγών": {"head": "δωρίτης", "rule": "qualified-noun"},
+        "δυσπαύστως έχω": {"head": "δυσπαύστως", "rule": "adverb-idiom"}}
+    assert audit["multi_word_heads"] == {"ορθο-πρίων ονος": "ορθο-πρίων"}
+
+
+def test_noun_step_expands_a_run_on_head_and_an_idioms_adverb(tmp_path, monkeypatch):
+    lookup, audit, calls = run_noun_step(
+        tmp_path, monkeypatch, {},
+        "<orth>κομίτιον ου</orth>, τὸ, the Latin comitium. Jos.",
+        "<orth>ἑτερολέκτως ἔχειν</orth>, to be said differently. Stud.",
+        forms={"κομίτιον": ["κομίτιον", "κομιτίου"]})
+    assert calls == [("κομίτιον", "n", "ου")]
+    assert lookup == {"κομίτιον": "κομίτιον", "κομιτιον": "κομίτιον",
+                      "κομιτίου": "κομίτιον", "κομιτιου": "κομίτιον",
+                      "ἑτερολέκτως": "ἑτερολέκτως", "ετερολεκτως": "ἑτερολέκτως"}
+    assert audit["head_rules"]["multi_word_heads"] == {"count": 0, "heads": {}}
+    assert audit["head_rules"]["one_word_heads"]["count"] == 2
+
+
+def test_micro_sign_heads_are_read_with_mu(tmp_path, monkeypatch):
+    lookup, audit, calls = run_noun_step(
+        tmp_path, monkeypatch, {"μέρος": "μέρος"},
+        f"<orth>{MICRO}έρος</orth>, ους, τὸ, part.",
+        f"<orth>{MICRO}ετρίασις</orth>, εως, ἡ, {MICRO}ετριότης.",
+        f"<orth>σχῆ{MICRO}α</orth>, ατος, τὸ, figure.",
+        forms={"μετρίασις": ["μετρίασις", "μετριάσεως"],
+               "σχῆμα": ["σχῆμα", "σχήματος"]})
+    # the head the table has under its Greek spelling is not expanded again
+    assert [head for head, _, _ in calls] == ["μετρίασις", "σχῆμα"]
+    assert MICRO not in json.dumps(lookup, ensure_ascii=False)
+    assert MICRO not in json.dumps(audit, ensure_ascii=False)
+    assert lookup["σχήματος"] == "σχῆμα" and lookup["μετριάσεως"] == "μετρίασις"
+    # only the letter differs from the earlier reading: nothing was re-read
+    assert audit["head_rules"]["reread_heads"] == {"count": 0, "heads": {}}
+
+
+def test_reviewed_corrections_replace_a_misread_head(tmp_path, monkeypatch):
+    corrections = S.load_head_corrections()
+    assert corrections["ορνιθείον"]["head"] == "ὀρνιθεῖον"
+    write_chunk(tmp_path / "chunks",
+                "<orth>ορνιθείον</orth>, ου, το, hen-coop. Phryn. P. 85. 54,",
+                "<orth>Kούβρικος</orth>, ου, 6, Cubricus, the original name",
+                "<orth>κίκιov</orth>,ου, τὸ, = κρότωνος ρίζα. A.",
+                "<orth>Fαῦ</orth>, vau, the sixth letter of the alphabet.",
+                "<orth>*σχῆμα</orth>, ατος, τὸ, figure, appearance.")
+    monkeypatch.setattr(S, "SOPH_DIR", tmp_path / "chunks")
+    audit = S.new_head_audit()
+    entries = S.parse_sophocles_entries(None, audit=audit)
+    assert set(entries) == {"ὀρνιθεῖον", "Κούβρικος", "κίκιον", "σχῆμα"}
+    assert entries["ὀρνιθεῖον"]["headword"] == "ὀρνιθεῖον"
+    assert (entries["κίκιον"]["gender"], entries["κίκιον"]["genitive"]) == ("n", "ου")
+    assert audit["corrected_heads"] == {
+        "ορνιθείον": "ὀρνιθεῖον", "Kούβρικος": "Κούβρικος", "κίκιov": "κίκιον"}
+    assert audit["reread_heads"] == {
+        "ορνιθείον": "ὀρνιθεῖον", "ούβρικος": "Κούβρικος", "κίκι": "κίκιον",
+        "αῦ": "", "*σχῆμα": "σχῆμα"}
+    # without the record the misread letters make no head at all
+    plain = S.parse_sophocles_entries(None, corrections={})
+    assert set(plain) == {"ορνιθείον", "κίκι", "σχῆμα"}
+
+
+def test_noun_audit_supersedes_the_earlier_reading(tmp_path, monkeypatch):
+    _, audit, _ = run_noun_step(
+        tmp_path, monkeypatch, {},
+        "<orth>ορνιθείον</orth>, ου, το, hen-coop. Phryn. P. 85. 54,",
+        "<orth>Kούβρικος</orth>, ου, 6, Cubricus, the original name",
+        "<orth>κίκιov</orth>,ου, τὸ, = κρότωνος ρίζα. A.",
+        "<orth>*σχῆμα</orth>, ατος, τὸ, figure, appearance.",
+        "<orth>Fαῦ</orth>, vau, the sixth letter of the alphabet.",
+        heads={"κίκι": ["lsj9_headwords"], "σχῆμα": ["lsj9_headwords"]})
+    superseded = set(audit["superseded_lemmas"])
+    assert {"*σχῆμα", "αῦ", "ορνιθείον", "ούβρικος"} <= superseded
+    # κίκι is a word of its own (LSJ lists it): its rows are not touched
+    assert "κίκι" not in superseded
+    assert audit["head_rules"]["reread_heads"]["heads"]["κίκι"] == "κίκιον"
+    # the present heads never stood in the earlier tables under this spelling
+    assert {"κίκιον", "σχῆμα"} <= set(audit["superseded_reread_lemmas"]) <= superseded
+    assert "legacy_printed" not in audit["head_rules"]
+
+
+def test_a_head_printed_plainly_too_is_superseded_outright(tmp_path, monkeypatch):
+    _, audit, _ = run_noun_step(
+        tmp_path, monkeypatch, {},
+        f"<orth>σχῆ{MICRO}α</orth>, ατος, τὸ, figure, appearance.",
+        f"<orth>δρᾶ{MICRO}α</orth>, ατος, τὸ, deed.",
+        "<orth>δρᾶμα</orth>, ατος, τὸ, drama.")
+    assert {"σχῆμα", "δρᾶμα"} <= set(audit["superseded_lemmas"])
+    assert audit["superseded_reread_lemmas"] == ["σχῆμα"]
+
+
+def test_every_correction_names_an_orth_of_its_chunk():
+    corrections = S.load_head_corrections()
+    assert len(corrections) >= 30
+    for orth, record in corrections.items():
+        chunk = (S.SOPH_DIR.parent / "chunks" / record["source"].split("/")[1])
+        text = S.greek_mu(chunk.read_text(encoding="utf-8"))
+        assert f"<orth>{orth}</orth>" in text, orth
+        # the record changes the reading
+        assert S.read_orth(orth)[0] != record["head"], orth
+        assert S.read_orth(S.settle_orth(orth, corrections))[:2] == (record["head"], "")
+
+
+def test_head_corrections_refuse_a_malformed_record(tmp_path):
+    from dilemma_build import sophocles_ocr as O
+    path = tmp_path / "corrections.json"
+
+    def load(head="ὀρνιθεῖον", orth="ορνιθείον", **fields):
+        record = {"head": head, "source": "sophocles/0800.xml", "reason": "accent",
+                  **fields}
+        path.write_text(json.dumps({"schema_version": 1, "corrections": {orth: record}},
+                                   ensure_ascii=False), encoding="utf-8")
+        return O.load_head_corrections(path)
+
+    assert load()["ορνιθείον"]["head"] == "ὀρνιθεῖον"
+    assert O.load_head_corrections(tmp_path / "absent.json") == {}
+    for bad in ({"head": "ὀρνιθείὸν"}, {"head": "ορνιθειον"}, {"head": "ὀρνιθεῖον οἶκος"},
+                {"head": f"κό{MICRO}η"}, {"head": "Kόρος"}, {"reason": " "},
+                {"source": "0800.xml"}, {"orth": f"{MICRO}έρος"}, {"orth": " ορνιθείον"}):
+        with pytest.raises(SystemExit):
+            load(**bad)
+
+
+def test_verb_step_expands_an_entry_glossed_by_an_equals_sign(tmp_path, monkeypatch):
+    lookup, calls = run_verb_step(
+        tmp_path, monkeypatch, {"ἐπιμορφάζω": "ἐπιμορφάζω"},
+        "<orth>ἀκρατεύω</orth>, = ἀκρατεύομαι. Plut. Frag. 838 C.",
+        "<orth>ἀνακοσμοποιέω</orth>, = preceding. Method. 272 C.",
+        "<orth>ἀχρεύω</orth> = ἀχρειόω. Paul. Rom. 3, 12.",
+        "<orth>*πιάζω</orth>, = πιέζω, to lay hold of, to seize, catch.",
+        "<orth>ἐκνεωτερίξω</orth>, = νεωτερίζω strengthened. Phot. III, 680 C.",
+        # the lexicon enters these under another head
+        "<orth>ἀπάχθομαι</orth>, see ἀπέχθομαι.",
+        "<orth>φαγέω</orth>, see κρεωφαγέω.",
+        # no verb: a name, a dative phrase, a noun in -ώ
+        "<orth>Ἰεύω</orth>, = Ἰαῶ.",
+        "<orth>ἐπισηκρήτῳ</orth>, = ἀσηκρήτις. Caesarius 851 (titul.).",
+        "<orth>σαββώ</orth>, = σάββατον.",
+        # already a key
+        "<orth>ἐπιμορφάζω</orth>, = μορφάζω.")
+    assert calls == ["ἀκρατεύω", "ἀνακοσμοποιέω", "ἀχρεύω", "πιάζω", "ἐκνεωτερίζω"]
+    assert lookup["ἀνακοσμοποιέω"] == "ἀνακοσμοποιέω"
+    assert "ἀπάχθομαι" not in lookup and "Ἰεύω" not in lookup
