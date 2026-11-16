@@ -667,7 +667,13 @@ dictionary lists every such lemma (`ταύτην` ADJ gives `οὗτος`, not t
 the corpus reading of a misaccented token and still yields (`μεγά` ADJ
 gives `μέγας`), and so does the row of a capitalized word when the row of
 its lowercase spelling reads the entry's lemma (`Ἀντίαν` ADJ gives
-`ἀντίος`). With `lang="el"` or `convention="triantafyllidis"` the entry
+`ἀντίος`). Under PRON the row must also be a reading the POS tables record
+for these letters under PRON, DET, ADJ or NUM. The row of another kind of
+word does not stand in a pronoun's place, so a pronoun with a wrong
+accent or breathing still reads as the pronoun: `ὁδὲ` PRON gives `ὅδε` (not
+the `ὁδός` of its row), `ἐκάτερος` PRON `ἑκάτερος`, and with `lang="all"`
+the accented clitic `μάς` PRON gives `μας` (not the month `μής`).
+With `lang="el"` or `convention="triantafyllidis"` the entry
 keeps its effect under ADJ and PRON, and under the remaining tags it does
 with every setting (`τοῖϊν` DET gives `ὁ`, `οῦν` PART `οὖν`, `μᾶλα` ADV
 `μάλα`). The verb rule for case twins above likewise needs an entry

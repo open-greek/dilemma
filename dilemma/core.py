@@ -4573,7 +4573,9 @@ class Dilemma:
         triantafyllidis convention; a row whose lemma no dictionary lists
         still yields (μεγά ADJ -> μέγας), and so does the row of a
         capitalized word when the row of its lowercase spelling reads the
-        entry's lemma (see _lowercase_row_reads). Under the VERB
+        entry's lemma (see _lowercase_row_reads). Under PRON the row
+        must also be a reading the tables record as a pronoun's for
+        these letters (see _tables_record_reading). Under the VERB
         case-twin rule (#42) a loose entry may not replace an exact
         case-twin family (πόθῳ VERB keeps πόθος, not the πίνω of ποθῶ).
         """
@@ -4600,7 +4602,28 @@ class Dilemma:
                             for c in inflected)
                     or self._lowercase_row_reads(word, pos_lemma)):
                 return False
+            if upos == "PRON" and not all(
+                    self._tables_record_reading(word, upos, c.lemma)
+                    for c in inflected):
+                return False
         return self._pos_entry_is_loose(word, upos, pos_lemma)
+
+    def _tables_record_reading(self, word: str, upos: str, lemma: str) -> bool:
+        """Whether the POS tables record *lemma* for the word's letters under a tag like *upos*.
+
+        The pronouns are a closed class the tables cover, so a row that
+        stands against a pronoun entry must itself be a recorded pronoun
+        reading of these letters (οὕ PRON keeps ἕ: the tables hold οὗ
+        PRON ἕ; ταύτὴν PRON keeps οὗτος). A row that reads another kind
+        of word does not stand in a pronoun's place: a word tagged PRON
+        that is misaccented or has the wrong breathing still reads its
+        pronoun (ὁδὲ PRON is ὅδε, not the ὁδός of its row; ἐκάτερος
+        PRON is ἑκάτερος, not ἐκάς; the Modern μάς PRON is μας, not μής).
+        """
+        self._load_fallback_readings()
+        readings = self._fallback_readings.get(strip_accents(word.lower()), {})
+        return any(lemma in lemmas for tag, lemmas in readings.items()
+                   if self._pos_tags_compatible(upos, tag))
 
     def _lowercase_row_reads(self, word: str, lemma: str) -> bool:
         """Whether the lookup reads a capitalized word's lowercase spelling as *lemma*.
