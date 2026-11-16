@@ -38,6 +38,7 @@ from dilemma.form_sanitize import (
 )
 from dilemma import grave_to_acute, to_monotonic
 from dilemma.citation import hyphenated_lemma
+from dilemma_build.sophocles_ocr import MICRO_SIGN, greek_mu
 
 
 ROOT = Path(__file__).resolve().parent
@@ -764,6 +765,8 @@ def overlay_expansion(
     carried: dict[str, str] | None = None,
     withheld_noun_lemmas: dict[str, tuple[str, ...]] | None = None,
     lexical_heads: set[str] | frozenset[str] = frozenset(),
+    reread_noun_lemmas: set[str] | frozenset[str] = frozenset(),
+    reread_lemmas: dict[str, str] | None = None,
 ) -> dict[str, int]:
     """Add only historical expansion keys, preserving current mappings.
 
@@ -781,6 +784,30 @@ def overlay_expansion(
     ``carried`` (the published table) has with the same reading, as
     kept_withheld_noun_forms() selects them. They are counted as
     ``withheld_noun_entries_kept``, not as ``added``.
+
+    The expansion spells part of the Sophocles heads and their forms with
+    the OCR's micro sign for mu (σχηµατοποιέω). Such a row is read with the
+    Greek letter (``micro_sign_entries``) and then judged like any other;
+    where the expansion also has the Greek spelling of the key, that row
+    decides and this one is dropped (``micro_sign_duplicates``). The pinned
+    counts of the expansion are taken before this and do not change.
+
+    ``reread_lemmas`` maps a Sophocles head as the expansion keyed it to the
+    head the rules read now, where the two differ in accents, breathing or
+    case only (ἄμάντευτος is ἀμάντευτος, Θεοτήρητος is θεοτήρητος). Such a
+    row keeps its key and is read under the present head
+    (``reread_lemma_entries``), then judged like any other. The caller
+    passes only the heads whose old paradigm confirmed_reread_lemmas()
+    accepts; the others stay under the superseded spelling and are dropped
+    with it. The present head is not itself superseded, so its old rows
+    stand beside a fresh paradigm, which spells the same forms.
+
+    A superseded lemma in ``reread_noun_lemmas`` is a Sophocles head that
+    the expansion read otherwise (with the micro sign, an asterisk or a
+    misread letter), so its old paradigm is not under this spelling. The
+    rows the expansion itself spells with this lemma come from another
+    source and are recovered; only a row read from the micro sign is the
+    old paradigm.
     """
     carried = carried or {}
     withheld_noun_lemmas = withheld_noun_lemmas or {}
@@ -803,8 +830,12 @@ def overlay_expansion(
         "withheld_noun_lemmas_kept": 0,
         "withheld_noun_entries_kept": 0,
         "withheld_noun_citation_only_lemmas": 0,
+        "micro_sign_entries": 0,
+        "micro_sign_duplicates": 0,
+        "reread_lemma_entries": 0,
         "added": 0,
     }
+    reread_lemmas = reread_lemmas or {}
     for form, lemma in reference.items():
         if form in reference_base:
             continue
@@ -823,6 +854,16 @@ def overlay_expansion(
         if has_editorial_sigla(form) or has_editorial_sigla(lemma):
             stats["editorial_entries"] += 1
             continue
+        published = form, lemma
+        if MICRO_SIGN in form or MICRO_SIGN in lemma:
+            stats["micro_sign_entries"] += 1
+            form, lemma = greek_mu(form), greek_mu(lemma)
+            if form != published[0] and form in reference:
+                stats["micro_sign_duplicates"] += 1
+                continue
+        if lemma in reread_lemmas:
+            stats["reread_lemma_entries"] += 1
+            lemma = reread_lemmas[lemma]
         if form in target:
             stats["already_present"] += 1
             if target[form] != lemma:
@@ -837,8 +878,10 @@ def overlay_expansion(
         if superseded_verb_generation(lemma):
             stats["superseded_verb_entries"] += 1
             continue
-        if lemma in superseded_noun_lemmas:
-            if lemma in withheld_noun_lemmas and carried.get(form) == lemma:
+        if lemma in superseded_noun_lemmas and not (
+                lemma in reread_noun_lemmas and lemma == published[1]):
+            if (lemma in withheld_noun_lemmas
+                    and carried.get(published[0]) == published[1]):
                 pending.setdefault(lemma, []).append(form)
             else:
                 stats["superseded_noun_entries"] += 1
@@ -854,6 +897,61 @@ def overlay_expansion(
             target[form] = lemma
     stats["target_entries_after"] = len(target)
     return stats
+
+
+def _without_breathing(form: str) -> str:
+    return unicodedata.normalize("NFC", "".join(
+        char for char in unicodedata.normalize("NFD", form)
+        if char not in "\u0313\u0314"))
+
+
+def confirmed_reread_lemmas(
+    reference: dict[str, str],
+    reread_lemmas: dict[str, str],
+    endings: dict[str, str],
+) -> dict[str, str]:
+    """The heads of ``reread_lemmas`` whose old paradigm is the present
+    head's, by the expansion's own rows.
+
+    The expansion built a paradigm on the head as it read it then, in the
+    class it took the word for. Read under the present head, a paradigm
+    built on another accent, breathing or diaeresis (ἐκκηρυκτοῦ for
+    ἐκκήρυκτος, οἱηκοφόρου for οἰηκοφόρος, Ἰουδαισμοῦ for Ἰουδαϊσμός) or in
+    another class (Θεαρχιξί, Βληχηματώδου, Εἰλωτέως, Θεοπρεπότου) would put
+    spellings that are no forms of the word under a sound lemma. A
+    paradigm is accepted when
+
+    * one of its keys is the present head itself, capital aside, with
+      every accent and the diaeresis as the head has them (a key that only
+      lacks the breathing counts: the expansion wrote part of its keys so),
+      and
+    * another of its keys ends in the letters the entry implies
+      (``endings``, from the Sophocles audit's ``reread_endings``: the
+      printed genitive ending, or the genitive itself). An empty ending is
+      a word that is not declined, which needs the head cell alone; a head
+      without an ending record is not accepted.
+    """
+    keys: dict[str, list[str]] = defaultdict(list)
+    for form, lemma in reference.items():
+        lemma = greek_mu(lemma)
+        if lemma in reread_lemmas:
+            keys[lemma].append(sanitize_form(greek_mu(form)).lower())
+    confirmed = {}
+    for old, new in reread_lemmas.items():
+        ending = endings.get(old)
+        if ending is None:
+            continue
+        head = sanitize_form(new).lower()
+        cells = {head, _without_breathing(head)}
+        forms = set(keys.get(old, ()))
+        if not forms & cells:
+            continue
+        if ending and not any(strip_marks(form).endswith(ending)
+                              for form in forms - cells
+                              if has_orthographic_mark(form)):
+            continue
+        confirmed[old] = new
+    return confirmed
 
 
 def oxytone_os_cells(lemma: str) -> frozenset[str]:
@@ -1054,6 +1152,7 @@ def restore_unmarked_keys(
     head_evidence: dict[str, tuple[str, ...]] | None = None,
     breathing_corrections: dict[str, str] | None = None,
     carried_cells: dict[str, tuple[str, str]] | None = None,
+    reread_lemmas: dict[str, str] | None = None,
 ) -> dict[str, int]:
     """Give back the unaccented expansion keys the published table carried.
 
@@ -1094,14 +1193,21 @@ def restore_unmarked_keys(
     A key under a hyphenated lemma (hyphenated_lemma) is no candidate, as
     in overlay_expansion().
 
+    A key or lemma the expansion spells with the micro sign is read with
+    the Greek mu, as overlay_expansion() reads the marked forms; the key
+    with the Greek letter that the expansion or the table already has
+    stands. A lemma in ``reread_lemmas`` is read as the head it maps to,
+    like the marked forms.
+
     The keys are appended to ``target`` in order, and ``restored_rows``
     receives each (key, lemma), so the caller can record a digest that lets
     scripts/build_source_alias_manifest.py remove exactly these rows again.
     """
     corrections = breathing_corrections or {}
+    reread_lemmas = reread_lemmas or {}
 
     def canonical(lemma: str) -> str:
-        lemma = fold_leading_breathing(lemma)
+        lemma = fold_leading_breathing(reread_lemmas.get(lemma, lemma))
         return corrections.get(lemma, lemma)
 
     wanted: dict[str, str] = {}
@@ -1113,6 +1219,11 @@ def restore_unmarked_keys(
                 or has_editorial_sigla(form) or has_editorial_sigla(lemma)
                 or hyphenated_lemma(lemma)):
             continue
+        if MICRO_SIGN in form or MICRO_SIGN in lemma:
+            key, form, lemma = form, greek_mu(form), greek_mu(lemma)
+            if form != key and (form in reference or form in target
+                                or form in excluded_forms):
+                continue
         wanted[form] = canonical(lemma)
         published[form] = lemma
     rules: dict[str, str] = {}
@@ -1210,6 +1321,40 @@ def load_noun_generation_audit(path: Path, generator="expand_lsj.py") -> frozens
     if not isinstance(lemmas, list) or not all(isinstance(x, str) for x in lemmas):
         raise SystemExit("invalid noun generation audit")
     return frozenset(lemmas)
+
+
+def load_reread_noun_lemmas(path: Path) -> frozenset[str]:
+    """The Sophocles audit's superseded heads that the earlier tables read
+    otherwise (``superseded_reread_lemmas``; none in an audit without it)."""
+    lemmas = json.loads(path.read_text(encoding="utf-8")).get(
+        "superseded_reread_lemmas", [])
+    if not isinstance(lemmas, list) or not all(isinstance(x, str) for x in lemmas):
+        raise SystemExit("invalid noun generation audit")
+    return frozenset(lemmas)
+
+
+def load_reread_lemmas(path: Path) -> dict[str, str]:
+    """The Sophocles audit's ``reread_lemmas``: a head as the expansion
+    keyed it and the head the rules read now (none in an audit without it)."""
+    lemmas = json.loads(path.read_text(encoding="utf-8")).get("reread_lemmas", {})
+    if not isinstance(lemmas, dict) or not all(
+            isinstance(old, str) and isinstance(new, str) and new
+            for old, new in lemmas.items()):
+        raise SystemExit("invalid noun generation audit")
+    return lemmas
+
+
+def load_reread_endings(path: Path) -> dict[str, str]:
+    """The Sophocles audit's ``reread_endings``: per re-read head the
+    ending its old paradigm must show ("" for a word that is not declined;
+    none in an audit without the record)."""
+    endings = json.loads(path.read_text(encoding="utf-8")).get(
+        "reread_endings", {})
+    if not isinstance(endings, dict) or not all(
+            isinstance(old, str) and isinstance(ending, str)
+            for old, ending in endings.items()):
+        raise SystemExit("invalid noun generation audit")
+    return endings
 
 
 def load_withheld_noun_lemmas(
@@ -1374,6 +1519,12 @@ def main() -> None:
     superseded_nouns = load_noun_generation_audit(args.noun_audit)
     superseded_nouns |= load_noun_generation_audit(args.sophocles_noun_audit,
                                                   "expand_sophocles.py")
+    # Superseded only under a spelling the expansion does not use for the
+    # old paradigm; a lemma the LSJ audit supersedes too is superseded.
+    reread_nouns = (load_reread_noun_lemmas(args.sophocles_noun_audit)
+                    - load_noun_generation_audit(args.noun_audit))
+    reread_candidates = load_reread_lemmas(args.sophocles_noun_audit)
+    reread_endings = load_reread_endings(args.sophocles_noun_audit)
 
     manifest = load_manifest(args.manifest)
     reference_path = resolve_reference(manifest, args.reference)
@@ -1391,6 +1542,8 @@ def main() -> None:
     with reference_path.open(encoding="utf-8") as handle:
         reference = json.load(handle)
     print(f"  {len(reference):,} entries")
+    reread_lemmas = confirmed_reread_lemmas(
+        reference, reread_candidates, reread_endings)
 
     carried: dict[str, str] = {}
     if "carried_baseline" in manifest:
@@ -1448,14 +1601,15 @@ def main() -> None:
         reference, reference_base, target, excluded_forms=excluded_forms,
         superseded_noun_lemmas=superseded_nouns, released_forms=released_forms,
         carried=carried, withheld_noun_lemmas=withheld_nouns,
-        lexical_heads=lexical_heads,
+        lexical_heads=lexical_heads, reread_noun_lemmas=reread_nouns,
+        reread_lemmas=reread_lemmas,
     )
     stats["unaccented_head_readings_kept"] = (
         keep_published_over_unaccented_heads(target, carried, lexical_heads))
     cell_stats, carried_cells = carry_published_cells(
         target, carried, head_evidence, breathing_corrections,
         excluded_forms=excluded_forms - released_forms,
-        superseded_noun_lemmas=superseded_nouns)
+        superseded_noun_lemmas=superseded_nouns - reread_nouns)
     stats.update(cell_stats)
     alias_stats = restore_attested_compound_aliases(
         reference, reference_base, target, source_pairs,
@@ -1472,7 +1626,9 @@ def main() -> None:
         restored_rows=unmarked_rows,
         head_evidence=head_evidence if carried else None,
         breathing_corrections=breathing_corrections,
-        carried_cells=carried_cells))
+        carried_cells=carried_cells, reread_lemmas=reread_lemmas))
+    stats["reread_lemmas_confirmed"] = len(reread_lemmas)
+    stats["reread_lemmas_unconfirmed"] = len(reread_candidates) - len(reread_lemmas)
     stats["unmarked_withheld_noun_restored"] = sum(
         lemma in withheld_nouns for _key, lemma in unmarked_rows)
     del carried
@@ -1513,6 +1669,10 @@ def main() -> None:
     print(f"Entries under a hyphenated lemma skipped: {stats['hyphenated_lemma_entries']:,}")
     print(f"Superseded generated verb entries skipped: {stats['superseded_verb_entries']:,}")
     print(f"Superseded generated noun entries skipped: {stats['superseded_noun_entries']:,}")
+    print(f"Entries read under the present Sophocles head: "
+          f"{stats['reread_lemma_entries']:,} "
+          f"({stats['reread_lemmas_confirmed']:,} heads; "
+          f"{stats['reread_lemmas_unconfirmed']:,} old paradigms not confirmed)")
     print(f"Released baseline conflicts: {stats['released_conflict_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
     print(f"Published keys of nouns without a fresh paradigm kept: "

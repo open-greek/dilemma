@@ -346,7 +346,7 @@ KAIKKI_2026_11_READING_OVERRIDES = {
     # genitive plural of Σηρικός as the land Σηρική.
     "παραθετέον": "παραθετέον", "Σηρικῶν": "Σηρικός",
     # Oblique cells of ὀρνίθειος (GLAUx: 4 keys) taken by the paradigm of
-    # ὀρνιθείον, a head of Sophocles' lexicon alone.
+    # ὀρνιθεῖον, a head of Sophocles' lexicon alone.
     **{form: "ὀρνίθειος" for form in (
         "ὀρνιθείου", "ὀρνιθείων", "ὀρνιθείῳ", "ὀρνιθείοις")},
     # Keys that left the expansion layer and fell to a treebank gap-fill row
@@ -2304,6 +2304,19 @@ def build():
         "ἄριστα": "ἀγαθός",      # was ἄριστον (as ἄριστος, ἀρίστους -> ἀγαθός)
         "ἀρίστοις": "ἀγαθός",    # was ἄριστον
         "ἀρὰν": "ἀρά",           # was ἀρή (expansion); ἀράν -> ἀρά
+        # Treebank readings that two heads of Sophocles' lexicon alone took
+        # once the OCR's micro sign was read as mu: the Ionic genitive
+        # plural of μάντις (GLAUx 1) is a cell of μαντίον, and two aorist
+        # imperatives of μετατίθημι (GLAUx 3 and 1) are cells of μετάθετος.
+        "μαντίων": "μάντις",
+        "μεταθέτω": "μετατίθημι", "μετάθετε": "μετατίθημι",
+        # Treebank readings that cells of three Sophocles verbs took once
+        # the entries glossed with "=" were expanded: the genitive of
+        # ὑπόπτερος (GLAUx 3) is an imperative of ὑποπτερόω, the dative of
+        # παιδομανής (GLAUx 1) the third person of παιδομανέω, and the
+        # imperfect of ἐπικλύω (GLAUx 1, AGDT 1) an imperative of ἐπεκλύω.
+        "ὑποπτέρου": "ὑπόπτερος", "παιδομανεῖ": "παιδομανής",
+        "ἐπέκλυε": "ἐπικλύω",
         **KAIKKI_2026_11_READING_OVERRIDES,
         **REVIEWED_ABSENT_KEY_READINGS,
     }
