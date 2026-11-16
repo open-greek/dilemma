@@ -716,6 +716,111 @@
       "head": "Ἄφφιον",
       "source": "sophocles/0250.xml",
       "reason": "the phi symbol (U+03D5) for both letters phi (ου, ἡ, dear Ἄφφη)"
+    },
+    "διαπλασμμός": {
+      "head": "διαπλασμός",
+      "source": "sophocles/0350.xml",
+      "reason": "mu printed twice (the OCR gave the letter as a micro sign and as mu); διαπλασμός, which the other lexica list"
+    },
+    "κληρονομμέω": {
+      "head": "κληρονομέω",
+      "source": "sophocles/0650.xml",
+      "reason": "mu printed twice; κληρονομέω, to inherit"
+    },
+    "σμμικρόφυλλος": {
+      "head": "σμικρόφυλλος",
+      "source": "sophocles/0950.xml",
+      "reason": "mu printed twice; σμικρό-φυλλος, small-leaved"
+    },
+    "συμμ-περιφορά": {
+      "head": "συμπεριφορά",
+      "source": "sophocles/1000.xml",
+      "reason": "mu printed twice in the divided compound συμ-περιφορά, which the other lexica list as συμπεριφορά"
+    },
+    "περί-γραμμμα": {
+      "head": "περίγραμμα",
+      "source": "sophocles/0850.xml",
+      "reason": "mu printed three times in the divided compound περί-γραμμα, which the other lexica list as περίγραμμα"
+    },
+    "ριψοκιδυνέω": {
+      "head": "ῥιψοκινδυνέω",
+      "source": "sophocles/0950.xml",
+      "reason": "a dropped nu and no breathing: the entry is glossed ῥιψοκίνδυνός εἰμι and stands between ῥιψοκινδυνευσία and ῥιψοκίνδυνος"
+    },
+    "μαστεγονόμος": {
+      "head": "μαστιγονόμος",
+      "source": "sophocles/0700.xml",
+      "reason": "epsilon for iota: (μάστιξ, νέμω) wielding the lash, before μαστιγόπληκτος"
+    },
+    "κατακοιμεστής": {
+      "head": "κατακοιμιστής",
+      "source": "sophocles/0600.xml",
+      "reason": "epsilon for iota: (κατακοιμίζω) chamberlain, after κατακοιμίζω"
+    },
+    "μανρότριχος": {
+      "head": "μαυρότριχος",
+      "source": "sophocles/0700.xml",
+      "reason": "nu for upsilon: (μαῦρος, θρίξ) black-haired, between μαῦρος and μαυροφόρος"
+    },
+    "μεταναστείω": {
+      "head": "μεταναστεύω",
+      "source": "sophocles/0750.xml",
+      "reason": "iota for upsilon: the entry prints the future εύσω and derives the verb from μετανάστης; μεταναστεύομαι follows"
+    },
+    "συμ-βασιλείω": {
+      "head": "συμβασιλεύω",
+      "source": "sophocles/1000.xml",
+      "reason": "iota for upsilon in the divided compound συμ-βασιλεύω, after συμ-βασιλεύς"
+    },
+    "συνακμαστῆς": {
+      "head": "συνακμαστής",
+      "source": "sophocles/1000.xml",
+      "reason": "a circumflex for the acute of the agent noun in -τής (ὁ συνακμάσας)"
+    },
+    "συνομελητής": {
+      "head": "συνομιλητής",
+      "source": "sophocles/1050.xml",
+      "reason": "epsilon for iota: glossed ὁμιλητής, between συν-ομιλέω and συν-ομιλία"
+    },
+    "τερμοτίζω": {
+      "head": "τερματίζω",
+      "source": "sophocles/1050.xml",
+      "reason": "omicron for alpha: (τέρμα) to limit, to terminate"
+    },
+    "γραμματείω": {
+      "head": "γραμματεύω",
+      "source": "sophocles/0300.xml",
+      "reason": "iota for upsilon: to be γραμματεύς, after γραμματεύς"
+    },
+    "μαστροπόπης": {
+      "head": "μαστροπότης",
+      "source": "sophocles/0700.xml",
+      "reason": "pi for tau: ητος, ἡ, the being μαστροπός"
+    },
+    "στρονθιόμηλον": {
+      "head": "στρουθιόμηλον",
+      "source": "sophocles/1000.xml",
+      "reason": "nu for upsilon: glossed στρούθειον or στρούθιον μῆλον, between στρουθιοκάμηλος and στρουθο-κάμηλος"
+    },
+    "μἐγα-τίμιος": {
+      "head": "μεγατίμιος",
+      "source": "sophocles/0700.xml",
+      "reason": "a breathing read over the epsilon of the divided compound μεγα-τίμιος (μεγαλότιμος), which another lexicon lists as μεγατίμιος"
+    },
+    "κοελιο-δαίμων": {
+      "head": "κοιλιοδαίμων",
+      "source": "sophocles/0650.xml",
+      "reason": "epsilon for iota in the divided compound κοιλιο-δαίμων (the demon of gluttony), before κοιλιό-δουλος"
+    },
+    "κοελίδιον. ου": {
+      "head": "κοιλίδιον",
+      "source": "sophocles/0650.xml",
+      "reason": "epsilon for iota, and the genitive ending run on: little κοιλία"
+    },
+    "ἀναμελωδέω": {
+      "head": "ἀναμελῳδέω",
+      "source": "sophocles/0100.xml",
+      "reason": "the mute iota was not read: the entry is glossed μελῳδέω"
     }
   }
 }
