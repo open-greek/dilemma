@@ -118,8 +118,13 @@ def test_shipped_marked_double_rho(shipped_models, lang):
     assert model.lemmatize_batch_pos(forms, tags, guess=False) == expected
     assert [model.lemmatize_pos(f, t, guess=False)
             for f, t in zip(forms, tags)] == expected
-    assert [model.lemmatize_verbose(f, guess=False)[0].lemma
-            for f in forms] == expected
+    # The candidates are those of the plain spelling, in its order (a case
+    # twin that is a headword too leads them: βορέας beside Βορέας).
+    marked = [[c.lemma for c in model.lemmatize_verbose(f, guess=False)]
+              for f in forms]
+    assert marked == [[c.lemma for c in model.lemmatize_verbose(f, guess=False)]
+                      for f in plain]
+    assert all(lemma in readings for lemma, readings in zip(expected, marked))
     # #134: the tag no longer reads the Modern Greek table.
     assert model.lemmatize_pos("Βοῤῥᾶ", "PROPN", guess=False) == (
         model.lemmatize_pos("Βορρᾶ", "PROPN", guess=False))
@@ -345,6 +350,30 @@ def test_respelling_with_its_own_row_beats_an_earlier_loose_one(model_from):
     model = model_from({**loose, "αναγνώστη": "ἀναγνώστης",
                         "ἀναγνώστι": "ἀνάγνωστις"})
     assert model._normalize_byzantine("ἀναγνώστει") == "ἀνάγνωστις"
+
+
+def test_other_breathing_is_read_before_any_respelling(model_from):
+    model = model_from({"ἄπατον": "ἄπατος", "ἅπαθον": "πάσχω",
+                        "απατων": "ἀπάτη", "οἶκτον": "οἶκτος"})
+    assert model._other_breathing("ἅπατον") == "ἄπατον"
+    assert model._other_breathing("οἷκτον") == "οἶκτον"
+    assert model._other_breathing("Ἀπατον") == "Ἁπατον"
+    assert model._other_breathing("πατόν") is None
+    assert model._other_breathing("απατον") is None
+    # ῥ is no vowel: its breathing is not a slip of this kind
+    assert model._other_breathing("ῥήτωρ") is None
+    # The breathing alone: no letter and no accent changes.
+    assert model._normalize_byzantine("ἅπατον") == "ἄπατος"
+    # Without that row the respellings decide, as before.
+    model = model_from({"ἅπαθον": "πάσχω", "απατων": "ἀπάτη"})
+    assert model._normalize_byzantine("ἅπατον") == "πάσχω"
+    # Only a row as it is written: the looser keys are the word's own, and
+    # the lookup has tried them.
+    model = model_from({"απατον": "ἀπατάω", "ἅπαθον": "πάσχω"})
+    assert model._normalize_byzantine("ἅπατον") == "πάσχω"
+    # The safe fixes alone do not change a breathing.
+    model = model_from({"ἄπατον": "ἄπατος"})
+    assert model._normalize_byzantine("ἅπατον", use_normalizer=False) is None
 
 
 def test_identity_reading_still_settles_a_respelling(model_from):

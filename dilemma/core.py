@@ -3082,6 +3082,20 @@ class Dilemma:
         'προ',
     ]
 
+    @staticmethod
+    def _other_breathing(word: str) -> str | None:
+        """*word* with the breathing of its initial vowel or diphthong
+        changed to the other one; None when it has none there."""
+        nfd = unicodedata.normalize("NFD", word)
+        for at, char in enumerate(nfd):
+            if char in "\u0313\u0314":
+                swapped = "\u0314" if char == "\u0313" else "\u0313"
+                return unicodedata.normalize(
+                    "NFC", nfd[:at] + swapped + nfd[at + 1:])
+            if char.lower() not in "αεηιουω" and not unicodedata.combining(char):
+                return None
+        return None
+
     def _normalize_byzantine(self, word: str,
                              use_normalizer: bool = True) -> str | None:
         """Try Byzantine-specific normalizations to find a lookup match.
@@ -3092,6 +3106,7 @@ class Dilemma:
           - Final medial sigma (σ instead of ς at word end)
           - Iota adscript (ωι, ηι instead of subscript ῳ, ῃ)
           - Missing breathings on initial vowels
+          - The wrong breathing on an initial vowel (with the normalizer)
           - Hyphens and editorial marks in transcriptions
 
         When use_normalizer=True, also chains with the orthographic
@@ -3183,6 +3198,16 @@ class Dilemma:
                 from .normalize import Normalizer
                 self._byz_normalizer = Normalizer(period="byzantine")
             norm = self._normalizer or self._byz_normalizer
+
+            # A breathing slip changes no letter and no accent, which is
+            # less than any respelling below: ἅπατον is ἄπατον before it
+            # is ἅπαθον (τ for θ) or the letters of ἀπάτων (ο for ω).
+            other = self._other_breathing(word)
+            if other:
+                lemma = self._lookup_word(other, step=self._OWN_ROWS)
+                if lemma and self._normalization_reading_supported(
+                        other, lemma, source_word=word):
+                    return lemma
 
             # Collect all forms to try: original + Byzantine-fixed variants
             forms_to_try = [word]
