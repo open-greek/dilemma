@@ -4174,8 +4174,10 @@ class Dilemma:
         A lemma that is itself an Ancient head written without breathings
         (the Sophocles lexicon's οφφίκιον) takes the form's breathing.
         A capitalized lemma (a name only Modern Greek Wiktionary lists,
-        Ραχίλ) is returned as it is. With ``lang="all"``, a Modern Greek
-        lexical head is returned as it is too: polytonic vernacular Greek
+        Ραχίλ) is returned as it is for a capitalized form; a lowercase
+        form is not that name (ἀνάβη is not the surname Ανάβης, nor the
+        fragment εἴπ the abbreviation ΕΙΠ). With ``lang="all"``, a Modern
+        Greek lexical head is returned as it is too: polytonic vernacular Greek
         reads as Modern there (1.3.24, #104), so ἀκόμη keeps ακόμη and
         ἀξίζει αξίζω. Otherwise there is no Ancient lemma with those
         letters: None (ἀστοχήσει with ``lang="grc"``).
@@ -4209,9 +4211,12 @@ class Dilemma:
                     return spelling
         if tried and self._is_ancient_headword(lemma):
             return tried[0]
-        if is_capitalized(lemma):
+        if is_capitalized(lemma) and is_capitalized(word):
             # A name has one citation form in both languages; one that
             # only Modern Greek lists (Ραχίλ for Ῥαχὶλ) is still the name.
+            # A lowercase word is not a name the lookup lists without its
+            # breathing: the loose keys of ἀνάβη, ὅτ and εἴπ are rows of
+            # the surname Ανάβης and of the abbreviations Οτ and ΕΙΠ.
             return lemma
         if self.lang == "all":
             if self._vernacular_lexical_heads is None:

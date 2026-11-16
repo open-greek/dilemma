@@ -161,6 +161,37 @@ def test_shipped_marked_double_rho_matches_the_plain_spelling_in_modern_mode():
             model.lemmatize_pos(plain, tag, guess=False))
 
 
+# ------------------------------------- Modern names under loose keys
+
+def test_lowercase_word_does_not_read_a_modern_name(model_from):
+    # ἀνάβη, ὅτ and εἴπ have no rows; their loose keys are rows of the
+    # surname Ανάβης and of the abbreviations Οτ and ΕΙΠ (#132).
+    rows = {"ανάβη": "Ανάβης", "οτ": "Οτ", "ειπ": "ΕΙΠ", "ραχίλ": "Ραχίλ",
+            "ιωαννου": "Ἰωάννης"}
+    for lang in ("grc", "all"):
+        model = model_from(rows, lang=lang)
+        assert model._lookup_word("ἀνάβη") is None
+        assert model._lookup_word("ὅτ") is None
+        assert model._lookup_word("εἴπ") is None
+        assert model._lookup_word("ῥαχὶλ") is None
+        assert model._lemmatize_verbose_impl("ἀνάβη", guess=False) == []
+        # A capitalized word is the name, whichever language lists it.
+        assert model._lookup_word("Ῥαχὶλ") == "Ραχίλ"
+        assert model._lookup_word("Ἀνάβη") == "Ανάβης"
+        # A name written with its breathing is an Ancient lemma.
+        assert model._lookup_word("ἰωάννου") == "Ἰωάννης"
+        # A word without a breathing reads the row as it is.
+        assert model._lookup_word("ανάβη") == "Ανάβης"
+
+
+def test_lowercase_word_keeps_a_modern_lexical_head_under_all(model_from):
+    rows = {"απόκρεω": "Απόκρεω"}
+    model = model_from(rows, lang="all", vernacular={"Απόκρεω"})
+    assert model._lookup_word("ἀπόκρεω") == "Απόκρεω"
+    model = model_from(rows, lang="grc", vernacular={"Απόκρεω"})
+    assert model._lookup_word("ἀπόκρεω") is None
+
+
 # ---------------------------------------------- capitalized loose keys
 
 def test_loose_keys_of_a_capitalized_word():

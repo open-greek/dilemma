@@ -132,7 +132,10 @@ The Ancient headword with the same letters is returned instead, with the
 form's breathing or the other one and with the accent as written or an acute
 turned circumflex (`εὐσεβεστάτῃ` gives `εὐσεβής`, not `ευσεβής`; `ἐδραία`
 gives `ἑδραῖος`). A name that only Modern Greek lists keeps its lemma
-(`Ῥαχὶλ` gives `Ραχίλ`). With `lang="all"`, a Modern Greek lexical head that
+(`Ῥαχὶλ` gives `Ραχίλ`) when the form is capitalized too: a lowercase form
+is not read as a Modern Greek name or abbreviation (`ἀνάβη` does not give
+the surname `Ανάβης`, nor the fragment `εἴπ` the abbreviation `ΕΙΠ`). With
+`lang="all"`, a Modern Greek lexical head that
 has no Ancient twin is kept too, so polytonic vernacular Greek still reads as
 Modern (`ἀκόμη` gives `ακόμη`, `ἀξίζει` `αξίζω`, `ἔργο` `έργο`; also
 `ἀστοχήσει` `αστοχώ`). With `lang="grc"` there is otherwise no lemma
@@ -155,18 +158,19 @@ accent or breathing (`ἕξης` gives `ἑξῆς`, `ἐνότητα` `ἑνό�
 the spelling tells the two apart. An Ancient form whose Modern twin is listed
 can take it under `lang="all"` (`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
 
-A double rho printed with breathings, as older editions have it (`ῤῥ`, and
-the half-marked `ρῥ` and `ῤρ`), is read as plain `ρρ` by every method:
+A double rho printed with breathings inside a word, as older editions have it
+(`ῤῥ`; also the half-marked `ρῥ` and `ῤρ` and the confused `ῥῥ`, `ῤῤ`, `ῥρ`
+and `ῥῤ` of their OCR), is read as plain `ρρ` by every method:
 `ἀπεῤῥάγησαν` gives `ἀπορρήγνυμι`, and `Βοῤῥᾶ` reads like `Βορρᾶ` with or
 without a tag. `attested_only=True` still matches the spelling as printed.
 
 A capitalized word that no lowercase key answers also tries its monotonic
 and accent-stripped keys with the capital: the generated dictionary paradigms
 key the unaccented spelling of a capitalized form that way, so `Σαμαρείτις`
-gives `Σαμαρεῖτις` and `Αὐγούσταν` `Αὐγοῦστα`. Such a key is read in the
-Ancient rows only, and only for a capitalized Ancient citation form (accented,
-with its breathing): a Modern Greek name or a corpus lemma printed without
-accents is not taken from it.
+gives `Σαμαρεῖτις` and `Αὐγούσταν` `Αὐγοῦστα`. Such a key is never read in
+the Modern Greek table, and only for a capitalized Ancient citation form
+(accented, with its breathing): a Modern Greek name or a corpus lemma printed
+without accents is not taken from it.
 
 ## Conventions
 
