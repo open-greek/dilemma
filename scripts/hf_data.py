@@ -172,6 +172,10 @@ PINNED_ONLY = [
     "data/med_pairs.json",
     "data/ag_source_alias_audit.json",
     "data/ag_source_alias_manifest.json",
+    # Every decision of the LSJ verb pass (build/expand_lsj.py
+    # --expand-verbs): the inferred principal parts and the cells left to a
+    # treebank reading.
+    "data/ag_verb_generation_audit.json",
     # Written by build_data.py beside the two tables above and tracked in
     # git. No code reads it; it is pinned because the Hub serves it.
     "data/med_pos_lookup.json",
