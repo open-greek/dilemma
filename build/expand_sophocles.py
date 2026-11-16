@@ -448,6 +448,12 @@ def settle_head(printed, lexical_heads=None):
     return printed, ""
 
 
+# The words written without an accent. Any other unaccented first part of a
+# phrase is a combining form (κατα, συμ, ψευδο), which the lexica list as
+# heads too.
+_PROCLITICS = frozenset("ὁ ἡ οἱ αἱ ἐν εἰς ἐς ἐκ ἐξ εἰ ὡς οὐ οὐκ οὐχ".split())
+
+
 def split_word(first, phrase):
     """``(joined, second)`` for a two-word phrase whose parts may be one
     word, else ``("", "")``.
@@ -482,9 +488,10 @@ def settle_heads(entries, lexical_heads, audit=None):
 
     A phrase of two words is a word the OCR split (``split_word``) when
     another lexical source lists the joined word and does not list both
-    parts as words of their own (μή τις stays a phrase beside μήτις). It is
-    then an entry under the joined word, recorded among the repaired heads
-    and no longer among the phrases.
+    parts as words of their own (μή τις stays a phrase beside μήτις; the
+    κατα of κατα λιπαίνω is listed, but unaccented and no proclitic, so a
+    combining form). It is then an entry under the joined word, recorded
+    among the repaired heads and no longer among the phrases.
     """
     audit = audit if audit is not None else new_head_audit()
     malformed = audit.setdefault("malformed_heads", {})
@@ -505,8 +512,11 @@ def settle_heads(entries, lexical_heads, audit=None):
     phrases = audit.setdefault("multi_word_heads", {})
     for phrase, (joined, second, entry) in audit.get("split_words", {}).items():
         first = entry["headword"]
-        if (not lexical_heads or joined not in lexical_heads
-                or (first in lexical_heads and second in lexical_heads)):
+        if not lexical_heads or joined not in lexical_heads:
+            continue
+        first_is_a_word = first in lexical_heads and (
+            accent_count(first) > 0 or first.lower() in _PROCLITICS)
+        if first_is_a_word and second in lexical_heads:
             continue
         phrases.pop(phrase, None)
         changed["joined"][phrase] = joined

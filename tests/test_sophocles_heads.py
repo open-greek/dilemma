@@ -179,9 +179,10 @@ def test_a_word_the_ocr_split_is_an_entry_under_the_joined_word(tmp_path, monkey
         "<orth>μή τις</orth>, lest any one.",
         "<orth>τετρα- πλατεῖα</orth>, ας, ἡ, a square.",
         "<orth>Νέα Ῥώμη</orth>, ἡ, New Rome.",
+        # κατα is a head of the other lexica as well: a combining form
         heads={"κηνσοφύλαξ": sources, "μοιχοσύνοδος": sources,
-               "καταφθάνω": sources, "μήτις": sources, "μή": sources,
-               "τις": sources},
+               "καταφθάνω": sources, "κατα": sources, "φθάνω": sources,
+               "μήτις": sources, "μή": sources, "τις": sources},
         forms={"κηνσοφύλαξ": ["κηνσοφύλαξ", "κηνσοφύλακος"]})
     # the joined nouns are expanded with the entry's genitive and gender
     assert calls == [("κηνσοφύλαξ", "m", "ακος"), ("μοιχοσύνοδος", "f", "ου")]
@@ -195,12 +196,32 @@ def test_a_word_the_ocr_split_is_an_entry_under_the_joined_word(tmp_path, monkey
     assert "split_words" not in audit["head_rules"]
 
 
+def test_a_proclitic_before_a_word_stays_a_phrase():
+    listed = frozenset({"οὐμήν", "οὐ", "μήν", "ἐκδέχομαι", "ἐκ", "δέχομαι",
+                        "προνύσσω", "προ", "νύσσω"})
+    audit = S.new_head_audit()
+    entries = {}
+    for first, phrase in (("οὐ", "οὐ μήν"), ("ἐκ", "ἐκ δέχομαι"), ("προ", "προ νύσσω")):
+        entry = {"headword": first, "gender": ""}
+        audit["multi_word_heads"][phrase] = first
+        joined, second = S.split_word(first, phrase)
+        audit["split_words"][phrase] = (joined, second, entry)
+    settled = S.settle_heads(entries, listed, audit)
+    # οὐ and ἐκ are words without an accent; προ is a combining form
+    assert list(settled) == ["προνύσσω"]
+    assert settled["προνύσσω"] == {"headword": "προνύσσω", "printed": "προ νύσσω",
+                                   "gender": ""}
+    assert audit["multi_word_heads"] == {"οὐ μήν": "οὐ", "ἐκ δέχομαι": "ἐκ"}
+    assert audit["repaired_heads"] == {"προ νύσσω": "προνύσσω"}
+
+
 def test_verb_step_expands_a_split_verb(tmp_path, monkeypatch):
     lookup, calls = run_verb_step(
         tmp_path, monkeypatch, {},
         "<orth>συμ- ψάλλω</orth>, to sing with.",
         "<orth>προ νύσσω</orth>, to prick before.",
-        heads={"συμψάλλω": ["lsj9_headwords"]})
+        heads={"συμψάλλω": ["lsj9_headwords"], "συμ": ["lsj9_headwords"],
+               "ψάλλω": ["lsj9_headwords"]})
     assert calls == ["συμψάλλω"]
     assert set(lookup.values()) == {"συμψάλλω"}
 

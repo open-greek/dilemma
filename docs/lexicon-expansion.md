@@ -104,11 +104,13 @@ are read through the same rules.
   breathing; without one the phrase stays a phrase (`ορθο-πρίων ονος`).
   A phrase of two words is one word the OCR split after its first part,
   with the lexicon's division hyphen or without it, when the joined word has
-  a single accent, a lexical source other than Sophocles lists it and that
-  source does not list both parts as words of their own: `κατα- φθάνω` is
+  a single accent, a lexical source other than Sophocles lists it and the
+  two parts are not both listed as words of their own: `κατα- φθάνω` is
   `καταφθάνω`, `κηνσο φύλαξ` is `κηνσοφύλαξ`, and `μή τις` stays a phrase
-  beside `μήτις`. The entry is then generated under the joined word like a
-  repaired hyphenated head.
+  beside `μήτις`. An unaccented first part that is no proclitic is a
+  combining form (`κατα`, `συμ`, `ψευδο`), though the lexica list it as a
+  head. The entry is then generated under the joined word like a repaired
+  hyphenated head.
 - **A stated gender wins over the ending.** An article that is the first
   field after the head, or that follows one field (the genitive, which the
   OCR may garble), states the noun's gender: `καισάριης, ἡ`,
