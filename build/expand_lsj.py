@@ -35,7 +35,8 @@ from dilemma.form_sanitize import (  # noqa: E402
     sanitize_form,
 )
 from lsj_principal_parts import (  # noqa: E402
-    parse_principal_parts, derive_grc_conj_args,
+    INDICATIVE_ONLY, derive_grc_conj_args, ends_at_label,
+    parse_principal_parts,
 )
 
 DATA_DIR = SCRIPT_DIR / "data"
@@ -1027,6 +1028,43 @@ def load_lsj_head_texts() -> dict[str, str]:
     return heads
 
 
+def _without_iota_subscript(s: str) -> str:
+    return unicodedata.normalize("NFC", "".join(
+        c for c in unicodedata.normalize("NFD", s) if ord(c) != 0x0345))
+
+
+def head_text_finder(head_texts: dict[str, str]):
+    """A function from a headword to its entry head, "" when it has none.
+
+    The headword list drops quantity marks, and prints θρώσκω where the
+    entry is θρῴσκω, while the glosses keep the entry's own spelling
+    (ἀγῑνέω), so the exact spelling misses the text of some 6,900 verb
+    heads. The exact spelling comes first; then the one entry that has the
+    same letters without quantity marks, then the one that has them without
+    iota subscript either. A spelling two entries share (θᾱλέω, θᾰλέω)
+    stays without text, since it does not say which entry is meant.
+    """
+    by_quantity: dict[str, list[str]] = {}
+    by_subscript: dict[str, list[str]] = {}
+    for key in head_texts:
+        plain = strip_length_marks(key)
+        by_quantity.setdefault(plain, []).append(key)
+        by_subscript.setdefault(_without_iota_subscript(plain), []).append(key)
+
+    def find(headword: str) -> str:
+        if headword in head_texts:
+            return head_texts[headword]
+        plain = strip_length_marks(headword)
+        for index, folded in ((by_quantity, plain),
+                              (by_subscript, _without_iota_subscript(plain))):
+            keys = index.get(folded)
+            if keys:
+                return head_texts[keys[0]] if len(keys) == 1 else ""
+        return ""
+
+    return find
+
+
 def load_lsj_supplement_head_texts() -> dict[str, str]:
     """Entry heads of the earlier glosses export named in the pin.
 
@@ -1058,11 +1096,17 @@ def merged_principal_parts(headword: str, head_text: str,
     """Principal parts of the entry text, completed from the supplement.
 
     Every part the current text gives stands. The earlier export adds only
-    the tenses the current text lacks.
+    the tenses the current text lacks. Where the current text stops right
+    after a label (ἀνοιδέω: "... fut. -ήσω: aor."), the earlier one opens
+    with the form that label announces ("ἀνῴδησα , e: pf. ἀνῴδηκα"), so the
+    two are read as one text.
     """
     parts = dict(parse_principal_parts(head_text, headword)) if head_text else {}
     if not supplement_text:
         return parts
+    if (head_text and ends_at_label(head_text)
+            and re.match(r"\s*[\u0370-\u03ff\u1f00-\u1fff]", supplement_text)):
+        supplement_text = head_text.rstrip() + " " + supplement_text
     has_aorist = any(key in parts for key in _AORIST_PART_KEYS)
     for key, form in parse_principal_parts(supplement_text, headword).items():
         if key in _AORIST_PART_KEYS and has_aorist:
@@ -1102,6 +1146,27 @@ def _perfect_participle_cells(table: str) -> str:
     return "".join(output)
 
 
+def _indicative_cells(table: str) -> str:
+    """Keep the indicative rows of a conjugation table and nothing else.
+
+    Used for a past tense whose unaugmented stem is unknown: the module
+    builds the other moods, the infinitive and the participle on the stem
+    without the augment, and would print them with it.
+    """
+    indicative = False
+    output = []
+    for line in table.splitlines(keepends=True):
+        if line.startswith("! ") and not line.startswith(
+                ("! rowspan", "! colspan", "! class")):
+            indicative = line.strip() == "! indicative"
+        if line.startswith("|") and "grc-conj-nonfinite-form" in line:
+            continue
+        if line.startswith('| class="grc-conj-finite-form"') and not indicative:
+            continue
+        output.append(line)
+    return "".join(output)
+
+
 def _expand_principal_part(wtp, headword: str, tense_args: list[str]
                             ) -> set[str]:
     """Expand a single ``{{grc-conj|...}}`` invocation derived from
@@ -1115,7 +1180,9 @@ def _expand_principal_part(wtp, headword: str, tense_args: list[str]
         return _PP_CACHE[cache_key]
 
     # Build the {{grc-conj|...}} call.
-    tpl = "{{grc-conj|" + "|".join(tense_args) + "}}"
+    indicative_only = INDICATIVE_ONLY in tense_args
+    tpl = "{{grc-conj|" + "|".join(
+        arg for arg in tense_args if arg != INDICATIVE_ONLY) + "}}"
     try:
         wtp.start_page(headword)
         html = wtp.expand(tpl)
@@ -1124,6 +1191,8 @@ def _expand_principal_part(wtp, headword: str, tense_args: list[str]
         return set()
     if tense_args[0] == "perf":
         html = _perfect_participle_cells(html)
+    if indicative_only:
+        html = _indicative_cells(html)
     forms = parse_html_forms(html, headword)
     _PP_CACHE[cache_key] = forms
     return forms
@@ -1525,7 +1594,8 @@ def verb_entry_rejection(head_text: str) -> str:
     return ""
 
 
-def expand_verb(wtp, headword, head_text: str = "", supplement_text: str = ""):
+def expand_verb(wtp, headword, head_text: str = "", supplement_text: str = "",
+                principal_part_forms: set[str] | None = None):
     """Expand a verb using grc-conj template. Returns set of forms.
 
     Always expands the present-system paradigm. When ``head_text`` is
@@ -1535,7 +1605,9 @@ def expand_verb(wtp, headword, head_text: str = "", supplement_text: str = ""):
     their paradigms are unioned in. Without ``head_text`` the function
     behaves exactly as before (present-system only). ``supplement_text``
     is the same entry's head in the earlier glosses export; it adds only
-    the principal parts ``head_text`` lacks.
+    the principal parts ``head_text`` lacks. With ``principal_part_forms``
+    (a set), the forms of the principal parts go into it instead of the
+    result, for a caller that ranks them below the present system.
 
     Memoizes only identical present-system requests. Other verbs of the
     same conjugation still require their own marked paradigm from Lua.
@@ -1611,7 +1683,9 @@ def expand_verb(wtp, headword, head_text: str = "", supplement_text: str = ""):
                                            supplement_text)
         except Exception:
             extra = set()
-        if extra:
+        if extra and principal_part_forms is not None:
+            principal_part_forms |= extra - forms
+        elif extra:
             forms = forms | extra
 
     return forms, ""
@@ -1668,9 +1742,9 @@ def test_one(word):
         forms, err = expand_noun(wtp, word, entry["gender"], entry["genitive"])
         print(f"\ngrc-decl result: {len(forms)} forms" + (f" (error: {err})" if err else ""))
     else:
-        head_texts = load_lsj_head_texts()
-        head_text = head_texts.get(word, "")
-        supplement_text = load_lsj_supplement_head_texts().get(word, "")
+        head_text = head_text_finder(load_lsj_head_texts())(word)
+        supplement_text = head_text_finder(
+            load_lsj_supplement_head_texts())(word)
         if head_text or supplement_text:
             parts = merged_principal_parts(word, head_text, supplement_text)
             print(f"LSJ principal parts: {parts}")
@@ -1902,6 +1976,8 @@ def expand_verbs():
               f"{pinned['supplement']['sha256'][:12]} (pinned)")
     head_texts = load_lsj_head_texts()
     supplement_texts = load_lsj_supplement_head_texts()
+    find_head_text = head_text_finder(head_texts)
+    find_supplement_text = head_text_finder(supplement_texts)
 
     print(f"Loading {AG_LOOKUP}...")
     with open(AG_LOOKUP, encoding="utf-8") as f:
@@ -1933,44 +2009,8 @@ def expand_verbs():
     failure_examples = {}
     t0 = time.time()
 
-    for i, hw in enumerate(candidates):
-        head_text = head_texts.get(hw, "")
-        # Entry selection strips quantity marks, but its original spelling
-        # still identifies the source description (ἡμῐ is a prefix). Use
-        # that description for the eligibility check without changing the
-        # principal-part lookup or merging distinct lexical headwords.
-        description = head_texts.get(lsj_entries[hw].get("orth_orig"), head_text)
-        rejection = verb_entry_rejection(description)
-        if rejection:
-            forms, err = set(), rejection
-        else:
-            forms, err = expand_verb(
-                wtp, hw, head_text=head_text,
-                supplement_text=supplement_texts.get(hw, ""))
-
-        if err or not forms:
-            stats["failed"] += 1
-            reason = err.splitlines()[0][:160] if err else "empty-paradigm"
-            failure_reasons[reason] += 1
-            examples = failure_examples.setdefault(reason, [])
-            if len(examples) < 3:
-                examples.append(hw)
-            continue
-
-        stats["expanded"] += 1
-        # Track verbs that contributed at least one extra principal
-        # part. We re-parse here rather than threading the result
-        # through expand_verb to keep that signature simple.
-        own_parts = merged_principal_parts(hw, head_text)
-        all_parts = merged_principal_parts(
-            hw, head_text, supplement_texts.get(hw, ""))
-        if all_parts:
-            stats["with_pp"] += 1
-        if len(all_parts) > len(own_parts):
-            stats["with_supplement_pp"] += 1
-
+    def add_forms(forms, hw_clean):
         # See sanitize_form() rationale in expand_all() above.
-        hw_clean = sanitize_form(hw)
         for raw_form in sorted(forms):
             for form in resolve_editorial_form(raw_form):
                 if form not in lookup:
@@ -1987,6 +2027,67 @@ def expand_verbs():
                     elif lookup[plain] != hw_clean:
                         stats["collisions"] += 1
 
+    # The present system of every verb goes in before any principal part:
+    # a cell a headword spells out itself (φιαλοῦμαι of φιαλόω) outranks
+    # one derived from another verb's printed part (the future φιαλῶ of
+    # φιάλλω gives the same form). A headword that another verb prints as
+    # its principal part (ὑπομνήσω under ὑπομιμνήσκω) is that verb's tense,
+    # so its cells go in last.
+    deferred = []
+    late = []
+    texts = {hw: (find_head_text(hw), find_supplement_text(hw))
+             for hw in candidates}
+    printed_parts = set()
+    for hw, (head_text, supplement_text) in texts.items():
+        for form in merged_principal_parts(
+                hw, head_text, supplement_text).values():
+            printed_parts.add(strip_length_marks(form))
+
+    for i, hw in enumerate(candidates):
+        # Entry selection strips quantity marks; the entry's text is under
+        # its own spelling (head_text_finder), and a spelling two entries
+        # share gets none.
+        head_text, supplement_text = texts[hw]
+        # The original spelling still identifies the source description of
+        # a shared one (ἡμῐ is a prefix) for the eligibility check.
+        description = head_texts.get(lsj_entries[hw].get("orth_orig"), head_text)
+        rejection = verb_entry_rejection(description)
+        if rejection:
+            forms, err = set(), rejection
+        else:
+            extra = set()
+            forms, err = expand_verb(
+                wtp, hw, head_text=head_text,
+                supplement_text=supplement_text, principal_part_forms=extra)
+
+        if err or not forms:
+            stats["failed"] += 1
+            reason = err.splitlines()[0][:160] if err else "empty-paradigm"
+            failure_reasons[reason] += 1
+            examples = failure_examples.setdefault(reason, [])
+            if len(examples) < 3:
+                examples.append(hw)
+            continue
+
+        stats["expanded"] += 1
+        # Track verbs that contributed at least one extra principal
+        # part. We re-parse here rather than threading the result
+        # through expand_verb to keep that signature simple.
+        own_parts = merged_principal_parts(hw, head_text)
+        all_parts = merged_principal_parts(hw, head_text, supplement_text)
+        if all_parts:
+            stats["with_pp"] += 1
+        if len(all_parts) > len(own_parts):
+            stats["with_supplement_pp"] += 1
+
+        hw_clean = sanitize_form(hw)
+        if hw in printed_parts and not all_parts:
+            late.append((forms, hw_clean))
+        else:
+            add_forms(forms, hw_clean)
+        if extra:
+            deferred.append((extra, hw_clean))
+
         if (i + 1) % 500 == 0:
             elapsed = time.time() - t0
             rate = (i + 1) / elapsed
@@ -1995,6 +2096,9 @@ def expand_verbs():
                   f"({stats['expanded']:,} ok, {stats['failed']:,} fail, "
                   f"{stats['new_forms']:,} new forms) "
                   f"[{elapsed:.0f}s elapsed, ~{remaining:.0f}s remaining]")
+
+    for forms, hw_clean in deferred + late:
+        add_forms(forms, hw_clean)
 
     elapsed = time.time() - t0
     print(f"\nDone in {elapsed:.0f}s")

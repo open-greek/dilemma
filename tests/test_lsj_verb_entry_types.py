@@ -68,7 +68,8 @@ def test_driver_uses_original_quantity_marked_headword(monkeypatch, tmp_path):
     monkeypatch.setattr(expand_lsj, "AG_LOOKUP", lookup)
     calls = []
 
-    def expand(_wtp, word, head_text="", supplement_text=""):
+    def expand(_wtp, word, head_text="", supplement_text="",
+               principal_part_forms=None):
         calls.append(word)
         return {"λύω", "λύεις"}, ""
 
