@@ -470,7 +470,8 @@ def test_manifest_command_keeps_the_pin_of_an_absent_pinned_only_file(tree):
 
 def test_check_passes_when_checkout_manifest_and_hub_agree(tree, capsys):
     assert hf_data.main(["check"]) == 0
-    assert "4 artifacts, no served file without a pin" in capsys.readouterr().out
+    assert "Hub matches the manifest (4 artifacts); every other served file " \
+        "is under data/kaikki_inputs/ or tagger/" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("rel", ["data/lookup.db", "data/ag_lookup.json",

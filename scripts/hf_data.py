@@ -484,8 +484,8 @@ def cmd_check(args) -> int:
               f"{Path(__file__).name} and run push, or delete it\nfrom the Hub.",
               file=sys.stderr)
         return 1
-    print(f"  = Hub matches the manifest ({len(want)} artifacts, "
-          f"no served file without a pin)")
+    print(f"  = Hub matches the manifest ({len(want)} artifacts); every other "
+          f"served file is under {' or '.join(UNPINNED)}")
     return 0
 
 

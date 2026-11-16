@@ -304,12 +304,12 @@ file with the committed blob, so changing such a table fails that test until
 `push` uploads a changed file of either list and rewrites its pin. It hashes
 the `PINNED_ONLY` files the checkout has and keeps the pins of the rest, so a
 checkout that rebuilt only the runtime artifacts can still push. `check` also
-lists what the Hub serves and fails on a file under `data/`, `model/` or
-`tagger/` that is in neither list: a file uploaded by hand must be added to a
-list (and pushed) or deleted from the Hub. Two prefixes are exempt, with their
-reasons in `UNPINNED`: `data/kaikki_inputs/` (pinned by Hub revision and
-sha256 in `data/kaikki_inputs.json`) and `tagger/` (the tagger weights, which
-the manifest does not pin yet).
+lists what the Hub serves and fails on a file under `data/` or `model/` that
+is in neither list: a file uploaded by hand must be added to a list (and
+pushed) or deleted from the Hub. `UNPINNED` names what the manifest leaves
+out, with the reasons: `data/kaikki_inputs/` is pinned by Hub revision and
+sha256 in `data/kaikki_inputs.json`, and the tagger weights under `tagger/`
+are not pinned yet.
 
 CI waits for the Hub to serve the manifest's bytes, both lists, before
 downloading (`hf_data.py wait`) and re-checks the downloaded files afterwards
