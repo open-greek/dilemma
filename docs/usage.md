@@ -135,20 +135,45 @@ The Ancient headword with the same letters is returned instead, with the
 form's breathing or the other one and with the accent as written or an acute
 turned circumflex (`εὐσεβεστάτῃ` gives `εὐσεβής`, not `ευσεβής`; `ἐδραία`
 gives `ἑδραῖος`). A name that only Modern Greek lists keeps its lemma
-(`Ῥαχὶλ` gives `Ραχίλ`). With `lang="all"`, a Modern Greek lexical head that
+(`Ῥαχὶλ` gives `Ραχίλ`) when the form is capitalized too: a lowercase form
+is not read as a Modern Greek name or abbreviation (`ἀνάβη` does not give
+the surname `Ανάβης`, nor the fragment `εἴπ` the abbreviation `ΕΙΠ`). With
+`lang="all"`, a Modern Greek lexical head that
 has no Ancient twin is kept too, so polytonic vernacular Greek still reads as
 Modern (`ἀκόμη` gives `ακόμη`, `ἀξίζει` `αξίζω`, `ἔργο` `έργο`; also
 `ἀστοχήσει` `αστοχώ`). With `lang="grc"` there is otherwise no lemma
 (`ἀστοχήσει` gives `None` with `guess=False`). `lang="el"` and
 `convention="triantafyllidis"` read the Modern rows as before. The Sophocles
 lexicon's omicron and rho heads get their breathings back before expansion,
-so `ὀφφικίου` gives `ὀφφίκιον` both untagged and with a NOUN tag. Known gaps:
-with `lang="grc"` a polytonic
-Modern Greek word that no Ancient head spells can still reach the Byzantine
-normalizer, which may find an unrelated Ancient word (`ἀλλιῶς` gives
-`ἁλιεύς`, `ἀνάβει` `Ανάβης`); with `lang="all"` these keep their Modern lemma.
-An Ancient form whose Modern twin is listed can take it under `lang="all"`
-(`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
+so `ὀφφικίου` gives `ὀφφίκιον` both untagged and with a NOUN tag.
+
+Known gaps: with `lang="grc"` a polytonic Modern Greek word that no Ancient
+head spells can still get an Ancient lemma. Its own accent-stripped key
+answers (`ἄνοιξη` gives `ἀνοίγω`, the row of `ἀνοίξῃ`), because the same key
+reads Ancient words printed with a misplaced accent or breathing (`ἕξης`
+gives `ἑξῆς`, `ἐνότητα` `ἑνότης`), and nothing in the spelling tells the two
+apart. Failing that, the Byzantine normalizer respells one sound and looks
+the respelling up, under its loose keys too (`ἀλλιῶς` gives `ἁλιεύς`,
+`ἀνάβει` `ἀναβαίνω`). The same step reads Byzantine and misprinted Ancient
+forms that are spelled like Modern ones (`ἐνεργεῖτο` gives `ἐνεργέω`,
+`ἁδικημένος` `ἀδικέω`); closing it for Modern spellings was measured to
+remove about as many right lemmas as wrong ones. With `lang="all"` these
+words keep their Modern lemma. An Ancient form whose Modern twin is listed
+can take it under `lang="all"` (`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
+
+A double rho printed with breathings inside a word, as older editions have it
+(`ῤῥ`; also the half-marked `ρῥ` and `ῤρ` and the confused `ῥῥ`, `ῤῤ`, `ῥρ`
+and `ῥῤ` of their OCR), is read as plain `ρρ` by every method:
+`ἀπεῤῥάγησαν` gives `ἀπορρήγνυμι`, and `Βοῤῥᾶ` reads like `Βορρᾶ` with or
+without a tag. `attested_only=True` still matches the spelling as printed.
+
+A capitalized word that no lowercase key answers also tries its monotonic
+and accent-stripped keys with the capital: the generated dictionary paradigms
+key the unaccented spelling of a capitalized form that way, so `Σαμαρείτις`
+gives `Σαμαρεῖτις` and `Αὐγούσταν` `Αὐγοῦστα`. Such a key is never read in
+the Modern Greek table, and only for a capitalized Ancient citation form
+(accented, with its breathing): a Modern Greek name or a corpus lemma printed
+without accents is not taken from it.
 
 ## Conventions
 
@@ -942,7 +967,7 @@ known gaps in both directions:
   Greek headword. So can a form under its own part of speech when the lookup
   lacks its spelling, through an accent slip or a gap in the lookup, and
   Modern Greek records a word with that accent (`συνῃρημένῃ` VERB gives
-  `συναιρώ`; `Βοῤῥᾶ` PROPN gives `Βορράς`). The rule cannot tell a correctly
+  `συναιρώ`). The rule cannot tell a correctly
   spelled form the lookup lacks from a misspelling; such forms need lookup
   rows, not a rule (treating an iota subscript as Ancient evidence was
   measured mixed: `συνῃρημένῃ` was fixed, `ἐνιαίᾳ` and `λαλᾷ` broke). One

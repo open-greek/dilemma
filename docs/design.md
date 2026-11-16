@@ -29,7 +29,11 @@ normalization then try further readings. Neural inference runs when the
 previous steps have not resolved a word and `guess=True`.
 
 Compound decomposition and additional Byzantine normalization can also run
-when the model leaves a form unresolved. These fallbacks remain available
+when the model leaves a form unresolved. The Byzantine normalization respells
+one sound at a time, in the order of its rule weights; a respelling that is a
+lookup row as written is taken before one that matches only under its
+monotonic key, and that before one that matches only under its
+accent-stripped key. These fallbacks remain available
 with `guess=False`; that setting skips neural inference, keeps a compound
 only when a dictionary lists its lemma, and suppresses the final
 unchanged-word result. Scalar, batch, and verbose methods share these
@@ -41,7 +45,10 @@ an automatic edit-distance correction pass over every lemmatized word.
 ## Lookup table
 
 The SQLite lookup combines dictionary paradigms and corpus readings. It tries
-exact spelling, lowercase, grave-to-acute, monotonic, and accent-stripped keys.
+exact spelling, lowercase, grave-to-acute, monotonic, and accent-stripped keys;
+the last two in lowercase and then, for a capitalized word and a capitalized
+Ancient head, with the capital. Lunate sigma and a double rho printed with
+breathings (`ῤῥ`) are rewritten to their standard spellings first.
 Ancient-only and Modern-only tables help preserve the requested citation
 convention when spellings overlap. The JSON files are a fallback when the
 SQLite database is absent.

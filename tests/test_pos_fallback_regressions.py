@@ -591,9 +591,12 @@ def test_shipped_noun_homographs_and_supported_fallbacks(shipped_models, normali
         model._normalizer = Normalizer(period="byzantine") if normalize else None
         assert model.lemmatize("φάσκονται", guess=False) is None
         assert model._strip_verb_morphology("ἔπιναι") is None
-        # The old augment path returned the noun πίνη. The normalizer may
-        # still resolve ἐπεῖναι, an attested infinitive of ἔπειμι.
-        assert model.lemmatize("ἔπιναι", guess=False) == "ἔπειμι"
+        # The old augment path returned the noun πίνη. The Byzantine
+        # fallback reads ἔπινε, a row as it is written (αι for ε), before
+        # ἐπεῖναι, an infinitive of ἔπειμι that also needs the accent moved.
+        # The optional normalizer still takes its respellings in rule order.
+        assert model.lemmatize("ἔπιναι", guess=False) == (
+            "ἔπειμι" if normalize else "πίνω")
         assert model.lemmatize("διηγουμένην", guess=False) == "διηγέομαι"
         assert model.lemmatize_batch(["φάσκονται", "διηγουμένην"], guess=False) == [
             None, "διηγέομαι"]
