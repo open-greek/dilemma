@@ -2605,12 +2605,14 @@ def expand_verbs(corpus_checks: bool = True):
         # verb's present holds the cell of a printed part (περιειλόμεθα of
         # περιείλω and of the aorist περιειλόμην under περιαιρέω) and the
         # treebanks read the form as the verb of the part, that verb takes
-        # it. A headword keeps its own spelling (μεθήκω).
+        # it. A headword that holds its own key keeps it (μεθήκω); one that
+        # is a cell of the other present goes with the part (ὑπερεῖδον
+        # under ὑπερείδω, the aorist of ὑπεροράω).
         for forms, hw_clean, _ in deferred:
             for form in sorted(forms):
                 held = lookup.get(form)
                 if (held is None or held == hw_clean or form not in written
-                        or form in heads
+                        or held == form
                         or not treebank_agrees(
                             form, hw_clean, readings, lexical_heads)):
                     continue
