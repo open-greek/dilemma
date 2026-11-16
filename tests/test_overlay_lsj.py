@@ -1252,3 +1252,92 @@ def test_carried_cells_return_only_with_their_own_lemma_spelling():
     assert stats["unmarked_oxytone_cell_restored"] == 1
     assert stats["unmarked_corrected_head_restored"] == 1
     assert stats["unmarked_disputed"] == 1 and stats["unmarked_unbacked"] == 1
+
+
+MICRO = "µ"
+
+
+def test_overlay_reads_the_micro_sign_as_mu():
+    reference_base = {"μέρος": "μέρος"}
+    reference = {
+        **reference_base,
+        # the head and its forms exist only with the micro sign
+        f"σχη{MICRO}ατοποιεῖ": f"σχη{MICRO}ατοποιέω",
+        f"σχη{MICRO}ατοποιοῦσι": f"σχη{MICRO}ατοποιέω",
+        f"σχη{MICRO}ατοποιει": f"σχη{MICRO}ατοποιέω",
+        # the fresh table has the Greek spelling: it stands
+        f"{MICRO}ετριάσεως": f"{MICRO}ετρίασις",
+        # the expansion has the key with mu too: that row decides
+        f"γνω{MICRO}οδοτῶν": f"γνω{MICRO}οδότης",
+        "γνωμοδοτῶν": "γνωμοδοτέω",
+        f"{MICRO}έρους": f"{MICRO}έρος",
+        "μέρους": "μέρος",
+        # a superseded lemma is named with mu
+        f"ὁ{MICRO}οίου": f"ὁ{MICRO}οῖον",
+        # a Greek form under a lemma spelled with the micro sign
+        "ἐσχηματοποίησε": f"σχη{MICRO}ατοποιέω",
+    }
+    target = {"μέρος": "μέρος", "μετριάσεως": "μετρίασις"}
+    carried = dict(reference)
+
+    stats = overlay_expansion(reference, reference_base, target,
+                              superseded_noun_lemmas={"ὁμοῖον"}, carried=carried)
+
+    assert target == {
+        "μέρος": "μέρος", "μετριάσεως": "μετρίασις",
+        "σχηματοποιεῖ": "σχηματοποιέω", "σχηματοποιοῦσι": "σχηματοποιέω",
+        "γνωμοδοτῶν": "γνωμοδοτέω", "μέρους": "μέρος",
+        "ἐσχηματοποίησε": "σχηματοποιέω",
+    }
+    assert MICRO not in "".join(f"{form}{lemma}" for form, lemma in target.items())
+    assert stats["micro_sign_entries"] == 7
+    assert stats["micro_sign_duplicates"] == 2
+    assert stats["already_present"] == 1
+    assert stats["superseded_noun_entries"] == 1
+    assert stats["added"] == 5
+    # the counts the manifest pins are those of the expansion as it is
+    assert stats["expansion_entries"] == 10
+    assert stats["unmarked_entries"] == 1
+
+    from overlay_lsj import restore_unmarked_keys
+    restored = restore_unmarked_keys(reference, reference_base, target, carried)
+    assert target["σχηματοποιει"] == "σχηματοποιέω"
+    assert restored["unmarked_restored"] == 1
+    assert MICRO not in "".join(f"{form}{lemma}" for form, lemma in target.items())
+
+
+def test_overlay_supersedes_a_reread_head_only_under_its_old_spelling():
+    """σχῆμα is superseded through a Sophocles entry the expansion read as
+    σχῆµα: the old paradigm is under that spelling, and the rows the
+    expansion spells with the Greek letter are another source's."""
+    reference = {
+        f"σχή{MICRO}ατι": f"σχῆ{MICRO}α",      # the old Sophocles paradigm
+        "σχήματός": "σχῆμα", "σχῆμ’": "σχῆμα",  # readings of another layer
+        "πρᾶγμά": "πρᾶγμα",                     # superseded as it is printed
+    }
+    superseded = {"σχῆμα", "πρᾶγμα"}
+
+    target = {}
+    stats = overlay_expansion(reference, {}, target,
+                              superseded_noun_lemmas=superseded,
+                              reread_noun_lemmas={"σχῆμα"})
+    assert target == {"σχήματός": "σχῆμα", "σχῆμ’": "σχῆμα"}
+    assert stats["superseded_noun_entries"] == 2
+
+    target = {}
+    overlay_expansion(reference, {}, target, superseded_noun_lemmas=superseded)
+    assert target == {}
+
+
+def test_reread_lemmas_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_reread_noun_lemmas
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"superseded_lemmas": ["σχῆμα", "λόγος"],
+                                 "superseded_reread_lemmas": ["σχῆμα"]},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_reread_noun_lemmas(audit) == {"σχῆμα"}
+    audit.write_text(json.dumps({"superseded_lemmas": ["λόγος"]}), encoding="utf-8")
+    assert load_reread_noun_lemmas(audit) == frozenset()
+    audit.write_text(json.dumps({"superseded_reread_lemmas": "σχῆμα"}), encoding="utf-8")
+    with pytest.raises(SystemExit):
+        load_reread_noun_lemmas(audit)

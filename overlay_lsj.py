@@ -37,6 +37,7 @@ from dilemma.form_sanitize import (
     sanitize_form, canonicalize_final_elision,
 )
 from dilemma import grave_to_acute, to_monotonic
+from dilemma_build.sophocles_ocr import MICRO_SIGN, greek_mu
 
 
 ROOT = Path(__file__).resolve().parent
@@ -763,6 +764,7 @@ def overlay_expansion(
     carried: dict[str, str] | None = None,
     withheld_noun_lemmas: dict[str, tuple[str, ...]] | None = None,
     lexical_heads: set[str] | frozenset[str] = frozenset(),
+    reread_noun_lemmas: set[str] | frozenset[str] = frozenset(),
 ) -> dict[str, int]:
     """Add only historical expansion keys, preserving current mappings.
 
@@ -776,6 +778,20 @@ def overlay_expansion(
     ``carried`` (the published table) has with the same reading, as
     kept_withheld_noun_forms() selects them. They are counted as
     ``withheld_noun_entries_kept``, not as ``added``.
+
+    The expansion spells part of the Sophocles heads and their forms with
+    the OCR's micro sign for mu (σχηµατοποιέω). Such a row is read with the
+    Greek letter (``micro_sign_entries``) and then judged like any other;
+    where the expansion also has the Greek spelling of the key, that row
+    decides and this one is dropped (``micro_sign_duplicates``). The pinned
+    counts of the expansion are taken before this and do not change.
+
+    A superseded lemma in ``reread_noun_lemmas`` is a Sophocles head that
+    the expansion read otherwise (with the micro sign, an asterisk or a
+    misread letter), so its old paradigm is not under this spelling. The
+    rows the expansion itself spells with this lemma come from another
+    source and are recovered; only a row read from the micro sign is the
+    old paradigm.
     """
     carried = carried or {}
     withheld_noun_lemmas = withheld_noun_lemmas or {}
@@ -797,6 +813,8 @@ def overlay_expansion(
         "withheld_noun_lemmas_kept": 0,
         "withheld_noun_entries_kept": 0,
         "withheld_noun_citation_only_lemmas": 0,
+        "micro_sign_entries": 0,
+        "micro_sign_duplicates": 0,
         "added": 0,
     }
     for form, lemma in reference.items():
@@ -817,6 +835,13 @@ def overlay_expansion(
         if has_editorial_sigla(form) or has_editorial_sigla(lemma):
             stats["editorial_entries"] += 1
             continue
+        published = form, lemma
+        if MICRO_SIGN in form or MICRO_SIGN in lemma:
+            stats["micro_sign_entries"] += 1
+            form, lemma = greek_mu(form), greek_mu(lemma)
+            if form != published[0] and form in reference:
+                stats["micro_sign_duplicates"] += 1
+                continue
         if form in target:
             stats["already_present"] += 1
             if target[form] != lemma:
@@ -828,8 +853,10 @@ def overlay_expansion(
         if superseded_verb_generation(lemma):
             stats["superseded_verb_entries"] += 1
             continue
-        if lemma in superseded_noun_lemmas:
-            if lemma in withheld_noun_lemmas and carried.get(form) == lemma:
+        if lemma in superseded_noun_lemmas and not (
+                lemma in reread_noun_lemmas and lemma == published[1]):
+            if (lemma in withheld_noun_lemmas
+                    and carried.get(published[0]) == published[1]):
                 pending.setdefault(lemma, []).append(form)
             else:
                 stats["superseded_noun_entries"] += 1
@@ -1082,6 +1109,11 @@ def restore_unmarked_keys(
     come back under the same test, and only with exactly that lemma
     spelling among their backers.
 
+    A key or lemma the expansion spells with the micro sign is read with
+    the Greek mu, as overlay_expansion() reads the marked forms; the key
+    with the Greek letter that the expansion or the table already has
+    stands.
+
     The keys are appended to ``target`` in order, and ``restored_rows``
     receives each (key, lemma), so the caller can record a digest that lets
     scripts/build_source_alias_manifest.py remove exactly these rows again.
@@ -1100,6 +1132,11 @@ def restore_unmarked_keys(
                 or carried.get(form) != lemma
                 or has_editorial_sigla(form) or has_editorial_sigla(lemma)):
             continue
+        if MICRO_SIGN in form or MICRO_SIGN in lemma:
+            key, form, lemma = form, greek_mu(form), greek_mu(lemma)
+            if form != key and (form in reference or form in target
+                                or form in excluded_forms):
+                continue
         wanted[form] = canonical(lemma)
         published[form] = lemma
     rules: dict[str, str] = {}
@@ -1194,6 +1231,16 @@ def load_noun_generation_audit(path: Path, generator="expand_lsj.py") -> frozens
     if audit.get("input_sha256") != current_inputs:
         raise SystemExit(f"noun inputs changed; rerun build/{generator} --expand")
     lemmas = audit.get("superseded_lemmas")
+    if not isinstance(lemmas, list) or not all(isinstance(x, str) for x in lemmas):
+        raise SystemExit("invalid noun generation audit")
+    return frozenset(lemmas)
+
+
+def load_reread_noun_lemmas(path: Path) -> frozenset[str]:
+    """The Sophocles audit's superseded heads that the earlier tables read
+    otherwise (``superseded_reread_lemmas``; none in an audit without it)."""
+    lemmas = json.loads(path.read_text(encoding="utf-8")).get(
+        "superseded_reread_lemmas", [])
     if not isinstance(lemmas, list) or not all(isinstance(x, str) for x in lemmas):
         raise SystemExit("invalid noun generation audit")
     return frozenset(lemmas)
@@ -1361,6 +1408,10 @@ def main() -> None:
     superseded_nouns = load_noun_generation_audit(args.noun_audit)
     superseded_nouns |= load_noun_generation_audit(args.sophocles_noun_audit,
                                                   "expand_sophocles.py")
+    # Superseded only under a spelling the expansion does not use for the
+    # old paradigm; a lemma the LSJ audit supersedes too is superseded.
+    reread_nouns = (load_reread_noun_lemmas(args.sophocles_noun_audit)
+                    - load_noun_generation_audit(args.noun_audit))
 
     manifest = load_manifest(args.manifest)
     reference_path = resolve_reference(manifest, args.reference)
@@ -1435,14 +1486,14 @@ def main() -> None:
         reference, reference_base, target, excluded_forms=excluded_forms,
         superseded_noun_lemmas=superseded_nouns, released_forms=released_forms,
         carried=carried, withheld_noun_lemmas=withheld_nouns,
-        lexical_heads=lexical_heads,
+        lexical_heads=lexical_heads, reread_noun_lemmas=reread_nouns,
     )
     stats["unaccented_head_readings_kept"] = (
         keep_published_over_unaccented_heads(target, carried, lexical_heads))
     cell_stats, carried_cells = carry_published_cells(
         target, carried, head_evidence, breathing_corrections,
         excluded_forms=excluded_forms - released_forms,
-        superseded_noun_lemmas=superseded_nouns)
+        superseded_noun_lemmas=superseded_nouns - reread_nouns)
     stats.update(cell_stats)
     alias_stats = restore_attested_compound_aliases(
         reference, reference_base, target, source_pairs,
