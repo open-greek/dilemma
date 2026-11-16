@@ -108,7 +108,7 @@ the release build:
   - A POS entry that names one of the word's case twins decides: `Πῶς` ADV gives `πῶς`, `Δίκαιον` ADJ `δίκαιος`, `Λόγος` NOUN `λόγος`.
   - Where no POS entry names one, the reading of the word's own lookup row stands for Ancient text (`Εὐξένου` NOUN gives `Εὔξενος`, `Βαβυλωνίην` ADJ `Βαβυλώνιος`).
   - With `lang="el"` or `convention="triantafyllidis"`, and for a word without polytonic marks whose lowercase twin is a Modern citation form, the lowercase reading is kept (`Χέρι` NOUN gives `χέρι`, `Κάποιος` DET `κάποιος`). PROPN reads the capitalized twin under every setting.
-- **Reviewed cells.** `data/pos_cell_corrections.json` grows from 96 to 169 rows. The rebuilt treebank table keeps a corpus vote only where the bare lookup disagrees with it, so cells whose loss let a lower table answer are added back (`δήτα` ADV gives `δῆτα`, `ζώδιον` NOUN `ζῴδιον`), and new cells that displaced a 1.3.25 answer are corrected or dropped (`εισήεσαν` VERB gives `εἴσειμι`, `ήμεν` VERB `εἰμί`). An Ancient name whose common word the tables hold under the lowercase key keeps its capital under NOUN or ADJ through a reviewed cell (`Πρόξενος` NOUN gives `Πρόξενος`).
+- **Reviewed cells.** `data/pos_cell_corrections.json` grows from 96 to 169 rows. The treebank builder drops most corpus votes that agree with the bare lookup, and the restored heads (#126) make many more votes agree, so reviewed cells whose loss let a lower table answer are added back (`δήτα` ADV gives `δῆτα`, `ζώδιον` NOUN `ζῴδιον`), and new cells that displaced a 1.3.25 answer are corrected or dropped (`εισήεσαν` VERB gives `εἴσειμι`, `ήμεν` VERB `εἰμί`). An Ancient name whose common word the tables hold under the lowercase key keeps its capital under NOUN or ADJ through a reviewed cell (`Πρόξενος` NOUN gives `Πρόξενος`).
 
 ### Build
 
@@ -118,15 +118,24 @@ the release build:
 
 ### Known gaps
 
-- Verb forms of 1.3.25 that are not regenerated: uncontracted cells, forms of lemmas whose head the current LSJ export does not support (deponents and damaged heads), and artefacts of the older tables (`ἑφρόντιζον`). The lookup loses 17,455 such keys of 237 lemmas, including the wrong readings named above.
-- About 1.03M keys still read a hyphenated Sophocles composition lemma (1.3.25: 1.11M). The overlay names a superseded lemma as the lexicon prints it, so it returns the rows of a rejected or re-keyed head.
-- With `lang="el"`, 151 capitalized Ancient names in the measured corpora now read their lowercase twin under a nominal tag (`Εὐξένου` NOUN gives `εύξενος`), because Modern text capitalizes every sentence. `Τύχη` and `Νίκη` NOUN give the lowercase noun under every setting.
+- Verb forms of 1.3.25 that are not regenerated (#136). The lookup loses 17,455 such keys of 237 lemmas, including the wrong readings named above and artefacts of the older tables (`ἑφρόντιζον`).
+  - 154 lemmas (11,777 keys) get no fresh paradigm. 146 of them are Sophocles entries whose text is a cross-reference (`ἀνακοσμοποιέω, = preceding`), which the Sophocles verb pass skips.
+  - 83 LSJ9 verbs (5,678 keys) are still expanded and lose cells, mostly outside the present system (`ἀνῴδησα`, `εἰσήνεγκα`).
+  - With `lang="all"`, 9,438 of the forms still return their 1.3.25 lemma through fallback keys, 6,204 return `None` and 1,813 return another lemma.
+- About 1.03M keys still read a hyphenated lemma (1.3.25: 1.11M; #137).
+  - About 0.58M read a Sophocles composition head (1.3.25: 0.66M). The overlay names a superseded lemma as the lexicon prints it, so it returns the rows of a rejected or re-keyed head.
+  - About 0.45M read a hyphenated LSJ head, as in 1.3.25: `build/expand_lsj.py` keys such a head as the lexicon prints it.
+- With `lang="el"`, 147 form and tag pairs of the measured corpora that 1.3.25 read as a capitalized Ancient name now read its lowercase twin, 130 of them under a nominal tag (`Εὐξένου` NOUN gives `εὔξενος`), because Modern text capitalizes every sentence. `Τύχη` and `Νίκη` NOUN give the lowercase noun under every setting (#138).
+- Small regressions against 1.3.25 with `guess=False` (#141):
+  - With `lang="el"`, five forms read a new GLAUx row (`Ἀβράμου` gives `Ἀβράμος`, not `Ἀβράμης`), and untagged `παρέξω` gives the Medieval adverb instead of `παρέχω`.
+  - `ἀπεῤῥάγησαν`, `χρυσόστομον` and `Σαμαρείτις` give `None`.
+  - About 35 tagged cells of restored heads give another lexeme than the untagged answer (`ταμεῖον` NOUN gives `ταμιεῖον`, `σπαθίον` NOUN `σπάθη`).
 
 ### Release notes
 
 - Rebuilt and re-pinned in `data/hf_manifest.json`: `lookup.db`, `spell_index.db`, `grc_lexical_heads.json`, `grc_reading_heads.json`, `grc_contracted_verb_aliases.json`, `verb_subjects.json`, `grc_adverb_heads.json`, `pos_cell_corrections.json`, `ag_noun_generation_audit.json`, `ag_sophocles_noun_generation_audit.json`, `treebank_pos_lookup.audit.json` and `changes/glaux_name_lemmas.json`. `lemma_attestation.json` has the same counts as before; only the hash it records for the name corrections changes.
 - `python -m dilemma download` also serves files that the manifest does not pin. Their Hub copies are updated with this release: the POS tables `ag_pos_lookup.json`, `treebank_pos_lookup.json` and `glaux_pos_lookup.json` (the last had not been updated for 1.3.25), and the build tables `ag_lookup.json`, `ag_pairs.json`, `med_lookup.json`, `med_pairs.json`, `ag_source_alias_audit.json` and `ag_source_alias_manifest.json`.
-- `lsj9_pos_lookup.json` is not rebuilt: a trial on the new exports measured worse (it drops `μόνον` and adds `τό` NOUN → `ὁ`).
+- `lsj9_pos_lookup.json` is not rebuilt: a trial table on the new exports drops the key `μόνον` and adds `τό` NOUN → `ὁ`, and it was not benchmarked.
 - Full suite on the rebuilt data with `--run-slow`: 6,074 passed, 26 skipped, 3 xfailed, 0 failed (run in seven chunks).
 
 ## [1.3.25] - 2026-11-14
