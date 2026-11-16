@@ -81,7 +81,7 @@ tagged CCONJ, through a reviewed cell: the Ancient POS tables hold only a
 CCONJ entry for the Doric conjunction, and an SCONJ request reads a CCONJ
 entry only for Modern Greek conjunctions (see the polytonic Modern Greek
 rule below). Tagged PART or INTJ, and without a tag, they stay `αἴ`. `αἶ`
-still gives `αἶα` under every tag, from its lookup row (#129).
+still gives `αἶα` under PART and CCONJ too, from its lookup row (#129).
 The `triantafyllidis` convention auto-enables
 article resolution (articles to `ο`, skipping AG pronoun resolution
 for forms like `σε`/`με` that are MG prepositions).
