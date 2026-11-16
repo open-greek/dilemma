@@ -1,4 +1,4 @@
-"""Polytonic vernacular Greek under POS tags (#119, #120, #121).
+"""Vernacular Greek under POS tags (#119, #120, #121, #134).
 
 * #119: with convention="triantafyllidis" the Modern and Ancient lookups
   read one row, so a Modern POS entry the polytonic rule let stand meets
@@ -7,6 +7,7 @@
   the Modern CCONJ entry when the Ancient table has no CCONJ entry.
 * #121: the contractions of σε with the article give ο under DET and σε
   under ADP.
+* #134: so do their monotonic spellings, and both with lang="el".
 """
 import unicodedata
 
@@ -127,12 +128,16 @@ def test_monotonic_sconj_is_unchanged(table_model):
 # ---- #121 ----------------------------------------------------------------
 
 CONTRACTIONS = ["στὸ", "στὸν", "στὴ", "στὴν", "στὰ", "στοῦ", "στῆς", "στῶν",
-                "στοὺς", "στὶς", "Στὸ", "ΣΤῸ"]
+                "στοὺς", "στὶς", "Στὸ", "ΣΤῸ",
+                # #134: monotonic spelling, with a written acute or without
+                "στο", "στον", "στη", "στην", "στα", "στου", "στης", "στων",
+                "στους", "στις", "Στο", "ΣΤΗΝ", "στόν", "στήν"]
 
 
 @pytest.mark.parametrize("word", CONTRACTIONS)
-def test_contraction_gives_article_and_preposition(table_model, word):
-    model = table_model([], {}, {})
+@pytest.mark.parametrize("lang", ["all", "el"])
+def test_contraction_gives_article_and_preposition(table_model, word, lang):
+    model = table_model([], {}, {}, lang=lang)
     assert model._vernacular_contraction_pos_lemma(word, "DET") == "ο"
     assert model._vernacular_contraction_pos_lemma(word, "ADP") == "σε"
     decomposed = unicodedata.normalize("NFD", word)
@@ -143,13 +148,16 @@ def test_contraction_gives_article_and_preposition(table_model, word):
     ("στὸν", "ADJ", "all"),    # Ancient readings stand under other tags
     ("στὴν", "VERB", "all"),
     ("στὸν", "NOUN", "all"),
+    ("στην", "VERB", "all"),
+    ("στο", "PRON", "el"),
     ("στὸ", "DET", "grc"),     # lang="grc" reads Ancient Greek only
-    ("στο", "DET", "all"),     # monotonic: the regular closed-class path
-    ("στόν", "DET", "all"),    # acute only: no polytonic evidence
+    ("στο", "DET", "grc"),
+    ("στην", "ADP", "grc"),
     ("στῷ", "DET", "all"),     # iota subscript: no contraction
     ("ἀστὸν", "DET", "all"),
     ("στὸλ", "DET", "all"),
     ("τὸν", "DET", "all"),
+    ("στον", "", "all"),
 ])
 def test_contraction_rule_scope(table_model, word, upos, lang):
     model = table_model([], {}, {}, lang=lang)
@@ -161,6 +169,19 @@ def test_contraction_is_answered_before_the_candidates(table_model):
     model._resolve_articles = True
     assert both(model, "στὸν", "DET") == "ο"
     assert both(model, "στὸν", "ADP") == "σε"
+
+
+@pytest.mark.parametrize("word,candidates,modern", [
+    # #134: στο met a case-twin family (σε beside the abbreviation Σε), which
+    # kept the Modern DET entry out; στον and στην have no DET entry at all.
+    ("στο", [("σε", "grc"), ("Σε", "grc")], {"στο": {"DET": "ο"}}),
+    ("στον", [("στον", "grc"), ("Στον", "grc")], {}),
+    ("στην", [("ἵστημι", "grc")], {}),
+])
+def test_monotonic_contractions_agree(table_model, word, candidates, modern):
+    model = table_model(candidates, {}, modern)
+    assert both(model, word, "DET") == "ο"
+    assert both(model, word, "ADP") == "σε"
 
 
 # ---- shipped answers -------------------------------------------------------
@@ -195,9 +216,28 @@ def shipped_models():
     ("triantafyllidis", ["στὸ", "στὸν", "στοὺς"], ["ADP"] * 3, ["σε"] * 3),
     # Their Ancient readings stand under the other tags.
     ("wiktionary", ["στὸν", "στὴν"], ["ADJ", "VERB"], ["ἀστός", "ἵστημι"]),
+    # #134: the monotonic spellings (1.3.26: σε, στον, ἵστημι under DET)
+    ("wiktionary", ["στο", "στον", "στην", "στη", "στους", "στις", "Στο"],
+     ["DET"] * 7, ["ο"] * 7),
+    ("wiktionary", ["στο", "στον", "στην", "στα"], ["ADP"] * 4, ["σε"] * 4),
+    ("triantafyllidis", ["στο", "στον", "στην", "στη", "στους", "στις"],
+     ["DET"] * 6, ["ο"] * 6),
+    ("triantafyllidis", ["στο", "στον", "στην"], ["ADP"] * 3, ["σε"] * 3),
+    ("wiktionary", ["στην"], ["VERB"], ["ἵστημι"]),
 ])
 def test_shipped_vernacular_pos_answers(shipped_models, conv, forms, tags, expected):
     model = shipped_models[conv]
     assert model.lemmatize_batch_pos(forms, tags, guess=False) == expected
     assert [model.lemmatize_pos(f, t, guess=False)
             for f, t in zip(forms, tags)] == expected
+
+
+@pytest.mark.parametrize("conv", ["wiktionary", "triantafyllidis"])
+def test_shipped_contractions_with_modern_greek_only(conv):
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    model = core.Dilemma(lang="el", convention=conv)
+    forms = ["στο", "στον", "στην", "στὸ", "στὴν"]
+    for upos, lemma in (("DET", "ο"), ("ADP", "σε")):
+        assert model.lemmatize_batch_pos(forms, [upos] * 5, guess=False) == [lemma] * 5
+        assert [model.lemmatize_pos(f, upos, guess=False) for f in forms] == [lemma] * 5

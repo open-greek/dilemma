@@ -691,8 +691,24 @@ reading the lookup holds for the form as written (`ὄρους` NOUN stays
 `αὐτός`), and under NOUN or PROPN does not replace exact lookup readings
 that are not verbs (`ὅλων` NOUN stays `ὅλος`, `Ἄργους` PROPN `Ἄργος`).
 It still replaces an exact verb reading under a nominal tag, as Byzantine
-misspellings need (`μοχθῶ` NOUN gives `μόχθος`), and keeps its effect under
-the other tags. The verb rule for case twins above likewise needs an entry
+misspellings need (`μοχθῶ` NOUN gives `μόχθος`). Under ADJ or PRON it does
+not replace exact readings that are not verbs either, when an Ancient
+dictionary lists every such lemma (`ταύτην` ADJ gives `οὗτος`, not the
+`ταὐτός` of `ταὐτήν`; `ἀθληταί` ADJ gives `ἀθλητής`, not the `ἄθλητος` of
+`ἄθληται`; `οὕ` PRON gives `ἕ`). A row whose lemma no dictionary lists is
+the corpus reading of a misaccented token and still yields (`μεγά` ADJ
+gives `μέγας`), and so does the row of a capitalized word when the row of
+its lowercase spelling reads the entry's lemma (`Ἀντίαν` ADJ gives
+`ἀντίος`). Under PRON the row must also be a reading the POS tables record
+for these letters under PRON or DET. The row of another kind of word
+does not stand in a pronoun's place, so a pronoun with a wrong
+accent or breathing still reads as the pronoun: `ὁδὲ` PRON gives `ὅδε` (not
+the `ὁδός` of its row), `ἐκάτερος` PRON `ἑκάτερος`, and with `lang="all"`
+the accented clitic `μάς` PRON gives `μας` (not the month `μής`).
+With `lang="el"` or `convention="triantafyllidis"` the entry
+keeps its effect under ADJ and PRON, and under the remaining tags it does
+with every setting (`τοῖϊν` DET gives `ὁ`, `οῦν` PART `οὖν`, `μᾶλα` ADV
+`μάλα`). The verb rule for case twins above likewise needs an entry
 under the form's own or monotonic spelling (`πόθῳ` VERB stays `πόθος`).
 Entries under the monotonic key keep their authority, since that key keeps
 the accent's place (`ἰδῶν` VERB gives `ὁράω`). Under tags other than VERB,
@@ -702,7 +718,33 @@ capitalized twin, so tagged results for genuine homographs such as `ἀξίαν`
 exception is a lowercase word whose lookup row reads only a capitalized
 lemma: the lowercase head that joins it as that lemma's case alternate is no
 second reading, so `νῖκος` NOUN gives the treebank's `νῖκος` beside `Νίκη`
-and `νίκη`.
+and `νίκη`. The other exception is a tag of the small closed classes
+(PRON, DET, ADP, CCONJ, SCONJ, PART, INTJ): no noun or name is a pronoun or
+a preposition, so an entry under the form's own spelling outranks a reading
+and its capitalized twin there (`αἶ` CCONJ gives `εἰ`, not `αἶα`; `ἄνα` ADP
+`ἀνά`, not `ἄναξ`; `ἐμέο` PRON `ἐγώ`; `Διά` ADP `διά`; until 1.3.26 these
+kept the lookup reading). An entry under the monotonic or the
+accent-stripped key leaves the lookup reading, and so does one whose lemma
+the lookup reads as a form of that reading, since it names the same word
+under another citation form (`πᾶσι` PRON stays `πᾶς` against a cell's
+`πᾶν`, `οἷα` CCONJ `οἷος`). A form with no entry for the tag still follows
+the lookup (`αἶ` PART gives `αἶα` until the tables hold a PART cell for it).
+Under PROPN a lookup reading answers as its capitalized twin. When the row
+reads a verb, that twin is a name that only shares the verb's citation
+spelling, and a PROPN entry under the form's own spelling that names a
+capitalized lemma outranks it: `φάων` PROPN gives `Φάων` (not the `Φάω` of
+the row's `φάω`), `μέλητον` PROPN `Μέλητος` (not `Μέλω`), `κλεῖτον` PROPN
+`Κλεῖτος`, as such an entry already did against a verb row without a
+capitalized twin. The row counts as a verb's when its lemma has a verb's
+ending and a verb entry in the POS tables. A row that reads a noun or an
+adjective keeps its twin (`ἵππων` PROPN gives `Ἵππος`, `ἀττικὴν` PROPN
+`Ἀττικός`), since the form may be a case of that name. Letting the entry
+decide there too was measured on the names of the Perseus, Diorisis and
+GLAUx pairs and not adopted: for the names as written it moved 33 answers
+to the corpus lemma and 86 away from it (Modern Greek entries such as
+`Φοίνικα` PROPN `Φοίνικας` replaced `Φοῖνιξ`), for the same names
+lowercased 337 and 240. Against verb rows it moves 28 to the corpus lemma
+and none away. A form whose own row reads a capitalized lemma keeps it.
 
 A capitalized word tagged other than PROPN follows a POS entry that names
 one of its case twins, in `lemmatize_pos()` as in `lemmatize_batch_pos()`:
@@ -733,6 +775,20 @@ Ancient tables are loaded: under `lang="all"` also for a name written
 without polytonic marks, and with `convention="triantafyllidis"` (`Σελήνη`
 NOUN gives `Σελήνη`). `lang="el"` does not load the Ancient tables and
 keeps the lowercase reading.
+
+So with `lang="el"` an Ancient name tagged NOUN or ADJ reads as its
+lowercase twin (`Εὐξένου` NOUN gives `εὔξενος`, PROPN `Εὔξενος`). This is
+intended: read Ancient text with `lang="all"` or `"grc"`, or tag names
+PROPN. Letting the word's own row decide under `lang="el"` was measured
+for 1.3.27 (#138). On the UD Greek GUD treebank it capitalized the words
+that open a sentence (`Αν` SCONJ, `Ο` DET, `Να` AUX: 16 forms and 169
+tokens worse, against 8 forms and 21 tokens of demonyms better). Limited to
+polytonic words whose lowercase twin is no Modern Greek headword it gave
+158 names of the Ancient corpora their capital back and took it from 23
+common words there, and it would read 210 common polytonic words as names
+at the start of a sentence (`Γῆς`, `Καρδίᾳ`, `Αἴσθησις`, `Πρᾶξις`):
+Katharevousa keeps the Ancient citation forms, so no headword list tells
+its words from Ancient ones.
 
 Reviewed corrections to individual cells of the treebank, GLAUx,
 Wiktionary (Ancient and Modern) and LSJ9 POS tables are kept in
@@ -865,12 +921,16 @@ counts as one competing reading, and the entry is returned as under the
 default convention (`σεῖς` PRON gives `εσείς`, `κυροῦ` NOUN gives `κυρός`;
 1.3.24 gave `σέω` and `κυρώ`).
 
-The vernacular contractions of σε with the article in polytonic spelling
-(`στὸ`, `στὸν`, `στὴ(ν)`, `στὰ`, `στοῦ`, `στῆς`, `στῶν`, `στοὺς`, `στὶς`:
-accents only, no breathing, iota subscript or diaeresis) give `ο` under DET
-and `σε` under ADP with `lang="all"`, under every convention. Under other
-tags their Ancient readings stand (`στὸν` ADJ gives `ἀστός`, `στὴν` VERB
-gives `ἵστημι`).
+The vernacular contractions of σε with the article (`στο`, `στον`,
+`στη(ν)`, `στα`, `στου`, `στης`, `στων`, `στους`, `στις`) give `ο` under DET
+and `σε` under ADP with `lang="all"` or `lang="el"`, under every convention,
+in monotonic spelling and in polytonic (`στὸ`, `στὴν`, `στοῦ`: accents only,
+no breathing, iota subscript or diaeresis). Under other tags their other
+readings stand (`στὸν` ADJ gives `ἀστός`, `στὴν` VERB gives `ἵστημι`), and
+`lang="grc"` reads Ancient Greek only. Until 1.3.26 the monotonic
+spellings followed the Modern Greek POS table, which has an article entry
+for seven of the ten: `στο` DET gave `σε`, `στον` DET `στον` and `στην` DET
+`ἵστημι` with `lang="all"`.
 
 The rule reads the recorded evidence, not the surrounding text, so it has
 known gaps in both directions:
@@ -881,12 +941,20 @@ known gaps in both directions:
 - An Ancient form tagged with a part of speech it never has can take a Modern
   Greek headword. So can a form under its own part of speech when the lookup
   lacks its spelling, through an accent slip or a gap in the lookup, and
-  Modern Greek records a word with that accent (`ἄπαν` NOUN gives `άπαν`,
-  not `ἅπας`; `συνῃρημένῃ` VERB gives `συναιρώ`; `Βοῤῥᾶ` PROPN gives
-  `Βορράς`). The rule cannot tell a correctly spelled form the lookup lacks
-  from a misspelling; such forms need lookup rows, not a rule (treating an
-  iota subscript as Ancient evidence was measured mixed: `συνῃρημένῃ` was
-  fixed, `ἐνιαίᾳ` and `λαλᾷ` broke).
+  Modern Greek records a word with that accent (`συνῃρημένῃ` VERB gives
+  `συναιρώ`; `Βοῤῥᾶ` PROPN gives `Βορράς`). The rule cannot tell a correctly
+  spelled form the lookup lacks from a misspelling; such forms need lookup
+  rows, not a rule (treating an iota subscript as Ancient evidence was
+  measured mixed: `συνῃρημένῃ` was fixed, `ἐνιαίᾳ` and `λαλᾷ` broke). One
+  slip is read: a smooth breathing written for a rough one. When the
+  Ancient lookup lacks the form as written and holds it with a rough
+  breathing under the same reading, the Ancient side knows the spelling,
+  and the form answers as its correct spelling does (`ἄπαν` NOUN gives
+  `ἅπας`, like `ἅπαν`; `ἤμισυ` NOUN gives `ἥμισυς`; until 1.3.26 `ἄπαν`
+  NOUN gave the Modern Greek noun `άπαν`). A rough breathing is written on
+  purpose and is not read as a slip (`ὧρες` NOUN gives `ώρα`, not the
+  `ὄρνυμι` of `ὦρες`). With `lang="el"` `ἄπαν` NOUN gives `άπαν`, as `ἅπαν`
+  NOUN does.
 - Rows of Modern Greek origin that the SQLite lookup stores for both
   languages count as the Ancient lookup knowing a spelling, so such a
   vernacular form keeps the lookup's answer (`ἄντρες` NOUN gives `ἄνδρας`,

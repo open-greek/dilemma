@@ -600,10 +600,11 @@ _LEMMA_GENDER_HINTS = {
     "ον": "n", "ος": "m", "μα": "n", "ον": "n",
 }
 
-# Vernacular contractions of σε with the article (στὸ, στὸν, στὴν, ...),
-# accent-stripped. In polytonic spelling with lang="all" they give the
-# article under DET and σε under ADP (#121); their Ancient readings (στόν
-# as ἀστός, στῆς as ἵστημι) stand under the other tags.
+# Vernacular contractions of σε with the article (στο, στον, στην, στὸ,
+# στὴν, ...), accent-stripped. With lang="all" or "el" they give the
+# article under DET and σε under ADP, in monotonic and in polytonic
+# spelling (#121, #134); their Ancient readings (στόν as ἀστός, στῆς as
+# ἵστημι) stand under the other tags.
 _VERNACULAR_ARTICLE_CONTRACTIONS = frozenset({
     "στο", "στον", "στη", "στην", "στα", "στου", "στης", "στων", "στους",
     "στις",
@@ -2349,22 +2350,25 @@ class Dilemma:
 
     def _vernacular_contraction_pos_lemma(self, word: str,
                                           upos: str) -> str | None:
-        """The DET or ADP lemma of a polytonic contraction of σε + article.
+        """The DET or ADP lemma of a contraction of σε + article.
 
-        With lang="all", a polytonic στὸ, στὸν, στὴν, στοὺς, ... tagged DET
+        With lang="all" or "el", στο, στον, στην, στους, ... tagged DET
         gives the Modern article ο and tagged ADP gives σε, under every
-        convention (#121). The spelling must carry only accents (acute,
-        grave or circumflex): a breathing, iota subscript or diaeresis
-        is no vernacular contraction.
+        convention, in monotonic spelling (#134) as in polytonic (στὸ,
+        στὴν; #121). Neither tag fits an Ancient reading of these letters
+        (στῆν is a verb form, στόν the aphaeresis of ἀστόν), and the Modern
+        POS table records the article for seven of the ten forms only,
+        three of them behind a case-twin family (στο DET gave σε, στον
+        στον, στην ἵστημι). The spelling may carry accents (acute, grave
+        or circumflex) or none: a breathing, iota subscript or diaeresis
+        is no vernacular contraction. lang="grc" reads Ancient Greek only.
         """
-        if upos not in ("DET", "ADP") or self.lang != "all" or not word:
+        if upos not in ("DET", "ADP") or self.lang not in ("all", "el") \
+                or not word:
             return None
         nfd = unicodedata.normalize("NFD", word)
         marks = {ord(ch) for ch in nfd if unicodedata.combining(ch)}
-        if not marks or not marks <= {0x0300, 0x0301, 0x0342}:
-            return None
-        if not any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
-                   for ch in nfd):
+        if not marks <= {0x0300, 0x0301, 0x0342}:
             return None
         if strip_accents(to_standard_sigma(word).lower()) \
                 not in _VERNACULAR_ARTICLE_CONTRACTIONS:
@@ -3999,6 +4003,9 @@ class Dilemma:
     # (να, με, σε, σαν, ας, στους) carry them, and no verb form does.
     _CLOSED_CLASS_TAGS = frozenset(
         {"PRON", "DET", "ADP", "CCONJ", "SCONJ", "PART", "INTJ"})
+    # The last key variant of _pos_table_hit that is the word's own
+    # spelling (as written, lowercased, grave folded to acute).
+    _OWN_SPELLING_POS_VARIANT = 2
     _TONAL_ACCENTS = frozenset({0x0301, 0x0300, 0x0342})
 
     @classmethod
@@ -4222,7 +4229,10 @@ class Dilemma:
           them (ὧρες, matched to ὄρνυμι through ώρες, is ώρες), or that
           the lookup holds under the form's own accents but that has a
           verb ending when a closed-class tag is requested (σεῖς PRON is
-          not a form of σέω);
+          not a form of σέω). A form written with a smooth breathing whose
+          rough-breathing spelling the Ancient lookup holds under the same
+          reading counts as a spelling the Ancient side knows (ἄπαν NOUN
+          stays ἅπας, like ἅπαν);
         * a capitalized name with no recorded part of speech, when the
           word and the Modern lemma are lowercase and the tag is not a
           noun's (κακὸ ADJ is not the name Κακό, nor πιὰ ADV Πῖα).
@@ -4276,12 +4286,37 @@ class Dilemma:
             return True
         if known:
             return False
-        if not self._ancient_lookup_has_spelling(word):
+        if not self._ancient_lookup_has_spelling(word) \
+                and not self._rough_spelling_reads(word, ancient):
             # Neither reading is one of this spelling. A Modern entry
             # reached the same way, under the bare key, is no better
             # evidence than the Ancient one (ἐφη VERB stays φημί).
             return self._modern_pos_entry_keeps_accent(word, upos, modern)
         return closed_class and ancient_key.endswith(("ω", "μι", "μαι"))
+
+    def _rough_spelling_reads(self, word: str, lemma: str) -> bool:
+        """Whether the Ancient lookup reads *word* with a rough breathing as *lemma*.
+
+        A smooth breathing written for a rough one is the commonest slip
+        of Byzantine and later polytonic spelling, and no evidence for
+        Modern Greek. When the Ancient lookup lacks the form as written
+        and holds it with the rough breathing, under the lemma the loose
+        key gave, the Ancient side knows the spelling: ἄπαν NOUN is the
+        ἅπας of ἅπαν, as ἅπαν NOUN is, not the Modern noun άπαν (#134).
+        The reverse does not hold: a rough breathing is written on
+        purpose, and ὧρες is the Modern ώρες, not the Ancient ὦρες.
+        """
+        if _initial_breathing(word) != _SMOOTH_BREATHING or not self._ag_lookup:
+            return False
+        nfd = unicodedata.normalize("NFD", word)
+        swapped = unicodedata.normalize(
+            "NFC", nfd.replace(_SMOOTH_BREATHING, _ROUGH_BREATHING, 1))
+        acute = grave_to_acute(swapped)
+        return any(
+            self._normalize_grave_citation_lemma(
+                self._ag_lookup.get(variant) or "") == lemma
+            for variant in dict.fromkeys(
+                (swapped, swapped.lower(), acute, acute.lower())))
 
     def _lowercase_ancient_twin(self, word: str, modern: str) -> str | None:
         """The lowercase Ancient headword a Modern POS reading stands for.
@@ -4459,6 +4494,15 @@ class Dilemma:
     # reading (#105). Other tags keep the override: Byzantine misspellings
     # rely on it (οῦν PART, τῆδε PRON, μᾶλα ADV).
     _LOOSE_OVERRIDE_BLOCKED_TAGS = frozenset({"NOUN", "PROPN"})
+    # Tags under which it may not replace one either when every such
+    # reading is a lemma an Ancient dictionary lists (#130: ταύτην ADJ
+    # keeps οὗτος, not the ταὐτός of ταὐτήν). A row whose lemma no
+    # dictionary lists is a corpus artifact of a misaccented form and
+    # still yields (μεγά ADJ -> μέγας, not the row's μεγός). lang="el" and
+    # the triantafyllidis convention prefer Modern rows and keep the
+    # override. DET and NUM are left out: the entries they would stop are
+    # right (τοῖϊν DET -> ὁ, ιέ NUM -> ιε).
+    _LOOSE_OVERRIDE_LISTED_TAGS = frozenset({"ADJ", "PRON"})
 
     def _pos_entry_is_loose(self, word: str, upos: str, pos_lemma: str) -> bool:
         """Whether *pos_lemma* was found only under the accent-stripped key.
@@ -4523,9 +4567,17 @@ class Dilemma:
         PROPN, exact lookup rows that inflect to lemmas without a verb
         shape (ὅλων NOUN keeps ὅλος, Ἄργους PROPN keeps Ἄργος). An exact
         verb row still yields to a nominal tag (the Byzantine μοχθῶ NOUN ->
-        μόχθος). Under the VERB case-twin rule (#42) a loose entry may not
-        replace an exact case-twin family (πόθῳ VERB keeps πόθος, not the
-        πίνω of ποθῶ).
+        μόχθος). Under ADJ or PRON the same holds when every such row
+        reads a lemma an Ancient dictionary lists (#130: ταύτην ADJ keeps
+        οὗτος, ἀθληταί ADJ ἀθλητής), except with lang="el" or the
+        triantafyllidis convention; a row whose lemma no dictionary lists
+        still yields (μεγά ADJ -> μέγας), and so does the row of a
+        capitalized word when the row of its lowercase spelling reads the
+        entry's lemma (see _lowercase_row_reads). Under PRON the row
+        must also be a reading the tables record as a pronoun's for
+        these letters (see _tables_record_pronoun). Under the VERB
+        case-twin rule (#42) a loose entry may not replace an exact
+        case-twin family (πόθῳ VERB keeps πόθος, not the πίνω of ποθῶ).
         """
         if any(self._is_closed_class_reading(c) for c in candidates):
             return self._pos_entry_is_loose(word, upos, pos_lemma)
@@ -4533,7 +4585,11 @@ class Dilemma:
         if not exact:
             return False
         if not case_twin_family:
-            if upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS:
+            listed_only = upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS
+            if listed_only and (
+                    upos not in self._LOOSE_OVERRIDE_LISTED_TAGS
+                    or self.lang == "el"
+                    or self._convention_name == "triantafyllidis"):
                 return False
             stripped = strip_accents(word.lower())
             inflected = [c for c in exact
@@ -4541,7 +4597,135 @@ class Dilemma:
             if not inflected or any(self._is_verb_shaped_lemma(c.lemma)
                                     for c in inflected):
                 return False
+            if listed_only and (
+                    not all(self._is_ancient_headword(c.lemma)
+                            for c in inflected)
+                    or self._lowercase_row_reads(word, pos_lemma)):
+                return False
+            if upos == "PRON" and not all(
+                    self._tables_record_pronoun(word, c.lemma)
+                    for c in inflected):
+                return False
         return self._pos_entry_is_loose(word, upos, pos_lemma)
+
+    def _tables_record_pronoun(self, word: str, lemma: str) -> bool:
+        """Whether the POS tables record *lemma* for the word's letters under PRON or DET.
+
+        The pronouns are a closed class the tables cover, so a row that
+        stands against a pronoun entry must itself be a recorded pronoun
+        reading of these letters (οὕ PRON keeps ἕ: the tables hold οὗ
+        PRON ἕ; ταύτὴν PRON keeps οὗτος). A row that reads another kind
+        of word does not stand in a pronoun's place: a word tagged PRON
+        that is misaccented or has the wrong breathing still reads its
+        pronoun (ὁδὲ PRON is ὅδε, not the ὁδός of its row; ἐκάτερος
+        PRON is ἑκάτερος, not ἐκάς; the Modern μάς PRON is μας, not μής).
+        An adjective's row is such another word (κεινὸς PRON is ἐκεῖνος,
+        not the κενός the tables record under ADJ).
+        """
+        self._load_fallback_readings()
+        readings = self._fallback_readings.get(strip_accents(word.lower()), {})
+        return any(lemma in readings.get(tag, ()) for tag in ("PRON", "DET"))
+
+    def _lowercase_row_reads(self, word: str, lemma: str) -> bool:
+        """Whether the lookup reads a capitalized word's lowercase spelling as *lemma*.
+
+        A capitalized word tagged other than PROPN may be a sentence-initial
+        common word, so the row of its lowercase spelling is a reading of
+        the word too. A loose POS entry that row agrees with is supported
+        by the form's letters and by one of its spellings (Ἀντίαν ADJ gives
+        ἀντίος with ἀντίαν, not the ἀντία of the capitalized row).
+        """
+        lower = word.lower()
+        if lower == word:
+            return False
+        target = strip_accents(lemma.lower())
+        tables = []
+        if self.lang in ("all", "el"):
+            tables += [self._mg_lookup, self._med_lookup]
+        if self.lang in ("all", "grc"):
+            tables.append(self._ag_lookup)
+        for table in tables:
+            if not table:
+                continue
+            for variant in dict.fromkeys((lower, grave_to_acute(lower))):
+                hit = table.get(variant)
+                if hit and strip_accents(hit.lower()) == target:
+                    return True
+        return False
+
+    def _closed_class_entry_decides(self, word: str, upos: str, pos_lemma: str,
+                                    candidates) -> bool:
+        """Whether a closed-class POS entry outranks a case-twin family.
+
+        A lookup reading and its case alternate are one reading (αἶα
+        beside Αἶα for αἶ, τίσις beside Τίσις for τίσι), and a lone
+        reading yields to a supported POS entry. Under a tag of the small
+        closed classes the pair yields as well, when the entry stands
+        under the word's own spelling: no noun or name is a pronoun, a
+        preposition or a conjunction, so αἶ CCONJ is εἰ, ἐμέο PRON ἐγώ
+        and ἄνα ADP ἀνά. An entry of the monotonic or the accent-stripped
+        key, which other words share, leaves the lookup reading. So does
+        an entry whose lemma the lookup reads as a form of that reading:
+        it names the same word under another citation form (πᾶσι PRON
+        keeps πᾶς against the cell's πᾶν, οἷα CCONJ οἷος against οἷα).
+        """
+        if upos not in self._CLOSED_CLASS_TAGS or len(candidates) < 2:
+            return False
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        if (lemma is None or lemma != pos_lemma or index is None
+                or index > self._OWN_SPELLING_POS_VARIANT):
+            return False
+        family = {c.lemma.lower() for c in candidates}
+        read = self._lookup_word(pos_lemma)
+        return not (read and read.lower() in family)
+
+    def _is_recorded_verb_lemma(self, lemma: str) -> bool:
+        """Whether *lemma* has a verb's ending and a verb entry in the POS tables.
+
+        The ending alone also fits nouns (the Modern ποτάμι, ἠχώ), and a
+        verb entry alone can be a mistagged cell of another word.
+        """
+        if not strip_accents(lemma.lower()).endswith(("ω", "μαι", "μι")):
+            return False
+        self._load_fallback_readings()
+        return lemma in self._fallback_verb_lemmas
+
+    def _name_entry_decides(self, word: str, upos: str, pos_lemma: str,
+                            candidates) -> bool:
+        """Whether a PROPN entry outranks the capitalized twin of a verb row.
+
+        Under PROPN a lookup reading answers as its capitalized twin. When
+        the row reads a verb (φάων as the participle of φάω, μέλητον as a
+        dual of μέλω), that twin (Φάω, Μέλω) is a name that only shares
+        the verb's citation spelling: no form of a verb is a form of a
+        name. An entry under the word's own spelling that names a
+        capitalized lemma then decides (Φάων, Μέλητος), as it already does
+        against a verb row that has no capitalized twin (#138).
+
+        A row that reads a noun or an adjective keeps its twin (ἵππων
+        PROPN stays Ἵππος, not the entry's Ἵππων): the form may be a case
+        of that name, and on the names of the Perseus, Diorisis and GLAUx
+        pairs the entry was wrong about as often as right there, and
+        more often for capitalized words. So does a reading whose own row
+        is a capitalized lemma: the lookup holds a name for the form.
+        """
+        if upos != "PROPN" or len(candidates) < 2 or not is_capitalized(pos_lemma):
+            return False
+        direct = [c for c in candidates
+                  if not getattr(c, "via", "").endswith("+case_alt")]
+        if not direct or any(is_capitalized(c.lemma)
+                             or not self._is_recorded_verb_lemma(c.lemma)
+                             for c in direct):
+            return False
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        return (lemma is not None and lemma == pos_lemma and index is not None
+                and index <= self._OWN_SPELLING_POS_VARIANT)
 
     @staticmethod
     def _is_name_row_family(word: str, candidates) -> bool:
@@ -4864,7 +5048,11 @@ class Dilemma:
                                                       candidates):
                         return checked(pos_lemma_conv)
                 elif ((upos == "VERB"
-                         or self._is_name_row_family(word, candidates))
+                         or self._is_name_row_family(word, candidates)
+                         or self._closed_class_entry_decides(
+                             word, upos, pos_lemma, candidates)
+                         or self._name_entry_decides(
+                             word, upos, pos_lemma, candidates))
                         and len({c.lemma.lower() for c in candidates}) == 1
                         and not self._pos_override_blocked(
                             word, upos, pos_lemma, candidates,
@@ -5070,7 +5258,11 @@ class Dilemma:
                     word, upos, candidates)
                 if not matched and (len(candidates) <= 1 or one_reading
                         or ((upos == "VERB"
-                             or self._is_name_row_family(word, candidates))
+                             or self._is_name_row_family(word, candidates)
+                             or self._closed_class_entry_decides(
+                                 word, upos, pos_lemma, candidates)
+                             or self._name_entry_decides(
+                                 word, upos, pos_lemma, candidates))
                             and len({c.lemma.lower() for c in candidates}) == 1)):
                     # A case-twin family is one competing reading when a
                     # supported explicit verb tag selects a different lemma,
