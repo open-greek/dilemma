@@ -362,19 +362,18 @@ _MODELS = {}
 
 
 def _model(lang):
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
     if lang not in _MODELS:
+        _MODELS.clear()
         _MODELS[lang] = core.Dilemma(lang=lang)
     return _MODELS[lang]
 
 
 def _lookup_rows():
-    path = core.DATA_DIR / "lookup.db"
-    if not path.exists():
-        pytest.skip("lookup.db not downloaded")
-    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
-        if conn.execute(
-                "SELECT count(*) FROM lookup WHERE form = 'ἐμφλόγου'").fetchone()[0] == 0:
-            pytest.skip("lookup.db predates the 1.3.27 second-declension cells")
+    if not core.LOOKUP_DB_PATH.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    with sqlite3.connect(f"file:{core.LOOKUP_DB_PATH}?mode=ro", uri=True) as conn:
         return dict(conn.execute(
             "SELECT l.form, m.text || '|' || s.code FROM lookup l "
             "JOIN lemmas m ON m.id = l.lemma_id "
@@ -382,18 +381,27 @@ def _lookup_rows():
             "AND s.code IN ('grc_noun_gaps', 'grc_adjective_gaps')"))
 
 
-@pytest.mark.parametrize("form, lemma", [
+_SHIPPED = [
     ("ἐμφλόγου", "ἔμφλογος"), ("ἔμφλογον", "ἔμφλογος"),
     ("κολοβόρινον", "κολοβόρινος"), ("κολοβορίνων", "κολοβόρινος"),
     ("αὐτοσύστατοι", "αὐτοσύστατος"), ("αὐτοσυστάτου", "αὐτοσύστατος"),
     ("ἀδρανέους", "ἀδράνεος"), ("ἀδράνεα", "ἀδράνεος"),
     ("νοεράν", "νοερός"), ("δυσπενθοῦς", "δυσπενθής"), ("ἀκαμπῆ", "ἀκαμπής"),
-])
-def test_headword_only_adjectives_read_their_cells(form, lemma):
+]
+
+
+def test_shipped_cells_name_their_source():
     rows = _lookup_rows()
-    assert rows.get(form) == f"{lemma}|{ADJECTIVE_SOURCE}"
-    for lang in ("all", "grc"):
-        assert _model(lang).lemmatize(form, guess=False) == lemma
+    for form, lemma in _SHIPPED:
+        assert rows.get(form) == f"{lemma}|{ADJECTIVE_SOURCE}", form
+    assert sum(row.endswith(f"|{NOUN_SOURCE}") for row in rows.values()) > 39_000
+
+
+@pytest.mark.parametrize("lang", ["all", "grc"])
+def test_shipped_cells_read_their_headword(lang):
+    forms = [form for form, _ in _SHIPPED]
+    assert _model(lang).lemmatize_batch(forms, guess=False) == [
+        lemma for _, lemma in _SHIPPED]
 
 
 def test_shipped_cells_keep_other_words_readings():
@@ -403,7 +411,7 @@ def test_shipped_cells_keep_other_words_readings():
     # ἀδράνεον, which the verb ἀδρανέω has as an unaugmented imperfect.
     for form in ("ἐμφλόγω", "ἔμφλογε", "ζῆναι", "ὕπου", "δικῆς", "ἀδράνεον"):
         assert form not in rows, form
-    model = _model("all")
+    model = _model("grc")
     assert model.lemmatize("δίκης", guess=False) == "δίκη"
     assert model.lemmatize("λόγου", guess=False) == "λόγος"
     assert model.lemmatize("ἀδράνεον", guess=False) == "ἀδρανέω"
