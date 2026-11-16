@@ -273,6 +273,20 @@ overlay reads those rows with the Greek letter before any other test
 the expansion also has in its Greek spelling (`micro_sign_duplicates`), so
 no key or lemma of the table carries U+00B5.
 
+Those paradigms were built like the rest of the layer, part of them in the
+wrong class: an adjective in `-ής, -ές` as a noun of the first declension
+(`μελισταγοῦ`, `μελισταγῇ` under `μελισταγής`), one in `-ικός` as a consonant
+stem (`μυριστικκά`). With the micro sign such a row matched no text; read with
+mu it would stand under a sound lemma, and the wrong cells of `μελισταγής`
+also kept its real ones from being generated. The Sophocles audit therefore
+records how each of these heads declines (`micro_sign_endings`, by the test
+described below for a re-read head), and the overlay reads a paradigm only
+when one of its keys ends in those letters (`confirmed_micro_sign_lemmas`,
+`historical_overlay_counts.micro_sign_lemmas_confirmed` and
+`micro_sign_lemmas_unconfirmed`); the rows of the others are dropped
+(`micro_sign_unconfirmed_entries`). A verb or an adverb has no ending to show
+and is read as it is.
+
 `superseded_lemmas` names a lemma as the lexicon prints it, because the
 historical layer keyed its rows that way. Two kinds of printed head are
 superseded as a class, since neither is a lemma of the table: a head rejected

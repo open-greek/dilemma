@@ -767,6 +767,7 @@ def overlay_expansion(
     lexical_heads: set[str] | frozenset[str] = frozenset(),
     reread_noun_lemmas: set[str] | frozenset[str] = frozenset(),
     reread_lemmas: dict[str, str] | None = None,
+    micro_sign_lemmas: set[str] | frozenset[str] | None = None,
 ) -> dict[str, int]:
     """Add only historical expansion keys, preserving current mappings.
 
@@ -791,6 +792,11 @@ def overlay_expansion(
     where the expansion also has the Greek spelling of the key, that row
     decides and this one is dropped (``micro_sign_duplicates``). The pinned
     counts of the expansion are taken before this and do not change.
+    With ``micro_sign_lemmas`` (confirmed_micro_sign_lemmas()), a row under
+    a lemma the expansion spells with the micro sign is read only when that
+    lemma, with mu, is in the set; the rows of the other paradigms are
+    dropped (``micro_sign_unconfirmed_entries``), because the expansion
+    declined those words in the wrong class.
 
     ``reread_lemmas`` maps a Sophocles head as the expansion keyed it to the
     head the rules read now, where the two differ in accents, breathing or
@@ -832,6 +838,7 @@ def overlay_expansion(
         "withheld_noun_citation_only_lemmas": 0,
         "micro_sign_entries": 0,
         "micro_sign_duplicates": 0,
+        "micro_sign_unconfirmed_entries": 0,
         "reread_lemma_entries": 0,
         "added": 0,
     }
@@ -864,6 +871,10 @@ def overlay_expansion(
         if lemma in reread_lemmas:
             stats["reread_lemma_entries"] += 1
             lemma = reread_lemmas[lemma]
+        elif (micro_sign_lemmas is not None and MICRO_SIGN in published[1]
+              and lemma not in micro_sign_lemmas):
+            stats["micro_sign_unconfirmed_entries"] += 1
+            continue
         if form in target:
             stats["already_present"] += 1
             if target[form] != lemma:
@@ -952,6 +963,43 @@ def confirmed_reread_lemmas(
             continue
         confirmed[old] = new
     return confirmed
+
+
+def confirmed_micro_sign_lemmas(
+    reference: dict[str, str],
+    endings: dict[str, str],
+) -> frozenset[str]:
+    """The lemmas the expansion spells with the micro sign, read with mu,
+    whose paradigm there is declined as the Sophocles entry says.
+
+    The expansion built these paradigms like the ones
+    confirmed_reread_lemmas() judges, and in the same wrong classes: an
+    adjective in -ής, -ές as a first-declension noun (μελισταγοῦ,
+    μελισταγῇ), one in -ικός as a consonant stem (μυριστικκά). Under the
+    micro sign those rows matched no text; read with mu they would stand
+    under a sound lemma. A paradigm is accepted when one of its keys, other
+    than the head, ends in the letters the entry implies (``endings``, the
+    Sophocles audit's ``micro_sign_endings``). An empty ending is a word
+    that is not declined (a verb, an adverb), which is accepted as it is; a
+    lemma without an ending record is not accepted.
+    """
+    keys: dict[str, set[str]] = defaultdict(set)
+    for form, lemma in reference.items():
+        if MICRO_SIGN in lemma:
+            keys[greek_mu(lemma)].add(sanitize_form(greek_mu(form)).lower())
+    confirmed = set()
+    for lemma, forms in keys.items():
+        ending = endings.get(lemma)
+        if ending is None:
+            continue
+        head = sanitize_form(lemma).lower()
+        cells = {head, _without_breathing(head)}
+        if ending and not any(strip_marks(form).endswith(ending)
+                              for form in forms - cells
+                              if has_orthographic_mark(form)):
+            continue
+        confirmed.add(lemma)
+    return frozenset(confirmed)
 
 
 def oxytone_os_cells(lemma: str) -> frozenset[str]:
@@ -1344,6 +1392,22 @@ def load_reread_lemmas(path: Path) -> dict[str, str]:
     return lemmas
 
 
+def load_micro_sign_endings(path: Path) -> dict[str, str] | None:
+    """The Sophocles audit's ``micro_sign_endings``: per head the expansion
+    spelled with the micro sign, the ending its paradigm must show ("" for
+    a word that is not declined). None in an audit without the record,
+    which leaves those paradigms unjudged."""
+    endings = json.loads(path.read_text(encoding="utf-8")).get(
+        "micro_sign_endings")
+    if endings is None:
+        return None
+    if not isinstance(endings, dict) or not all(
+            isinstance(head, str) and isinstance(ending, str)
+            for head, ending in endings.items()):
+        raise SystemExit("invalid noun generation audit")
+    return endings
+
+
 def load_reread_endings(path: Path) -> dict[str, str]:
     """The Sophocles audit's ``reread_endings``: per re-read head the
     ending its old paradigm must show ("" for a word that is not declined;
@@ -1525,6 +1589,7 @@ def main() -> None:
                     - load_noun_generation_audit(args.noun_audit))
     reread_candidates = load_reread_lemmas(args.sophocles_noun_audit)
     reread_endings = load_reread_endings(args.sophocles_noun_audit)
+    micro_sign_endings = load_micro_sign_endings(args.sophocles_noun_audit)
 
     manifest = load_manifest(args.manifest)
     reference_path = resolve_reference(manifest, args.reference)
@@ -1544,6 +1609,10 @@ def main() -> None:
     print(f"  {len(reference):,} entries")
     reread_lemmas = confirmed_reread_lemmas(
         reference, reread_candidates, reread_endings)
+    micro_sign_lemmas = None
+    if micro_sign_endings is not None:
+        micro_sign_lemmas = confirmed_micro_sign_lemmas(
+            reference, micro_sign_endings)
 
     carried: dict[str, str] = {}
     if "carried_baseline" in manifest:
@@ -1602,7 +1671,7 @@ def main() -> None:
         superseded_noun_lemmas=superseded_nouns, released_forms=released_forms,
         carried=carried, withheld_noun_lemmas=withheld_nouns,
         lexical_heads=lexical_heads, reread_noun_lemmas=reread_nouns,
-        reread_lemmas=reread_lemmas,
+        reread_lemmas=reread_lemmas, micro_sign_lemmas=micro_sign_lemmas,
     )
     stats["unaccented_head_readings_kept"] = (
         keep_published_over_unaccented_heads(target, carried, lexical_heads))
@@ -1629,6 +1698,11 @@ def main() -> None:
         carried_cells=carried_cells, reread_lemmas=reread_lemmas))
     stats["reread_lemmas_confirmed"] = len(reread_lemmas)
     stats["reread_lemmas_unconfirmed"] = len(reread_candidates) - len(reread_lemmas)
+    if micro_sign_lemmas is not None:
+        stats["micro_sign_lemmas_confirmed"] = len(micro_sign_lemmas)
+        stats["micro_sign_lemmas_unconfirmed"] = len(
+            {greek_mu(lemma) for lemma in reference.values()
+             if MICRO_SIGN in lemma} - micro_sign_lemmas)
     stats["unmarked_withheld_noun_restored"] = sum(
         lemma in withheld_nouns for _key, lemma in unmarked_rows)
     del carried
@@ -1673,6 +1747,11 @@ def main() -> None:
           f"{stats['reread_lemma_entries']:,} "
           f"({stats['reread_lemmas_confirmed']:,} heads; "
           f"{stats['reread_lemmas_unconfirmed']:,} old paradigms not confirmed)")
+    if micro_sign_lemmas is not None:
+        print(f"Micro-sign entries of a paradigm in another class skipped: "
+              f"{stats['micro_sign_unconfirmed_entries']:,} "
+              f"({stats['micro_sign_lemmas_unconfirmed']:,} lemmas; "
+              f"{stats['micro_sign_lemmas_confirmed']:,} confirmed)")
     print(f"Released baseline conflicts: {stats['released_conflict_entries']:,}")
     print(f"Recovered entries: {stats['added']:,}")
     print(f"Published keys of nouns without a fresh paradigm kept: "

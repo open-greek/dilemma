@@ -1524,6 +1524,59 @@ def test_only_a_paradigm_the_entry_confirms_is_read_again():
     assert confirmed_reread_lemmas(reference, reread, {}) == {}
 
 
+def test_micro_sign_paradigms_need_the_ending_of_their_entry():
+    from overlay_lsj import confirmed_micro_sign_lemmas
+    reference = {
+        # an adjective in -ής, -ές that the expansion declined as a noun of
+        # the first declension
+        f"{MICRO}ελισταγής": f"{MICRO}ελισταγής",
+        f"{MICRO}ελισταγοῦ": f"{MICRO}ελισταγής",
+        f"{MICRO}ελισταγῇ": f"{MICRO}ελισταγής",
+        # the same word from another source, spelled with mu
+        "μελισταγέος": "μελισταγής",
+        # a noun declined as its entry says
+        f"σχή{MICRO}ατος": f"σχῆ{MICRO}α",
+        f"σχή{MICRO}ατα": f"σχῆ{MICRO}α",
+        # a verb is not declined
+        f"σχη{MICRO}ατοποιεῖ": f"σχη{MICRO}ατοποιέω",
+        # no entry gives this head a class
+        f"{MICRO}αιώτραι": f"{MICRO}αίωτρα",
+    }
+    endings = {"μελισταγής": "ους", "σχῆμα": "ατος", "σχηματοποιέω": ""}
+
+    confirmed = confirmed_micro_sign_lemmas(reference, endings)
+    assert confirmed == {"σχῆμα", "σχηματοποιέω"}
+    target = {}
+    stats = overlay_expansion(reference, {}, target, micro_sign_lemmas=confirmed)
+    assert target == {
+        "μελισταγέος": "μελισταγής", "σχήματος": "σχῆμα", "σχήματα": "σχῆμα",
+        "σχηματοποιεῖ": "σχηματοποιέω",
+    }
+    assert stats["micro_sign_entries"] == 7
+    assert stats["micro_sign_unconfirmed_entries"] == 4
+
+    # a build without the record reads every such row, as before
+    target = {}
+    stats = overlay_expansion(reference, {}, target)
+    assert target["μελισταγοῦ"] == "μελισταγής"
+    assert stats["micro_sign_unconfirmed_entries"] == 0
+
+
+def test_micro_sign_endings_come_from_the_sophocles_audit(tmp_path):
+    from overlay_lsj import load_micro_sign_endings
+    audit = tmp_path / "audit.json"
+    audit.write_text(json.dumps({"micro_sign_endings": {"μελισταγής": "ους", "μέσως": ""}},
+                                ensure_ascii=False), encoding="utf-8")
+    assert load_micro_sign_endings(audit) == {"μελισταγής": "ους", "μέσως": ""}
+    audit.write_text(json.dumps({"superseded_lemmas": []}), encoding="utf-8")
+    assert load_micro_sign_endings(audit) is None
+    for bad in (["μελισταγής"], {"μελισταγής": None}, {"μελισταγής": 1}):
+        audit.write_text(json.dumps({"micro_sign_endings": bad}, ensure_ascii=False),
+                         encoding="utf-8")
+        with pytest.raises(SystemExit):
+            load_micro_sign_endings(audit)
+
+
 def test_reread_endings_come_from_the_sophocles_audit(tmp_path):
     from overlay_lsj import load_reread_endings
     audit = tmp_path / "audit.json"

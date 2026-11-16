@@ -656,6 +656,31 @@ def test_micro_sign_heads_are_read_with_mu(tmp_path, monkeypatch):
     assert lookup["σχήματος"] == "σχῆμα" and lookup["μετριάσεως"] == "μετρίασις"
     # only the letter differs from the earlier reading: nothing was re-read
     assert audit["head_rules"]["reread_heads"] == {"count": 0, "heads": {}}
+    # ... and the audit says how each of those heads declines, for the
+    # overlay's test of the rows the earlier reading wrote
+    assert audit["micro_sign_endings"] == {
+        "μέρος": "ους", "μετρίασις": "εως", "σχῆμα": "ατος"}
+    assert "micro_sign_heads" not in audit["head_rules"]
+
+
+def test_micro_sign_endings_follow_the_entry(tmp_path, monkeypatch):
+    write_chunk(tmp_path / "chunks",
+                f"<orth>{MICRO}ελισταγής</orth>, ές, dropping honey.",
+                f"<orth>{MICRO}υριστικός</orth>, ή, όν, fragrant.",
+                f"<orth>σχη{MICRO}ατοποιέω</orth>, ήσω, to shape.",
+                f"<orth>{MICRO}αίωτρα</orth>, ων, τὰ, midwife's fee.",
+                "<orth>ἀγαθός</orth>, ή, όν, good.")
+    monkeypatch.setattr(S, "SOPH_DIR", tmp_path / "chunks")
+    audit = S.new_head_audit()
+    S.parse_sophocles_entries(None, audit=audit, corrections={})
+    # only the heads the earlier reading spelled with the micro sign
+    assert audit["micro_sign_heads"] == {
+        "μελισταγής": "μελισταγής", "μυριστικός": "μυριστικός",
+        "σχηματοποιέω": "σχηματοποιέω", "μαίωτρα": "μαίωτρα"}
+    assert audit["reread_heads"] == {}
+    # the adjective's genitive, none for a verb, no record for a plural head
+    assert S.micro_sign_endings(audit) == {
+        "μελισταγής": "ους", "μυριστικός": "ου", "σχηματοποιέω": ""}
 
 
 def test_reviewed_corrections_replace_a_misread_head(tmp_path, monkeypatch):

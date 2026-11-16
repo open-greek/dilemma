@@ -383,7 +383,7 @@ def new_head_audit():
             "multi_word_heads": {}, "stated_gender": {},
             "malformed_heads": {}, "repaired_heads": {}, "lowercased_heads": {},
             "one_word_heads": {}, "corrected_heads": {}, "reread_heads": {},
-            "proper_names": {}}
+            "micro_sign_heads": {}, "proper_names": {}}
 
 
 def load_lexical_heads(path: Path | None = None):
@@ -543,6 +543,8 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
     one-word entries (``one_word_heads``), the corrections applied
     (``corrected_heads``) and, under ``reread_heads``, each head 1.3.26 read
     otherwise (``legacy_head``) with the present reading ("" for none).
+    ``micro_sign_heads`` holds each head that reading spelled with the micro
+    sign and no other difference, with the head as it is printed now.
     ``legacy_printed`` holds the first words some entry also gave in that
     earlier reading, letter for letter, and ``split_words`` the phrases that
     may be one word the OCR split (``split_word``), for ``settle_heads``."""
@@ -558,6 +560,7 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
     one_word = audit.setdefault("one_word_heads", {})
     corrected = audit.setdefault("corrected_heads", {})
     reread = audit.setdefault("reread_heads", {})
+    micro_sign = audit.setdefault("micro_sign_heads", {})
     legacy_printed = audit.setdefault("legacy_printed", set())
     split_words = audit.setdefault("split_words", {})
 
@@ -592,6 +595,9 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
             old = legacy_head(orth.text)
             if old and greek_mu(old) != read:
                 reread.setdefault(greek_mu(old), printed or "")
+            elif old and old != read and printed:
+                # the micro sign is the only difference
+                micro_sign.setdefault(read, printed)
             if not printed:
                 continue
             if old == read:
@@ -964,6 +970,25 @@ def reread_endings(reread, head_audit, wikt_genitives=None):
     return endings
 
 
+def micro_sign_endings(head_audit, wikt_genitives=None):
+    """``{head: ending}`` for the heads the historical layer spelled with
+    the micro sign (``micro_sign_heads``), keyed by the head read with mu.
+
+    The layer declined these heads like the others, part of them in the
+    wrong class (μελισταγοῦ under μελισταγής, ές; μυριστικκά under
+    μυριστικός), and the overlay reads their rows with the Greek letter. The
+    ending is the one ``reread_ending`` gives for the entry: the overlay
+    reads the old paradigm only when it shows that ending, and a head that
+    is left out here is not read at all."""
+    endings = {}
+    for head, printed in head_audit.get("micro_sign_heads", {}).items():
+        entry = head_audit["printed"].get(printed)
+        ending = reread_ending(printed, entry, wikt_genitives) if entry else None
+        if ending is not None:
+            endings[head] = ending
+    return endings
+
+
 def expand_all():
     """Expand Sophocles headwords and merge into ag_lookup.json."""
     breathing_review = load_breathing_review(required=True)
@@ -995,6 +1020,7 @@ def expand_all():
     reread = reread_printed_heads(head_audit, other_heads, names)
     endings = reread_endings(reread, head_audit, wikt_genitives)
     reread = {old: new for old, new in reread.items() if old in endings}
+    micro_endings = micro_sign_endings(head_audit, wikt_genitives)
     superseded = set(unread)
     resolutions = {}
     # Superseded lemmas are named as the lexicon prints them: the historical
@@ -1113,6 +1139,7 @@ def expand_all():
             "superseded_reread_lemmas": reread_superseded,
             "reread_lemmas": dict(sorted(reread.items())),
             "reread_endings": dict(sorted(endings.items())),
+            "micro_sign_endings": dict(sorted(micro_endings.items())),
             "failures": dict(sorted(failures.items())),
             "resolutions": dict(sorted(resolutions.items())),
             "head_rules": head_rules_record(head_audit),
@@ -1125,7 +1152,8 @@ def head_rules_record(head_audit):
     rules apply to every entry, so the verb step reads the same heads."""
     return {name: {"count": len(rows), "heads": dict(sorted(rows.items()))}
             for name, rows in sorted(head_audit.items())
-            if name not in ("printed", "legacy_printed", "split_words")}
+            if name not in ("printed", "legacy_printed", "split_words",
+                            "micro_sign_heads")}
 
 
 def sophocles_noun_input_hashes():
