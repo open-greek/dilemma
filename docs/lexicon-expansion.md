@@ -202,7 +202,7 @@ no key or lemma of the table carries U+00B5.
 historical layer keyed its rows that way. Two kinds of printed head are
 superseded as a class, since neither is a lemma of the table: a head rejected
 for its two accents (`οἷές`, and the ones the breathing review withholds
-because the OCR read the breathing as an acute, `ίλλέκεβρα`) and a capitalized
+because the OCR read the breathing as an acute, `όψαποίημα`) and a capitalized
 head generated under its lowercase spelling (`Βαρύπυκνος`, `Δυσδαιμονέω`). Most
 heads printed with two accents have a reviewed correction
 (`ἄμάντευτος` is `ἀμάντευτος`, `Άσιάρχης` is `Ἀσιάρχης`, `ἀπράῦντος` is

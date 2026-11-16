@@ -744,9 +744,9 @@ def test_noun_audit_supersedes_printed_heads_that_are_no_lemma(tmp_path, monkeyp
          "lowercased_heads": {"᾿Αθεότης": "ἀθεότης"}}) == {"ἄμάντευτος", "᾿Αθεότης"}
     # the breathing review withholds a head whose breathing was read as an
     # acute; one withheld for its missing breathing alone keeps its rows
-    review = {"withheld": {"ίλλέκεβρα": {"reason": "two_accents"},
+    review = {"withheld": {"όψαποίημα": {"reason": "two_accents"},
                            "ολοκαρπεύω": {"reason": "both_breathings_attested"}}}
-    assert S.unread_printed_heads({}, frozenset(), review) == {"ίλλέκεβρα"}
+    assert S.unread_printed_heads({}, frozenset(), review) == {"όψαποίημα"}
 
 
 def test_two_accent_heads_are_corrected_from_the_record(tmp_path, monkeypatch):

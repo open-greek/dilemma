@@ -821,7 +821,7 @@ def unread_printed_heads(head_audit, other_heads=frozenset(), breathing=None):
     historical layer still keyed that way: a head rejected for two accents
     ("two-accents" in ``malformed_heads``, or withheld for them by the
     ``breathing`` review, where the OCR read the breathing as an acute:
-    ίλλέκεβρα) and a capitalized head generated under its lowercase spelling
+    όψαποίημα) and a capitalized head generated under its lowercase spelling
     (``lowercased_heads``). A spelling another lexical source lists is that
     source's head and is left out. A head with an inner hyphen is not
     included; the overlay has its own rule for a hyphenated lemma. Nor is a
