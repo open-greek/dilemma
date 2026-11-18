@@ -207,7 +207,8 @@ builder.build()
         meta = dict(conn.execute("SELECT key, value FROM meta"))
         assert len(meta["sources_sha256"]) == 64
         assert meta["schema_version"] == str(build_lookup_db.LOOKUP_SCHEMA_VERSION)
-        assert meta["dilemma_version"] == (ROOT / "VERSION").read_text().strip()
+        assert meta["built_from_version"] == (ROOT / "VERSION").read_text().strip()
+        assert "dilemma_version" not in meta
         assert int(meta["lookup_rows"]) == conn.execute(
             "SELECT count(*) FROM lookup").fetchone()[0]
         assert int(meta["lemmas"]) == conn.execute(

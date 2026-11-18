@@ -1334,14 +1334,17 @@ def write_lookup_sources(conn, sources: list[dict]) -> dict[str, int]:
 def write_lookup_meta(conn) -> dict:
     """Stamp lookup.db with what built it and what it holds.
 
-    ``meta(key, value)`` carries the schema version, the Dilemma version of
-    the checkout that built the file, the row counts and the content hash.
+    ``meta(key, value)`` carries the schema version, the VERSION of the
+    checkout that built the file, the row counts and the content hash. A
+    release bumps VERSION after its data is built and pinned, so that value
+    is the release before the one that ships the file: the key says "built
+    from" and data/hf_manifest.json is what ties a file to a release (#151).
     It has no clock time or commit, so equal inputs still give equal bytes.
     """
     version_path = SCRIPT_DIR / "VERSION"
     meta = {
         "schema_version": str(LOOKUP_SCHEMA_VERSION),
-        "dilemma_version": (version_path.read_text(encoding="utf-8").strip()
+        "built_from_version": (version_path.read_text(encoding="utf-8").strip()
                             if version_path.exists() else "unknown"),
         "lemmas": str(conn.execute("SELECT COUNT(*) FROM lemmas").fetchone()[0]),
         "lookup_rows": str(conn.execute("SELECT COUNT(*) FROM lookup").fetchone()[0]),
