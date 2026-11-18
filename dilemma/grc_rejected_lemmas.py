@@ -123,6 +123,18 @@ REJECTED_LEMMA_TARGETS: dict[str, dict[str, str]] = {
                     "has it. GLAUx files the line-break fragments μος, μον "
                     "and μῳ under the unaccented μος.",
     },
+    # The same kind of fragment, with no dictionary behind it at all. It
+    # gave the only reading of γον, which capitalized Γον (the ordinal Γ
+    # with a superscript ον in printed Greek) then reached by lowercasing.
+    "γος": {
+        "reason": "line_break_fragment",
+        "evidence": "No lexicon heads it (LSJ, DGE and the merged lexical "
+                    "heads lack it); Greek Wiktionary has it only as the "
+                    "genitive ending in the headers of σμῶδιξ and ὕσπληξ. "
+                    "GLAUx files three tokens under it, all word fragments: "
+                    "λό γος and λό γον split at a line break, and γος "
+                    "repeated after σάλπιγγος.",
+    },
 }
 
 REJECTED_LEMMAS = frozenset(REJECTED_LEMMA_TARGETS)
