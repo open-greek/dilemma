@@ -138,6 +138,36 @@ _TRUSTED_BUILD_HEADWORD_PATHS = (
 # build/build_glaux_pairs.py). See NOTICE.
 
 
+# Citation endings of a Modern and of an Ancient verb, for
+# ancient_verb_cells_under_modern_rows.
+_MODERN_VERB_ENDINGS = ("ω", "ώ", "ομαι", "άμαι", "ιέμαι", "ούμαι", "ώμαι")
+_ANCIENT_VERB_ENDINGS = ("ω", "ομαι", "μι", "αμαι")
+
+
+def ancient_verb_cells_under_modern_rows(combined, ag, src_map):
+    """Forms whose Modern verb row hides an Ancient verb with the same letters.
+
+    βάλει has one row, the Modern βάζω, and the Ancient view falls through to
+    it, while the accent-stripped key βαλει reads βάλλω. Returns {form: key}
+    for each lowercase form that only Modern Greek keys, whose lemma is a
+    Modern verb, and whose stripped key is an Ancient row for a different
+    verb. These become lang='grc' rows; the combined and Modern rows stay.
+    """
+    cells = {}
+    for form, lemma in combined.items():
+        if (src_map.get(form) != 'el' or form in ag or form != form.lower()
+                or lemma != lemma.lower()
+                or not lemma.endswith(_MODERN_VERB_ENDINGS)):
+            continue
+        key = strip_accents(form)
+        ancient = ag.get(key) if key != form else None
+        if (ancient and ancient == ancient.lower()
+                and ancient.endswith(_ANCIENT_VERB_ENDINGS)
+                and strip_accents(ancient) != strip_accents(lemma)):
+            cells[form] = key
+    return cells
+
+
 def strip_accents(s):
     nfd = unicodedata.normalize("NFD", s)
     return unicodedata.normalize("NFC",
@@ -2808,6 +2838,15 @@ def build():
                          (k, lemma_to_id[v], source_id(ag_sources.get(k), k)))
             ag_extra += 1
     print(f"  grc-only (differs from combined): {ag_extra:,} rows")
+
+    # Ancient verbs that a Modern verb row would hide from the Ancient view.
+    hidden_verbs = ancient_verb_cells_under_modern_rows(combined, ag, src_map)
+    conn.executemany(
+        "INSERT INTO lookup (form, lemma_id, src, lang, source_id) "
+        "VALUES (?, ?, 'grc', 'grc', ?)",
+        ((form, lemma_to_id[ag[key]], source_id(ag_sources.get(key), form))
+         for form, key in hidden_verbs.items()))
+    print(f"  grc-only (Ancient verb under a Modern row): {len(hidden_verbs):,} rows")
 
     # MG-only entries where MG differs from combined (for lang="el" mode)
     mg_extra = 0
