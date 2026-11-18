@@ -1517,6 +1517,7 @@ class Dilemma:
         self._fallback_readings = None
         self._fallback_exact_readings = None
         self._fallback_verb_lemmas = None
+        self._ancient_pronoun_readings = None
         self._pos_rejected_targets = None
 
         # Form-keyed corpus attestation (form_profile.db / form_citations.db),
@@ -2938,6 +2939,7 @@ class Dilemma:
         readings = {}
         exact_readings = {}
         verb_lemmas = set()
+        ancient_pronouns = {}
         paths = []
         if self.lang in ("all", "grc"):
             paths.extend((AG_POS_LOOKUP_PATH, GLAUX_POS_LOOKUP_PATH,
@@ -2974,6 +2976,9 @@ class Dilemma:
                     exact.setdefault(pos, set()).add(lemma)
                     if pos in ("VERB", "AUX"):
                         verb_lemmas.add(lemma)
+                    if pos == "PRON" and path != MG_POS_LOOKUP_PATH:
+                        ancient_pronouns.setdefault(key, set()).add(lemma)
+        self._ancient_pronoun_readings = ancient_pronouns
         self._fallback_readings = readings
         self._fallback_exact_readings = exact_readings
         self._fallback_verb_lemmas = verb_lemmas
@@ -4811,8 +4816,10 @@ class Dilemma:
         cover, while a noun or adjective cell at such a key is often the
         better reading of the letters. Each row must be recorded under PRON
         itself: α PRON stays ὅς (ἅ), though the article ὁ is recorded for
-        these letters under DET. An entry with a row's letters stands, as
-        the missing accent cannot choose between the two (οιαν PRON keeps
+        these letters under DET. The record must be an Ancient table's: the
+        Modern cell του PRON του does not make that row the reading of
+        Ancient του, which stays τις. An entry with a row's letters stands,
+        as the missing accent cannot choose between the two (οιαν PRON keeps
         οἷος beside the row οἶος).
         """
         if upos != "PRON" or not rows or self._prefers_modern_rows() \
@@ -4822,8 +4829,8 @@ class Dilemma:
         if any(strip_accents(c.lemma.lower()) == entry_letters for c in rows):
             return False
         self._load_fallback_readings()
-        recorded = self._fallback_readings.get(
-            strip_accents(word.lower()), {}).get("PRON", ())
+        recorded = (getattr(self, "_ancient_pronoun_readings", None) or {}).get(
+            strip_accents(word.lower()), ())
         if not all(c.lemma in recorded for c in rows):
             return False
         try:
@@ -4848,6 +4855,11 @@ class Dilemma:
                 if not getattr(c, "via", "").endswith("+case_alt")
                 and self._is_ancient_headword(c.lemma)]
 
+    # Accented spellings of Ζεύς whose letters are also another word's: Δῖός
+    # (Sophocles, Ajax 137) beside δῖος, Doric Δᾶν (Theocritus 4.17, 7.39)
+    # beside Δάν. Δὰν is the biblical Dan and is not listed.
+    _NAME_ENTRY_SPELLINGS = frozenset({"Δῖός", "Δᾶν"})
+
     def _name_twin_reads_form(self, word: str, upos: str, pos_lemma: str,
                               exact) -> bool:
         """Whether a common word and its name twin both spell the form.
@@ -4858,10 +4870,12 @@ class Dilemma:
         and does not replace them (#151). Only a capitalized form with its
         own accent counts: unaccented Διος and Αρη are the names Ζεύς and
         Ἄρης, whatever the rows of their bare letters say. An entry the
-        form is the genitive of also stands (Ἀράχνης, of Ἀράχνη).
+        form is the genitive of also stands (Ἀράχνης, of Ἀράχνη), as does
+        the entry of a spelling reviewed as that name.
         """
         if (upos != "PROPN" or self._prefers_modern_rows()
-                or not is_capitalized(word) or self._is_unaccented(word)):
+                or not is_capitalized(word) or self._is_unaccented(word)
+                or unicodedata.normalize("NFC", word) in self._NAME_ENTRY_SPELLINGS):
             return False
         letters = strip_accents(word.lower())
         entry_letters = strip_accents(pos_lemma.lower())

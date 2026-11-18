@@ -97,10 +97,11 @@ def test_other_tags_keep_the_stripped_key_override(table_model):
 # --- #130: ADJ and PRON ------------------------------------------------------
 
 def listed_model(table_model, candidates, tables, listed, *, lang="grc",
-                 rows=None, recorded=None):
+                 rows=None, recorded=None, modern_recorded=None):
     """A model whose Ancient dictionaries list *listed*, whose lookup holds
     *rows* (for the lowercase spelling of a capitalized word) and whose POS
-    tables record the readings *recorded* ({bare key: {tag: lemmas}})."""
+    tables record the readings *recorded* ({bare key: {tag: lemmas}}), with
+    *modern_recorded* in the Modern table only."""
     model = table_model(candidates, tables, lang=lang)
     model._is_ancient_headword = lambda lemma: lemma in listed
     model._ag_lookup = dict(rows or {})
@@ -109,6 +110,13 @@ def listed_model(table_model, candidates, tables, listed, *, lang="grc",
     model._fallback_readings = {
         key: {tag: set(lemmas) for tag, lemmas in by_tag.items()}
         for key, by_tag in (recorded or {}).items()}
+    model._ancient_pronoun_readings = {
+        key: set(by_tag["PRON"]) for key, by_tag in (recorded or {}).items()
+        if "PRON" in by_tag}
+    for key, by_tag in (modern_recorded or {}).items():
+        for tag, lemmas in by_tag.items():
+            model._fallback_readings.setdefault(key, {}).setdefault(
+                tag, set()).update(lemmas)
     model._fallback_exact_readings = {}
     model._fallback_verb_lemmas = set()
     return model
@@ -348,6 +356,15 @@ def test_unaccented_pronoun_entry_beats_a_row_of_another_kind(
     assert both(model, word, "PRON") == entry
 
 
+def test_modern_pronoun_cell_does_not_protect_a_row_of_ancient_letters(table_model):
+    # Modern του PRON του is recorded too, but Ancient του is τις.
+    model = listed_model(table_model, [("του", *EXACT)], {"του": {"PRON": "τις"}},
+                         {"του", "τις"}, lang="all",
+                         recorded={"του": {"PRON": ["τις", "τίς", "ὁ"]}},
+                         modern_recorded={"του": {"PRON": ["του"]}})
+    assert both(model, "του", "PRON") == "τις"
+
+
 def test_unaccented_noun_keeps_the_entry_of_its_key(table_model):
     # Under NOUN the cell is often the better reading of bare letters: the
     # row here is an adjective and the entry the noun.
@@ -374,6 +391,9 @@ def test_name_entry_with_other_letters_leaves_a_name_twin(table_model, lang):
     # The genitive of the name the entry gives.
     ("Ἀράχνης", [("ἀράχνης", "lookup", "exact"), ("Ἀράχνης", "lookup", "exact+case_alt")],
      "Ἀράχνη"),
+    # Accented spellings of Ζεύς.
+    ("Δῖός", [("δῖος", "lookup", "exact"), ("Δῖος", "lookup", "exact+case_alt")], "Ζεύς"),
+    ("Δᾶν", [("δάν", "lookup", "exact"), ("Δάν", "lookup", "exact+case_alt")], "Ζεύς"),
 ])
 @pytest.mark.parametrize("lang", ["grc", "all"])
 def test_name_entry_stands_beside_rows_that_are_no_twin_of_the_form(
@@ -383,6 +403,14 @@ def test_name_entry_stands_beside_rows_that_are_no_twin_of_the_form(
                          {strip_accents(word.lower()): {"PROPN": entry}},
                          {entry}, lang=lang)
     assert both(model, word, "PROPN") == entry
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_biblical_dan_keeps_its_own_name(table_model, lang):
+    model = listed_model(table_model,
+                         [("δάν", "lookup", "exact"), ("Δάν", "lookup", "exact+case_alt")],
+                         {"δαν": {"PROPN": "Ζεύς"}}, {"Ζεύς"}, lang=lang)
+    assert both(model, "Δὰν", "PROPN") == "Δάν"
 
 
 def test_name_entry_still_replaces_a_lone_modern_self_row(table_model):
