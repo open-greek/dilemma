@@ -29,10 +29,11 @@ def test_build_hashes_work_without_file_digest(tmp_path, monkeypatch, payload):
     assert module.pin(source) == {"sha256": expected, "size": len(payload)}
 
     source.with_suffix(".db.pickle").write_bytes(payload)
-    for name in ("KAIKKI_AG", "KAIKKI_AG_EL", "WTP_DB", "LSJ9_FORMS", "LSJ9_HEADWORDS"):
+    for name in ("KAIKKI_AG", "KAIKKI_AG_EL", "WTP_DB", "LSJ9_FORMS", "LSJ9_HEADWORDS",
+                 "HEADWORD_CORRECTIONS"):
         monkeypatch.setattr(expand_lsj, name, source)
     hashes = expand_lsj.noun_generation_input_hashes()
-    assert len(hashes) == 6 and set(hashes.values()) == {expected}
+    assert len(hashes) == 7 and set(hashes.values()) == {expected}
 
     chunks = tmp_path / "chunks"
     chunks.mkdir()

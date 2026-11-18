@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "description": "Reviewed corrections for Ancient Greek headwords that the dictionary exports leave without forms. noun_declensions feeds build/expand_lsj.py: an entry gives the declension the export lacks, or replaces a misread genitive field (`replaces`). The corrected heads are expanded after every other noun, so they only fill forms no other head has claimed. headword_self_maps feeds build_lookup_db.py: a head of the named list that gets a self-map although that list is not self-mapped as a whole. Every entry states the evidence checked.",
+  "noun_declensions": [
+    {
+      "headword": "ὅμηλυς",
+      "gender": "m",
+      "genitive": "ῠδος",
+      "evidence": "Head in lbg_headwords.json (ὁ) and vlg_headwords.json; LSJ has no entry. The -υδ- stem is attested: ὁμήλυδες 13, ὁμήλυδα 4, ὁμήλυδας 4, ὁμήλυδος 2, ὁμήλυδι 1, all in Nonnus's Dionysiaca (form_profile.db and form_citations.db; Diorisis, OGA). Declines as νέηλυς, μέτηλυς and σύνηλυς, ῠδος in LSJ."
+    },
+    {
+      "headword": "κάτηλυς",
+      "gender": "m",
+      "genitive": "ῠδος",
+      "replaces": "ὕδος",
+      "evidence": "lsj9_forms.tsv has ὕδος, a misread of the ῠδος that the LSJ entry prints (lsj9_glosses.jsonl: ῠδος, ὁ, ἡ, going downward, Nonn.D.37.24). κατήλυδα and κατήλυδες are attested in Nonnus's Dionysiaca (form_citations.db; Diorisis, OGA)."
+    }
+  ],
+  "headword_self_maps": [
+    {
+      "headword": "γοσταί",
+      "list": "dge_headwords.json",
+      "evidence": "DGE enters the word under this plural spelling, so the plural is the citation form; no singular is listed. LSJ's ἀγοσταί (variant for ἀκοσταί, a different head) is left as it is."
+    }
+  ]
+}

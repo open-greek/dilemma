@@ -35,6 +35,10 @@ def test_lookup_build_is_identical_across_hash_seeds(tmp_path):
         "med_lookup.json": {},
         "vlg_headwords.json": ["ἀρχή", "βίος", "γῆ", "δῶρον", "ἔργον", "σύναρσις"],
         "wip_headwords.json": ["ζυγόν", "ἦθος", "θεός", "ἰδέα", "κόσμος"],
+        "dge_headwords.json": ["γοσταί", "ἀγοστή"],
+        "grc_headword_corrections.json": {"headword_self_maps": [
+            {"headword": "γοσταί", "list": "dge_headwords.json",
+             "evidence": "fixture"}]},
         "lsj10_headwords.json": ["λίθος", "μέτρον", "νόμος", "ὁδός", "πῦρ"],
         "lbg_headwords.json": [{"lemma": word} for word in
                                ("ῥόδον", "σῶμα", "τέλος", "ὕδωρ", "φῶς",
@@ -196,6 +200,10 @@ builder.build()
         assert origin["λέγει|el"] == "wiktionary_el"
         assert origin["ῥόδα|all"] == origin["ροδα|all"] == "lbg_generated"
         assert origin["ῥόδον|all"] == "lbg_headwords"
+        # A reviewed DGE head gets its key; the rest of that list does not.
+        assert rows["γοσταί"] == "γοσταί"
+        assert origin["γοσταί|all"] == "grc_headword_corrections"
+        assert "ἀγοστή" not in rows
         assert {origin[f"{word}|all"] for word in sources["vlg_headwords.json"]
                 if f"{word}|all" in origin} <= {"vlg_headwords", "wiktionary_grc"}
         registry, _ = build_lookup_db.load_lookup_sources(data / "lookup_sources.json")
