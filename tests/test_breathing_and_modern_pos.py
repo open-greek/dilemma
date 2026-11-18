@@ -196,7 +196,7 @@ def test_shipped_loose_keys_keep_the_breathing(shipped_models, lang):
         "εὐσεβής", verb, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
     tagged = model.lemmatize_batch_pos(forms[:4], ["ADJ", "VERB", "ADJ", "ADJ"],
                                        guess=False)
-    assert tagged == ["εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος"]
+    assert tagged == ["εὐσεβής", verb, "ἀνεξάντλητος", "ἀνεξάντλητος"]
     assert model.lemmatize_batch(
         ["ἀνευροῦς", "ἐδραία", "εὐσεβεστάτη"], guess=False) == [
         "ἄνευρος", "ἑδραῖος", "εὐσεβής"]

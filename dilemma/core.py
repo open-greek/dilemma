@@ -47,6 +47,7 @@ from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
 from .form_sanitize import is_capitalized, sanitize_form
 from .grc_rejected_lemmas import REJECTED_LEMMAS as _REJECTED_POS_LEMMAS
+from .grc_view_rows import GRC_VIEW_ROWS as _GRC_VIEW_ROWS
 from .grammatical_lemmas import (
     correct_grammatical_lemma, preferred_reviewed_lemma, reviewed_verb_grammar,
     reviewed_verb_readings,
@@ -1185,10 +1186,12 @@ class LookupDB:
         lang='el' for MG-only overrides
     """
 
-    def __init__(self, db_path, lang='all'):
+    def __init__(self, db_path, lang='all', reviewed_rows=None):
         self._conn = sqlite3.connect(str(db_path))
         self._conn.execute("PRAGMA mmap_size=268435456")  # 256MB mmap
         self._lang = lang
+        # Reviewed rows that answer before the table (dilemma/grc_view_rows.py)
+        self._reviewed_rows = reviewed_rows or {}
         self._dict = None  # lazy-loaded for batch ops
         self._cache = None  # per-query result cache (enabled via enable_cache)
         self._query = (
@@ -1203,6 +1206,8 @@ class LookupDB:
 
     def get(self, key, default=None):
         """Dict-compatible .get() backed by SQLite."""
+        if key in self._reviewed_rows:
+            return self._reviewed_rows[key]
         if self._dict is not None:
             return self._dict.get(key, default)
         # Check per-query cache before hitting SQLite
@@ -1274,6 +1279,7 @@ class LookupDB:
         self._dict = {}
         for form, lemma in self.items():
             self._dict[form] = lemma
+        self._dict.update(self._reviewed_rows)
 
     def enable_cache(self):
         """Enable per-query result caching for repeated lookups.
@@ -1516,6 +1522,7 @@ class Dilemma:
         self._vernacular_lexical_heads: frozenset[str] | None = None
         self._fallback_readings = None
         self._fallback_exact_readings = None
+        self._fallback_name_lemmas = frozenset()
         self._fallback_verb_lemmas = None
         self._pos_rejected_targets = None
 
@@ -1605,7 +1612,8 @@ class Dilemma:
         if LOOKUP_DB_PATH.exists():
             # SQLite: instant startup for all language modes
             if self.lang == "grc":
-                self._lookup = LookupDB(LOOKUP_DB_PATH, lang='grc')
+                self._lookup = LookupDB(LOOKUP_DB_PATH, lang='grc',
+                                        reviewed_rows=_GRC_VIEW_ROWS)
                 self._ag_lookup = self._lookup
             elif self.lang == "el":
                 self._lookup = LookupDB(LOOKUP_DB_PATH, lang='all')
@@ -1667,6 +1675,7 @@ class Dilemma:
                     elif _is_self_map(k, self._lookup[k]) and not _is_self_map(k, v):
                         self._lookup[k] = v
         elif self.lang == "grc":
+            self._ag_lookup = {**self._ag_lookup, **_GRC_VIEW_ROWS}
             self._lookup = dict(self._ag_lookup)
 
     def _load_pos_lookups(self, *, include_treebank=True, data_dir=None):
@@ -2938,6 +2947,7 @@ class Dilemma:
         readings = {}
         exact_readings = {}
         verb_lemmas = set()
+        name_lemmas = set()
         paths = []
         if self.lang in ("all", "grc"):
             paths.extend((AG_POS_LOOKUP_PATH, GLAUX_POS_LOOKUP_PATH,
@@ -2974,9 +2984,12 @@ class Dilemma:
                     exact.setdefault(pos, set()).add(lemma)
                     if pos in ("VERB", "AUX"):
                         verb_lemmas.add(lemma)
+                    elif pos == "PROPN":
+                        name_lemmas.add(lemma)
         self._fallback_readings = readings
         self._fallback_exact_readings = exact_readings
         self._fallback_verb_lemmas = verb_lemmas
+        self._fallback_name_lemmas = frozenset(name_lemmas)
 
     def _grammatical_readings(self, word: str) -> dict[str, set[str]]:
         """Prefer an exact accented reading to other accentual homographs."""
@@ -4295,7 +4308,7 @@ class Dilemma:
                     return spelling
         if tried and self._is_ancient_headword(lemma):
             return tried[0]
-        contract = self._ancient_contract_head(lemma, marks)
+        contract = self._ancient_contract_head(word, lemma, marks)
         if contract:
             return contract
         if is_capitalized(lemma) and is_capitalized(word):
@@ -4312,15 +4325,24 @@ class Dilemma:
                 return lemma
         return None
 
-    def _ancient_contract_head(self, lemma: str, marks) -> str | None:
+    def _ancient_contract_head(self, word: str, lemma: str, marks) -> str | None:
         """The Ancient contract verb a Modern ``-ώ`` head spells (#151).
 
         αστοχώ is the Modern citation of ἀστοχέω, so a form written with a
-        breathing (ἀστοχήσει) reads the Ancient verb. The stem must make
-        exactly one Ancient headword in -έω, -άω or -όω; otherwise there is
-        no telling which verb it is and None is returned.
+        breathing (ἀστοχήσει) reads the Ancient verb. Modern ``-ώ`` heads
+        include nouns and conjunctions (ηχώ, ενώ), so the word must show the
+        lengthened vowel and σ of the verb's future or aorist after the
+        head's stem. The stem must make exactly one Ancient headword in -έω,
+        -άω or -όω; otherwise there is no telling which verb it is and None
+        is returned.
         """
         if not lemma.endswith("ώ") or len(lemma) < 3:
+            return None
+        stem = strip_accents(lemma[:-1])
+        rest = strip_accents(word.lower())
+        if (not rest.startswith(stem)
+                or rest[len(stem):len(stem) + 2] not in ("ησ", "ασ", "ωσ")
+                or len(rest) <= len(stem) + 2):
             return None
         heads = set()
         for ending in ("έω", "άω", "όω"):
@@ -4794,6 +4816,11 @@ class Dilemma:
         lemma = grave_to_acute(unicodedata.normalize("NFC", candidate.lemma)).lower()
         return lemma == own or strip_accents(lemma) != strip_accents(own)
 
+    def _is_attested_name(self, lemma: str) -> bool:
+        """Whether a POS table gives *lemma* as a proper noun."""
+        self._load_fallback_readings()
+        return lemma in self._fallback_name_lemmas
+
     def _is_verb_shaped_lemma(self, lemma: str) -> bool:
         self._load_fallback_readings()
         return (lemma in self._fallback_verb_lemmas
@@ -4994,51 +5021,99 @@ class Dilemma:
         return (0 < len(direct) < len(candidates)
                 and all(is_capitalized(c.lemma) for c in direct))
 
-    def _pos_split_decides(self, word: str, upos: str, candidates) -> bool:
-        """Whether the POS tables split the word between two lemmas by tag.
+    # Cells of a first- or second-declension nominal by citation ending,
+    # without accents or iota subscript.
+    _NOMINAL_PARADIGM_CELLS = {
+        "ος": ("ος", "ου", "ω", "ον", "ε", "οι", "ων", "οις", "ους",
+               "η", "ης", "ην", "α", "ας", "αν", "αι", "αις"),
+        "ον": ("ον", "ου", "ω", "α", "ων", "οις"),
+        "α": ("α", "ας", "αν", "αι", "ων", "αις", "η", "ης", "ην"),
+        "η": ("η", "ης", "ην", "αι", "ων", "αις"),
+    }
+
+    @classmethod
+    def _is_nominal_paradigm_cell(cls, word: str, lemma: str) -> bool:
+        """Whether *word* has the letters of a regular cell of *lemma*."""
+        form = strip_accents(word.lower())
+        head = strip_accents(lemma.lower())
+        for ending, cells in cls._NOMINAL_PARADIGM_CELLS.items():
+            stem = head[:-len(ending)]
+            if head.endswith(ending) and len(stem) >= 2:
+                return any(form == stem + cell for cell in cells)
+        return False
+
+    # Noun and adjective that share spellings and that a POS tag separates,
+    # reviewed pair by pair. The POS tables split about 1,900 form/tag pairs
+    # this way, and most of the others would follow a tagging slip to a rare
+    # word (ζωήν ADJ to ζωός, βασιλείαν ADJ to βασίλειος).
+    _REVIEWED_NOUN_ADJECTIVE_SPLITS = frozenset({
+        frozenset({"ἀξία", "ἄξιος"}),
+        frozenset({"ἱερός", "ἱερόν"}),
+    })
+
+    def _pos_split_decides(self, word: str, upos: str, pos_lemma: str,
+                           candidates) -> bool:
+        """Whether the POS tables split the word between a noun and an adjective.
 
         The row of ἀξίαν reads ἄξιος, and the river Ἄξιος joins it only as
         that lemma's case alternate. The tables hold both readings of the
         spelling, ἄξιος under ADJ and ἀξία under NOUN, so the tag chooses
-        (ἱερὰ likewise: ἱερός ADJ, ἱερόν NOUN; #151). The form's own spelling
-        must carry the requested tag and the row's lemma under another tag;
-        an entry that merely disagrees with the row does not decide
-        (ἐλάττονος ADJ keeps μικρός against the table's ἐλαχύς).
+        (ἱερὰ likewise: ἱερός ADJ, ἱερόν NOUN; #151). The row's lemma and the
+        requested one must be a reviewed pair, sit under NOUN and ADJ in the
+        same entry, and the word must be a regular cell of the requested
+        lemma. Any other cell stays a disagreement with the row (πάντα NOUN
+        keeps πᾶς against Πάν, ἐλάττονος ADJ keeps μικρός against ἐλαχύς).
         """
-        if upos == "PROPN" or len(candidates) < 2:
+        other = {"NOUN": "ADJ", "ADJ": "NOUN"}.get(upos)
+        if other is None or len(candidates) < 2:
             return False
         direct = [c for c in candidates
                   if not getattr(c, "via", "").endswith("+case_alt")]
-        if len(direct) != 1 or is_capitalized(direct[0].lemma):
+        if len(direct) != 1:
             return False
         row = direct[0].lemma
+        if (frozenset({row, pos_lemma}) not in self._REVIEWED_NOUN_ADJECTIVE_SPLITS
+                or not self._is_nominal_paradigm_cell(word, pos_lemma)):
+            return False
         table = getattr(self, "_pos_lookup", None) or {}
         lower = word.lower()
-        for variant in dict.fromkeys((word, lower, grave_to_acute(lower))):
-            entry = table.get(variant) or {}
-            if upos in entry and any(tag != upos and lemma == row
-                                     for tag, lemma in entry.items()):
-                return True
-        return False
+        return any((table.get(variant) or {}).get(upos) == pos_lemma
+                   and (table.get(variant) or {}).get(other) == row
+                   for variant in dict.fromkeys((word, lower, grave_to_acute(lower))))
 
     # Oxytone second-declension cells that show which nominal an -οῖς form
     # belongs to.
     _OXYTONE_SIBLING_ENDINGS = ("ῷ", "οῦ", "όν", "ούς", "ῶν", "οί")
 
+    @staticmethod
+    def _is_denominative_of(verb: str, nominal: str) -> bool:
+        """Whether *verb* is the contract verb of the -ος word *nominal*."""
+        stem = strip_accents(nominal.lower())
+        if not stem.endswith("ος") or len(stem) < 4:
+            return False
+        stem = stem[:-2]
+        return strip_accents(verb.lower()) in {
+            stem + ending for ending in ("εω", "αω", "οω",
+                                         "εομαι", "αομαι", "οομαι")}
+
     def _nominal_reading(self, word: str, upos: str, candidates) -> str | None:
         """A nominal reading for a word the POS tables do not cover (#151).
 
         Asked only without a POS entry for the tag. Under NOUN or ADJ, a
-        lone verb row gives way to:
+        lone row of a verb derived from an -ος nominal gives way to that
+        nominal (βαλῶ stays with βάλλω, which βαλός does not derive):
 
-        - the row of the same form with its iota subscript, when that row
-          is not a verb (μοναχῶ, written for the dative μοναχῷ: μοναχός);
+        - the row of the same form with its iota subscript, when no POS table
+          knows the verb (μοναχῶ, written for the dative μοναχῷ: μοναχός;
+          ποιῶ and καλῶ stay verbs whatever the tag says);
         - the oxytone -ός headword of an -οῖς form, when the lookup reads
           another case of it as that headword (ποδηγοῖς: ποδηγῷ is ποδηγός).
 
         Under NOUN or PROPN, a lowercase word with no lookup row of its own
-        reads the row of its capitalized spelling when that is an Ancient
-        name (θεοφάνην: Θεοφάνην is Θεοφάνης).
+        reads the row of its capitalized spelling when the POS tables name
+        that lemma as a PROPN (θεοφάνην: Θεοφάνην is Θεοφάνης). A capitalized
+        row alone is no evidence of a name: the generated paradigms hold
+        Κανδιδάτος and Μόριος.
         """
         table = getattr(self, "_ag_lookup", None)
         if self.lang not in ("all", "grc") or not word or not table:
@@ -5047,7 +5122,8 @@ class Dilemma:
         if upos in ("NOUN", "PROPN") and word[:1].islower() and not any(
                 getattr(c, "source", "") == "lookup" for c in candidates):
             row = table.get(word[0].title() + word[1:])
-            if row and self._is_capitalized_ancient_head(row):
+            if (row and self._is_capitalized_ancient_head(row)
+                    and self._is_attested_name(row)):
                 lemma = row
         if lemma is None and upos in ("NOUN", "ADJ") and len(candidates) == 1 \
                 and self._is_exact_lookup_row(candidates[0]) \
@@ -5055,14 +5131,17 @@ class Dilemma:
             lower = unicodedata.normalize("NFC", word.lower())
             if lower[-1:] in ("ῶ", "ῆ", "ᾶ"):
                 row = table.get(unicodedata.normalize("NFC", lower + "\u0345"))
-                if row and not self._is_verb_shaped_lemma(row):
+                if (row and row == row.lower()
+                        and candidates[0].lemma not in self._fallback_verb_lemmas
+                        and self._is_denominative_of(candidates[0].lemma, row)):
                     lemma = row
             elif lower.endswith("οῖς") and len(lower) > 5:
                 stem = lower[:-3]
                 head = stem + "ός"
-                if self._is_ancient_headword(head) and any(
-                        table.get(stem + ending) == head
-                        for ending in self._OXYTONE_SIBLING_ENDINGS):
+                if self._is_ancient_headword(head) and self._is_denominative_of(
+                        candidates[0].lemma, head) and any(
+                            table.get(stem + ending) == head
+                            for ending in self._OXYTONE_SIBLING_ENDINGS):
                     lemma = head
         if lemma is None:
             return None
@@ -5380,7 +5459,8 @@ class Dilemma:
                         return checked(pos_lemma_conv)
                 elif ((upos == "VERB"
                          or self._is_name_row_family(word, candidates)
-                         or self._pos_split_decides(word, upos, candidates)
+                         or self._pos_split_decides(
+                             word, upos, pos_lemma, candidates)
                          or self._closed_class_entry_decides(
                              word, upos, pos_lemma, candidates)
                          or self._name_entry_decides(
@@ -5601,7 +5681,8 @@ class Dilemma:
                 if not matched and (len(candidates) <= 1 or one_reading
                         or ((upos == "VERB"
                              or self._is_name_row_family(word, candidates)
-                             or self._pos_split_decides(word, upos, candidates)
+                             or self._pos_split_decides(
+                             word, upos, pos_lemma, candidates)
                              or self._closed_class_entry_decides(
                                  word, upos, pos_lemma, candidates)
                              or self._name_entry_decides(
