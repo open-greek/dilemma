@@ -6,6 +6,17 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Tagged lookups keep more of the form's own reading against a POS entry found only at a looser key (#151, after #105). A lowercase noun whose row reads a listed headword spelled like the form stays that headword (`λάτρης`/NOUN, not `λατρεύς`). An unaccented pronoun keeps a row the POS tables record under PRON for its letters (`ταυτης`/PRON → `οὗτος`, `συ`/PRON → `σύ`), while `α`/PRON stays `ὅς`.
+- A PROPN entry with other letters no longer replaces a common word and its name twin (`Ἡδὺς`/PROPN → `Ἡδύς`, not `Ἡδεῖα`).
+- A bare letter tagged NOUN or ADJ answers with `lang="grc"` too (`α` gave no answer, because the POS rejection list holds it as a corpus lemma).
+- `κύρου`/NOUN reads the name `Κῦρος` through a reviewed POS cell. The noun `κῦρος` is neuter with genitive `κύρους`.
+
+### Changed
+
+- The `meta` key `dilemma_version` of `lookup.db` becomes `built_from_version`. It holds the `VERSION` of the checkout that built the file, which a release bumps after the data is pinned, so 1.3.27's file said 1.3.26. No code reads the key; `data/hf_manifest.json` ties a file to a release. Published files keep the old key until the next rebuild.
+
 ## [1.3.27] - 2026-11-16
 
 This release closes the follow-ups to 1.3.26 (#127, #129 to #132, #134 and

@@ -4744,12 +4744,25 @@ class Dilemma:
         these letters (see _tables_record_pronoun). Under the VERB
         case-twin rule (#42) a loose entry may not replace an exact
         case-twin family (πόθῳ VERB keeps πόθος, not the πίνω of ποθῶ).
+
+        The same protection covers a row that reads a lowercase form as a
+        listed headword of its own (see _listed_own_rows: λάτρης NOUN keeps
+        λάτρης, not the λατρεύς of λατρης). An unaccented word has no
+        spelling apart from its accent-stripped key, so under PRON an entry
+        it finds there yields to a row the tables record as a pronoun of
+        these letters (ταυτης PRON keeps οὗτος, not the αὐτός of ταὐτῆς;
+        #151). A PROPN entry for another word does not replace
+        a common word and its name twin (see _name_twin_reads_form).
         """
         if any(self._is_closed_class_reading(c) for c in candidates):
             return self._pos_entry_is_loose(word, upos, pos_lemma)
         exact = [c for c in candidates if self._is_exact_lookup_row(c)]
         if not exact:
             return False
+        if not case_twin_family and self._name_twin_reads_form(
+                word, upos, pos_lemma, exact):
+            return True
+        rows = []
         if not case_twin_family:
             listed_only = upos not in self._LOOSE_OVERRIDE_BLOCKED_TAGS
             if listed_only and (
@@ -4760,8 +4773,12 @@ class Dilemma:
             stripped = strip_accents(word.lower())
             inflected = [c for c in exact
                          if strip_accents(c.lemma.lower()) != stripped]
-            if not inflected or any(self._is_verb_shaped_lemma(c.lemma)
-                                    for c in inflected):
+            if not inflected:
+                own_rows = self._listed_own_rows(word, upos, exact)
+                if not own_rows or self._lowercase_row_reads(word, pos_lemma):
+                    return False
+                inflected = own_rows
+            if any(self._is_verb_shaped_lemma(c.lemma) for c in inflected):
                 return False
             if listed_only and (
                     not all(self._is_ancient_headword(c.lemma)
@@ -4772,7 +4789,85 @@ class Dilemma:
                     self._tables_record_pronoun(word, c.lemma)
                     for c in inflected):
                 return False
-        return self._pos_entry_is_loose(word, upos, pos_lemma)
+            rows = inflected
+        return (self._pos_entry_is_loose(word, upos, pos_lemma)
+                or self._pronoun_entry_at_bare_key(word, upos, pos_lemma, rows))
+
+    def _prefers_modern_rows(self) -> bool:
+        return (self.lang == "el"
+                or getattr(self, "_convention_name", None) == "triantafyllidis")
+
+    @staticmethod
+    def _is_unaccented(word: str) -> bool:
+        lower = word.lower()
+        return lower == strip_accents(lower)
+
+    def _pronoun_entry_at_bare_key(self, word: str, upos: str,
+                                   pos_lemma: str, rows) -> bool:
+        """Whether a PRON entry of an unaccented word yields to *rows*.
+
+        The tables store accent-stripped keys, so ταυτης finds the cell
+        that ταὐτῆς left under ταυτης as if it were the word's own. Only
+        PRON is treated this way: the pronouns are a closed class the tables
+        cover, while a noun or adjective cell at such a key is often the
+        better reading of the letters. Each row must be recorded under PRON
+        itself: α PRON stays ὅς (ἅ), though the article ὁ is recorded for
+        these letters under DET.
+        """
+        if upos != "PRON" or not rows or self._prefers_modern_rows() \
+                or not self._is_unaccented(word):
+            return False
+        self._load_fallback_readings()
+        recorded = self._fallback_readings.get(
+            strip_accents(word.lower()), {}).get("PRON", ())
+        if not all(c.lemma in recorded for c in rows):
+            return False
+        try:
+            lemma, index = self._pos_table_hit(word, upos)
+        except AttributeError:
+            return False
+        return lemma is not None and lemma == pos_lemma and index is not None
+
+    def _listed_own_rows(self, word: str, upos: str, exact) -> list:
+        """The exact rows that read a lowercase form as a listed Ancient headword.
+
+        A row whose lemma is the form itself (λάτρης), or under PRON the
+        accented headword of an unaccented form (συ -> σύ), is the form's
+        own reading, as an inflected row is. A row no Ancient dictionary
+        lists does not count: it may be a corpus artifact of a misspelling.
+        A case alternate only repeats the row it came from. ADJ is left
+        out, because a feminine shares its spelling with a noun (ἐπιδημία
+        ADJ is ἐπιδήμιος), and so is a capitalized word, whose row is often
+        a name from the onomastic lists (Γαίων NOUN stays γαῖα).
+        """
+        if (self._prefers_modern_rows() or not word[:1].islower()
+                or upos not in ("NOUN", "PRON")):
+            return []
+        own = grave_to_acute(word).lower()
+        accentless_pronoun = upos == "PRON" and self._is_unaccented(word)
+        return [c for c in exact
+                if not getattr(c, "via", "").endswith("+case_alt")
+                and (grave_to_acute(c.lemma).lower() == own
+                     or accentless_pronoun)
+                and self._is_ancient_headword(c.lemma)]
+
+    def _name_twin_reads_form(self, word: str, upos: str, pos_lemma: str,
+                              exact) -> bool:
+        """Whether a common word and its name twin both spell the form.
+
+        Ἡδὺς reads ἡδύς beside the name Ἡδύς, so the lookup already holds
+        a name for it under PROPN. A PROPN entry with other letters (the
+        Ἡδεῖα that the table files under ἡδύς) names a different person
+        and does not replace them (#151).
+        """
+        if upos != "PROPN" or self._prefers_modern_rows():
+            return False
+        letters = strip_accents(word.lower())
+        if (strip_accents(pos_lemma.lower()) == letters
+                or any(strip_accents(c.lemma.lower()) != letters for c in exact)):
+            return False
+        return (any(is_capitalized(c.lemma) for c in exact)
+                and any(c.lemma[:1].islower() for c in exact))
 
     def _tables_record_pronoun(self, word: str, lemma: str) -> bool:
         """Whether the POS tables record *lemma* for the word's letters under PRON or DET.
@@ -5153,7 +5248,10 @@ class Dilemma:
             return checked(self._apply_convention(article_lemma))
         letter = _bare_letter_nominal(word, upos)
         if letter is not None:
-            return checked(letter)
+            # The rule answers for the letter itself: the corpus evidence
+            # against α as a lemma is about stray tokens, not about a numeral
+            # or a list label (#116, #151).
+            return letter
 
         # Get all candidates from regular lookup
         candidates = self._checked_pos_candidates(
@@ -5372,6 +5470,8 @@ class Dilemma:
 
         # Step 2: For each word, check if POS could improve the result
         resolved_articles = set()
+        # Bare letters answer for themselves, past the POS rejection (#151).
+        bare_letters = set()
         # Words whose loose POS entry was kept from respelling or replacing
         # the candidates (#105); step 3 must not offer it as a case twin.
         loose_blocked = set()
@@ -5393,6 +5493,7 @@ class Dilemma:
             if letter is not None:
                 results[i] = letter
                 resolved_articles.add(i)
+                bare_letters.add(i)
                 continue
             pos_lemma = self._checked_pos_table_lookup(word, upos)
             if pos_lemma is not None:
@@ -5547,8 +5648,10 @@ class Dilemma:
             results[i] = self._prefer_case_twin(word, upos, res,
                                                 candidates, extra=extra)
 
-        return [self._checked_pos_result(word, upos, lemma)
-                for word, upos, lemma in zip(words, upos_tags, results)]
+        return [lemma if i in bare_letters
+                else self._checked_pos_result(word, upos, lemma)
+                for i, (word, upos, lemma)
+                in enumerate(zip(words, upos_tags, results))]
 
     @staticmethod
     def classify_nonlexical(token: str) -> str | None:

@@ -1591,6 +1591,16 @@
    "reason": "As ποίησιν: the Ionic ποίῃσι listed without its subscript.",
    "evidence": "1.3.26 gave ποίησις under DET; the lookup still reads ποίῃσι as ποῖος.",
    "issue": 129
+  },
+  {
+   "table": "ag",
+   "form": "κύρου",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Κῦρος",
+   "reason": "The genitive of the name Κῦρος written lowercase and tagged NOUN. The Ancient table holds the name only under PROPN at this key, so NOUN found nothing and the verb row κυρόω answered, or under lang=\"all\" the κυρός of the accent-stripped Modern key. The common noun κῦρος is neuter with genitive κύρους, so κύρου is not a form of it.",
+   "evidence": "ag_pos_lookup.json: κύρου PROPN Κῦρος; lsj9_pos_lookup.json: Κύρου NOUN Κῦρος; lookup.db: Κύρου -> Κῦρος and lowercase κύρῳ -> Κῦρος; Κῦρος is an LSJ headword.",
+   "issue": 151
   }
  ]
 }

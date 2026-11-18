@@ -295,3 +295,127 @@ def test_shipped_batch_matches_scalar_in_context(shipped_model):
     batch = shipped_model.lemmatize_batch_pos(
         [row[0] for row in rows], [row[1] for row in rows], guess=False)
     assert batch == [row[2] for row in rows]
+
+
+# --- #151: the form's own reading, unaccented pronouns, name twins ----------
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_stripped_key_entry_does_not_replace_a_listed_self_row(table_model, lang):
+    model = listed_model(table_model, [("λάτρης", *EXACT)],
+                         {"λατρης": {"NOUN": "λατρεύς"}},
+                         {"λάτρης", "λατρεύς"}, lang=lang)
+    assert both(model, "λάτρης", "NOUN") == "λάτρης"
+
+
+def test_stripped_key_entry_still_replaces_an_unlisted_self_row(table_model):
+    model = listed_model(table_model, [("λάτρης", *EXACT)],
+                         {"λατρης": {"NOUN": "λατρεύς"}}, {"λατρεύς"})
+    assert both(model, "λάτρης", "NOUN") == "λατρεύς"
+
+
+def test_own_key_entry_still_replaces_a_listed_self_row(table_model):
+    model = listed_model(table_model, [("λάτρης", *EXACT)],
+                         {"λάτρης": {"NOUN": "λατρεύς"}},
+                         {"λάτρης", "λατρεύς"})
+    assert both(model, "λάτρης", "NOUN") == "λατρεύς"
+
+
+@pytest.mark.parametrize("word,upos,row,entry", [
+    # A capitalized self row is often only a name of the onomastic lists.
+    ("Γαίων", "NOUN", "Γαίων", "γαῖα"),
+    # An adjective's feminine is spelled like the noun.
+    ("ἐπιδημία", "ADJ", "ἐπιδημία", "ἐπιδήμιος"),
+])
+def test_stripped_key_entry_replaces_other_self_rows(
+        table_model, word, upos, row, entry):
+    from dilemma.core import strip_accents
+    model = listed_model(table_model, [(row, *EXACT)],
+                         {strip_accents(word.lower()): {upos: entry}}, {row, entry})
+    assert both(model, word, upos) == entry
+
+
+def test_modern_rows_keep_the_override_of_a_self_row(table_model):
+    model = listed_model(table_model, [("λάτρης", *EXACT)],
+                         {"λατρης": {"NOUN": "λατρεύς"}},
+                         {"λάτρης", "λατρεύς"}, lang="el")
+    assert both(model, "λάτρης", "NOUN") == "λατρεύς"
+
+
+@pytest.mark.parametrize("word,row,entry,recorded", [
+    # The table stores these cells under the unaccented key, which is
+    # also the word as written; the row is a pronoun reading of the letters.
+    ("ταυτης", "οὗτος", "αὐτός", {"ταυτης": {"PRON": ["αὐτός", "οὗτος"]}}),
+    ("συ", "σύ", "ἐγώ", {"συ": {"PRON": ["ἐγώ", "σύ"]}}),
+])
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_unaccented_pronoun_keeps_its_recorded_row(
+        table_model, word, row, entry, recorded, lang):
+    model = listed_model(table_model, [(row, *EXACT)], {word: {"PRON": entry}},
+                         {row, entry}, lang=lang, recorded=recorded)
+    assert both(model, word, "PRON") == row
+
+
+@pytest.mark.parametrize("word,row,entry,recorded", [
+    # The row reads another kind of word: οἵδε is ὅδε, not a form of οἶδα;
+    # σής the moth is no pronoun, so unaccented σης stays σός.
+    ("οιδε", "οἶδα", "ὅδε", {"οιδε": {"VERB": ["οἶδα"], "PRON": ["ὅδε"]}}),
+    ("σης", "σής", "σός", {"σης": {"NOUN": ["σής"], "PRON": ["σός"]}}),
+    # The article is recorded for α only under DET: α PRON is the relative ἅ.
+    ("α", "ὁ", "ὅς", {"α": {"DET": ["ὁ"], "PRON": ["ὅς"]}}),
+])
+def test_unaccented_pronoun_entry_beats_a_row_of_another_kind(
+        table_model, word, row, entry, recorded):
+    model = listed_model(table_model, [(row, *EXACT)], {word: {"PRON": entry}},
+                         {row, entry}, recorded=recorded)
+    assert both(model, word, "PRON") == entry
+
+
+def test_unaccented_noun_keeps_the_entry_of_its_key(table_model):
+    # Under NOUN the cell is often the better reading of bare letters: the
+    # row here is an adjective and the entry the noun.
+    model = listed_model(table_model, [("ἐνύπνιος", *EXACT)],
+                         {"ενυπνιοις": {"NOUN": "ἐνύπνιον"}},
+                         {"ἐνύπνιος", "ἐνύπνιον"})
+    assert both(model, "ενυπνιοις", "NOUN") == "ἐνύπνιον"
+
+
+TWINS = [("ἡδύς", "lookup", "exact"), ("Ἡδύς", "lookup", "exact+case_alt")]
+
+
+@pytest.mark.parametrize("lang", ["grc", "all"])
+def test_name_entry_with_other_letters_leaves_a_name_twin(table_model, lang):
+    model = listed_model(table_model, TWINS, {"ἡδύς": {"PROPN": "Ἡδεῖα"}},
+                         {"ἡδύς"}, lang=lang)
+    assert both(model, "Ἡδὺς", "PROPN") == "Ἡδύς"
+
+
+def test_name_entry_still_replaces_a_lone_modern_self_row(table_model):
+    # The capitalized row of a genitive is no name twin of a common word.
+    model = listed_model(table_model, [("Παύλου", *EXACT)],
+                         {"Παύλου": {"PROPN": "Παῦλος"}}, {"Παῦλος"})
+    assert both(model, "Παύλου", "PROPN") == "Παῦλος"
+
+
+@pytest.mark.parametrize("letter", ["α", "θ"])
+@pytest.mark.parametrize("upos", ["ADJ", "NOUN"])
+def test_bare_letter_outranks_the_rejected_corpus_target(table_model, letter, upos):
+    model = table_model([("ὁ", *EXACT)], {letter: {"ADJ": "Λητογενής"}})
+    model._pos_rejected_targets = frozenset({letter})
+    assert both(model, letter, upos) == letter
+
+
+def test_rejected_letter_is_still_rejected_under_other_tags(table_model):
+    model = table_model([("α", *EXACT)], {})
+    model._pos_rejected_targets = frozenset({"α"})
+    assert model.lemmatize_batch_pos(["α"], ["VERB"], guess=False) == [None]
+
+
+def test_lowercase_cyrus_genitive_reads_the_name_under_noun(table_model):
+    from pathlib import Path
+    record = Path(__file__).resolve().parents[1] / "data" / "pos_cell_corrections.json"
+    table = core._apply_pos_cell_corrections(
+        "ag", {"κύρου": {"PROPN": "Κῦρος", "VERB": "κυρόω"}}, record)
+    assert table["κύρου"]["NOUN"] == "Κῦρος"
+    model = listed_model(table_model, [("κυρόω", *EXACT)], table, {"Κῦρος"})
+    assert both(model, "κύρου", "NOUN") == "Κῦρος"
+    assert both(model, "κύρου", "VERB") == "κυρόω"
