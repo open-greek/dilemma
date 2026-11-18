@@ -4745,14 +4745,14 @@ class Dilemma:
         case-twin rule (#42) a loose entry may not replace an exact
         case-twin family (πόθῳ VERB keeps πόθος, not the πίνω of ποθῶ).
 
-        The same protection covers a row that reads a lowercase form as a
-        listed headword of its own (see _listed_own_rows: λάτρης NOUN keeps
-        λάτρης, not the λατρεύς of λατρης). An unaccented word has no
-        spelling apart from its accent-stripped key, so under PRON an entry
-        it finds there yields to a row the tables record as a pronoun of
-        these letters (ταυτης PRON keeps οὗτος, not the αὐτός of ταὐτῆς;
-        #151). A PROPN entry for another word does not replace
-        a common word and its name twin (see _name_twin_reads_form).
+        An unaccented word has no spelling apart from its accent-stripped
+        key, so under PRON an entry it finds there yields to a row the
+        tables record as a pronoun of these letters (ταυτης PRON keeps
+        οὗτος, not the αὐτός of ταὐτῆς; συ PRON keeps σύ; #151). A row
+        that only repeats the form does not stop a noun entry: ὅρη NOUN is
+        ὄρος and οἴκοι NOUN οἶκος, though both spellings are listed. A
+        PROPN entry for another word does not replace a common word and
+        its name twin (see _name_twin_reads_form).
         """
         if any(self._is_closed_class_reading(c) for c in candidates):
             return self._pos_entry_is_loose(word, upos, pos_lemma)
@@ -4774,10 +4774,9 @@ class Dilemma:
             inflected = [c for c in exact
                          if strip_accents(c.lemma.lower()) != stripped]
             if not inflected:
-                own_rows = self._listed_own_rows(word, upos, exact)
-                if not own_rows or self._lowercase_row_reads(word, pos_lemma):
+                inflected = self._unaccented_pronoun_rows(word, upos, exact)
+                if not inflected:
                     return False
-                inflected = own_rows
             if any(self._is_verb_shaped_lemma(c.lemma) for c in inflected):
                 return False
             if listed_only and (
@@ -4812,10 +4811,15 @@ class Dilemma:
         cover, while a noun or adjective cell at such a key is often the
         better reading of the letters. Each row must be recorded under PRON
         itself: α PRON stays ὅς (ἅ), though the article ὁ is recorded for
-        these letters under DET.
+        these letters under DET. An entry with a row's letters stands, as
+        the missing accent cannot choose between the two (οιαν PRON keeps
+        οἷος beside the row οἶος).
         """
         if upos != "PRON" or not rows or self._prefers_modern_rows() \
                 or not self._is_unaccented(word):
+            return False
+        entry_letters = strip_accents(pos_lemma.lower())
+        if any(strip_accents(c.lemma.lower()) == entry_letters for c in rows):
             return False
         self._load_fallback_readings()
         recorded = self._fallback_readings.get(
@@ -4828,27 +4832,20 @@ class Dilemma:
             return False
         return lemma is not None and lemma == pos_lemma and index is not None
 
-    def _listed_own_rows(self, word: str, upos: str, exact) -> list:
-        """The exact rows that read a lowercase form as a listed Ancient headword.
+    def _unaccented_pronoun_rows(self, word: str, upos: str, exact) -> list:
+        """The rows reading an unaccented lowercase PRON as a listed headword.
 
-        A row whose lemma is the form itself (λάτρης), or under PRON the
-        accented headword of an unaccented form (συ -> σύ), is the form's
-        own reading, as an inflected row is. A row no Ancient dictionary
-        lists does not count: it may be a corpus artifact of a misspelling.
-        A case alternate only repeats the row it came from. ADJ is left
-        out, because a feminine shares its spelling with a noun (ἐπιδημία
-        ADJ is ἐπιδήμιος), and so is a capitalized word, whose row is often
-        a name from the onomastic lists (Γαίων NOUN stays γαῖα).
+        συ has no accent to tell it from σύ, so the row with its letters is
+        the word's own reading. A case alternate only repeats the row it
+        came from, and a row no Ancient dictionary lists may be a corpus
+        artifact. _pronoun_entry_at_bare_key then asks that the tables
+        record the row under PRON.
         """
-        if (self._prefers_modern_rows() or not word[:1].islower()
-                or upos not in ("NOUN", "PRON")):
+        if (upos != "PRON" or self._prefers_modern_rows()
+                or not word[:1].islower() or not self._is_unaccented(word)):
             return []
-        own = grave_to_acute(word).lower()
-        accentless_pronoun = upos == "PRON" and self._is_unaccented(word)
         return [c for c in exact
                 if not getattr(c, "via", "").endswith("+case_alt")
-                and (grave_to_acute(c.lemma).lower() == own
-                     or accentless_pronoun)
                 and self._is_ancient_headword(c.lemma)]
 
     def _name_twin_reads_form(self, word: str, upos: str, pos_lemma: str,
@@ -4858,12 +4855,17 @@ class Dilemma:
         Ἡδὺς reads ἡδύς beside the name Ἡδύς, so the lookup already holds
         a name for it under PROPN. A PROPN entry with other letters (the
         Ἡδεῖα that the table files under ἡδύς) names a different person
-        and does not replace them (#151).
+        and does not replace them (#151). Only a capitalized form with its
+        own accent counts: unaccented Διος and Αρη are the names Ζεύς and
+        Ἄρης, whatever the rows of their bare letters say. An entry the
+        form is the genitive of also stands (Ἀράχνης, of Ἀράχνη).
         """
-        if upos != "PROPN" or self._prefers_modern_rows():
+        if (upos != "PROPN" or self._prefers_modern_rows()
+                or not is_capitalized(word) or self._is_unaccented(word)):
             return False
         letters = strip_accents(word.lower())
-        if (strip_accents(pos_lemma.lower()) == letters
+        entry_letters = strip_accents(pos_lemma.lower())
+        if (entry_letters == letters or entry_letters + "ς" == letters
                 or any(strip_accents(c.lemma.lower()) != letters for c in exact)):
             return False
         return (any(is_capitalized(c.lemma) for c in exact)

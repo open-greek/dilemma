@@ -1601,6 +1601,16 @@
    "reason": "The genitive of the name Κῦρος written lowercase and tagged NOUN. The Ancient table holds the name only under PROPN at this key, so NOUN found nothing and the verb row κυρόω answered, or under lang=\"all\" the κυρός of the accent-stripped Modern key. The common noun κῦρος is neuter with genitive κύρους, so κύρου is not a form of it.",
    "evidence": "ag_pos_lookup.json: κύρου PROPN Κῦρος; lsj9_pos_lookup.json: Κύρου NOUN Κῦρος; lookup.db: Κύρου -> Κῦρος and lowercase κύρῳ -> Κῦρος; Κῦρος is an LSJ headword.",
    "issue": 151
+  },
+  {
+   "table": "ag",
+   "form": "λάτρης",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "λάτρης",
+   "reason": "The noun λάτρης, servant, as its own nominative. No table holds a NOUN cell at this spelling, so NOUN reached the λατρεύς that the contracted plural λατρῆς left at the accent-stripped key λατρης.",
+   "evidence": "lookup.db: λάτρης -> λάτρης (vlg_headwords); grc_lexical_heads.json lists λάτρης from pd_headwords and vlg_headwords; lsj9_pos_lookup.json: λατρῆς NOUN λατρεύς, λατρης NOUN λατρεύς.",
+   "issue": 151
   }
  ]
 }

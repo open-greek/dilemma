@@ -8,10 +8,11 @@ All notable changes to Dilemma are documented here. The format follows
 
 ### Fixed
 
-- Tagged lookups keep more of the form's own reading against a POS entry found only at a looser key (#151, after #105). A lowercase noun whose row reads a listed headword spelled like the form stays that headword (`λάτρης`/NOUN, not `λατρεύς`). An unaccented pronoun keeps a row the POS tables record under PRON for its letters (`ταυτης`/PRON → `οὗτος`, `συ`/PRON → `σύ`), while `α`/PRON stays `ὅς`.
-- A PROPN entry with other letters no longer replaces a common word and its name twin (`Ἡδὺς`/PROPN → `Ἡδύς`, not `Ἡδεῖα`).
+- Tagged lookups keep more of the form's own reading against a POS entry found only at a looser key (#151, after #105). An unaccented pronoun keeps a row the POS tables record under PRON for its letters (`ταυτης`/PRON → `οὗτος`, `συ`/PRON → `σύ`), while `α`/PRON stays `ὅς` and an entry with the row's letters stands (`οιαν`/PRON → `οἷος`).
+- A PROPN entry with other letters no longer replaces a common word and its name twin when the capitalized form has its own accent (`Ἡδὺς`/PROPN → `Ἡδύς`, not `Ἡδεῖα`). Unaccented names keep their entries (`Διος`/PROPN → `Ζεύς`, `Αρη`/PROPN → `Ἄρης`).
 - A bare letter tagged NOUN or ADJ answers with `lang="grc"` too (`α` gave no answer, because the POS rejection list holds it as a corpus lemma).
 - `κύρου`/NOUN reads the name `Κῦρος` through a reviewed POS cell. The noun `κῦρος` is neuter with genitive `κύρους`.
+- `λάτρης`/NOUN stays `λάτρης` with `lang="grc"` through a reviewed POS cell, not the `λατρεύς` of the plural `λατρῆς`.
 
 ### Changed
 
