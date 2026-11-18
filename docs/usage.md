@@ -603,7 +603,9 @@ Ambiguous forms retain their existing flat lookup preference.
 ### Reading `lookup.db` directly
 
 A database built by 1.3.20 or later describes itself in
-`meta(key, value)`: `schema_version`, `dilemma_version`, `lemmas`,
+`meta(key, value)`: `schema_version`, `built_from_version` (the `VERSION` of
+the checkout that built it, which a release bumps afterwards; earlier files
+call it `dilemma_version`), `lemmas`,
 `lookup_rows` and `lookup_sha256`. The last is a SHA-256 of the rows in key
 order, independent of the file's bytes, so it is the value to pin for a
 reproducible build. An older file has no `meta` table.
