@@ -188,14 +188,12 @@ def test_modern_mode_keeps_the_modern_row(model_from):
 def test_shipped_loose_keys_keep_the_breathing(shipped_models, lang):
     model = shipped_models[lang]
     forms = ["εὐσεβεστάτῃ", "ἀστοχήσει", "ἀνεξάντλητον", "ἀνεξαντλήτου", "ὀφφικίου"]
-    # With lang="all" the polytonic form keeps the Modern head (#104). With
-    # lang="grc" the form has no row of its own; the Ancient verb answers
-    # through the inferred future cell ἀστοχήσοι (#134).
-    modern = "αστοχώ" if lang == "all" else "ἀστοχέω"
+    # The Modern head αστοχώ spells the Ancient contract verb (#151).
+    verb = "ἀστοχέω"
     assert model.lemmatize_batch(forms, guess=False) == [
-        "εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
+        "εὐσεβής", verb, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
     assert [model.lemmatize(f, guess=False) for f in forms] == [
-        "εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
+        "εὐσεβής", verb, "ἀνεξάντλητος", "ἀνεξάντλητος", "ὀφφίκιον"]
     tagged = model.lemmatize_batch_pos(forms[:4], ["ADJ", "VERB", "ADJ", "ADJ"],
                                        guess=False)
     assert tagged == ["εὐσεβής", modern, "ἀνεξάντλητος", "ἀνεξάντλητος"]
