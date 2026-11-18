@@ -92,6 +92,7 @@ VLG_HEADWORDS_PATH = DATA_DIR / "vlg_headwords.json"
 WIP_HEADWORDS_PATH = DATA_DIR / "wip_headwords.json"
 LSJ10_HEADWORDS_PATH = DATA_DIR / "lsj10_headwords.json"
 LBG_HEADWORDS_PATH = DATA_DIR / "lbg_headwords.json"
+GRC_HEADWORD_CORRECTIONS_PATH = DATA_DIR / "grc_headword_corrections.json"
 LBG_PAIRS_PATH = DATA_DIR / "lbg_pairs.json"
 CORPUS_FREQ_PATH = DATA_DIR / "corpus_freq.json"
 # Surface-form corpus attestation (build/build_form_attestation.py). An
@@ -1017,6 +1018,26 @@ def lookup_content_sha256(conn) -> str:
     return digest.hexdigest()
 
 
+def reviewed_headword_self_maps(path: Path) -> list[str]:
+    """The reviewed self-map heads of grc_headword_corrections.json, sorted.
+
+    Each must stand in the headword list its record names, next to the
+    record, so a record cannot add a head no dictionary lists.
+    """
+    records = json.loads(path.read_text(encoding="utf-8"))["headword_self_maps"]
+    lists: dict[str, set[str]] = {}
+    heads = []
+    for record in records:
+        name, head = record["list"], record["headword"]
+        if name not in lists:
+            lists[name] = set(json.loads(
+                path.with_name(name).read_text(encoding="utf-8")))
+        if head not in lists[name]:
+            raise ValueError(f"reviewed headword {head!r} is not in {name}")
+        heads.append(head)
+    return sorted(heads)
+
+
 def load_lookup_sources(path: Path = None) -> tuple[list[dict], dict[str, str]]:
     """The reviewed source registry and the map from build input to source code."""
     registry = json.loads((path or LOOKUP_SOURCES_PATH).read_text(encoding="utf-8"))
@@ -1761,6 +1782,17 @@ def build():
                 lsj10_lookup_added += 1
         print(f"  LSJ10 headwords: {len(lsj10_new):,} new, "
               f"+{lsj10_lookup_added:,} self-maps to AG lookup")
+
+    # Reviewed heads of a list that is not self-mapped as a whole (DGE).
+    # One exact key each, as above: the runtime cascade folds a grave accent.
+    if GRC_HEADWORD_CORRECTIONS_PATH.exists():
+        reviewed_added = 0
+        for h in reviewed_headword_self_maps(GRC_HEADWORD_CORRECTIONS_PATH):
+            if h not in ag:
+                ag[h] = h
+                ag_source_overrides[h] = GRC_HEADWORD_CORRECTIONS_PATH.name
+                reviewed_added += 1
+        print(f"  Reviewed headwords: +{reviewed_added:,} self-maps to AG lookup")
 
 
     # Expand AG and Med with GLAUx corpus pairs (644K forms from

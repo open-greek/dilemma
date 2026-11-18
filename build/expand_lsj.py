@@ -91,6 +91,8 @@ def add_input_arguments(parser) -> None:
 
 
 WTP_DB = DATA_DIR / "wtp.db"
+# Reviewed declensions for heads the LSJ exports lack or misread.
+HEADWORD_CORRECTIONS = DATA_DIR / "grc_headword_corrections.json"
 
 # --- Lua runtime compatibility for running Wiktionary's grc modules via wtp ---
 # lupa's default runtime here is PUC Lua 5.5, which is too strict for the
@@ -462,6 +464,42 @@ def parse_lsj_entries(head_rules=None):
     return entries
 
 
+def apply_noun_corrections(entries, records=None):
+    """Apply the reviewed declensions of grc_headword_corrections.json.
+
+    A record without ``replaces`` adds a head the LSJ exports lack, and one
+    with ``replaces`` corrects that exact genitive field; a head the exports
+    already give otherwise stays as it is. Corrected heads move to the end,
+    so their cells never take a form from a head expanded in the normal
+    order (κατήλυσιν stays with κατήλυσις, not κάτηλυς). Returns the count.
+    """
+    if records is None:
+        records = json.loads(HEADWORD_CORRECTIONS.read_text(
+            encoding="utf-8"))["noun_declensions"]
+    applied = 0
+    for record in records:
+        head = record["headword"]
+        current = entries.get(head)
+        replaces = record.get("replaces")
+        if (current is None and replaces is not None) or (
+                current is not None and current["genitive"] != (replaces or "")):
+            continue
+        if current is not None and not replaces:
+            continue
+        entries.pop(head, None)
+        article = {"m": "ὁ", "f": "ἡ", "n": "τό"}[record["gender"]]
+        entries[head] = {
+            "headword": head,
+            "orth_orig": head,
+            "article": article,
+            "gender": record["gender"],
+            "itype": record["genitive"],
+            "genitive": record["genitive"],
+        }
+        applied += 1
+    return applied
+
+
 def _parse_lsj9_headwords():
     """Load all LSJ entries from lsj9_headwords.json.
 
@@ -706,7 +744,8 @@ def noun_generation_input_hashes(include_lsj=True):
     paths = {"wiktionary_en": KAIKKI_AG, "wiktionary_el": KAIKKI_AG_EL,
              "wtp": WTP_DB, "wtp_pickle": WTP_DB.with_suffix(".db.pickle")}
     if include_lsj:
-        paths.update(lsj9_forms=LSJ9_FORMS, lsj9_headwords=LSJ9_HEADWORDS)
+        paths.update(lsj9_forms=LSJ9_FORMS, lsj9_headwords=LSJ9_HEADWORDS,
+                     headword_corrections=HEADWORD_CORRECTIONS)
     hashes = {}
     for key, path in paths.items():
         with path.open("rb") as stream:
@@ -1984,6 +2023,8 @@ def expand_all():
     print("Loading data...")
     head_rules = new_lsj_head_rules()
     lsj_entries = parse_lsj_entries(head_rules)
+    applied = apply_noun_corrections(lsj_entries)
+    print(f"  reviewed noun declensions applied: {applied}")
     wikt = load_wiktionary_forms()
     print("Loading Wiktionary genitives for cross-reference...")
     wikt_genitives = load_wiktionary_genitives()
