@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.28] - 2026-11-18
+
 ### Added
 
 - `Dilemma(skip_numeral_ordinals=True)` returns no lemma for a capital numeral letter for 1-9, or `ϛ`, followed by `ον`, as printed: an ordinal whose superscript ending was flattened (`Ηον`, `Γον`, `Βον`). It applies in all five `lemmatize` methods and is off by default. `Τον`, `Σον` and `Ιον` spell common words and are not covered (#152).
@@ -2466,6 +2468,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.28]: https://github.com/open-greek/dilemma/releases/tag/1.3.28
 [1.3.27]: https://github.com/open-greek/dilemma/releases/tag/1.3.27
 [1.3.26]: https://github.com/open-greek/dilemma/releases/tag/1.3.26
 [1.3.25]: https://github.com/open-greek/dilemma/releases/tag/1.3.25
