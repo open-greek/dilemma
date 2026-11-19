@@ -102,11 +102,6 @@ def shipped_model(request):
 
 def test_shipped_issue_letters_return_themselves(shipped_model):
     expected = list(ISSUE_FORMS)
-    if shipped_model.lang == "grc":
-        # The treebank audit rejects the corpus target α (not a lexical
-        # head), and every explicit Ancient POS path honours that veto, so
-        # α gives None there; the issue accepts the letter or None.
-        expected = [None if form == "α" else form for form in expected]
     assert shipped_model.lemmatize_batch_pos(
         ISSUE_FORMS, ISSUE_TAGS, guess=False) == expected
     assert [shipped_model.lemmatize_pos(form, tag, guess=False)

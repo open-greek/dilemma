@@ -1131,6 +1131,16 @@ from their flat lookup target or are absent from the flat map. The training-data
 integrity check requires this evidence; an unrelated definition under another part of speech cannot
 authorize an exception.
 
+`data/grc_headword_corrections.json` holds reviewed entries for heads the
+dictionary exports leave without forms, each with its evidence.
+`noun_declensions` gives `build/expand_lsj.py --expand` a declension LSJ lacks
+(`ὅμηλυς`, `-ῠδος`) or replaces a misread genitive field (`κάτηλυς`, exported as
+`ὕδος`). These heads are expanded last, so a cell shared with another word stays
+with that word (`κατήλυσιν` remains `κατήλυσις`). `headword_self_maps` gives
+`build_lookup_db.py` one exact key for a head of a list that is not self-mapped
+as a whole: `γοσταί`, which the DGE enters in the plural. A grave spelling needs
+no key of its own, because the lookup folds it to the acute.
+
 ### Ancient adverbs in -ως
 
 `build/build_grc_adverb_heads.py` writes `data/grc_adverb_heads.json`, the

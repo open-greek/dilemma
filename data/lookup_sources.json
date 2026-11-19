@@ -111,6 +111,16 @@
       "attribution": "Vocabolario della Lingua Greca (headwords)"
     },
     {
+      "code": "grc_headword_corrections",
+      "name": "Reviewed Ancient Greek headword self-maps",
+      "inputs": ["grc_headword_corrections.json"],
+      "share_alike": false,
+      "components": [
+        {"name": "Diccionario Griego-Español", "license": "factual headword strings only; the dictionary's content is not used", "use": "headword self-maps"}
+      ],
+      "attribution": "Diccionario Griego-Español (headwords)"
+    },
+    {
       "code": "wip_headwords",
       "name": "Words in Progress (Aristarchus), headword strings",
       "inputs": ["wip_headwords.json"],

@@ -6,6 +6,25 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `Dilemma(skip_numeral_ordinals=True)` returns no lemma for a capital numeral letter for 1-9, or `ϛ`, followed by `ον`, as printed: an ordinal whose superscript ending was flattened (`Ηον`, `Γον`, `Βον`). It applies in all five `lemmatize` methods and is off by default. `Τον`, `Σον` and `Ιον` spell common words and are not covered (#152).
+
+### Fixed
+
+- `ὅμηλυς` and `κάτηλυς` have their `-υδ-` forms (`ὁμήλυδες` → `ὅμηλυς`, `κατήλυδες` → `κάτηλυς`), and `γοσταί` has a row, through the reviewed record `data/grc_headword_corrections.json` (#150).
+- `γος` is rejected as a lemma, so `γον` and `γος` no longer answer `γος`. Its rows were the ends of words divided at a line break (#152).
+- More tagged readings from the #151 comparison: `ἀξίαν`/NOUN → `ἀξία`, `ἱερὰ`/ADJ → `ἱερός`, `ἱερωμέναις`/VERB → `ἱερόω`, `μοναχῶ`/ADJ → `μοναχός`, `θεοφάνην`/NOUN → `Θεοφάνης`, `ποδηγοῖς`/NOUN → `ποδηγός`, and `εὐτονήσας`/VERB → `εὐτονέω`, which had no answer. `ἀστοχήσει`/VERB gives `ἀστοχέω` with `lang="all"` too. `βάλει`/VERB gives `βάλλω` with `lang="grc"`; `lang="all"` keeps the Modern `βάζω`.
+- Tagged lookups keep more of the form's own reading against a POS entry found only at a looser key (#151, after #105). An unaccented pronoun keeps a row the POS tables record under PRON for its letters (`ταυτης`/PRON → `οὗτος`, `συ`/PRON → `σύ`), while `α`/PRON stays `ὅς` and an entry with the row's letters stands (`οιαν`/PRON → `οἷος`).
+- A PROPN entry with other letters no longer replaces a common word and its name twin when the capitalized form has a polytonic accent or breathing (`Ἡδὺς`/PROPN → `Ἡδύς`, not `Ἡδεῖα`). Unaccented names and spellings with only an acute keep their entries (`Διος`/PROPN → `Ζεύς`, `Βάρδα`/PROPN → `Βάρδας`). `Δὰν` and `Δάν` are the biblical `Δάν`; Doric `Δᾶν` stays `Ζεύς`.
+- A bare letter tagged NOUN or ADJ answers with `lang="grc"` too (`α` gave no answer, because the POS rejection list holds it as a corpus lemma).
+- `κύρου`/NOUN reads the name `Κῦρος` through a reviewed POS cell. The noun `κῦρος` is neuter with genitive `κύρους`.
+- `λάτρης`/NOUN stays `λάτρης` with `lang="grc"` through a reviewed POS cell, not the `λατρεύς` of the plural `λατρῆς`.
+
+### Changed
+
+- The `meta` key `dilemma_version` of `lookup.db` becomes `built_from_version`. It holds the `VERSION` of the checkout that built the file, which a release bumps after the data is pinned, so 1.3.27's file said 1.3.26. No code reads the key; `data/hf_manifest.json` ties a file to a release. Published files keep the old key until the next rebuild.
+
 ## [1.3.27] - 2026-11-16
 
 This release closes the follow-ups to 1.3.26 (#127, #129 to #132, #134 and

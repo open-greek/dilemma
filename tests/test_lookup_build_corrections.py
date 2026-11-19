@@ -383,6 +383,26 @@ def test_reviewed_non_lemmas_and_pronoun_twins_leave_the_lookup(tmp_path):
     assert "1 capitalised pronoun twins skipped" in result.stdout
 
 
+def test_line_break_fragment_lemma_leaves_the_lookup(tmp_path):
+    # GLAUx files the second halves of λό|γον and λό|γος under γος, and a head
+    # list carries it, so only the reviewed record keeps the pairs out.
+    glaux = [
+        {"form": "γον", "lemma": "γος", "pos": "noun"},
+        {"form": "γος", "lemma": "γος", "pos": "noun"},
+        {"form": "λόγον", "lemma": "λόγος", "pos": "noun"},
+    ]
+    data, env = _fixture(tmp_path, {
+        "ag_headwords.json": ["γος", "λόγος"],
+        "glaux_pairs.json": glaux,
+    })
+    result = _build(data, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    for lang in ("all", "grc", "el"):
+        rows = _rows(data, lang)
+        assert "γον" not in rows and "γος" not in rows, lang
+    assert _rows(data)["λόγον"] == "λόγος"
+
+
 def test_glaux_pos_builder_skips_reviewed_non_lemmas(tmp_path):
     import importlib.util
     spec = importlib.util.spec_from_file_location(
