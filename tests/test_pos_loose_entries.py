@@ -391,6 +391,9 @@ def test_name_entry_with_other_letters_leaves_a_name_twin(table_model, lang):
     # The genitive of the name the entry gives.
     ("Ἀράχνης", [("ἀράχνης", "lookup", "exact"), ("Ἀράχνης", "lookup", "exact+case_alt")],
      "Ἀράχνη"),
+    # A spelling with only an acute may be monotonic: the genitive of a name.
+    ("Βάρδα", [("βάρδα", "lookup", "exact"), ("Βάρδα", "lookup", "exact+case_alt")],
+     "Βάρδας"),
     # Accented spellings of Ζεύς.
     ("Δῖός", [("δῖος", "lookup", "exact"), ("Δῖος", "lookup", "exact+case_alt")], "Ζεύς"),
     ("Δᾶν", [("δάν", "lookup", "exact"), ("Δάν", "lookup", "exact+case_alt")], "Ζεύς"),

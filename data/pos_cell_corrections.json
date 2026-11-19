@@ -1621,6 +1621,17 @@
    "reason": "The end of a genitive, not a word. γος is rejected as a lemma because its rows are line-break fragments, and this cell still answered a tagged γος with an unrelated noun.",
    "evidence": "lsj9_forms.tsv: σμῶδιξ ἡ, genitive ιγγος; no LSJ, DGE or Wiktionary head γος; form_profile and GLAUx show γος only as the end of divided words such as λό γος.",
    "issue": 152
+  },
+  {
+   "table": "ag",
+   "form": "Δάν",
+   "upos": "PROPN",
+   "target": "Ζεύς",
+   "action": "correct",
+   "corrected": "Δάν",
+   "reason": "With an acute this is the biblical name Dan, as the same table says under NOUN. The Doric accusative of Ζεύς is written Δᾶν, which keeps Ζεύς. Without this Δάν and Δὰν, one word, got different lemmas.",
+   "evidence": "ag_pos_lookup.json: Δάν NOUN Δάν; lookup.db: Δάν -> Δάν; Theocritus 4.17 and 7.39 have Δᾶν.",
+   "issue": 151
   }
  ]
 }

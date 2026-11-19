@@ -5010,13 +5010,17 @@ class Dilemma:
         Ἡδεῖα that the table files under ἡδύς) names a different person
         and does not replace them (#151). Only a capitalized form with its
         own accent counts: unaccented Διος and Αρη are the names Ζεύς and
-        Ἄρης, whatever the rows of their bare letters say. An entry the
-        form is the genitive of also stands (Ἀράχνης, of Ἀράχνη), as does
-        the entry of a spelling reviewed as that name.
+        Ἄρης, whatever the rows of their bare letters say. A spelling with
+        only an acute may be monotonic, and there the name entry stands
+        too (Βάρδα, of Βάρδας). An entry the form is the genitive of also
+        stands (Ἀράχνης, of Ἀράχνη), as does the entry of a spelling
+        reviewed as that name.
         """
+        spelling = unicodedata.normalize("NFC", word)
         if (upos != "PROPN" or self._prefers_modern_rows()
                 or not is_capitalized(word) or self._is_unaccented(word)
-                or unicodedata.normalize("NFC", word) in self._NAME_ENTRY_SPELLINGS):
+                or to_monotonic(spelling) == spelling
+                or spelling in self._NAME_ENTRY_SPELLINGS):
             return False
         letters = strip_accents(word.lower())
         entry_letters = strip_accents(pos_lemma.lower())
