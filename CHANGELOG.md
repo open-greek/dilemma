@@ -6,8 +6,15 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `Dilemma(skip_numeral_ordinals=True)` returns no lemma for a capital numeral letter for 1-9, or `ϛ`, followed by `ον`, as printed: an ordinal whose superscript ending was flattened (`Ηον`, `Γον`, `Βον`). It applies in all five `lemmatize` methods and is off by default. `Τον`, `Σον` and `Ιον` spell common words and are not covered (#152).
+
 ### Fixed
 
+- `ὅμηλυς` and `κάτηλυς` have their `-υδ-` forms (`ὁμήλυδες` → `ὅμηλυς`, `κατήλυδες` → `κάτηλυς`), and `γοσταί` has a row, through the reviewed record `data/grc_headword_corrections.json` (#150).
+- `γος` is rejected as a lemma, so `γον` and `γος` no longer answer `γος`. Its rows were the ends of words divided at a line break (#152).
+- More tagged readings from the #151 comparison: `ἀξίαν`/NOUN → `ἀξία`, `ἱερὰ`/ADJ → `ἱερός`, `ἱερωμέναις`/VERB → `ἱερόω`, `μοναχῶ`/ADJ → `μοναχός`, `θεοφάνην`/NOUN → `Θεοφάνης`, `ποδηγοῖς`/NOUN → `ποδηγός`, and `εὐτονήσας`/VERB → `εὐτονέω`, which had no answer. `ἀστοχήσει`/VERB gives `ἀστοχέω` with `lang="all"` too. `βάλει`/VERB gives `βάλλω` with `lang="grc"`; `lang="all"` keeps the Modern `βάζω`.
 - Tagged lookups keep more of the form's own reading against a POS entry found only at a looser key (#151, after #105). An unaccented pronoun keeps a row the POS tables record under PRON for its letters (`ταυτης`/PRON → `οὗτος`, `συ`/PRON → `σύ`), while `α`/PRON stays `ὅς` and an entry with the row's letters stands (`οιαν`/PRON → `οἷος`).
 - A PROPN entry with other letters no longer replaces a common word and its name twin when the capitalized form has its own accent (`Ἡδὺς`/PROPN → `Ἡδύς`, not `Ἡδεῖα`). Unaccented names keep their entries (`Διος`/PROPN → `Ζεύς`, `Αρη`/PROPN → `Ἄρης`).
 - A bare letter tagged NOUN or ADJ answers with `lang="grc"` too (`α` gave no answer, because the POS rejection list holds it as a corpus lemma).
