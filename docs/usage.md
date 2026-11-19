@@ -126,7 +126,17 @@ d_mg = Dilemma(convention="triantafyllidis")
 
 # Strict AG citation validation for audit/dictionary surfaces
 d_audit = Dilemma(lang="grc", citation_policy="strict_ag")
+
+# No lemma for ordinals flattened from a superscript ending (OCR and editions)
+d_ocr = Dilemma(skip_numeral_ordinals=True)
+d_ocr.lemmatize("Ηον")                         # None (default: "εἶμι", through ηον)
 ```
+
+`skip_numeral_ordinals=True` covers a capital numeral letter for 1-9 (`Α Β Γ Δ
+Ε Ϛ Ζ Η Θ`, and `ϛ`) followed by `ον`, as printed, in all five `lemmatize`
+methods. It is off by default because `Βον` is also a surname and these
+spellings can be capitalized words. `Τον`, `Σον` and `Ιον` are left out since
+they spell common words.
 
 A form with no lookup row of its own is looked up under its monotonic and
 then its accent-stripped spelling, where many rows are Modern Greek. With

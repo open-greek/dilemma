@@ -1400,11 +1400,25 @@ class LookupDB:
             self._conn = None
 
 
+# Numeral letters for 1-9, as an ordinal printed with a superscript ending
+# flattens to them: Η with ον for ὄγδοον. Higher letters stay out because the
+# same shape spells common words (Τον, Σον, Ιον).
+_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϛΖΗΘ")
+
+
+def is_numeral_ordinal(word: str) -> bool:
+    """Whether *word* is a numeral letter for 1-9 followed by ον, as printed."""
+    word = unicodedata.normalize("NFC", word or "")
+    return (len(word) == 3 and word.endswith("ον")
+            and word[0] in _ORDINAL_NUMERAL_LETTERS)
+
+
 class Dilemma:
     def __init__(self, lang="all", device=None, scale=None,
                  resolve_articles=False, normalize=False, period=None,
                  dialect=None, convention=None, skip_pos=False,
-                 citation_policy: str = "default"):
+                 citation_policy: str = "default",
+                 skip_numeral_ordinals: bool = False):
         """Initialize Dilemma.
 
         Args:
@@ -1453,6 +1467,12 @@ class Dilemma:
                   Greek citation outputs to be independently headword-backed;
                   use it for dictionary/headword audits where no lemma is
                   better than an unverified guessed citation form.
+            skip_numeral_ordinals: If True, return no lemma for a numeral
+                  letter for 1-9 followed by ον, as printed (Ηον, Γον, ϛον):
+                  an ordinal whose superscript ending was flattened. Such a
+                  token otherwise reaches word rows (Ηον gives εἶμι through
+                  ηον). Βον is covered too, although it has a row of its own.
+                  Τον, Σον and Ιον spell common words and are not.
         """
         if convention not in _VALID_CONVENTIONS:
             raise ValueError(
@@ -1471,6 +1491,7 @@ class Dilemma:
                 f"Unknown language {lang!r}. Valid values: 'all', 'el', 'grc'."
             )
         self.lang = lang
+        self._skip_numeral_ordinals = skip_numeral_ordinals
         self._citation_policy = citation_policy
         self._scale = scale
         # Triantafyllidis convention always needs article resolution:
@@ -3866,6 +3887,16 @@ class Dilemma:
                                    key=lambda c: (_gender_score(c), c.proper, -c.score))
         return candidates_sorted
 
+    def _is_skipped_ordinal(self, word: str) -> bool:
+        return (getattr(self, "_skip_numeral_ordinals", False)
+                and is_numeral_ordinal(word))
+
+    def _without_skipped_ordinals(self, words, results):
+        if not getattr(self, "_skip_numeral_ordinals", False):
+            return results
+        return [None if is_numeral_ordinal(word) else result
+                for word, result in zip(words, results)]
+
     def lemmatize(self, word: str, *, attested_only: bool = False,
                   guess: bool = True) -> str | None:
         """Lemmatize a single Greek word.
@@ -3916,6 +3947,8 @@ class Dilemma:
         # Lunate sigma (ϲ) -> standard σ/ς, so editions that use it still match.
         word = to_standard_sigma(word)
 
+        if self._is_skipped_ordinal(word):
+            return None
         # Attested-only gate: drop forms that don't occur in the corpus.
         if attested_only and self._resolve_attested_form(word) is None:
             return None
@@ -5483,6 +5516,8 @@ class Dilemma:
         def checked(lemma):
             return self._checked_pos_result(word, upos, lemma)
 
+        if self._is_skipped_ordinal(word):
+            return None
         # Attested-only gate: drop forms that don't occur in the corpus.
         if attested_only and word and not word.isdigit() \
                 and self._resolve_attested_form(word) is None:
@@ -5915,10 +5950,11 @@ class Dilemma:
             results[i] = self._prefer_case_twin(word, upos, res,
                                                 candidates, extra=extra)
 
-        return [lemma if i in bare_letters
-                else self._checked_pos_result(word, upos, lemma)
-                for i, (word, upos, lemma)
-                in enumerate(zip(words, upos_tags, results))]
+        return self._without_skipped_ordinals(words, [
+            lemma if i in bare_letters
+            else self._checked_pos_result(word, upos, lemma)
+            for i, (word, upos, lemma)
+            in enumerate(zip(words, upos_tags, results))])
 
     @staticmethod
     def classify_nonlexical(token: str) -> str | None:
@@ -5991,6 +6027,8 @@ class Dilemma:
             lemmatize_verbose("ἀλλ̓")
             -> [LemmaCandidate(lemma="ἀλλά", lang="grc", source="elision", via="elision:ά")]
         """
+        if self._is_skipped_ordinal(word):
+            return []
         # Digits / empty are not Greek forms; pass through ungated.
         attest_key = None
         if (attested_only or with_attestation) and word and not word.isdigit():
@@ -6618,7 +6656,7 @@ class Dilemma:
                 for w, r in zip(words, results)
             ]
 
-        return results
+        return self._without_skipped_ordinals(words, results)
 
     # ---- Spelling correction ----
 
