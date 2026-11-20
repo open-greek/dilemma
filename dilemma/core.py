@@ -1402,15 +1402,32 @@ class LookupDB:
 
 # Numeral letters for 1-9, as an ordinal printed with a superscript ending
 # flattens to them: Η with ον for ὄγδοον. Higher letters stay out because the
-# same shape spells common words (Τον, Σον, Ιον).
-_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϛΖΗΘ")
+# same shape spells common words (Τον, Σον, Ιον). The digamma Ϝ is the older
+# letter for 6; lowercase ϝ is left out, since dialect texts write words
+# with it.
+_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϛϜΖΗΘ")
+# With a numeral mark, an overline (U+0305) or a macron (U+0304) on any of
+# its letters, the lowercase letter is a numeral too (δ̄ο̄ν̄).
+_MARKED_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϜΖΗΘαβγδεϛϝζηθ")
+_NUMERAL_MARKS = ("\u0304", "\u0305")
 
 
 def is_numeral_ordinal(word: str) -> bool:
-    """Whether *word* is a numeral letter for 1-9 followed by ον, as printed."""
-    word = unicodedata.normalize("NFC", word or "")
+    """Whether *word* is a numeral letter for 1-9 followed by ον, as printed.
+
+    The letter is a capital (or ϛ), or a letter of either case when the
+    token carries an overline or a macron, the marks that set a numeral
+    apart in print (Η̄ον, Ηο̄ν, δ̄ο̄ν̄).
+    """
+    nfd = unicodedata.normalize("NFD", word or "")
+    marked = any(mark in nfd for mark in _NUMERAL_MARKS)
+    if marked:
+        nfd = "".join(c for c in nfd if c not in _NUMERAL_MARKS)
+    word = unicodedata.normalize("NFC", nfd)
+    letters = (_MARKED_ORDINAL_NUMERAL_LETTERS if marked
+               else _ORDINAL_NUMERAL_LETTERS)
     return (len(word) == 3 and word.endswith("ον")
-            and word[0] in _ORDINAL_NUMERAL_LETTERS)
+            and word[0] in letters)
 
 
 class Dilemma:
@@ -1471,8 +1488,11 @@ class Dilemma:
                   letter for 1-9 followed by ον, as printed (Ηον, Γον, ϛον):
                   an ordinal whose superscript ending was flattened. Such a
                   token otherwise reaches word rows (Ηον gives εἶμι through
-                  ηον). Βον is covered too, although it has a row of its own.
-                  Τον, Σον and Ιον spell common words and are not.
+                  ηον). Βον is covered too, although it has a row of its own,
+                  and so is the digamma Ϝον. With an overline or a macron as
+                  a numeral mark the letter may have either case (Η̄ον, Ηο̄ν,
+                  δ̄ο̄ν̄). Τον, Σον and Ιον spell common words and are not
+                  covered, nor is an overlined abbreviation such as Ση̄.
         """
         if convention not in _VALID_CONVENTIONS:
             raise ValueError(

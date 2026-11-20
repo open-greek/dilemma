@@ -133,10 +133,14 @@ d_ocr.lemmatize("Ηον")                         # None (default: "εἶμι", 
 ```
 
 `skip_numeral_ordinals=True` covers a capital numeral letter for 1-9 (`Α Β Γ Δ
-Ε Ϛ Ζ Η Θ`, and `ϛ`) followed by `ον`, as printed, in all five `lemmatize`
-methods. It is off by default because `Βον` is also a surname and these
-spellings can be capitalized words. `Τον`, `Σον` and `Ιον` are left out since
-they spell common words.
+Ε Ϛ Ϝ Ζ Η Θ`, and `ϛ`) followed by `ον`, as printed, in all five `lemmatize`
+methods. When the token carries an overline or a macron, the marks that set a
+numeral apart, the letter may also be lowercase (`Η̄ον`, `Ηο̄ν`, `δ̄ο̄ν̄`). It is
+off by default because `Βον` is also a surname and these spellings can be
+capitalized words. `Τον`, `Σον` and `Ιον` are left out since they spell common
+words, and so is a lowercase `ϝον` without a mark, which dialect texts can
+write. An overlined abbreviation such as `Ση̄` is not a numeral and is not
+covered.
 
 A form with no lookup row of its own is looked up under its monotonic and
 then its accent-stripped spelling, where many rows are Modern Greek. With
