@@ -4972,6 +4972,13 @@ class Dilemma:
                             for c in inflected)
                     or self._lowercase_row_reads(word, pos_lemma)):
                 return False
+            if upos == "ADJ" and any(
+                    self._is_closed_class_indeclinable(c.lemma)
+                    for c in inflected):
+                # A row that reads a conjunction, particle, preposition or
+                # interjection is no adjective's reading (ἀλλή ADJ: the
+                # ἄλλος of αλλη, not the ἀλλά of its row; #148).
+                return False
             if upos == "PRON" and not all(
                     self._tables_record_pronoun(word, c.lemma)
                     for c in inflected):
@@ -4979,6 +4986,25 @@ class Dilemma:
             rows = inflected
         return (self._pos_entry_is_loose(word, upos, pos_lemma)
                 or self._pronoun_entry_at_bare_key(word, upos, pos_lemma, rows))
+
+    _CLOSED_INDECLINABLE_CATEGORIES = frozenset(
+        {"conjunction", "particle", "preposition", "interjection"})
+
+    def _is_closed_class_indeclinable(self, lemma: str) -> bool:
+        """Whether LSJ lists *lemma* as a conjunction, particle, preposition
+        or interjection, which no adjective row reads (ἀλλή read ἀλλά)."""
+        heads = self.__dict__.get("_closed_indeclinables")
+        if heads is None:
+            heads = frozenset()
+            try:
+                with open(LSJ9_INDECLINABLES_PATH, encoding="utf-8") as f:
+                    heads = frozenset(
+                        head for head, category in json.load(f).items()
+                        if category in self._CLOSED_INDECLINABLE_CATEGORIES)
+            except (OSError, ValueError):
+                pass
+            self._closed_indeclinables = heads
+        return lemma in heads
 
     def _prefers_modern_rows(self) -> bool:
         return (self.lang == "el"
