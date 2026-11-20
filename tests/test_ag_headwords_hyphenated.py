@@ -12,6 +12,7 @@ from dilemma.citation import hyphenated_lemma
 ROOT = Path(__file__).resolve().parents[1]
 LIST = ROOT / "data" / "ag_headwords.json"
 RECORD = ROOT / "data" / "changes" / "ag_headwords_hyphenated.json"
+FRAGMENTS = ROOT / "data" / "changes" / "ag_headwords_fragments.json"
 
 spec = importlib.util.spec_from_file_location(
     "prune_ag_headwords", ROOT / "scripts" / "prune_ag_headwords.py")
@@ -40,7 +41,8 @@ def test_script_prunes_records_and_is_idempotent(tmp_path, capsys):
     listed, record = tmp_path / "ag_headwords.json", tmp_path / "record.json"
     listed.write_bytes(P.serialize(headwords))
     source = listed.read_bytes()
-    args = ["--list", str(listed), "--record", str(record)]
+    args = ["--list", str(listed), "--record", str(record),
+            "--fragment-record", str(tmp_path / "fragments.json")]
     assert P.main([*args, "--check"]) == 1
     assert listed.read_bytes() == source and not record.exists()
     assert P.main(args) == 0
@@ -90,13 +92,58 @@ def test_record_lists_every_removed_string_with_its_reason(tracked):
 
 
 def test_record_and_list_reproduce_the_list_that_was_pruned(tracked):
-    # The published 1.3.26 list is the pruned list plus the recorded
-    # strings, byte for byte, so the edit can be replayed and undone.
+    # The published 1.3.26 list is the pruned list plus the strings of both
+    # records, byte for byte, so the edits can be replayed and undone.
     headwords, entry = tracked
-    assert entry["result"]["sha256"] == hashlib.sha256(
+    fragments = json.loads(FRAGMENTS.read_text(encoding="utf-8"))
+    assert fragments["result"]["sha256"] == hashlib.sha256(
         LIST.read_bytes()).hexdigest()
-    source = P.serialize(sorted(set(headwords) | set(entry["removed"])))
+    assert fragments["source"]["sha256"] == entry["result"]["sha256"]
+    middle = sorted(set(headwords) | set(fragments["removed"]))
+    assert hashlib.sha256(P.serialize(middle)).hexdigest() == \
+        entry["result"]["sha256"]
+    source = P.serialize(sorted(set(middle) | set(entry["removed"])))
     assert hashlib.sha256(source).hexdigest() == entry["source"]["sha256"]
     assert len(source) == entry["source"]["size"]
     kept, removed = P.prune(json.loads(source))
-    assert kept == headwords and sorted(removed) == entry["removed"]
+    assert kept == middle and sorted(removed) == entry["removed"]
+    kept, removed = P.prune(kept, P.headword_fragment)
+    assert kept == headwords and sorted(removed) == fragments["removed"]
+
+
+# --- fragments: a hyphen at an edge or beside a metrical sign (#149) ----------
+
+def test_fragment_step_drops_affixes_and_scansion_strings():
+    headwords = ["-σον", "ὁτ-", "–⏑τατος", "⏑λέων", "λόγος", "οὐτ̅-̅", "ἀλλ’"]
+    kept, removed = P.prune(headwords, P.headword_fragment)
+    assert kept == ["λόγος", "ἀλλ’"]
+    assert removed == ["-σον", "ὁτ-", "–⏑τατος", "⏑λέων", "οὐτ̅-̅"]
+
+
+def test_script_runs_both_steps_and_chains_the_records(tmp_path, capsys):
+    headwords = ["-σον", "λόγος", "προ-δουλεύω", "⏑ον"]
+    listed = tmp_path / "ag_headwords.json"
+    first, second = tmp_path / "hyphenated.json", tmp_path / "fragments.json"
+    listed.write_bytes(P.serialize(headwords))
+    args = ["--list", str(listed), "--record", str(first),
+            "--fragment-record", str(second)]
+    assert P.main(args) == 0
+    assert json.loads(listed.read_bytes()) == ["λόγος"]
+    one = json.loads(first.read_text(encoding="utf-8"))
+    two = json.loads(second.read_text(encoding="utf-8"))
+    assert one["removed"] == ["προ-δουλεύω"]
+    assert two["removed"] == ["-σον", "⏑ον"]
+    assert two["rule"] == P.FRAGMENT_RULE and two["reason"] == P.FRAGMENT_REASON
+    assert one["result"]["sha256"] == two["source"]["sha256"]
+    assert two["result"]["sha256"] == hashlib.sha256(listed.read_bytes()).hexdigest()
+    assert P.main([*args, "--check"]) == 0
+    capsys.readouterr()
+
+
+def test_tracked_list_has_no_fragment(tracked):
+    headwords, _ = tracked
+    assert [head for head in headwords if P.headword_fragment(head)] == []
+    fragments = json.loads(FRAGMENTS.read_text(encoding="utf-8"))
+    assert fragments["removed_count"] == len(fragments["removed"]) == 63
+    for head in ("-γον", "ὁτ-", "–⏑τατος", "⏑λέων"):
+        assert head in fragments["removed"]
