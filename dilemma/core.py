@@ -4645,7 +4645,8 @@ class Dilemma:
           requested, κυροῦ as the verb κυρόω when a noun is). For an
           open-class tag the Ancient side must also not know the spelling
           itself (as a headword, an accented key of the Ancient POS
-          tables or an exact row of the Ancient lookup), so a mistagged
+          tables, or an exact row of the Ancient lookup when the Modern
+          reading is the spelling's own monotonic form), so a mistagged
           Ancient form keeps its lemma (ὄντων ADJ stays εἰμί, ἑπόμενός ADJ
           ἕπομαι);
         * a reading with no recorded part of speech, of a spelling the
@@ -4706,11 +4707,16 @@ class Dilemma:
         known = headword or any(table.get(variant) for variant in accented)
         closed_class = upos in self._CLOSED_CLASS_TAGS
         if tags:
-            # An exact Ancient row of the spelling is as good as a POS key:
-            # the treebank table leaves out votes the lookup already gives,
-            # so ἑπόμενός has a row and no cell, and ADJ keeps ἕπομαι.
+            # A Modern entry that is only this spelling's own monotonic
+            # citation form (επόμενος for ἑπόμενος) is no other word: an
+            # exact Ancient row of the spelling then keeps its reading, as
+            # a POS key would (the treebank table leaves out votes the
+            # lookup already gives). κυροῦ NOUN still reads κυρός.
+            own_spelling = (strip_accents(modern.lower())
+                            == strip_accents(lower))
             return closed_class or not (
-                known or self._ancient_lookup_has_spelling(word))
+                known or (own_spelling
+                          and self._ancient_lookup_has_spelling(word)))
         if name_only:
             return True
         if known:
