@@ -262,9 +262,13 @@ other verb: the lexicon glosses the verb by a synonym or by its neighbour
 (`ἀκρατεύω, = ἀκρατεύομαι`; `ἀνακοσμοποιέω, = preceding`), and the entry is
 its only one. Such a head is skipped when it is capitalized or ends in an
 accented or subscribed omega (`ἐπισηκρήτῳ`), which no verb's citation form
-does. An entry that only sends the reader on (`ἀπάχθομαι, see ἀπέχθομαι`)
-is not expanded, since the lexicon enters the word under the other head.
-Nouns and adverbs of either kind are still skipped.
+does. From 1.3.29 an entry that sends the reader to another verb
+(`ἀναστάζω, see ἀνστάζω`; `ὑφέλλω, see ὑφείλω`) is expanded the same way,
+under its own head: the lexicon prints the spelling as a head, and the
+forms of an entry glossed by an equals sign are read under it too. A
+reference to a word that is no verb citation form (`εἰδέτω, see οἶδα`;
+`ἀπεσθέομαι, see ἀπησθημένος`) is no evidence that the head is a verb, and
+the entry is left out. Nouns and adverbs of either kind are still skipped.
 
 The historical expansion that `overlay_lsj.py` recovers was made from the
 same OCR and spells 753 lemmas and their forms with the micro sign. The
