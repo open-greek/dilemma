@@ -2604,11 +2604,17 @@ def build():
                if FORM_PROFILE_PATH.exists() else None)
 
     def _attestation(form: str):
-        row = profile.execute(
-            "SELECT SUM(p.total_count), MAX(p.dominant_pos) FROM forms f "
+        # Lowercase spellings only: a capitalized one is mostly a name
+        # (Πρίσκον, Παλαιολόγων), no evidence for the adjective.
+        rows = [(count, pos) for spelling, count, pos in profile.execute(
+            "SELECT f.form, p.total_count, p.dominant_pos FROM forms f "
             "JOIN form_profile p ON p.form_id = f.form_id "
-            "WHERE f.form_norm = ?", (_attest_norm_key(form),)).fetchone()
-        return (row[0], row[1]) if row and row[0] else None
+            "WHERE f.form_norm = ?", (_attest_norm_key(form),))
+            if spelling[:1] != spelling[:1].upper()]
+        total = sum(count for count, _ in rows)
+        if not total:
+            return None
+        return total, max(rows, key=lambda row: row[0])[1]
 
     beside_verbs = (cells_beside_a_verb(combined, strict_paradigms, _attestation)
                     if profile is not None else {})
