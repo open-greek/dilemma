@@ -166,14 +166,17 @@ Known gaps: with `lang="grc"` a polytonic Modern Greek word that no Ancient
 head spells can still get an Ancient lemma. Its own accent-stripped key
 answers (`ἄνοιξη` gives `ἀνοίγω`, the row of `ἀνοίξῃ`), because the same key
 reads Ancient words printed with a misplaced accent or breathing (`ἕξης`
-gives `ἑξῆς`, `ἐνότητα` `ἑνότης`), and nothing in the spelling tells the two
-apart. Failing that, the Byzantine normalizer respells one sound and looks
-the respelling up, under its loose keys too (`ἀλλιῶς` gives `ἁλιεύς`,
-`ἀνάβει` `ἀναβαίνω`). The same step reads Byzantine and misprinted Ancient
-forms that are spelled like Modern ones (`ἐνεργεῖτο` gives `ἐνεργέω`,
-`ἁδικημένος` `ἀδικέω`); closing it for Modern spellings was measured to
-remove about as many right lemmas as wrong ones. With `lang="all"` these
-words keep their Modern lemma. An Ancient form whose Modern twin is listed
+gives `ἑξῆς`, `ἐνότητα` `ἑνότης`, `ὅποτε` `ὁπότε`), and nothing in the
+spelling tells the two apart: a gate on polytonic words whose monotonic
+spelling is a Modern Greek citation form was measured and took the right
+lemma of far more attested Ancient forms than it held back from Modern ones.
+Failing that, the Byzantine normalizer respells one sound and looks the
+respelling up, under its loose keys too (`ἀλλιῶς` gives `ἁλιεύς`, `ἀνάβει`
+`ἀναβαίνω`). The same step reads Byzantine and misprinted Ancient forms that
+are spelled like Modern ones (`ἐνεργεῖτο` gives `ἐνεργέω`, `ἁδικημένος`
+`ἀδικέω`). The optional normalizer reads each respelling's own row before
+it tries any respelling's monotonic or accent-stripped key. With
+`lang="all"` these words keep their Modern lemma. An Ancient form whose Modern twin is listed
 can take it under `lang="all"` (`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
 
 A double rho printed with breathings inside a word, as older editions have it

@@ -3055,10 +3055,14 @@ class Dilemma:
 
     def _lookup_grammatical_word(self, word: str, *, verb_only=False,
                                  normalization=False,
-                                 source_word: str | None = None) -> str | None:
-        """Resolve a transformed form without promoting a noun to a verb."""
+                                 source_word: str | None = None,
+                                 step: int | None = None) -> str | None:
+        """Resolve a transformed form without promoting a noun to a verb.
+
+        *step* runs one step of the lookup cascade alone (see _lookup_word).
+        """
         targets = self._grammatical_targets(word, verb_only=verb_only)
-        lemma = self._lookup_word(word)
+        lemma = self._lookup_word(word, step=step)
         if normalization:
             return lemma if lemma and self._normalization_reading_supported(
                 word, lemma, targets=targets, source_word=source_word) else None
@@ -4058,12 +4062,9 @@ class Dilemma:
             return self._apply_convention(verb_morph_lemma)
 
         # Normalizer: try orthographic variants against lookup
-        if self._normalizer:
-            for candidate in self._normalizer.normalize(word):
-                lemma = self._lookup_grammatical_word(
-                    candidate, normalization=True, source_word=word)
-                if lemma and not _is_elided_junk_value(lemma):
-                    return self._apply_convention(lemma)
+        lemma = self._normalized_reading(word)
+        if lemma:
+            return self._apply_convention(lemma)
 
         # Attested-key-gated orthographic fallbacks: editorial/manuscript
         # surface variants (dropped iota-subscript θεῷ->θεῶ, movable-nu,
@@ -4132,6 +4133,27 @@ class Dilemma:
             # rather than echoing the input as if it were a lemma.
             return None
         return self._apply_convention(pred)
+
+    def _normalized_reading(self, word: str) -> str | None:
+        """The lemma of the first respelling of the optional normalizer.
+
+        Every respelling changes the spelling of one sound, and the
+        normalizer ranks them by rule weight. Reading a row through the
+        monotonic or the accent-stripped key changes the accents as well,
+        so, as in the Byzantine fallback, every respelling that has a row
+        as it is written comes before any read through a looser key, and
+        the monotonic key before the stripped one (#132).
+        """
+        if not self._normalizer:
+            return None
+        respellings = list(dict.fromkeys(self._normalizer.normalize(word)))
+        for step in (self._OWN_ROWS, self._MONOTONIC_KEY, self._STRIPPED_KEY):
+            for candidate in respellings:
+                lemma = self._lookup_grammatical_word(
+                    candidate, normalization=True, source_word=word, step=step)
+                if lemma and not _is_elided_junk_value(lemma):
+                    return lemma
+        return None
 
     def _ortho_fallback_variants(self, word: str):
         """Yield editorial/manuscript orthographic spelling variants of a
@@ -6317,6 +6339,10 @@ class Dilemma:
 
         # 7. Normalizer: try orthographic variants against all tables
         if not candidates and self._normalizer:
+            # A row read as it is written comes before one read through the
+            # monotonic key, and that before the stripped key, whatever the
+            # rule weights (as in _normalized_reading; #132).
+            normalized_hits = []
             for norm_candidate in self._normalizer.normalize(word):
                 norm_lower = norm_candidate.lower()
                 norm_mono = to_monotonic(norm_lower)
@@ -6342,8 +6368,13 @@ class Dilemma:
                             if not self._normalization_reading_supported(
                                     norm_candidate, lemma, source_word=word):
                                 continue
-                            _add(lemma, lang=lang, source="normalize", via=via)
+                            rank = (2 if via.endswith("stripped")
+                                    else 1 if via.endswith("mono") else 0)
+                            normalized_hits.append((rank, lemma, lang, via))
                             break
+            normalized_hits.sort(key=lambda hit: hit[0])
+            for _rank, lemma, lang, via in normalized_hits:
+                _add(lemma, lang=lang, source="normalize", via=via)
 
         # 7a. Attested-key-gated orthographic fallbacks, matching lemmatize():
         #     editorial/manuscript spelling variants (dropped iota subscript,
@@ -6598,19 +6629,10 @@ class Dilemma:
                 continue
 
             # Normalizer: try orthographic variants against lookup
-            if self._normalizer:
-                norm_hit = None
-                for candidate in self._normalizer.normalize(word):
-                    norm_hit = self._lookup_grammatical_word(
-                        candidate, normalization=True, source_word=word)
-                    if norm_hit and _is_elided_junk_value(norm_hit):
-                        norm_hit = None
-                        continue
-                    if norm_hit:
-                        break
-                if norm_hit:
-                    results.append(norm_hit)
-                    continue
+            norm_hit = self._normalized_reading(word)
+            if norm_hit:
+                results.append(norm_hit)
+                continue
 
             # Attested-key-gated orthographic fallbacks (matches lemmatize()).
             ortho_hit = None
