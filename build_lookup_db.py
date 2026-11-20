@@ -1950,7 +1950,7 @@ def build():
     perseus_bad_forms: set = set()
     if PERSEUS_PAIRS_PATH.exists():
         t_pe = time.time()
-        perseus_known = load_ancient_headwords_exact() | preverb_heads
+        perseus_known = load_ancient_headwords_exact()
         with open(PERSEUS_PAIRS_PATH, encoding="utf-8") as f:
             perseus_pairs = json.load(f)
         for p in perseus_pairs:
