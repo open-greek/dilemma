@@ -125,8 +125,96 @@ def test_es_cells_are_the_attic_contracted_cells():
     assert [form for form, _ in es_cells("ὑγιής")] == [
         "ὑγιοῦς", "ὑγιεῖ", "ὑγιές", "ὑγιεῖς", "ὑγιῶν", "ὑγιέσι", "ὑγιέσιν"]
     assert "ἐνδεῆ" not in dict(es_cells("ἐνδεής"))
-    # A barytone (συνήθης) and other words are not declined.
-    assert es_cells("συνήθης") == [] and es_cells("ἔμφλογος") == []
+    # Other words are not declined, nor a barytone accented further back.
+    assert es_cells("ἔμφλογος") == [] and es_cells("ἄκρατης") == []
+
+
+def test_barytone_es_cells_keep_the_stem_accent():
+    # σύνηθες recedes and εὐῶδες does not: the neuter singular is left out.
+    # The genitive plural is given both ways (συνήθων, συνηθῶν).
+    assert [form for form, _ in es_cells("συνήθης")] == [
+        "συνήθους", "συνήθει", "συνήθη", "συνήθεις", "συνήθων", "συνήθεσι",
+        "συνήθεσιν", "συνηθῶν"]
+    assert [form for form, _ in es_cells("βληχηματώδης")][:4] == [
+        "βληχηματώδους", "βληχηματώδει", "βληχηματώδη", "βληχηματώδεις"]
+    assert not any("neuter nominative/accusative/vocative singular" in cell
+                   for _, cell in es_cells("συνήθης"))
+
+
+def test_listed_es_adjectives_need_no_genitive_row():
+    rows = [
+        ("βληχηματώδης", "βληχηματώδης", "lbg_headwords"),
+        ("ἀκαμπής", "ἀκαμπής", "lsj"),
+        ("εὐπαθής", "Εὐπαθής", "wiktionary_grc"),         # the name's key
+        ("ἐγκρατής", "ἐγκρατής", "wiktionary_grc"),        # not listed
+        # Listed, but a dictionary table declines it in the first declension.
+        ("πολίτης", "πολίτης", "wiktionary_grc"),
+        ("πολίτου", "πολίτης", "wiktionary_grc"),
+        ("πολίτην", "πολίτης", "wiktionary_grc"),
+    ]
+    listed = ["βληχηματώδης", "ἀκαμπής", "εὐπαθής", "πολίτης", "ἀβλαβής"]
+    assert select_es_adjectives(rows, listed=listed) == sorted([
+        "ἀκαμπής", "βληχηματώδης", "εὐπαθής"])
+    assert select_es_adjectives(rows) == []
+
+
+def test_es_finder_reads_the_lexica(tmp_path):
+    sys.path.insert(0, str(ROOT / "build"))
+    import find_grc_es_adjectives as F
+    assert F.head_text_class("ες, gen. εος, contr. ους") == "es"
+    assert F.head_text_class("[ᾰ], ές, true") == "es"
+    assert F.head_text_class("ὁ, a poet") == "noun"
+    lsj9 = tmp_path / "lsj9"
+    lsj9.mkdir()
+    data = tmp_path / "data"
+    data.mkdir()
+    (lsj9 / "lsj9_headwords.json").write_text(json.dumps([
+        {"headword": "ἀληθής", "grammar": "ές"},
+        {"headword": "ποιητής", "grammar": "ὁ"},
+        {"headword": "συνήθης"}], ensure_ascii=False), encoding="utf-8")
+    (lsj9 / "lsj9_glosses.jsonl").write_text("".join(
+        json.dumps(row, ensure_ascii=False) + "\n" for row in [
+            {"headword": "συνήθης", "text": "ες, gen. εος, contr. ους"},
+            {"headword": "ποιητής", "text": "οῦ, ὁ, maker"}]), encoding="utf-8")
+    (lsj9 / "lsj9_headword_pos.json").write_text(json.dumps(
+        {"ἀκαμπής": "ADJ", "ποιητής": "NOUN"}, ensure_ascii=False),
+        encoding="utf-8")
+    (data / "lbg_headwords.json").write_text(json.dumps([
+        {"lemma": "βληχηματώδης"}, {"lemma": "γυμνίτης"},
+        {"lemma": "ἐργάτης", "gender": "ὁ"}], ensure_ascii=False),
+        encoding="utf-8")
+    sophocles = {"θεοειδής": {"adjective_class": "es"},
+                 "ἀληθής": {"adjective_class": None, "gender_stated": True}}
+    (data / "sophocles" / "chunks").mkdir(parents=True)
+    (data / "sophocles_head_corrections.json").write_text("{}")
+    record = F.find(lsj9, data, sophocles)
+    assert record["lemmas"] == {
+        "lbg": ["βληχηματώδης"], "lsj9": sorted(["ἀκαμπής", "συνήθης"]),
+        "sophocles": ["θεοειδής"]}
+    assert record["counts"] == {"oxytone": 2, "barytone": 2}
+    assert "sophocles/chunks" in record["inputs"]
+
+
+def test_committed_es_list():
+    from dilemma.grc_adjective_gaps import read_es_adjectives
+    record = json.loads((ROOT / "data" / "grc_es_adjectives.json").read_text(
+        encoding="utf-8"))
+    lemmas = read_es_adjectives(record)
+    assert len(lemmas) == sum(record["counts"].values()) > 5000
+    assert {"βληχηματώδης", "συνήθης", "ἀληθής"} <= set(lemmas)
+    assert all(es_cells(lemma) for lemma in lemmas)
+
+
+def test_sophocles_adjective_class():
+    sys.path.insert(0, str(ROOT / "build"))
+    import expand_sophocles as S
+    assert S.adjective_class(", ἡ, όν, belonging to") == "adjective_eta"
+    assert S.adjective_class(", ά, όν, x") == "adjective_alpha"
+    assert S.adjective_class(", ον, (τηρέω) divinely") == "adjective"
+    assert S.adjective_class(", ες, --- βληχώδης") == "es"
+    # The OCR's ov for a noun's genitive ου, before the article.
+    assert S.adjective_class(", ov, 6, L. cursus") is None
+    assert S.adjective_class(", ον, ο, frog") is None
 
 
 def test_es_selection_needs_an_ancient_genitive_in_eos():

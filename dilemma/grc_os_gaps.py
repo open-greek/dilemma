@@ -307,6 +307,22 @@ def genitive_singular(lemma: str) -> str | None:
     return cells[0][0] if cells else None
 
 
+def is_name_twin(reading: str | None, lemma: str) -> bool:
+    """Whether ``reading`` is the capitalized spelling of ``lemma``: the
+    name a lowercase headword's key reads as (ἐπάρατος, Ἐπάρατος)."""
+    return (bool(reading) and reading != lemma and reading[0].isupper()
+            and reading.lower() == lemma)
+
+
+def reads_itself(lookup: Mapping[str, str], lemma: str) -> bool:
+    """The lemma's key reads the lemma or the name of the same spelling.
+
+    A lexicon lists the lowercase word, so its lowercase cells are its
+    own; the name keeps its key and every capitalized form."""
+    reading = lookup.get(lemma)
+    return reading == lemma or is_name_twin(reading, lemma)
+
+
 def select_os_lemmas(
         lookup: Mapping[str, str],
         listed: Mapping[str, str],
@@ -315,7 +331,8 @@ def select_os_lemmas(
 
     ``listed`` maps a lemma to its class (data/grc_second_declension.json).
     A lemma is declined here when it is a plain lowercase head that maps to
-    itself in ``lookup``, has the breathing its first letter needs and no
+    itself in ``lookup`` (or to the name of the same spelling, which keeps
+    its key: ``reads_itself``), has the breathing its first letter needs and no
     other, has a stem of at least ``MIN_STEM_LETTERS`` letters, is not one
     of the reviewed ``NOT_DECLINED``, and no table gives its genitive
     singular in -ου: a table that gives the genitive declines the word
@@ -328,7 +345,7 @@ def select_os_lemmas(
     """
     selected = {}
     for lemma in sorted(listed):
-        if (lookup.get(lemma) != lemma or not is_plain_lemma(lemma)
+        if (not reads_itself(lookup, lemma) or not is_plain_lemma(lemma)
                 or lemma in NOT_DECLINED
                 or _needs_breathing_and_lacks_it(lemma)
                 or not has_only_initial_breathing(lemma)
@@ -409,3 +426,67 @@ def rival_paradigms(
             if strip_accents(word)[-3:-2] in ("ε", "ι", "ρ")
             else "adjective_eta")
         yield RIVAL_KIND, word, os_cells(word, declension)
+
+
+_VERB_CITATION_ENDINGS = ("ω", "ομαι", "αμαι", "ημι", "ωμι", "υμι")
+
+
+def is_verb_citation(lemma: str | None) -> bool:
+    """Whether ``lemma`` is spelled as a verb's citation form: lowercase, in
+    -ω (not an oxytone noun in -ώ or a dative in -ῳ), -μαι or -μι."""
+    if not lemma or lemma != lemma.lower():
+        return False
+    nfd = unicodedata.normalize("NFD", lemma)
+    if "ͅ" in nfd or nfd.endswith(ACUTE):
+        return False
+    return strip_accents(lemma).endswith(_VERB_CITATION_ENDINGS)
+
+
+def cells_beside_a_verb(
+        lookup: Mapping[str, str],
+        paradigms: Iterable[tuple[str, str, list]],
+        attestation: Callable[[str], tuple[int, str | None] | None],
+        ) -> dict[str, dict]:
+    """Generated cells whose accentless key reads a verb, that the texts
+    show to be the noun's or the adjective's: form -> evidence.
+
+    A cell such as θεοφόροις has the letters of a verb form (θεοφοροῖς, of
+    θεοφορέω), and the strict gate of ``fill_gap_cells`` keeps it out,
+    because a spelling that differs from a known word's only in its accent
+    is often that word misprinted (παραίνων, 66 tokens, is the participle
+    παραινῶν). The cell is let in here when ``attestation`` (form -> (count,
+    dominant part of speech) of the texts, None when unattested) shows its
+    own spelling more often than every spelling of the verb with the same
+    letters, and the annotated texts do not tag it a verb.
+    """
+    candidates: dict[str, dict[str, str]] = {}
+    for _, lemma, cells in paradigms:
+        for form, _ in cells:
+            bare = strip_accents(form).lower()
+            reading = lookup.get(bare)
+            if (reading is not None and reading != lemma
+                    and is_verb_citation(reading)):
+                candidates.setdefault(bare, {})[form] = reading
+    if not candidates:
+        return {}
+    lengths = {len(bare) for bare in candidates}
+    spellings: dict[str, set[str]] = {}
+    for key, reading in lookup.items():
+        if len(key) not in lengths or not is_verb_citation(reading):
+            continue
+        bare = strip_accents(key).lower()
+        if bare in candidates and key != bare:
+            spellings.setdefault(bare, set()).add(key)
+    kept = {}
+    for bare in sorted(candidates):
+        for form, verb in sorted(candidates[bare].items()):
+            found = attestation(form)
+            if not found or found[1] == "verb":
+                continue
+            rivals = {key: (attestation(key) or (0, None))[0]
+                      for key in sorted(spellings.get(bare, ()))
+                      if lookup.get(key) == verb}
+            if all(count < found[0] for count in rivals.values()):
+                kept[form] = {"verb": verb, "count": found[0],
+                              "verb_spellings": rivals}
+    return kept

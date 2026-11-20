@@ -18,6 +18,11 @@ tables do:
     article, so an -ος headword without one is an adjective; its feminine is
     not recorded. An oxytone in -μός without an article is an action noun
     whose article was not captured and is left out.
+  * sophocles: the Sophocles lexicon's entry gives the adjective's endings
+    (θεοτήρητος, ον; θεαρχικός, ή, όν), read with build/expand_sophocles.py's
+    parser after its head rules, which read a capitalized head that the
+    other dictionaries list in lowercase as the common word. Its nouns are
+    declined by the Sophocles expansion itself.
   * suffix: the feminine of an adjective that a lexicon lists without one,
     where the suffix decides it: oxytone -ικός and -ιακός take -ή (2,999 of
     3,008 such LSJ adjectives), the verbal adjective in -τέος takes -α (all
@@ -56,7 +61,7 @@ OUTPUT = DATA / "grc_second_declension.json"
 LBG_HEADWORDS = "lbg_headwords.json"
 LSJ9_FILES = ("lsj9_headwords.json", "lsj9_glosses.jsonl",
               "lsj9_headword_pos.json")
-RULE = "grc_second_declension_v1"
+RULE = "grc_second_declension_v2"
 
 NEUTER = "neuter"
 _ARTICLES = {"ὁ": "noun", "ἡ": "noun", "τό": NEUTER}
@@ -169,6 +174,18 @@ def lsj9_classes(lsj9_dir: Path) -> dict[str, set[str]]:
     return classes
 
 
+def sophocles_classes(entries) -> dict[str, set[str]]:
+    """lemma -> the adjective class Sophocles' entry gives
+    (``adjective_class`` of build/expand_sophocles.py)."""
+    classes: dict[str, set[str]] = {}
+    for lemma, entry in entries.items():
+        lemma = unicodedata.normalize("NFC", lemma)
+        cls = entry.get("adjective_class")
+        if cls in CLASSES and is_candidate(lemma):
+            classes.setdefault(lemma, set()).add(cls)
+    return classes
+
+
 def lbg_classes(path: Path) -> dict[str, set[str]]:
     """lemma -> the classes the Byzantine headword list gives."""
     classes: dict[str, set[str]] = {}
@@ -227,9 +244,13 @@ def settle(found: set[str], lemma: str) -> tuple[str | None, bool]:
     return ("noun", False) if "noun" in found else (None, False)
 
 
-def find(lsj9_dir: Path, data: Path = DATA) -> dict:
+def find(lsj9_dir: Path, data: Path = DATA, sophocles=None) -> dict:
+    """The record; ``sophocles`` is the parsed Sophocles entries
+    (``sophocles_entries``), or None to leave that lexicon out."""
     sources = {"lsj9": lsj9_classes(lsj9_dir),
                "lbg": lbg_classes(data / LBG_HEADWORDS)}
+    if sophocles is not None:
+        sources["sophocles"] = sophocles_classes(sophocles)
     listed: dict[str, dict[str, list[str]]] = {cls: {} for cls in CLASSES}
     counts: Counter = Counter()
     for lemma in sorted(set().union(*sources.values())):
@@ -247,6 +268,9 @@ def find(lsj9_dir: Path, data: Path = DATA) -> dict:
         counts[cls] += 1
     inputs = {name: sha256(lsj9_dir / name) for name in LSJ9_FILES}
     inputs[LBG_HEADWORDS] = sha256(data / LBG_HEADWORDS)
+    if sophocles is not None:
+        from find_grc_es_adjectives import sophocles_inputs
+        inputs.update(sophocles_inputs(data))
     for name, count in sorted(counts.items()):
         print(f"  {name}: {count:,}")
     return {"schema_version": 1, "rule": RULE, "inputs": inputs,
@@ -271,7 +295,8 @@ def main(argv=None) -> int:
     expand_lsj.configure_inputs(lsj9_dir=args.lsj9_dir)
     # The class of an LSJ word is read from the pinned glosses export.
     expand_lsj.verify_lsj_glosses()
-    record = find(expand_lsj.LSJ9_DIR, args.data)
+    from find_grc_es_adjectives import sophocles_entries
+    record = find(expand_lsj.LSJ9_DIR, args.data, sophocles_entries())
     with args.output.open("w", encoding="utf-8") as stream:
         json.dump(record, stream, ensure_ascii=False, indent=1)
         stream.write("\n")
