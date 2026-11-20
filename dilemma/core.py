@@ -717,6 +717,20 @@ def strip_accents(s: str) -> str:
         "".join(c for c in nfd if unicodedata.category(c) != "Mn"))
 
 
+MICRO_SIGN = "\u00b5"
+
+
+def to_greek_mu(s: str) -> str:
+    """Write the micro sign (µ U+00B5) as the Greek letter mu (μ U+03BC).
+
+    The micro sign looks like mu and is what some keyboards and OCR give
+    for it (the digitized Sophocles lexicon prints the mu of about a
+    thousand heads so, #139). NFC leaves it alone, so a word typed with it
+    matched no Greek key (#144).
+    """
+    return s.replace(MICRO_SIGN, "μ") if MICRO_SIGN in s else s
+
+
 def to_standard_sigma(s: str) -> str:
     """Normalize lunate sigma (ϲ U+03F2 / Ϲ U+03F9) to standard σ/ς.
 
@@ -727,8 +741,10 @@ def to_standard_sigma(s: str) -> str:
     Map lunate -> medial σ / capital Σ, then fix word-final σ -> ς. The
     word-final σ -> ς fix always runs (Greek words never end in medial σ), so
     Beta-Code-derived keys/queries like ``γραφῆσ``/``εἷσ`` canonicalize to the
-    final-ς spelling and match.
+    final-ς spelling and match. A micro sign is written as mu
+    (``to_greek_mu``).
     """
+    s = to_greek_mu(s)
     if "ϲ" in s or "Ϲ" in s:
         s = s.replace("ϲ", "σ").replace("Ϲ", "Σ")
     if s.endswith("σ"):
@@ -5516,6 +5532,7 @@ class Dilemma:
             The lemma string, or None when gated out by ``attested_only``
             or unresolved with ``guess=False``.
         """
+        word = to_greek_mu(word)
         self._pos_rejections(word, upos)
         def checked(lemma):
             return self._checked_pos_result(word, upos, lemma)
@@ -5754,6 +5771,7 @@ class Dilemma:
         # ῤῥ is an editorial spelling of ρρ: the tables are read under the
         # plain spelling, as in lemmatize_pos(). The attested-only gate
         # matches the corpus spelling as printed.
+        words = [to_greek_mu(word) for word in words]
         printed = words
         words = [to_plain_double_rho(word) for word in words]
         for word, upos in zip(words, upos_tags):

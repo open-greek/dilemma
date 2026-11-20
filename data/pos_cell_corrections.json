@@ -1632,6 +1632,16 @@
    "reason": "With an acute this is the biblical name Dan, as the same table says under NOUN. The Doric accusative of Ζεύς is written Δᾶν, which keeps Ζεύς. Without this Δάν and Δὰν, one word, got different lemmas.",
    "evidence": "ag_pos_lookup.json: Δάν NOUN Δάν; lookup.db: Δάν -> Δάν; Theocritus 4.17 and 7.39 have Δᾶν.",
    "issue": 151
+  },
+  {
+   "table": "treebank",
+   "form": "Ἑρμαίου",
+   "upos": "NOUN",
+   "action": "add",
+   "corrected": "Ἑρμαίας",
+   "reason": "The capitalized genitive is the name. No table has a NOUN cell for the capitalized spelling, so NOUN fell to the lowercase cell ἑρμαίου NOUN ἕρμαιον (a windfall), while the untagged lookup gives the name. GLAUx has too few tokens of the spelling (8) for the builder's capital-name rule (10).",
+   "evidence": "glaux_pairs.json: Ἑρμαίου -> Ἑρμαίας (noun, masculine, 8 tokens); perseus_pairs.json: Ἑρμαίου -> Ἑρμαίας; lookup.db: Ἑρμαίου -> Ἑρμαίας; Ἑρμαίας is a head of grc_lexical_heads.json (LGPN, Greek Wiktionary). Diorisis reads the place Ἕρμαιον, which no head list has.",
+   "issue": 144
   }
  ]
 }
