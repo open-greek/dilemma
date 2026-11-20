@@ -636,8 +636,25 @@ passive aorists of one verb (`ἀπεπνίχθην`, `ἀπεπνίγην`). A 
 with a vowel and has no breathing is the tail of a word (`fut. ύσω`), never a
 form. Where the current text stops right after a label (`ἀνοιδέω`: "fut.
 -ήσω: aor.") and the earlier text opens with a Greek word (`ἀνῴδησα`), the two
-are read as one text. Hyphenated abbreviations (`fut. -ήσω`, `aor. -έτεμον`)
-are still not expanded.
+are read as one text.
+
+A hyphenated abbreviation is written out from the headword
+(`expand_abbreviation`), and only for a tense that no full form of either
+text gives (`σαλπίζω` keeps the printed `σαλπίσω` beside `fut. -ιῶ`). The
+fragment needs an accent and is read in one of three ways:
+
+- it repeats a later preverb of the head (`ἐξαπατάω`: `-απατηθήσομαι`
+  `ἐξαπατηθήσομαι`);
+- it is a form of the verb after the last preverb, which then takes the
+  spelling it has before the fragment (`προβάλλω`: `-βέβληκα`
+  `προβέβληκα`; `ἐφίστημι`: `-στήσω` `ἐπιστήσω`), or a past tense that opens
+  with the augment (`ἐμβάλλω`: `-έβαλον` `ἐνέβαλον`; `ἐπαινέω`: `-ῄνεσα`);
+- it is the ending of a future after the stem vowel, or after the contract
+  vowel it lengthens (`ἐπιορκέω`: `-ήσω` `ἐπιορκήσω`).
+
+A fragment that fits none of them is left out (`ἀνατρέχω`: `-έδραμον`;
+`γράφω`: `-ψω`). On the 1.3.28 inputs this gives 1,535 parts to 1,238 verbs,
+most of them futures.
 
 ### Stems of the past tenses
 
@@ -660,10 +677,18 @@ stem from it and from the headword:
   does an aorist whose `ε` is followed by a doubled consonant, which opens
   no stem (`ἕσσα` of `ἕννυμι`: `περιεσσ-`, not `περισσ-`). `ἔσχον` and
   `ἔστησα` lose theirs (`σχ-`, `στησ-`).
+- A preverb that keeps its vowel before a vowel takes the augment after it
+  (`ἐπιώρκησα` of `ἐπιορκέω`: `ἐπιορκησ-`), and `προ-` contracts with it
+  (`προὔστησα`, `προὔβαλον`: `προστησ-`, `προβαλ-`).
+- A second augment before the preverb is taken off with the first
+  (`ἐπαρῳνήθην` of `παροινέω`: `παροινηθ-`; `ἐδιῄτησα` of `διαιτάω`:
+  `διαιτησ-`), and the indicative is also built with the inner augment
+  alone (`παρῳνήθη`).
 - A stem that cannot be read against the headword is not guessed: a second
-  augment after the preverb (`ἠμφεσβήτησα`, `ἐπηνώρθωσα`), a contracted one
-  (`προὔβαλον`), a syllabic augment before a vowel (`ἔωσα`). Then only the
-  indicative is built. The same holds for the κ aorists of the -μι verbs in
+  augment after the preverb (`ἠμφεσβήτησα`, `ἐπηνώρθωσα`), a syllabic
+  augment before a vowel (`ἔωσα`). Then only the indicative is built. So it
+  is for an Epic iterative in `-σκ-` that LSJ prints as an aorist
+  (`προβάλεσκον`), which has no other moods. The same holds for the κ aorists of the -μι verbs in
   the active (`ἔθηκα`, not `θήκας`) and for root aorists that go like a
   passive in the indicative alone (`ἀνθυπέστην`, `ὑπέφθην`).
 
@@ -755,7 +780,21 @@ Further:
   this verb: a future in `-σει` or `-σεις` (`-ξει`, `-ψει`) is the dative or
   plural of the action noun in `-σις` (`ἐπισκιάσει`, `ἀμοιρήσεις`), and the
   participle of an Attic future in `-ιῶν`, or of its uncontracted `-ιέων`, a
-  genitive plural (`κοσμιῶν`, `πεδιέων`).
+  genitive plural (`κοσμιῶν`, `πεδιέων`);
+- so is a cell that a regular cell of a nominal head spells with the same
+  accent: a second-declension word of `data/grc_second_declension.json`
+  (`ἐπιπόθητον`), an LSJ adjective in `-ής` (`ἐπικλινεῖς` of `ἐπικλινής`,
+  not the future of `ἐπικλίνω`) or an oxytone feminine in `-ά` or `-ή`, with
+  the Ionic `-ῇ` (`πρασιῇ` of `πρασιά`, not the future of `πρασίζω`). The
+  accent keeps the verb forms that differ from the noun only in it
+  (`περιχαρείς`, `ὑποφύγῃ`);
+- and a cell that the corpora spell only with a capital, where that
+  spelling reads a name in the published expansion, the table or a
+  treebank (`αἰγιεῖς`: `Αἰγιεῖς` of `Αἰγιεύς`, not the future of `αἰγίζω`).
+
+A cell that a single token attests is kept like any other: about 23,600 of
+the 50,329 rest on one token, and dropping them would drop the rare verbs
+the pass exists for.
 
 ### Treebank readings
 
@@ -801,6 +840,26 @@ reading weighs depends on the stem under the cell:
   the treebanks read the form as no verb at all (`φιαλέων` is the genitive of
   `φιάλη` before it is a participle of the future `φιαλῶ`), or when they file
   it under the same verb in its other voice (`ἐνόσφισεν` under `νοσφίζομαι`).
+- **A nominal reading of the published expansion.** The pass runs before the
+  published expansion is overlaid, so a cell it writes is kept from that
+  expansion's noun only by the overlay's rule that a written key stays.
+  The pass therefore reads the expansion itself (the pinned reference of
+  `data/ag_expansion_reference.json`, or the file
+  `DILEMMA_AG_EXPANSION_REFERENCE` names), and a cell, printed, derived or
+  inferred, that it reads as a noun, an adjective or a name is left to that
+  reading unless a treebank reads the form as this verb: `ἀναισίμους` is
+  the adjective `ἀναίσιμος`, not the Ionic imperfect of `ἀναισιμόω`, and
+  `προτύποις` is `πρότυπον`. A dictionary head counts as nominal when it
+  has no verb ending and is not an LSJ head without gender or declension
+  (`κατεῖπον`). The present systems are not checked: a present that an
+  adjective also spells (`εὐθαρσεῖ` of `εὐθαρσέω` and `εὐθαρσής`) keeps the
+  verb, as before.
+- **A part that LSJ heads.** A printed part that is an LSJ headword of its
+  own goes to that headword where the verb's entry says it only serves the
+  part (`κατερέω`, "serving as fut. of aor. κατεῖπον") and the treebanks
+  read the cell as the headword, unless the headword's entry names the verb
+  (`συνεῖπον`, "aor. of συναγορεύω"). So `κατεῖπε` is `κατεῖπον`, while
+  `ὑπείδετο` stays with `ὑφοράω`.
 - **A present cell of another verb.** The present systems are written first,
   so a present holds the form when a printed part of another verb spells it
   too (`περιειλόμεθα` of `περιείλω` and of the aorist `περιειλόμην` under
@@ -813,16 +872,19 @@ reading weighs depends on the stem under the cell:
 The corpus tables only withhold or confirm cells; no form or lemma enters the
 table from them.
 
-The pass therefore needs `data/form_profile.db`, `data/grc_lexical_heads.json`
-and the seven pair files, and stops when one is missing. `--no-corpus-checks`
+The pass therefore needs `data/form_profile.db`, `data/grc_lexical_heads.json`,
+the seven pair files and the expansion reference, and stops when one is
+missing. `--no-corpus-checks`
 runs without them (no inferred parts, no treebank check); that is not the
 published build. What the corpus tables decided is written to
 `data/ag_verb_generation_audit.json`: the content hash of `form_profile.db`
 and the sha256 of the other inputs, the inferred cells by verb with the kind
 of inference and the simplex, the cells two verbs inferred, the cells left
 to a treebank reading, each with that reading and the kind of stem
-(`printed`, `derived`, `inferred`), and the present cells that went to a
-printed part.
+(`printed`, `derived`, `inferred`), the cells left to a nominal reading or an
+LSJ head (`left_to_a_nominal`, with the rule: `expansion`, `paradigm`,
+`name`, `headword`), and the present cells that went to a printed part. The
+expansion reference is recorded by its size.
 
 ## Finite-form synthesis
 
