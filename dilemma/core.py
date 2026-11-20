@@ -5478,6 +5478,22 @@ class Dilemma:
 
         return None
 
+    @staticmethod
+    def _tagged_spelling(word):
+        """The spelling the tagged entry points read the POS tables under.
+
+        lemmatize() and lemmatize_batch() normalize to NFC and write a
+        lunate sigma as σ/ς before they read the lookup; the tagged paths
+        do the same, so a form printed with ϲ or in decomposed form finds
+        its POS cell (#154).
+        """
+        if not isinstance(word, str) or not any(
+                0x0370 <= ord(c) <= 0x03ff or 0x1f00 <= ord(c) <= 0x1fff
+                for c in word):
+            # Tokens without Greek letters pass through as given.
+            return word
+        return to_standard_sigma(unicodedata.normalize("NFC", word))
+
     def lemmatize_pos(self, word: str, upos: str,
                       *, attested_only: bool = False,
                       guess: bool = True) -> str | None:
@@ -5516,6 +5532,9 @@ class Dilemma:
             The lemma string, or None when gated out by ``attested_only``
             or unresolved with ``guess=False``.
         """
+        # The tables are read under the spelling lemmatize() reads: NFC,
+        # with a lunate sigma as σ/ς (Δῖόϲ PROPN like Δῖός, #154).
+        word = self._tagged_spelling(word)
         self._pos_rejections(word, upos)
         def checked(lemma):
             return self._checked_pos_result(word, upos, lemma)
@@ -5754,8 +5773,9 @@ class Dilemma:
         # ῤῥ is an editorial spelling of ρρ: the tables are read under the
         # plain spelling, as in lemmatize_pos(). The attested-only gate
         # matches the corpus spelling as printed.
-        printed = words
-        words = [to_plain_double_rho(word) for word in words]
+        # NFC and a lunate sigma as σ/ς come first, as in lemmatize() (#154).
+        printed = [self._tagged_spelling(word) for word in words]
+        words = [to_plain_double_rho(word) for word in printed]
         for word, upos in zip(words, upos_tags):
             self._pos_rejections(word, upos)
 
