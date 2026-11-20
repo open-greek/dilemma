@@ -10,7 +10,9 @@ https://huggingface.co/ciscoriordan/dilemma. The base download is ~4.3 GB
 (lemma `data/` + `model/` ~2.8 GB and tagger weights ~1.5 GB); the two opt-in
 form-attestation DBs add ~1.36 GB more (~5.7 GB for everything).
 The tagger weights are under the `tagger/` prefix and the lemma artifacts
-are under `data/` and `model/`.
+are under `data/` and `model/`. The tagger weights come from the revision
+`dilemma.tagger` pins (TAGGER_WEIGHTS_REV), the same bytes its own fallback
+download fetches; the lemma artifacts come from the head of the repository.
 """
 
 import argparse
@@ -39,6 +41,11 @@ TAGGER_REPO = "ciscoriordan/dilemma"
 TAGGER_INCLUDES = ["tagger/*"]
 
 
+def _tagger_revision() -> str:
+    from .tagger._revisions import TAGGER_WEIGHTS_REV
+    return TAGGER_WEIGHTS_REV
+
+
 def _enable_fast_transfer() -> None:
     """Opt in to the fastest transfer backend available.
 
@@ -59,7 +66,8 @@ def _enable_fast_transfer() -> None:
         os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "1")
 
 
-def _snapshot_download(*, repo_id, local_dir, allow_patterns, ignore_patterns=None):
+def _snapshot_download(*, repo_id, local_dir, allow_patterns, ignore_patterns=None,
+                       revision=None):
     _enable_fast_transfer()
     try:
         from huggingface_hub import snapshot_download
@@ -73,6 +81,7 @@ def _snapshot_download(*, repo_id, local_dir, allow_patterns, ignore_patterns=No
         local_dir=str(local_dir),
         allow_patterns=allow_patterns,
         ignore_patterns=ignore_patterns,
+        revision=revision,
     )
 
 
@@ -119,6 +128,7 @@ def download(target_dir: Path | None = None, *, tagger: bool = True,
             repo_id=TAGGER_REPO,
             local_dir=tagger_dest.parent / "_tagger_tmp",
             allow_patterns=TAGGER_INCLUDES,
+            revision=_tagger_revision(),
         )
         _flatten_tagger_weights(tagger_dest.parent / "_tagger_tmp", tagger_dest)
 

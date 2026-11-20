@@ -1,7 +1,7 @@
 {
-  "_comment": "sha256 of every artifact CI downloads from the Hub (files) and of the other files the Hub serves that builds and tools read (pinned_only). Rewritten by scripts/hf_data.py push; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
+  "_comment": "sha256 of every artifact CI downloads from the Hub (files), of the other files the Hub serves that builds and tools read (pinned_only), and of the tagger weights at the revision the tagger pins (tagger). Rewritten by scripts/hf_data.py push and pin-tagger; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-19T02:32:38Z",
+  "generated": "2026-11-20T04:06:11Z",
   "files": {
     "data/lookup.db": {
       "size": 1448996864,
@@ -474,6 +474,61 @@
       "size": 129058,
       "sha256": "fc14e7e39020c41062afcc967613fc9054f327c280d41498cb1c8b7613651828",
       "git_sha1": "974e58e4c7bed9a3582b8464a996dff02994e6d3"
+    }
+  },
+  "tagger": {
+    "revision": "876efd48e1498c354f43742c1ba546b311006f2f",
+    "files": {
+      "tagger/el/mwt.json": {
+        "size": 202,
+        "sha256": "973c1ff2e63306e1208710e0012c35043ff2c1e3a833ecb9d308956ae1a5b501",
+        "git_sha1": "12469a173f27badc407c22673b789b1d4ed87ea8"
+      },
+      "tagger/el/tagger.onnx": {
+        "size": 454898385,
+        "sha256": "e0dc10e0f702f6ac8f545e05497cd6982dbb56f918cff2c2f4aad409069741db",
+        "git_sha1": "f45afca2d0093d2e2c12d653d4574c3a178eec71"
+      },
+      "tagger/el/tagger_labels.json": {
+        "size": 1401,
+        "sha256": "3d89c90304ae91fb3b5d72eae0f947e0b3d2dfdf61ce561958a1cdb6cfca591b",
+        "git_sha1": "631745cfd3bea2c9e384f2fe6e4b0f04bfded795"
+      },
+      "tagger/el/tokenizer/tokenizer.json": {
+        "size": 1081717,
+        "sha256": "6c4f2697a8265d695c89f63f3622b14fcf05743e834d8ee9d94461ec35db68c6",
+        "git_sha1": "49a4a817f789146faf63a281b58fecdb068c2e77"
+      },
+      "tagger/el/tokenizer/tokenizer_config.json": {
+        "size": 379,
+        "sha256": "9f0c2c65a70ea18113ffa2e717103e7210ea826e7acc3442b69b346686b55a48",
+        "git_sha1": "d6783f9a5ab4250e3a53e0de122bffad8056c2d0"
+      },
+      "tagger/grc/tagger.onnx": {
+        "size": 509375520,
+        "sha256": "f93027bdec6d1a86a624440eb70dfad6ffb0a3999f4de4a3248e0e32e67c4b9a",
+        "git_sha1": "9cd8d023192d83866ab96e9f0d8a98c518b188db"
+      },
+      "tagger/grc/tagger_labels.json": {
+        "size": 1424,
+        "sha256": "51bb5eb1861e226870e8b8cee9b163886cffa14ef9c3c9d5fddc0a535ca00399",
+        "git_sha1": "ed4a4a74852dfd826584bcf18625a7eb5a1cd628"
+      },
+      "tagger/grc/tagger_model.pt": {
+        "size": 511600671,
+        "sha256": "26cd3dcb9f11ec71d061d316ace2f168b9478f9db0e2cdd59064c6a4f5c80f2d",
+        "git_sha1": "9b16e59de6253fa8bafb7f99f068e7143225789d"
+      },
+      "tagger/grc/tokenizer/tokenizer.json": {
+        "size": 5415395,
+        "sha256": "9eaa843a512df60213473e209decd1c4411ca5ce7969d2b07578e7566c6b2da4",
+        "git_sha1": "271d8fda32e00f0701af49a49ac713e2373f3e05"
+      },
+      "tagger/grc/tokenizer/tokenizer_config.json": {
+        "size": 415,
+        "sha256": "a388a12bc606da0bc92fec6b44c3381abc986950b068dc55deab8acef787ce8e",
+        "git_sha1": "11524e68d67768af195126d0ecd736d21d780e2c"
+      }
     }
   }
 }

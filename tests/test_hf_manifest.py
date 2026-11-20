@@ -68,7 +68,8 @@ def test_manifest_covers_exactly_the_pinned_only_files(manifest):
     """The second list: pinned and compared with the Hub, not downloaded by
     CI. Together the two lists are everything the manifest holds (#140)."""
     assert list(manifest["pinned_only"]) == hf_data.PINNED_ONLY
-    assert set(manifest) == {"_comment", "repo", "generated", "files", "pinned_only"}
+    assert set(manifest) == {"_comment", "repo", "generated", "files",
+                             "pinned_only", "tagger"}
     both = hf_data.TRACKED + hf_data.PINNED_ONLY
     assert len(both) == len(set(both))
     assert list(hf_data.pinned_entries()) == both
@@ -125,6 +126,37 @@ def test_manifest_entries_are_well_formed(manifest):
             assert entry["size"] > 0
             assert re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]), path
             assert re.fullmatch(r"[0-9a-f]{40}", entry["git_sha1"]), path
+
+
+def test_tagger_weights_are_pinned_at_the_revision_the_tagger_downloads(manifest):
+    """The third section: the tagger weights, at TAGGER_WEIGHTS_REV (#149)."""
+    from dilemma.tagger._revisions import TAGGER_WEIGHTS_REV
+
+    assert hf_data.tagger_revision() == TAGGER_WEIGHTS_REV
+    assert manifest["tagger"]["revision"] == TAGGER_WEIGHTS_REV
+    assert list(manifest["tagger"]["files"]) == hf_data.TAGGER
+    assert all(p.startswith(hf_data.TAGGER_PREFIX) for p in hf_data.TAGGER)
+    for path, entry in manifest["tagger"]["files"].items():
+        assert set(entry) == {"size", "sha256", "git_sha1"}, path
+        assert entry["size"] > 0
+        assert re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]), path
+        assert re.fullmatch(r"[0-9a-f]{40}", entry["git_sha1"]), path
+    assert not hf_data.tagger_problems()
+    assert not set(hf_data.TAGGER) & set(hf_data.TRACKED + hf_data.PINNED_ONLY)
+
+
+def test_the_full_download_takes_the_pinned_tagger_revision(tmp_path, monkeypatch):
+    """`python -m dilemma download` and Tagger's fallback fetch one commit."""
+    from dilemma import _download
+    from dilemma.tagger._revisions import TAGGER_WEIGHTS_REV
+
+    calls = []
+    monkeypatch.setattr(_download, "_snapshot_download",
+                        lambda **kw: calls.append(kw))
+    _download.download(tmp_path, tagger=True, dilemma=True)
+    revisions = {tuple(c["allow_patterns"]): c.get("revision") for c in calls}
+    assert revisions[tuple(_download.TAGGER_INCLUDES)] == TAGGER_WEIGHTS_REV
+    assert revisions[tuple(_download.INCLUDES)] is None
 
 
 def test_ci_fetches_modern_training_evidence_inputs():
@@ -356,7 +388,8 @@ def test_a_served_file_without_a_pin_is_reported():
         "model/combined-s3/model.pt",           # TRACKED
         "model/new-model/model.pt",
         "data/kaikki_inputs/20261114/kaikki.org-en-dictionary-Greek.jsonl.gz",
-        "tagger/grc/tagger.onnx",
+        "tagger/grc/tagger.onnx",               # TAGGER
+        "tagger/grc/new_weights.onnx",
         "training_ckpts/ag_dep/tagger_model.pt",  # not served by the download
         ".gitattributes",
     ]
@@ -364,6 +397,7 @@ def test_a_served_file_without_a_pin_is_reported():
         "data/changes/new_audit.json",
         "data/new_table.json",
         "model/new-model/model.pt",
+        "tagger/grc/new_weights.onnx",
     ]
 
 
@@ -371,7 +405,7 @@ def test_the_unpinned_prefixes_have_reasons_and_shadow_no_pin():
     for prefix, reason in hf_data.UNPINNED.items():
         assert prefix.startswith(hf_data.SERVED_PREFIXES) and prefix.endswith("/")
         assert len(reason) > 20
-        assert not [p for p in hf_data.TRACKED + hf_data.PINNED_ONLY
+        assert not [p for p in hf_data.TRACKED + hf_data.PINNED_ONLY + hf_data.TAGGER
                     if p.startswith(prefix)], prefix
 
 
@@ -382,11 +416,15 @@ class _FakeHub:
 
     def __init__(self):
         self.blobs = {}
+        self.revisions = {}   # revision -> {path: bytes}
         self.uploads = []
         self.dates = {}
 
-    def _info(self, path):
-        data = self.blobs[path]
+    def at(self, revision):
+        return self.blobs if revision is None else self.revisions[revision]
+
+    def _info(self, path, revision=None):
+        data = self.at(revision)[path]
         # Large files come back with a sha256, small ones with a blob id only.
         lfs = SimpleNamespace(sha256=hashlib.sha256(data).hexdigest()) \
             if len(data) > 16 else None
@@ -400,14 +438,18 @@ class _FakeHub:
         hub = self
 
         class HfApi:
-            def get_paths_info(self, repo, paths, expand=False):
+            def get_paths_info(self, repo, paths, expand=False, revision=None):
                 assert repo == hf_data.REPO
-                return [hub._info(p) for p in paths if p in hub.blobs]
+                return [hub._info(p, revision) for p in paths
+                        if p in hub.at(revision)]
 
-            def list_repo_tree(self, repo, recursive=False):
+            def list_repo_tree(self, repo, path_in_repo=None, recursive=False,
+                               revision=None):
                 assert repo == hf_data.REPO and recursive
                 folders = [SimpleNamespace(path="data"), SimpleNamespace(path="model")]
-                return folders + [hub._info(p) for p in sorted(hub.blobs)]
+                return folders + [
+                    hub._info(p, revision) for p in sorted(hub.at(revision))
+                    if path_in_repo is None or p.startswith(path_in_repo + "/")]
 
             def upload_file(self, *, path_or_fileobj, path_in_repo, repo_id,
                             commit_message):
@@ -415,9 +457,17 @@ class _FakeHub:
                 hub.blobs[path_in_repo] = Path(path_or_fileobj).read_bytes()
                 hub.uploads.append(path_in_repo)
 
-        return SimpleNamespace(HfApi=HfApi)
+        def hf_hub_download(repo, path, revision=None):
+            assert repo == hf_data.REPO
+            out = hub.downloads / (revision or "head") / path
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(hub.at(revision)[path])
+            return str(out)
+
+        return SimpleNamespace(HfApi=HfApi, hf_hub_download=hf_hub_download)
 
 
+_TAGGER_REV = "a" * 40
 _SMALL = b"small"
 _LARGE = b"a table large enough for a sha256"
 
@@ -434,6 +484,14 @@ def tree(tmp_path, monkeypatch):
     monkeypatch.setattr(hf_data, "TRACKED", ["data/lookup.db"])
     monkeypatch.setattr(hf_data, "PINNED_ONLY", [
         "data/ag_lookup.json", "data/med_pos_lookup.json", "data/glaux_freq.json"])
+    monkeypatch.setattr(hf_data, "TAGGER", [
+        "tagger/grc/tagger.onnx", "tagger/grc/tagger_labels.json"])
+    monkeypatch.setattr(hf_data, "tagger_revision", lambda: _TAGGER_REV)
+    hub.downloads = tmp_path / "downloads"
+    hub.revisions[_TAGGER_REV] = {
+        "tagger/grc/tagger.onnx": _LARGE + b" weights",
+        "tagger/grc/tagger_labels.json": _SMALL,
+    }
     monkeypatch.setitem(sys.modules, "huggingface_hub", hub.module())
     monkeypatch.setattr(hf_data.time, "sleep", lambda seconds: None)
     content = {
@@ -446,6 +504,7 @@ def tree(tmp_path, monkeypatch):
         (root / rel).write_bytes(data)
         hub.blobs[rel] = data
     assert hf_data.main(["manifest"]) == 0
+    assert hf_data.main(["pin-tagger"]) == 0
     (root / "data" / "glaux_freq.json").unlink()   # a checkout without it
     return SimpleNamespace(root=root, hub=hub)
 
@@ -470,8 +529,11 @@ def test_manifest_command_keeps_the_pin_of_an_absent_pinned_only_file(tree):
 
 def test_check_passes_when_checkout_manifest_and_hub_agree(tree, capsys):
     assert hf_data.main(["check"]) == 0
-    assert "Hub matches the manifest (4 artifacts); every other served file " \
-        "is under data/kaikki_inputs/ or tagger/" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Hub matches the manifest (4 artifacts, 2 tagger files at aaaaaaaaaaaa); " \
+        "every other served file is under data/kaikki_inputs/" in out
+    # The head serves no tagger weights here; that is a note, not a failure.
+    assert "~ tagger/grc/tagger.onnx: the Hub's head has other bytes" in out
 
 
 @pytest.mark.parametrize("rel", ["data/lookup.db", "data/ag_lookup.json",
@@ -496,12 +558,14 @@ def test_check_and_wait_fail_when_the_hub_serves_other_bytes(tree, capsys, rel):
 def test_check_fails_on_a_served_file_without_a_pin(tree, capsys):
     tree.hub.blobs["data/uploaded_by_hand.json"] = _LARGE
     tree.hub.blobs["data/kaikki_inputs/20261114/dump.jsonl.gz"] = _LARGE
-    tree.hub.blobs["tagger/grc/tagger.onnx"] = _LARGE
+    tree.hub.blobs["tagger/grc/head_only.onnx"] = _LARGE   # not downloaded
     tree.hub.blobs["training_ckpts/run/model.pt"] = _LARGE
+    tree.hub.revisions[_TAGGER_REV]["tagger/grc/extra.json"] = _SMALL
     assert hf_data.main(["check"]) == 1
     err = capsys.readouterr().err
     assert "data/uploaded_by_hand.json: served by the Hub without a pin" in err
-    assert "kaikki_inputs" not in err and "tagger" not in err
+    assert "tagger/grc/extra.json: served by the Hub without a pin" in err
+    assert "kaikki_inputs" not in err and "head_only" not in err
     assert "training_ckpts" not in err
 
 
@@ -585,3 +649,52 @@ def test_push_moves_a_pin_between_the_lists(tree, monkeypatch):
     assert list(after["pinned_only"]) == hf_data.PINNED_ONLY
     assert after["files"]["data/med_pos_lookup.json"] == \
         before["pinned_only"]["data/med_pos_lookup.json"]
+
+
+# --- the tagger weights (#149) -------------------------------------------------
+
+def test_pin_tagger_records_the_bytes_at_the_revision(tree):
+    pins = _manifest(tree)["tagger"]
+    assert pins["revision"] == _TAGGER_REV
+    data = tree.hub.revisions[_TAGGER_REV]
+    for rel in hf_data.TAGGER:
+        assert pins["files"][rel]["sha256"] == hashlib.sha256(data[rel]).hexdigest()
+        assert pins["files"][rel]["size"] == len(data[rel])
+    # The other sections stay as they were.
+    assert list(_manifest(tree)["pinned_only"]) == hf_data.PINNED_ONLY
+
+
+def test_pin_tagger_refuses_a_revision_with_other_files(tree, capsys):
+    tree.hub.revisions[_TAGGER_REV]["tagger/grc/new.json"] = _SMALL
+    assert hf_data.main(["pin-tagger"]) == 1
+    assert "only on the Hub: ['tagger/grc/new.json']" in capsys.readouterr().err
+
+
+def test_head_tagger_weights_that_match_the_pin_pass_without_a_note(tree, capsys):
+    tree.hub.blobs.update(tree.hub.revisions[_TAGGER_REV])
+    assert hf_data.main(["check"]) == 0
+    assert "~ tagger" not in capsys.readouterr().out
+
+
+def test_check_fails_when_the_code_moves_the_tagger_revision(tree, monkeypatch, capsys):
+    monkeypatch.setattr(hf_data, "tagger_revision", lambda: "b" * 40)
+    assert hf_data.main(["check"]) == 1
+    err = capsys.readouterr().err
+    assert "pins the tagger weights at aaaaaaaaaaaa, the tagger downloads bbbbbbbbbbbb" in err
+    assert "pin-tagger" in err
+
+
+def test_check_fails_when_the_hub_serves_other_tagger_bytes(tree, capsys):
+    tree.hub.revisions[_TAGGER_REV]["tagger/grc/tagger_labels.json"] = b"other"
+    assert hf_data.main(["check"]) == 1
+    assert "tagger/grc/tagger_labels.json: the Hub serves other bytes at the " \
+        "tagger revision" in capsys.readouterr().err
+
+
+def test_push_and_wait_leave_the_tagger_weights_alone(tree):
+    before = _manifest(tree)["tagger"]
+    (tree.root / "data" / "lookup.db").write_bytes(_LARGE + b" new lookup")
+    assert hf_data.main(["push"]) == 0
+    assert not [p for p in tree.hub.uploads if p.startswith("tagger/")]
+    assert _manifest(tree)["tagger"] == before
+    assert hf_data.main(["wait", "--timeout", "0"]) == 0
