@@ -52,3 +52,20 @@ def test_the_lookup_reads_each_form(readings):
             for r in readings}
     assert {form: lemmas for form, lemmas in got.items()
             if lemmas != [next(r["lemma"] for r in readings if r["form"] == form)]} == {}
+
+
+def test_build_adds_a_reading_only_where_no_row_exists():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "build_lookup_db", ROOT / "build_lookup_db.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    combined = {"κατεῖχον": "κατέχω"}
+    sources = {"κατεῖχον": "wiktionary_grc"}
+    added = module.apply_hyphenated_lemma_readings(
+        [{"form": "κατεῖχον", "lemma": "ἄλλο"},
+         {"form": "ὑπεικαθέων", "lemma": "ὑπείκω"}],
+        combined=combined, combined_sources=sources)
+    assert added == ["ὑπεικαθέων"]
+    assert combined == {"κατεῖχον": "κατέχω", "ὑπεικαθέων": "ὑπείκω"}
+    assert sources["ὑπεικαθέων"] == module.LOOKUP_OVERRIDES_INPUT

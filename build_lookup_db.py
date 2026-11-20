@@ -77,6 +77,7 @@ GRC_IKOS_ADJECTIVES_PATH = DATA_DIR / "grc_ikos_adjectives.json"
 GRC_SECOND_DECLENSION_PATH = DATA_DIR / "grc_second_declension.json"
 GRC_ES_ADJECTIVES_PATH = DATA_DIR / "grc_es_adjectives.json"
 GRC_DEGREE_FORMS_PATH = DATA_DIR / "grc_degree_forms.json"
+GRC_HYPHENATED_READINGS_PATH = DATA_DIR / "grc_hyphenated_lemma_readings.json"
 # Inputs that say which layer of a merged file supplied a reading.
 AG_WIKTIONARY_BASE_PATH = DATA_DIR / "ag_lookup_wikt.json"
 AG_EXPANSION_MANIFEST_PATH = DATA_DIR / "ag_expansion_reference.json"
@@ -618,6 +619,25 @@ def apply_lookup_overrides(overrides: dict, *, combined: dict,
             el_sources.pop(form, None)
             counts["el_removed"] += 1
     return counts
+
+
+def apply_hyphenated_lemma_readings(readings, *, combined: dict,
+                                    combined_sources: dict) -> list[str]:
+    """Add the reviewed readings of data/grc_hyphenated_lemma_readings.json.
+
+    Each form's only source reading was a hyphenated corpus lemma, which the
+    build drops (#137, #149). A form is read only where the combined table
+    has no row of its own for it; returns the forms added.
+    """
+    added = []
+    for record in readings:
+        form, lemma = record["form"], record["lemma"]
+        if form in combined:
+            continue
+        combined[form] = lemma
+        combined_sources[form] = LOOKUP_OVERRIDES_INPUT
+        added.append(form)
+    return added
 
 
 # Modern Greek spellings that the 2026-11 rebuild reads as an Ancient lemma
@@ -3130,6 +3150,13 @@ def build():
         print(f"  Lookup overrides applied: {overridden['changed']:,} readings "
               f"changed, {overridden['added']:,} absent keys added, "
               f"{overridden['el_removed']:,} el-only corpus readings removed")
+    if GRC_HYPHENATED_READINGS_PATH.exists():
+        hyphen_added = apply_hyphenated_lemma_readings(
+            json.loads(GRC_HYPHENATED_READINGS_PATH.read_text(
+                encoding="utf-8"))["readings"],
+            combined=combined, combined_sources=combined_sources)
+        print(f"  Reviewed readings for #137 spellings: "
+              f"{len(hyphen_added):,} keys added")
     modern_forms = apply_modern_reading_overrides(
         MODERN_READING_OVERRIDES, combined=combined,
         combined_sources=combined_sources, el=el, el_sources=el_sources)
