@@ -239,6 +239,33 @@ for _form, _people in _persons(
             (LSJ_EIMI_BE, "https://en.wiktionary.org/wiki/εἰμί"))]
 
 
+# The impersonal δεῖ 'it is necessary' is its own headword in the treebanks
+# that keep it apart (AGDT δεῖ 73 against δέω 41, δεῖν 31 against 9; the
+# New Testament pairs read every impersonal form as δεῖ), while GLAUx files
+# it under δέω, which is ambiguous between 'bind' and 'lack' (#155). The
+# forms below are the ones whose reading is, in practice, impersonal. The
+# imperfect ἔδει also spells the present of the epic ἔδω 'eat', which the
+# lookup read it as. δέον, δέῃ and δεήσει stay with their table readings:
+# each also spells a personal form of δέω or δέομαι, or the noun δέησις.
+_DEI_EVIDENCE = ("https://en.wiktionary.org/wiki/δεῖ",
+                 "https://github.com/open-greek/dilemma/issues/155")
+_DEI_RELATED = [{"lemma": "δέω", "relation": "impersonal_use",
+                 "dialect": None, "applies_to_input": False}]
+for _form, _tense, _mood in (("δεῖ", "present", "indicative"),
+                             ("ἔδει", "imperfect", "indicative"),
+                             ("δέοι", "present", "optative")):
+    _REVIEWED_FORMS[_form] = [_grammar(
+        "δεῖ", "δεῖ", (("3", "sg"),), _DEI_EVIDENCE, tense=_tense,
+        mood=_mood, related=_DEI_RELATED)]
+_REVIEWED_FORMS["δεῖν"] = [{
+    "lemma": "δεῖ", "base_lemma": "δεῖ",
+    "analyses": [asdict(ParadigmSlot.verb_infinitive(
+        voice="active", tense="present"))],
+    "related_headwords": deepcopy(_DEI_RELATED),
+    "evidence": list(_DEI_EVIDENCE),
+}]
+
+
 def reviewed_verb_readings(form: str) -> list[dict]:
     """Return all reviewed readings, retaining case-insensitive exact accents."""
     readings = _REVIEWED_FORMS.get(unicodedata.normalize("NFC", form).lower())
