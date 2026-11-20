@@ -37,7 +37,7 @@ import re
 import sqlite3
 import unicodedata
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import lru_cache, wraps
 from pathlib import Path
 
 from .nonlexical import classify_nonlexical as _classify_nonlexical
@@ -165,6 +165,18 @@ _CONVENTION_HEADWORDS = {
 
 # Conventions that output monotonic Greek (apply to_monotonic to all results).
 _MONOTONIC_CONVENTIONS = {"triantafyllidis"}
+
+
+def _tagged_entry(method):
+    """Mark a tagged entry point while it runs (see Dilemma._tagged_calls)."""
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        self._tagged_calls += 1
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            self._tagged_calls -= 1
+    return wrapper
 
 
 class DilemmaDataWarning(UserWarning):
@@ -2449,16 +2461,42 @@ class Dilemma:
         is no vernacular contraction. lang="grc" reads Ancient Greek only.
         """
         if upos not in ("DET", "ADP") or self.lang not in ("all", "el") \
-                or not word:
-            return None
-        nfd = unicodedata.normalize("NFD", word)
-        marks = {ord(ch) for ch in nfd if unicodedata.combining(ch)}
-        if not marks <= {0x0300, 0x0301, 0x0342}:
-            return None
-        if strip_accents(to_standard_sigma(word).lower()) \
-                not in _VERNACULAR_ARTICLE_CONTRACTIONS:
+                or not self._is_vernacular_contraction(
+                    word, marks={0x0300, 0x0301, 0x0342}):
             return None
         return _MG_ARTICLE_LEMMA if upos == "DET" else "σε"
+
+    @staticmethod
+    def _is_vernacular_contraction(word: str, *, marks) -> bool:
+        """Whether *word* spells a contraction of σε + article (στον, στὴν)
+        with no combining mark outside *marks*."""
+        if not word:
+            return False
+        nfd = unicodedata.normalize("NFD", word)
+        if not {ord(ch) for ch in nfd if unicodedata.combining(ch)} <= marks:
+            return False
+        return (strip_accents(to_standard_sigma(word).lower())
+                in _VERNACULAR_ARTICLE_CONTRACTIONS)
+
+    def _vernacular_contraction_lemma(self, word: str) -> str | None:
+        """The untagged lemma σε of a contraction of σε + article.
+
+        With lang="all" the combined table reads these letters with its
+        Ancient rows, which are word fragments of the corpora or unaccented
+        cells of ἵστημι (στον gave στον, στην ἵστημι, στου ἕκαστος), while
+        lang="el" and the tagged lookups give σε (#148, #134). The spelling
+        may carry an acute or a grave or no accent; a circumflex (στῆν), a
+        breathing or a subscript is no vernacular contraction.
+
+        The tagged entry points do not read it: under DET and ADP
+        _vernacular_contraction_pos_lemma answers, and under any other tag
+        the form keeps the reading it had (στα ADJ, a fragment of ἕκαστος).
+        """
+        if self._tagged_calls or self.lang not in ("all", "el") \
+                or not self._is_vernacular_contraction(
+                    word, marks={0x0300, 0x0301}):
+            return None
+        return "σε"
 
     def _resolve_closed_class(self, word: str) -> str | None:
         """Recognize Ancient articles and optionally canonicalize closed classes.
@@ -2599,6 +2637,10 @@ class Dilemma:
             grammar = reviewed_verb_grammar(word)
             if grammar is not None:
                 return grammar["lemma"]
+        if own:
+            contraction = self._vernacular_contraction_lemma(word)
+            if contraction is not None:
+                return contraction
         loose_keys, capitalized_keys = [], []
         if step != self._OWN_ROWS:
             kinds = {"monotonic": step in (None, self._MONOTONIC_KEY),
@@ -5562,6 +5604,10 @@ class Dilemma:
             return word
         return to_standard_sigma(unicodedata.normalize("NFC", word))
 
+    # Depth of tagged calls in progress; see _vernacular_contraction_lemma.
+    _tagged_calls = 0
+
+    @_tagged_entry
     def lemmatize_pos(self, word: str, upos: str,
                       *, attested_only: bool = False,
                       guess: bool = True) -> str | None:
@@ -5805,6 +5851,7 @@ class Dilemma:
                                            extra=extra)
         return lemma
 
+    @_tagged_entry
     def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str],
                             *, attested_only: bool = False,
                             guess: bool = True) -> list[str | None]:
@@ -6257,6 +6304,10 @@ class Dilemma:
             (word, "exact"), (lower, "lower"),
             (mono, "mono"), (stripped, "stripped"),
         ]
+        contraction = self._vernacular_contraction_lemma(word)
+        if contraction is not None:
+            _add(contraction, lang="el", source="lookup", via="exact")
+            return candidates
         # The capitalized loose keys of the generated paradigms, after
         # the lowercase ones and for an Ancient head only, as in
         # _lookup_word.

@@ -973,7 +973,12 @@ and `σε` under ADP with `lang="all"` or `lang="el"`, under every convention,
 in monotonic spelling and in polytonic (`στὸ`, `στὴν`, `στοῦ`: accents only,
 no breathing, iota subscript or diaeresis). Under other tags their other
 readings stand (`στὸν` ADJ gives `ἀστός`, `στὴν` VERB gives `ἵστημι`), and
-`lang="grc"` reads Ancient Greek only. Until 1.3.26 the monotonic
+`lang="grc"` reads Ancient Greek only. Without a tag, `lemmatize()` and
+`lemmatize_batch()` give them `σε` with `lang="all"` and `lang="el"` when
+they carry an acute, a grave or no accent (`στον`, `στὴν`, `στου`); a
+circumflex form (`στοῦ`) keeps its lookup row. The combined table used to
+read them with Ancient word fragments or unaccented cells (`στην` gave
+`ἵστημι`, `στου` `ἕκαστος`). Until 1.3.26 the monotonic
 spellings followed the Modern Greek POS table, which has an article entry
 for seven of the ten: `στο` DET gave `σε`, `στον` DET `στον` and `στην` DET
 `ἵστημι` with `lang="all"`.
