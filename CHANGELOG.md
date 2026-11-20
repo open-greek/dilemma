@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.29] - 2026-11-20
+
 This release closes the follow-ups to 1.3.27 and 1.3.28 (#132, #144 to #149,
 #152, #154 and #155). The Ancient chain is rebuilt from the dictionary
 expansion on (steps from `expand_lsj.py` to the treebank POS table) on the same
@@ -2564,6 +2566,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.29]: https://github.com/open-greek/dilemma/releases/tag/1.3.29
 [1.3.28]: https://github.com/open-greek/dilemma/releases/tag/1.3.28
 [1.3.27]: https://github.com/open-greek/dilemma/releases/tag/1.3.27
 [1.3.26]: https://github.com/open-greek/dilemma/releases/tag/1.3.26
