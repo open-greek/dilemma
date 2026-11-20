@@ -55,14 +55,20 @@ def test_forms_follow_a_restored_head():
             "κλαίουσι": "κλαίω", "κλείουσι": "κλείω"}
     restored = [{"form": "κλαίω", "lemma": "κλείω", "head": "κλαίω",
                  "head_count": 40, "lemma_count": 0}]
+    ag["λιταῖς"], base["λιταῖς"] = "λίς", "λιτός"
+    restored.append({"form": "λιτός", "lemma": "λίς", "head": "λιτός",
+                     "head_count": 9, "lemma_count": 0})
     pairs = [{"form": "κλαίειν", "lemma": "κλαίω", "count": 75},
+             {"form": "λιταῖς", "lemma": "λιτή", "count": 32},
+             {"form": "λιταῖς", "lemma": "λιτός", "count": 1},
              {"form": "κλαίουσι", "lemma": "κλείω", "count": 3},
              {"form": "κλαίουσι", "lemma": "κλαίω", "count": 1}]
-    _, records = _restore(ag, base, restored, {"κλαίω", "κλείω"}, pairs)
+    _, records = _restore(ag, base, restored, {"κλαίω", "κλείω", "λιτός"}, pairs)
     assert ag["κλαίειν"] == ag["κλαίοιτε"] == "κλαίω"
     assert ag["κλαιειν"] == "κλαίω"            # the looser key follows
     assert ag["κλαίουσι"] == "κλείω"           # the corpus prefers κλείω
     assert ag["κλείουσι"] == "κλείω"           # the base reads it so
+    assert ag["λιταῖς"] == "λίς"               # the corpus reads λιτή
     assert {r["form"]: r["kind"] for r in records} == {
         "κλαίειν": "restored", "κλαίοιτε": "restored", "κλαιειν": "alias"}
 
@@ -193,4 +199,4 @@ def test_a_listed_inflected_form_follows_but_a_wiktionary_entry_does_not():
 def test_names_the_agdt_check_leaves_to_a_lowercase_glaux_head():
     readings = B.REVIEWED_LOOKUP_READINGS
     assert readings["Κῦρόν"] == "Κῦρος" and readings["Πλαγγόνα"] == "Πλαγγών"
-    assert readings["Γλαῦκός"] == "Γλαῦκος"
+    assert readings["Γλαῦκός"] == "Γλαῦκος" and readings["εἰναι"] == "εἰμί"

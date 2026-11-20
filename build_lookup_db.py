@@ -498,6 +498,9 @@ REVIEWED_LOOKUP_READINGS = {
     # Πλαγγόνα the courtesan Πλαγγών (12), Γλαῦκός Glaucus (3), as the
     # other forms of the three names read.
     "Κῦρόν": "Κῦρος", "Πλαγγόνα": "Πλαγγών", "Γλαῦκός": "Γλαῦκος",
+    # εἶναι without its accent: AGDT's self-map εἰναι is no headword, and
+    # GLAUx's two tokens name the artefact ἐναι.
+    "εἰναι": "εἰμί",
 }
 
 # Ancient readings that name an inflected form, with the lemma each key
@@ -1505,9 +1508,11 @@ def restore_displaced_paradigm_forms(ag: dict, *, candidates: dict,
       one for a Wiktionary head;
     - ``case``: at least ``LISTED_HEAD_MIN_TOKENS`` tokens and more than the
       name has, the test a lowercase head passed against its name;
-    - ``head``: the head is the corpus's commonest lemma for the form, with
-      at least ``PARADIGM_FORM_MIN_TOKENS`` tokens and at least
+    - ``head``: at least ``PARADIGM_FORM_MIN_TOKENS`` tokens and at least
       ``PARADIGM_FORM_MIN_RATIO`` times the displaced lemma's.
+
+    In every case the head must be the corpus's commonest lemma for the
+    form, where the corpus has it.
 
     A restored form's unaccented, lowercase and monotonic keys follow it as
     a restored head's do. ``eligible`` and ``rejected`` are as for
@@ -1524,14 +1529,17 @@ def restore_displaced_paradigm_forms(ag: dict, *, candidates: dict,
             continue
         counts = evidence.get(form, {})
         own, other = counts.get(head, 0), counts.get(lemma, 0)
+        # A third word the corpus reads the form as more often leaves the
+        # key alone (λιταῖς: λιτή 32, λιτός 1, λίς 0).
+        if own < max(counts.values(), default=0):
+            continue
         if kind == "restored":
             supported = own >= other
         elif kind == "case":
             supported = own >= LISTED_HEAD_MIN_TOKENS and own > other
         else:
             supported = (own >= PARADIGM_FORM_MIN_TOKENS
-                         and own >= PARADIGM_FORM_MIN_RATIO * other
-                         and own >= max(counts.values()))
+                         and own >= PARADIGM_FORM_MIN_RATIO * other)
         if supported:
             restored.append({"form": form, "lemma": lemma, "head": head,
                              "kind": kind, "head_count": own,
