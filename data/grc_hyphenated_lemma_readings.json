@@ -1,0 +1,18 @@
+{
+ "schema_version": 1,
+ "issue": 149,
+ "description": "Reviewed readings for plain Ancient spellings whose only source reading was a hyphenated lemma (#137). build_lookup_db.py drops a corpus pair under a hyphenated lemma unless it names a listed compound, which left these forms without a row. Each record gives the corpus lemma it replaces and the head a headword list has for the word; a form is read only where the lookup has no row of its own for it. The other spellings of the #137 gap stay without an answer: their corpus lemma is garbled beyond a clear head (ὀυ-δ̔έπωδυνω, ὕ-πτυχͅσκω), the token is two words written as one (μετεξέτεροίτε, ἐυπρήσσοντας) or a misprint (δελήλωνται), or no head list has the compound (κατενίσατο, ἐπισυνήρτυεν).",
+ "readings": [
+  {"form": "συνεστρέχοντας", "lemma": "συνειστρέχω", "source_lemma": "σύν-εἰστρέχω", "reason": "Ionic ἐστρέχω for εἰστρέχω; the preverb lemma names the listed compound, but no current corpus pair carries it"},
+  {"form": "συνεσυκοφάντει", "lemma": "συσσυκοφαντέω", "source_lemma": "σύν-συκοφαντέω", "reason": "imperfect of the listed compound the preverb lemma names; no current corpus pair carries it"},
+  {"form": "συμμεμιαμμένων", "lemma": "συμμιαίνω", "source_lemma": "συμμέ-μίαμμαι", "reason": "perfect passive participle of συμμιαίνω (μεμίαμμαι); the corpus lemma is the perfect divided at the reduplication"},
+  {"form": "ἰητρεύωνται", "lemma": "ἰατρεύω", "source_lemma": "ἰ-ητρεύω", "reason": "Ionic present subjunctive; the lookup reads the other Ionic forms (ἰητρεύει, ἰητρεύειν) under ἰατρεύω"},
+  {"form": "ἐπιπυρετήνωσιν", "lemma": "ἐπιπυρεταίνω", "source_lemma": "ἐπί-πυρετήνω", "reason": "aorist subjunctive (aorist ἐπυρέτηνα); the lookup reads ἐπιπυρετήναντες under ἐπιπυρεταίνω"},
+  {"form": "παρεισδυῇ", "lemma": "παρεισδύνω", "source_lemma": "παρά,εἰσ-δυάω", "reason": "second aorist passive subjunctive of the LSJ head παρεισδύνω, under which the lookup reads παρεισέδυ and παρεισέδυσαν"},
+  {"form": "ὑπεικαθέων", "lemma": "ὑπείκω", "source_lemma": "ὑπέι-κ̓αθέω", "reason": "Ionic form of ὑπεικάθω, the extended stem of ὑπείκω; the lookup reads εἰκαθεῖν and εἰκαθόντα under εἴκω"},
+  {"form": "μειουρίζοντάς", "lemma": "μειουρίζω", "source_lemma": "μέι-οἰυρίζω", "reason": "present participle with the accent of a following enclitic; the lookup reads μειουρίζειν under μειουρίζω"},
+  {"form": "συριάζοντας", "lemma": "συριάζω", "source_lemma": "σύρ-ιἰάζω", "reason": "present participle of the Sophocles head συριάζω, under which the lookup reads συριάζειν"},
+  {"form": "ὑδαταίνωσιν", "lemma": "ὑδαταίνομαι", "source_lemma": "ὑδά-ταίνω", "reason": "present subjunctive; the lookup reads ὑδαταίνει and ὑδαταίνεται under ὑδαταίνομαι"},
+  {"form": "ὑποκαγκελλίζοντας", "lemma": "ὑποκαγκελλίζω", "source_lemma": "ὕπ-οἰκαγκελλίζω", "reason": "present participle of the listed head ὑποκαγκελλίζω, under which the lookup reads ὑποκαγκέλλιζε"}
+ ]
+}
