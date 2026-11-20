@@ -188,3 +188,9 @@ def test_a_listed_inflected_form_follows_but_a_wiktionary_entry_does_not():
     assert ag["ἑπόμενος"] == "ἕπω"
     # πλευρά reads πλευρόν in the table but itself in the base.
     assert ag["πλευρᾶς"] == "πλευρά"
+
+
+def test_names_the_agdt_check_leaves_to_a_lowercase_glaux_head():
+    readings = B.REVIEWED_LOOKUP_READINGS
+    assert readings["Κῦρόν"] == "Κῦρος" and readings["Πλαγγόνα"] == "Πλαγγών"
+    assert readings["Γλαῦκός"] == "Γλαῦκος"

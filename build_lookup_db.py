@@ -492,6 +492,12 @@ REVIEWED_LOOKUP_READINGS = {
     # with a Latin lemma read as Beta Code (πηαεινις), which the build
     # drops (#127).
     "Φαεινίδα": "Φαεινίς",
+    # Names whose AGDT pair the headword check now drops (ξψρυς, Πλανγγῶν,
+    # Γλαύκος) and whose GLAUx pair then reads the lowercase head that the
+    # corpus lemma is folded to: Κῦρόν is Cyrus (GLAUx Κῦρος 3), not κῦρος,
+    # Πλαγγόνα the courtesan Πλαγγών (12), Γλαῦκός Glaucus (3), as the
+    # other forms of the three names read.
+    "Κῦρόν": "Κῦρος", "Πλαγγόνα": "Πλαγγών", "Γλαῦκός": "Γλαῦκος",
 }
 
 # Ancient readings that name an inflected form, with the lemma each key
