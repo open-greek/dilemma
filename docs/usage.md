@@ -133,10 +133,14 @@ d_ocr.lemmatize("Ηον")                         # None (default: "εἶμι", 
 ```
 
 `skip_numeral_ordinals=True` covers a capital numeral letter for 1-9 (`Α Β Γ Δ
-Ε Ϛ Ζ Η Θ`, and `ϛ`) followed by `ον`, as printed, in all five `lemmatize`
-methods. It is off by default because `Βον` is also a surname and these
-spellings can be capitalized words. `Τον`, `Σον` and `Ιον` are left out since
-they spell common words.
+Ε Ϛ Ϝ Ζ Η Θ`, and `ϛ`) followed by `ον`, as printed, in all five `lemmatize`
+methods. When the token carries an overline or a macron, the marks that set a
+numeral apart, the letter may also be lowercase (`Η̄ον`, `Ηο̄ν`, `δ̄ο̄ν̄`). It is
+off by default because `Βον` is also a surname and these spellings can be
+capitalized words. `Τον`, `Σον` and `Ιον` are left out since they spell common
+words, and so is a lowercase `ϝον` without a mark, which dialect texts can
+write. An overlined abbreviation such as `Ση̄` is not a numeral and is not
+covered.
 
 A form with no lookup row of its own is looked up under its monotonic and
 then its accent-stripped spelling, where many rows are Modern Greek. With
@@ -162,14 +166,17 @@ Known gaps: with `lang="grc"` a polytonic Modern Greek word that no Ancient
 head spells can still get an Ancient lemma. Its own accent-stripped key
 answers (`ἄνοιξη` gives `ἀνοίγω`, the row of `ἀνοίξῃ`), because the same key
 reads Ancient words printed with a misplaced accent or breathing (`ἕξης`
-gives `ἑξῆς`, `ἐνότητα` `ἑνότης`), and nothing in the spelling tells the two
-apart. Failing that, the Byzantine normalizer respells one sound and looks
-the respelling up, under its loose keys too (`ἀλλιῶς` gives `ἁλιεύς`,
-`ἀνάβει` `ἀναβαίνω`). The same step reads Byzantine and misprinted Ancient
-forms that are spelled like Modern ones (`ἐνεργεῖτο` gives `ἐνεργέω`,
-`ἁδικημένος` `ἀδικέω`); closing it for Modern spellings was measured to
-remove about as many right lemmas as wrong ones. With `lang="all"` these
-words keep their Modern lemma. An Ancient form whose Modern twin is listed
+gives `ἑξῆς`, `ἐνότητα` `ἑνότης`, `ὅποτε` `ὁπότε`), and nothing in the
+spelling tells the two apart: a gate on polytonic words whose monotonic
+spelling is a Modern Greek citation form was measured and took the right
+lemma of far more attested Ancient forms than it held back from Modern ones.
+Failing that, the Byzantine normalizer respells one sound and looks the
+respelling up, under its loose keys too (`ἀλλιῶς` gives `ἁλιεύς`, `ἀνάβει`
+`ἀναβαίνω`). The same step reads Byzantine and misprinted Ancient forms that
+are spelled like Modern ones (`ἐνεργεῖτο` gives `ἐνεργέω`, `ἁδικημένος`
+`ἀδικέω`). The optional normalizer reads each respelling's own row before
+it tries any respelling's monotonic or accent-stripped key. With
+`lang="all"` these words keep their Modern lemma. An Ancient form whose Modern twin is listed
 can take it under `lang="all"` (`ὠδικοῦ` gives `ωδικός`, not `ᾠδικός`).
 
 A double rho printed with breathings inside a word, as older editions have it
@@ -966,7 +973,12 @@ and `σε` under ADP with `lang="all"` or `lang="el"`, under every convention,
 in monotonic spelling and in polytonic (`στὸ`, `στὴν`, `στοῦ`: accents only,
 no breathing, iota subscript or diaeresis). Under other tags their other
 readings stand (`στὸν` ADJ gives `ἀστός`, `στὴν` VERB gives `ἵστημι`), and
-`lang="grc"` reads Ancient Greek only. Until 1.3.26 the monotonic
+`lang="grc"` reads Ancient Greek only. Without a tag, `lemmatize()` and
+`lemmatize_batch()` give them `σε` with `lang="all"` and `lang="el"` when
+they carry an acute, a grave or no accent (`στον`, `στὴν`, `στου`); a
+circumflex form (`στοῦ`) keeps its lookup row. The combined table used to
+read them with Ancient word fragments or unaccented cells (`στην` gave
+`ἵστημι`, `στου` `ἕκαστος`). Until 1.3.26 the monotonic
 spellings followed the Modern Greek POS table, which has an article entry
 for seven of the ten: `στο` DET gave `σε`, `στον` DET `στον` and `στην` DET
 `ἵστημι` with `lang="all"`.
