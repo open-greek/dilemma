@@ -936,8 +936,23 @@ and the size and sha256 of the list before and after, so the pruned list
 plus the record reproduces the 1.3.26 file byte for byte. Nothing is added;
 4,383 of the strings have their spelling without the hyphen in the list
 already. `--check` exits 1 when the list has such a string or is not the list
-the record describes. A string with a hyphen only at an edge (`-σον`, `ὁτ-`)
-or beside a metrical sign is not touched.
+the record describes. A second step removes the 63 strings that rule leaves:
+a hyphen or dash at an edge (`-σον`, `ὁτ-`) or beside a metrical sign
+(`–⏑τατος`), or a metrical sign at all (`⏑λέων`). They are endings and
+scansion notes from a source's apparatus. The step writes
+`data/changes/ag_headwords_fragments.json` the same way; its source is the
+first record's result, so the two records chain back to the 1.3.26 file.
+
+**LSJ9 reference counts and POS table.** `data/lsj9_frequency.json` is built
+by `build/build_lsj9_frequency.py` from the LSJ9 export of the same name,
+which counts the references of each entry under the head as printed: divided
+at the stem (`ψῡχ-ή`) and with vowel-length marks (`πᾰρά`). The builder keys
+each count under the citation spelling (`ψυχή`, `παρά`) and adds the counts of
+entries that join to one spelling (`τροχός` and `τροχ-ός`);
+`data/changes/lsj9_frequency_keys.json` records the export's sha256 and every
+merge. `build/build_lsj9_pos_lookup.py` matches LSJ9's NOUN and ADJ heads
+joined in the same way against `ag_lookup.json` and reads no row whose form or
+lemma has a hyphen; it reads `ag_lookup.json`, so it runs after the overlay.
 
 **Keys a filter empties.** A key whose reading one of these filters removes
 falls to whatever lower-priority row has the same spelling, and under

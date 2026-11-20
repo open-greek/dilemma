@@ -10,18 +10,35 @@ grammar-derived categories from lsj9).
 Output: data/lsj9_pos_lookup.json
 Format: {form: {UPOS: headword}, ...}
 
+LSJ9 keys a head divided at its stem as printed (ἀασι-φρονία), while the
+lookup files the head joined (ἀασιφρονία, #137), so the headword POS keys
+are joined before they are matched. A lookup row whose form or lemma still
+has a hyphen or dash is not read: no token is spelled that way and no
+citation form is (#149).
+
 Usage:
-    python build/build_lsj9_pos_lookup.py
+    python build/build_lsj9_pos_lookup.py [--lsj9-dir DIR] [--ag-lookup PATH]
+                                          [--output PATH]
 """
 
+import argparse
 import json
+import os
+import sys
 import unicodedata
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from dilemma.citation import HEAD_HYPHENS, hyphenated_lemma  # noqa: E402
+
 DATA_DIR = SCRIPT_DIR / "data"
 AG_LOOKUP_PATH = DATA_DIR / "ag_lookup.json"
-LSJ9_DIR = Path.home() / "Documents" / "lsj9"
+# LSJ9 exports: ``$DILEMMA_LSJ9_DIR`` (or ``--lsj9-dir``), else ~/Documents/lsj9.
+LSJ9_DIR = Path(os.environ.get("DILEMMA_LSJ9_DIR")
+                or Path.home() / "Documents" / "lsj9")
 HEADWORD_POS_PATH = LSJ9_DIR / "lsj9_headword_pos.json"
 OUTPUT_PATH = DATA_DIR / "lsj9_pos_lookup.json"
 
@@ -39,7 +56,68 @@ def _strip_length_marks(s: str) -> str:
         "".join(c for c in nfd if ord(c) not in (0x0306, 0x0304)))
 
 
-def main():
+def joined_head(headword: str) -> str:
+    """LSJ9's head with the hyphens of its stem division removed."""
+    if not hyphenated_lemma(headword):
+        return headword
+    return unicodedata.normalize("NFC", "".join(
+        char for char in headword if char not in HEAD_HYPHENS))
+
+
+def join_headword_pos(headword_pos: dict) -> dict:
+    """``{joined head: UPOS}``. Where a divided and an undivided key join to
+    one spelling, the undivided key's POS stands; among divided keys, the
+    first in the export's order."""
+    joined: dict[str, str] = {}
+    for head, upos in headword_pos.items():
+        if not hyphenated_lemma(head):
+            joined[head] = upos
+    for head, upos in headword_pos.items():
+        if hyphenated_lemma(head):
+            joined.setdefault(joined_head(head), upos)
+    return joined
+
+
+def has_hyphen(text: str) -> bool:
+    return any(char in HEAD_HYPHENS for char in text)
+
+
+def build(ag_lookup: dict, headword_pos: dict) -> dict:
+    """``{form: {UPOS: headword}}`` for the NOUN and ADJ heads of LSJ9."""
+    # Only include NOUN and ADJ - these are the grammar-derived categories
+    # that provide genuine disambiguation value. VERB entries from lsj9 are
+    # heuristic-based (ending detection) and less reliable.
+    target_pos = {"NOUN", "ADJ"}
+    hw_pos_filtered = {hw: upos for hw, upos in join_headword_pos(headword_pos).items()
+                       if upos in target_pos}
+    pos_lookup: dict[str, dict[str, str]] = {}
+    for form, lemma in ag_lookup.items():
+        if has_hyphen(form) or hyphenated_lemma(lemma):
+            continue
+        lemma_clean = _strip_length_marks(lemma)
+        upos = hw_pos_filtered.get(lemma_clean)
+        if not upos:
+            continue
+        pos_lookup.setdefault(form, {})[upos] = lemma_clean
+        plain = _strip_diacritics(form)
+        if plain != form:
+            pos_lookup.setdefault(plain, {})[upos] = lemma_clean
+    return pos_lookup
+
+
+def main(argv=None):
+    global AG_LOOKUP_PATH, HEADWORD_POS_PATH, OUTPUT_PATH
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--lsj9-dir", type=Path, default=None,
+                        help="LSJ9 export directory (default: $DILEMMA_LSJ9_DIR, "
+                             "else ~/Documents/lsj9)")
+    parser.add_argument("--ag-lookup", type=Path, default=None)
+    parser.add_argument("--output", type=Path, default=None)
+    args = parser.parse_args(argv)
+    if args.lsj9_dir:
+        HEADWORD_POS_PATH = args.lsj9_dir / "lsj9_headword_pos.json"
+    AG_LOOKUP_PATH = args.ag_lookup or AG_LOOKUP_PATH
+    OUTPUT_PATH = args.output or OUTPUT_PATH
     print("Building lsj9_pos_lookup.json")
 
     # Load headword -> UPOS mapping from lsj9
@@ -52,13 +130,6 @@ def main():
         headword_pos = json.load(f)
     print(f"  Loaded {len(headword_pos):,} headword POS entries")
 
-    # Only include NOUN and ADJ - these are the grammar-derived categories
-    # that provide genuine disambiguation value. VERB entries from lsj9 are
-    # heuristic-based (ending detection) and less reliable.
-    target_pos = {"NOUN", "ADJ"}
-    hw_pos_filtered = {hw: upos for hw, upos in headword_pos.items()
-                       if upos in target_pos}
-    print(f"  Filtered to {len(hw_pos_filtered):,} NOUN/ADJ headwords")
 
     # Load ag_lookup (form -> headword)
     if not AG_LOOKUP_PATH.exists():
@@ -69,26 +140,7 @@ def main():
         ag_lookup = json.load(f)
     print(f"  Loaded {len(ag_lookup):,} ag_lookup entries")
 
-    # Build reverse index: headword -> set of forms
-    # Then for headwords with known POS, create POS lookup entries
-    pos_lookup = {}
-    for form, lemma in ag_lookup.items():
-        lemma_clean = _strip_length_marks(lemma)
-        upos = hw_pos_filtered.get(lemma_clean)
-        if not upos:
-            continue
-
-        # Add accented form
-        if form not in pos_lookup:
-            pos_lookup[form] = {}
-        pos_lookup[form][upos] = lemma_clean
-
-        # Add accent-stripped form
-        plain = _strip_diacritics(form)
-        if plain != form:
-            if plain not in pos_lookup:
-                pos_lookup[plain] = {}
-            pos_lookup[plain][upos] = lemma_clean
+    pos_lookup = build(ag_lookup, headword_pos)
 
     # Save
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
