@@ -1453,3 +1453,37 @@ Restored rows carry the `wiktionary_grc` source, and each one is listed in
 rule needs no input beyond those the build already reads. Without
 `glaux_pairs.json` it restores only the Wiktionary heads the base reads as
 themselves, and says so.
+
+The inflected forms follow (`restore_displaced_paradigm_forms`, #147). A form
+takes the head where GLAUx reads it as the head more often than as any other
+lemma, or has no token of it, and:
+
+- the base reads it as a restored head and the merged table as the lemma that
+  head was taken from, with GLAUx no less often for the head (`κλαίειν`
+  `κλαίω`, was `κλείω`; `ἕπεται` `ἕπομαι`, was `ἕπω`);
+- it is lowercase and reads as the capitalized twin of a restored lowercase
+  head, with at least two GLAUx tokens for the head and more than for the
+  name (`ἔρωτα` `ἔρως`, 581 tokens; `Ἔρωτα` stays `Ἔρως`);
+- or the base reads it as a listed head that reads itself (in the table or in
+  the base), GLAUx has at least two tokens for that head and at least five
+  times as many as for the merged reading, and the merged reading is no lemma
+  convention: `πλευρᾶς` `πλευρά` (was `πλευρόν`), `οἰκιῶν` `οἰκία` (was
+  `οἰκίον`), `εἴσεται` `οἶδα` (was `εἶμι`).
+
+The conventions kept (`reading_convention`) are a form with an entry of its
+own (`ἡμέρας`, `δίκην`, `καλόν`, `πλείονα` `πλείων`), the name and the word
+of one spelling (`ἴριδος` `ἶρις`), two spellings of one citation form
+(`ῥᾳθυμίαν` `ῥᾳθυμία`), the compounds of `εἶμι` (`εἰσιέναι` `εἴσειμι`) and the
+middle and active citation forms of one verb (`τιτύσκετο` `τιτύσκω`). A form
+Wiktionary defines in an entry of its own is left to the head rule, and the
+looser keys of a restored form follow it as a head's do. Each restored key is
+listed in `citation_hygiene_rejections.tsv` with the reason
+`displaced_paradigm_form_restored_to_<head>`.
+
+AGDT pairs are validated against the same headword lists as GLAUx and
+Diorisis pairs (#147). A lemma no list has, or a reviewed non-lemma, is not
+used (`Κῦρόν` under the Beta Code `ξψρυς`, `Σκιπίωνα` under `Σκιπιων`); a
+capitalized lemma whose lowercase spelling alone is listed is read in
+lowercase; a preverb lemma joined to a listed compound is kept. A dropped pair
+that would have filled a gap is listed with the reason
+`corpus_lemma_not_a_headword`.

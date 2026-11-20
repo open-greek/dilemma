@@ -128,6 +128,7 @@ def test_reviewed_readings_are_well_formed():
     # not an apostrophe or U+2019), and a reading is a plain Greek word.
     elision = "\u1fbd"
     for record in (B.REVIEWED_TREEBANK_READINGS,
+                   B.REVIEWED_LOOKUP_READINGS,
                    B.REVIEWED_ABSENT_KEY_READINGS,
                    B.MODERN_READING_OVERRIDES):
         for key, lemma in record.items():
