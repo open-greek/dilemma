@@ -4644,9 +4644,10 @@ class Dilemma:
           a conflicting part of speech (νὰ as νή when a conjunction is
           requested, κυροῦ as the verb κυρόω when a noun is). For an
           open-class tag the Ancient side must also not know the spelling
-          itself (as a headword, or as an accented key of the Ancient POS
-          tables), so a mistagged Ancient form keeps its lemma (ὄντων ADJ
-          stays εἰμί);
+          itself (as a headword, an accented key of the Ancient POS
+          tables or an exact row of the Ancient lookup), so a mistagged
+          Ancient form keeps its lemma (ὄντων ADJ stays εἰμί, ἑπόμενός ADJ
+          ἕπομαι);
         * a reading with no recorded part of speech, of a spelling the
           Ancient side does not know, that was found only by discarding
           the form's accents while the Modern reading is recorded for
@@ -4705,7 +4706,11 @@ class Dilemma:
         known = headword or any(table.get(variant) for variant in accented)
         closed_class = upos in self._CLOSED_CLASS_TAGS
         if tags:
-            return closed_class or not known
+            # An exact Ancient row of the spelling is as good as a POS key:
+            # the treebank table leaves out votes the lookup already gives,
+            # so ἑπόμενός has a row and no cell, and ADJ keeps ἕπομαι.
+            return closed_class or not (
+                known or self._ancient_lookup_has_spelling(word))
         if name_only:
             return True
         if known:

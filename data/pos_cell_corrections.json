@@ -1613,16 +1613,6 @@
    "issue": 151
   },
   {
-   "table": "lsj9",
-   "form": "γος",
-   "upos": "NOUN",
-   "target": "σμῶδιξ",
-   "action": "drop",
-   "reason": "The end of a genitive, not a word. γος is rejected as a lemma because its rows are line-break fragments, and this cell still answered a tagged γος with an unrelated noun.",
-   "evidence": "lsj9_forms.tsv: σμῶδιξ ἡ, genitive ιγγος; no LSJ, DGE or Wiktionary head γος; form_profile and GLAUx show γος only as the end of divided words such as λό γος.",
-   "issue": 152
-  },
-  {
    "table": "ag",
    "form": "Δάν",
    "upos": "PROPN",

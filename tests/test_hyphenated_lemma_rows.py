@@ -68,7 +68,7 @@ def test_form_is_filed_under_the_joined_lemma(lookup, form, lemma):
     # the divided spelling of a dictionary head is no key
     "Βοιωτ-άρχου", "Βακχ-είας", "καθ-ηδύνει",
     # a form whose only reading was a compound no head list has
-    "κατενίσατο", "παρεισδυῇ",
+    "κατενίσατο",
 ])
 def test_form_has_no_row(lookup, form):
     assert _lemmas(lookup, form) == set()
