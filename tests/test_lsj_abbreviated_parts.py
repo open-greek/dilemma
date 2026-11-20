@@ -71,3 +71,13 @@ def test_a_full_form_outranks_an_abbreviation():
     parts = expand_lsj.merged_principal_parts(
         "σαλπίζω", "fut. -ιῶ: aor. ἐσάλπιγξα", "fut. σαλπίσω")
     assert parts["fut"] == nfc("σαλπίσω")
+
+
+def test_the_inference_reads_the_full_forms_alone():
+    # The verb pass infers the other tenses from these parts; a part
+    # written out from an abbreviation does not stop it.
+    text = "fut. -ιῶ: aor. ἐσάλπιγξα"
+    assert expand_lsj.merged_principal_parts(
+        "σαλπίζω", text, abbreviations=False) == {"aor": nfc("ἐσάλπιγξα")}
+    assert expand_lsj.merged_principal_parts(
+        "σκορπίζω", "fut. -ιῶ: scatter", abbreviations=False) == {}

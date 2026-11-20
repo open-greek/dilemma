@@ -1241,7 +1241,8 @@ _AORIST_PART_KEYS = frozenset({"aor", "aor1", "aor2"})
 
 
 def merged_principal_parts(headword: str, head_text: str,
-                           supplement_text: str = "") -> dict[str, str]:
+                           supplement_text: str = "",
+                           abbreviations: bool = True) -> dict[str, str]:
     """Principal parts of the entry text, completed from the supplement.
 
     Every part the current text gives stands. The earlier export adds only
@@ -1258,8 +1259,11 @@ def merged_principal_parts(headword: str, head_text: str,
     from the headword (``expand_abbreviation``), but only for a tense that
     neither text prints in full: σαλπίζω keeps σαλπίσω, which the text
     prints after "fut. -ιῶ". The aorists again count as one tense.
+    ``abbreviations=False`` gives the parts printed in full alone.
     """
     parts = _merged_parts(headword, head_text, supplement_text, False)
+    if not abbreviations:
+        return parts
     expanded = _merged_parts(headword, head_text, supplement_text, True)
     aorists = any(key in _AORIST_PART_KEYS for key in parts)
     for key, form in expanded.items():
@@ -2778,7 +2782,11 @@ def expand_verbs(corpus_checks: bool = True):
                 wtp, hw, head_text, supplement_text) if corpus_checks
                 else set())
             deferred.append((extra, hw_clean, derived))
-        inferable.append((hw, hw_clean, all_parts))
+        # The parts written out from an abbreviation are no evidence for
+        # the other tenses: they neither stop the inference (ὑπηγόρευσα of
+        # ὑπαγορεύω beside "pf. -είρηκα") nor stand for the simplex.
+        inferable.append((hw, hw_clean, all_parts, merged_principal_parts(
+            hw, head_text, supplement_text, abbreviations=False)))
 
         if (i + 1) % 500 == 0:
             elapsed = time.time() - t0
@@ -2808,13 +2816,13 @@ def expand_verbs(corpus_checks: bool = True):
             if simplex not in simplex_parts:
                 simplex_parts[simplex] = merged_principal_parts(
                     simplex, find_head_text(simplex),
-                    find_supplement_text(simplex))
+                    find_supplement_text(simplex), abbreviations=False)
             return simplex_parts[simplex]
 
         heads = set(lsj_entries) | set(wikt)
         claims: dict[str, set[str]] = {}
         inferred_from: dict[str, tuple[str, str]] = {}
-        for hw, hw_clean, own_parts in inferable:
+        for hw, hw_clean, _, own_parts in inferable:
             kind, source, variants = inferred_part_sets(
                 hw, own_parts, verbs, parts_of)
             if not variants:
@@ -2904,7 +2912,7 @@ def expand_verbs(corpus_checks: bool = True):
         left_to_nominal = []
         printed_by_verb = {hw_clean: {strip_length_marks(form)
                                       for form in parts.values()}
-                           for _, hw_clean, parts in inferable}
+                           for _, hw_clean, parts, _ in inferable}
 
         def part_headword(form, hw_clean):
             """The LSJ head a printed cell goes to: a principal part that
