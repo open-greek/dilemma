@@ -22,6 +22,7 @@ cannot satisfy yet.
     python scripts/hf_data.py check      # local vs manifest vs Hub (pre-push hook)
     python scripts/hf_data.py wait       # CI: block until the Hub serves the manifest
     python scripts/hf_data.py verify     # CI: downloaded bytes vs the manifest
+    python scripts/hf_data.py pin-tagger # pin the tagger weights of TAGGER_WEIGHTS_REV
 
 `python -m dilemma download` serves every file under data/ and model/, not
 only what CI downloads, so the manifest has a second list (`pinned_only`, the
@@ -29,9 +30,18 @@ PINNED_ONLY list below) for the files that builds and tools read: `push`,
 `check` and `wait` cover it, `files` and `verify` do not, because CI does not
 download those files. `check` also lists what the Hub serves and fails on a
 file that is in neither list (#140).
+
+The tagger weights under tagger/ come from one Hub revision, the
+TAGGER_WEIGHTS_REV of dilemma/tagger/_revisions.py: both `python -m dilemma
+download` and the tagger's own fallback download fetch that commit, not the
+head of the repository. The manifest's third section (`tagger`) records the
+revision and the sha256 of each file there (TAGGER below); `pin-tagger`
+writes it from the Hub, and `check` fails when the section and the code name
+different revisions or the Hub serves other bytes at it (#149).
 """
 
 import argparse
+import ast
 import hashlib
 import json
 import sys
@@ -211,6 +221,28 @@ PINNED_ONLY = [
     "model/grc-s3/heads.npz",
 ]
 
+# The tagger weights `python -m dilemma download` and dilemma.tagger fetch,
+# at the revision TAGGER_WEIGHTS_REV (dilemma/tagger/_revisions.py) names. The
+# weights are trained and uploaded outside this repository; `push` never
+# uploads them. `pin-tagger` records their bytes at that revision under the
+# manifest's `tagger` section and `check` compares the Hub with it (#149).
+TAGGER = [
+    "tagger/el/mwt.json",
+    "tagger/el/tagger.onnx",
+    "tagger/el/tagger_labels.json",
+    "tagger/el/tokenizer/tokenizer.json",
+    "tagger/el/tokenizer/tokenizer_config.json",
+    "tagger/grc/tagger.onnx",
+    "tagger/grc/tagger_labels.json",
+    # The training checkpoint the grc weights were exported from; the
+    # download serves it, the runtime does not read it.
+    "tagger/grc/tagger_model.pt",
+    "tagger/grc/tokenizer/tokenizer.json",
+    "tagger/grc/tokenizer/tokenizer_config.json",
+]
+TAGGER_PREFIX = "tagger/"
+REVISIONS_PATH = ROOT / "dilemma" / "tagger" / "_revisions.py"
+
 # What `python -m dilemma download` fetches from the repository: the include
 # patterns of dilemma/_download.py (tests/test_hf_manifest.py keeps the two
 # in step).
@@ -222,8 +254,6 @@ SERVED_PREFIXES = ("data/", "model/", "tagger/")
 UNPINNED = {
     "data/kaikki_inputs/": "dated source archives, pinned by Hub revision and "
                            "sha256 in data/kaikki_inputs.json",
-    "tagger/": "tagger weights, fetched by a separate download step into "
-               "another directory layout; not pinned here",
 }
 
 _CHUNK = 1 << 20
@@ -287,11 +317,29 @@ def local_pinned_only_entries() -> dict:
     return out
 
 
+def tagger_revision() -> str:
+    """TAGGER_WEIGHTS_REV, read from the source without importing the tagger."""
+    tree = ast.parse(REVISIONS_PATH.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                getattr(t, "id", None) == "TAGGER_WEIGHTS_REV" for t in node.targets):
+            return ast.literal_eval(node.value)
+    sys.exit(f"no TAGGER_WEIGHTS_REV in {REVISIONS_PATH}")
+
+
+def tagger_pins() -> dict:
+    """The manifest's `tagger` section: {revision, files}; empty if absent."""
+    if not MANIFEST_PATH.exists():
+        return {}
+    return load_manifest().get("tagger", {})
+
+
 def write_manifest(files: dict, pinned_only: dict | None = None, *,
-                   previous: dict | None = None) -> bool:
+                   previous: dict | None = None, tagger: dict | None = None) -> bool:
     """Write the manifest; keep `generated` when nothing actually changed.
 
-    `pinned_only=None` keeps the pins of that list as the manifest has them.
+    `pinned_only=None` keeps the pins of that list as the manifest has them,
+    and `tagger=None` the tagger section.
     """
     old = previous if previous is not None else (
         json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
@@ -299,22 +347,28 @@ def write_manifest(files: dict, pinned_only: dict | None = None, *,
     )
     if pinned_only is None:
         pinned_only = old.get("pinned_only", {})
+    if tagger is None:
+        tagger = old.get("tagger", {})
     if old.get("files") == files and old.get("repo") == REPO \
-            and old.get("pinned_only", {}) == pinned_only:
+            and old.get("pinned_only", {}) == pinned_only \
+            and old.get("tagger", {}) == tagger:
         return False
     doc = {
         "_comment": (
-            "sha256 of every artifact CI downloads from the Hub (files) and of "
+            "sha256 of every artifact CI downloads from the Hub (files), of "
             "the other files the Hub serves that builds and tools read "
-            "(pinned_only). Rewritten by scripts/hf_data.py push; CI waits for "
-            "the Hub to serve these exact bytes (hf_data.py wait) before "
-            "running tests."
+            "(pinned_only), and of the tagger weights at the revision the "
+            "tagger pins (tagger). Rewritten by scripts/hf_data.py push and "
+            "pin-tagger; CI waits for the Hub to serve these exact bytes "
+            "(hf_data.py wait) before running tests."
         ),
         "repo": REPO,
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "files": files,
         "pinned_only": pinned_only,
     }
+    if tagger:
+        doc["tagger"] = tagger
     MANIFEST_PATH.write_text(
         json.dumps(doc, indent=2, sort_keys=False) + "\n", encoding="utf-8")
     return True
@@ -332,13 +386,16 @@ def local_entries(paths: list[str]) -> dict:
 
 # --- Hub -------------------------------------------------------------------
 
-def hub_entries(paths: list[str]) -> dict:
-    """path -> {size, sha256|None, git_sha1, last_commit}; missing paths omitted."""
+def hub_entries(paths: list[str], revision: str | None = None) -> dict:
+    """path -> {size, sha256|None, git_sha1, last_commit}; missing paths omitted.
+
+    `revision=None` reads the head of the repository."""
     try:
         from huggingface_hub import HfApi
     except ImportError:
         sys.exit("huggingface_hub is required: pip install huggingface_hub")
-    infos = HfApi().get_paths_info(REPO, paths=paths, expand=True)
+    infos = HfApi().get_paths_info(REPO, paths=paths, expand=True,
+                                   revision=revision)
     out = {}
     for info in infos:
         if not hasattr(info, "size"):  # a folder
@@ -352,21 +409,32 @@ def hub_entries(paths: list[str]) -> dict:
     return out
 
 
-def hub_served_paths() -> list[str]:
-    """Every file of the repository that `python -m dilemma download` serves."""
+def hub_tree(revision: str | None = None, path: str | None = None) -> list[str]:
+    """Every file path of the repository (under `path`) at `revision`."""
     try:
         from huggingface_hub import HfApi
     except ImportError:
         sys.exit("huggingface_hub is required: pip install huggingface_hub")
     return sorted(
-        entry.path for entry in HfApi().list_repo_tree(REPO, recursive=True)
-        if hasattr(entry, "size") and entry.path.startswith(SERVED_PREFIXES))
+        entry.path for entry in HfApi().list_repo_tree(
+            REPO, path_in_repo=path, recursive=True, revision=revision)
+        if hasattr(entry, "size"))
+
+
+def hub_served_paths(tagger_rev: str | None = None) -> list[str]:
+    """Every file of the repository that `python -m dilemma download` serves:
+    data/ and model/ at the head, tagger/ at the tagger's pinned revision."""
+    served = [p for p in hub_tree() if p.startswith(SERVED_PREFIXES)
+              and not p.startswith(TAGGER_PREFIX)]
+    if tagger_rev:
+        served += hub_tree(tagger_rev, TAGGER_PREFIX.rstrip("/"))
+    return sorted(served)
 
 
 def unpinned_served(served, pinned=None) -> list[str]:
     """Served paths with no pin: in neither list and under no UNPINNED prefix."""
     if pinned is None:
-        pinned = set(TRACKED) | set(PINNED_ONLY)
+        pinned = set(TRACKED) | set(PINNED_ONLY) | set(TAGGER)
     return sorted(
         path for path in served
         if path.startswith(SERVED_PREFIXES) and path not in pinned
@@ -441,6 +509,51 @@ def cmd_push(args) -> int:
     return 0
 
 
+def cmd_pin_tagger(args) -> int:
+    """Pin the tagger weights at TAGGER_WEIGHTS_REV from the Hub's metadata.
+
+    The Hub reports the sha256 of an LFS file; a small file stored as a git
+    object is downloaded at that revision and hashed."""
+    rev = tagger_revision()
+    listed = hub_tree(rev, TAGGER_PREFIX.rstrip("/"))
+    if listed != sorted(TAGGER):
+        print(f"the Hub's tagger/ at {rev[:12]} is not the TAGGER list:\n"
+              f"  only on the Hub: {sorted(set(listed) - set(TAGGER))}\n"
+              f"  only in TAGGER: {sorted(set(TAGGER) - set(listed))}\n"
+              f"update TAGGER in {Path(__file__).name} first", file=sys.stderr)
+        return 1
+    hub = hub_entries(TAGGER, revision=rev)
+    files = {}
+    for rel in TAGGER:
+        have = hub[rel]
+        sha = have["sha256"]
+        if sha is None:
+            from huggingface_hub import hf_hub_download
+            sha = file_hashes(Path(hf_hub_download(REPO, rel, revision=rev)))["sha256"]
+        files[rel] = {"size": have["size"], "sha256": sha, "git_sha1": have["git_sha1"]}
+    old = load_manifest()
+    changed = write_manifest(old["files"], old.get("pinned_only", {}),
+                             tagger={"revision": rev, "files": files})
+    print(f"{MANIFEST_PATH.relative_to(ROOT)}: tagger weights at {rev[:12]} "
+          f"{'pinned - commit it' if changed else 'already pinned'}")
+    return 0
+
+
+def tagger_problems() -> list[str]:
+    """Local checks of the tagger section: the code's revision, every file."""
+    pins = tagger_pins()
+    rev = tagger_revision()
+    if pins.get("revision") != rev:
+        return [f"the manifest pins the tagger weights at "
+                f"{str(pins.get('revision'))[:12]}, the tagger downloads {rev[:12]}"]
+    missing = [rel for rel in TAGGER if rel not in pins.get("files", {})]
+    extra = [rel for rel in pins.get("files", {}) if rel not in TAGGER]
+    if missing or extra:
+        return [f"the tagger pins are not the TAGGER list "
+                f"(missing {missing}, extra {extra})"]
+    return []
+
+
 def cmd_check(args) -> int:
     want = pinned_entries()
     missing = [rel for rel in TRACKED + PINNED_ONLY if rel not in want]
@@ -450,6 +563,13 @@ def cmd_check(args) -> int:
               f"(from a checkout that has the files: push pins what it finds)",
               file=sys.stderr)
         return 1
+    bad_tagger = tagger_problems()
+    if bad_tagger:
+        for p in bad_tagger:
+            print(f"  ! {p}", file=sys.stderr)
+        print("run: python scripts/hf_data.py pin-tagger", file=sys.stderr)
+        return 1
+    tagger = tagger_pins()
 
     problems = []
     for rel, entry in want.items():
@@ -467,7 +587,9 @@ def cmd_check(args) -> int:
 
     try:
         hub = hub_entries(list(want))
-        served = hub_served_paths()
+        hub_tagger = hub_entries(TAGGER, revision=tagger["revision"])
+        head_tagger = hub_entries(TAGGER)
+        served = hub_served_paths(tagger["revision"])
     except Exception as e:  # offline, rate limited, no token: don't block work
         print(f"  ? could not reach the Hub ({e}); skipping the remote check")
         return 0
@@ -479,6 +601,20 @@ def cmd_check(args) -> int:
         print("CI and installs download from the Hub, so pushing now ships stale data.\n"
               "run: python scripts/hf_data.py push", file=sys.stderr)
         return 1
+    wrong = [rel for rel, entry in tagger["files"].items()
+             if not hub_matches(entry, hub_tagger.get(rel))]
+    if wrong:
+        for rel in wrong:
+            print(f"  ! {rel}: the Hub serves other bytes at the tagger revision "
+                  f"{tagger['revision'][:12]}", file=sys.stderr)
+        print("run: python scripts/hf_data.py pin-tagger", file=sys.stderr)
+        return 1
+    # The head of the repository may hold newer weights; downloads take the
+    # pinned revision, so that is a note for whoever moves the pin.
+    for rel, entry in tagger["files"].items():
+        if not hub_matches(entry, head_tagger.get(rel)):
+            print(f"  ~ {rel}: the Hub's head has other bytes than the pinned "
+                  f"tagger revision {tagger['revision'][:12]} (not downloaded)")
     unpinned = unpinned_served(served)
     if unpinned:
         for rel in unpinned:
@@ -488,7 +624,8 @@ def cmd_check(args) -> int:
               f"{Path(__file__).name} and run push, or delete it\nfrom the Hub.",
               file=sys.stderr)
         return 1
-    print(f"  = Hub matches the manifest ({len(want)} artifacts); every other "
+    print(f"  = Hub matches the manifest ({len(want)} artifacts, {len(TAGGER)} "
+          f"tagger files at {tagger['revision'][:12]}); every other "
           f"served file is under {' or '.join(UNPINNED)}")
     return 0
 
@@ -585,6 +722,8 @@ def main(argv=None) -> int:
     p_wait.set_defaults(fn=cmd_wait)
 
     sub.add_parser("verify", help="check downloaded bytes against the manifest").set_defaults(fn=cmd_verify)
+    sub.add_parser("pin-tagger", help="pin the tagger weights of TAGGER_WEIGHTS_REV "
+                   "from the Hub").set_defaults(fn=cmd_pin_tagger)
 
     args = parser.parse_args(argv)
     return args.fn(args)

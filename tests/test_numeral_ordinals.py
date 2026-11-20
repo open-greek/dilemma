@@ -4,6 +4,8 @@ An ordinal printed as a letter with a superscript ending, Η with ον for
 ὄγδοον, reaches the lemmatizer as Ηον. With skip_numeral_ordinals=True such a
 token gets no lemma from any entry point. Without it nothing changes.
 """
+import unicodedata
+
 import pytest
 
 from dilemma import core
@@ -93,3 +95,74 @@ def test_a_pos_correction_cannot_bring_the_lemma_back(model):
 ])
 def test_what_counts_as_an_ordinal(word, expected):
     assert core.is_numeral_ordinal(word) is expected
+
+
+# An overline (U+0305) or a macron (U+0304) marks a numeral in print, so with
+# one the letter may be lowercase too; the digamma Ϝ is the older letter for
+# 6. An overlined abbreviation such as Ση̄ is not a numeral (#152).
+MARKED = ["Η̄ον", "Ηο̄ν", "δ̄ο̄ν̄", "Γ̅ον",
+          "η̄ον", "Ϝον", "ϝ̄ον", "Θ̅ο̅ν̅"]
+NOT_MARKED_ORDINALS = ["ϝον", "Ση̄", "ση̄", "Τ̄ον",
+                       "ῑον", "Η̆ον", "Ηο̄ντα"]
+
+
+@pytest.mark.parametrize("word", MARKED)
+def test_marked_numerals_count_as_ordinals(word):
+    assert core.is_numeral_ordinal(word) is True
+
+
+@pytest.mark.parametrize("word", NOT_MARKED_ORDINALS)
+def test_other_marked_or_digamma_spellings_do_not(word):
+    assert core.is_numeral_ordinal(word) is False
+
+
+@pytest.fixture
+def marked_model(model):
+    """The ordinal model, reading every form under its letters alone."""
+    def make(flag):
+        made = model(flag)
+        bare = lambda word: "".join(
+            c for c in unicodedata.normalize("NFD", word.lower())
+            if c not in "̄̅")
+        rows = {"ηον": "εἶμι", "δον": "δίδωμι", "γον": "γόνος", "ϝον": "ὄν",
+                "θον": "λῆμμα", "ση": "σός"}
+        made._lookup_word = lambda word, **kwargs: rows.get(bare(word))
+        made._lemmatize_verbose_impl = lambda word, *args, **kwargs: [
+            core.LemmaCandidate(lemma=rows[bare(word)], source="lookup",
+                                via="exact")]
+        made.rows = rows
+        made.bare = bare
+        return made
+    return make
+
+
+@pytest.mark.parametrize("entry", ENTRY_POINTS)
+@pytest.mark.parametrize("word", MARKED)
+def test_the_flag_covers_marked_numerals(marked_model, entry, word):
+    assert ENTRY_POINTS[entry](marked_model(True), word) is None
+
+
+@pytest.mark.parametrize("entry", ENTRY_POINTS)
+@pytest.mark.parametrize("word", MARKED + ["Ση̄"])
+def test_without_the_flag_marked_spellings_keep_their_rows(
+        marked_model, entry, word):
+    made = marked_model(False)
+    assert ENTRY_POINTS[entry](made, word) == made.rows[made.bare(word)]
+
+
+@pytest.mark.parametrize("entry", ENTRY_POINTS)
+@pytest.mark.parametrize("word", ["Ση̄", "ϝον"])
+def test_the_flag_leaves_abbreviations_and_lowercase_digamma(
+        marked_model, entry, word):
+    made = marked_model(True)
+    assert ENTRY_POINTS[entry](made, word) == made.rows[made.bare(word)]
+
+
+@pytest.mark.parametrize("word", ["ΙΑον", "ΚΒον", "ΜΘον", "ΙϚον"])
+def test_two_letter_numerals_are_ordinals(word):
+    assert core.is_numeral_ordinal(word)
+
+
+@pytest.mark.parametrize("word", ["Ιον", "Κον", "Μον", "Ιαον", "ΙΚον", "ΑΙον", "Ιάον"])
+def test_tens_letter_alone_or_lowercase_units_are_not(word):
+    assert not core.is_numeral_ordinal(word)

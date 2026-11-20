@@ -36,8 +36,10 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from dilemma.citation import hyphenated_lemma
 from dilemma.form_sanitize import is_capitalized
 from dilemma.grammatical_lemmas import correct_grammatical_lemma
+from dilemma.preverb_lemma import heads_by_accent_fold, preverb_lemma_head
 
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
 OUTPUT_PATH = Path(__file__).parent.parent / "data" / "treebank_pos_lookup.json"
@@ -168,6 +170,41 @@ def _clean_lemma(lemma: str) -> bool:
     if not lemma or lemma.endswith(_JUNK_LEMMA_FINALS):
         return False
     return "̅" not in unicodedata.normalize("NFD", lemma)
+
+
+class _PreverbLemmas:
+    """Settle a lemma with a hyphen between two letters as build_lookup_db.py
+    does (#137, #149). AGDT names some compound verbs with the preverbs apart
+    (ἐπί-εἰσκομίζω, σύν-εἶδον); such a lemma is read as the compound when
+    grc_lexical_heads.json lists it (ἐπεισκομίζω, συνεῖδον), and every other
+    hyphenated lemma is no citation form and casts no vote. The counts go to
+    the audit (``hyphenated_lemmas``)."""
+
+    def __init__(self, heads):
+        self.heads = frozenset(heads)
+        self.folded = None
+        self.joined = defaultdict(lambda: defaultdict(int))
+        self.dropped = defaultdict(lambda: defaultdict(int))
+
+    def settle(self, lemma, source):
+        if not hyphenated_lemma(lemma):
+            return lemma
+        if self.folded is None:
+            self.folded = heads_by_accent_fold(self.heads)
+        head = preverb_lemma_head(lemma, self.heads, self.folded)
+        if head is None:
+            self.dropped[lemma][source] += 1
+        else:
+            self.joined[lemma][head] += 1
+        return head
+
+    def audit(self):
+        return {
+            "joined": {lemma: dict(sorted(heads.items()))
+                       for lemma, heads in sorted(self.joined.items())},
+            "dropped": {lemma: dict(sorted(sources.items()))
+                        for lemma, sources in sorted(self.dropped.items())},
+        }
 
 
 def _lexical_target_key(lemma):
@@ -637,6 +674,8 @@ def build_lookup():
     # itself be an inferred or corrupt corpus target, so it is only a second
     # gate after the merged independent lexical-head inventory.
     lexical_targets, lexical_fingerprint, listed_heads = _load_lexical_targets()
+    preverb_lemmas = _PreverbLemmas(json.loads(
+        (DATA_DIR / "grc_lexical_heads.json").read_text(encoding="utf-8"))["heads"])
     audit = {
         "schema_version": 2,
         "language": "grc",
@@ -686,6 +725,9 @@ def build_lookup():
             for form, lemma, upos in parse_conllu(f):
                 if not _clean_lemma(lemma):
                     continue
+                lemma = preverb_lemmas.settle(lemma, f"treebank/{treebank_dir.name}")
+                if lemma is None:
+                    continue
                 form_upos_lemmas[form][upos][lemma] += 1
                 _record_capital_owner(capital_owner_votes, form, lemma, upos,
                                       f"treebank/{treebank_dir.name}", 1, lexical_targets)
@@ -707,6 +749,9 @@ def build_lookup():
             audit["inputs"][f"agdt/{f.relative_to(AGDT_DIR).as_posix()}"] = _input_fingerprint(f)
             for form, lemma, upos in parse_gorman_xml(f):
                 if not _clean_lemma(lemma):
+                    continue
+                lemma = preverb_lemmas.settle(lemma, "agdt")
+                if lemma is None:
                     continue
                 form_upos_lemmas[form][upos][lemma] += 1
                 _record_capital_owner(capital_owner_votes, form, lemma, upos,
@@ -761,6 +806,9 @@ def build_lookup():
             if not form or not lemma or not upos:
                 continue
             if not _clean_lemma(lemma):
+                continue
+            lemma = preverb_lemmas.settle(lemma, src)
+            if lemma is None:
                 continue
             # Distinct morphological readings may share one POS edge.
             # They preserve source ambiguity, not independent votes.
@@ -904,6 +952,10 @@ def build_lookup():
 
     # Sort for stable output
     lookup = dict(sorted(lookup.items()))
+    audit["hyphenated_lemmas"] = preverb_lemmas.audit()
+    print(f"Hyphenated source lemmas joined to a listed compound: "
+          f"{sum(sum(h.values()) for h in preverb_lemmas.joined.values()):,} votes, "
+          f"dropped: {sum(sum(s.values()) for s in preverb_lemmas.dropped.values()):,}")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:

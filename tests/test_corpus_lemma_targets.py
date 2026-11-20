@@ -148,3 +148,50 @@ def test_heads_without_positive_sources_cannot_authorize_a_target(inputs):
         {"form": "δοκιμή", "lemma": "ἄγω", "pos": "verb"},
     ]}, {"λόγος": ["lsj9_headwords"], "ἄγω": []})
     assert build.build_lookup() == {}
+
+
+# --- lemmas with the preverbs apart (#149) -----------------------------------
+
+def _agdt(tmp_path, words):
+    texts = tmp_path / "agdt" / "v2.1" / "Greek" / "texts"
+    texts.mkdir(parents=True)
+    body = "".join(
+        f'<word id="{i}" form="{form}" lemma="{lemma}" postag="{tag}"/>'
+        for i, (form, lemma, tag) in enumerate(words, 1))
+    (texts / "tlg9999.tlg001.perseus-grc1.tb.xml").write_text(
+        f"<treebank><sentence>{body}</sentence></treebank>", encoding="utf-8")
+    return tmp_path / "agdt"
+
+
+def test_agdt_preverb_lemma_votes_for_the_listed_compound(inputs, tmp_path,
+                                                         monkeypatch):
+    monkeypatch.setattr(build, "AGDT_DIR", _agdt(tmp_path, [
+        ("συνιδὼν", "σύν-εἶδον", "v-sapamn-"),
+        ("συνιδὼν", "σύνοιδα", "n-s---mn-"),
+        ("ἐνεχείρει", "ἐν-χειρέω", "v3siia---"),
+        ("ἐνεχείρει", "ἐνεχείρει", "n-s---mn-"),
+        ("αὐτὸς", "αὐ-τός", "p-s---mn-"),     # line-broken token: no vote
+        ("αὐτὸς", "αὐτός", "a-s---mn-"),
+    ]))
+    inputs({}, {"συνεῖδον": ["lsj9_headwords"], "ἐγχειρέω": ["lsj9_headwords"],
+                "σύνοιδα": ["lsj9_headwords"], "αὐτός": ["lsj9_headwords"]})
+    result = build.build_lookup()
+    assert result["συνιδὼν"]["VERB"] == "συνεῖδον"
+    assert result["ἐνεχείρει"]["VERB"] == "ἐγχειρέω"
+    assert "αὐτὸς" not in result      # one reading left: not ambiguous
+    audit = json.loads(build.OUTPUT_PATH.with_suffix(".audit.json").read_text())
+    assert audit["hyphenated_lemmas"] == {
+        "joined": {"σύν-εἶδον": {"συνεῖδον": 1}, "ἐν-χειρέω": {"ἐγχειρέω": 1}},
+        "dropped": {"αὐ-τός": {"agdt": 1}},
+    }
+
+
+def test_corpus_preverb_lemma_is_joined_before_the_target_check(inputs):
+    inputs({"glaux": [
+        {"form": "ἐπεισεκόμισαν", "lemma": "ἐπί-εἰσκομίζω", "pos": "verb"},
+        {"form": "ἐπεισεκόμισαν", "lemma": "ἐπεισκόμισις", "pos": "noun"},
+    ]}, {"ἐπεισκομίζω": ["lsj9_headwords"], "ἐπεισκόμισις": ["lsj9_headwords"]})
+    with sqlite3.connect(build.LOOKUP_DB_PATH) as db:
+        db.execute("INSERT INTO lemmas VALUES (99, 'ἐπεισκομίζω')")
+    assert build.build_lookup()["ἐπεισεκόμισαν"] == {
+        "NOUN": "ἐπεισκόμισις", "VERB": "ἐπεισκομίζω"}

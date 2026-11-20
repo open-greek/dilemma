@@ -1008,7 +1008,7 @@ def test_verb_step_expands_an_entry_glossed_by_an_equals_sign(tmp_path, monkeypa
         "<orth>ἀχρεύω</orth> = ἀχρειόω. Paul. Rom. 3, 12.",
         "<orth>*πιάζω</orth>, = πιέζω, to lay hold of, to seize, catch.",
         "<orth>ἐκνεωτερίξω</orth>, = νεωτερίζω strengthened. Phot. III, 680 C.",
-        # the lexicon enters these under another head
+        # a head that sends the reader to another verb is expanded too (#144)
         "<orth>ἀπάχθομαι</orth>, see ἀπέχθομαι.",
         "<orth>φαγέω</orth>, see κρεωφαγέω.",
         # no verb: a name, a dative phrase, a noun in -ώ
@@ -1017,6 +1017,32 @@ def test_verb_step_expands_an_entry_glossed_by_an_equals_sign(tmp_path, monkeypa
         "<orth>σαββώ</orth>, = σάββατον.",
         # already a key
         "<orth>ἐπιμορφάζω</orth>, = μορφάζω.")
-    assert calls == ["ἀκρατεύω", "ἀνακοσμοποιέω", "ἀχρεύω", "πιάζω", "ἐκνεωτερίζω"]
+    assert calls == ["ἀκρατεύω", "ἀνακοσμοποιέω", "ἀχρεύω", "πιάζω", "ἐκνεωτερίζω",
+                     "ἀπάχθομαι", "φαγέω"]
     assert lookup["ἀνακοσμοποιέω"] == "ἀνακοσμοποιέω"
-    assert "ἀπάχθομαι" not in lookup and "Ἰεύω" not in lookup
+    assert lookup["ἀπάχθομαι"] == "ἀπάχθομαι" and "Ἰεύω" not in lookup
+
+
+def test_verb_step_expands_a_see_reference_to_another_verb(tmp_path, monkeypatch):
+    # The lexicon prints the spelling as a head and sends the reader to the
+    # verb's other spelling (#144). A reference to a word that is no verb
+    # citation form is no evidence that the head is a verb.
+    lookup, calls = run_verb_step(
+        tmp_path, monkeypatch, {},
+        "<orth>ἀναστάζω</orth>, see ἀνστάζω.",
+        "<orth>ὑφέλλω</orth>, see ὑφείλω.",
+        "<orth>εἰδέτω</orth>, see οἶδα.",
+        "<orth>ἀπεσθέομαι</orth>, see ἀπησθημένος.",
+        "<orth>ἀκρατεύω</orth>, = ἀκρατεύομαι.",
+        heads={})
+    assert sorted(calls) == sorted(["ἀκρατεύω", "ἀναστάζω", "ὑφέλλω"])
+
+
+def test_see_reference_names_its_target(tmp_path, monkeypatch):
+    entries, _ = parse(tmp_path, monkeypatch,
+                       "<orth>φαγέω</orth>, see κρεωφαγέω.",
+                       "<orth>ἀνακοσμοποιέω</orth>, = preceding.")
+    assert entries["φαγέω"]["xref"] == "see"
+    assert entries["φαγέω"]["xref_target"] == "κρεωφαγέω"
+    assert entries["ἀνακοσμοποιέω"]["xref"] == "equals"
+    assert entries["ἀνακοσμοποιέω"]["xref_target"] == ""

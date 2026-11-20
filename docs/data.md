@@ -806,6 +806,82 @@ third-declension table that the pinned expansion gave an adjective
 (`αὐτοσύστατι` under `αὐτοσύστατος`) is not removed; the generator only
 adds the keys that were absent.
 
+From 1.3.29 the list and the selection take in more words (#146, #144):
+
+- **Sophocles' adjectives.** `find_grc_second_declension.py` also reads the
+  endings of the Sophocles lexicon's entries (`θεοτήρητος, ον`;
+  `θεαρχικός, ή, όν`) with `build/expand_sophocles.py`'s parser, after its
+  head rules, which read a capitalized head that the other dictionaries list
+  in lowercase as the common word. A `ον` that the OCR gave for a noun's
+  genitive `ου` is followed by the noun's article (`δρόμος, ov, 6`) and is
+  not read as two endings. The record's `inputs` add the chunks and
+  `data/sophocles_head_corrections.json`.
+- **Heads that read as a name.** A listed lowercase lemma whose key reads as
+  the capitalized name of the same spelling (`ἐπάρατος`, `Ἐπάρατος`) is
+  declined in lowercase: a lexicon lists the adjective, and the name keeps
+  its key and every capitalized form.
+- **s-stem adjectives from a lexicon class.** `build/find_grc_es_adjectives.py
+  --lsj9-dir DIR` writes `data/grc_es_adjectives.json`: the plain `-ής` and
+  `-ης` headwords whose LSJ 9 entry gives the neuter `ές` or `ες` (or that
+  the LSJ POS table tags ADJ), whose Sophocles entry gives it
+  (`βληχηματώδης, ες`), or that the Byzantine list gives without an article
+  (except heads in `-της`, most of which are masculine nouns of the first
+  declension). A head that any source gives an article is left out. A listed
+  lemma gets its contracted cells without an `-έος` row. A barytone accented
+  on the syllable before `-ης` keeps its accent (`συνήθους`, `συνήθεσι`); its
+  neuter singular is not generated, since the accent recedes (`σύνηθες`)
+  except in some compounds (`εὐῶδες`), and its genitive plural is given
+  both ways (`συνήθων`, `συνηθῶν`).
+- **Cells beside a verb form.** A cell whose accentless key reads as a verb
+  is let in when the texts attest its own spelling more often than every
+  spelling of the verb with the same letters and the annotated texts do not
+  tag it a verb (`grc_os_gaps.cells_beside_a_verb`): `θεοφόροις` reads
+  `θεοφόρος`, beside the optative `θεοφοροῖς`; `παραίνων` (66 tokens) keeps
+  the participle `παραινῶν`, which the texts have far more often.
+
+### Comparatives and superlatives
+
+The degree forms in the lookup come from Wiktionary tables and the corpus
+pairs (`σοφώτερος`, `εἰδικώτερον`), so an adjective with neither had none:
+`ὁλικωτάτων` and `ὁλικωτέρα` had no reading (#152). From 1.3.29
+`build/build_grc_degree_forms.py --lsj9-dir DIR` writes
+`data/grc_degree_forms.json`, a reviewed and reproducible list of degree
+forms (`dilemma/grc_degree_forms.py`, source `grc_degree_forms`):
+
+- The adjectives are those a lexicon classes: the adjective classes of
+  `data/grc_second_declension.json`, `data/grc_ikos_adjectives.json`,
+  `data/grc_es_adjectives.json`, and LSJ 9 heads whose entry states a
+  regular comparison (`ὁλικός`: `Comp. -ώτερον`).
+- An adjective in `-ος` takes `-ότερος`, `-ότατος` after a long syllable and
+  `-ώτερος`, `-ώτατος` after a short one. The stem's last syllable is long
+  with `η`, `ω`, a diphthong, a vowel LSJ marks long, or two consonants or a
+  double consonant after it, and short with `ε`, `ο` or a vowel LSJ marks
+  short before at most one consonant; the `-ι-` of `-ιος` and `-ικός` is
+  short. An unmarked `α`, `ι` or `υ`, and a short vowel before a stop and a
+  liquid, give both formations, and the texts decide. An s-stem adjective
+  takes `-έστερος`, `-έστατος`. Where LSJ states the comparison, its
+  formation is used instead of the rule.
+- The comparative declines like an adjective in `-ος, -α, -ον`, the
+  superlative like one in `-ος, -η, -ον`, with the masculine nominative and
+  without the dual and the vocative singular. Every cell reads the positive
+  adjective, as Wiktionary and the treebanks lemmatize degree forms.
+- These are hypotheses: a cell is kept only when `form_profile.db` attests
+  its spelling (grave folded to acute, case folded), and only when no other
+  listed adjective gives the same cell (accent doublets such as
+  `εὐπρόσοδος` and `εὐπροσόδος`). The record lists every kept cell with its
+  token count and sources, and every lemma with its class evidence and the
+  evidence of its formation (`lsj9_statement`, `stem_rule_lsj9_marks`,
+  `stem_rule`); its `inputs` record the class lists, the LSJ 9 exports and
+  the `content_hash` of `form_profile.db`.
+- `build_lookup_db.py` fills absent keys only, under the accented form and
+  its lowercase, for lemmas whose key reads themselves (or the name of the
+  same spelling), by the rules of `fill_gap_cells` above. A comparative or
+  superlative whose nominative or one of whose cells already reads as
+  another lemma is another word's, and all its cells are left out
+  (`κατώτερος`, of `κάτω`, beside the Byzantine adjective `κάτος`). A Modern
+  Greek reading of the monotonic spelling of the same adjective is no other
+  reading.
+
 Verb expansion rejects source entries explicitly identified as prefixes,
 imperative forms of another verb, or defective verbs whose entry explicitly
 limits the available persons. Those restrictions preserve source-attested
@@ -936,8 +1012,23 @@ and the size and sha256 of the list before and after, so the pruned list
 plus the record reproduces the 1.3.26 file byte for byte. Nothing is added;
 4,383 of the strings have their spelling without the hyphen in the list
 already. `--check` exits 1 when the list has such a string or is not the list
-the record describes. A string with a hyphen only at an edge (`-σον`, `ὁτ-`)
-or beside a metrical sign is not touched.
+the record describes. A second step removes the 63 strings that rule leaves:
+a hyphen or dash at an edge (`-σον`, `ὁτ-`) or beside a metrical sign
+(`–⏑τατος`), or a metrical sign at all (`⏑λέων`). They are endings and
+scansion notes from a source's apparatus. The step writes
+`data/changes/ag_headwords_fragments.json` the same way; its source is the
+first record's result, so the two records chain back to the 1.3.26 file.
+
+**LSJ9 reference counts and POS table.** `data/lsj9_frequency.json` is built
+by `build/build_lsj9_frequency.py` from the LSJ9 export of the same name,
+which counts the references of each entry under the head as printed: divided
+at the stem (`ψῡχ-ή`) and with vowel-length marks (`πᾰρά`). The builder keys
+each count under the citation spelling (`ψυχή`, `παρά`) and adds the counts of
+entries that join to one spelling (`τροχός` and `τροχ-ός`);
+`data/changes/lsj9_frequency_keys.json` records the export's sha256 and every
+merge. `build/build_lsj9_pos_lookup.py` matches LSJ9's NOUN and ADJ heads
+joined in the same way against `ag_lookup.json` and reads no row whose form or
+lemma has a hyphen; it reads `ag_lookup.json`, so it runs after the overlay.
 
 **Keys a filter empties.** A key whose reading one of these filters removes
 falls to whatever lower-priority row has the same spelling, and under
@@ -1438,3 +1529,37 @@ Restored rows carry the `wiktionary_grc` source, and each one is listed in
 rule needs no input beyond those the build already reads. Without
 `glaux_pairs.json` it restores only the Wiktionary heads the base reads as
 themselves, and says so.
+
+The inflected forms follow (`restore_displaced_paradigm_forms`, #147). A form
+takes the head where GLAUx reads it as the head more often than as any other
+lemma, or has no token of it, and:
+
+- the base reads it as a restored head and the merged table as the lemma that
+  head was taken from, with GLAUx no less often for the head (`κλαίειν`
+  `κλαίω`, was `κλείω`; `ἕπεται` `ἕπομαι`, was `ἕπω`);
+- it is lowercase and reads as the capitalized twin of a restored lowercase
+  head, with at least two GLAUx tokens for the head and more than for the
+  name (`ἔρωτα` `ἔρως`, 581 tokens; `Ἔρωτα` stays `Ἔρως`);
+- or the base reads it as a listed head that reads itself (in the table or in
+  the base), GLAUx has at least two tokens for that head and at least five
+  times as many as for the merged reading, and the merged reading is no lemma
+  convention: `πλευρᾶς` `πλευρά` (was `πλευρόν`), `οἰκιῶν` `οἰκία` (was
+  `οἰκίον`), `εἴσεται` `οἶδα` (was `εἶμι`).
+
+The conventions kept (`reading_convention`) are a form with an entry of its
+own (`ἡμέρας`, `δίκην`, `καλόν`, `πλείονα` `πλείων`), the name and the word
+of one spelling (`ἴριδος` `ἶρις`), two spellings of one citation form
+(`ῥᾳθυμίαν` `ῥᾳθυμία`), the compounds of `εἶμι` (`εἰσιέναι` `εἴσειμι`) and the
+middle and active citation forms of one verb (`τιτύσκετο` `τιτύσκω`). A form
+Wiktionary defines in an entry of its own is left to the head rule, and the
+looser keys of a restored form follow it as a head's do. Each restored key is
+listed in `citation_hygiene_rejections.tsv` with the reason
+`displaced_paradigm_form_restored_to_<head>`.
+
+AGDT pairs are validated against the same headword lists as GLAUx and
+Diorisis pairs (#147). A lemma no list has, or a reviewed non-lemma, is not
+used (`Κῦρόν` under the Beta Code `ξψρυς`, `Σκιπίωνα` under `Σκιπιων`); a
+capitalized lemma whose lowercase spelling alone is listed is read in
+lowercase; a preverb lemma joined to a listed compound is kept. A dropped pair
+that would have filled a gap is listed with the reason
+`corpus_lemma_not_a_headword`.

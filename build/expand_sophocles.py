@@ -36,6 +36,7 @@ from dilemma.form_sanitize import (  # noqa: E402
     resolve_editorial_form,
     sanitize_form,
 )
+from dilemma.grc_os_gaps import is_verb_citation  # noqa: E402
 from dilemma_build.sophocles_breathing import needs_breathing  # noqa: E402
 from dilemma_build.sophocles_ocr import (  # noqa: E402
     HEAD_CORRECTIONS, corrections_sha256, greek_mu, load_head_corrections,
@@ -376,6 +377,35 @@ def adjective_endings(after_headword: str) -> str | None:
     return None
 
 
+_THREE_ENDINGS_LETTER = re.compile(r"^\s*,\s*([ηα])\s*,\s*ο?ν\b")
+
+
+def adjective_class(after_headword: str) -> str | None:
+    """The adjective class the entry's endings give, or None.
+
+    ``adjective_eta`` and ``adjective_alpha`` for three endings with the
+    feminine in -η or -α (ή, όν; ά, όν), ``adjective`` for the two endings
+    ον, and ``es`` for the s-stem neuter ες (βληχηματώδης, ες). The names
+    are those of data/grc_second_declension.json.
+    """
+    folded = _fold_ocr(after_headword[:24])
+    three = _THREE_ENDINGS_LETTER.match(folded)
+    if three:
+        return "adjective_eta" if three.group(1) == "η" else "adjective_alpha"
+    two = _TWO_ENDINGS.match(folded)
+    if two:
+        # A noun's genitive ου, which the OCR often gives as ον (δρόμος,
+        # ov, 6), is followed by its article.
+        if _ARTICLE_NEXT.match(folded[two.end():]):
+            return None
+        return "adjective" if two.group(1) == "ον" else "es"
+    return None
+
+
+# An article (folded for the OCR: ὁ, ὃ and 6 give ο) as the next field.
+_ARTICLE_NEXT = re.compile(r"^\s*[,.;]?\s*(ο|η|το|τα|οι)\b")
+
+
 def new_head_audit():
     """An empty record of one parse's head decisions (``head_rules`` in the
     noun generation audit)."""
@@ -649,7 +679,7 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
             is_adj = endings is not None
             # Check for "see X" cross-references. An adverb cited with its
             # verb is glossed as the phrase, which is no reference.
-            xref_m = re.match(r'^[,\s]*(see|v\.|=)\s', after_hw)
+            xref_m = re.match(r'^[,\s]*(see|v\.|=)\s+([^\s,.;:()]*)', after_hw)
             is_xref = xref_m is not None and rule != "adverb-idiom"
             # Check for indeclinable
             is_indecl = "indeclinable" in after_hw[:80] or "indecl" in after_hw[:80]
@@ -663,11 +693,17 @@ def parse_sophocles_entries(breathing=_DEFAULT, audit=None, corrections=_DEFAULT
                 "first_field": first_field,
                 "is_adj": is_adj,
                 "adjective_endings": endings,
+                "adjective_class": adjective_class(after_hw),
                 "is_xref": is_xref,
                 # "equals" (= a synonym, = preceding) or "see" (the entry
                 # is under another head)
                 "xref": ("" if not is_xref else
                          "equals" if xref_m.group(1) == "=" else "see"),
+                # The word the reference names ("" for none, or for
+                # "preceding" and other glosses that are no Greek word).
+                "xref_target": (
+                    unicodedata.normalize("NFC", greek_mu(xref_m.group(2)))
+                    if is_xref and is_greek(xref_m.group(2)) else ""),
                 "is_indecl": is_indecl,
             }
             # The first word as printed, whether or not it is an entry: the
@@ -1192,8 +1228,13 @@ def find_verb_candidates(entries, lookup):
 
     An entry glossed by an equals sign (ἀκρατεύω, = ἀκρατεύομαι;
     ἀνακοσμοποιέω, = preceding) is the lexicon's entry for that verb and is
-    expanded like any other. One that only sends the reader to another head
-    (ἀπάχθομαι, see ἀπέχθομαι) is not: the lexicon enters the word there.
+    expanded like any other. So is one that sends the reader to another
+    verb (ἀναστάζω, see ἀνστάζω; ὑφέλλω, see ὑφείλω): the lexicon prints
+    the spelling as a head of its own, and its forms are read under it, as
+    the forms of an entry glossed by an equals sign are. A reference to a
+    word that is no verb citation form (εἰδέτω, see οἶδα; ἀπεσθέομαι, see
+    ἀπησθημένος) is no evidence that the head is a verb, and the entry is
+    left out.
     """
     VERB_ENDINGS = ("ω", "εω", "αω", "οω", "μαι")
     candidates = []
@@ -1209,7 +1250,10 @@ def find_verb_candidates(entries, lookup):
         if entry["is_adj"] or entry["is_indecl"]:
             continue
         if entry["is_xref"] and not (
-                entry.get("xref") == "equals" and reference_is_a_verb(hw)):
+                reference_is_a_verb(hw)
+                and (entry.get("xref") == "equals"
+                     or (entry.get("xref") == "see"
+                         and is_verb_citation(entry.get("xref_target", ""))))):
             continue
         # Check verb endings
         if any(plain.endswith(e) for e in VERB_ENDINGS):

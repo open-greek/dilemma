@@ -38,6 +38,7 @@ voice from verb_subjects.json; forms and other existing fields are preserved.
 
 import argparse
 import json
+import os
 import sys
 import unicodedata
 from collections import Counter, defaultdict
@@ -73,7 +74,16 @@ VERB_EXTRA_PAIRS = DATA_DIR / "verb_extra_pairs.json"
 LSJ_VERB_PAIRS = DATA_DIR / "ag_lsj_verb_pairs.json"  # produced by expand_lsj
 LSJ_HEADWORDS_PATH = DATA_DIR / "lsj_headwords.json"
 LEXICAL_HEADS_PATH = DATA_DIR / "grc_lexical_heads.json"
-LSJ9_GLOSSES = Path.home() / "Documents" / "lsj9" / "lsj9_glosses.jsonl"
+# LSJ9 exports: ``$DILEMMA_LSJ9_DIR`` (or ``--lsj9-dir``), else ~/Documents/lsj9,
+# as in build/expand_lsj.py.
+LSJ9_GLOSSES = Path(os.environ.get("DILEMMA_LSJ9_DIR")
+                    or Path.home() / "Documents" / "lsj9") / "lsj9_glosses.jsonl"
+# The earlier export of the same glosses, which keeps the principal parts the
+# current export cuts off at the first citation (γράφω: "fut. -ψω Hdt.1.95,
+# etc.: aor. ἔγραψα, Ep." and no perfect). build/expand_lsj.py reads it the
+# same way; data/lsj9_glosses_pin.json pins both files.
+LSJ9_GLOSSES_SUPPLEMENT = LSJ9_GLOSSES.with_name("lsj9_glosses_earlier.jsonl")
+LSJ9_GLOSSES_PIN = DATA_DIR / "lsj9_glosses_pin.json"
 OUT_PATH = DATA_DIR / "ag_verb_paradigms.json"
 
 
@@ -1115,7 +1125,49 @@ def load_pairs(path: Path):
         return json.load(f)
 
 
-def load_lsj_head_texts() -> dict:
+def _verify_glosses_pin(path: Path, pin: dict) -> None:
+    import hashlib
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest != pin["sha256"] or path.stat().st_size != pin["size"]:
+        raise SystemExit(f"{path} does not match {LSJ9_GLOSSES_PIN.name} "
+                         f"(sha256 {digest[:12]}, pinned {pin['sha256'][:12]})")
+
+
+def load_lsj_supplement_head_texts() -> dict:
+    """Entry heads of the earlier glosses export the pin names, or {}."""
+    pin = json.loads(LSJ9_GLOSSES_PIN.read_text(encoding="utf-8")) \
+        if LSJ9_GLOSSES_PIN.exists() else {}
+    supplement = pin.get("principal_parts_supplement")
+    if not supplement or not LSJ9_GLOSSES_SUPPLEMENT.exists():
+        print(f"  lsj9 supplement not found at {LSJ9_GLOSSES_SUPPLEMENT}; "
+              f"principal parts from the current export only")
+        return {}
+    _verify_glosses_pin(LSJ9_GLOSSES_SUPPLEMENT, supplement)
+    return load_lsj_head_texts(LSJ9_GLOSSES_SUPPLEMENT)
+
+
+def lsj_principal_parts(lemmas) -> dict:
+    """``{headword: principal parts}`` for ``lemmas`` from the LSJ entry
+    heads, completed from the earlier export where the current one stops.
+    The merge is build/expand_lsj.py's, so both builds read the same parts;
+    a lemma without an entry head in the current export gets none."""
+    from expand_lsj import merged_principal_parts
+
+    current = load_lsj_head_texts()
+    earlier = load_lsj_supplement_head_texts() if current else {}
+    parts = {}
+    for lemma in lemmas:
+        if not current.get(lemma):
+            continue
+        try:
+            parts[lemma] = merged_principal_parts(
+                lemma, current[lemma], earlier.get(lemma, ""))
+        except Exception:
+            parts[lemma] = {}
+    return parts
+
+
+def load_lsj_head_texts(path: Path | None = None) -> dict:
     """Load the leading paragraph of every LSJ entry (the gloss without
     `level`/`number` is the entry head, which carries the principal-
     parts header before the English definition starts).
@@ -1124,13 +1176,17 @@ def load_lsj_head_texts() -> dict:
     glosses file is unavailable.
     """
     heads: dict[str, str] = {}
-    if not LSJ9_GLOSSES.exists():
-        print(f"  lsj9 glosses not found at {LSJ9_GLOSSES}; "
+    path = path or LSJ9_GLOSSES
+    if not path.exists():
+        print(f"  lsj9 glosses not found at {path}; "
               f"principal-parts synthesis disabled")
         return heads
-    print(f"  loading lsj9 head texts from {LSJ9_GLOSSES.name} ...",
+    if path == LSJ9_GLOSSES and LSJ9_GLOSSES_PIN.exists():
+        _verify_glosses_pin(path, json.loads(
+            LSJ9_GLOSSES_PIN.read_text(encoding="utf-8")))
+    print(f"  loading lsj9 head texts from {path.name} ...",
           flush=True)
-    with open(LSJ9_GLOSSES, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             try:
                 e = json.loads(line)
@@ -1274,7 +1330,7 @@ def synthesize_missing_moods(results: dict, synthesis_families: dict = None,
         print(f"  synthesis skipped (import failure: {e})")
         return 0, 0
 
-    head_texts = load_lsj_head_texts()
+    principal_parts = lsj_principal_parts(results)
     verbs_touched = 0
     cells_added = 0
     mp_cells_added = 0
@@ -1283,11 +1339,7 @@ def synthesize_missing_moods(results: dict, synthesis_families: dict = None,
     past_cells_added = 0
     cells_skipped_overlap = 0
     for lemma, paradigm in results.items():
-        head_text = head_texts.get(lemma, "")
-        try:
-            parts = parse_principal_parts(head_text, lemma) if head_text else {}
-        except Exception:
-            parts = {}
+        parts = dict(principal_parts.get(lemma, {}))
         inference_lemma, parts = synthesis_quantities(lemma, parts, principal_quantities)
         parts = parts_for_aorist_synthesis(lemma, parts)
         try:
@@ -1404,18 +1456,14 @@ def synthesize_missing_participles(results: dict, synthesis_families: dict = Non
         print(f"  participle synthesis skipped (import failure: {e})")
         return 0, 0
 
-    head_texts = load_lsj_head_texts()
+    principal_parts = lsj_principal_parts(results)
     verbs_touched = 0
     cells_added = 0
     aor2_cells_added = 0
     contract_cells_added = 0
     cells_skipped_overlap = 0
     for lemma, paradigm in results.items():
-        head_text = head_texts.get(lemma, "")
-        try:
-            parts = parse_principal_parts(head_text, lemma) if head_text else {}
-        except Exception:
-            parts = {}
+        parts = dict(principal_parts.get(lemma, {}))
         inference_lemma, parts = synthesis_quantities(lemma, parts, principal_quantities)
         try:
             templated = synthesize_participles(inference_lemma, parts)
@@ -1898,7 +1946,14 @@ def main():
                     help="output path override")
     ap.add_argument("--with-subjects", action="store_true",
                     help="attach optional source-backed verb-subject evidence")
+    ap.add_argument("--lsj9-dir", type=str, default=None,
+                    help="LSJ9 export directory holding lsj9_glosses.jsonl "
+                         "(default: $DILEMMA_LSJ9_DIR, else ~/Documents/lsj9)")
     args = ap.parse_args()
+    if args.lsj9_dir:
+        global LSJ9_GLOSSES, LSJ9_GLOSSES_SUPPLEMENT
+        LSJ9_GLOSSES = Path(args.lsj9_dir) / "lsj9_glosses.jsonl"
+        LSJ9_GLOSSES_SUPPLEMENT = Path(args.lsj9_dir) / "lsj9_glosses_earlier.jsonl"
 
     only = None
     if args.sanity:

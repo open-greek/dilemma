@@ -257,44 +257,52 @@ def test_accent_doublets_leave_their_shared_cells_to_neither():
 
 
 def test_an_accent_doublet_that_is_not_declined_keeps_shared_cells_out():
-    # εὐπρόσοδος is listed, but its headword key reads as the name, so it is
-    # not selected. Its Byzantine by-form must not take εὐπροσόδων from it.
+    # εὐπρόσοδος is listed and its headword key reads as the name: it is
+    # declined in lowercase, and its Byzantine by-form shares εὐπροσόδων
+    # with it, which neither takes. ἀπρόσοδος, whose key reads another
+    # word, is not declined, and its by-form keeps their shared cells out.
     lookup = {"εὐπρόσοδος": "Εὐπρόσοδος", "εὐπροσόδος": "εὐπροσόδος",
+              "ἀπρόσοδος": "ἄπορος", "ἀπροσόδος": "ἀπροσόδος",
               "ταχυλόγος": "ταχυλόγος", "ταχύλογος": "ταχύλογος",
               "μετωπιαῖος": "μετωπιαῖος", "μετωπιαίος": "μετωπιαίος",
               "ἔμφλογος": "ἔμφλογος", "Ἔμφλογος": "Ἔμφλογος"}
     sources = {"ταχύλογος": "vlg_headwords", "μετωπιαίος": "wiktionary_el"}
     listed = {"εὐπρόσοδος": "adjective", "εὐπροσόδος": "adjective",
+              "ἀπρόσοδος": "adjective", "ἀπροσόδος": "adjective",
               "ταχυλόγος": "adjective", "μετωπιαῖος": "adjective_alpha",
               "ἔμφλογος": "adjective"}
     selected = select_os_lemmas(lookup, listed, sources.get)
-    assert sorted(selected) == [
-        "εὐπροσόδος", "μετωπιαῖος", "ταχυλόγος", "ἔμφλογος"]
+    assert sorted(selected) == sorted([
+        "ἀπροσόδος", "εὐπρόσοδος", "εὐπροσόδος", "μετωπιαῖος", "ταχυλόγος",
+        "ἔμφλογος"])
     rivals = os_rivals(lookup, listed, selected, sources.get)
     # A listed word, and a head of an Ancient source that no lexicon
     # classes. The Modern Greek head and the name are no rivals.
-    assert rivals == {"εὐπρόσοδος": "adjective", "ταχύλογος": None}
+    assert rivals == {"ἀπρόσοδος": "adjective", "ταχύλογος": None}
     assert os_rivals(lookup, listed, selected) == {
-        "εὐπρόσοδος": "adjective", "ταχύλογος": None, "μετωπιαίος": None}
+        "ἀπρόσοδος": "adjective", "ταχύλογος": None, "μετωπιαίος": None}
     paradigms = list(rival_paradigms(rivals))
     assert [(kind, word) for kind, word, _ in paradigms] == [
-        (RIVAL_KIND, "εὐπρόσοδος"), (RIVAL_KIND, "ταχύλογος")]
+        (RIVAL_KIND, "ταχύλογος"), (RIVAL_KIND, "ἀπρόσοδος")]
     # A rival without a class claims the cells of three endings, with the
     # feminine its stem takes (-η here; -α after ε, ι, ρ).
-    assert "ταχυλόγης" in dict(paradigms[1][2])
-    assert "ταχυλόγα" not in dict(paradigms[1][2])
-    assert "εὐπροσόδης" not in dict(paradigms[0][2])
+    assert "ταχυλόγης" in dict(paradigms[0][2])
+    assert "ταχυλόγα" not in dict(paradigms[0][2])
+    assert "ἀπροσόδης" not in dict(paradigms[1][2])
     assert "πορδαλέας" in dict(next(iter(rival_paradigms({"πορδαλέος": None})))[2])
     added = fill_gap_cells(
         lookup, [*os_paradigms(selected), *paradigms],
         strict=KINDS, claims_only={RIVAL_KIND})
-    for form in ("εὐπροσόδων", "εὐπροσόδου", "ταχυλόγου", "ταχυλόγοις"):
+    for form in ("εὐπροσόδων", "εὐπροσόδου", "ἀπροσόδων", "ταχυλόγου",
+                 "ταχυλόγοις"):
         assert form not in lookup, form
     # Where the accent tells the two apart the declined word has its cell,
     # and the rival fills nothing.
     assert lookup["εὐπροσόδον"] == "εὐπροσόδος"
+    assert lookup["εὐπρόσοδον"] == "εὐπρόσοδος"
+    assert lookup["ἀπροσόδον"] == "ἀπροσόδος"
     assert lookup["ταχυλόγον"] == lookup["ταχυλόγα"] == "ταχυλόγος"
-    assert "εὐπρόσοδον" not in lookup and "ταχύλογον" not in lookup
+    assert "ἀπρόσοδον" not in lookup and "ταχύλογον" not in lookup
     assert lookup["μετωπιαίοις"] == "μετωπιαῖος"
     assert lookup["ἐμφλόγου"] == "ἔμφλογος"
     assert RIVAL_KIND not in {row["kind"] for row in added}
@@ -348,6 +356,50 @@ def test_sources_by_class():
     assert ADJECTIVE_SOURCE == "grc_adjective_gaps"
     assert KINDS == {"os_noun", "os_adjective", "os_adjective_eta",
                      "os_adjective_alpha"}
+
+
+def test_a_head_that_reads_as_its_name_is_declined_in_lowercase():
+    # A lexicon lists the lowercase adjective; the name keeps its key.
+    lookup = {"ἐπάρατος": "Ἐπάρατος", "Ἐπαράτου": "Ἐπάρατος",
+              "ἄτοπος": "ἄλλος"}
+    listed = {"ἐπάρατος": "adjective", "ἄτοπος": "adjective"}
+    assert select_os_lemmas(lookup, listed) == {"ἐπάρατος": "adjective"}
+    fill_gap_cells(lookup, os_paradigms({"ἐπάρατος": "adjective"}),
+                   strict=KINDS)
+    assert lookup["ἐπαράτου"] == lookup["ἐπαράτοις"] == "ἐπάρατος"
+    assert lookup["ἐπάρατος"] == lookup["Ἐπαράτου"] == "Ἐπάρατος"
+
+
+def test_an_attested_cell_beside_a_verb_form_is_kept():
+    # θεοφοροῖς (θεοφορέω) and θεοφόροις have the same letters.
+    from dilemma.grc_os_gaps import cells_beside_a_verb, is_verb_citation
+    lookup = {"θεοφόρος": "θεοφόρος", "θεοφοροις": "θεοφορέω",
+              "θεοφοροῖς": "θεοφορέω", "δίκης": "δίκη", "δικης": "δίκη",
+              "δικός": "δικός", "παραίνος": "παραίνος",
+              "παραινων": "παραινέω", "παραινῶν": "παραινέω",
+              "διχρόνος": "διχρόνος", "διχρονω": "διχρονέω",
+              "διχρονῶ": "διχρονέω"}
+    selected = {"θεοφόρος": "adjective", "δικός": "adjective_eta",
+                "παραίνος": "adjective", "διχρόνος": "adjective"}
+    texts = {"θεοφόροις": (26, "other"), "δικῆς": (5, "other"),
+             # a misprint of the common participle
+             "παραίνων": (66, "other"), "παραινῶν": (900, "verb"),
+             # tagged a verb where the texts are annotated
+             "διχρόνῳ": (19, "verb")}
+    kept = cells_beside_a_verb(lookup, list(os_paradigms(selected)), texts.get)
+    assert set(kept) == {"θεοφόροις"}
+    assert kept["θεοφόροις"] == {"verb": "θεοφορέω", "count": 26,
+                                 "verb_spellings": {"θεοφοροῖς": 0}}
+    fill_gap_cells(lookup, os_paradigms(selected), strict=KINDS,
+                   accentless_exempt=lambda form, reading: form in kept)
+    assert lookup["θεοφόροις"] == "θεοφόρος"
+    assert lookup["θεοφοροῖς"] == lookup["θεοφοροις"] == "θεοφορέω"
+    # The other cells of the letters, unattested, stay out, as does the
+    # cell beside a noun.
+    assert "θεοφόρους" in lookup and "παραίνων" not in lookup
+    assert "δικῆς" not in lookup and "διχρόνῳ" not in lookup
+    assert is_verb_citation("θεοφορέω") and is_verb_citation("βούλομαι")
+    assert not is_verb_citation("ἠχώ") and not is_verb_citation("Φάω")
 
 
 # The list (build/find_grc_second_declension.py) -----------------------------
@@ -471,7 +523,11 @@ def test_committed_list_matches_its_rule_and_declines(finder):
         for lemmas in groups.values():
             assert lemmas == sorted(lemmas)
     assert classes["ἔμφλογος"] == classes["κολοβόρινος"] == "adjective"
-    assert classes["αὐτοσύστατος"] == "adjective"
+    # LSJ's POS table and Sophocles' endings (ή, όν).
+    assert classes["αὐτοσύστατος"] == "adjective_eta"
+    # Sophocles' adjectives, read under their lowercase heads (#144).
+    assert classes["θεαρχικός"] == "adjective_eta"
+    assert classes["θεοτήρητος"] == "adjective"
     assert classes["ἀδράνεος"] == "adjective_eta"
     assert classes["ποιητέος"] == "adjective_alpha"
     # No suffix settles δικός, and neuters and stems in -ο are left out.

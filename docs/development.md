@@ -283,12 +283,13 @@ python scripts/hf_data.py check     # checkout, manifest and Hub agree
 
 `python -m dilemma download` serves every file under `data/` and `model/`,
 which is more than CI downloads, so the manifest has two lists and every
-served file belongs in one of them:
+served file belongs in one of them. A third section pins the tagger weights:
 
 | List | In `scripts/hf_data.py` | Holds | Covered by |
 |---|---|---|---|
 | `files` | `TRACKED` | Everything CI downloads: every table and model file the runtime reads, and the evidence the tests read | `push`, `check`, `wait`, `files`, `verify` |
 | `pinned_only` | `PINNED_ONLY` | Served files CI does not download: the Ancient and Medieval build tables (`ag_lookup.json`, `ag_pairs.json`, `med_lookup.json`, `med_pairs.json`, the source-alias audit and manifest), the corpus pair tables (`glaux_pairs.json`, `lbg_pairs.json`, `nt_pairs.json` and the three gap-fill tables), the per-source frequency tables, `ag_verb_paradigms.json`, `vesuvius_index.json.gz`, `med_pos_lookup.json` and the Ancient-only model `model/grc-s3/` | `push`, `check`, `wait` |
+| `tagger` | `TAGGER` | The tagger weights under `tagger/` (10 files, 1,482 MB) at the Hub revision `TAGGER_WEIGHTS_REV` in `dilemma/tagger/_revisions.py`, with that revision | `pin-tagger`, `check` |
 
 A table the runtime reads goes in `TRACKED`, also when git tracks it: an
 install reads the Hub copy, so the three Ancient POS tables
@@ -308,8 +309,19 @@ lists what the Hub serves and fails on a file under `data/` or `model/` that
 is in neither list: a file uploaded by hand must be added to a list (and
 pushed) or deleted from the Hub. `UNPINNED` names what the manifest leaves
 out, with the reasons: `data/kaikki_inputs/` is pinned by Hub revision and
-sha256 in `data/kaikki_inputs.json`, and the tagger weights under `tagger/`
-are not pinned yet.
+sha256 in `data/kaikki_inputs.json`.
+
+The tagger weights are trained and uploaded outside this repository, and
+`push` never uploads them. Both `python -m dilemma download` and the tagger's
+own fallback download fetch them at `TAGGER_WEIGHTS_REV`, not at the head of
+the repository. `python scripts/hf_data.py pin-tagger` records that revision
+and the sha256 of each file there (from the Hub's metadata; the small files
+are downloaded and hashed). `check` fails when the manifest and the code name
+different revisions, when the Hub serves other bytes at the revision, or when
+the revision has a file `TAGGER` does not list; weights at the head that
+differ from the pin only get a note, since no download takes them. To ship
+new weights, move `TAGGER_WEIGHTS_REV`, then run `pin-tagger` and commit the
+manifest.
 
 CI waits for the Hub to serve the manifest's bytes, both lists, before
 downloading (`hf_data.py wait`) and re-checks the downloaded files afterwards

@@ -16,7 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "build"))
 import expand_lsj
 from lsj_principal_parts import (
     INDICATIVE_ONLY, derive_grc_conj_args, ends_at_label,
-    parse_principal_parts, stem_preverb, unaugmented_stem,
+    parse_principal_parts, single_augment_stem, stem_preverb,
+    unaugmented_stem,
 )
 
 
@@ -101,9 +102,7 @@ def test_unaugmented_stem(headword, augmented, plain, prefix):
 @pytest.mark.parametrize("headword,augmented", [
     ("ἀμφισβητέω", "ἠμφεσβητησ"),   # second augment after the preverb
     ("ἐνοχλέω", "ἠνωχλησ"),
-    ("διαιτάω", "ἐδιῃτησ"),
     ("ἐπανορθόω", "ἐπηνωρθωσ"),
-    ("προβάλλω", "προὐβαλ"),        # contracted with the preverb
     ("ὠθέω", "ἐωσ"),                # syllabic augment before a vowel
     ("διαΐσσω", "διῃξ"),
     # ἕσσα beside ἵζω: neither an augment nor the present's vowel
@@ -111,6 +110,37 @@ def test_unaugmented_stem(headword, augmented, plain, prefix):
 ])
 def test_unreadable_augment_is_not_guessed(headword, augmented):
     assert unaugmented_stem(headword, augmented)[0] is None
+
+
+@pytest.mark.parametrize("headword,augmented,plain,prefix", [
+    # The augment contracted with the ο of προ- (crasis).
+    ("προβάλλω", "προὐβαλ", "προβαλ", "προ"),
+    ("προΐστημι", "προὐστησ", "προστησ", "προ"),
+    # A preverb kept whole before a vowel, the augment after it.
+    ("ἐπιορκέω", "ἐπιωρκησ", "ἐπιορκησ", "ἐπι"),
+    # A double augment: both are removed.
+    ("παροινέω", "ἐπαρῳνηθ", "παροινηθ", ""),
+    ("διαιτάω", "ἐδιῃτησ", "διαιτησ", ""),
+])
+def test_crasis_hiatus_and_double_augment(headword, augmented, plain, prefix):
+    assert unaugmented_stem(headword, augmented) == (plain, prefix)
+
+
+def test_single_augment_of_a_double_augment():
+    assert single_augment_stem("παροινέω", "ἐπαρῳνηθ") == "παρῳνηθ"
+    assert single_augment_stem("διαιτάω", "ἐδιῃτησ") == "διῃτησ"
+    assert single_augment_stem("λύω", "ἐλυσ") is None
+    assert single_augment_stem("παροινέω", "παρῳνηθ") is None
+    args = derive_grc_conj_args({"aor_p": "ἐπαρῳνήθην"}, "παροινέω")
+    assert args["aor-pass"] == ["aor-1", "", "", "ἐπαρῳνηθ", "παροινηθ",
+                                "form=pass"]
+    assert args["aor-pass-single"] == ["aor-1", "", "", "παρῳνηθ", "παρῳνηθ",
+                                       "form=pass", INDICATIVE_ONLY]
+
+
+def test_iterative_printed_as_an_aorist_has_an_indicative_only():
+    args = derive_grc_conj_args({"aor2": "προβάλεσκον"}, "προβάλλω")
+    assert args["aor-2"][-1] == INDICATIVE_ONLY
 
 
 def test_unreadable_stem_still_names_its_preverb():
@@ -279,7 +309,8 @@ def test_label_at_the_end_is_completed_by_the_earlier_text():
     restart = "fut. -πνίξω : aor. inf. ἀποπνεῖξαι:—choke:—Pass., aor. 2 ἀπεπνίγην"
     parts = expand_lsj.merged_principal_parts(
         "ἀποπνίγω", "[ῑ], fut. -πνίξω Pl.Com.198: aor.", restart)
-    assert parts == {"aor_p": "ἀπεπνίγην"}
+    # The future is the abbreviation written out (-πνίξω after ἀπο-).
+    assert parts == {"aor_p": "ἀπεπνίγην", "fut": "ἀποπνίξω"}
 
 
 def test_earlier_text_continues_the_aorists_it_repeats():

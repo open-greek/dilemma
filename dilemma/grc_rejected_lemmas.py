@@ -137,6 +137,30 @@ REJECTED_LEMMA_TARGETS: dict[str, dict[str, str]] = {
     },
 }
 
+# Lemmas that begin with a double rho, which no Greek word does: the past
+# tenses of verbs in ῥ- double the rho after the augment (ἔρριψα), and a
+# misread augment left the doubled rho on the lemma. Each gave the only row
+# of one or two augmented spellings, so ἐρρίφθαι read ρροπίω while
+# ἐρρῖφθαι and the accent-stripped ερριφθαι read ῥίπτω (#132).
+_DOUBLE_RHO_LEMMAS = {
+    "ρροπίω": "ἐρρίφθαι (dictionary expansion); ἐρρῖφθαι reads ῥίπτω",
+    "ρραστωνάω": "ἐρραστώνησεν (dictionary expansion); ερραστωνησεν reads "
+                 "ῥᾳστωνέω",
+    "ρρυφάνω": "ἐρρύφανεν (dictionary expansion)",
+    "ρρωζμαίω": "ἐρρωζμάιον (dictionary expansion)",
+    "ρρωμαίζω": "ἐρρωμάιζον (dictionary expansion)",
+    "ρρωννύω": "ἐρρώννυεν, ἐρρώννυέ (dictionary expansion)",
+    "ρρᾳθύμνυηι": "ἐρρᾳθυμηένον (dictionary expansion)",
+    "ρρῃίννυμι": "ἐρρῄισε (GLAUx)",
+}
+for _lemma, _forms in _DOUBLE_RHO_LEMMAS.items():
+    REJECTED_LEMMA_TARGETS[_lemma] = {
+        "reason": "double_rho_augment_artifact",
+        "evidence": "No dictionary heads it and no Greek word begins with "
+                    "ρρ: the doubled rho of an augmented past tense was "
+                    f"kept on the lemma. Its only rows: {_forms}.",
+    }
+
 REJECTED_LEMMAS = frozenset(REJECTED_LEMMA_TARGETS)
 
 # Closed-class pronominal heads. A capitalised corpus form whose lowercase

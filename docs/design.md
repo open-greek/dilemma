@@ -47,8 +47,9 @@ an automatic edit-distance correction pass over every lemmatized word.
 The SQLite lookup combines dictionary paradigms and corpus readings. It tries
 exact spelling, lowercase, grave-to-acute, monotonic, and accent-stripped keys;
 the last two in lowercase and then, for a capitalized word and a capitalized
-Ancient head, with the capital. Lunate sigma and a double rho printed with
-breathings (`ῤῥ`) are rewritten to their standard spellings first.
+Ancient head, with the capital. Lunate sigma, the micro sign typed for mu
+(`µ`, U+00B5) and a double rho printed with breathings (`ῤῥ`) are rewritten
+to their standard spellings first.
 Ancient-only and Modern-only tables help preserve the requested citation
 convention when spellings overlap. The JSON files are a fallback when the
 SQLite database is absent.

@@ -29,6 +29,7 @@ Usage:
     m_lsj.lemmatize("εἶπον")        # -> "λέγω" (aorist -> present stem)
 """
 
+import contextvars
 import json
 import hashlib
 import math
@@ -37,7 +38,7 @@ import re
 import sqlite3
 import unicodedata
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import lru_cache, wraps
 from pathlib import Path
 
 from .nonlexical import classify_nonlexical as _classify_nonlexical
@@ -165,6 +166,24 @@ _CONVENTION_HEADWORDS = {
 
 # Conventions that output monotonic Greek (apply to_monotonic to all results).
 _MONOTONIC_CONVENTIONS = {"triantafyllidis"}
+
+
+# Depth of tagged entry points running in this thread or task (see
+# Dilemma._vernacular_contraction_lemma). A context variable, so a tagged
+# call in one thread does not change untagged answers in another.
+_TAGGED_DEPTH = contextvars.ContextVar("dilemma_tagged_depth", default=0)
+
+
+def _tagged_entry(method):
+    """Mark a tagged entry point while it runs (see _TAGGED_DEPTH)."""
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        token = _TAGGED_DEPTH.set(_TAGGED_DEPTH.get() + 1)
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            _TAGGED_DEPTH.reset(token)
+    return wrapper
 
 
 class DilemmaDataWarning(UserWarning):
@@ -717,6 +736,20 @@ def strip_accents(s: str) -> str:
         "".join(c for c in nfd if unicodedata.category(c) != "Mn"))
 
 
+MICRO_SIGN = "\u00b5"
+
+
+def to_greek_mu(s: str) -> str:
+    """Write the micro sign (µ U+00B5) as the Greek letter mu (μ U+03BC).
+
+    The micro sign looks like mu and is what some keyboards and OCR give
+    for it (the digitized Sophocles lexicon prints the mu of about a
+    thousand heads so, #139). NFC leaves it alone, so a word typed with it
+    matched no Greek key (#144).
+    """
+    return s.replace(MICRO_SIGN, "μ") if MICRO_SIGN in s else s
+
+
 def to_standard_sigma(s: str) -> str:
     """Normalize lunate sigma (ϲ U+03F2 / Ϲ U+03F9) to standard σ/ς.
 
@@ -727,8 +760,10 @@ def to_standard_sigma(s: str) -> str:
     Map lunate -> medial σ / capital Σ, then fix word-final σ -> ς. The
     word-final σ -> ς fix always runs (Greek words never end in medial σ), so
     Beta-Code-derived keys/queries like ``γραφῆσ``/``εἷσ`` canonicalize to the
-    final-ς spelling and match.
+    final-ς spelling and match. A micro sign is written as mu
+    (``to_greek_mu``).
     """
+    s = to_greek_mu(s)
     if "ϲ" in s or "Ϲ" in s:
         s = s.replace("ϲ", "σ").replace("Ϲ", "Σ")
     if s.endswith("σ"):
@@ -1402,15 +1437,42 @@ class LookupDB:
 
 # Numeral letters for 1-9, as an ordinal printed with a superscript ending
 # flattens to them: Η with ον for ὄγδοον. Higher letters stay out because the
-# same shape spells common words (Τον, Σον, Ιον).
-_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϛΖΗΘ")
+# same shape spells common words (Τον, Σον, Ιον). The digamma Ϝ is the older
+# letter for 6; lowercase ϝ is left out, since dialect texts write words
+# with it.
+_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϛϜΖΗΘ")
+# With a numeral mark, an overline (U+0305) or a macron (U+0304) on any of
+# its letters, the lowercase letter is a numeral too (δ̄ο̄ν̄).
+_MARKED_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϜΖΗΘαβγδεϛϝζηθ")
+_NUMERAL_MARKS = ("\u0304", "\u0305")
+# Capital tens letters for 10-90, which with a units letter spell 11-99
+# (ΙΑον, ΚΒον). A tens letter alone before ον is not covered: Ιον, Κον and
+# Μον spell words and names.
+_ORDINAL_TENS_LETTERS = frozenset("ΙΚΛΜΝΞΟΠϘϞ")
 
 
 def is_numeral_ordinal(word: str) -> bool:
-    """Whether *word* is a numeral letter for 1-9 followed by ον, as printed."""
-    word = unicodedata.normalize("NFC", word or "")
-    return (len(word) == 3 and word.endswith("ον")
-            and word[0] in _ORDINAL_NUMERAL_LETTERS)
+    """Whether *word* is a numeral for 1-9 or 11-99 followed by ον, as printed.
+
+    The letter is a capital (or ϛ), or a letter of either case when the
+    token carries an overline or a macron, the marks that set a numeral
+    apart in print (Η̄ον, Ηο̄ν, δ̄ο̄ν̄).
+    """
+    nfd = unicodedata.normalize("NFD", word or "")
+    marked = any(mark in nfd for mark in _NUMERAL_MARKS)
+    if marked:
+        nfd = "".join(c for c in nfd if c not in _NUMERAL_MARKS)
+    word = unicodedata.normalize("NFC", nfd)
+    letters = (_MARKED_ORDINAL_NUMERAL_LETTERS if marked
+               else _ORDINAL_NUMERAL_LETTERS)
+    if not word.endswith("ον"):
+        return False
+    if len(word) == 3:
+        return word[0] in letters
+    # A two-letter numeral for 11-99: a capital tens letter and a capital
+    # units letter (ΙΑον for the eleventh).
+    return (len(word) == 4 and word[0] in _ORDINAL_TENS_LETTERS
+            and word[1] in _ORDINAL_NUMERAL_LETTERS and word[1].isupper())
 
 
 class Dilemma:
@@ -1471,8 +1533,11 @@ class Dilemma:
                   letter for 1-9 followed by ον, as printed (Ηον, Γον, ϛον):
                   an ordinal whose superscript ending was flattened. Such a
                   token otherwise reaches word rows (Ηον gives εἶμι through
-                  ηον). Βον is covered too, although it has a row of its own.
-                  Τον, Σον and Ιον spell common words and are not.
+                  ηον). Βον is covered too, although it has a row of its own,
+                  and so is the digamma Ϝον. With an overline or a macron as
+                  a numeral mark the letter may have either case (Η̄ον, Ηο̄ν,
+                  δ̄ο̄ν̄). Τον, Σον and Ιον spell common words and are not
+                  covered, nor is an overlined abbreviation such as Ση̄.
         """
         if convention not in _VALID_CONVENTIONS:
             raise ValueError(
@@ -2429,16 +2494,42 @@ class Dilemma:
         is no vernacular contraction. lang="grc" reads Ancient Greek only.
         """
         if upos not in ("DET", "ADP") or self.lang not in ("all", "el") \
-                or not word:
-            return None
-        nfd = unicodedata.normalize("NFD", word)
-        marks = {ord(ch) for ch in nfd if unicodedata.combining(ch)}
-        if not marks <= {0x0300, 0x0301, 0x0342}:
-            return None
-        if strip_accents(to_standard_sigma(word).lower()) \
-                not in _VERNACULAR_ARTICLE_CONTRACTIONS:
+                or not self._is_vernacular_contraction(
+                    word, marks={0x0300, 0x0301, 0x0342}):
             return None
         return _MG_ARTICLE_LEMMA if upos == "DET" else "σε"
+
+    @staticmethod
+    def _is_vernacular_contraction(word: str, *, marks) -> bool:
+        """Whether *word* spells a contraction of σε + article (στον, στὴν)
+        with no combining mark outside *marks*."""
+        if not word:
+            return False
+        nfd = unicodedata.normalize("NFD", word)
+        if not {ord(ch) for ch in nfd if unicodedata.combining(ch)} <= marks:
+            return False
+        return (strip_accents(to_standard_sigma(word).lower())
+                in _VERNACULAR_ARTICLE_CONTRACTIONS)
+
+    def _vernacular_contraction_lemma(self, word: str) -> str | None:
+        """The untagged lemma σε of a contraction of σε + article.
+
+        With lang="all" the combined table reads these letters with its
+        Ancient rows, which are word fragments of the corpora or unaccented
+        cells of ἵστημι (στον gave στον, στην ἵστημι, στου ἕκαστος), while
+        lang="el" and the tagged lookups give σε (#148, #134). The spelling
+        may carry an acute or a grave or no accent; a circumflex (στῆν), a
+        breathing or a subscript is no vernacular contraction.
+
+        The tagged entry points do not read it: under DET and ADP
+        _vernacular_contraction_pos_lemma answers, and under any other tag
+        the form keeps the reading it had (στα ADJ, a fragment of ἕκαστος).
+        """
+        if _TAGGED_DEPTH.get() or self.lang not in ("all", "el") \
+                or not self._is_vernacular_contraction(
+                    word, marks={0x0300, 0x0301}):
+            return None
+        return "σε"
 
     def _resolve_closed_class(self, word: str) -> str | None:
         """Recognize Ancient articles and optionally canonicalize closed classes.
@@ -2579,6 +2670,10 @@ class Dilemma:
             grammar = reviewed_verb_grammar(word)
             if grammar is not None:
                 return grammar["lemma"]
+        if own:
+            contraction = self._vernacular_contraction_lemma(word)
+            if contraction is not None:
+                return contraction
         loose_keys, capitalized_keys = [], []
         if step != self._OWN_ROWS:
             kinds = {"monotonic": step in (None, self._MONOTONIC_KEY),
@@ -3035,10 +3130,14 @@ class Dilemma:
 
     def _lookup_grammatical_word(self, word: str, *, verb_only=False,
                                  normalization=False,
-                                 source_word: str | None = None) -> str | None:
-        """Resolve a transformed form without promoting a noun to a verb."""
+                                 source_word: str | None = None,
+                                 step: int | None = None) -> str | None:
+        """Resolve a transformed form without promoting a noun to a verb.
+
+        *step* runs one step of the lookup cascade alone (see _lookup_word).
+        """
         targets = self._grammatical_targets(word, verb_only=verb_only)
-        lemma = self._lookup_word(word)
+        lemma = self._lookup_word(word, step=step)
         if normalization:
             return lemma if lemma and self._normalization_reading_supported(
                 word, lemma, targets=targets, source_word=source_word) else None
@@ -4038,12 +4137,9 @@ class Dilemma:
             return self._apply_convention(verb_morph_lemma)
 
         # Normalizer: try orthographic variants against lookup
-        if self._normalizer:
-            for candidate in self._normalizer.normalize(word):
-                lemma = self._lookup_grammatical_word(
-                    candidate, normalization=True, source_word=word)
-                if lemma and not _is_elided_junk_value(lemma):
-                    return self._apply_convention(lemma)
+        lemma = self._normalized_reading(word)
+        if lemma:
+            return self._apply_convention(lemma)
 
         # Attested-key-gated orthographic fallbacks: editorial/manuscript
         # surface variants (dropped iota-subscript θεῷ->θεῶ, movable-nu,
@@ -4112,6 +4208,27 @@ class Dilemma:
             # rather than echoing the input as if it were a lemma.
             return None
         return self._apply_convention(pred)
+
+    def _normalized_reading(self, word: str) -> str | None:
+        """The lemma of the first respelling of the optional normalizer.
+
+        Every respelling changes the spelling of one sound, and the
+        normalizer ranks them by rule weight. Reading a row through the
+        monotonic or the accent-stripped key changes the accents as well,
+        so, as in the Byzantine fallback, every respelling that has a row
+        as it is written comes before any read through a looser key, and
+        the monotonic key before the stripped one (#132).
+        """
+        if not self._normalizer:
+            return None
+        respellings = list(dict.fromkeys(self._normalizer.normalize(word)))
+        for step in (self._OWN_ROWS, self._MONOTONIC_KEY, self._STRIPPED_KEY):
+            for candidate in respellings:
+                lemma = self._lookup_grammatical_word(
+                    candidate, normalization=True, source_word=word, step=step)
+                if lemma and not _is_elided_junk_value(lemma):
+                    return lemma
+        return None
 
     def _ortho_fallback_variants(self, word: str):
         """Yield editorial/manuscript orthographic spelling variants of a
@@ -4527,9 +4644,11 @@ class Dilemma:
           a conflicting part of speech (νὰ as νή when a conjunction is
           requested, κυροῦ as the verb κυρόω when a noun is). For an
           open-class tag the Ancient side must also not know the spelling
-          itself (as a headword, or as an accented key of the Ancient POS
-          tables), so a mistagged Ancient form keeps its lemma (ὄντων ADJ
-          stays εἰμί);
+          itself (as a headword, an accented key of the Ancient POS
+          tables, or an exact row of the Ancient lookup when the Modern
+          reading is the spelling's own monotonic form), so a mistagged
+          Ancient form keeps its lemma (ὄντων ADJ stays εἰμί, ἑπόμενός ADJ
+          ἕπομαι);
         * a reading with no recorded part of speech, of a spelling the
           Ancient side does not know, that was found only by discarding
           the form's accents while the Modern reading is recorded for
@@ -4588,7 +4707,16 @@ class Dilemma:
         known = headword or any(table.get(variant) for variant in accented)
         closed_class = upos in self._CLOSED_CLASS_TAGS
         if tags:
-            return closed_class or not known
+            # A Modern entry that is only this spelling's own monotonic
+            # citation form (επόμενος for ἑπόμενος) is no other word: an
+            # exact Ancient row of the spelling then keeps its reading, as
+            # a POS key would (the treebank table leaves out votes the
+            # lookup already gives). κυροῦ NOUN still reads κυρός.
+            own_spelling = (strip_accents(modern.lower())
+                            == strip_accents(lower))
+            return closed_class or not (
+                known or (own_spelling
+                          and self._ancient_lookup_has_spelling(word)))
         if name_only:
             return True
         if known:
@@ -4930,6 +5058,13 @@ class Dilemma:
                             for c in inflected)
                     or self._lowercase_row_reads(word, pos_lemma)):
                 return False
+            if upos == "ADJ" and any(
+                    self._is_closed_class_indeclinable(c.lemma)
+                    for c in inflected):
+                # A row that reads a conjunction, particle, preposition or
+                # interjection is no adjective's reading (ἀλλή ADJ: the
+                # ἄλλος of αλλη, not the ἀλλά of its row; #148).
+                return False
             if upos == "PRON" and not all(
                     self._tables_record_pronoun(word, c.lemma)
                     for c in inflected):
@@ -4937,6 +5072,25 @@ class Dilemma:
             rows = inflected
         return (self._pos_entry_is_loose(word, upos, pos_lemma)
                 or self._pronoun_entry_at_bare_key(word, upos, pos_lemma, rows))
+
+    _CLOSED_INDECLINABLE_CATEGORIES = frozenset(
+        {"conjunction", "particle", "preposition", "interjection"})
+
+    def _is_closed_class_indeclinable(self, lemma: str) -> bool:
+        """Whether LSJ lists *lemma* as a conjunction, particle, preposition
+        or interjection, which no adjective row reads (ἀλλή read ἀλλά)."""
+        heads = self.__dict__.get("_closed_indeclinables")
+        if heads is None:
+            heads = frozenset()
+            try:
+                with open(LSJ9_INDECLINABLES_PATH, encoding="utf-8") as f:
+                    heads = frozenset(
+                        head for head, category in json.load(f).items()
+                        if category in self._CLOSED_INDECLINABLE_CATEGORIES)
+            except (OSError, ValueError):
+                pass
+            self._closed_indeclinables = heads
+        return lemma in heads
 
     def _prefers_modern_rows(self) -> bool:
         return (self.lang == "el"
@@ -5478,6 +5632,24 @@ class Dilemma:
 
         return None
 
+    @staticmethod
+    def _tagged_spelling(word):
+        """The spelling the tagged entry points read the POS tables under.
+
+        lemmatize() and lemmatize_batch() normalize to NFC and write a
+        lunate sigma as σ/ς before they read the lookup; the tagged paths
+        do the same, so a form printed with ϲ or in decomposed form finds
+        its POS cell (#154).
+        """
+        if not isinstance(word, str) or not any(
+                0x0370 <= ord(c) <= 0x03ff or 0x1f00 <= ord(c) <= 0x1fff
+                for c in word):
+            # Tokens without Greek letters pass through as given.
+            return word
+        return to_standard_sigma(unicodedata.normalize("NFC", word))
+
+
+    @_tagged_entry
     def lemmatize_pos(self, word: str, upos: str,
                       *, attested_only: bool = False,
                       guess: bool = True) -> str | None:
@@ -5516,6 +5688,12 @@ class Dilemma:
             The lemma string, or None when gated out by ``attested_only``
             or unresolved with ``guess=False``.
         """
+        # The tables are read under the spelling lemmatize() reads: NFC,
+        # with a lunate sigma as σ/ς (Δῖόϲ PROPN like Δῖός, #154) and the
+        # micro sign as μ (#144).
+        if isinstance(word, str):
+            word = to_greek_mu(word)
+        word = self._tagged_spelling(word)
         self._pos_rejections(word, upos)
         def checked(lemma):
             return self._checked_pos_result(word, upos, lemma)
@@ -5718,6 +5896,7 @@ class Dilemma:
                                            extra=extra)
         return lemma
 
+    @_tagged_entry
     def lemmatize_batch_pos(self, words: list[str], upos_tags: list[str],
                             *, attested_only: bool = False,
                             guess: bool = True) -> list[str | None]:
@@ -5754,8 +5933,11 @@ class Dilemma:
         # ῤῥ is an editorial spelling of ρρ: the tables are read under the
         # plain spelling, as in lemmatize_pos(). The attested-only gate
         # matches the corpus spelling as printed.
-        printed = words
-        words = [to_plain_double_rho(word) for word in words]
+        # NFC, a lunate sigma as σ/ς and the micro sign as μ come first, as
+        # in lemmatize() (#154, #144).
+        printed = [self._tagged_spelling(to_greek_mu(word) if isinstance(word, str)
+                                         else word) for word in words]
+        words = [to_plain_double_rho(word) for word in printed]
         for word, upos in zip(words, upos_tags):
             self._pos_rejections(word, upos)
 
@@ -6169,6 +6351,10 @@ class Dilemma:
             (word, "exact"), (lower, "lower"),
             (mono, "mono"), (stripped, "stripped"),
         ]
+        contraction = self._vernacular_contraction_lemma(word)
+        if contraction is not None:
+            _add(contraction, lang="el", source="lookup", via="exact")
+            return candidates
         # The capitalized loose keys of the generated paradigms, after
         # the lowercase ones and for an Ancient head only, as in
         # _lookup_word.
@@ -6277,6 +6463,10 @@ class Dilemma:
 
         # 7. Normalizer: try orthographic variants against all tables
         if not candidates and self._normalizer:
+            # A row read as it is written comes before one read through the
+            # monotonic key, and that before the stripped key, whatever the
+            # rule weights (as in _normalized_reading; #132).
+            normalized_hits = []
             for norm_candidate in self._normalizer.normalize(word):
                 norm_lower = norm_candidate.lower()
                 norm_mono = to_monotonic(norm_lower)
@@ -6302,8 +6492,13 @@ class Dilemma:
                             if not self._normalization_reading_supported(
                                     norm_candidate, lemma, source_word=word):
                                 continue
-                            _add(lemma, lang=lang, source="normalize", via=via)
+                            rank = (2 if via.endswith("stripped")
+                                    else 1 if via.endswith("mono") else 0)
+                            normalized_hits.append((rank, lemma, lang, via))
                             break
+            normalized_hits.sort(key=lambda hit: hit[0])
+            for _rank, lemma, lang, via in normalized_hits:
+                _add(lemma, lang=lang, source="normalize", via=via)
 
         # 7a. Attested-key-gated orthographic fallbacks, matching lemmatize():
         #     editorial/manuscript spelling variants (dropped iota subscript,
@@ -6558,19 +6753,10 @@ class Dilemma:
                 continue
 
             # Normalizer: try orthographic variants against lookup
-            if self._normalizer:
-                norm_hit = None
-                for candidate in self._normalizer.normalize(word):
-                    norm_hit = self._lookup_grammatical_word(
-                        candidate, normalization=True, source_word=word)
-                    if norm_hit and _is_elided_junk_value(norm_hit):
-                        norm_hit = None
-                        continue
-                    if norm_hit:
-                        break
-                if norm_hit:
-                    results.append(norm_hit)
-                    continue
+            norm_hit = self._normalized_reading(word)
+            if norm_hit:
+                results.append(norm_hit)
+                continue
 
             # Attested-key-gated orthographic fallbacks (matches lemmatize()).
             ortho_hit = None
