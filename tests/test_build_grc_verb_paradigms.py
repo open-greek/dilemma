@@ -1757,3 +1757,55 @@ print(json.dumps([drop_collapsed_cells(rows),
             [sys.executable, "-c", script], cwd=REPO_ROOT,
             env={**os.environ, "PYTHONHASHSEED": seed}) for seed in ("0", "73", "999")]
         assert outputs[0] == outputs[1] == outputs[2]
+
+
+class TestPrincipalPartsSupplement:
+    """The current LSJ9 glosses export stops many verb heads at the first
+    citation; the earlier export pinned beside it completes them (#149)."""
+
+    CURRENT = "[ᾰ], fut. -ψω Hdt.1.95, etc.: aor. ἔγραψα, Ep."
+    EARLIER = ("fut. -ψω , etc.: aor. ἔγραψα, Ep. γράψα : pf. γέγραφα "
+               "Cratin.124, etc.:—Med., fut. γράψομαι Ar.Pax107")
+
+    @staticmethod
+    def exports(b, monkeypatch, tmp_path, earlier):
+        import hashlib
+        files = {}
+        for name, text in (("lsj9_glosses.jsonl", TestPrincipalPartsSupplement.CURRENT),
+                           ("lsj9_glosses_earlier.jsonl", earlier)):
+            if text is None:
+                continue
+            path = tmp_path / name
+            path.write_text(json.dumps({"headword": "γράφω", "text": text},
+                                       ensure_ascii=False) + "\n", encoding="utf-8")
+            files[name] = {"path": name, "size": path.stat().st_size,
+                           "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        pin = dict(files["lsj9_glosses.jsonl"])
+        if "lsj9_glosses_earlier.jsonl" in files:
+            pin["principal_parts_supplement"] = files["lsj9_glosses_earlier.jsonl"]
+        (tmp_path / "pin.json").write_text(json.dumps(pin), encoding="utf-8")
+        monkeypatch.setattr(b, "LSJ9_GLOSSES", tmp_path / "lsj9_glosses.jsonl")
+        monkeypatch.setattr(b, "LSJ9_GLOSSES_SUPPLEMENT",
+                            tmp_path / "lsj9_glosses_earlier.jsonl")
+        monkeypatch.setattr(b, "LSJ9_GLOSSES_PIN", tmp_path / "pin.json")
+
+    def test_the_earlier_export_adds_the_parts_the_current_one_cuts(
+            self, b, monkeypatch, tmp_path):
+        self.exports(b, monkeypatch, tmp_path, self.EARLIER)
+        parts = b.lsj_principal_parts(["γράφω", "λύω"])
+        assert parts["γράφω"]["aor"] == "ἔγραψα"
+        assert parts["γράφω"]["pf"] == "γέγραφα"
+        assert parts["γράφω"]["fut_med"] == "γράψομαι"
+        assert "λύω" not in parts
+
+    def test_without_the_supplement_only_the_current_parts(
+            self, b, monkeypatch, tmp_path):
+        self.exports(b, monkeypatch, tmp_path, None)
+        assert b.lsj_principal_parts(["γράφω"])["γράφω"] == {"aor": "ἔγραψα"}
+
+    def test_an_export_that_is_not_the_pinned_one_is_refused(
+            self, b, monkeypatch, tmp_path):
+        self.exports(b, monkeypatch, tmp_path, self.EARLIER)
+        (tmp_path / "lsj9_glosses_earlier.jsonl").write_text("{}\n")
+        with pytest.raises(SystemExit, match="does not match"):
+            b.lsj_principal_parts(["γράφω"])
