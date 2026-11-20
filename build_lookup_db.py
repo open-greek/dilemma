@@ -471,6 +471,29 @@ REVIEWED_TREEBANK_READINGS = {
     "οἰκείοις": "οἰκεῖος", "οικείοις": "οἰκεῖος", "οικειοις": "οἰκεῖος",
 }
 
+# Readings reviewed for 1.3.29 (#147; GLAUx form-lemma counts in
+# parentheses).
+REVIEWED_LOOKUP_READINGS = {
+    # Elided keys whose reading is plainly another word than their full
+    # forms', where GLAUx, Diorisis and AGDT name the right one: Δι’ is Διί
+    # or Δία (Ζεύς 9), not the lowercase ζεύς of one head list; Σάμιοι’
+    # the Samians, not the island; Κωλιάδ’ Aphrodite's epithet Κωλιάς, not
+    # the lowercase κωλιάς; Ἆρ’ the interrogative ἆρα, not the enclitic
+    # ἄρ; ξυνέρξεθ’ a future of the Epic συνέργω (GLAUx, AGDT), not the
+    # noun σύνεργον; ἀδάματ’ the adjective ἀδάματος (all three), not the
+    # name Ἀδάματος. συνέργω and ἀδάματος read themselves: LSJ heads both
+    # (GLAUx: 23 and 9 tokens under them), and their own keys read the noun
+    # and the name. The keys end in U+1FBD.
+    "Δι᾽": "Ζεύς", "Σάμιοι᾽": "Σάμιος", "Κωλιάδ᾽": "Κωλιάς",
+    "Ἆρ᾽": "ἆρα", "ξυνέρξεθ᾽": "συνέργω", "συνέργω": "συνέργω",
+    "ἀδάματ᾽": "ἀδάματος", "ἀδάματος": "ἀδάματος",
+    # The accusative of the name Φαεινίς, a Wiktionary head, which fell to
+    # a Modern row reading the accusative itself: GLAUx names its one token
+    # with a Latin lemma read as Beta Code (πηαεινις), which the build
+    # drops (#127).
+    "Φαεινίδα": "Φαεινίς",
+}
+
 # Ancient readings that name an inflected form, with the lemma each key
 # that holds one reads instead. The Greek Wiktionary page μου is a form-of
 # entry of ἐγώ that carries the whole pronoun grid, and the genitive row of
@@ -1062,6 +1085,38 @@ def load_lookup_sources(path: Path = None) -> tuple[list[dict], dict[str, str]]:
     return sources, by_input
 
 
+def load_ancient_headwords_exact() -> set[str]:
+    """The Ancient headword strings corpus lemmas are validated against:
+    the AG, DGE, LGPN, Pape-and-others, VLG, WiP and LSJ10 lists (the last
+    two without their multi-word entries), as the build reads them below."""
+    heads: set[str] = set()
+    for path in (AG_HEADWORDS_PATH, DGE_HEADWORDS_PATH, LGPN_NAMES_PATH,
+                 PD_HEADWORDS_PATH, VLG_HEADWORDS_PATH):
+        if path.exists():
+            heads.update(json.loads(path.read_text(encoding="utf-8")))
+    for path in (WIP_HEADWORDS_PATH, LSJ10_HEADWORDS_PATH):
+        if path.exists():
+            heads.update(head for head in json.loads(
+                path.read_text(encoding="utf-8")) if " " not in head)
+    return heads
+
+
+def agdt_headword_lemma(lemma: str, known) -> str | None:
+    """An AGDT lemma checked against the headword strings ``known``: the
+    lemma, its lowercase spelling where only that is listed (a capitalised
+    sentence-initial lemma), or None for a reviewed non-lemma or a lemma no
+    list has."""
+    if lemma in REJECTED_LEMMAS:
+        return None
+    if lemma in known:
+        return lemma
+    if lemma[:1].isupper():
+        lower = lemma[:1].lower() + lemma[1:]
+        if lower in known and lower not in REJECTED_LEMMAS:
+            return lower
+    return None
+
+
 def ag_reading_layers(ag: dict, base: dict, reference: dict) -> dict[str, str]:
     """The layer of ag_lookup.json that recorded each reading, where known.
 
@@ -1313,6 +1368,191 @@ def restore_displaced_lexical_heads(ag: dict, *, wiktionary_heads, base: dict,
             ag[key] = head
             restored.append({"form": key, "lemma": lemma, "head": head,
                              "head_count": None, "lemma_count": None})
+    return sorted(restored, key=lambda record: record["form"])
+
+
+# A form of a head the build did not restore follows it only with at least
+# this many corpus tokens for the head and at most one in this many for the
+# lemma that displaced it (restore_displaced_paradigm_forms).
+PARADIGM_FORM_MIN_TOKENS = 2
+PARADIGM_FORM_MIN_RATIO = 5
+
+
+def _spelling_key(word: str) -> str:
+    """A word without its diacritics, case, final sigma and doubled letters,
+    with Attic ττ and ρρ for σσ and ρσ: two spellings of one citation form
+    (ῥᾳθυμία ῥαθυμία, γλωττίς γλωσσίς, ὀιζυρός οἰζυρός) share it."""
+    text = strip_accents(word.lower()).replace("ς", "σ")
+    text = text.replace("σσ", "ττ").replace("ρσ", "ρρ")
+    out = []
+    for char in text:
+        if not out or out[-1] != char:
+            out.append(char)
+    return "".join(out)
+
+
+def _middle_and_active(one: str, other: str) -> bool:
+    """Whether two verb lemmas are the middle and active citation forms of
+    one verb (τιτύσκομαι τιτύσκω, μυθέομαι μυθέω)."""
+    one, other = strip_accents(one), strip_accents(other)
+    return any(a.endswith("ομαι") and b == a[:-4] + "ω"
+               for a, b in ((one, other), (other, one)))
+
+
+def reading_convention(form: str, head: str, lemma: str, base: dict) -> str | None:
+    """Why reading ``form`` as ``lemma`` where the Wiktionary-only base reads
+    it as ``head`` is a lemma convention, or None.
+
+    The conventions the lookup keeps (#147):
+
+    - a form with an entry of its own: the reading is the form itself
+      (ἡμέρας, δίκην, καλόν, μεγάλως) or a form the base files under the
+      head (πολλά, πλείων, ἤμην for πολύς, εἰμί);
+    - the name and the word of one spelling (Ἶρις ἶρις, Χριστιανός);
+    - two spellings of one citation form (ῥᾳθυμία, γλωσσίς, πρωτεῖος);
+    - the compounds of εἶμι, which the dictionaries head apart from those of
+      ἔρχομαι (εἰσιέναι εἴσειμι);
+    - the middle and the active citation form of one verb (τιτύσκω).
+    """
+    if lemma == form or base.get(lemma) == head:
+        return "form_with_an_entry_of_its_own"
+    if lemma.lower() == head.lower():
+        return "name_and_word"
+    if _spelling_key(lemma) == _spelling_key(head):
+        return "spelling_of_the_citation_form"
+    plain_head, plain_lemma = strip_accents(head), strip_accents(lemma)
+    if (plain_head.endswith("ερχομαι") and plain_lemma.endswith("ειμι")
+            and plain_head[:-7] == plain_lemma[:-4]):
+        return "compound_of_eimi"
+    if _middle_and_active(head, lemma):
+        return "middle_and_active"
+    return None
+
+
+def paradigm_form_candidates(ag: dict, *, restored, base: dict, heads,
+                             wiktionary_heads=(), corpus_forms=()
+                             ) -> dict[str, tuple[str, str, str]]:
+    """Forms that may follow a head another lemma displaced from them:
+    {form: (head, displaced lemma, kind)}.
+
+    - ``restored``: the pinned Wiktionary-only base reads the form as a head
+      that restore_displaced_lexical_heads gave back (from the same lemma):
+      κλαίειν beside κλαίω (κλείω), ἕπεται beside ἕπομαι (ἕπω);
+    - ``case``: a lowercase form that reads as the capitalised twin of a
+      restored lowercase head, where Wiktionary files the form under the
+      name: ἔρωτα beside ἔρως (Ἔρως);
+    - ``head``: a corpus form the base reads as a listed head that reads
+      itself (in the table, or in the base), which the merged table gave to
+      another lemma, where that is no lemma convention (reading_convention):
+      οἰκιῶν οἰκία (οἰκίον), πλευρᾶς πλευρά (πλευρόν).
+
+    A form Wiktionary defines in an entry of its own (``wiktionary_heads``)
+    is left to restore_displaced_lexical_heads; the dictionary head lists
+    also hold inflected forms (ἕσπετο, πλευραί), which may follow.
+    """
+    heads = set(heads)
+    own_entries = set(wiktionary_heads)
+    pairs = {(r["head"], r["lemma"]) for r in restored
+             if r.get("head_count") is not None}
+    by_lemma: dict[str, set] = {}
+    for head, lemma in pairs:
+        by_lemma.setdefault(lemma, set()).add(head)
+    candidates: dict[str, tuple[str, str, str]] = {}
+    for form, lemma in ag.items():
+        if lemma not in by_lemma or form in own_entries:
+            continue
+        recorded = base.get(form)
+        for head in sorted(by_lemma[lemma]):
+            if recorded == head:
+                candidates[form] = (head, lemma, "restored")
+                break
+            if (_reads_capitalised_twin(head, lemma) and form[:1].islower()
+                    and form[:1].isalpha()):
+                candidates.setdefault(form, (head, lemma, "case"))
+    for form in sorted(corpus_forms):
+        if form in candidates or form in own_entries:
+            continue
+        head, lemma = base.get(form), ag.get(form)
+        if (not isinstance(head, str) or not isinstance(lemma, str)
+                or head == lemma or head == form or head not in heads
+                or head not in (ag.get(head), base.get(head))):
+            continue
+        if reading_convention(form, head, lemma, base) is None:
+            candidates[form] = (head, lemma, "head")
+    return candidates
+
+
+def restore_displaced_paradigm_forms(ag: dict, *, candidates: dict,
+                                     evidence: dict, heads,
+                                     eligible=None, rejected=None,
+                                     key_evidence=None) -> list[dict]:
+    """Give the forms of a head back the head's reading (#147).
+
+    restore_displaced_lexical_heads gives a head back its own key; its
+    inflected forms kept the lemma that displaced it (κλαίειν κλείω beside
+    κλαίω, ἔρωτα Ἔρως beside ἔρως). A candidate form
+    (paradigm_form_candidates) takes the head where the counted corpus
+    pairs (``evidence``, GLAUx) support it as they supported the head:
+
+    - ``restored``: the corpus reads the form as the head at least as often
+      as the displaced lemma; the pinned base decides a tie, as it decides
+      one for a Wiktionary head;
+    - ``case``: at least ``LISTED_HEAD_MIN_TOKENS`` tokens and more than the
+      name has, the test a lowercase head passed against its name;
+    - ``head``: the head is the corpus's commonest lemma for the form, with
+      at least ``PARADIGM_FORM_MIN_TOKENS`` tokens and at least
+      ``PARADIGM_FORM_MIN_RATIO`` times the displaced lemma's.
+
+    A restored form's unaccented, lowercase and monotonic keys follow it as
+    a restored head's do. ``eligible`` and ``rejected`` are as for
+    restore_displaced_lexical_heads. Changes ``ag`` in place and returns one
+    record per key.
+    """
+    eligible = eligible or (lambda form: True)
+    rejected = rejected or (lambda form, head: False)
+    key_evidence = key_evidence or {}
+    heads = set(heads)
+    restored = []
+    for form, (head, lemma, kind) in sorted(candidates.items()):
+        if ag.get(form) != lemma or not eligible(form) or rejected(form, head):
+            continue
+        counts = evidence.get(form, {})
+        own, other = counts.get(head, 0), counts.get(lemma, 0)
+        if kind == "restored":
+            supported = own >= other
+        elif kind == "case":
+            supported = own >= LISTED_HEAD_MIN_TOKENS and own > other
+        else:
+            supported = (own >= PARADIGM_FORM_MIN_TOKENS
+                         and own >= PARADIGM_FORM_MIN_RATIO * other
+                         and own >= max(counts.values()))
+        if supported:
+            restored.append({"form": form, "lemma": lemma, "head": head,
+                             "kind": kind, "head_count": own,
+                             "lemma_count": other})
+    alias_claims: dict[str, set] = {}
+    for record in restored:
+        form, head, lemma = record["form"], record["head"], record["lemma"]
+        ag[form] = head
+        for key in head_alias_keys(form):
+            if (key in candidates or key in heads or ag.get(key) != lemma
+                    or not eligible(key) or rejected(key, head)):
+                continue
+            if form[:1].isupper() and not key[:1].isupper():
+                continue
+            folded = key_evidence.get(key)
+            if folded and folded.get(head, 0) <= max(
+                    (count for other_lemma, count in folded.items()
+                     if other_lemma != head), default=0):
+                continue
+            alias_claims.setdefault(key, set()).add((head, lemma))
+    for key, claims in sorted(alias_claims.items()):
+        if len(claims) == 1:
+            head, lemma = next(iter(claims))
+            ag[key] = head
+            restored.append({"form": key, "lemma": lemma, "head": head,
+                             "kind": "alias", "head_count": None,
+                             "lemma_count": None})
     return sorted(restored, key=lambda record: record["form"])
 
 
@@ -1650,31 +1890,83 @@ def build():
               f"{sum(r['head_count'] is not None for r in restored_heads):,} "
               f"heads, {len(restored_heads):,} keys "
               f"({len(candidates):,} heads read as another lemma)")
+        # Their inflected forms, and the forms of a head that reads itself
+        # where the base and GLAUx agree against the merged reading (#147).
+        form_candidates = paradigm_form_candidates(
+            ag, restored=restored_heads, base=ag_base, heads=listed_heads,
+            wiktionary_heads=wiktionary_heads, corpus_forms={pair["form"] for pair in glaux_pairs or ()})
+        form_alias_keys = (set().union(*map(head_alias_keys, form_candidates))
+                           if form_candidates else set())
+        restored_forms = restore_displaced_paradigm_forms(
+            ag, candidates=form_candidates,
+            evidence=corpus_form_evidence(
+                glaux_pairs or (), form_candidates.keys(),
+                grave_folded={form for form, (_, _, kind)
+                              in form_candidates.items() if kind == "case"}),
+            heads=listed_heads,
+            key_evidence=corpus_key_evidence(glaux_pairs or (), form_alias_keys),
+            rejected=_is_article_map,
+            eligible=lambda form: ag_source_overrides.get(form) in (
+                None, AG_WIKTIONARY_LAYER, AG_EXPANSION_LAYER))
+        for record in restored_forms:
+            _record_citation_rejection(
+                table="AG", source=ag_source_overrides.get(
+                    record["form"], ag_default_source),
+                form=record["form"], lemma=record["lemma"],
+                reason=f"displaced_paradigm_form_restored_to_{record['head']}")
+            ag_source_overrides[record["form"]] = AG_WIKTIONARY_LAYER
+        kinds: dict[str, int] = {}
+        for record in restored_forms:
+            kinds[record["kind"]] = kinds.get(record["kind"], 0) + 1
+        print(f"  Displaced paradigm forms restored: {len(restored_forms):,} "
+              f"keys ({', '.join(f'{k} {n:,}' for k, n in sorted(kinds.items()))}; "
+              f"{len(form_candidates):,} candidates)")
+        del form_candidates, form_alias_keys
     ag_base = None
 
     # Expand AG with AGDT/Perseus treebank pairs (the 33 Greek AGDT works:
     # Sophocles, Aeschylus, Homer, Hesiod, Herodotus, Thucydides, Plutarch,
     # Polybius, Athenaeus). Sourced from the AGDT original
     # (PerseusDL/treebank_data), CC BY-SA 3.0 US -- not the NC UD repackaging.
+    # Its lemmas are validated against the headword lists as GLAUx and
+    # Diorisis lemmas are (#147): AGDT spells some lemmas in Beta Code or
+    # with typos (ξψρυς for Κῦρος, Σκιπιων, ʽἑκτορίδης). A compound joined
+    # from a preverb lemma is kept when a lexical head list has it.
     perseus_added_ag = 0
+    perseus_bad_forms: set = set()
     if PERSEUS_PAIRS_PATH.exists():
         t_pe = time.time()
+        perseus_known = load_ancient_headwords_exact() | preverb_heads
         with open(PERSEUS_PAIRS_PATH, encoding="utf-8") as f:
             perseus_pairs = json.load(f)
         for p in perseus_pairs:
             form, lemma = p["form"], p["lemma"]
-            lemma = _hyphenated_corpus_lemma(form, lemma,
-                                             PERSEUS_PAIRS_PATH.name)
-            if lemma is None:
+            joined = _hyphenated_corpus_lemma(form, lemma,
+                                              PERSEUS_PAIRS_PATH.name)
+            if joined is None:
                 continue
+            if joined == lemma and perseus_known:
+                lemma = agdt_headword_lemma(lemma, perseus_known)
+                if lemma is None:
+                    if form not in ag and form not in perseus_bad_forms:
+                        perseus_bad_forms.add(form)
+                        _record_citation_rejection(
+                            table="AG", source=PERSEUS_PAIRS_PATH.name,
+                            form=form, lemma=p["lemma"],
+                            reason="corpus_lemma_not_a_headword")
+                    continue
+            else:
+                lemma = joined
             if _fills_ag_gap(form, lemma):
                 ag[form] = lemma
                 ag_source_overrides[form] = PERSEUS_PAIRS_PATH.name
                 perseus_added_ag += 1
+        del perseus_known
         print(f"  Perseus (AGDT): +{perseus_added_ag:,} to AG "
               f"({len(perseus_pairs):,} total, "
-              f"{len(perseus_pairs) - perseus_added_ag:,} already present) "
-              f"({time.time()-t_pe:.1f}s)")
+              f"{len(perseus_pairs) - perseus_added_ag:,} already present "
+              f"or rejected; {len(perseus_bad_forms):,} gap-fills under a lemma "
+              f"no headword list has) ({time.time()-t_pe:.1f}s)")
     else:
         print(f"  Perseus: no perseus_pairs.json found, skipping")
 
@@ -2728,6 +3020,7 @@ def build():
         "Κεῖται": "κεῖμαι",
         **KAIKKI_2026_11_READING_OVERRIDES,
         **REVIEWED_TREEBANK_READINGS,
+        **REVIEWED_LOOKUP_READINGS,
         **REVIEWED_ABSENT_KEY_READINGS,
     }
     # Keys whose Ancient reading names an inflected form read its lemma.
