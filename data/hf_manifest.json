@@ -1,7 +1,7 @@
 {
   "_comment": "sha256 of every artifact CI downloads from the Hub (files), of the other files the Hub serves that builds and tools read (pinned_only), and of the tagger weights at the revision the tagger pins (tagger). Rewritten by scripts/hf_data.py push and pin-tagger; CI waits for the Hub to serve these exact bytes (hf_data.py wait) before running tests.",
   "repo": "ciscoriordan/dilemma",
-  "generated": "2026-11-20T16:18:35Z",
+  "generated": "2026-11-20T16:40:36Z",
   "files": {
     "data/lookup.db": {
       "size": 1460584448,
@@ -274,9 +274,9 @@
       "git_sha1": "60f533b36ea37427b777762b7d773204e6218cc3"
     },
     "data/pos_cell_corrections.json": {
-      "size": 89730,
-      "sha256": "9e2ca8b8ed6ae5649bd8d8479901d6b4a2773fd6d3ddb6fdabf2beaa997532b7",
-      "git_sha1": "8bff2769af53d00ea72f41c2d6404e78bb915c30"
+      "size": 89199,
+      "sha256": "8b100e9119178348fc91dbf1e635c6a3db65b04ce2259486c730754cf88bc128",
+      "git_sha1": "59eac2b4c84af70ee723a0e71c165eef94aa1f92"
     },
     "data/verb_subjects.json": {
       "size": 725737,
