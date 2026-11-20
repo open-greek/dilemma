@@ -1253,14 +1253,34 @@ def merged_principal_parts(headword: str, head_text: str,
     repeats every one the current text gives, which then stopped among them
     (ἀναθάλλω: "aor. ἀνέθηλα ...: aor. 2" beside "aor. ἀνέθηλα : aor. 2
     ἀνέθαλον").
+
+    A part LSJ abbreviates with a hyphen (``fut. -ήσω``) is written out
+    from the headword (``expand_abbreviation``), but only for a tense that
+    neither text prints in full: σαλπίζω keeps σαλπίσω, which the text
+    prints after "fut. -ιῶ". The aorists again count as one tense.
     """
-    parts = dict(parse_principal_parts(head_text, headword)) if head_text else {}
+    parts = _merged_parts(headword, head_text, supplement_text, False)
+    expanded = _merged_parts(headword, head_text, supplement_text, True)
+    aorists = any(key in _AORIST_PART_KEYS for key in parts)
+    for key, form in expanded.items():
+        if key in _AORIST_PART_KEYS and aorists:
+            continue
+        parts.setdefault(key, form)
+    return parts
+
+
+def _merged_parts(headword: str, head_text: str, supplement_text: str,
+                  abbreviations: bool) -> dict[str, str]:
+    """:func:`merged_principal_parts` with or without the abbreviations."""
+    parts = (dict(parse_principal_parts(head_text, headword, abbreviations))
+             if head_text else {})
     if not supplement_text:
         return parts
     if (head_text and ends_at_label(head_text)
             and re.match(r"\s*[\u0370-\u03ff\u1f00-\u1fff]", supplement_text)):
         supplement_text = head_text.rstrip() + " " + supplement_text
-    supplement = parse_principal_parts(supplement_text, headword)
+    supplement = parse_principal_parts(supplement_text, headword,
+                                       abbreviations)
     aorists = {key: form for key, form in parts.items()
                if key in _AORIST_PART_KEYS}
     # "aor" stands for the numbered aorist where no plain label is printed,

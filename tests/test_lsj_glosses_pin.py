@@ -103,9 +103,12 @@ EARLIER_HEAD = ("fut. -τεμῶ : aor. κατέτεμον (v. infr.); Ion. and 
 
 
 def test_supplement_adds_the_parts_the_current_text_lacks():
-    assert expand_lsj.merged_principal_parts("κατατέμνω", CURRENT_HEAD) == {}
+    # The hyphenated future is written out from the headword.
+    assert expand_lsj.merged_principal_parts("κατατέμνω", CURRENT_HEAD) == {
+        "fut": "κατατεμῶ"}
     assert expand_lsj.merged_principal_parts(
-        "κατατέμνω", CURRENT_HEAD, EARLIER_HEAD) == {"aor": "κατέτεμον"}
+        "κατατέμνω", CURRENT_HEAD, EARLIER_HEAD) == {
+        "fut": "κατατεμῶ", "aor": "κατέτεμον"}
 
 
 def test_current_text_decides_the_parts_it_gives():
