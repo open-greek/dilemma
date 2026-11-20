@@ -473,7 +473,9 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     entries = {hw: {"orth_orig": hw, "gender": ""}
                for hw in ("εἰκονίζω", "καταδείκνυμι", "καταδέχομαι",
                           "δέχομαι", "ἀμφιέννυμι", "ἀμφιάζω", "νοσφίζω",
-                          "περιαιρέω", "περιείλω")}
+                          "περιαιρέω", "περιείλω", "ἀναισιμόω")}
+    entries["ἀναίσιμος"] = {"orth_orig": "ἀναίσιμος", "gender": "",
+                            "itype": "ον"}
     # a cross-reference headword that is a form, not a verb
     entries["περιεῖλον"] = {"orth_orig": "περιεῖλον", "gender": ""}
     entries["εἰκονικός"] = {"orth_orig": "εἰκονικός", "gender": "m"}
@@ -484,7 +486,8 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         "δέχομαι": "fut. δέξομαι: aor. ἐδεξάμην: take.",
         "ἀμφιέννυμι": "fut. ἀμφιέσω: put round.",
         "νοσφίζω": "aor. ἐνόσφισα: turn away.",
-        "περιαιρέω": "aor. 2 περιεῖλον: take away."})
+        "περιαιρέω": "aor. 2 περιεῖλον: take away.",
+        "ἀναισιμόω": "Ion. impf. ἀναισίμουν: use up."})
     monkeypatch.setattr(expand_lsj, "load_lsj_supplement_head_texts",
                         lambda: {})
     monkeypatch.setattr(expand_lsj, "verify_lsj_glosses",
@@ -515,6 +518,12 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     monkeypatch.setattr(expand_lsj, "LEXICAL_HEADS", heads)
     audit = tmp_path / "audit.json"
     monkeypatch.setattr(expand_lsj, "VERB_AUDIT", audit)
+    reference = tmp_path / "reference.json"
+    reference.write_text(json.dumps({"ἀναισίμους": "ἀναίσιμος"},
+                                    ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setenv(expand_lsj.REFERENCE_ENV, str(reference))
+    monkeypatch.setattr(expand_lsj, "SECOND_DECLENSION",
+                        tmp_path / "no_second_declension.json")
 
     cells = {
         "εἰκονίζω": {"εἰκόνισε(ν)", "εἰκόνισα", "εἰκονικός", "εἰκονίσει",
@@ -524,6 +533,7 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
         "ἀμφιέννυμι": {"ἀμφιέσομαι"},
         "νοσφίζω": {"ἐνόσφισε(ν)"},
         "περιαιρέω": {"περιειλόμεθα", "περιείλου", "περιείλω", "περιεῖλον"},
+        "ἀναισιμόω": {"ἀναισίμους", "ἀναισίμου"},
     }
     presents = {"περιείλω": {"περιειλόμεθα", "περιείλου", "περιεῖλον"}}
 
@@ -572,7 +582,15 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
     # ... while a headword that is the cell of another verb's present
     # goes where the treebank reads it
     assert result["περιεῖλον"] == "περιαιρέω"
+    # A printed cell that the published expansion reads as a noun, and no
+    # treebank as the verb, is left to the noun (#145).
+    assert "ἀναισίμους" not in result
+    assert result["ἀναισίμου"] == "ἀναισιμόω"
     recorded = json.loads(audit.read_text(encoding="utf-8"))
+    assert recorded["left_to_a_nominal"] == [
+        {"form": "ἀναισίμους", "verb": "ἀναισιμόω", "part": "printed",
+         "reading": "ἀναίσιμος", "rule": "expansion"}]
+    assert recorded["counts"]["printed_nominal_expansion"] == 1
     assert recorded["inferred"] == {
         "εἰκονίζω": {"kind": "regular", "from": "",
                      "cells": ["εἰκονίσεις", "εἰκόνισεν"]},
@@ -592,7 +610,8 @@ def test_verb_pass_infers_and_checks(monkeypatch, tmp_path):
          "present_of": "περιείλω"}]
     assert recorded["counts"]["inferred_noun_twins"] == 1
     assert set(recorded["inputs"]) == {
-        "form_profile.db", "grc_lexical_heads.json", "pairs.json"}
+        "form_profile.db", "grc_lexical_heads.json", "pairs.json",
+        "reference.json"}
 
 
 def test_verb_pass_names_a_missing_corpus_table(monkeypatch, tmp_path):

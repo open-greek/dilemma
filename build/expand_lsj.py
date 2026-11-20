@@ -2350,7 +2350,8 @@ def load_lexical_heads(path: Path) -> frozenset[str]:
     return frozenset(heads) - REJECTED_LEMMAS
 
 
-def load_treebank_readings(paths, forms) -> dict[str, list[tuple[str, str]]]:
+def load_treebank_readings(paths, forms, names: dict | None = None
+                           ) -> dict[str, list[tuple[str, str]]]:
     """The readings the treebank pair files give each of ``forms``.
 
     The lookup build lets the pair files fill gaps in the order of
@@ -2360,6 +2361,10 @@ def load_treebank_readings(paths, forms) -> dict[str, list[tuple[str, str]]]:
     has the form only with a capital (sentence-initial Κατεδέξατο) speaks
     for it when no file has it as spelled, unless the lemma is capitalised
     too: Φιαλέων of Φιαλεύς is not φιαλέων.
+
+    Such capitalised readings go to ``names`` when it is given: the first
+    capitalised lemma a file gives a capitalised spelling of each form
+    (Ἐφέσω of Ἔφεσος for ἐφέσω), by the form's case-folded key.
     """
     wanted = {reading_key(form) for form in forms}
     folded_wanted = {key.casefold() for key in wanted}
@@ -2381,8 +2386,13 @@ def load_treebank_readings(paths, forms) -> dict[str, list[tuple[str, str]]]:
                 found = found_exact.setdefault(key, [])
             else:
                 key = key.casefold()
-                if (key not in folded_wanted or key in folded
-                        or lemma[:1] != lemma[:1].lower()):
+                if key not in folded_wanted:
+                    continue
+                if lemma[:1] != lemma[:1].lower():
+                    if names is not None and pair["form"][:1].isupper():
+                        names.setdefault(key, _pair_lemma(lemma))
+                    continue
+                if key in folded:
                     continue
                 found = found_folded.setdefault(key, [])
             reading = (_pair_lemma(lemma), pair.get("pos") or "")
@@ -2482,6 +2492,126 @@ def noun_twin(form: str) -> bool:
     return (bare_letters(form).endswith(_ACTION_NOUN_ENDINGS)
             or unicodedata.normalize("NFC", form).endswith(
                 _GENITIVE_PLURAL_ENDINGS))
+
+
+# Nominal readings a verb cell does not take (#145). The verb pass runs
+# before the published expansion is overlaid and before the lookup build
+# adds the nominal tables, so it reads them itself: the expansion reference
+# (``DILEMMA_AG_EXPANSION_REFERENCE`` or the pin of
+# ag_expansion_reference.json) and the regular cells of the nominal heads
+# of LSJ and of the second-declension list.
+SECOND_DECLENSION = DATA_DIR / "grc_second_declension.json"
+EXPANSION_MANIFEST = DATA_DIR / "ag_expansion_reference.json"
+REFERENCE_ENV = "DILEMMA_AG_EXPANSION_REFERENCE"
+_VERB_ENDINGS = ("ω", "μι", "μαι")
+
+
+def first_declension_cells(lemma: str) -> list[str]:
+    """The cells of an oxytone feminine in -ά or -ή, with the Ionic -η of
+    one in -ά (πρασιά: πρασιᾶς, πρασιᾷ, πρασιῆς, πρασιῇ, πρασιήν)."""
+    lemma = unicodedata.normalize("NFC", lemma)
+    if len(lemma) < 4 or lemma[-1] not in "άή":
+        return []
+    stem = lemma[:-1]
+    if any(mark in unicodedata.normalize("NFD", stem)
+           for mark in ("\u0301", "\u0300", "\u0342")):
+        return []
+    endings = ["ῆς", "ῇ", "ήν", "αί", "ῶν", "αῖς", "άς"]
+    if lemma[-1] == "ά":
+        endings += ["ᾶς", "ᾷ", "άν"]
+    return [unicodedata.normalize("NFC", stem + ending) for ending in endings]
+
+
+def nominal_cells(lsj_entries, second_declension: Path | None = None
+                  ) -> dict[str, str]:
+    """Regular cells of nominal heads, by their accented spelling.
+
+    The second-declension words of ``grc_second_declension.json`` in their
+    class, the LSJ s-stem adjectives in -ής (ἐπικλινής: ἐπικλινεῖς) and the
+    LSJ oxytone feminines in -ά and -ή (πρασιά: Ionic πρασιῇ). A spelling
+    two heads give is kept with the first.
+    """
+    from dilemma.grc_adjective_gaps import es_cells
+    from dilemma.grc_os_gaps import os_cells
+    cells: dict[str, str] = {}
+    second_declension = second_declension or SECOND_DECLENSION
+    if second_declension.exists():
+        with open(second_declension, encoding="utf-8") as f:
+            classes = json.load(f)["classes"]
+        for declension, by_source in sorted(classes.items()):
+            for lemmas in by_source.values():
+                for lemma in lemmas:
+                    for form, _ in os_cells(lemma, declension):
+                        cells.setdefault(form, lemma)
+    for head, entry in lsj_entries.items():
+        head = strip_length_marks(head)
+        if head.endswith("ής") and (entry.get("itype") or "").endswith("ές"):
+            for form, _ in es_cells(head):
+                cells.setdefault(form, head)
+        elif entry.get("gender") == "f":
+            for form in first_declension_cells(head):
+                cells.setdefault(form, head)
+    return cells
+
+
+def nominal_lemma(lemma: str | None, lexical_heads, lsj_entries) -> bool:
+    """Whether a reading names a noun, an adjective or a name.
+
+    It must be a dictionary head (as spelled, or with a lowercase first
+    letter) without a verb's ending. A lowercase LSJ head with neither
+    gender nor declension is an aorist or other verbal head (κατεῖπον).
+    """
+    if not lemma:
+        return False
+    lowered = lemma[:1].lower() + lemma[1:]
+    if lemma not in lexical_heads and lowered not in lexical_heads:
+        return False
+    if strip_diacritics(lemma).lower().endswith(_VERB_ENDINGS):
+        return False
+    entry = lsj_entries.get(lemma)
+    return not (entry is not None and lemma == lowered
+                and not entry.get("gender") and not entry.get("itype"))
+
+
+def reference_path() -> Path | None:
+    """The expansion reference the overlay step reads, or ``None``."""
+    explicit = os.environ.get(REFERENCE_ENV)
+    if explicit:
+        return Path(explicit)
+    if not EXPANSION_MANIFEST.exists():
+        return None
+    import overlay_lsj
+    try:
+        return overlay_lsj.resolve_reference(
+            overlay_lsj.load_manifest(EXPANSION_MANIFEST), None)
+    except (SystemExit, Exception):
+        return None
+
+
+def load_reference_readings(path: Path, forms) -> dict[str, str]:
+    """The readings the expansion reference gives ``forms``."""
+    with open(path, encoding="utf-8") as f:
+        reference = json.load(f)
+    found = {form: reference[form] for form in forms if form in reference}
+    del reference
+    return found
+
+
+def load_lowercase_keys(path: Path) -> frozenset[str]:
+    """The attested keys (:func:`load_attested_forms`) that some corpus
+    spells with a lowercase first letter."""
+    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        return frozenset(
+            key for form, key in connection.execute(
+                "SELECT form, form_norm FROM forms")
+            if form[:1] == form[:1].lower())
+    finally:
+        connection.close()
+
+
+def capitalized(form: str) -> str:
+    return form[:1].upper() + form[1:]
 
 
 def sha256_file(path: Path) -> str:
@@ -2723,8 +2853,100 @@ def expand_verbs(corpus_checks: bool = True):
                     for forms, hw_clean, derived in deferred]
         wanted = {form for forms, _, _ in deferred for form in forms}
         wanted |= {form for _, forms in inferred for form in forms}
-        readings = load_treebank_readings(TREEBANK_PAIRS, wanted)
         lexical_heads = load_lexical_heads(LEXICAL_HEADS)
+
+        # The nominal readings the verb cells must leave alone (#145): the
+        # published expansion's, which the overlay adds only after this
+        # pass, and the regular cells of the nominal heads.
+        reference_file = reference_path()
+        if reference_file is None or not reference_file.exists():
+            sys.exit(f"the expansion reference is missing (set {REFERENCE_ENV} "
+                     f"or fetch the pin of {EXPANSION_MANIFEST.name}); the verb "
+                     "pass checks its cells against its nominal readings. "
+                     "--no-corpus-checks runs without it.")
+        inferred_forms = {form for _, forms in inferred for form in forms}
+        asked = set(written) | wanted
+        asked |= {capitalized(form) for form in inferred_forms}
+        asked |= {strip_diacritics(capitalized(form))
+                  for form in inferred_forms}
+        reference = load_reference_readings(reference_file, asked)
+        print(f"  {reference_file.name}: {len(reference):,} of "
+              f"{len(asked):,} spellings read")
+        nominal_forms = nominal_cells(lsj_entries)
+        lowercase_keys = load_lowercase_keys(FORM_PROFILE)
+
+        def nominal_reading(form, verb):
+            lemma = reference.get(form)
+            if (lemma and lemma != verb
+                    and nominal_lemma(lemma, lexical_heads, lsj_entries)):
+                return lemma
+            return ""
+
+        # Present cells this pass has written that the expansion reads as
+        # a noun: they are checked against the treebanks like the others.
+        present_nominal = {form: lookup[form] for form in written
+                           if form in reference
+                           and form != strip_diacritics(form)
+                           and nominal_reading(form, lookup[form])}
+        wanted |= set(present_nominal)
+        names: dict[str, str] = {}
+        readings = load_treebank_readings(TREEBANK_PAIRS, wanted, names)
+
+        def name_reading(form):
+            """The name that the corpora alone spell this lowercase cell
+            as: every attestation is capitalised (Αἰγιεῖς, not αἰγιεῖς),
+            and the capitalised spelling reads a name."""
+            if norm_key(form) in lowercase_keys:
+                return ""
+            upper = capitalized(form)
+            for lemma in (reference.get(upper),
+                          reference.get(strip_diacritics(upper)),
+                          lookup.get(upper),
+                          names.get(reading_key(form).casefold())):
+                if (lemma and lemma[:1] != lemma[:1].lower()
+                        and nominal_lemma(lemma, lexical_heads, lsj_entries)):
+                    return lemma
+            return ""
+
+        left_to_nominal = []
+        printed_by_verb = {hw_clean: {strip_length_marks(form)
+                                      for form in parts.values()}
+                           for _, hw_clean, parts in inferable}
+
+        def part_headword(form, hw_clean):
+            """The LSJ head a printed cell goes to: a principal part that
+            LSJ heads itself (κατεῖπον beside κατερέω, whose entry calls it
+            the future "of aor. κατεῖπον"), where the treebanks read the
+            cell as that head (κατεῖπε), unless its entry names this verb
+            (συνεῖπον: "aor. of συναγορεύω")."""
+            reading = treebank_reading(form, hw_clean, readings,
+                                       lexical_heads)[0]
+            if (reading and reading != hw_clean and reading in lsj_entries
+                    and reading in printed_by_verb.get(hw_clean, ())
+                    and hw_clean not in (find_head_text(reading) or "")):
+                return reading
+            return ""
+
+        def nominal_rival(form, hw_clean, part):
+            """The nominal reading a cell gives way to, with its reason, or
+            ("", ""). A treebank that reads the form as this verb keeps it.
+            A printed cell gives way to the expansion's noun (ἀναίσιμος
+            for ἀναισίμους), and so does an inferred one, which also gives
+            way to a regular cell of a nominal head (ἐπικλινεῖς) and to a
+            name the corpora alone spell it as (Αἰγιεῖς)."""
+            reading = nominal_reading(form, hw_clean)
+            reason = "expansion" if reading else ""
+            if not reading and part == "inferred":
+                reading = nominal_forms.get(unicodedata.normalize("NFC", form),
+                                            "")
+                reason = "paradigm" if reading else ""
+                if not reading:
+                    reading = name_reading(form)
+                    reason = "name" if reading else ""
+            if reading and treebank_agrees(form, hw_clean, readings,
+                                           lexical_heads):
+                return "", ""
+            return reading, reason
         # The verbs that have a form among their own principal parts.
         yields: dict[str, set[str]] = {}
         for forms, hw_clean, _ in deferred:
@@ -2749,10 +2971,22 @@ def expand_verbs(corpus_checks: bool = True):
                 else:
                     gives_way = left_to_treebank(
                         form, hw_clean, readings, lexical_heads)
+                rival, reason = ("", "") if gives_way else nominal_rival(
+                    form, hw_clean, "inferred" if kind == "inferred"
+                    else part)
                 if gives_way:
                     stats[part + "_withheld"] += 1
                     withheld.append((form, hw_clean, part, treebank_reading(
                         form, hw_clean, readings, lexical_heads)[0]))
+                elif rival:
+                    stats[f"{part}_nominal_{reason}"] += 1
+                    left_to_nominal.append((form, hw_clean, part, rival,
+                                            reason))
+                elif part == "printed" and (head := part_headword(
+                        form, hw_clean)):
+                    stats["printed_headword"] += 1
+                    left_to_nominal.append((form, hw_clean, part, head,
+                                            "headword"))
                 elif (kind == "inferred" and noun_twin(form)
                       and not treebank_agrees(
                           form, hw_clean, readings, lexical_heads)):
@@ -2767,6 +3001,24 @@ def expand_verbs(corpus_checks: bool = True):
                     for forms, hw_clean, derived in deferred]
         inferred = [(hw_clean, uncontested(forms, hw_clean, "inferred"))
                     for hw_clean, forms in inferred]
+        # A present cell the expansion reads as a noun is removed, with its
+        # accentless key where the expansion reads that as a noun too.
+        for form, verb in sorted(present_nominal.items()):
+            if (lookup.get(form) != verb
+                    or treebank_agrees(form, verb, readings, lexical_heads)):
+                continue
+            rival = nominal_reading(form, verb)
+            del lookup[form]
+            written.discard(form)
+            plain = strip_diacritics(form)
+            if (plain != form and plain in written
+                    and lookup.get(plain) == verb
+                    and nominal_reading(plain, verb)):
+                del lookup[plain]
+                written.discard(plain)
+            stats["present_nominal_expansion"] += 1
+            left_to_nominal.append((form, verb, "present", rival,
+                                    "expansion"))
 
         # So far this pass has written present systems only. Where another
         # verb's present holds the cell of a printed part (περιειλόμεθα of
@@ -2826,6 +3078,9 @@ def expand_verbs(corpus_checks: bool = True):
               f"verb has the cell too), {stats['derived_withheld']:,} on a "
               f"derived stem, {stats['inferred_withheld']:,} of inferred "
               "parts")
+        print("  Cells left to a nominal reading: "
+              + ", ".join(f"{key} {stats[key]:,}" for key in sorted(stats)
+                          if "_nominal_" in key or key == "printed_headword"))
         print("  Present cells that gave way to a printed part the treebanks "
               f"read: {stats['printed_over_present']:,}")
         for form, hw_clean, _, reading in sorted(withheld)[:40]:
@@ -2860,11 +3115,16 @@ def expand_verbs(corpus_checks: bool = True):
             "inputs": {
                 FORM_PROFILE.name: {"content_hash": row[0] if row else None},
                 **{path.name: {"sha256": sha256_file(path)}
-                   for path in (LEXICAL_HEADS, *TREEBANK_PAIRS)},
+                   for path in (LEXICAL_HEADS, *TREEBANK_PAIRS)
+                   if path.exists()},
+                reference_file.name: {"size": reference_file.stat().st_size},
+                **({SECOND_DECLENSION.name: {
+                    "sha256": sha256_file(SECOND_DECLENSION)}}
+                   if SECOND_DECLENSION.exists() else {}),
             },
             "counts": {key: stats[key] for key in sorted(stats)
                        if key.startswith(("inferred_", "printed_",
-                                          "derived_"))},
+                                          "derived_", "present_"))},
             "inferred": {
                 hw_clean: {"kind": inferred_from[hw_clean][0],
                            "from": inferred_from[hw_clean][1],
@@ -2875,6 +3135,11 @@ def expand_verbs(corpus_checks: bool = True):
                 {"form": form, "verb": hw_clean, "part": part,
                  "treebank": reading}
                 for form, hw_clean, part, reading in sorted(withheld)],
+            "left_to_a_nominal": [
+                {"form": form, "verb": hw_clean, "part": part,
+                 "reading": reading, "rule": rule}
+                for form, hw_clean, part, reading, rule
+                in sorted(left_to_nominal)],
             "taken_from_a_present": [
                 {"form": form, "verb": hw_clean, "present_of": held}
                 for form, hw_clean, held in sorted(over_present)],
