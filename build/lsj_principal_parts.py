@@ -1675,6 +1675,10 @@ def expand_abbreviation(headword: str, fragment: str) -> str | None:
         return _spell(joined) if joined is not None else None
     if consonant or not f.endswith(("ω", "ομαι", "ουμαι")):
         return None
+    if h.endswith("μι"):
+        # A -μι verb's present stem is reduplicated (ἀφ-ί-ημι), and its
+        # future is not cut from it: -ήσω of ἀφίημι is ἀφήσω, not ἀφιήσω.
+        return None
     # A future in an ending: it replaces the headword from the vowel it
     # begins with, or from the contract vowel it lengthens.
     stem_end = _present_ending(h)

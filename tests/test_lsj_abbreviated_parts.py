@@ -81,3 +81,9 @@ def test_the_inference_reads_the_full_forms_alone():
         "σαλπίζω", text, abbreviations=False) == {"aor": nfc("ἐσάλπιγξα")}
     assert expand_lsj.merged_principal_parts(
         "σκορπίζω", "fut. -ιῶ: scatter", abbreviations=False) == {}
+
+
+def test_no_future_is_cut_from_a_reduplicated_mi_present():
+    from lsj_principal_parts import expand_abbreviation
+    for head in ("ἀφίημι", "συνίημι", "ἐφίημι", "μεθίημι"):
+        assert expand_abbreviation(head, "ήσω") is None

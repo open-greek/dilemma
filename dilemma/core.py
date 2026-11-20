@@ -29,6 +29,7 @@ Usage:
     m_lsj.lemmatize("εἶπον")        # -> "λέγω" (aorist -> present stem)
 """
 
+import contextvars
 import json
 import hashlib
 import math
@@ -167,15 +168,21 @@ _CONVENTION_HEADWORDS = {
 _MONOTONIC_CONVENTIONS = {"triantafyllidis"}
 
 
+# Depth of tagged entry points running in this thread or task (see
+# Dilemma._vernacular_contraction_lemma). A context variable, so a tagged
+# call in one thread does not change untagged answers in another.
+_TAGGED_DEPTH = contextvars.ContextVar("dilemma_tagged_depth", default=0)
+
+
 def _tagged_entry(method):
-    """Mark a tagged entry point while it runs (see Dilemma._tagged_calls)."""
+    """Mark a tagged entry point while it runs (see _TAGGED_DEPTH)."""
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        self._tagged_calls += 1
+        token = _TAGGED_DEPTH.set(_TAGGED_DEPTH.get() + 1)
         try:
             return method(self, *args, **kwargs)
         finally:
-            self._tagged_calls -= 1
+            _TAGGED_DEPTH.reset(token)
     return wrapper
 
 
@@ -2508,7 +2515,7 @@ class Dilemma:
         _vernacular_contraction_pos_lemma answers, and under any other tag
         the form keeps the reading it had (στα ADJ, a fragment of ἕκαστος).
         """
-        if self._tagged_calls or self.lang not in ("all", "el") \
+        if _TAGGED_DEPTH.get() or self.lang not in ("all", "el") \
                 or not self._is_vernacular_contraction(
                     word, marks={0x0300, 0x0301}):
             return None
@@ -5620,8 +5627,6 @@ class Dilemma:
             return word
         return to_standard_sigma(unicodedata.normalize("NFC", word))
 
-    # Depth of tagged calls in progress; see _vernacular_contraction_lemma.
-    _tagged_calls = 0
 
     @_tagged_entry
     def lemmatize_pos(self, word: str, upos: str,
@@ -5665,7 +5670,9 @@ class Dilemma:
         # The tables are read under the spelling lemmatize() reads: NFC,
         # with a lunate sigma as σ/ς (Δῖόϲ PROPN like Δῖός, #154) and the
         # micro sign as μ (#144).
-        word = self._tagged_spelling(to_greek_mu(word))
+        if isinstance(word, str):
+            word = to_greek_mu(word)
+        word = self._tagged_spelling(word)
         self._pos_rejections(word, upos)
         def checked(lemma):
             return self._checked_pos_result(word, upos, lemma)
@@ -5907,7 +5914,8 @@ class Dilemma:
         # matches the corpus spelling as printed.
         # NFC, a lunate sigma as σ/ς and the micro sign as μ come first, as
         # in lemmatize() (#154, #144).
-        printed = [self._tagged_spelling(to_greek_mu(word)) for word in words]
+        printed = [self._tagged_spelling(to_greek_mu(word) if isinstance(word, str)
+                                         else word) for word in words]
         words = [to_plain_double_rho(word) for word in printed]
         for word, upos in zip(words, upos_tags):
             self._pos_rejections(word, upos)
