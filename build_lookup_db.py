@@ -47,13 +47,17 @@ from dilemma.elision_tails import (  # noqa: E402
 from dilemma.el_paradigm_gaps import complete_lookup  # noqa: E402
 from dilemma.grc_adjective_gaps import (  # noqa: E402
     ES_KIND, SOURCE as GRC_ADJECTIVE_GAPS_SOURCE, complete_ikos_adjectives,
-    es_paradigms, select_es_adjectives)
+    es_paradigms, read_es_adjectives, select_es_adjectives)
+from dilemma.grc_degree_forms import (  # noqa: E402
+    KIND as GRC_DEGREE_KIND, SOURCE as GRC_DEGREE_SOURCE, degree_paradigms)
 from dilemma.grc_noun_gaps import (  # noqa: E402
     SOURCE as GRC_NOUN_GAPS_SOURCE, fill_gap_cells, noun_gap_paradigms,
     select_noun_gap_lemmas)
 from dilemma.grc_os_gaps import (  # noqa: E402
-    KINDS as GRC_OS_KINDS, RIVAL_KIND as GRC_OS_RIVAL_KIND, os_paradigms,
+    KINDS as GRC_OS_KINDS, RIVAL_KIND as GRC_OS_RIVAL_KIND,
+    cells_beside_a_verb, os_paradigms,
     os_rivals, read_classes, rival_paradigms, select_os_lemmas)
+from dilemma._attest_db import norm_key as _attest_norm_key  # noqa: E402
 from dilemma.grc_rejected_lemmas import (  # noqa: E402
     CLOSED_PRONOMINAL_LEMMAS, REJECTED_LEMMAS,
 )
@@ -71,6 +75,8 @@ AG_PATH = DATA_DIR / "ag_lookup.json"
 LOOKUP_SOURCES_PATH = DATA_DIR / "lookup_sources.json"
 GRC_IKOS_ADJECTIVES_PATH = DATA_DIR / "grc_ikos_adjectives.json"
 GRC_SECOND_DECLENSION_PATH = DATA_DIR / "grc_second_declension.json"
+GRC_ES_ADJECTIVES_PATH = DATA_DIR / "grc_es_adjectives.json"
+GRC_DEGREE_FORMS_PATH = DATA_DIR / "grc_degree_forms.json"
 # Inputs that say which layer of a merged file supplied a reading.
 AG_WIKTIONARY_BASE_PATH = DATA_DIR / "ag_lookup_wikt.json"
 AG_EXPANSION_MANIFEST_PATH = DATA_DIR / "ag_expansion_reference.json"
@@ -2866,9 +2872,19 @@ def build():
 
     noun_sis, noun_sstem = select_noun_gap_lemmas(
         (form, lemma, _row_source(form)) for form, lemma in combined.items())
+    # -ής and barytone -ης adjectives a lexicon classes need no -έος row
+    # (data/grc_es_adjectives.json).
+    if GRC_ES_ADJECTIVES_PATH.exists():
+        es_listed = frozenset(read_es_adjectives(json.loads(
+            GRC_ES_ADJECTIVES_PATH.read_text(encoding="utf-8"))))
+    else:
+        es_listed = frozenset()
+        print(f"  NOTE: {GRC_ES_ADJECTIVES_PATH.name} not found; only -ής "
+              "adjectives with an -έος row get contracted cells")
     es_adjectives = select_es_adjectives(
-        (form, lemma, _row_source(form)) for form, lemma in combined.items()
-        if lemma.endswith("ής"))
+        ((form, lemma, _row_source(form)) for form, lemma in combined.items()
+         if lemma.endswith(("ής", "ης")) or form in es_listed),
+        listed=es_listed)
     if GRC_SECOND_DECLENSION_PATH.exists():
         os_listed = read_classes(json.loads(
             GRC_SECOND_DECLENSION_PATH.read_text(encoding="utf-8")))
@@ -2885,29 +2901,84 @@ def build():
     gap_cells = fill_gap_cells(
         combined, list(noun_gap_paradigms(combined, noun_sis, noun_sstem)),
         taken=left_out)
+    # A strict cell whose accentless key reads a verb (θεοφοροῖς, of
+    # θεοφορέω, beside θεοφόροις) is kept when the texts attest its own
+    # spelling more often than every spelling of the verb with its letters
+    # and do not tag it a verb (grc_os_gaps.cells_beside_a_verb).
+    strict_paradigms = [*os_paradigms(os_lemmas), *es_paradigms(es_adjectives)]
+    profile = (sqlite3.connect(f"file:{FORM_PROFILE_PATH}?mode=ro", uri=True)
+               if FORM_PROFILE_PATH.exists() else None)
+
+    def _attestation(form: str):
+        # Lowercase spellings only: a capitalized one is mostly a name
+        # (Πρίσκον, Παλαιολόγων), no evidence for the adjective.
+        rows = [(count, pos) for spelling, count, pos in profile.execute(
+            "SELECT f.form, p.total_count, p.dominant_pos FROM forms f "
+            "JOIN form_profile p ON p.form_id = f.form_id "
+            "WHERE f.form_norm = ?", (_attest_norm_key(form),))
+            if spelling[:1] != spelling[:1].upper()]
+        total = sum(count for count, _ in rows)
+        if not total:
+            return None
+        return total, max(rows, key=lambda row: row[0])[1]
+
+    beside_verbs = (cells_beside_a_verb(combined, strict_paradigms, _attestation)
+                    if profile is not None else {})
+    print(f"  Generated cells kept beside a verb form with their letters: "
+          f"{len(beside_verbs):,}")
+
     gap_cells += fill_gap_cells(
         combined,
-        [*os_paradigms(os_lemmas), *rival_paradigms(os_rival_words),
-         *es_paradigms(es_adjectives)],
+        [*strict_paradigms, *rival_paradigms(os_rival_words)],
         taken=left_out, strict=GRC_OS_KINDS | {ES_KIND},
-        claims_only={GRC_OS_RIVAL_KIND})
+        claims_only={GRC_OS_RIVAL_KIND},
+        accentless_exempt=lambda form, reading: form in beside_verbs)
+    # Comparatives and superlatives that form_profile.db attests
+    # (data/grc_degree_forms.json, build/build_grc_degree_forms.py). They
+    # read the positive adjective, and a degree word another lemma already
+    # reads is left out (κατώτερος, of κάτω, beside the Byzantine κάτος).
+    # A monotonic spelling read as the same adjective in the Modern table
+    # is no other reading.
+    degree_dropped: list = []
+    if GRC_DEGREE_FORMS_PATH.exists():
+        def _same_adjective(reading: str, lemma: str) -> bool:
+            return reading == lemma or reading == to_monotonic(lemma)
+
+        degree_record = json.loads(
+            GRC_DEGREE_FORMS_PATH.read_text(encoding="utf-8"))
+        gap_cells += fill_gap_cells(
+            combined,
+            list(degree_paradigms(combined, degree_record, _same_adjective,
+                                  degree_dropped)),
+            taken=left_out, strict={GRC_DEGREE_KIND},
+            same_lemma=_same_adjective)
+    else:
+        print(f"  NOTE: {GRC_DEGREE_FORMS_PATH.name} not found; no generated "
+              "comparatives and superlatives")
+    if profile is not None:
+        profile.close()
     for cell in gap_cells:
         combined_sources[cell["form"]] = (
             GRC_NOUN_GAPS_SOURCE if cell["kind"] in ("sis", "sstem", "os_noun")
+            else GRC_DEGREE_SOURCE if cell["kind"] == GRC_DEGREE_KIND
             else GRC_ADJECTIVE_GAPS_SOURCE)
     for kind, label in (
             ("sis", "-σις noun"), ("sstem", "s-stem neuter"),
             ("os_noun", "-ος noun"), ("os_adjective", "-ος adjective"),
             ("os_adjective_eta", "-ος, -η, -ον adjective"),
             ("os_adjective_alpha", "-ος, -α, -ον adjective"),
-            (ES_KIND, "-ής adjective")):
+            (ES_KIND, "-ής adjective"),
+            (GRC_DEGREE_KIND, "comparative and superlative")):
         cells = [c for c in gap_cells if c["kind"] == kind]
         source = (GRC_NOUN_GAPS_SOURCE if kind in ("sis", "sstem", "os_noun")
+                  else GRC_DEGREE_SOURCE if kind == GRC_DEGREE_KIND
                   else GRC_ADJECTIVE_GAPS_SOURCE)
         print(f"  Ancient {label} cells ({source}): +{len(cells):,} "
               f"keys for {len({c['lemma'] for c in cells}):,} lemmas")
     print(f"  Ancient -ος accent doublets: {len(os_rival_words):,} words "
           "that are not declined here keep the cells they share out")
+    print(f"  Ancient degree words read as another lemma, left out: "
+          f"{len(degree_dropped):,}")
 
     _write_citation_rejection_report(citation_rejections)
     print(f"  Citation rejection report: {CITATION_REJECTIONS_PATH} "

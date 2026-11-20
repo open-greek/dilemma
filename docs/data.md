@@ -806,6 +806,82 @@ third-declension table that the pinned expansion gave an adjective
 (`αὐτοσύστατι` under `αὐτοσύστατος`) is not removed; the generator only
 adds the keys that were absent.
 
+From 1.3.29 the list and the selection take in more words (#146, #144):
+
+- **Sophocles' adjectives.** `find_grc_second_declension.py` also reads the
+  endings of the Sophocles lexicon's entries (`θεοτήρητος, ον`;
+  `θεαρχικός, ή, όν`) with `build/expand_sophocles.py`'s parser, after its
+  head rules, which read a capitalized head that the other dictionaries list
+  in lowercase as the common word. A `ον` that the OCR gave for a noun's
+  genitive `ου` is followed by the noun's article (`δρόμος, ov, 6`) and is
+  not read as two endings. The record's `inputs` add the chunks and
+  `data/sophocles_head_corrections.json`.
+- **Heads that read as a name.** A listed lowercase lemma whose key reads as
+  the capitalized name of the same spelling (`ἐπάρατος`, `Ἐπάρατος`) is
+  declined in lowercase: a lexicon lists the adjective, and the name keeps
+  its key and every capitalized form.
+- **s-stem adjectives from a lexicon class.** `build/find_grc_es_adjectives.py
+  --lsj9-dir DIR` writes `data/grc_es_adjectives.json`: the plain `-ής` and
+  `-ης` headwords whose LSJ 9 entry gives the neuter `ές` or `ες` (or that
+  the LSJ POS table tags ADJ), whose Sophocles entry gives it
+  (`βληχηματώδης, ες`), or that the Byzantine list gives without an article
+  (except heads in `-της`, most of which are masculine nouns of the first
+  declension). A head that any source gives an article is left out. A listed
+  lemma gets its contracted cells without an `-έος` row. A barytone accented
+  on the syllable before `-ης` keeps its accent (`συνήθους`, `συνήθεσι`); its
+  neuter singular is not generated, since the accent recedes (`σύνηθες`)
+  except in some compounds (`εὐῶδες`), and its genitive plural is given
+  both ways (`συνήθων`, `συνηθῶν`).
+- **Cells beside a verb form.** A cell whose accentless key reads as a verb
+  is let in when the texts attest its own spelling more often than every
+  spelling of the verb with the same letters and the annotated texts do not
+  tag it a verb (`grc_os_gaps.cells_beside_a_verb`): `θεοφόροις` reads
+  `θεοφόρος`, beside the optative `θεοφοροῖς`; `παραίνων` (66 tokens) keeps
+  the participle `παραινῶν`, which the texts have far more often.
+
+### Comparatives and superlatives
+
+The degree forms in the lookup come from Wiktionary tables and the corpus
+pairs (`σοφώτερος`, `εἰδικώτερον`), so an adjective with neither had none:
+`ὁλικωτάτων` and `ὁλικωτέρα` had no reading (#152). From 1.3.29
+`build/build_grc_degree_forms.py --lsj9-dir DIR` writes
+`data/grc_degree_forms.json`, a reviewed and reproducible list of degree
+forms (`dilemma/grc_degree_forms.py`, source `grc_degree_forms`):
+
+- The adjectives are those a lexicon classes: the adjective classes of
+  `data/grc_second_declension.json`, `data/grc_ikos_adjectives.json`,
+  `data/grc_es_adjectives.json`, and LSJ 9 heads whose entry states a
+  regular comparison (`ὁλικός`: `Comp. -ώτερον`).
+- An adjective in `-ος` takes `-ότερος`, `-ότατος` after a long syllable and
+  `-ώτερος`, `-ώτατος` after a short one. The stem's last syllable is long
+  with `η`, `ω`, a diphthong, a vowel LSJ marks long, or two consonants or a
+  double consonant after it, and short with `ε`, `ο` or a vowel LSJ marks
+  short before at most one consonant; the `-ι-` of `-ιος` and `-ικός` is
+  short. An unmarked `α`, `ι` or `υ`, and a short vowel before a stop and a
+  liquid, give both formations, and the texts decide. An s-stem adjective
+  takes `-έστερος`, `-έστατος`. Where LSJ states the comparison, its
+  formation is used instead of the rule.
+- The comparative declines like an adjective in `-ος, -α, -ον`, the
+  superlative like one in `-ος, -η, -ον`, with the masculine nominative and
+  without the dual and the vocative singular. Every cell reads the positive
+  adjective, as Wiktionary and the treebanks lemmatize degree forms.
+- These are hypotheses: a cell is kept only when `form_profile.db` attests
+  its spelling (grave folded to acute, case folded), and only when no other
+  listed adjective gives the same cell (accent doublets such as
+  `εὐπρόσοδος` and `εὐπροσόδος`). The record lists every kept cell with its
+  token count and sources, and every lemma with its class evidence and the
+  evidence of its formation (`lsj9_statement`, `stem_rule_lsj9_marks`,
+  `stem_rule`); its `inputs` record the class lists, the LSJ 9 exports and
+  the `content_hash` of `form_profile.db`.
+- `build_lookup_db.py` fills absent keys only, under the accented form and
+  its lowercase, for lemmas whose key reads themselves (or the name of the
+  same spelling), by the rules of `fill_gap_cells` above. A comparative or
+  superlative whose nominative or one of whose cells already reads as
+  another lemma is another word's, and all its cells are left out
+  (`κατώτερος`, of `κάτω`, beside the Byzantine adjective `κάτος`). A Modern
+  Greek reading of the monotonic spelling of the same adjective is no other
+  reading.
+
 Verb expansion rejects source entries explicitly identified as prefixes,
 imperative forms of another verb, or defective verbs whose entry explicitly
 limits the available persons. Those restrictions preserve source-attested

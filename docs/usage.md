@@ -641,6 +641,8 @@ also second-declension -ος adjectives that no source declines and the
 contracted cells of -ής adjectives),
 `grc_noun_gaps` (-σις nouns and contracted s-stem neuter cells, from 1.3.25;
 second-declension -ος nouns that no source declines, from 1.3.27),
+`grc_degree_forms` (attested regular comparatives and superlatives of
+Ancient adjectives, which read the positive, from 1.3.29),
 `el_rule_paradigms` (Modern Greek present and imperfect forms) and
 `el_paradigm_gaps` (reviewed Modern Greek cells).
 

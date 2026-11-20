@@ -284,7 +284,9 @@ def fill_gap_cells(
         taken: Mapping[str, object] | None = None,
         variants: Callable[[str], Iterable[str]] | None = None,
         strict: Container[str] = (),
-        claims_only: Container[str] = ()) -> list[dict]:
+        claims_only: Container[str] = (),
+        accentless_exempt: Callable[[str, str], bool] | None = None,
+        same_lemma: Callable[[str, str], bool] | None = None) -> list[dict]:
     """Fill absent keys with generated cells; return one row per added key.
 
     ``paradigms`` yields (kind, lemma, cells), ``cells`` being (form, cell
@@ -314,9 +316,17 @@ def fill_gap_cells(
     claim keys, without the checks above, and never fill one (the accent
     doublets of dilemma/grc_os_gaps.py). A later call finds the keys of an
     earlier one in ``lookup`` and leaves them.
+
+    ``accentless_exempt(form, reading)`` lifts the strict accentless check
+    for one cell: when it is true, the reading of the cell's accentless key
+    does not keep the cell out (a verb whose forms have the cell's letters
+    with another accent, θεοφοροῖς beside θεοφόροις). ``same_lemma(reading,
+    lemma)`` says whether a spelling's reading is the cell's own lemma
+    (default: the same string).
     """
     taken = taken or {}
     variants = variants or reading_spellings
+    same = same_lemma or (lambda reading, lemma: reading == lemma)
     # key -> {lemma: (cell, kind)}; a lemma's own cell replaces its claim.
     claims: dict[str, dict[str, tuple[str, str]]] = {}
     for kind, lemma, cells in paradigms:
@@ -326,11 +336,16 @@ def fill_gap_cells(
                     if kind in strict else _spellings(form))
             if not claim_only:
                 spellings = list(variants(form))
-                if kind in strict:
-                    spellings.append(strip_accents(form).lower())
-                if any(lookup.get(spelling, lemma) != lemma
+                if any(not same(lookup.get(spelling, lemma), lemma)
                        for spelling in spellings):
                     continue
+                if kind in strict:
+                    bare = strip_accents(form).lower()
+                    reading = lookup.get(bare, lemma)
+                    if not same(reading, lemma) and not (
+                            bare not in spellings and accentless_exempt
+                            and accentless_exempt(form, reading)):
+                        continue
             for key in keys:
                 if key in lookup or key in taken:
                     continue
