@@ -1445,10 +1445,14 @@ _ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϛϜΖΗΘ")
 # its letters, the lowercase letter is a numeral too (δ̄ο̄ν̄).
 _MARKED_ORDINAL_NUMERAL_LETTERS = frozenset("ΑΒΓΔΕϚϜΖΗΘαβγδεϛϝζηθ")
 _NUMERAL_MARKS = ("\u0304", "\u0305")
+# Capital tens letters for 10-90, which with a units letter spell 11-99
+# (ΙΑον, ΚΒον). A tens letter alone before ον is not covered: Ιον, Κον and
+# Μον spell words and names.
+_ORDINAL_TENS_LETTERS = frozenset("ΙΚΛΜΝΞΟΠϘϞ")
 
 
 def is_numeral_ordinal(word: str) -> bool:
-    """Whether *word* is a numeral letter for 1-9 followed by ον, as printed.
+    """Whether *word* is a numeral for 1-9 or 11-99 followed by ον, as printed.
 
     The letter is a capital (or ϛ), or a letter of either case when the
     token carries an overline or a macron, the marks that set a numeral
@@ -1461,8 +1465,14 @@ def is_numeral_ordinal(word: str) -> bool:
     word = unicodedata.normalize("NFC", nfd)
     letters = (_MARKED_ORDINAL_NUMERAL_LETTERS if marked
                else _ORDINAL_NUMERAL_LETTERS)
-    return (len(word) == 3 and word.endswith("ον")
-            and word[0] in letters)
+    if not word.endswith("ον"):
+        return False
+    if len(word) == 3:
+        return word[0] in letters
+    # A two-letter numeral for 11-99: a capital tens letter and a capital
+    # units letter (ΙΑον for the eleventh).
+    return (len(word) == 4 and word[0] in _ORDINAL_TENS_LETTERS
+            and word[1] in _ORDINAL_NUMERAL_LETTERS and word[1].isupper())
 
 
 class Dilemma:

@@ -156,3 +156,13 @@ def test_the_flag_leaves_abbreviations_and_lowercase_digamma(
         marked_model, entry, word):
     made = marked_model(True)
     assert ENTRY_POINTS[entry](made, word) == made.rows[made.bare(word)]
+
+
+@pytest.mark.parametrize("word", ["ΙΑον", "ΚΒον", "ΜΘον", "ΙϚον"])
+def test_two_letter_numerals_are_ordinals(word):
+    assert core.is_numeral_ordinal(word)
+
+
+@pytest.mark.parametrize("word", ["Ιον", "Κον", "Μον", "Ιαον", "ΙΚον", "ΑΙον", "Ιάον"])
+def test_tens_letter_alone_or_lowercase_units_are_not(word):
+    assert not core.is_numeral_ordinal(word)
