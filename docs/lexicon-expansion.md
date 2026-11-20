@@ -845,15 +845,17 @@ reading weighs depends on the stem under the cell:
   inferred, that it reads as a noun, an adjective or a name is left to that
   reading unless a treebank reads the form as this verb: `ἀναισίμους` is
   the adjective `ἀναίσιμος`, not the Ionic imperfect of `ἀναισιμόω`, and
-  `προτύποις` is `πρότυπος`. A present cell with an accent goes the same
-  way, with its unaccented key where the expansion reads that as the noun
-  too. A dictionary head counts as nominal when it has no verb ending and
-  is not an LSJ head without gender or declension (`κατεῖπον`).
+  `προτύποις` is `πρότυπον`. A dictionary head counts as nominal when it
+  has no verb ending and is not an LSJ head without gender or declension
+  (`κατεῖπον`). The present systems are not checked: a present that an
+  adjective also spells (`εὐθαρσεῖ` of `εὐθαρσέω` and `εὐθαρσής`) keeps the
+  verb, as before.
 - **A part that LSJ heads.** A printed part that is an LSJ headword of its
-  own, where the treebanks read the cell as that headword, goes to it
-  unless its entry names this verb: `κατεῖπον` ("used as aor. to the pres.
-  κατερέω") stays its own lemma, while `συνεῖπον` ("aor. of συναγορεύω")
-  stays with `συναγορεύω`.
+  own goes to that headword where the verb's entry says it only serves the
+  part (`κατερέω`, "serving as fut. of aor. κατεῖπον") and the treebanks
+  read the cell as the headword, unless the headword's entry names the verb
+  (`συνεῖπον`, "aor. of συναγορεύω"). So `κατεῖπε` is `κατεῖπον`, while
+  `ὑπείδετο` stays with `ὑφοράω`.
 - **A present cell of another verb.** The present systems are written first,
   so a present holds the form when a printed part of another verb spells it
   too (`περιειλόμεθα` of `περιείλω` and of the aorist `περιειλόμην` under

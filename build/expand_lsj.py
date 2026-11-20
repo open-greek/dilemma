@@ -2865,7 +2865,7 @@ def expand_verbs(corpus_checks: bool = True):
                      "pass checks its cells against its nominal readings. "
                      "--no-corpus-checks runs without it.")
         inferred_forms = {form for _, forms in inferred for form in forms}
-        asked = set(written) | wanted
+        asked = set(wanted)
         asked |= {capitalized(form) for form in inferred_forms}
         asked |= {strip_diacritics(capitalized(form))
                   for form in inferred_forms}
@@ -2882,13 +2882,6 @@ def expand_verbs(corpus_checks: bool = True):
                 return lemma
             return ""
 
-        # Present cells this pass has written that the expansion reads as
-        # a noun: they are checked against the treebanks like the others.
-        present_nominal = {form: lookup[form] for form in written
-                           if form in reference
-                           and form != strip_diacritics(form)
-                           and nominal_reading(form, lookup[form])}
-        wanted |= set(present_nominal)
         names: dict[str, str] = {}
         readings = load_treebank_readings(TREEBANK_PAIRS, wanted, names)
 
@@ -2915,14 +2908,21 @@ def expand_verbs(corpus_checks: bool = True):
 
         def part_headword(form, hw_clean):
             """The LSJ head a printed cell goes to: a principal part that
-            LSJ heads itself (κατεῖπον beside κατερέω, whose entry calls it
-            the future "of aor. κατεῖπον"), where the treebanks read the
-            cell as that head (κατεῖπε), unless its entry names this verb
-            (συνεῖπον: "aor. of συναγορεύω")."""
+            LSJ heads itself and that the verb's own entry says it only
+            serves (κατερέω, "serving as fut. of aor. κατεῖπον"), where the
+            treebanks read the cell as that head (κατεῖπε), unless the
+            head's entry names this verb (συνεῖπον: "aor. of
+            συναγορεύω"). A part the verb's entry simply prints stays
+            (ὑπειδόμην under ὑφοράω, εἴωθα under ἔθω)."""
             reading = treebank_reading(form, hw_clean, readings,
                                        lexical_heads)[0]
-            if (reading and reading != hw_clean and reading in lsj_entries
-                    and reading in printed_by_verb.get(hw_clean, ())
+            if not (reading and reading != hw_clean
+                    and reading in lsj_entries
+                    and reading in printed_by_verb.get(hw_clean, ())):
+                return ""
+            own = find_head_text(hw_clean) or ""
+            if (re.search(r"\b(?:serving|used) as\b[^:;]*\bof\b[^:;]*"
+                          + re.escape(reading), own)
                     and hw_clean not in (find_head_text(reading) or "")):
                 return reading
             return ""
@@ -3001,25 +3001,6 @@ def expand_verbs(corpus_checks: bool = True):
                     for forms, hw_clean, derived in deferred]
         inferred = [(hw_clean, uncontested(forms, hw_clean, "inferred"))
                     for hw_clean, forms in inferred]
-        # A present cell the expansion reads as a noun is removed, with its
-        # accentless key where the expansion reads that as a noun too.
-        for form, verb in sorted(present_nominal.items()):
-            if (lookup.get(form) != verb
-                    or treebank_agrees(form, verb, readings, lexical_heads)):
-                continue
-            rival = nominal_reading(form, verb)
-            del lookup[form]
-            written.discard(form)
-            plain = strip_diacritics(form)
-            if (plain != form and plain in written
-                    and lookup.get(plain) == verb
-                    and nominal_reading(plain, verb)):
-                del lookup[plain]
-                written.discard(plain)
-            stats["present_nominal_expansion"] += 1
-            left_to_nominal.append((form, verb, "present", rival,
-                                    "expansion"))
-
         # So far this pass has written present systems only. Where another
         # verb's present holds the cell of a printed part (περιειλόμεθα of
         # περιείλω and of the aorist περιειλόμην under περιαιρέω) and the
@@ -3124,7 +3105,7 @@ def expand_verbs(corpus_checks: bool = True):
             },
             "counts": {key: stats[key] for key in sorted(stats)
                        if key.startswith(("inferred_", "printed_",
-                                          "derived_", "present_"))},
+                                          "derived_"))},
             "inferred": {
                 hw_clean: {"kind": inferred_from[hw_clean][0],
                            "from": inferred_from[hw_clean][1],
