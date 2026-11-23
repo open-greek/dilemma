@@ -1347,17 +1347,21 @@ encodings). All of these resolve identically: the lemma never depends on
 which apostrophe codepoint the source text used.
 
 Some editions and their OCR print the apostrophe as a spacing acute
-(U+00B4): `δι´` and `Δι´` in the Patrologia Graeca. A final spacing acute
-after a Greek letter is read as the elision mark, in every entry point:
-`δι´` gives `διά` (ADP) and `ἀλλ´` gives `ἀλλά` (#157). It is not when it
-marks a numeral. One letter is read as elided only when it is `δ` or `τ`
-(`δέ` and `τε` are far commoner than 4 and 300), and tagged NUM even these
-stay the numeral (the token, or `None` with `guess=False`); `ε´`, `β´` and
-the numerals of several letters
-(`ιβ´`, `ιστ´`) keep their spelling, as does any token with the Greek tonos
-(U+0384), which marks a numeral far more often than an elision. After an
-accented final vowel the acute is a stray mark and is dropped (`ἀλλὰ´` is
-`ἀλλὰ`).
+(U+00B4), chiefly `δι´` and `Δι´` in the Patrologia Graeca, and less often as
+the Greek tonos (U+0384) or a prime (U+2032): `δι΄`, `παρ΄`. A final acute,
+tonos or prime after an elided Greek word is read as the elision mark, in
+every entry point: `δι´` and `δι΄` give `διά` (ADP) and `ἀλλ´` gives `ἀλλά`
+(#157). After letters that may be a numeral it is the numeral sign. A word
+with a breathing or an accent is never a numeral (`ἀλλ΄`, `ὑπ΄`, `τοῦτ´`);
+a word with neither is read as elided only when it is one of the elided
+words written so (`δι`, `παρ`, `μετ`, `μεθ`, `κατ`, `καθ`, `μηδ`, `ποτ`,
+`ποθ`, `αλλ`) and no numeral, so `ιβ´`, `ιστ΄`, `κα΄` and the numerals that
+tables print in any order of their letters (`δε´`, `βφ΄`) keep their
+spelling. One letter is read as elided only when it is `δ` or `τ` with the
+acute (`δέ` and `τε` are far commoner than 4 and 300), and tagged NUM even
+these stay the numeral (the token, or `None` with `guess=False`); `ε´`, `β´`
+and `δ΄` keep their spelling. After an accented final vowel the mark is a
+stray and is dropped (`ἀλλὰ´` is `ἀλλὰ`).
 
 **Exact elided entries first:** the lookup table stores corpus-derived
 lemmas for elided forms under one canonical key (U+1FBD), and these win

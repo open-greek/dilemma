@@ -64,7 +64,9 @@ def plain(model, word):
     ("ἀλλὰ´", "ἀλλὰ"), ("καὶ´", "καὶ"), ("ὃ´", "ὃ"),
     # The tonos and the prime after a word that is no numeral.
     ("δι΄", "δι’"), ("Δι΄", "Δι’"), ("παρ΄", "παρ’"), ("μετ΄", "μετ’"),
-    ("ἀλλ΄", "ἀλλ’"), ("ὑπ΄", "ὑπ’"), ("δι′", "δι’"),
+    ("ἀλλ΄", "ἀλλ’"), ("ὑπ΄", "ὑπ’"), ("δι′", "δι’"), ("έπ΄", "έπ’"),
+    # The elided words written with no breathing and no accent.
+    ("αλλ´", "αλλ’"), ("μηδ´", "μηδ’"), ("ποτ´", "ποτ’"), ("Καθ´", "Καθ’"),
 ])
 def test_a_final_spacing_acute_is_the_elision_mark(word, written):
     assert to_standard_elision(word) == written
@@ -77,6 +79,9 @@ def test_a_final_spacing_acute_is_the_elision_mark(word, written):
     "α´", "β´", "ε´", "γ´", "μ´", "Γ´", "Δ´", "ϛ´", "ιβ´", "ιε´", "ιστ´",
     "ις´", "δ΄", "τ΄", "β΄", "ιβ΄", "κα΄", "μη΄", "ις΄", "ιστ΄", "ΙΓ΄",
     "Ἀ΄", "δ′", "ιβ′",
+    # Other unmarked letters with the mark: numerals in any order of their
+    # letters, as tables print them.
+    "δε´", "ζα´", "παο´", "δφ´", "βφ΄", "γχ΄", "ατ΄", "δω΄", "ῑβ΄", "ΡΑΓ΄",
     # Not a mark after a Greek letter.
     "´", "a´", "1´", "δ´´",
     # Already standard.

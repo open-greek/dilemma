@@ -810,6 +810,13 @@ def to_standard_sigma(s: str) -> str:
 # that is no numeral.
 _ACUTE_SHAPED_APOSTROPHE = "\u00b4"
 _APOSTROPHE_SHAPED_MARKS = ("\u00b4", "\u0384", "\u2032")
+# The elided words that are written with no breathing and no accent. After
+# any other letters with no mark the acute, the tonos or the prime is read as
+# a numeral sign: the tables print numerals in any order of their letters
+# (δε´, ζα΄, βφ΄), and a numeral never carries a breathing or an accent.
+_UNMARKED_ELIDED_STEMS = frozenset((
+    "δι", "παρ", "μετ", "μεθ", "κατ", "καθ", "μηδ", "ποτ", "ποθ", "αλλ"))
+_STEM_MARKS = ("\u0313", "\u0314", "\u0301", "\u0300", "\u0342")
 # The one-letter elided words that the acute marks more often than it marks
 # the numeral: δ´ is δέ and τ´ is τε far more often than 4 or 300. γ´, θ´,
 # μ´ and σ´ are numerals more often than γε, τε, με and σε, and a capital
@@ -826,9 +833,11 @@ def to_standard_elision(s: str) -> str:
     met no elided key and no elision rule, and a guess read it as δίς. An
     elided word does not end in an accented vowel, so after one the mark is
     a stray and is dropped (ἀλλὰ´ is ἀλλὰ). One letter is read as elided only
-    when it is δ or τ with the acute (ε´, β´ and δ΄ are numerals), and a
-    token that is a numeral with the mark (ιβ´, ιστ΄, ις΄) is left as it is,
-    so the numeral rules still see the mark as printed.
+    when it is δ or τ with the acute (ε´, β´ and δ΄ are numerals). A word
+    with no breathing and no accent is read as elided only when it is one
+    of the elided words written so (δι, παρ, κατ, μηδ ...): other unmarked
+    letters with the mark are a numeral (ιβ´, ιστ΄, δε´, βφ΄) and are left
+    as they are, so the numeral rules still see the mark as printed.
     """
     if len(s) < 2 or s[-1] not in _APOSTROPHE_SHAPED_MARKS:
         return s
@@ -851,7 +860,9 @@ def to_standard_elision(s: str) -> str:
         return s
     if _is_explicit_numeral(s):
         return s
-    if nfd == stem:
+    if not any(mark in nfd for mark in _STEM_MARKS):
+        if stem.lower() not in _UNMARKED_ELIDED_STEMS:
+            return s
         letters = stem.replace("στ", "ϛ").replace("ΣΤ", "Ϛ")
         if letters.endswith("ς"):
             letters = letters[:-1] + "ϛ"
