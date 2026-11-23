@@ -366,6 +366,14 @@ _SHIPPED = [
     ("ἐναπολήμψεις", "NOUN", "ἐναπόληψις"),
     ("ἐπέτραπται", "VERB", "ἐπιτρέπω"),
     ("μειλιχίῃ", "NOUN", "μειλιχία"),
+    # Treebank cells that disagreed with the corrected untagged readings
+    # once those changed (data/pos_cell_corrections.json).
+    ("ἐκεὶ", "ADV", "ἐκεῖ"),
+    ("δηῦτε", "VERB", "δηὖτε"),
+    ("συζήσεται", "VERB", "συζάω"),
+    ("συζήσειεν", "VERB", "συζάω"),
+    ("κἀπειδήπερ", "CCONJ", "ἐπειδήπερ"),
+    ("’πειδὴ", "CCONJ", "ἐπειδή"),
 ]
 
 # The untagged answer, where it differs from the tagged one.

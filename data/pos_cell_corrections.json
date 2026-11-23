@@ -1654,6 +1654,116 @@
    "reason": "The dative of λίνον, flax or linen thread, which LSJ heads; λίνος is the Linus-song or a rare by-form. The untagged lookup and the lsj9 and Wiktionary NOUN cells give λίνον.",
    "evidence": "glaux_pairs.json: λίνῳ -> λίνον 59 tokens, -> λίνος 1; lsj9_pos_lookup.json and ag_pos_lookup.json: λίνῳ NOUN λίνον; lookup.db: λίνῳ -> λίνον.",
    "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "ἐκεὶ",
+   "upos": "ADV",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐκεῖ",
+   "reason": "ἐκεῖ written with a grave, as the untagged lookup now reads it; ἐπεί is no adverb. The cell appeared when the reviewed reading of the form changed the untagged answer from ἐπεί, which GLAUx gives, to ἐκεῖ.",
+   "evidence": "glaux_pairs.json: ἐκεὶ -> ἐπεί (adv, 2 tokens), the only source of the cell; lookup.db: ἐκεὶ -> ἐκεῖ (build_lookup_db.REVIEWED_READINGS_1_3_30); LSJ ἐκεῖ.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "δηῦτε",
+   "upos": "VERB",
+   "target": "δήω",
+   "action": "correct",
+   "corrected": "δηὖτε",
+   "reason": "δηὖτε (δὴ αὖτε), not a form of δήω, whose present is δήω, δήεις, δήει. The untagged lookup reads δηὖτε.",
+   "evidence": "glaux_pairs.json: δηῦτε -> δήω (verb, 1 token); lookup.db: δηῦτε -> δηὖτε; LSJ δηὖτε.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "δηύτε",
+   "upos": "VERB",
+   "target": "δήω",
+   "action": "correct",
+   "corrected": "δηὖτε",
+   "reason": "The same cell under the accent-folded key of δηῦτε.",
+   "evidence": "Built from glaux_pairs.json: δηῦτε -> δήω (verb, 1 token); LSJ δηὖτε.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "συζήσεται",
+   "upos": "VERB",
+   "target": "συζέω",
+   "action": "correct",
+   "corrected": "συζάω",
+   "reason": "The future of συζάω (live with); συζέω (boil together) has the future συζέσω. The untagged lookup reads συζάω.",
+   "evidence": "glaux_pairs.json: συζήσεται -> συζέω (verb, 2 tokens); lookup.db: συζήσεται -> συζάω; LSJ συζάω, fut. συζήσω.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "συζήσειεν",
+   "upos": "VERB",
+   "target": "συζέω",
+   "action": "correct",
+   "corrected": "συζάω",
+   "reason": "The aorist optative of συζάω (ζήσειεν), as συζήσεται is its future.",
+   "evidence": "glaux_pairs.json: συζήσειεν -> συζέω (verb, 1 token); LSJ συζάω.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "κἀπειδήπερ",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπειδήπερ",
+   "reason": "ἐπειδήπερ is a head of its own (LSJ, under ἐπειδή), and the untagged lookup reads κἀπειδήπερ and ἐπειδήπερ so; the treebanks lemmatize every ἐπειδή form as ἐπεί.",
+   "evidence": "glaux_pairs.json: κἀπειδήπερ -> ἐπεί (conj, 5 tokens); lookup.db: κἀπειδήπερ -> ἐπειδήπερ (build_lookup_db.REVIEWED_READINGS_1_3_30).",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "καπειδήπερ",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπειδήπερ",
+   "reason": "The same cell under the folded key of κἀπειδήπερ.",
+   "evidence": "Built from glaux_pairs.json: κἀπειδήπερ -> ἐπεί (conj, 5 tokens).",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "’πειδήπερ",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπειδήπερ",
+   "reason": "ἐπειδήπερ after prodelision; the untagged lookup reads ’πειδήπερ so.",
+   "evidence": "glaux_pairs.json: ’πειδήπερ -> ἐπεί (conj, 1 token); lookup.db: ’πειδήπερ -> ἐπειδήπερ.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "’πειδὴ",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπειδή",
+   "reason": "ἐπειδή after prodelision, as the untagged lookup reads ’πειδὴ and ἐπειδὴ (#157).",
+   "evidence": "glaux_pairs.json: ’πειδὴ -> ἐπεί (conj, 1 token); lookup.db: ’πειδὴ -> ἐπειδή.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "’πειδή",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπειδή",
+   "reason": "The same cell under the oxytone key of ’πειδὴ.",
+   "evidence": "Built from glaux_pairs.json: ’πειδὴ -> ἐπεί (conj, 1 token).",
+   "issue": 157
   }
  ]
 }
