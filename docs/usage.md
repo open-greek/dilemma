@@ -779,7 +779,10 @@ under another citation form (`πᾶσι` PRON stays `πᾶς` against a cell's
 `πᾶν`, `οἷα` CCONJ `οἷος`). A form with no entry for the tag still follows
 the lookup (`αἶ` INTJ gives `αἶα`; its SCONJ and PART cells are reviewed
 additions in `data/pos_cell_corrections.json`).
-Under PROPN a lookup reading answers as its capitalized twin. When the row
+Under PROPN a lookup reading answers as its capitalized twin, except for the
+ordinal adjectives from `πρῶτος` to `δωδέκατος` and `εἰκοστός`: a heading or
+the first word of a sentence tagged PROPN (`Ἕβδομον`, `Δέκατον`) keeps the
+ordinal, not the rare name of its spelling (#157). When the row
 reads a verb, that twin is a name that only shares the verb's citation
 spelling, and a PROPN entry under the form's own spelling that names a
 capitalized lemma outranks it: `φάων` PROPN gives `Φάων` (not the `Φάω` of
@@ -1032,7 +1035,10 @@ and rejected source claims still protect against conflicting projections.
 Explicit Ancient Greek POS calls also reject those documented unsupported
 targets if an older POS table or the ordinary lookup offers them as a fallback.
 This applies equally to scalar and batch calls; it does not change untyped
-`lemmatize()` or Modern Greek behavior. The rejection audit must match the
+`lemmatize()` or Modern Greek behavior. When the rejection leaves a word with
+no answer at all, the untagged answer stands, as long as it is a composed
+spelling: `αἱμοπτυικοὺς` ADJ gives `αἱμοπτυικός` and `λημφθεῖσα` VERB
+`λαμβάνω` instead of nothing (#157). The rejection audit must match the
 exact `grc_lexical_heads.json` bytes. Missing or mismatched evidence raises a
 data-mismatch error rather than trusting an unbound rejection list. Refresh
 both files with `python -m dilemma download --no-tagger` (use `--dir PATH`
@@ -1316,6 +1322,19 @@ vowel, marking the elision with an apostrophe (U+0313 in polytonic
 encoding, U+1FBD/U+02B9/U+02BC/U+1FBF/U+2019/ASCII `'`/U+0060 in other
 encodings). All of these resolve identically: the lemma never depends on
 which apostrophe codepoint the source text used.
+
+Some editions and their OCR print the apostrophe as a spacing acute
+(U+00B4): `δι´` and `Δι´` in the Patrologia Graeca. A final spacing acute
+after a Greek letter is read as the elision mark, in every entry point:
+`δι´` gives `διά` (ADP) and `ἀλλ´` gives `ἀλλά` (#157). It is not when it
+marks a numeral. One letter is read as elided only when it is `δ` or `τ`
+(`δέ` and `τε` are far commoner than 4 and 300), and tagged NUM even these
+stay the numeral (the token, or `None` with `guess=False`); `ε´`, `β´` and
+the numerals of several letters
+(`ιβ´`, `ιστ´`) keep their spelling, as does any token with the Greek tonos
+(U+0384), which marks a numeral far more often than an elision. After an
+accented final vowel the acute is a stray mark and is dropped (`ἀλλὰ´` is
+`ἀλλὰ`).
 
 **Exact elided entries first:** the lookup table stores corpus-derived
 lemmas for elided forms under one canonical key (U+1FBD), and these win
