@@ -1,5 +1,6 @@
 """Readings reported on #157 and the #147 leftovers fixed in 1.3.30."""
 
+import json
 import sqlite3
 
 import pytest
@@ -61,6 +62,9 @@ def plain(model, word):
     ("δ´", "δ’"), ("τ´", "τ’"),
     # After an accented final vowel the acute is a stray mark.
     ("ἀλλὰ´", "ἀλλὰ"), ("καὶ´", "καὶ"), ("ὃ´", "ὃ"),
+    # The tonos and the prime after a word that is no numeral.
+    ("δι΄", "δι’"), ("Δι΄", "Δι’"), ("παρ΄", "παρ’"), ("μετ΄", "μετ’"),
+    ("ἀλλ΄", "ἀλλ’"), ("ὑπ΄", "ὑπ’"), ("δι′", "δι’"),
 ])
 def test_a_final_spacing_acute_is_the_elision_mark(word, written):
     assert to_standard_elision(word) == written
@@ -68,9 +72,11 @@ def test_a_final_spacing_acute_is_the_elision_mark(word, written):
 
 @pytest.mark.parametrize("word", [
     # Numerals: one letter other than δ and τ, a capital, a numeral of
-    # several letters (ιστ´ with στ for ϛ), and the same with the tonos.
+    # several letters (ιστ´ and ις΄ with στ and ς for ϛ), and one letter or
+    # a numeral with the tonos or the prime.
     "α´", "β´", "ε´", "γ´", "μ´", "Γ´", "Δ´", "ϛ´", "ιβ´", "ιε´", "ιστ´",
-    "δ΄", "β΄", "ιβ΄", "δι΄",
+    "ις´", "δ΄", "τ΄", "β΄", "ιβ΄", "κα΄", "μη΄", "ις΄", "ιστ΄", "ΙΓ΄",
+    "Ἀ΄", "δ′", "ιβ′",
     # Not a mark after a Greek letter.
     "´", "a´", "1´", "δ´´",
     # Already standard.
@@ -162,14 +168,35 @@ def test_a_misaccented_participle_with_two_nominatives_has_no_answer(
 
 
 @pytest.mark.parametrize("lang", ["all", "grc"])
-def test_a_rejected_pos_target_falls_back_to_the_untagged_answer(
-        model_from, lang):
-    model = model_from({"λημφθεῖσα": "λαμβάνω", "ἀμφίβολον": "οί̔ουτινος"},
-                       lang=lang, headwords={"λαμβάνω"},
-                       rejected={"λαμβάνω", "οί̔ουτινος"})
-    assert tagged(model, "λημφθεῖσα", "VERB") == "λαμβάνω"
-    # A lemma with a stray combining mark is no answer.
-    assert tagged(model, "ἀμφίβολον", "PRON") is None
+def test_a_rejected_pos_target_reads_the_headword_it_spells(model_from, lang):
+    model = model_from({"αἱμοπτυικοὺς": "αἱμοπτυικός", "ἔχόντων": "ἔχοω",
+                        "ἴσταται": "ἴστημι", "ὄρους": "ὀρος", "Ὅρα": "Ὅρας"},
+                       lang=lang,
+                       headwords={"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος", "Ορας"},
+                       rejected={"αἱμοπτυικός", "ἔχοω", "ἴστημι", "ὀρος", "Ὅρας"})
+    model._dictionary_heads = frozenset({"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος"})
+    # The untagged answer is a dictionary headword written with other marks.
+    assert tagged(model, "αἱμοπτυικοὺς", "ADJ") == "αἱμοπτυϊκός"
+    assert tagged(model, "ἴσταται", "VERB") == "ἵστημι"
+    # An artefact spells no headword, two headwords are no answer, and a
+    # head only a name list gives does not count.
+    assert tagged(model, "ἔχόντων", "VERB") is None
+    assert tagged(model, "ὄρους", "NOUN") is None
+    assert tagged(model, "Ὅρα", "PROPN") is None
+    # The untagged lookup is unchanged.
+    assert plain(model, "ἴσταται") == "ἴστημι"
+
+
+def test_dictionary_heads_are_the_edited_dictionaries(tmp_path):
+    path = tmp_path / "heads.json"
+    path.write_text(json.dumps({"heads": {
+        "ἁρπάζω": ["lsj9_headwords", "pd_headwords"], "Ορας": ["lgpn_names"],
+        "Ἱστρικός": ["sophocles/0600.xml"], "ἐπιλεπτολογέω": ["dge_headwords"],
+    }}, ensure_ascii=False), encoding="utf-8")
+    stat = path.stat()
+    lists = core._lexical_head_lists(str(path), stat.st_size, stat.st_mtime_ns)
+    assert lists["grc_dictionary"] == {"ἁρπάζω", "ἐπιλεπτολογέω"}
+    assert lists["grc"] == {"ἁρπάζω", "Ορας", "Ἱστρικός", "ἐπιλεπτολογέω"}
 
 
 @pytest.mark.parametrize("lang", ["all", "grc"])
@@ -219,6 +246,7 @@ def test_noun_and_adjective_split_of_meilichia(model_from, lang):
     ("ἀναλημφθεῖσα", "ἀναλήμπω", "ἀναλαμβάνω"),
     ("ἠθμοῦ", "ἡθμός", "ἠθμός"),
     ("ὀρθοπνοϊκοῖς", "ὀρθοπνοικός", "ὀρθοπνοϊκός"),
+    ("αἱμοπτυικοὺς", "αἱμοπτυικός", "αἱμοπτυϊκός"),
     ("ἐπιλημψίας", "ἐπιλημψία", "ἐπιληψία"),
     ("ἐναπολήμψεις", "ἐναπόλημψις", "ἐναπόληψις"),
     ("πλαττόμεναι", "πλήσσω", "πλάσσω"),
@@ -308,6 +336,7 @@ _SHIPPED = [
     ("ἀποκεκραμέναις", "VERB", "ἀποκεράννυμι"),
     ("δι´", "ADP", "διά"),
     ("Δι´", "ADP", "διά"),
+    ("δι΄", "ADP", "διά"),
     ("ἐφαπτόμενοί", "VERB", "ἐφάπτω"),
     ("Συμπτύσσοντες", "VERB", "συμπτύσσω"),
     ("ἐπιλεπτολογοῦσι", "VERB", "ἐπιλεπτολογέω"),
@@ -321,7 +350,7 @@ _SHIPPED = [
     ("Δέκατον", "PROPN", "δέκατος"),
     ("ἠθμοῦ", "NOUN", "ἠθμός"),
     ("Τεύκριον", "PROPN", "τεύκριον"),
-    ("αἱμοπτυικοὺς", "ADJ", "αἱμοπτυικός"),
+    ("αἱμοπτυικοὺς", "ADJ", "αἱμοπτυϊκός"),
     ("ὀρθοπνοϊκοῖς", "ADJ", "ὀρθοπνοϊκός"),
     ("ὀρθοπνοικοὺς", "ADJ", "ὀρθοπνοϊκός"),
     ("λημφθεῖσα", "VERB", "λαμβάνω"),

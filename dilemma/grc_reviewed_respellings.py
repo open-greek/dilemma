@@ -15,12 +15,12 @@ import unicodedata
 # spellings of ληφθεῖσα and ἀναληφθεῖσα: λήμπω and ἀναλήμπω are no verbs,
 # but expansion rows built from the Koine forms. LSJ heads ἠθμός, a
 # strainer, with the smooth breathing, and gives ἡθμός as a variant of
-# inscriptions and manuscripts. ὀρθοπνοϊκός, ἐπιληψία and ἐναπόληψις are
-# LSJ's spellings of the other three.
+# inscriptions and manuscripts. ὀρθοπνοϊκός, αἱμοπτυϊκός, ἐπιληψία and
+# ἐναπόληψις are LSJ's spellings of the other four.
 REVIEWED_LEMMA_RESPELLINGS = {
     "λήμπω": "λαμβάνω", "ἀναλήμπω": "ἀναλαμβάνω", "ἡθμός": "ἠθμός",
-    "ὀρθοπνοικός": "ὀρθοπνοϊκός", "ἐπιλημψία": "ἐπιληψία",
-    "ἐναπόλημψις": "ἐναπόληψις",
+    "ὀρθοπνοικός": "ὀρθοπνοϊκός", "αἱμοπτυικός": "αἱμοπτυϊκός",
+    "ἐπιλημψία": "ἐπιληψία", "ἐναπόλημψις": "ἐναπόληψις",
 }
 
 # (initial letters of the form, lowercase and without marks; the lemma a

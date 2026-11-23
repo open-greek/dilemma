@@ -288,18 +288,33 @@ _TRUSTED_AG_HEADWORD_PATHS = (
 )
 
 
+# The edited dictionaries among the sources of grc_lexical_heads.json: LSJ,
+# the DGE, Cunliffe and the LBG. A head only an OCR'd lexicon, a name list or
+# a word list gives can carry another breathing (the Sophocles lexicon's
+# Ἱστρικός) or none (the name list's Ορας).
+_DICTIONARY_HEAD_SOURCES = frozenset({
+    "lsj9_headwords", "dge_headwords", "cunliffe_headwords", "lbg_headwords"})
+
+
 @lru_cache(maxsize=2)
 def _lexical_head_lists(path, size, mtime):
-    """The lexical heads of grc_lexical_heads.json, by language, parsed once."""
+    """The lexical heads of grc_lexical_heads.json, by language, parsed once.
+
+    "grc_dictionary" holds the Ancient heads an edited dictionary gives."""
     with Path(path).open(encoding="utf-8") as stream:
         evidence = json.load(stream)
     ancient = frozenset(evidence["heads"])
     vernacular = frozenset(evidence.get("vernacular_heads", ()))
-    return {"grc": ancient, "el": vernacular, "all": ancient | vernacular}
+    dictionary = frozenset(
+        head for head, sources in evidence["heads"].items()
+        if not _DICTIONARY_HEAD_SOURCES.isdisjoint(sources))
+    return {"grc": ancient, "el": vernacular, "all": ancient | vernacular,
+            "grc_dictionary": dictionary}
 
 
 def _lexical_heads(lang: str) -> frozenset[str]:
-    """Ancient ("grc"), vernacular ("el") or all lexical heads; none without the file."""
+    """Ancient ("grc"), vernacular ("el"), all, or the Ancient heads of the
+    edited dictionaries ("grc_dictionary"); none without the file."""
     try:
         stat = GRC_LEXICAL_HEADS_PATH.stat()
     except OSError:
@@ -307,6 +322,22 @@ def _lexical_heads(lang: str) -> frozenset[str]:
     return _lexical_head_lists(
         str(GRC_LEXICAL_HEADS_PATH), stat.st_size, stat.st_mtime_ns
     ).get(lang, frozenset())
+
+
+def _bare_letters(spelling: str) -> str:
+    """*spelling* without its accents, breathings, diaeresis and iota
+    subscript, in the case it is written in."""
+    return "".join(ch for ch in unicodedata.normalize("NFD", spelling)
+                   if not unicodedata.combining(ch))
+
+
+@lru_cache(maxsize=2)
+def _heads_by_bare_letters(heads: frozenset) -> dict:
+    """*heads* grouped by their bare letters."""
+    index = {}
+    for head in heads:
+        index.setdefault(_bare_letters(head), []).append(head)
+    return {letters: tuple(sorted(group)) for letters, group in index.items()}
 
 
 _POS_CORRECTION_TABLES = frozenset({"treebank", "glaux", "ag", "mg", "lsj9"})
@@ -772,10 +803,13 @@ def to_standard_sigma(s: str) -> str:
 
 
 # The spacing acute accent that editions and their OCR print for the elision
-# apostrophe (δι´ and Δι´ in the Patrologia Graeca, #157). The Greek tonos
-# (U+0384) and the prime are left out: after a letter they mark a numeral
-# far more often than an elision (δ΄, β΄, ιβ΄).
+# apostrophe (δι´ and Δι´ in the Patrologia Graeca, #157), and the Greek
+# tonos (U+0384) and the prime that stand for it less often (δι΄, παρ΄). After
+# a letter the tonos and the prime mark a numeral far more often (δ΄, β΄,
+# ιβ΄), so they are read as elision only after a word of two letters or more
+# that is no numeral.
 _ACUTE_SHAPED_APOSTROPHE = "\u00b4"
+_APOSTROPHE_SHAPED_MARKS = ("\u00b4", "\u0384", "\u2032")
 # The one-letter elided words that the acute marks more often than it marks
 # the numeral: δ´ is δέ and τ´ is τε far more often than 4 or 300. γ´, θ´,
 # μ´ and σ´ are numerals more often than γε, τε, με and σε, and a capital
@@ -785,18 +819,18 @@ _FINAL_ACCENTS = ("\u0301", "\u0300", "\u0342")
 
 
 def to_standard_elision(s: str) -> str:
-    """Write a final spacing acute after an elided Greek word as ’.
+    """Write a final acute, tonos or prime after an elided Greek word as ’.
 
     δι´ is the elided διά, printed with a spacing acute where other texts
-    print ’ or ᾽ (#157). Without this the word met no elided key and no
-    elision rule, and a guess read it as δίς. An elided word does not end
-    in an accented vowel, so after one the acute is a stray mark and is
-    dropped (ἀλλὰ´ is ἀλλὰ). One letter is read as elided only when it is
-    δ or τ (ε´ and β´ are numerals), and a token that is a numeral with the
-    mark (ιβ´, ιστ´) is left as it is, so the numeral rules still see the
-    mark as printed.
+    print ’ or ᾽ (#157); δι΄ and παρ΄ print the tonos. Without this the word
+    met no elided key and no elision rule, and a guess read it as δίς. An
+    elided word does not end in an accented vowel, so after one the mark is
+    a stray and is dropped (ἀλλὰ´ is ἀλλὰ). One letter is read as elided only
+    when it is δ or τ with the acute (ε´, β´ and δ΄ are numerals), and a
+    token that is a numeral with the mark (ιβ´, ιστ΄, ις΄) is left as it is,
+    so the numeral rules still see the mark as printed.
     """
-    if len(s) < 2 or s[-1] != _ACUTE_SHAPED_APOSTROPHE:
+    if len(s) < 2 or s[-1] not in _APOSTROPHE_SHAPED_MARKS:
         return s
     stem = s[:-1]
     nfd = unicodedata.normalize("NFD", stem)
@@ -811,13 +845,18 @@ def to_standard_elision(s: str) -> str:
             mark in nfd[index + 1:] for mark in _FINAL_ACCENTS):
         return stem
     if index == 0:
-        if len(nfd) == 1 and base in _ELIDED_ONE_LETTER_WORDS:
+        if (len(nfd) == 1 and base in _ELIDED_ONE_LETTER_WORDS
+                and s[-1] == _ACUTE_SHAPED_APOSTROPHE):
             return stem + "\u2019"
         return s
-    if _is_explicit_numeral(s) or (
-            nfd == stem and _is_explicit_numeral(
-                stem.replace("στ", "ϛ").replace("ΣΤ", "Ϛ") + "\u0374")):
+    if _is_explicit_numeral(s):
         return s
+    if nfd == stem:
+        letters = stem.replace("στ", "ϛ").replace("ΣΤ", "Ϛ")
+        if letters.endswith("ς"):
+            letters = letters[:-1] + "ϛ"
+        if _is_explicit_numeral(letters + "\u0374"):
+            return s
     return stem + "\u2019"
 
 
@@ -5960,11 +5999,13 @@ class Dilemma:
                 or an echo of the input (see ``lemmatize``). A curated
                 POS-table entry still counts as evidence.
 
-        A lemma the treebank POS audit rejects as a corpus target is not
-        offered as a candidate. When that leaves the word with no answer
-        although the untagged lookup has one, the untagged answer stands
-        (#157: αἱμοπτυικοὺς ADJ gave nothing, not αἱμοπτυικός), unless it
-        is not a composed spelling (a stray combining mark).
+        A lemma the treebank POS audit rejects as a corpus target (one no
+        lexicon heads) is not offered as a candidate. When that leaves the
+        word with no answer although the untagged lookup has one, and that
+        answer is the one Ancient headword written with other marks, the
+        headword stands (#157: αἱμοπτυικοὺς ADJ gave nothing, and now gives
+        αἱμοπτυϊκός). A rejected answer that spells no headword, such as
+        an artefact of a corpus row, stays vetoed.
 
         Returns:
             The lemma string, or None when gated out by ``attested_only``
@@ -5981,26 +6022,39 @@ class Dilemma:
                 word, upos, attested_only=attested_only, guess=guess)
         return lemma
 
-    @staticmethod
-    def _is_composed_lemma(lemma: str) -> bool:
-        """Whether *lemma* is written in NFC with no stray combining mark.
+    def _headword_of_variant(self, lemma) -> str | None:
+        """The one Ancient headword that *lemma* spells with other marks.
 
-        A lemma whose breathing or accent NFC cannot compose with its letter
-        (οί̔ουτινος, a rough breathing after an accented iota) is an
-        encoding artefact, not a citation form.
+        A target the POS audit rejects is a lemma no lexicon heads. Many are
+        a headword written with another breathing, accent, diaeresis or iota
+        subscript (αἱμοπτυικός for αἱμοπτυϊκός, ἀρπάζω for ἁρπάζω, ζωδιακός
+        for ζῳδιακός); the rest are artefacts of corpus rows (ἔχοω for
+        ἔχόντων, Ἄκουος for Ἄκουε), which no headword spells. The headword
+        must be an edited dictionary's (LSJ, the DGE, Cunliffe, the LBG), its
+        letters and their case must be the lemma's, and no other headword of
+        those dictionaries may have them (#157).
         """
-        nfc = unicodedata.normalize("NFC", lemma)
-        return nfc == lemma and not any(unicodedata.combining(ch) for ch in nfc)
+        if not isinstance(lemma, str) or not lemma or self.lang == "el":
+            return None
+        dictionary = getattr(self, "_dictionary_heads", None)
+        if dictionary is None:
+            dictionary = self._dictionary_heads = _lexical_heads("grc_dictionary")
+        heads = _heads_by_bare_letters(frozenset(dictionary)).get(
+            _bare_letters(unicodedata.normalize("NFC", lemma)), ())
+        if len(heads) != 1:
+            return None
+        return self._apply_convention(heads[0])
 
     def _vetoed_untagged_answer(self, word, upos, *, attested_only: bool,
                                 guess: bool) -> str | None:
-        """The untagged answer for a word the POS rejections left empty.
+        """The headword of the untagged answer the POS rejections removed.
 
         lemmatize_pos() drops every candidate whose lemma the treebank POS
         audit rejects as a corpus target. When nothing else answers, the
         word would get no lemma under any tag although lemmatize() gives
-        one (αἱμοπτυικοὺς ADJ, λημφθεῖσα VERB; #157). That answer stands
-        when the rejection is what removed it and it is a composed spelling.
+        one (αἱμοπτυικοὺς ADJ; #157). When the rejection is what removed
+        that answer and it is a headword written with other marks, the
+        headword stands.
         """
         if not isinstance(word, str) or not word:
             return None
@@ -6009,10 +6063,10 @@ class Dilemma:
             return None
         baseline = self.lemmatize_batch([word], attested_only=attested_only,
                                         guess=guess)[0]
-        if (not baseline or self._checked_pos_result(spelling, upos, baseline) is not None
-                or not self._is_composed_lemma(baseline)):
+        if not baseline or self._checked_pos_result(spelling, upos, baseline) is not None:
             return None
-        return baseline
+        return self._checked_pos_result(spelling, upos,
+                                        self._headword_of_variant(baseline))
 
     def _lemmatize_pos_impl(self, word: str, upos: str,
                             *, attested_only: bool = False,
@@ -6474,12 +6528,12 @@ class Dilemma:
                  else self._checked_pos_result(word, upos, lemma)
                  for i, (word, upos, lemma)
                  in enumerate(zip(words, upos_tags, results))]
-        # A word the POS rejections left without any answer keeps the
-        # untagged one, as in lemmatize_pos() (#157).
+        # A word the POS rejections left without any answer reads the
+        # headword its untagged answer spells, as in lemmatize_pos() (#157).
         for i, lemma in enumerate(final):
-            if (lemma is None and rejected_baselines[i]
-                    and self._is_composed_lemma(untagged[i])):
-                final[i] = untagged[i]
+            if lemma is None and rejected_baselines[i]:
+                final[i] = self._checked_pos_result(
+                    words[i], upos_tags[i], self._headword_of_variant(untagged[i]))
         # δ´ and τ´ tagged NUM are the numerals, as in lemmatize_pos().
         for i, (word, upos) in enumerate(zip(given, upos_tags)):
             if upos == "NUM" and _is_one_letter_acute_elision(word):

@@ -111,7 +111,7 @@ def test_shipped_correction_record_is_reviewed_and_current():
     seen = set()
     for row in record["corrections"]:
         assert row["reason"] and row["evidence"] and row["issue"] in (
-            105, 106, 125, 126, 128, 129, 138, 144, 151, 152)
+            105, 106, 125, 126, 128, 129, 138, 144, 151, 152, 157)
         key = (row["table"], row["form"], row["upos"])
         assert key not in seen
         seen.add(key)

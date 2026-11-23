@@ -640,6 +640,16 @@ REVIEWED_ABSENT_KEY_READINGS = {
         "τρεπτάς")},
 }
 
+# The lemmas of reviewed readings that no lexicon heads, with the listed
+# head each compounds (#157). ἀποκεκραμέναις in Damascius (In Parm.) is the
+# perfect middle participle of ἀποκεράννυμι, ἀπό and κεράννυμι. LSJ gives
+# ἐπιλεπτολογέω as a variant reading of Dam. Pr. under ἐπιλεπτουργέω, and
+# Ruelle's index of Damascius heads it.
+REVIEWED_UNLISTED_HEADS = {
+    "ἀποκεράννυμι": "κεράννυμι",
+    "ἐπιλεπτολογέω": "λεπτολογέω",
+}
+
 # The input every reviewed reading is recorded under (lookup_sources.json).
 LOOKUP_OVERRIDES_INPUT = "lookup_overrides"
 

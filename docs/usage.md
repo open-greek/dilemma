@@ -449,6 +449,23 @@ vowel (`εἰκόνισεν` is not `ἐκόνισεν` of `κονίω`). `εἰ
 the Modern Greek `εικονίζω`, because no source lists the Ancient aorist of
 `εἰκονίζω`.
 
+An oblique active participle with no row of its own (`-οντ-`, `-ουντ-`,
+`-ωντ-`, `-αντ-`, `-εντ-`, `-υντ-`, `-οτ-` and the feminines) is read last,
+after the normalizer, the compound and prefix fallbacks, through its masculine
+nominative (`-ων`, `-ῶν`, `-ας`, `-είς`, `-ύς`, `-ώς`) with each accent it
+can take: `Συμπτύσσοντες` gives `συμπτύσσω` through `συμπτύσσων`, with
+`via="active_participle"` (#157). The nominative must be an Ancient lookup
+key that reads a verb's citation form a lexicon heads. When two nominatives
+read different verbs, or the form may be a misaccent of a nominative that
+reads another word, there is no answer (`παροῦντα`, beside `παρῶν` of
+`παρόω` and `παρών` of `πάρειμι`).
+
+A word with the second accent a following enclitic adds reads the rows of
+its spelling without that accent when its own lookup keys give no Ancient
+headword: `ἐφαπτόμενοί` gives `ἐφάπτω` through `ἐφαπτόμενοι`, not the Modern
+`εφάπτομαι` of its accent-stripped key (#157). A headword its keys do give
+keeps its place (`ταῦτόν` stays `ταὐτός`).
+
 Non-Greek and NON-LEXICAL tokens (see `classify_nonlexical`) still pass through
 unchanged: those are classifications, not lemma guesses. For a per-candidate
 confidence signal, use `lemmatize_verbose()` - each candidate's `score` (1.0
@@ -947,7 +964,7 @@ tags one Ancient lemma carries across tagsets.
 The Modern Greek entries carry no SCONJ tag, so an SCONJ request reads the
 Modern CCONJ entry when the Ancient POS tables record no CCONJ entry for the
 form (`νὰ` SCONJ gives `να`, not `νή`; `σὰν` SCONJ gives `σαν`). Ancient
-conjunctions keep their Ancient entries (`ἐπειδὴ` SCONJ gives `ἐπεί`).
+conjunctions keep their Ancient entries (`ἐπειδὴ` SCONJ gives `ἐπειδή`).
 
 In every other case the lookup candidates decide, as they do for all polytonic
 input in 1.3.23: the same word in monotonic spelling gives the Ancient
@@ -1036,9 +1053,15 @@ Explicit Ancient Greek POS calls also reject those documented unsupported
 targets if an older POS table or the ordinary lookup offers them as a fallback.
 This applies equally to scalar and batch calls; it does not change untyped
 `lemmatize()` or Modern Greek behavior. When the rejection leaves a word with
-no answer at all, the untagged answer stands, as long as it is a composed
-spelling: `αἱμοπτυικοὺς` ADJ gives `αἱμοπτυικός` and `λημφθεῖσα` VERB
-`λαμβάνω` instead of nothing (#157). The rejection audit must match the
+no answer at all, and the rejected untagged answer is the one headword of
+an edited dictionary (LSJ, the DGE, Cunliffe, the LBG) written with other
+marks (breathing, accent, diaeresis or iota subscript), that headword stands:
+`ἴσταται` VERB, whose untagged answer is the rejected `ἴστημι`, gives
+`ἵστημι` instead of nothing, and `Θράκῃ` PROPN gives `Θρᾴκη` (#157). A
+rejected answer that spells no such headword, or two, stays vetoed, as most
+of them are artefacts of corpus rows (`ἔχόντων` untagged gives `ἔχοω`, and
+VERB nothing).
+The rejection audit must match the
 exact `grc_lexical_heads.json` bytes. Missing or mismatched evidence raises a
 data-mismatch error rather than trusting an unbound rejection list. Refresh
 both files with `python -m dilemma download --no-tagger` (use `--dir PATH`

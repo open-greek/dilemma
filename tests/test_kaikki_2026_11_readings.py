@@ -36,7 +36,12 @@ def test_override_targets_are_lexical_heads():
     heads = json.loads(path.read_text(encoding="utf-8"))["heads"]
     for lemma in (set(B.KAIKKI_2026_11_READING_OVERRIDES.values())
                   | set(B.REVIEWED_ABSENT_KEY_READINGS.values())):
-        assert lemma in heads, lemma
+        assert lemma in heads or lemma in B.REVIEWED_UNLISTED_HEADS, lemma
+    # A reviewed lemma no lexicon heads is a compound of a listed head, and
+    # leaves the list once a lexicon heads it.
+    for lemma, head in B.REVIEWED_UNLISTED_HEADS.items():
+        assert lemma not in heads and head in heads, lemma
+        assert lemma.endswith(head[1:]), lemma
     # The corpus lemmatizer artefacts are in no head list.
     for lemma, entry in REJECTED_LEMMA_TARGETS.items():
         if entry["reason"] == "corpus_lemmatizer_artifact":
