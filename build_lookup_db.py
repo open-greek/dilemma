@@ -540,6 +540,20 @@ REVIEWED_READINGS_1_3_30 = {
     # and ἕλκω, and their forms read them (δινεύει, ἑλκέουσι); only their
     # own keys read the other verb, through the Wiktionary base (#147).
     "δινεύω": "δινεύω", "ἑλκέω": "ἑλκέω",
+    # Their elided forms read them too: the iterative of δινεύω, the
+    # imperfect of ἀποικέω, the future of ἑλκέω (ἕλκω has ἕλξω), and the
+    # optative of the aorist διεῖπον, which LSJ heads (διέπω has διέποιμι).
+    "δινεύεσκ\u1fbd": "δινεύω", "ἀπῳκεῖτ\u1fbd": "ἀποικέω",
+    "ἑλκήσουσ\u1fbd": "ἑλκέω", "διείποιμ\u1fbd": "διεῖπον",
+    # Elided keys whose rows read another word, which the acute-shaped
+    # elision mark now reaches (Ἀφ´, Μεθ´): capitalized ἀφ᾽ and ἀπ᾽ are
+    # ἀπό, not the pear ἄπιος, Μεθ᾽ is μετά, not μεθό, and Εἶθ᾽ is εἶτα,
+    # as their lowercase keys read. οὕτ᾽ is οὔτε misprinted with the rough
+    # breathing (ὅτε elides as ὅτ᾽), and ἐκ, οὖν and the unaccented ἀπο are
+    # whole words (ἀπό), not ἐκάς and the artefacts οὖνέ and ἀπος.
+    "Ἀφ\u1fbd": "ἀπό", "Ἀπ\u1fbd": "ἀπό", "Μεθ\u1fbd": "μετά",
+    "Εἶθ\u1fbd": "εἶτα", "οὕτ\u1fbd": "οὔτε", "ἐκ\u1fbd": "ἐκ",
+    "οὖν\u1fbd": "οὖν", "ἀπο": "ἀπό",
     # The future and aorist of συζάω, live with (LSJ: fut. συζήσω), which
     # an expansion row gave to συζέω, boil together (aor. συνέζεσα); the
     # participle resolver carried συζήσας to συζήσαντος.

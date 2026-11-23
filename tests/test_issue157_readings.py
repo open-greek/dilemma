@@ -6,7 +6,7 @@ import sqlite3
 import pytest
 
 from dilemma import core
-from dilemma.core import _is_one_letter_acute_elision, to_standard_elision
+from dilemma.core import _is_marked_numeral, to_standard_elision
 from dilemma.grc_os_gaps import select_os_lemmas
 from dilemma.grc_reviewed_respellings import (
     REVIEWED_LEMMA_RESPELLINGS, respelled_lemma)
@@ -60,8 +60,12 @@ def plain(model, word):
     ("καθ´", "καθ’"), ("τοῦτ´", "τοῦτ’"), ("ἵν´", "ἵν’"),
     # δ´ and τ´ are δέ and τε far more often than 4 and 300.
     ("δ´", "δ’"), ("τ´", "τ’"),
-    # After an accented final vowel the acute is a stray mark.
-    ("ἀλλὰ´", "ἀλλὰ"), ("καὶ´", "καὶ"), ("ὃ´", "ὃ"),
+    # An elided word ends in a consonant: after a final vowel or ς, in a
+    # word with a breathing or an accent, the mark is a stray.
+    ("ἀλλὰ´", "ἀλλὰ"), ("καὶ´", "καὶ"), ("ἵνα´", "ἵνα"), ("οἱ´", "οἱ"),
+    ("εἶτα´", "εἶτα"), ("ὅς´", "ὅς"), ("ἀπο´", "ἀπο"), ("Οὐ´", "Οὐ"),
+    # The Greek oxia is the spacing acute.
+    ("δι\u1ffd", "δι’"), ("καὶ\u1ffd", "καὶ"),
     # The tonos and the prime after a word that is no numeral.
     ("δι΄", "δι’"), ("Δι΄", "Δι’"), ("παρ΄", "παρ’"), ("μετ΄", "μετ’"),
     ("ἀλλ΄", "ἀλλ’"), ("ὑπ΄", "ὑπ’"), ("δι′", "δι’"), ("έπ΄", "έπ’"),
@@ -78,7 +82,7 @@ def test_a_final_spacing_acute_is_the_elision_mark(word, written):
     # a numeral with the tonos or the prime.
     "α´", "β´", "ε´", "γ´", "μ´", "Γ´", "Δ´", "ϛ´", "ιβ´", "ιε´", "ιστ´",
     "ις´", "δ΄", "τ΄", "β΄", "ιβ΄", "κα΄", "μη΄", "ις΄", "ιστ΄", "ΙΓ΄",
-    "Ἀ΄", "δ′", "ιβ′",
+    "Ἀ΄", "δ′", "ιβ′", "Ὄ΄", "Ἄ΄", "ί΄",
     # Other unmarked letters with the mark: numerals in any order of their
     # letters, as tables print them.
     "δε´", "ζα´", "παο´", "δφ´", "βφ΄", "γχ΄", "ατ΄", "δω΄", "ῑβ΄", "ΡΑΓ΄",
@@ -91,12 +95,21 @@ def test_numerals_and_other_tokens_keep_their_spelling(word):
     assert to_standard_elision(word) == word
 
 
-def test_one_letter_elisions_are_recognized_for_the_num_tag():
-    assert _is_one_letter_acute_elision("δ´")
-    assert _is_one_letter_acute_elision("τ´")
-    assert not _is_one_letter_acute_elision("β´")
-    assert not _is_one_letter_acute_elision("δι´")
-    assert not _is_one_letter_acute_elision(None)
+@pytest.mark.parametrize("word", [
+    # δ´ and τ´, which untagged are δέ and τε, and numerals the OCR gave a
+    # breathing or an accent, which untagged read as words.
+    "δ´", "τ´", "δ\u1ffd", "ἰδ´", "ἰβ´", "ὑβ´", "ἰα´", "ῖη΄", "Ἰβ´",
+])
+def test_marked_numerals_are_recognized_for_the_num_tag(word):
+    assert _is_marked_numeral(word)
+
+
+@pytest.mark.parametrize("word", [
+    # Kept as printed anyway, or no numeral without the marks.
+    "β´", "ιβ´", "δ’", "δι´", "ἀλλ´", "καθ´", "οἱ´", "ἵνα´", None, "",
+])
+def test_other_tokens_are_no_marked_numerals(word):
+    assert not _is_marked_numeral(word)
 
 
 @pytest.mark.parametrize("lang", ["all", "grc"])
@@ -115,6 +128,35 @@ def test_elided_preposition_with_an_acute_reads_its_elided_key(model_from, lang)
     assert model.lemmatize_pos("δ´", "NUM") == "δ´"
     assert model.lemmatize_batch_pos(["δ´", "δ´"], ["NUM", "CCONJ"]) == [
         "δ´", "δέ"]
+    # So is a numeral the OCR gave a breathing (ἰδ´, 14), whatever the
+    # untagged lookup reads.
+    assert model.lemmatize_pos("ἰδ´", "NUM") == "ἰδ´"
+    assert model.lemmatize_batch_pos(["ἰδ´"], ["NUM"], guess=False) == [None]
+
+
+def test_an_elided_cell_is_found_under_either_mark(model_from):
+    # The tables key εἶθ᾽ under ᾽ and εἶτ’ under ’: δι´ and εἶθ´ are read
+    # under ’ and find the cell under the other mark.
+    model = model_from({"εἶθ᾽": "εἴτε"}, lang="all",
+                       pos={"εἶθ᾽": {"ADV": "εἶτα"}},
+                       headwords={"εἶτα", "εἴτε"})
+    assert tagged(model, "εἶθ´", "ADV") == "εἶτα"
+    assert tagged(model, "εἶθ’", "ADV") == "εἶτα"
+
+
+def test_attested_only_gates_the_normalized_spelling(model_from, monkeypatch):
+    model = model_from({"δι᾽": "διά"})
+
+    class Attested:
+        @staticmethod
+        def is_attested(form):
+            return form == "δι’"
+
+    monkeypatch.setattr(model, "_attestdb", lambda: Attested)
+    monkeypatch.setattr(model, "_expand_elision_all", lambda word: [])
+    assert model._resolve_attested_form("δι´") == "δι’"
+    assert model._resolve_attested_form("δι’") == "δι’"
+    assert model._resolve_attested_form("κατ´") is None
 
 
 # The lookup ----------------------------------------------------------------
@@ -122,7 +164,36 @@ def test_elided_preposition_with_an_acute_reads_its_elided_key(model_from, lang)
 def test_a_second_accent_from_an_enclitic_finds_the_own_row(model_from):
     model = model_from({"ἐφαπτόμενοι": "ἐφάπτω", "εφαπτομενοι": "εφάπτομαι"},
                        lang="all", headwords={"ἐφάπτω"})
+    model._dictionary_heads = frozenset({"ἐφάπτω"})
+    # The accent-stripped key reads the Modern εφάπτομαι, no Ancient head.
+    model._vernacular_lexical_heads = {"εφάπτομαι"}
     assert plain(model, "ἐφαπτόμενοί") == "ἐφάπτω"
+
+
+def test_the_enclitic_step_needs_a_reading_that_is_no_headword(model_from):
+    rows = {"εφαπτομενοι": "εφάπτομαι", "ἐφαπτόμενοι": "ἐφάπτω",
+            "προεπιστασθαι": "προεπίσταμαι",
+            "προεπίστασθαι": "προεφίστημι",
+            "ἐκφῦναι": "ἐκφῦναι", "ῥᾷον": "ῥᾴδιος", "Ἡσίοδος": "Ἡσίοδος",
+            "ησιοδος": "ησίοδος", "πολυστέφανος": "πολυστέφανος"}
+    model = model_from(rows, lang="all",
+                       headwords={"ἐφάπτω", "προεπίσταμαι", "προεφίστημι",
+                                  "ἐκφῦναι", "ῥᾴδιος", "Ἡσίοδος",
+                                  "πολυστέφανος"})
+    model._vernacular_lexical_heads = {"εφάπτομαι", "ησίοδος"}
+    step = model._lookup_word
+    # The cascade reads no headword: the own rows of the bare spelling
+    # stand when they read a headword, the spelling itself included.
+    assert step("ἐφαπτόμενοί") == "ἐφάπτω"
+    assert step("Ἡσίοδός") == "Ἡσίοδος"
+    # The cascade reads a headword, which keeps its place.
+    assert step("προεπίστασθαί") == "προεπίσταμαι"
+    # The cascade finds nothing: the own rows stand when they read another
+    # spelling, or the bare spelling itself only when it is a nominative in
+    # -ος (ἐκφῦναι is an inflected form LSJ heads as a cross-reference).
+    assert step("ῥᾷόν") == "ῥᾴδιος"
+    assert step("πολυστέφανός") == "πολυστέφανος"
+    assert step("ἐκφῦναί") is None
 
 
 @pytest.mark.parametrize("word", ["συμπτύσσοντες", "Συμπτύσσοντες",
@@ -176,14 +247,17 @@ def test_a_misaccented_participle_with_two_nominatives_has_no_answer(
 def test_a_rejected_pos_target_reads_the_headword_it_spells(model_from, lang):
     model = model_from({"αἱμοπτυικοὺς": "αἱμοπτυικός", "ἔχόντων": "ἔχοω",
                         "ἴσταται": "ἴστημι", "ὄρους": "ὀρος", "Ὅρα": "Ὅρας",
-                        "ἵστημι": "ἵστημι", "ἱστήκει": "ἵτω", "ἴτω": "εἶμι"},
+                        "ἵστημι": "ἵστημι", "ἱστήκει": "ἵτω", "ἴτω": "εἶμι",
+                        "αἱμοπτυϊκός": "αἱμοπτυϊκός",
+                        "ταύτῃσιν": "ταῦτος", "ταὐτός": "ταὐτός",
+                        "ὀδόντ": "ὁδοντ"},
                        lang=lang,
                        headwords={"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος", "Ορας",
-                                  "ἴτω", "εἶμι"},
+                                  "ἴτω", "εἶμι", "ταὐτός", "ὀδούς", "ὁδοντ"},
                        rejected={"αἱμοπτυικός", "ἔχοω", "ἴστημι", "ὀρος", "Ὅρας",
-                                 "ἵτω"})
+                                 "ἵτω", "ταῦτος", "ὁδοντ"})
     model._dictionary_heads = frozenset({"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος",
-                                         "ἴτω", "εἶμι"})
+                                         "ἴτω", "εἶμι", "ταὐτός", "ὁδοντ"})
     # The untagged answer is a dictionary headword written with other marks.
     assert tagged(model, "αἱμοπτυικοὺς", "ADJ") == "αἱμοπτυϊκός"
     assert tagged(model, "ἴσταται", "VERB") == "ἵστημι"
@@ -195,6 +269,11 @@ def test_a_rejected_pos_target_reads_the_headword_it_spells(model_from, lang):
     # A headword whose own rows read another word is a cross-reference
     # (ἴτω, of εἶμι), not the word the rejected answer misread.
     assert tagged(model, "ἱστήκει", "VERB") is None
+    # A headword with no row of its own is no answer.
+    assert tagged(model, "ὀδόντ", "NOUN") is None
+    # A rejected answer accented on other letters is another word: ταῦτος
+    # for ταύτῃσιν is not ταὐτός.
+    assert tagged(model, "ταύτῃσιν", "PRON") is None
     # The untagged lookup is unchanged.
     assert plain(model, "ἴσταται") == "ἴστημι"
 
@@ -256,7 +335,8 @@ def test_noun_and_adjective_split_of_meilichia(model_from, lang):
 @pytest.mark.parametrize("form, given, lemma", [
     ("λημφθεῖσα", "λήμπω", "λαμβάνω"),
     ("ἀναλημφθεῖσα", "ἀναλήμπω", "ἀναλαμβάνω"),
-    ("ἠθμοῦ", "ἡθμός", "ἠθμός"),
+    # LSJ heads the strainer ἡθμός, with ἠθμός as the manuscripts' variant.
+    ("ἠθμοῦ", "ἡθμός", "ἡθμός"),
     ("ὀρθοπνοϊκοῖς", "ὀρθοπνοικός", "ὀρθοπνοϊκός"),
     ("αἱμοπτυικοὺς", "αἱμοπτυικός", "αἱμοπτυϊκός"),
     ("ἐπιλημψίας", "ἐπιλημψία", "ἐπιληψία"),
@@ -288,13 +368,15 @@ def test_respellings_name_heads_that_are_not_respelled_again():
 
 def test_build_respells_each_table_on_its_own():
     from build_lookup_db import apply_reviewed_respellings
-    combined = {"ηθμός": "ηθμός", "ἡθμοῦ": "ἡθμός", "πλάττοντα": "πλήσσω"}
+    combined = {"ορθοπνοικός": "ορθοπνοικός",
+                "ὀρθοπνοικοὺς": "ὀρθοπνοικός", "πλάττοντα": "πλήσσω"}
     sources = {}
     assert apply_reviewed_respellings(combined, sources) == 2
-    # The Modern row of the combined table keeps its own lemma.
-    assert combined == {"ηθμός": "ηθμός", "ἡθμοῦ": "ἠθμός",
+    # A row whose lemma is not the reviewed spelling keeps it.
+    assert combined == {"ορθοπνοικός": "ορθοπνοικός",
+                        "ὀρθοπνοικοὺς": "ὀρθοπνοϊκός",
                         "πλάττοντα": "πλάσσω"}
-    assert set(sources) == {"ἡθμοῦ", "πλάττοντα"}
+    assert set(sources) == {"ὀρθοπνοικοὺς", "πλάττοντα"}
 
 
 def test_reviewed_readings_are_in_the_build():
@@ -316,6 +398,24 @@ def test_reviewed_readings_are_in_the_build():
     assert readings["συζήσας"] == "συζάω"
     assert readings["δηῦτε"] == "δηὖτε"
     assert readings["Ἀπίωνα"] == "Ἀπίων"
+    # The elided forms of #147, keyed under U+1FBD as the table keys them.
+    assert readings["δινεύεσκ\u1fbd"] == "δινεύω"
+    assert readings["ἀπῳκεῖτ\u1fbd"] == "ἀποικέω"
+    assert readings["ἑλκήσουσ\u1fbd"] == "ἑλκέω"
+    assert readings["διείποιμ\u1fbd"] == "διεῖπον"
+    assert readings["Ἀφ\u1fbd"] == readings["Ἀπ\u1fbd"] == "ἀπό"
+    assert readings["Μεθ\u1fbd"] == "μετά" and readings["Εἶθ\u1fbd"] == "εἶτα"
+
+
+def test_reviewed_reading_targets_are_lexical_heads():
+    import build_lookup_db as build
+    path = core.GRC_LEXICAL_HEADS_PATH
+    if not path.exists():
+        pytest.skip("Shipped Dilemma data is not installed")
+    heads = json.loads(path.read_text(encoding="utf-8"))["heads"]
+    targets = set(build.REVIEWED_READINGS_1_3_30.values())
+    targets |= set(REVIEWED_LEMMA_RESPELLINGS.values())
+    assert sorted(t for t in targets if t not in heads) == []
 
 
 def test_a_genitive_without_the_plural_is_no_declining_table():
@@ -368,7 +468,7 @@ _SHIPPED = [
     ("ἐπειδὴ", "SCONJ", "ἐπειδή"),
     ("Ἕβδομον", "PROPN", "ἕβδομος"),
     ("Δέκατον", "PROPN", "δέκατος"),
-    ("ἠθμοῦ", "NOUN", "ἠθμός"),
+    ("ἠθμοῦ", "NOUN", "ἡθμός"),
     ("Τεύκριον", "PROPN", "τεύκριον"),
     ("αἱμοπτυικοὺς", "ADJ", "αἱμοπτυϊκός"),
     ("ὀρθοπνοϊκοῖς", "ADJ", "ὀρθοπνοϊκός"),
@@ -388,20 +488,70 @@ _SHIPPED = [
     ("συζήσειεν", "VERB", "συζάω"),
     ("κἀπειδήπερ", "CCONJ", "ἐπειδήπερ"),
     ("’πειδὴ", "CCONJ", "ἐπειδή"),
+    ("συζήσας", "VERB", "συζάω"),
+    ("ἐπειδήπερ", "CCONJ", "ἐπειδήπερ"),
+    ("ἐπείπερ", "CCONJ", "ἐπείπερ"),
+    ("λίνω", "NOUN", "λίνον"),
+    # The dictionary-head rule.
+    ("ἴσταται", "VERB", "ἵστημι"),
+    ("Θράκῃ", "PROPN", "Θρᾴκη"),
+    ("ζωδιακοῦ", "ADJ", "ζῳδιακός"),
+    # A cell under the other elision mark (εἶθ᾽ ADV), and the elided keys
+    # whose rows 1.3.30 corrects.
+    ("εἶθ´", "ADV", "εἶτα"),
+    ("Ἀφ´", "ADP", "ἀπό"),
+    ("δι\u1ffd", "ADP", "διά"),
+    ("δινεύεσκ᾽", "VERB", "δινεύω"),
+    ("διείποιμ᾽", "VERB", "διεῖπον"),
+    # Held Damascius and Dioscorides readings.
+    ("ἑστηκυιῶν", "VERB", "ἵστημι"),
+    ("ταυτούμενος", "VERB", "ταὐτόω"),
+    ("προϋπάρξει", "NOUN", "προΰπαρξις"),
+    ("προϋπονοηθήσεται", "VERB", "προϋπονοέω"),
+    ("ἀποπεμπτέον", "ADJ", "ἀποπεμπτέος"),
+    ("σηπτὰς", "ADJ", "σηπτός"),
+    ("προβρωθέντα", "VERB", "προβιβρώσκω"),
+    ("ἐσκιρρωμένους", "VERB", "σκιρρόω"),
+    ("ὑποθυμιαθέντες", "VERB", "ὑποθυμιάω"),
+    ("λευκοΐοις", "NOUN", "λευκόϊον"),
+    ("χαμαίδρυϊ", "NOUN", "χαμαίδρυς"),
+    ("καρυΐτην", "NOUN", "καρυΐτης"),
+    ("δυσεντερικά", "ADJ", "δυσεντερικός"),
 ]
 
 # The untagged answer, where it differs from the tagged one.
 _UNTAGGED = {"Δι´": "Ζεύς", "λίνῳ": "λίνον", "συμπτύξει": "συμπτύσσω",
-             "μειλιχίῃ": "μειλίχιος"}
+             "μειλιχίῃ": "μειλίχιος", "ἴσταται": "ἴστημι", "Θράκῃ": "Θράκη",
+             "ζωδιακοῦ": "ζωδιακός", "προϋπάρξει": "προϋπάρχω"}
+
+# Tagged answers that must stay empty: the rejected untagged answer spells
+# no headword, a cross-reference, or a headword accented on other letters;
+# and numerals tagged NUM.
+_SHIPPED_NONE = [
+    ("Ὅρα", "PROPN"), ("ἔχόντων", "VERB"), ("ἱστήκει", "VERB"),
+    ("ταύτῃσιν", "PRON"), ("τῳδὶ", "ADJ"), ("ὀδόντ", "NOUN"),
+    ("δ´", "NUM"), ("τ´", "NUM"), ("ἰδ´", "NUM"),
+]
 
 
-def test_shipped_tagged_answers():
+@pytest.mark.parametrize("guess", [True, False])
+def test_shipped_tagged_answers(guess):
     model = _model("all")
     words = [form for form, _, _ in _SHIPPED]
     tags = [upos for _, upos, _ in _SHIPPED]
     want = [lemma for _, _, lemma in _SHIPPED]
-    assert model.lemmatize_batch_pos(words, tags) == want
-    assert [model.lemmatize_pos(w, t) for w, t in zip(words, tags)] == want
+    assert model.lemmatize_batch_pos(words, tags, guess=guess) == want
+    assert [model.lemmatize_pos(w, t, guess=guess)
+            for w, t in zip(words, tags)] == want
+
+
+def test_shipped_vetoed_answers_stay_empty():
+    model = _model("all")
+    words = [form for form, _ in _SHIPPED_NONE]
+    tags = [upos for _, upos in _SHIPPED_NONE]
+    assert model.lemmatize_batch_pos(words, tags, guess=False) == [None] * len(words)
+    assert [model.lemmatize_pos(w, t, guess=False)
+            for w, t in zip(words, tags)] == [None] * len(words)
 
 
 @pytest.mark.parametrize("lang", ["all", "grc"])
@@ -421,7 +571,20 @@ _SHIPPED_CORPUS = [
     ("συζήσαντος", "συζάω"), ("δηῦτέ", "δηὖτε"), ("Ἀππίωνά", "Ἀπίων"),
     ("φρονούντες", "φρονέω"), ("ἄδοντες", "ἀείδω"),
     ("παροῦντα", None), ("ἄλλοντα", None), ("σιγαλόντα", None),
+    # The enclitic-accent step: a headword the keys give keeps its place,
+    # and an inflected form a dictionary heads is no answer.
+    ("ἐφαπτόμενοί", "ἐφάπτω"), ("ῥᾷόν", "ῥᾴδιος"), ("Ἡσίοδός", "Ἡσίοδος"),
+    ("ταῦτόν", "ταὐτός"), ("ῥάδιόν", "ῥᾴδιον"), ("ἐκφῦναί", "ἐκφύω"),
+    ("ἄνθετό", None),
+    # A stray mark after a whole word, and numerals with the mark.
+    ("ἵνα´", "ἵνα"), ("ἀλλὰ´", "ἀλλά"), ("Ὄ΄", "Ο΄"),
 ]
+
+
+def test_shipped_participles_through_verbose():
+    candidates = _model("grc").lemmatize_verbose("Συμπτύσσοντες", guess=False)
+    assert [(c.lemma, c.via) for c in candidates] == [
+        ("συμπτύσσω", "active_participle")]
 
 
 def test_shipped_corpus_answers():
@@ -442,4 +605,4 @@ def test_shipped_cells_of_restored_heads():
             "'ηθμός')"))
     assert rows == {"ἀγχίαλα": "ἀγχίαλος", "ἀγχίαλοι": "ἀγχίαλος",
                     "ἀγχιάλοις": "ἀγχίαλος", "ἀξύλοις": "ἄξυλος",
-                    "ἠθμοῦ": "ἠθμός", "ηθμός": "ηθμός"}
+                    "ἠθμοῦ": "ἡθμός", "ηθμός": "ηθμός"}

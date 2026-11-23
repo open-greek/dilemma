@@ -460,11 +460,14 @@ read different verbs, or the form may be a misaccent of a nominative that
 reads another word, there is no answer (`παροῦντα`, beside `παρῶν` of
 `παρόω` and `παρών` of `πάρειμι`).
 
-A word with the second accent a following enclitic adds reads the rows of
-its spelling without that accent when its own lookup keys give no Ancient
-headword: `ἐφαπτόμενοί` gives `ἐφάπτω` through `ἐφαπτόμενοι`, not the Modern
-`εφάπτομαι` of its accent-stripped key (#157). A headword its keys do give
-keeps its place (`ταῦτόν` stays `ταὐτός`).
+A word with the second accent a following enclitic adds, whose lookup keys
+read something that is no Ancient headword, reads the rows of its spelling
+without that accent when they give a headword of an edited dictionary (LSJ,
+the DGE, Cunliffe, the LBG) other than that spelling itself: `ἐφαπτόμενοί`
+gives `ἐφάπτω` through `ἐφαπτόμενοι`, not the Modern `εφάπτομαι` of its
+accent-stripped key (#157). A headword its keys do give keeps its place
+(`ταῦτόν` stays `ταὐτός`), and a word whose keys give nothing goes on to the
+later steps.
 
 Non-Greek and NON-LEXICAL tokens (see `classify_nonlexical`) still pass through
 unchanged: those are classifications, not lemma guesses. For a per-candidate
@@ -797,9 +800,10 @@ under another citation form (`πᾶσι` PRON stays `πᾶς` against a cell's
 the lookup (`αἶ` INTJ gives `αἶα`; its SCONJ and PART cells are reviewed
 additions in `data/pos_cell_corrections.json`).
 Under PROPN a lookup reading answers as its capitalized twin, except for the
-ordinal adjectives from `πρῶτος` to `δωδέκατος` and `εἰκοστός`: a heading or
-the first word of a sentence tagged PROPN (`Ἕβδομον`, `Δέκατον`) keeps the
-ordinal, not the rare name of its spelling (#157). When the row
+ordinal adjectives from `πρῶτος` to `δωδέκατος`, `ἔννατος` and `εἰκοστός`:
+capitalized and tagged PROPN, as a heading or the first word of a sentence
+often is (`Ἕβδομον`, `Δέκατον`), they keep the ordinal, not the rare name of
+their spelling (#157). When the row
 reads a verb, that twin is a name that only shares the verb's citation
 spelling, and a PROPN entry under the form's own spelling that names a
 capitalized lemma outranks it: `φάων` PROPN gives `Φάων` (not the `Φάω` of
@@ -1060,10 +1064,12 @@ marks (breathing, accent, diaeresis or iota subscript), that headword stands:
 `ἵστημι` instead of nothing, and `Θράκῃ` PROPN gives `Θρᾴκη` (#157). A
 rejected answer that spells no such headword, or two, stays vetoed, as most
 of them are artefacts of corpus rows (`ἔχόντων` untagged gives `ἔχοω`, and
-VERB nothing). So does one that spells a headword whose own rows read
-another word, a form the dictionary heads as a cross-reference (`ἱστήκει`
-untagged gives `ἵτω`, which spells `ἴτω`, a form of `εἶμι`; VERB gives
-nothing).
+VERB nothing). So does one that spells a headword with no row of its own
+(`ὀδόντ` untagged gives `ὁδοντ`), or whose own rows read another word, a
+form the dictionary heads as a cross-reference (`ἱστήκει` untagged gives
+`ἵτω`, which spells `ἴτω`, a form of `εἶμι`; VERB gives nothing), and one
+accented on other letters than the headword, which is another word
+(`ταύτῃσιν` untagged gives `ταῦτος`, not `ταὐτός`).
 The rejection audit must match the
 exact `grc_lexical_heads.json` bytes. Missing or mismatched evidence raises a
 data-mismatch error rather than trusting an unbound rejection list. Refresh
@@ -1350,21 +1356,25 @@ encodings). All of these resolve identically: the lemma never depends on
 which apostrophe codepoint the source text used.
 
 Some editions and their OCR print the apostrophe as a spacing acute
-(U+00B4), chiefly `δι´` and `Δι´` in the Patrologia Graeca, and less often as
-the Greek tonos (U+0384) or a prime (U+2032): `δι΄`, `παρ΄`. A final acute,
-tonos or prime after an elided Greek word is read as the elision mark, in
-every entry point: `δι´` and `δι΄` give `διά` (ADP) and `ἀλλ´` gives `ἀλλά`
-(#157). After letters that may be a numeral it is the numeral sign. A word
-with a breathing or an accent is never a numeral (`ἀλλ΄`, `ὑπ΄`, `τοῦτ´`);
-a word with neither is read as elided only when it is one of the elided
-words written so (`δι`, `παρ`, `μετ`, `μεθ`, `κατ`, `καθ`, `μηδ`, `ποτ`,
-`ποθ`, `αλλ`) and no numeral, so `ιβ´`, `ιστ΄`, `κα΄` and the numerals that
-tables print in any order of their letters (`δε´`, `βφ΄`) keep their
-spelling. One letter is read as elided only when it is `δ` or `τ` with the
-acute (`δέ` and `τε` are far commoner than 4 and 300), and tagged NUM even
-these stay the numeral (the token, or `None` with `guess=False`); `ε´`, `β´`
-and `δ΄` keep their spelling. After an accented final vowel the mark is a
-stray and is dropped (`ἀλλὰ´` is `ἀλλὰ`).
+(U+00B4, or the Greek oxia U+1FFD), chiefly `δι´` and `Δι´` in the
+Patrologia Graeca, and less often as the Greek tonos (U+0384) or a prime
+(U+2032): `δι΄`, `παρ΄`. A final acute, tonos or prime after an elided Greek
+word is read as the elision mark, in every entry point and in the
+`attested_only` gate: `δι´` and `δι΄` give `διά` (ADP) and `ἀλλ´` gives
+`ἀλλά` (#157). The POS tables key an elided form under ’ or under ᾽, and a
+cell under either mark counts as the form's own (`εἶθ´` ADV gives `εἶτα`).
+An elided word with a breathing or an accent ends in a consonant, so after
+a final vowel or `ς` in such a word the mark is a stray and is dropped
+(`ἀλλὰ´` is `ἀλλὰ`, `ἵνα´` `ἵνα`). A word with neither is read as elided
+only when it is one of the elided words written so (`δι`, `παρ`, `μετ`,
+`μεθ`, `κατ`, `καθ`, `μηδ`, `ποτ`, `ποθ`, `αλλ`); other letters with the
+mark are a numeral and keep their spelling: `ιβ´`, `ιστ΄`, `κα΄` and the
+numerals that tables print in any order of their letters (`δε´`, `βφ΄`).
+One letter keeps its spelling too (`ε´`, `β´`, `δ΄`, `Ὄ΄`), except `δ` or
+`τ` with the acute, which are read as elided (`δέ` and `τε` are far commoner
+than 4 and 300). Tagged NUM, these and the numerals the OCR gave a breathing
+or an accent (`ἰδ´`, `ῖη΄`) stay the numeral: the token, or `None` with
+`guess=False`.
 
 **Exact elided entries first:** the lookup table stores corpus-derived
 lemmas for elided forms under one canonical key (U+1FBD), and these win

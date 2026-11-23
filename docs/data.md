@@ -1069,7 +1069,7 @@ reason `corpus_lemmatizer_artifact`. Three reviewed tables in
 
 - `dilemma/grc_reviewed_respellings.py`. Lemma spellings that some rows give
   and that LSJ spells otherwise (`λήμπω`, built from the Koine `λημφθεῖσα`,
-  is `λαμβάνω`; `ἡθμός` is LSJ's `ἠθμός`), and the readings of a few letter
+  is `λαμβάνω`; `ὀρθοπνοικός` is LSJ's `ὀρθοπνοϊκός`), and the readings of a few letter
   sequences that GLAUx gives to a verb of close spelling (`πλαττ-` to
   `πλήσσω` for `πλάσσω`, and to the compounds of `πλήσσω` for those of
   `πλάσσω`, as `καταπλάττειν`; `διηρ-` to `διερέω` for `διαιρέω`). The lookup
