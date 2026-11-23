@@ -1764,6 +1764,72 @@
    "reason": "The same cell under the oxytone key of ’πειδὴ.",
    "evidence": "Built from glaux_pairs.json: ’πειδὴ -> ἐπεί (conj, 1 token).",
    "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "συζήσας",
+   "upos": "VERB",
+   "target": "συζέω",
+   "action": "correct",
+   "corrected": "συζάω",
+   "reason": "The aorist participle of συζάω (live with), as συζήσεται is its future; συζέω (boil together) has the aorist συνέζεσα. The untagged lookup reads συζάω.",
+   "evidence": "glaux_pairs.json: συζήσας -> συζέω (verb, 1 token); diorisis_pairs.json: συζήσας -> συζάω (verb, 1); lookup.db: συζήσας -> συζάω (build_lookup_db.REVIEWED_READINGS_1_3_30); LSJ συζάω.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "ἐπειδήπερ",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπειδήπερ",
+   "reason": "ἐπειδήπερ, as κἀπειδήπερ and ’πειδήπερ now read; the untagged lookup reads the form so, and the treebanks fold it to ἐπεί or ἐπειδή.",
+   "evidence": "glaux_pairs.json: ἐπειδήπερ -> ἐπειδή (conj, 371 tokens); diorisis_pairs.json: ἐπειδήπερ -> ἐπεί (conj, 1); lookup.db: ἐπειδήπερ -> ἐπειδήπερ; LSJ gives ἐπειδήπερ under ἐπειδή.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "ἐπείπερ",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπείπερ",
+   "reason": "ἐπείπερ is a head of its own (LSJ), and the untagged lookup reads the form and Ἐπείπερ so; the treebanks fold it to ἐπεί.",
+   "evidence": "glaux_pairs.json: ἐπείπερ -> ἐπεί (conj, 378 tokens); diorisis_pairs.json: ἐπείπερ -> ἐπεί (conj, 1); lookup.db: ἐπείπερ -> ἐπείπερ; LSJ ἐπείπερ.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "λίνω",
+   "upos": "NOUN",
+   "target": "λίνος",
+   "action": "correct",
+   "corrected": "λίνον",
+   "reason": "The dative λίνῳ written without its iota subscript, which reads λίνον as λίνῳ does.",
+   "evidence": "glaux_pairs.json: λίνω -> λίνος (noun, 2 tokens); diorisis_pairs.json: λίνω -> λίνος (1); ag_pairs.json: λίνω -> λίνον (noun, 4); lookup.db: λίνω -> λίνον; LSJ λίνον.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "ἀπο",
+   "upos": "ADP",
+   "target": "ἀπος",
+   "action": "correct",
+   "corrected": "ἀπό",
+   "reason": "ἀπό printed without its accent; ἀπος is no word. The cell appeared when the reviewed reading of the form changed the untagged answer from ἀπος, which GLAUx gives, to ἀπό.",
+   "evidence": "glaux_pairs.json: ἀπο -> ἀπος (prep, 10 tokens); lookup.db: ἀπο -> ἀπό (build_lookup_db.REVIEWED_READINGS_1_3_30); ἀπος is in no head list of grc_lexical_heads.json.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "απο",
+   "upos": "ADP",
+   "target": "ἀπος",
+   "action": "correct",
+   "corrected": "ἀπό",
+   "reason": "The same cell under the folded key of ἀπο.",
+   "evidence": "Built from glaux_pairs.json: ἀπο -> ἀπος (prep, 10 tokens).",
+   "issue": 157
   }
  ]
 }
