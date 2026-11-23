@@ -6043,7 +6043,10 @@ class Dilemma:
         ἔχόντων, Ἄκουος for Ἄκουε), which no headword spells. The headword
         must be an edited dictionary's (LSJ, the DGE, Cunliffe, the LBG), its
         letters and their case must be the lemma's, and no other headword of
-        those dictionaries may have them (#157).
+        those dictionaries may have them (#157). A headword whose own rows
+        read another word is a form the dictionary heads as a cross-reference
+        (ἴτω, ἕλευ, οἷο, Ἕλληνες): the rejected answer that spells it is a
+        misreading (ἵτω for ἱστήκει, οιὁ for τοιοῦ) and stays vetoed.
         """
         if not isinstance(lemma, str) or not lemma or self.lang == "el":
             return None
@@ -6053,6 +6056,11 @@ class Dilemma:
         heads = _heads_by_bare_letters(frozenset(dictionary)).get(
             _bare_letters(unicodedata.normalize("NFC", lemma)), ())
         if len(heads) != 1:
+            return None
+        own = self._lookup_cascade(heads[0], prefer_modern=False,
+                                   step=self._OWN_ROWS)
+        if own and (unicodedata.normalize("NFC", own)
+                    != unicodedata.normalize("NFC", heads[0])):
             return None
         return self._apply_convention(heads[0])
 

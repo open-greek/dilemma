@@ -1060,7 +1060,10 @@ marks (breathing, accent, diaeresis or iota subscript), that headword stands:
 `ἵστημι` instead of nothing, and `Θράκῃ` PROPN gives `Θρᾴκη` (#157). A
 rejected answer that spells no such headword, or two, stays vetoed, as most
 of them are artefacts of corpus rows (`ἔχόντων` untagged gives `ἔχοω`, and
-VERB nothing).
+VERB nothing). So does one that spells a headword whose own rows read
+another word, a form the dictionary heads as a cross-reference (`ἱστήκει`
+untagged gives `ἵτω`, which spells `ἴτω`, a form of `εἶμι`; VERB gives
+nothing).
 The rejection audit must match the
 exact `grc_lexical_heads.json` bytes. Missing or mismatched evidence raises a
 data-mismatch error rather than trusting an unbound rejection list. Refresh

@@ -175,11 +175,15 @@ def test_a_misaccented_participle_with_two_nominatives_has_no_answer(
 @pytest.mark.parametrize("lang", ["all", "grc"])
 def test_a_rejected_pos_target_reads_the_headword_it_spells(model_from, lang):
     model = model_from({"αἱμοπτυικοὺς": "αἱμοπτυικός", "ἔχόντων": "ἔχοω",
-                        "ἴσταται": "ἴστημι", "ὄρους": "ὀρος", "Ὅρα": "Ὅρας"},
+                        "ἴσταται": "ἴστημι", "ὄρους": "ὀρος", "Ὅρα": "Ὅρας",
+                        "ἵστημι": "ἵστημι", "ἱστήκει": "ἵτω", "ἴτω": "εἶμι"},
                        lang=lang,
-                       headwords={"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος", "Ορας"},
-                       rejected={"αἱμοπτυικός", "ἔχοω", "ἴστημι", "ὀρος", "Ὅρας"})
-    model._dictionary_heads = frozenset({"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος"})
+                       headwords={"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος", "Ορας",
+                                  "ἴτω", "εἶμι"},
+                       rejected={"αἱμοπτυικός", "ἔχοω", "ἴστημι", "ὀρος", "Ὅρας",
+                                 "ἵτω"})
+    model._dictionary_heads = frozenset({"αἱμοπτυϊκός", "ἵστημι", "ὄρος", "ὅρος",
+                                         "ἴτω", "εἶμι"})
     # The untagged answer is a dictionary headword written with other marks.
     assert tagged(model, "αἱμοπτυικοὺς", "ADJ") == "αἱμοπτυϊκός"
     assert tagged(model, "ἴσταται", "VERB") == "ἵστημι"
@@ -188,6 +192,9 @@ def test_a_rejected_pos_target_reads_the_headword_it_spells(model_from, lang):
     assert tagged(model, "ἔχόντων", "VERB") is None
     assert tagged(model, "ὄρους", "NOUN") is None
     assert tagged(model, "Ὅρα", "PROPN") is None
+    # A headword whose own rows read another word is a cross-reference
+    # (ἴτω, of εἶμι), not the word the rejected answer misread.
+    assert tagged(model, "ἱστήκει", "VERB") is None
     # The untagged lookup is unchanged.
     assert plain(model, "ἴσταται") == "ἴστημι"
 
