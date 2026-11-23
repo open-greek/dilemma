@@ -61,6 +61,7 @@ from dilemma._attest_db import norm_key as _attest_norm_key  # noqa: E402
 from dilemma.grc_rejected_lemmas import (  # noqa: E402
     CLOSED_PRONOMINAL_LEMMAS, REJECTED_LEMMAS,
 )
+from dilemma.grc_reviewed_respellings import respelled_lemma  # noqa: E402
 from dilemma.grammatical_lemmas import (  # noqa: E402
     reviewed_verb_forms, reviewed_verb_lemmas, reviewed_verb_readings,
 )
@@ -510,6 +511,61 @@ REVIEWED_LOOKUP_READINGS = {
     "εἰναι": "εἰμί",
 }
 
+# Readings reviewed for 1.3.30 (#157), checked against LSJ.
+REVIEWED_READINGS_1_3_30 = {
+    # The genitive of Χάος (De principiis), which one expansion row read as
+    # the Chaonian Χάων. Χάεος and Χάει read χάος, as does χάους.
+    "Χάους": "χάος",
+    # ἐπειδή is a head of its own (LSJ), and its own key reads it. Forms
+    # printed with the grave, capitalized, with crasis or aphaeresis, read
+    # ἐπεί through the merged table and Diorisis: in the two Damascius works
+    # all 56 ἐπειδὴ tokens had ἐπεί. ἐπειδήπερ (given by LSJ under ἐπειδή)
+    # and ἐπείπερ read themselves under their own keys too, and ἐκεὶ is ἐκεῖ
+    # with a grave, not ἐπεί.
+    "ἐπειδὴ": "ἐπειδή", "Ἐπειδή": "ἐπειδή", "’πειδὴ": "ἐπειδή",
+    "πειδὴ": "ἐπειδή", "Κἀπειδὴ": "ἐπειδή",
+    "’πειδήπερ": "ἐπειδήπερ", "πειδήπερ": "ἐπειδήπερ",
+    "κἀπειδήπερ": "ἐπειδήπερ", "Ἐπείπερ": "ἐπείπερ", "ἐκεὶ": "ἐκεῖ",
+    # The plant τεύκριον (LSJ) at the head of a Dioscorides sentence; GLAUx
+    # read it as the adjective τεύκριος.
+    "Τεύκριον": "τεύκριον",
+    # οἱοστισοῦν, which LSJ (under οἷος) cites as a reading of Dsc. 2.76.13;
+    # the expansion row named the encoding artefact οί̔ουτινος.
+    "οἱουτινοσοῦν": "οἱοστισοῦν",
+    # LSJ heads ἀποικέω, go away from home, dwell afar off, and its forms
+    # read it (ἀποικεῖν, ἀπῴκησαν); only its own key read ἀποικίζω, colonize,
+    # through the Wiktionary base (#147).
+    "ἀποικέω": "ἀποικέω",
+    # The future and aorist of συζάω, live with (LSJ: fut. συζήσω), which
+    # an expansion row gave to συζέω, boil together (aor. συνέζεσα); the
+    # participle resolver carried συζήσας to συζήσαντος.
+    "συζήσας": "συζάω", "συζήσειεν": "συζάω", "συζήσεται": "συζάω",
+    # δηῦτε, δὴ αὖτε, which LSJ heads δηὖτε and whose own key reads it;
+    # an expansion row read it as δήω, and the enclitic-accent step carried
+    # that to δηῦτέ.
+    "δηῦτε": "δηὖτε",
+    # The grammarian Apion: GLAUx folds the name to ἀπίων, whose own key
+    # reads ἄπιος, the pear. The nominative key reads Ἀπίων.
+    "Ἀπίωνος": "Ἀπίων", "Ἀπίωνα": "Ἀπίων", "Ἀπίωνι": "Ἀπίων",
+    "Ἀπίωνες": "Ἀπίων",
+}
+
+def apply_reviewed_respellings(table: dict, sources: dict) -> int:
+    """Rewrite, in place, the readings of ``table`` that
+    dilemma/grc_reviewed_respellings.py corrects (#157), recording each under
+    the reviewed-readings input. Only the reading is respelled: a key whose
+    reading in this table is another lemma (the Modern ηθμός of the combined
+    table) keeps it. Returns how many readings changed."""
+    changed = 0
+    for key, lemma in table.items():
+        corrected = respelled_lemma(key, lemma)
+        if corrected != lemma:
+            table[key] = corrected
+            sources[key] = LOOKUP_OVERRIDES_INPUT
+            changed += 1
+    return changed
+
+
 # Ancient readings that name an inflected form, with the lemma each key
 # that holds one reads instead. The Greek Wiktionary page μου is a form-of
 # entry of ἐγώ that carries the whole pronoun grid, and the genitive row of
@@ -556,6 +612,32 @@ REVIEWED_ABSENT_KEY_READINGS = {
     # genitive of the Γραῖαι is a participle of γραΐζω. 1.3.26 read the
     # names through its looser keys.
     "Ἐφέσω": "Ἔφεσος", "Ἐφέσον": "Ἔφεσος", "Γραϊῶν": "Γραῖα",
+    # Reviewed for 1.3.30 (#157). The feminine of ἑνιαῖος, α, ον (LSJ): the
+    # LSJ export keeps only the ον of the grammar, so the expansion declined
+    # it with two endings and made no feminine, and ἑνιαία fell to the
+    # Modern ενιαία. ἑνιαίαν and ἑνιαίας have rows from other sources.
+    "ἑνιαία": "ἑνιαῖος", "ἑνιαίᾳ": "ἑνιαῖος", "ἑνιαῖαι": "ἑνιαῖος",
+    "ἑνιαίαις": "ἑνιαῖος",
+    # The perfect middle participle of ἀποκεράννυμι (κέκραμαι) in Damascius
+    # (ἀποκεκραμέναις, ἀποκεκραμένου); a guess read it as ἀποκείρω.
+    **{form: "ἀποκεράννυμι" for form in (
+        "ἀποκεκραμένος", "ἀποκεκραμένου", "ἀποκεκραμένῳ", "ἀποκεκραμένον",
+        "ἀποκεκραμένη", "ἀποκεκραμένης", "ἀποκεκραμένῃ", "ἀποκεκραμένην",
+        "ἀποκεκραμένοι", "ἀποκεκραμένων", "ἀποκεκραμένοις",
+        "ἀποκεκραμένους", "ἀποκεκραμένα", "ἀποκεκραμέναι",
+        "ἀποκεκραμέναις", "ἀποκεκραμένας")},
+    # The verb ἐπιλεπτολογέω in Damascius; no table has it.
+    "ἐπιλεπτολογοῦσι": "ἐπιλεπτολογέω", "ἐπιλεπτολογοῦσιν": "ἐπιλεπτολογέω",
+    "ἐπιλεπτολογέω": "ἐπιλεπτολογέω",
+    # ἐπέτραπται in Dioscorides, a perfect passive of ἐπιτρέπω that no table
+    # has (ἐπιτέτραπται reads ἐπιτρέπω).
+    "ἐπέτραπται": "ἐπιτρέπω",
+    # The feminine of τρεπτός, ή, όν (LSJ), whose table gives τρεπτή and
+    # the masculine but no other feminine cell. With θρεπτός declined in
+    # 1.3.30, τρεπτῆς fell to θρεπτῆς through the Byzantine normalizer.
+    **{form: "τρεπτός" for form in (
+        "τρεπτῆς", "τρεπτῇ", "τρεπτήν", "τρεπταί", "τρεπτῶν", "τρεπταῖς",
+        "τρεπτάς")},
 }
 
 # The input every reviewed reading is recorded under (lookup_sources.json).
@@ -3126,8 +3208,14 @@ def build():
         **KAIKKI_2026_11_READING_OVERRIDES,
         **REVIEWED_TREEBANK_READINGS,
         **REVIEWED_LOOKUP_READINGS,
+        **REVIEWED_READINGS_1_3_30,
         **REVIEWED_ABSENT_KEY_READINGS,
     }
+    # Readings of a lemma LSJ spells otherwise take LSJ's spelling.
+    respelled = (apply_reviewed_respellings(combined, combined_sources),
+                 apply_reviewed_respellings(ag, ag_sources))
+    print(f"  Reviewed lemma respellings: {respelled[0]:,} combined and "
+          f"{respelled[1]:,} Ancient readings")
     # Keys whose Ancient reading names an inflected form read its lemma.
     form_lemma_keys = 0
     for k, v in ag.items():

@@ -147,6 +147,7 @@ def test_selection_takes_listed_heads_that_no_table_declines():
     lookup = {
         "ἔμφλογος": "ἔμφλογος",                       # headword only
         "ποικίλος": "ποικίλος", "ποικίλου": "ποικίλος",  # declined already
+        "ποικίλοι": "ποικίλος",
         "ἄτοπος": "ἄλλος",                             # not its own head
         "Ῥωμαϊκός": "Ῥωμαϊκός",                        # a name
         "ομοιόσχημος": "ομοιόσχημος",                  # lacks its breathing
@@ -190,9 +191,11 @@ def test_reviewed_cells_are_not_generated():
 
 def test_a_genitive_from_a_corpus_or_a_modern_row_is_no_table():
     lookup = {"ψευδηγόρος": "ψευδηγόρος", "ψευδηγόρου": "ψευδηγόρος",
-              "νοερός": "νοερός", "νοεροῦ": "νοερός",
+              "ψευδηγόροι": "ψευδηγόρος",
+              "νοερός": "νοερός", "νοεροῦ": "νοερός", "νοεροί": "νοερός",
               "ποικίλος": "ποικίλος", "ποικίλου": "ποικίλος",
-              "λουβός": "λουβός", "λουβοῦ": "λουβός"}
+              "ποικίλοι": "ποικίλος",
+              "λουβός": "λουβός", "λουβοῦ": "λουβός", "λουβοί": "λουβός"}
     sources = {"ψευδηγόρου": "diorisis", "νοεροῦ": "wiktionary_el",
                "ποικίλου": "wiktionary_grc", "λουβοῦ": "lbg_generated"}
     listed = {"ψευδηγόρος": "adjective", "νοερός": "adjective_alpha",

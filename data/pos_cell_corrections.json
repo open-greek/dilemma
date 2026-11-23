@@ -1632,6 +1632,28 @@
    "reason": "The capitalized genitive is the name. No table has a NOUN cell for the capitalized spelling, so NOUN fell to the lowercase cell ἑρμαίου NOUN ἕρμαιον (a windfall), while the untagged lookup gives the name. GLAUx has too few tokens of the spelling (8) for the builder's capital-name rule (10).",
    "evidence": "glaux_pairs.json: Ἑρμαίου -> Ἑρμαίας (noun, masculine, 8 tokens); perseus_pairs.json: Ἑρμαίου -> Ἑρμαίας; lookup.db: Ἑρμαίου -> Ἑρμαίας; Ἑρμαίας is a head of grc_lexical_heads.json (LGPN, Greek Wiktionary). Diorisis reads the place Ἕρμαιον, which no head list has.",
    "issue": 144
+  },
+  {
+   "table": "treebank",
+   "form": "Χάους",
+   "upos": "NOUN",
+   "target": "Χάων",
+   "action": "correct",
+   "corrected": "χάος",
+   "reason": "The genitive of Χάος, not of the Chaonian Χάων. The untagged lookup gives χάος, as Χάεος and Χάει do.",
+   "evidence": "glaux_pairs.json: Χάους -> Χάων (3), diorisis_pairs.json: Χάους -> Χάων (1), both the same slip; lowercase χάους -> χάος in lookup.db; LSJ χάος, gen. χάους.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "λίνῳ",
+   "upos": "NOUN",
+   "target": "λίνος",
+   "action": "correct",
+   "corrected": "λίνον",
+   "reason": "The dative of λίνον, flax or linen thread, which LSJ heads; λίνος is the Linus-song or a rare by-form. The untagged lookup and the lsj9 and Wiktionary NOUN cells give λίνον.",
+   "evidence": "glaux_pairs.json: λίνῳ -> λίνον 59 tokens, -> λίνος 1; lsj9_pos_lookup.json and ag_pos_lookup.json: λίνῳ NOUN λίνον; lookup.db: λίνῳ -> λίνον.",
+   "issue": 157
   }
  ]
 }
