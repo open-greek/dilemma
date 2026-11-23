@@ -1717,7 +1717,7 @@
    "target": "ἐπεί",
    "action": "correct",
    "corrected": "ἐπειδήπερ",
-   "reason": "ἐπειδήπερ is a head of its own (LSJ, under ἐπειδή), and the untagged lookup reads κἀπειδήπερ and ἐπειδήπερ so; the treebanks lemmatize every ἐπειδή form as ἐπεί.",
+   "reason": "ἐπειδήπερ, as the untagged lookup reads κἀπειδήπερ and ἐπειδήπερ; Wiktionary heads it, and LSJ gives it under ἐπειδή. The treebanks lemmatize every ἐπειδή form as ἐπεί.",
    "evidence": "glaux_pairs.json: κἀπειδήπερ -> ἐπεί (conj, 5 tokens); lookup.db: κἀπειδήπερ -> ἐπειδήπερ (build_lookup_db.REVIEWED_READINGS_1_3_30).",
    "issue": 157
   },
@@ -1829,6 +1829,60 @@
    "corrected": "ἀπό",
    "reason": "The same cell under the folded key of ἀπο.",
    "evidence": "Built from glaux_pairs.json: ἀπο -> ἀπος (prep, 10 tokens).",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "επείπερ",
+   "upos": "CCONJ",
+   "target": "ἐπεί",
+   "action": "correct",
+   "corrected": "ἐπείπερ",
+   "reason": "The same cell under the folded key of ἐπείπερ.",
+   "evidence": "Built from glaux_pairs.json: ἐπείπερ -> ἐπεί (conj, 378 tokens); LSJ ἐπείπερ.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "κᾆθ’",
+   "upos": "ADV",
+   "action": "add",
+   "corrected": "εἶτα",
+   "reason": "κᾆτα (καὶ εἶτα) elided before a rough breathing, read as εἶτα as the untagged lookup reads it. With no cell of its own the form took the ADV cell καθά of the accent-stripped key καθ᾽.",
+   "evidence": "glaux_pairs.json: κᾆθ’ -> εἶτα (adv, 37 tokens); lookup.db: κᾆθ᾽ -> εἶτα; 1.3.29 gave εἶτα under ADV.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "οὔθ’",
+   "upos": "ADV",
+   "target": "οὔτι",
+   "action": "correct",
+   "corrected": "οὔτε",
+   "reason": "οὔτε elided before a rough breathing, which the treebanks tag as an adverb as well as a conjunction; the untagged lookup reads οὔθ᾽ as οὔτε. Once the cell counted for οὔθ᾽ as well, οὔθ᾽ and οὔθ´ ADV read οὔτι.",
+   "evidence": "lookup.db: οὔθ᾽ -> οὔτε; glaux_pairs.json has no οὔθ’ row; 1.3.29 gave οὔτε for οὔθ᾽ ADV (13 tokens in the corpus annotations) and οὔθ´ ADV (9).",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "δηὖτε",
+   "upos": "ADV",
+   "target": "αὖτε",
+   "action": "correct",
+   "corrected": "δηὖτε",
+   "reason": "δηὖτε (δὴ αὖτε), which LSJ heads and the untagged lookup and the other cells of δηῦτε read; GLAUx folds the crasis into αὖτε.",
+   "evidence": "glaux_pairs.json: δηὖτε -> αὖτε (adv, 6 tokens); lookup.db: δηῦτε -> δηὖτε; LSJ δηὖτε.",
+   "issue": 157
+  },
+  {
+   "table": "treebank",
+   "form": "δηύτε",
+   "upos": "ADV",
+   "target": "αὖτε",
+   "action": "correct",
+   "corrected": "δηὖτε",
+   "reason": "The same cell under the accent-folded key of δηῦτε.",
+   "evidence": "Built from glaux_pairs.json: δηὖτε -> αὖτε (adv, 6 tokens); LSJ δηὖτε.",
    "issue": 157
   }
  ]
