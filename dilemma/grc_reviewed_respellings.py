@@ -24,15 +24,19 @@ REVIEWED_LEMMA_RESPELLINGS = {
 }
 
 # (initial letters of the form, lowercase and without marks; the lemma a
-# source gives; the lemma). πλάττω is the Attic spelling of πλάσσω, while
-# the Attic of πλήσσω is πλήττω: expansion rows and GLAUx gave πλαττόμεναι,
-# πλάττεται and the rest to πλήσσω. διῃρημένος and διῄρηται, also printed
-# without the subscript, are the perfect of διαιρέω; GLAUx gave διηρημένον
-# and διήρηται to διερέω.
+# source gives; the lemma). διῃρημένος and διῄρηται, also printed without
+# the subscript, are the perfect of διαιρέω; GLAUx gave διηρημένον and
+# διήρηται to διερέω.
 REVIEWED_STEM_READINGS = (
-    (("πλαττ", "επλαττ"), "πλήσσω", "πλάσσω"),
     (("διηρ",), "διερέω", "διαιρέω"),
 )
+
+# πλάττω is the Attic spelling of πλάσσω, while the Attic of πλήσσω is
+# πλήττω and its aorist passive has πλαγ-: no form of πλήσσω or of its
+# compounds has the letters πλαττ. Expansion rows and GLAUx gave πλαττόμεναι,
+# πλάττεται and the rest to πλήσσω, and the compounds alike (διαπλάττει
+# διαπλήσσω, καταπλάττειν καταπλήσσω, ἐμπλάττεται ἐμπλήσσω).
+_PLASSO_LETTERS, _PLESSO, _PLASSO = "πλαττ", "πλήσσω", "πλάσσω"
 
 
 def _letters(form: str) -> str:
@@ -45,7 +49,10 @@ def respelled_lemma(form: str, lemma: str) -> str:
     unless one of the records above corrects it."""
     if lemma in REVIEWED_LEMMA_RESPELLINGS:
         return REVIEWED_LEMMA_RESPELLINGS[lemma]
+    letters = _letters(form)
     for initials, given, corrected in REVIEWED_STEM_READINGS:
-        if lemma == given and _letters(form).startswith(initials):
+        if lemma == given and letters.startswith(initials):
             return corrected
+    if lemma.endswith(_PLESSO) and _PLASSO_LETTERS in letters:
+        return lemma[:-len(_PLESSO)] + _PLASSO
     return lemma

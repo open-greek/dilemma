@@ -1071,7 +1071,8 @@ reason `corpus_lemmatizer_artifact`. Three reviewed tables in
   and that LSJ spells otherwise (`λήμπω`, built from the Koine `λημφθεῖσα`,
   is `λαμβάνω`; `ἡθμός` is LSJ's `ἠθμός`), and the readings of a few letter
   sequences that GLAUx gives to a verb of close spelling (`πλαττ-` to
-  `πλήσσω` for `πλάσσω`, `διηρ-` to `διερέω` for `διαιρέω`). The lookup
+  `πλήσσω` for `πλάσσω`, and to the compounds of `πλήσσω` for those of
+  `πλάσσω`, as `καταπλάττειν`; `διηρ-` to `διερέω` for `διαιρέω`). The lookup
   build rewrites every such reading of the combined and the Ancient table,
   and the treebank POS build every such cell, so the two agree (#157).
 - `REVIEWED_ABSENT_KEY_READINGS`. A reviewed override changes only a key the
