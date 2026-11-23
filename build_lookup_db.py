@@ -536,6 +536,10 @@ REVIEWED_READINGS_1_3_30 = {
     # read it (ἀποικεῖν, ἀπῴκησαν); only its own key read ἀποικίζω, colonize,
     # through the Wiktionary base (#147).
     "ἀποικέω": "ἀποικέω",
+    # LSJ, the DGE and Cunliffe head the Epic δινεύω and ἑλκέω beside δινέω
+    # and ἕλκω, and their forms read them (δινεύει, ἑλκέουσι); only their
+    # own keys read the other verb, through the Wiktionary base (#147).
+    "δινεύω": "δινεύω", "ἑλκέω": "ἑλκέω",
     # The future and aorist of συζάω, live with (LSJ: fut. συζήσω), which
     # an expansion row gave to συζέω, boil together (aor. συνέζεσα); the
     # participle resolver carried συζήσας to συζήσαντος.

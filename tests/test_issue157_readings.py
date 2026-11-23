@@ -286,6 +286,7 @@ def test_reviewed_readings_are_in_the_build():
     assert readings["Τεύκριον"] == "τεύκριον"
     assert readings["οἱουτινοσοῦν"] == "οἱοστισοῦν"
     assert readings["ἀποικέω"] == "ἀποικέω"
+    assert readings["δινεύω"] == "δινεύω" and readings["ἑλκέω"] == "ἑλκέω"
     absent = build.REVIEWED_ABSENT_KEY_READINGS
     for form in ("ἑνιαία", "ἑνιαίᾳ", "ἑνιαῖαι", "ἑνιαίαις"):
         assert absent[form] == "ἑνιαῖος"
@@ -387,6 +388,8 @@ def test_shipped_untagged_answers(lang):
 # resolver, the enclitic-accent step and the Byzantine normalizer had read
 # these through rows that 1.3.30 corrects, or found a second verb.
 _SHIPPED_CORPUS = [
+    ("δινεύω", "δινεύω"), ("ἑλκέω", "ἑλκέω"), ("ἀποικέω", "ἀποικέω"),
+    ("διεῖπον", "διέπω"),
     ("τρεπτῆς", "τρεπτός"), ("τρεπτήν", "τρεπτός"),
     ("συζήσαντος", "συζάω"), ("δηῦτέ", "δηὖτε"), ("Ἀππίωνά", "Ἀπίων"),
     ("φρονούντες", "φρονέω"), ("ἄδοντες", "ἀείδω"),
