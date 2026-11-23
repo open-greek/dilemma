@@ -461,13 +461,16 @@ reads another word, there is no answer (`παροῦντα`, beside `παρῶν
 `παρόω` and `παρών` of `πάρειμι`).
 
 A word with the second accent a following enclitic adds, whose lookup keys
-read something that is no Ancient headword, reads the rows of its spelling
-without that accent when they give a headword of an edited dictionary (LSJ,
-the DGE, Cunliffe, the LBG) other than that spelling itself: `ἐφαπτόμενοί`
-gives `ἐφάπτω` through `ἐφαπτόμενοι`, not the Modern `εφάπτομαι` of its
-accent-stripped key (#157). A headword its keys do give keeps its place
-(`ταῦτόν` stays `ταὐτός`), and a word whose keys give nothing goes on to the
-later steps.
+read nothing or something that is no Ancient headword, reads the rows of its
+spelling without that accent when they give an Ancient headword (a head of
+LSJ, the other lexica or the word lists): `ἐφαπτόμενοί` gives `ἐφάπτω`
+through `ἐφαπτόμενοι`, not the Modern `εφάπτομαι` of its accent-stripped key,
+and `Ἡσίοδός` gives `Ἡσίοδος` (#157). A headword its keys do give keeps its
+place (`ταῦτόν` stays `ταὐτός`). When the keys give nothing, a row that reads
+the spelling without the accent as itself counts only for a nominative in
+`-ος` (`πολυστέφανός` gives `πολυστέφανος`): the word lists head some
+inflected forms as cross-references, so `ἐκφῦναί` goes on to the later steps
+and gives `ἐκφύω`.
 
 Non-Greek and NON-LEXICAL tokens (see `classify_nonlexical`) still pass through
 unchanged: those are classifications, not lemma guesses. For a per-candidate
@@ -1373,8 +1376,8 @@ numerals that tables print in any order of their letters (`δε´`, `βφ΄`).
 One letter keeps its spelling too (`ε´`, `β´`, `δ΄`, `Ὄ΄`), except `δ` or
 `τ` with the acute, which are read as elided (`δέ` and `τε` are far commoner
 than 4 and 300). Tagged NUM, these and the numerals the OCR gave a breathing
-or an accent (`ἰδ´`, `ῖη΄`) stay the numeral: the token, or `None` with
-`guess=False`.
+or an accent (`ἰδ´`, `ῖη΄`, and `ἐο´`, 75, in either order of its letters)
+stay the numeral: the token, or `None` with `guess=False`.
 
 **Exact elided entries first:** the lookup table stores corpus-derived
 lemmas for elided forms under one canonical key (U+1FBD), and these win

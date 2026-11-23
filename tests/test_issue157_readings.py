@@ -99,6 +99,8 @@ def test_numerals_and_other_tokens_keep_their_spelling(word):
     # δ´ and τ´, which untagged are δέ and τε, and numerals the OCR gave a
     # breathing or an accent, which untagged read as words.
     "δ´", "τ´", "δ\u1ffd", "ἰδ´", "ἰβ´", "ὑβ´", "ἰα´", "ῖη΄", "Ἰβ´",
+    # The tables print numerals in any order of their letters: ἐο´ is 75.
+    "ἐο´", "ἑπ´", "μῤ´",
 ])
 def test_marked_numerals_are_recognized_for_the_num_tag(word):
     assert _is_marked_numeral(word)
@@ -107,6 +109,8 @@ def test_marked_numerals_are_recognized_for_the_num_tag(word):
 @pytest.mark.parametrize("word", [
     # Kept as printed anyway, or no numeral without the marks.
     "β´", "ιβ´", "δ’", "δι´", "ἀλλ´", "καθ´", "οἱ´", "ἵνα´", None, "",
+    # The unmarked elided words, and letters with two of one place.
+    "παρ´", "κατ´", "μετ´", "ὀι´", "ἄλλ´",
 ])
 def test_other_tokens_are_no_marked_numerals(word):
     assert not _is_marked_numeral(word)
@@ -500,6 +504,17 @@ _SHIPPED = [
     # whose rows 1.3.30 corrects.
     ("εἶθ´", "ADV", "εἶτα"),
     ("Ἀφ´", "ADP", "ἀπό"),
+    ("Μεθ´", "ADP", "μετά"),
+    ("οὕτ´", "CCONJ", "οὔτε"),
+    ("ἐκ´", "ADP", "ἐκ"),
+    ("οὖν´", "ADV", "οὖν"),
+    ("ἀπο", "ADP", "ἀπό"),
+    ("ἀπο´", "ADP", "ἀπό"),
+    # Correction rows: a crasis with no cell of its own, a cell under the
+    # other mark, a folded key.
+    ("κᾆθ’", "ADV", "εἶτα"),
+    ("οὔθ᾽", "ADV", "οὔτε"),
+    ("δηῦτε", "ADV", "δηὖτε"),
     ("δι\u1ffd", "ADP", "διά"),
     ("δινεύεσκ᾽", "VERB", "δινεύω"),
     ("διείποιμ᾽", "VERB", "διεῖπον"),
@@ -530,16 +545,21 @@ _UNTAGGED = {"Δι´": "Ζεύς", "λίνῳ": "λίνον", "συμπτύξε�
 _SHIPPED_NONE = [
     ("Ὅρα", "PROPN"), ("ἔχόντων", "VERB"), ("ἱστήκει", "VERB"),
     ("ταύτῃσιν", "PRON"), ("τῳδὶ", "ADJ"), ("ὀδόντ", "NOUN"),
-    ("δ´", "NUM"), ("τ´", "NUM"), ("ἰδ´", "NUM"),
+    ("δ´", "NUM"), ("τ´", "NUM"), ("ἰδ´", "NUM"), ("ἐο´", "NUM"),
 ]
+
+
+# Cells whose untagged reading this release leaves as it was: the folded
+# key επείπερ still reads ἐπεί in the lookup.
+_SHIPPED_TAGGED = _SHIPPED + [("επείπερ", "CCONJ", "ἐπείπερ")]
 
 
 @pytest.mark.parametrize("guess", [True, False])
 def test_shipped_tagged_answers(guess):
     model = _model("all")
-    words = [form for form, _, _ in _SHIPPED]
-    tags = [upos for _, upos, _ in _SHIPPED]
-    want = [lemma for _, _, lemma in _SHIPPED]
+    words = [form for form, _, _ in _SHIPPED_TAGGED]
+    tags = [upos for _, upos, _ in _SHIPPED_TAGGED]
+    want = [lemma for _, _, lemma in _SHIPPED_TAGGED]
     assert model.lemmatize_batch_pos(words, tags, guess=guess) == want
     assert [model.lemmatize_pos(w, t, guess=guess)
             for w, t in zip(words, tags)] == want

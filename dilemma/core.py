@@ -45,6 +45,7 @@ from .nonlexical import classify_nonlexical as _classify_nonlexical
 from .nonlexical import is_lexical as _is_lexical
 from .nonlexical import NONLEXICAL_POS as _NONLEXICAL_POS
 from .nonlexical import NUMERAL as _NONLEXICAL_NUMERAL
+from .nonlexical import _NUM_TIER as _NUMERAL_PLACE
 from .citation import malformed_tonal_reason as _malformed_tonal_reason
 from .form_sanitize import is_capitalized, sanitize_form
 from .grc_rejected_lemmas import REJECTED_LEMMAS as _REJECTED_POS_LEMMAS
@@ -902,7 +903,9 @@ def _is_marked_numeral(word) -> bool:
     """Whether *word* is a numeral that to_standard_elision() would read as
     a word: δ´ and τ´ (4 and 300, but δέ and τε untagged), or letters that
     are a numeral without their marks but carry a breathing or an accent
-    that the OCR added (ἰδ´, ῖη΄). A NUM tag says it is the numeral."""
+    that the OCR added (ἰδ´, ῖη΄, and ἐο´ in the any-order spelling of οε´).
+    A NUM tag says it is the numeral. The unmarked elided words (δι´, παρ´,
+    κατ´) stay words: their letters are no numeral the tables print."""
     if not isinstance(word, str):
         return False
     word = unicodedata.normalize("NFC", word)
@@ -910,13 +913,18 @@ def _is_marked_numeral(word) -> bool:
         return False
     if to_standard_elision(word) == word:
         return False
+    if word[:-1].lower() in _UNMARKED_ELIDED_STEMS:
+        return False
     letters = _bare_letters(word[:-1])
     if not letters.isalpha():
         return False
-    letters = letters.replace("στ", "ϛ").replace("ΣΤ", "Ϛ")
+    letters = letters.lower().replace("στ", "ϛ")
     if letters.endswith("ς"):
         letters = letters[:-1] + "ϛ"
-    return _is_explicit_numeral(letters + "\u0374")
+    # The tables print numerals in any order of their letters (δε´, ζα΄),
+    # so a numeral is letters with at most one for each place.
+    places = [_NUMERAL_PLACE.get(letter) for letter in letters]
+    return None not in places and len(set(places)) == len(places)
 
 
 # A lowercase rho with or without a breathing, composed or decomposed. Two
@@ -4734,10 +4742,6 @@ class Dilemma:
                 unicodedata.normalize("NFC", head)
                 for head in _lexical_heads("grc_dictionary"))
         return dictionary
-
-    def _is_dictionary_headword(self, lemma: str) -> bool:
-        """Whether an edited dictionary heads *lemma* (_dictionary_head_set)."""
-        return unicodedata.normalize("NFC", lemma) in self._dictionary_head_set()
 
     def _restore_breathing(self, word: str, lemma: str) -> str | None:
         """The lemma of a loose-key lookup hit, with the breathing *word* has.
