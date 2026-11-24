@@ -381,7 +381,7 @@ def _has_misplaced_marks(spelling: str, initial_smooth: bool = True) -> bool:
     ρ or υ (the head Ρ̓ᾶρος); with *initial_smooth* false that does not
     count either, as for a rejected answer that OCR gave the wrong
     breathing (ὐπατεύω for ὐπατεύων is ὑπατεύω). A breathing on a later letter, a coronis,
-    does count: the crasis heads of LSJ are words of their own (ταυτολογεῖν
+    does not count: the crasis heads of LSJ are words of their own (ταυτολογεῖν
     ταὐτολογέω, Ταὐτὸν ταὐτός), and keeping them out removed 26 tagged
     answers of the corpus annotations, of which five were wrong (χωμοὺς
     χὠμός, χὡς χῶς).
@@ -1744,6 +1744,12 @@ _ELIDED_STEM_FINALS = frozenset("θτπδφχγβ")
 _ACCENTED_RELATIVES = frozenset(unicodedata.normalize("NFC", form) for form in (
     "ὅ", "ὃ", "ἥ", "ἣ", "οἵ", "οἳ", "αἵ", "αἳ", "ἅ", "ἃ"))
 
+# The marks of a polytonic word for the Modern-answer guard (#159): not the
+# macron and breve of numerals (ε̄) and of quantity.
+_POLYTONIC_WORD_MARKS = frozenset(
+    (_POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE) - {0x0304, 0x0306})
+
+
 @lru_cache(maxsize=1)
 def _preposition_letters() -> frozenset:
     """The bare letters of the prepositions in _PREPOSITION_LEMMAS."""
@@ -3062,9 +3068,12 @@ class Dilemma:
             sc = att.get("source_counts") or {}
             return sc.get("glaux", 0) + sc.get("diorisis", 0)
 
-        if omega_sigma and lemma.endswith(("άω", "έω")):
-            twin = lemma[:-2] + "όω"
-            return twin if twin in heads and count(twin) else lemma
+        if omega_sigma:
+            # -ωσ- is an -όω verb's: one read as such stays (χωσάντος χόω).
+            if lemma.endswith(("άω", "έω")):
+                twin = lemma[:-2] + "όω"
+                return twin if twin in heads and count(twin) else lemma
+            return lemma
         if contracted_ou and lemma.endswith("άω"):
             twins = [lemma[:-2] + ending for ending in ("έω", "όω")
                      if lemma[:-2] + ending in heads
@@ -5153,28 +5162,6 @@ class Dilemma:
         nearly all of them right."""
         return self._bound_pos_rejections(word, upos)
 
-    def _participle_only_reading(self, word: str) -> str | None:
-        """The lemma the participle resolver reads for *word* when the
-        lookup reads nothing, as the convention gives it."""
-        if getattr(self, "_lookup", None) is None:
-            return None
-        cache = self.__dict__.setdefault("_participle_only_cache", {})
-        if word in cache:
-            return cache[word]
-        reading = None
-        stripped = strip_accents(unicodedata.normalize("NFC", word.lower()))
-        if any(stripped.endswith(ending)
-               for endings, _, _ in self._ACTIVE_PARTICIPLE_FAMILIES
-               for ending in endings) and self._lookup_word(word) is None:
-            participle = self._active_participle_lemma(word)
-            if participle:
-                reading = unicodedata.normalize(
-                    "NFC", self._apply_convention(participle))
-        if len(cache) > 200_000:
-            cache.clear()
-        cache[word] = reading
-        return reading
-
     def _bound_pos_rejections(self, word: str,
                               upos: str | None) -> frozenset[str]:
         if not self._ancient_pos_context(word, upos):
@@ -6697,15 +6684,21 @@ class Dilemma:
         NOUN έγνοια. Where the Modern lemma is the same word, written with
         the same letters, the Ancient spelling stands: the reading by the
         Ancient tables alone (lang="grc", untagged) when it has those
-        letters and the tag allows it (ὅποτε ὁπότε). Otherwise the answer
+        letters and the tag allows it (ὅποτε ὁπότε), in either case: the
+        Modern tables write ethnic adjectives lowercase (Ἀγαρηνοὶ
+        αγαρηνός, Ancient Ἀγαρηνός), and a check of the case kept the
+        Modern answer for 220 pairs of the corpus annotations (950 tokens)
+        to fix about 20 (ἀξιό, which reads the river Ἀξιός). A macron or a breve, the marks of a
+        numeral or of quantity, is no sign of Ancient text. Otherwise the answer
         is left alone, since vernacular texts have Modern words written
         polytonic (ὧρες ώρα, σεῖς εσείς, not the Ancient head ἐσεῖς), and
         so is έξη for ἕξης.
         """
         if (self.lang != "all" or not isinstance(lemma, str) or not lemma
                 or not isinstance(word, str) or not word
+                or getattr(self, "_convention_name", None) == "triantafyllidis"
                 or not _is_modern_or_acronym(lemma)
-                or not any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+                or not any(ord(ch) in _POLYTONIC_WORD_MARKS
                            for ch in unicodedata.normalize("NFD", word))):
             return lemma
         cache = self.__dict__.setdefault("_modern_answer_cache", {})

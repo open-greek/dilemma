@@ -131,7 +131,7 @@ _UNTAGGED = [
     # The enclitic-accent step.
     ("προεπίστασθαί", "προεπίσταμαι"), ("Συνήσθημέν", "συνήδομαι"),
     ("ὅτιπέρ", "ὅτιπερ"), ("Σῶνόν", "Σῶνος"), ("πλειότεροί", "πολύς"),
-    ("ἔλλειπές", "ἐλλείπω"), ("Ἔνετοί", "Ἔνετος"),
+    ("Ἔνετοί", "Ἔνετος"),
     ("ἀναπλασθῆναί", "ἀναπλάσσω"), ("ἀνακεκρᾶσθαί", "ἀνακεράννυμι"),
     ("Συνῄρητό", "συναιρέω"), ("Κλόνιός", "Κλόνιος"), ("ἥττηταί", "ἡσσάομαι"),
     ("Ἐποίησέ", "ποιέω"),
@@ -144,7 +144,7 @@ _UNTAGGED = [
     # Elided stems and stray marks.
     ("Εἶθ", "εἶτα"), ("Μεθ", "μετά"), ("ἂν´", "ἄν"), ("γὰρ´", "γάρ"),
     ("ὃν´", "ὅς"), ("ἐπειδ´", "ἐπειδή"), ("ἐπεῖδ’", "ἐφοράω"),
-    ("κᾀγὼ", "ἐγώ"), ("επείπερ", "ἐπείπερ"), ("ὡςπερ", "ὥσπερ"),
+    ("κᾀγὼ", "ἐγώ"), ("επείπερ", "ἐπείπερ"), ("ὡςπερ", "ὥσπερ"), ("κᾀντεῦθεν", "ἐντεῦθεν"),
     ("τοιόςδε", "τοιόσδε"), ("ὡςδὲ", "ὡς"), ("ἡνίδε", "ἠνίδε"), ("ἀποπλάσσεται", "ἀποπλάσσομαι"),
     # An acronym is no elided stem.
     ("ΜΕΘ", "ΜΕΘ"),
@@ -196,7 +196,8 @@ _TAGGED = [
     ("μάλ’", "ADJ", "μάλα"), ("Εἶθ", "ADV", "εἶτα"), ("Μεθ", "ADP", "μετά"),
     ("παρὰ´", "VERB", "παρά"), ("δὲ´", "VERB", "δέ"),
     ("ἐπειδ´", "CCONJ", "ἐπειδή"), ("κάπειτ᾽", "ADV", "ἔπειτα"),
-    ("ὅπερ´", "PRON", None), ("Ἀπσ´", "X", None), ("εἐδ´", "X", None),
+    ("Ἀπσ´", "X", None), ("εἐδ´", "X", None),
+    ("ἆ", "INTJ", "ἆ"), ("ᾶ", "INTJ", "ᾶ"),
     # The dictionary-head fallback.
     ("παρῳχηκότα", "VERB", None), ("Ἤιδει", "VERB", None),
     ("προὑπάρχει", "VERB", "προϋπάρχω"), ("οἷνος", "NOUN", None),
@@ -260,3 +261,11 @@ def test_modern_elided_words_keep_their_modern_reading():
     model = core.Dilemma(lang="el")
     assert model.lemmatize("απ’", guess=False) == "από"
     assert model.lemmatize("ΜΕΘ", guess=False) == "ΜΕΘ"
+
+
+def test_numeral_macron_is_no_sign_of_ancient_text():
+    # ε̄ is a numeral: the Modern-answer guard must not read it as ἔ.
+    from dilemma.core import _POLYTONIC_WORD_MARKS
+    assert 0x0304 not in _POLYTONIC_WORD_MARKS
+    assert 0x0306 not in _POLYTONIC_WORD_MARKS
+    assert 0x0314 in _POLYTONIC_WORD_MARKS

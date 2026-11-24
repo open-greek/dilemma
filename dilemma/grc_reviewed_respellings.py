@@ -111,6 +111,8 @@ REVIEWED_STEM_READINGS = (
     # is the aorist of συνήδομαι, παραινοῦντι παραινέω, and παραλειφθεῖσι
     # the aorist passive of παραλείπω.
     (("συνησθ",), "συνέζομαι", "συνήδομαι"),
+    # κᾀντεῦθεν, the crasis of καὶ ἐντεῦθεν, read back as ἐͅντεῦθα.
+    (("καντευθεν",), "ἐντεῦθα", "ἐντεῦθεν"),
     (("παραινουντ",), "παρανέω", "παραινέω"),
     (("παραλειφθ",), "παραλαμβάνω", "παραλείπω"),
 )
@@ -156,6 +158,11 @@ def _without_epsilon_subscript(lemma: str) -> str:
     return unicodedata.normalize("NFC", "".join(out))
 
 
+# The relative read from its own letters needs the word's rough breathing:
+# ἆ and ἄ, with a smooth one, are the interjection (#159).
+_ROUGH_RELATIVES = frozenset(("ἅ", "αἵ", "οἵ"))
+
+
 def respelled_lemma(form: str, lemma: str) -> str:
     """The reviewed lemma for ``form`` read as ``lemma``: ``lemma`` itself
     unless one of the records above corrects it."""
@@ -170,7 +177,9 @@ def respelled_lemma(form: str, lemma: str) -> str:
     if lemma in _STEM_READING_LEMMAS:
         letters = _letters(form)
         for initials, given, corrected in REVIEWED_STEM_READINGS:
-            if lemma == given and letters.startswith(initials):
+            if (lemma == given and letters.startswith(initials)
+                    and (given not in _ROUGH_RELATIVES
+                         or "\u0314" in unicodedata.normalize("NFD", form))):
                 return corrected
     elif lemma.endswith(_PLESSO):
         letters = _letters(form)
