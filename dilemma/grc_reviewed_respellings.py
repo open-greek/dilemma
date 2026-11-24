@@ -21,6 +21,12 @@ REVIEWED_LEMMA_RESPELLINGS = {
     "λήμπω": "λαμβάνω", "ἀναλήμπω": "ἀναλαμβάνω",
     "ὀρθοπνοικός": "ὀρθοπνοϊκός", "αἱμοπτυικός": "αἱμοπτυϊκός",
     "ἐπιλημψία": "ἐπιληψία", "ἐναπόλημψις": "ἐναπόληψις",
+    # LSJ and the DGE head the middle ἀποπλάσσομαι; ἀποπλάσσω came from
+    # respelling the treebank cells of ἀποπλήσσω (#159).
+    "ἀποπλάσσω": "ἀποπλάσσομαι",
+    # GLAUx gives the capitalized Περὶ and Περί the bare letters περι, which
+    # no dictionary heads: they are the preposition (#159).
+    "περι": "περί",
 }
 
 # (initial letters of the form, lowercase and without marks; the lemma a
@@ -29,14 +35,49 @@ REVIEWED_LEMMA_RESPELLINGS = {
 # διήρηται to διερέω.
 REVIEWED_STEM_READINGS = (
     (("διηρ",), "διερέω", "διαιρέω"),
+    # Expansion rows that gave the forms of one verb to another whose LSJ
+    # entry names it (#159): ἀναπλασθῆναι and ἀναπλάσας are ἀναπλάσσω,
+    # not ἀναπολάζω; ἀνακεκρᾶσθαι is the perfect of ἀνακεράννυμι (ἀνακράζω
+    # has ἀνακέκραγα); προεπίστασθαι and προεπιστάμενος are προεπίσταμαι,
+    # know beforehand (προεφίστημι has προεπιστῆσαι); πλειότερος is the
+    # comparative of πολύς, not of πλέως; θαυματουργέω is LSJ's own head
+    # beside θαυμασιουργέω; καταπνεύσας is καταπνέω, not καταπονέω;
+    # διαρραγείς is διαρρήγνυμι, not διαράσσω; ἀποφράξας is ἀποφράσσω, not
+    # ἀποφράζω, whose aorist is ἀπέφρασα.
+    (("αναπλασ", "ανεπλασ"), "ἀναπολάζω", "ἀναπλάσσω"),
+    (("ανακεκρασ", "ανακεκραμ"), "ἀνακράζω", "ἀνακεράννυμι"),
+    (("προεπισταμ", "προεπιστασ", "προεπισταν", "προεπιστατ"),
+     "προεφίστημι", "προεπίσταμαι"),
+    (("πλειοτερ", "πλειοτατ"), "πλέως", "πολύς"),
+    (("θαυματουργ", "τεθαυματουργ", "εθαυματουργ"), "θαυμασιουργέω",
+     "θαυματουργέω"),
+    (("καταπνευ", "κατεπνευ"), "καταπονέω", "καταπνέω"),
+    (("διαρραγ", "διερραγ"), "διαράσσω", "διαρρήγνυμι"),
+    (("αποφραξ", "απεφραξ", "αποφραχθ", "απεφραχθ"), "ἀποφράζω", "ἀποφράσσω"),
+    # The folded key επειπερ of the unaccented επείπερ reads ἐπεί, as the
+    # tagged cell did before 1.3.30 (#159).
+    (("επειπερ",), "ἐπεί", "ἐπείπερ"),
 )
+
+# The perfect of αἱρέω and its compounds has ᾑρη- (ἐξῄρηται, ἐξῃρημένον,
+# συνῄρητο), and no form of λέγω or of its compounds has the letters ηρη:
+# its perfect is εἴρηκα, εἴλεγμαι. GLAUx and the expansion rows gave these
+# perfects to the λέγω compound with the same preverb (#159).
+_LEGO_AIREO_COMPOUNDS = {
+    "ἐκλέγω": "ἐξαιρέω", "συλλέγω": "συναιρέω", "διαλέγω": "διαιρέω",
+    "προλέγω": "προαιρέω", "παραλέγω": "παραιρέω", "ἀναλέγω": "ἀναιρέω",
+    "περιλέγω": "περιαιρέω", "καταλέγω": "καθαιρέω", "ἀπολέγω": "ἀφαιρέω",
+    "ὑπολέγω": "ὑφαιρέω", "ἐπιλέγω": "ἐφαιρέω", "λέγω": "αἱρέω",
+}
+_AIREO_PERFECT_LETTERS = "ηρη"
 
 # πλάττω is the Attic spelling of πλάσσω, while the Attic of πλήσσω is
 # πλήττω and its aorist passive has πλαγ-: no form of πλήσσω or of its
 # compounds has the letters πλαττ. Expansion rows and GLAUx gave πλαττόμεναι,
 # πλάττεται and the rest to πλήσσω, and the compounds alike (διαπλάττει
 # διαπλήσσω, καταπλάττειν καταπλήσσω, ἐμπλάττεται ἐμπλήσσω).
-_PLASSO_LETTERS, _PLESSO, _PLASSO = "πλαττ", "πλήσσω", "πλάσσω"
+# The same holds for πλασσ- (ἔπλασσε, καταπλάσσοντα; #159).
+_PLASSO_LETTERS, _PLESSO, _PLASSO = ("πλαττ", "πλασσ"), "πλήσσω", "πλάσσω"
 
 
 def _letters(form: str) -> str:
@@ -44,15 +85,41 @@ def _letters(form: str) -> str:
     return "".join(ch for ch in nfd if not unicodedata.combining(ch)).lower()
 
 
+_STEM_READING_LEMMAS = frozenset(given for _, given, _ in REVIEWED_STEM_READINGS)
+
+
+def _without_epsilon_subscript(lemma: str) -> str:
+    """*lemma* without the iota subscripts that stand under an ε."""
+    out, last = [], ""
+    for ch in unicodedata.normalize("NFD", lemma):
+        if ch == "\u0345" and last == "ε":
+            continue
+        if not unicodedata.combining(ch):
+            last = ch.lower()
+        out.append(ch)
+    return unicodedata.normalize("NFC", "".join(out))
+
+
 def respelled_lemma(form: str, lemma: str) -> str:
     """The reviewed lemma for ``form`` read as ``lemma``: ``lemma`` itself
     unless one of the records above corrects it."""
     if lemma in REVIEWED_LEMMA_RESPELLINGS:
         return REVIEWED_LEMMA_RESPELLINGS[lemma]
-    letters = _letters(form)
-    for initials, given, corrected in REVIEWED_STEM_READINGS:
-        if lemma == given and letters.startswith(initials):
-            return corrected
-    if lemma.endswith(_PLESSO) and _PLASSO_LETTERS in letters:
-        return lemma[:-len(_PLESSO)] + _PLASSO
+    if "\u0345" in lemma:
+        # An iota subscript under ε, which no Greek word has, is the crasis
+        # ᾀ of κᾀγώ or κᾀπειτα read back onto the word: ἐͅγώ is ἐγώ (#159).
+        # A precomposed ᾳ, ῃ or ῳ has no separate U+0345 in NFC.
+        lemma = _without_epsilon_subscript(lemma)
+    if lemma in _STEM_READING_LEMMAS:
+        letters = _letters(form)
+        for initials, given, corrected in REVIEWED_STEM_READINGS:
+            if lemma == given and letters.startswith(initials):
+                return corrected
+    elif lemma.endswith(_PLESSO):
+        letters = _letters(form)
+        if any(stem in letters for stem in _PLASSO_LETTERS):
+            return respelled_lemma(form, lemma[:-len(_PLESSO)] + _PLASSO)
+    elif lemma in _LEGO_AIREO_COMPOUNDS:
+        if _AIREO_PERFECT_LETTERS in _letters(form):
+            return _LEGO_AIREO_COMPOUNDS[lemma]
     return lemma

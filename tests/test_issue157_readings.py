@@ -179,11 +179,12 @@ def test_the_enclitic_step_needs_a_reading_that_is_no_headword(model_from):
             "προεπιστασθαι": "προεπίσταμαι",
             "προεπίστασθαι": "προεφίστημι",
             "ἐκφῦναι": "ἐκφῦναι", "ῥᾷον": "ῥᾴδιος", "Ἡσίοδος": "Ἡσίοδος",
-            "ησιοδος": "ησίοδος", "πολυστέφανος": "πολυστέφανος"}
+            "ησιοδος": "ησίοδος", "πολυστέφανος": "πολυστέφανος",
+            "ραον": "ράιος", "βακχεύεσθαι": "βακχεύω"}
     model = model_from(rows, lang="all",
                        headwords={"ἐφάπτω", "προεπίσταμαι", "προεφίστημι",
                                   "ἐκφῦναι", "ῥᾴδιος", "Ἡσίοδος",
-                                  "πολυστέφανος"})
+                                  "πολυστέφανος", "βακχεύω"})
     model._vernacular_lexical_heads = {"εφάπτομαι", "ησίοδος"}
     step = model._lookup_word
     # The cascade reads no headword: the own rows of the bare spelling
@@ -192,12 +193,19 @@ def test_the_enclitic_step_needs_a_reading_that_is_no_headword(model_from):
     assert step("Ἡσίοδός") == "Ἡσίοδος"
     # The cascade reads a headword, which keeps its place.
     assert step("προεπίστασθαί") == "προεπίσταμαι"
-    # The cascade finds nothing: the own rows stand when they read another
+    # The cascade finds nothing: the word goes on to the later steps, and
+    # the own rows come last (#159). They stand when they read another
     # spelling, or the bare spelling itself only when it is a nominative in
     # -ος (ἐκφῦναι is an inflected form LSJ heads as a cross-reference).
+    late = model._enclitic_fallback_reading
+    for word in ("βακχεύεσθαί", "πολυστέφανός", "ἐκφῦναί"):
+        assert step(word) is None
+    assert late("βακχεύεσθαί") == "βακχεύω"
+    assert late("πολυστέφανός") == "πολυστέφανος"
+    assert late("ἐκφῦναί") is None
+    assert plain(model, "βακχεύεσθαί") == "βακχεύω"
+    # The cascade reads ῥάιος, no headword: the own rows of ῥᾷον stand.
     assert step("ῥᾷόν") == "ῥᾴδιος"
-    assert step("πολυστέφανός") == "πολυστέφανος"
-    assert step("ἐκφῦναί") is None
 
 
 @pytest.mark.parametrize("word", ["συμπτύσσοντες", "Συμπτύσσοντες",
@@ -306,8 +314,10 @@ def test_the_dative_of_an_action_noun_under_noun(model_from, lang):
 
 def test_an_action_noun_needs_one_headword_with_the_verb_stem(model_from):
     model = model_from({"λύσει": "λύω"}, headwords={"λύω"})
+    model._wiktionary_grc_heads = frozenset()
     assert model._action_noun_of_future("λύσει", "λύω") is None
     model = model_from({"γράψει": "γράφω"}, headwords={"γράφω", "γρᾶψις"})
+    model._wiktionary_grc_heads = frozenset()
     # A headword whose stem is not the verb's.
     assert model._action_noun_of_future("γράψει", "τρέφω") is None
 
