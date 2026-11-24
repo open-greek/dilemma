@@ -6,7 +6,7 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
-This release fixes the readings reported on #157 and the safe ones of #147.
+This release fixes the readings reported on #157 and the rest of #147.
 `build_lookup_db.py`, the POS-table steps and the adverb heads are rebuilt on
 the same archived 2026-11 kaikki snapshot and the 1.3.29 dictionary expansion;
 the Modern Greek tables are unchanged. Measurements compare this release
