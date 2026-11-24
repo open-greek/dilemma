@@ -204,8 +204,10 @@ def test_the_enclitic_step_needs_a_reading_that_is_no_headword(model_from):
     assert late("πολυστέφανός") == "πολυστέφανος"
     assert late("ἐκφῦναί") is None
     assert plain(model, "βακχεύεσθαί") == "βακχεύω"
-    # The cascade reads ῥάιος, no headword: the own rows of ῥᾷον stand.
-    assert step("ῥᾷόν") == "ῥᾴδιος"
+    # The cascade reads nothing for ῥᾷόν: the own rows of ῥᾷον stand, in
+    # the late step.
+    assert step("ῥᾷόν") is None
+    assert late("ῥᾷόν") == "ῥᾴδιος"
 
 
 @pytest.mark.parametrize("word", ["συμπτύσσοντες", "Συμπτύσσοντες",

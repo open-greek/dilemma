@@ -373,7 +373,9 @@ def _marked_letters(spelling: str, marks: str) -> tuple:
 def _has_misplaced_marks(spelling: str) -> bool:
     """Whether *spelling* has a mark where Greek spelling puts none (#159).
 
-    An iota subscript stands only under α, η and ω; a breathing only on
+    An iota subscript stands only under α, η and ω (one on ι or υ is a
+    stray of the encoding, as in εὐρίͅσκω for εὑρίσκω, and does not
+    count); a breathing only on
     the first letter, or on the second vowel of a diphthong that opens the
     word (αἰ, οὐ), and never smooth on an initial ρ or υ. A breathing on a
     later letter is a coronis, the mark of a crasis (χὠμός), and
@@ -382,7 +384,7 @@ def _has_misplaced_marks(spelling: str) -> bool:
     """
     units = _letter_marks(spelling)
     for index, (letter, marks) in enumerate(units):
-        if "\u0345" in marks and letter not in "αηω":
+        if "\u0345" in marks and letter not in "αηωιυ":
             return True
         if not marks & {"\u0313", "\u0314"}:
             continue
@@ -1738,11 +1740,13 @@ _STRAY_MARK_FUNCTION_LEMMAS = frozenset((
     "δέ", "γάρ", "ἄν", "καί", "μέν", "τε", "γε", "οὐ", "μή", "ὡς", "ὅτι",
     "εἰ", "ἤ", "περί", "πρός", "ἐν", "εἰς", "ἐκ", "σύν", "ὑπέρ", "πρό",
     "οὖν", "δή", "ἀλλά", "οὐδέ", "μηδέ"))
-# The bare endings of the -έω verbs whose stem is -ευ- before σ.
-_EU_STEM_EO_VERBS = ("πλεω", "πνεω", "ρεω", "θεω", "νεω", "χεω")
 # Final letters no Greek word ends in, which a stem keeps when its elision
 # mark is lost (εἶθ, μεθ).
 _ELIDED_STEM_FINALS = frozenset("θτπδφχγβ")
+# The relative pronoun's forms that differ from the article's only by their
+# accent: the article ὁ, ἡ, οἱ, αἱ has none, so with one they are ὅς (#159).
+_ACCENTED_RELATIVES = frozenset(unicodedata.normalize("NFC", form) for form in (
+    "ὅ", "ὃ", "ἥ", "ἣ", "οἵ", "οἳ", "αἵ", "αἳ", "ἅ", "ἃ"))
 
 @lru_cache(maxsize=1)
 def _preposition_letters() -> frozenset:
@@ -2970,18 +2974,27 @@ class Dilemma:
         normalizers, the compounds and the prefixes
         (_enclitic_fallback_reading): the rows of a bare spelling include
         expansion and corpus rows of other words, while the later steps
-        read what 1.3.29 read (ὅτιπέρ ὅτι, not ὅ; ὑπόποδός ὑπόπους, not the
-        cross-reference ὑπόποδος).
+        read what 1.3.29 read (ὑπόποδός ὑπόπους, not the cross-reference
+        ὑπόποδος), and ὅτιπέρ reads LSJ's head ὅτιπερ, not ὅ.
         """
         lemma = self._lookup_cascade(word, prefer_modern=prefer_modern,
                                      step=step)
+        if (lemma and self.lang != "el"
+                and self._without_enclitic_accent(lemma) != lemma
+                and " " not in lemma):
+            # A row that reads a word with an enclitic's accent as itself
+            # (Τιμῶσάν: Τιμῶσά) is no reading (#159).
+            lemma = None
         if (step not in (None, self._OWN_ROWS) or self.lang == "el"
                 or not lemma):
             return lemma
         bare = self._without_enclitic_accent(word)
         if bare == word or self._is_ancient_headword(lemma):
             return lemma
-        if is_capitalized(word) and is_capitalized(lemma):
+        if (is_capitalized(word) and is_capitalized(lemma)
+                and not _is_verb_citation_spelling(lemma.lower())):
+            # A name's reading (Σῶνόν Σῶνος), but a verb's citation form is
+            # no name (Ἐποίησέ: the row Ἐποιέω, not ποιέω; #159).
             return lemma
         own = self._enclitic_own_reading(bare, prefer_modern=prefer_modern)
         if not own:
@@ -3024,6 +3037,46 @@ class Dilemma:
             return None
         return own
 
+    def _better_attested_contract_twin(self, lemma: str, *,
+                                       contracted_ou: bool = False,
+                                       omega_sigma: bool = False) -> str:
+        """Of a contract verb in -έω or -όω whose other spelling an edited
+        dictionary heads as well, the one GLAUx and Diorisis attest more:
+        their contracted -ου- forms are the same (νοοῦντα: νοέω, not νοόω;
+        ὑπνοῦντι: ὑπνόω) (#159). With *contracted_ou*, a verb in -άω, which
+        has no -ου-, gives way to a headed and attested -έω or -όω spelling
+        of its stem (θανατοῦντα θανατόω, not θανατάω; ὑφορμούντα ὑφορμέω),
+        and keeps its place without one (γελοῦντας γελάω). With
+        *omega_sigma*, the -ωσ- of an -όω verb, a verb in -έω (or, in the
+        aorist, -άω) gives way to a headed and attested -όω spelling
+        (περιχώσας περιχόω, not περιχέω; ῥυπώσαντες ῥυπόω)."""
+        heads = self._dictionary_head_set()
+        if lemma not in heads:
+            return lemma
+
+        def count(head):
+            att = self.attestation(head) or {}
+            sc = att.get("source_counts") or {}
+            return sc.get("glaux", 0) + sc.get("diorisis", 0)
+
+        if omega_sigma and lemma.endswith(("άω", "έω")):
+            twin = lemma[:-2] + "όω"
+            return twin if twin in heads and count(twin) else lemma
+        if contracted_ou and lemma.endswith("άω"):
+            twins = [lemma[:-2] + ending for ending in ("έω", "όω")
+                     if lemma[:-2] + ending in heads
+                     and count(lemma[:-2] + ending)]
+            return max(twins, key=count) if twins else lemma
+        for ending, other in (("όω", "έω"), ("έω", "όω")):
+            if lemma.endswith(ending):
+                twin = lemma[:-2] + other
+                break
+        else:
+            return lemma
+        if twin not in heads:
+            return lemma
+        return twin if count(twin) > count(lemma) else lemma
+
     def _enclitic_fallback_reading(self, word: str) -> str | None:
         """The late enclitic-accent step of lemmatize() and its siblings: the
         own rows of *word* without the second accent a following enclitic
@@ -3032,12 +3085,12 @@ class Dilemma:
 
         The rows of such a bare spelling with no other reading include
         corpus and expansion rows of other words, so the answer must show
-        in the word: its letters but the last two must begin the word's
-        (βῆλά is not βάλλω, παραινοῦντί not παρανέω; a doubled consonant
-        counts once, so Ἀππίωνά is Ἀπίων),
-        and a contract verb whose -έω or -όω twin a dictionary heads as
-        well is no answer, since the contracted forms are the same
-        (νοοῦντά: νοέω or νοόω). A capitalized word reads the name an
+        in the word: it must begin with the word's first two letters, or
+        its letters but the last two must stand in the word (βῆλά is not
+        βάλλω; ἐθανάτωσέ is θανατόω; a doubled consonant counts once, so
+        Ἀππίωνά is Ἀπίων). The contracted -ου- of a contract verb whose
+        -έω and -όω spellings a dictionary heads both reads the better
+        attested one (νοοῦντά νοέω, not νοόω). A capitalized word reads the name an
         edited dictionary heads with the letters of a lowercase answer
         (Ῥεῖάν Ῥεία, not ῥεῖα; Ἐβίωνός Ἐβίων, not the imperfect ἐβίων).
         """
@@ -3055,13 +3108,13 @@ class Dilemma:
         if not own:
             return None
         own_letters = _single_consonants(_bare_letters(own).lower())
-        if not _single_consonants(_bare_letters(bare).lower()).startswith(
-                own_letters[:-2]):
+        bare_letters = _single_consonants(_bare_letters(bare).lower())
+        if (own_letters[:2] != bare_letters[:2]
+                and own_letters[:-2] not in bare_letters):
             return None
         heads = self._dictionary_head_set()
-        for ending, twin in (("όω", "έω"), ("έω", "όω")):
-            if own.endswith(ending) and own[:-2] + twin in heads:
-                return None
+        if "ου" in bare_letters:
+            own = self._better_attested_contract_twin(own)
         if is_capitalized(word) and not is_capitalized(own):
             names = [head for head in self._dictionary_heads_by_letters().get(
                          _bare_letters(own)[:1].upper() + _bare_letters(own)[1:], ())
@@ -3117,6 +3170,10 @@ class Dilemma:
                 == "triantafyllidis"):
             return None
         printed = to_standard_sigma(unicodedata.normalize("NFC", word))
+        if upos == "PRON" and printed.lower() in _ACCENTED_RELATIVES:
+            # ὃ, ὅ, ἥ, οἵ PRON are the relative ὅς, not the article whose
+            # POS cells the Homeric demonstrative gives them (#159).
+            return self._apply_convention("ὅς")
         if len(printed) > 1 and printed.isupper():
             # An acronym or a word in capitals (ΜΕΘ, ΑΠΟ) is left to the
             # other steps.
@@ -3307,12 +3364,11 @@ class Dilemma:
         lemma = self._lookup.get(canon) or self._lookup.get(canon.lower())
         if not lemma or lemma == canon or _strip_elision(lemma) is not None:
             return None
-        if _is_modern_or_acronym(lemma) and self.lang != "el" and (
-                self.lang == "grc" or any(
-                    ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
-                    for ch in unicodedata.normalize("NFD", word))):
+        if _is_modern_or_acronym(lemma) and self.lang != "el" and any(
+                ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+                for ch in unicodedata.normalize("NFD", word)):
             # A Modern row or an acronym is no reading of an Ancient elided
-            # word (#159). A monotonic word under lang="all" may be Modern.
+            # word with a breathing, a circumflex or a grave (#159).
             return None
         return self._normalize_grave_citation_lemma(lemma)
 
@@ -3357,11 +3413,11 @@ class Dilemma:
                                 for ch in word))
 
         # A Modern row or an acronym is no reading of an Ancient elided
-        # word: under lang="grc", or for a word with a breathing, a
-        # circumflex or a grave (#159). A monotonic word with an apostrophe
-        # may be Modern (όλ’) under "all" and "el".
-        modern_guard = self.lang == "grc" or (self.lang != "el" and any(
-            ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE for ch in nfd))
+        # word, one with a breathing, a circumflex or a grave (#159). A
+        # monotonic word with an apostrophe may be Modern (όλ’), and a
+        # letter with one a numeral (α᾽).
+        modern_guard = self.lang != "el" and any(
+            ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE for ch in nfd)
 
         # Choose which lookups to search
         if has_polytonic:
@@ -4231,10 +4287,12 @@ class Dilemma:
 
         # A word an edited dictionary heads with the particle, written
         # without its breathing or accent, is that word: επείπερ is
-        # ἐπείπερ, not ἐπεί (#159).
+        # ἐπείπερ, not ἐπεί (#159). A final sigma inside the word is a
+        # medial one (ὡςπερ is ὥσπερ, not ὡς).
         if self.lang != "el":
+            medial = lower[:-1].replace("ς", "σ") + lower[-1:]
             heads = [head for head in self._dictionary_heads_by_letters().get(
-                         _bare_letters(lower), ())
+                         _bare_letters(medial), ())
                      if strip_accents(head).endswith(
                          tuple(strip_accents(s) for s in _PARTICLE_SUFFIXES))]
             if len(heads) == 1:
@@ -4492,6 +4550,14 @@ class Dilemma:
             if cut < (4 if nominatives == ("ώς",) else 3):
                 continue
             kinds = self._participle_accent_kinds(stripped, cut, ending, accent)
+            if (kinds == "-^" and not ending.startswith("ωντ")
+                    and not is_capitalized(word)):
+                # A lowercase word may misplace an ending accent on the
+                # stem (ἀφίεντες ἀφιέντες, ἀρρώστουντα); a name may not
+                # (Μάνεντος is Μάνης, not μανέντος), nor -ωντ-, which
+                # with the accent on the stem is the noun γέλως's
+                # γέλωντος, not γελῶντος.
+                kinds = "-^="
             stem = nfd[:letters[cut]]
             bare = "".join(ch for ch in stem if ch not in "\u0301\u0300\u0342")
             accented = stem.replace("\u0300", "\u0301") if bare != stem else None
@@ -4532,28 +4598,23 @@ class Dilemma:
                         and _is_verb_citation_spelling(lemma)
                         and self._is_ancient_headword(lemma)):
                     continue
-                if not self._participle_fits_verb(stripped, cut, ending,
-                                                  family, lemma):
-                    continue
+                if family == 1 and ending.startswith("ου"):
+                    # -ουντ- of a verb in -έω and -όω (#159).
+                    lemma = self._better_attested_contract_twin(
+                        lemma, contracted_ou=True)
+                elif ((family == 1 and ending.startswith("ωσ")
+                       and lemma.endswith("έω"))
+                      or (family == 2 and stripped[:cut].endswith("ωσ"))):
+                    # The -ωσ- of an -όω verb (#159).
+                    lemma = self._better_attested_contract_twin(
+                        lemma, omega_sigma=True)
                 if lemma not in lemmas:
                     lemmas.append(lemma)
         if len(lemmas) != 1 or vetoes - set(lemmas):
             return None
-        return lemmas[0]
-
-    @staticmethod
-    def _participle_ultima_long(ending: str) -> bool | None:
-        """Whether the last syllable of an oblique participle ending is long.
-
-        -ων, -οιν, the feminine -ης, -ῃ, -αις and -ας are long, the rest
-        short; the dual -ε is not told apart (None)."""
-        if ending.endswith("ε"):
-            return None
-        if ending.endswith(("ων", "οιν", "ης", "η", "αις")):
-            return True
-        if ending.endswith("ας"):
-            return ending.endswith(("σας", "ιας"))
-        return False
+        # The reviewed readings of the word's own stem (#159): ἐπαφέντος
+        # reads ἐπαφίημι, not the ἐφάπτω of the nominative's row.
+        return _respelled_lemma(word, lemmas[0])
 
     @classmethod
     def _participle_accent_kinds(cls, stripped: str, cut: int, ending: str,
@@ -4567,96 +4628,33 @@ class Dilemma:
         syllable (λύοντος, λυόντων). One accented on the ending (λιπών,
         λυθείς, ποιῶν, στάς; "=") has it on the ending's first vowel in
         every case (λιπόντος), and the feminine genitive plural on its last
-        (λιπουσῶν). So Μάνεντος, with the accent on the stem, is not the
-        participle μανέντος, nor γέλωντος γελῶντος. A form without one
-        accent allows them all.
+        (λιπουσῶν). An accent on the stem allows the nominatives accented
+        there ("-^"); one on the ending and a form without one accent
+        allow them all.
         """
-        if accent is None:
-            return "-^="
-        if accent < cut:
-            return "-"
-        if accent - cut > 1 and not (ending.endswith("σων")
-                                     and accent == len(stripped) - 2):
-            return ""
-        long_ultima = cls._participle_ultima_long(ending)
-        if long_ultima is None:
-            return "^="
-        return "^=" if long_ultima else "="
+        if accent is not None and accent < cut:
+            # On the stem, as written or, misplaced, on its last vowel
+            # (ἐπαινῆσαντες, ἔλλειποντα).
+            return "-^"
+        # On the ending: on its first vowel it is right for a nominative
+        # accented on the ending, and before a long last syllable for one
+        # accented on the stem; late texts and their OCR put it there
+        # before a short one too (ἐσθιόντα, καταγόντες, ἐμπιπτούσαν), and
+        # on the last syllable (καθηκουσῆς, στυφοντὶ), so every nominative
+        # is allowed.
+        return "-^="
 
-    # The letters between a regular verb's stem and the ending of each
-    # family of _ACTIVE_PARTICIPLE_FAMILIES, by the verb's class: the
-    # present (uncontracted, as the -ων family spells it) and the future,
-    # the contracted present, the first aorist and the aorist passive. A
-    # contract verb keeps its stem in every participle: -άω has -ωντ- and
-    # -ωσ- (τιμῶντος, τιμῶσα), -έω and -όω -ουντ- (ποιοῦντος; vernacular
-    # spelling writes ποιῶντες as well), and their aorists -ησ- or -ασ-,
-    # -ησ- or -εσ-, and -ωσ-; -εύω keeps -ευ- and -ίζω -ισ- (#159).
-    _REGULAR_PARTICIPLE_MIDDLES = {
-        "αω": (("α", "ησ", "ασ"), ("",), ("ησ", "ασ"), ("ηθ", "αθ", "ασθ")),
-        "εω": (("ε", "ησ", "εσ"), ("",), ("ησ", "εσ"), ("ηθ", "εθ", "εσθ")),
-        "οω": (("ο", "ωσ"), ("",), ("ωσ",), ("ωθ",)),
-        "ευω": (("ευ", "ευσ"), (), ("ευσ",), ("ευθ",)),
-        "ιζω": (("ιζ", "ισ"), ("ι",), ("ισ", "ιξ"), ("ισθ", "ιχθ")),
-    }
-
-    def _participle_fits_verb(self, stripped: str, cut: int, ending: str,
-                              family: int, lemma: str) -> bool:
-        """Whether an oblique active participle can be a form of *lemma*.
-
-        The nominative's row can belong to a homograph or to another verb
-        (θαυματουργήσας read θαυμασιουργέω, ὀργάς ὀργάω, ἀπήρας ἀπεράω),
-        so a verb of a regular class must show its stem and the letters
-        its class puts before the ending (_REGULAR_PARTICIPLE_MIDDLES): an
-        -άω verb has no -ουντ- (θανατοῦντα is not θανατάω) and an -έω verb
-        no feminine -ωσ- (συγχῶσαι is the aorist infinitive of συγχόω, not
-        συγχέω). Verbs in -σσω, -ττω, -πτω and -άζω must show the letters
-        before those (συρράξας is not συναράσσω). A contracted -ουντ- that
-        two headwords in -έω and -όω share (νοοῦντα: νοέω, νοόω) is not
-        told apart. Other verbs change their stem (λιπόντος, εἰσενεγκόντες)
-        and the perfect reduplicates, so they are not checked.
-        """
-        verb = strip_accents(lemma.lower())
-        for suffix, cls_name, cut_letters in (
-                ("εομαι", "εω", 5), ("αομαι", "αω", 5), ("οομαι", "οω", 5),
-                ("ευομαι", "ευω", 6), ("ιζομαι", "ιζω", 6),
-                ("εω", "εω", 2), ("αω", "αω", 2), ("οω", "οω", 2),
-                ("ευω", "ευω", 3), ("ιζω", "ιζω", 3),
-                ("σσω", None, 3), ("ττω", None, 3), ("πτω", None, 3),
-                ("αζω", None, 2), ("σσομαι", None, 6), ("ττομαι", None, 6),
-                ("πτομαι", None, 6), ("αζομαι", None, 4)):
-            if verb.endswith(suffix):
-                break
-        else:
-            return True
-        if family > 3:
-            return True
-        stem = verb[:-cut_letters]
-        if not stripped.startswith(stem) or len(stem) > cut:
-            return False
-        if cls_name is None:
-            return True
-        middle = stripped[len(stem):cut]
-        if (cls_name == "εω" and middle in ("ευ", "ευσ")
-                and verb.endswith(_EU_STEM_EO_VERBS)):
-            # πλέω, πνέω, ῥέω, θέω, νέω and χέω have the stem πλευ- and the
-            # like before σ (καταπνεύσαντος, ἀποπλεύσαντος).
-            pass
-        elif middle not in self._REGULAR_PARTICIPLE_MIDDLES[cls_name][family]:
-            return False
-        if family == 1:
-            contracted = ending[:1]
-            if cls_name == "αω" and contracted != "ω":
-                return False
-            if cls_name in ("οω", "ιζω") and contracted != "ο":
-                return False
-            if cls_name == "εω" and contracted == "ω" and "σ" in ending:
-                return False
-            if contracted == "ο" and cls_name in ("εω", "οω"):
-                twin = lemma[:-2] + ("όω" if cls_name == "εω" else "έω")
-                if twin in self._dictionary_head_set() \
-                        and lemma in self._dictionary_head_set():
-                    return False
-        return True
+    def _verb_morphology_reading(self, word: str) -> str | None:
+        """_strip_verb_morphology, but for a word with the second accent of
+        a following enclitic, whose stripped form reads no Ancient headword,
+        the rows of the word without that accent (#159): ἐθανάτωσέ is
+        θανατόω through ἐθανάτωσε, not the Modern θανατώνω of θανάτωσε."""
+        lemma = self._strip_verb_morphology(word)
+        if (lemma and self.lang != "el"
+                and not self._is_ancient_headword(lemma)
+                and self._without_enclitic_accent(word) != word):
+            return self._enclitic_fallback_reading(word) or lemma
+        return lemma
 
     def _strip_verb_morphology(self, word: str) -> str | None:
         """Try decomposing unknown verb forms by stripping augment or reduplication.
@@ -4940,7 +4938,7 @@ class Dilemma:
         # particle stripping, before model)
         verb_morph_lemma = (self._participle_nominative_lemma(word)
                             or self._aorist_participle_lemma(word)
-                            or self._strip_verb_morphology(word))
+                            or self._verb_morphology_reading(word))
         if verb_morph_lemma:
             return self._apply_convention(verb_morph_lemma)
 
@@ -5011,17 +5009,17 @@ class Dilemma:
             if byz_heavy:
                 return self._apply_convention(byz_heavy)
 
-            # 5. The rows of the word without a second accent from a
-            #    following enclitic (#159).
-            enclitic = self._enclitic_fallback_reading(word)
-            if enclitic:
-                return self._apply_convention(enclitic)
-
-            # 6. An oblique active participle read through its nominative,
+            # 5. An oblique active participle read through its nominative,
             #    when nothing else resolves the word (#157).
             participle = self._active_participle_lemma(word)
             if participle:
                 return self._apply_convention(participle)
+
+            # 6. The rows of the word without a second accent from a
+            #    following enclitic (#159).
+            enclitic = self._enclitic_fallback_reading(word)
+            if enclitic:
+                return self._apply_convention(enclitic)
 
         if pred is None:
             # guess=False and nothing structured resolved: say "I don't know"
@@ -5120,7 +5118,40 @@ class Dilemma:
         return self.lang == "grc" or (self.lang == "all" and polytonic)
 
     def _pos_rejections(self, word: str, upos: str | None) -> frozenset[str]:
-        """Bind the source-target veto for explicit Ancient Greek POS calls."""
+        """Bind the source-target veto for explicit Ancient Greek POS calls,
+        and veto for a noun or a name the verb that only the participle
+        resolver reads (#159): γέλωντος NOUN is no form of γελάω, nor
+        Μάνεντος PROPN of μαίνομαι."""
+        rejected = self._bound_pos_rejections(word, upos)
+        if upos in ("NOUN", "PROPN") and self.lang != "el" \
+                and isinstance(word, str):
+            participle = self._participle_only_reading(word)
+            if participle:
+                return rejected | {grave_to_acute(participle)}
+        return rejected
+
+    def _participle_only_reading(self, word: str) -> str | None:
+        """The lemma the participle resolver reads for *word* when the
+        lookup reads nothing, as the convention gives it."""
+        cache = self.__dict__.setdefault("_participle_only_cache", {})
+        if word in cache:
+            return cache[word]
+        reading = None
+        stripped = strip_accents(unicodedata.normalize("NFC", word.lower()))
+        if any(stripped.endswith(ending)
+               for endings, _, _ in self._ACTIVE_PARTICIPLE_FAMILIES
+               for ending in endings) and self._lookup_word(word) is None:
+            participle = self._active_participle_lemma(word)
+            if participle:
+                reading = unicodedata.normalize(
+                    "NFC", self._apply_convention(participle))
+        if len(cache) > 200_000:
+            cache.clear()
+        cache[word] = reading
+        return reading
+
+    def _bound_pos_rejections(self, word: str,
+                              upos: str | None) -> frozenset[str]:
         if not self._ancient_pos_context(word, upos):
             return frozenset()
         cached = getattr(self, "_pos_rejected_targets", None)
@@ -6627,7 +6658,56 @@ class Dilemma:
         if lemma is None:
             lemma = self._vetoed_untagged_answer(
                 word, upos, attested_only=attested_only, guess=guess)
-        return lemma
+        return self._ancient_reading_of_modern_answer(
+            word, upos, lemma, attested_only=attested_only)
+
+    def _ancient_reading_of_modern_answer(self, word, upos, lemma, *,
+                                          attested_only: bool = False):
+        """The Ancient reading of a polytonic word whose tagged answer
+        under lang="all" is a Modern or acronym lemma (#159).
+
+        A word with a breathing, a circumflex, a grave or an iota subscript
+        is no Modern monotonic word, but its POS cells may come from the
+        Modern tables and rows: ὅποτε PRON όποτε, ἕξης NOUN έξη, ἔννοιας
+        NOUN έγνοια. Its reading by the Ancient tables alone (lang="grc",
+        untagged) stands when that reading is Ancient and the tag allows
+        it (ὁπότε, ἑξῆς, ἔννοια), and otherwise the one Ancient headword
+        the Modern lemma spells with other marks (_headword_of_variant);
+        without either, the answer is kept.
+        """
+        if (self.lang != "all" or not isinstance(lemma, str) or not lemma
+                or not isinstance(word, str) or not word
+                or not _is_modern_or_acronym(lemma)
+                or not any(ord(ch) in _POLYTONIC_STRIP | _POLYTONIC_TO_ACUTE
+                           for ch in unicodedata.normalize("NFD", word))):
+            return lemma
+        cache = self.__dict__.setdefault("_modern_answer_cache", {})
+        key = (word, upos, lemma, attested_only)
+        if key not in cache:
+            if len(cache) > 100_000:
+                cache.clear()
+            reading = self._ancient_model().lemmatize_batch(
+                [word], attested_only=attested_only, guess=False)[0]
+            if (not reading or _is_modern_or_acronym(reading)
+                    or self._checked_pos_result(word, upos, reading) is None):
+                reading = self._checked_pos_result(
+                    word, upos, self._headword_of_variant(lemma, word))
+            cache[key] = reading or lemma
+        return cache[key]
+
+    def _ancient_model(self) -> "Dilemma":
+        """A lang="grc" model with this model's settings and no POS
+        tables, made the first time a reading needs it (about 300 MB)."""
+        model = self.__dict__.get("_ancient_sibling")
+        if model is None:
+            model = Dilemma(
+                lang="grc", device=self._device, scale=self._scale,
+                resolve_articles=self._resolve_articles,
+                convention=self._convention_name, skip_pos=True,
+                citation_policy=self._citation_policy,
+                skip_numeral_ordinals=self._skip_numeral_ordinals)
+            self._ancient_sibling = model
+        return model
 
     def _headword_of_variant(self, lemma, word=None) -> str | None:
         """The one Ancient headword that *lemma* spells with other marks.
@@ -6654,13 +6734,14 @@ class Dilemma:
         παροͅχέω, the head Ρ̓ᾶρος, the crasis χὠμός) is no answer. A
         breathing on another letter than the head's is another syllable
         (ἀιδέω for Ἤιδει is not αἰδέω, ὀίζω not οἴζω). Given the *word*,
-        its breathing counts too: a rough breathing is written on purpose,
-        so the head may not have a smooth one there (Ἁγίαν is not Ἀγίας,
-        ἡγμένων not ἄγνυμι), and a lemma with a rough breathing where the
-        word has a smooth one reads another word (ἑρος for Ἐρη); the head's
-        breathing must stand on the letter where the word has its own
-        (οἷνος is not ὄνος), and a diaeresis may not stand where the word
-        has a breathing (προὔφαινον, a crasis, is not προϋφαίνω).
+        the head's breathing must stand on the letter where the word has
+        its own (οἷνος is not ὄνος), and a diaeresis may not stand where
+        the word has a breathing (προὔφαινον, a crasis, is not προϋφαίνω).
+        Which breathing the word has does not count: OCR and editions
+        confuse them (Ἅβραμος Ἄβραμος, ἧλθεν ἔρχομαι, ἀπλοϊκῶς
+        ἁπλοϊκός): a check of it removed 117 answers of the corpus
+        annotations' token and tag pairs, of which 18 were wrong (Ἁγίαν
+        Ἀγίας).
         """
         if not isinstance(lemma, str) or not lemma or self.lang == "el":
             return None
@@ -6707,18 +6788,9 @@ class Dilemma:
         if not marked or (marked[0] == 1 and units[0][0] not in _GREEK_VOWELS):
             return True
         index = marked[0]
-        rough = "\u0314" in units[index][1]
         head_marked = [i for i, (_, marks) in enumerate(head_units[:2])
                        if marks & {"\u0313", "\u0314"}]
-        if head_marked and head_marked[0] != index:
-            return False
-        if rough and head_marked and "\u0313" in head_units[head_marked[0]][1]:
-            return False
-        lemma_units = _letter_marks(lemma)
-        if (not rough and index < len(lemma_units)
-                and "\u0314" in lemma_units[index][1]):
-            return False
-        return True
+        return not head_marked or head_marked[0] == index
 
     def _vetoed_untagged_answer(self, word, upos, *, attested_only: bool,
                                 guess: bool) -> str | None:
@@ -7221,6 +7293,9 @@ class Dilemma:
             if function_word is not None and not (
                     attested_only and self._resolve_attested_form(word) is None):
                 final[i] = function_word
+            elif not (upos == "NUM" and _is_marked_numeral(word)):
+                final[i] = self._ancient_reading_of_modern_answer(
+                    word, upos, final[i], attested_only=attested_only)
         return self._without_skipped_ordinals(words, final)
 
     @staticmethod
@@ -7559,7 +7634,7 @@ class Dilemma:
                 _add(participle_lemma, lang=lang, source="verb_morphology",
                      via="participle_nominative", score=0.85)
         if not candidates:
-            verb_morph_lemma = self._strip_verb_morphology(word)
+            verb_morph_lemma = self._verb_morphology_reading(word)
             if verb_morph_lemma:
                 lang = self._lang_of(verb_morph_lemma) or "grc"
                 _add(verb_morph_lemma, lang=lang, source="verb_morphology",
@@ -7677,19 +7752,19 @@ class Dilemma:
             if byz_heavy:
                 _add(byz_heavy, source="byzantine_norm", score=0.5)
 
-        # 13. The rows without the second accent of an enclitic (#159)
-        if model_identity and not candidates:
-            enclitic = self._enclitic_fallback_reading(word)
-            if enclitic:
-                _add(enclitic, lang="grc", source="lookup", via="enclitic",
-                     score=0.5)
-
-        # 14. An oblique active participle through its nominative (#157)
+        # 13. An oblique active participle through its nominative (#157)
         if model_identity and not candidates:
             participle = self._active_participle_lemma(word)
             if participle:
                 _add(participle, source="verb_morphology",
                      via="active_participle", score=0.5)
+
+        # 14. The rows without the second accent of an enclitic (#159)
+        if model_identity and not candidates:
+            enclitic = self._enclitic_fallback_reading(word)
+            if enclitic:
+                _add(enclitic, lang="grc", source="lookup", via="enclitic",
+                     score=0.5)
 
         # If still nothing, return the word itself - unless guess=False, in
         # which case an empty list is the honest answer ("I don't know"): an
@@ -7868,7 +7943,7 @@ class Dilemma:
             # reduplication)
             verb_morph_lemma = (self._participle_nominative_lemma(word)
                                 or self._aorist_participle_lemma(word)
-                                or self._strip_verb_morphology(word))
+                                or self._verb_morphology_reading(word))
             if verb_morph_lemma:
                 results.append(verb_morph_lemma)
                 continue
@@ -7936,18 +8011,18 @@ class Dilemma:
                     else:
                         byz_heavy = self._normalize_byzantine(
                             word, use_normalizer=True)
-                        # 5. The rows without an enclitic's accent (#159)
-                        enclitic = (None if byz_heavy
-                                    else self._enclitic_fallback_reading(word))
-                        # 6. An oblique active participle (#157)
-                        participle = (None if byz_heavy or enclitic
+                        # 5. An oblique active participle (#157)
+                        participle = (None if byz_heavy
                                       else self._active_participle_lemma(word))
+                        # 6. The rows without an enclitic's accent (#159)
+                        enclitic = (None if byz_heavy or participle
+                                    else self._enclitic_fallback_reading(word))
                         if byz_heavy:
                             pred = byz_heavy
-                        elif enclitic:
-                            pred = enclitic
                         elif participle:
                             pred = participle
+                        elif enclitic:
+                            pred = enclitic
                 results[idx] = pred
 
         # Apply convention remapping and citation-form validation to all

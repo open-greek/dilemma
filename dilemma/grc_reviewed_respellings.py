@@ -57,6 +57,55 @@ REVIEWED_STEM_READINGS = (
     # The folded key επειπερ of the unaccented επείπερ reads ἐπεί, as the
     # tagged cell did before 1.3.30 (#159).
     (("επειπερ",), "ἐπεί", "ἐπείπερ"),
+    # The -περ words of the real-OCR evaluation (#159). ὅπερ, as ἅπερ,
+    # ὅνπερ and the other cases, is ὅσπερ, LSJ's head and the Gorman
+    # trees' lemma, where a Wiktionary row gives ὅπερ and the treebank
+    # cells ὅς; ὡσπερ and ὡςπερ are ὥσπερ, not ὡς; and the AGDT cells give
+    # ὅτιπερ the ὅ of ὅστις, where LSJ heads ὅτιπερ itself.
+    (("οπερ",), "ὅπερ", "ὅσπερ"),
+    (("οπερ", "ηπερ", "απερ", "οιπερ", "αιπερ", "ουπερ", "ωπερ", "ησπερ",
+      "ονπερ", "ηνπερ", "ωνπερ", "οισπερ", "αισπερ", "ουσπερ", "ασπερ"),
+     "ὅς", "ὅσπερ"),
+    (("ωσπερ", "ωςπερ"), "ὡς", "ὥσπερ"),
+    (("οτιπερ",), "ὅ", "ὅτιπερ"),
+    # Rows that read the relative's accented ἅ, αἵ and οἵ as themselves:
+    # they are ὅς, as ὅ, ἥ and οἵ are (#159).
+    (("α",), "ἅ", "ὅς"), (("αι",), "αἵ", "ὅς"), (("οι",), "οἵ", "ὅς"),
+    # Wrong answers of the 1.3.30 corpus generation (#159), each a form of
+    # the second verb by its stem: ὑποσχεθείς is the aorist passive of
+    # ὑπισχνέομαι, παραδεχθείς of παραδέχομαι, ἀναρρηθείς of ἀνεῖπον and
+    # στοιχηθείς of στοιχέω; ἁπλοῦντες is ἁπλόω; εἰρηνεύσας εἰρηνεύω;
+    # ἐγχρώσας ἐγχρώννυμι; περιχώσας and συγχῶσαι have the -ωσ- of περιχόω
+    # and συγχόω (χέω has ἔχεα); ἐνιζήσας is ἐνιζάνω, συρράξας συρράσσω,
+    # ἐπιρρίψας ἐπιρρίπτω, ἐπαφείς ἐπαφίημι, φλοίουσα φλοίω; καταλείψας
+    # and ἀπολείψας are the late sigmatic aorist of καταλείπω and ἀπολείπω,
+    # παραλειφθείς the aorist passive of παραλείπω; καλλιώτερος is the late
+    # comparative of καλός, θάτερος the crasis of ὁ ἕτερος, δάκτυλα the
+    # plural of δάκτυλος (δάχτυλο is the Modern word), πορπατοῦσι the
+    # vernacular περιπατοῦσι, and απήρασιν the vernacular third plural of
+    # the aorist of ἀπαίρω (ἀπῆραν).
+    (("υποσχεθ",), "ὑπέχω", "ὑπισχνέομαι"),
+    (("παραδεχθ",), "παραδείκνυμι", "παραδέχομαι"),
+    (("αναρρηθ",), "ἀναιρέω", "ἀνεῖπον"),
+    (("στοιχηθ",), "στοιχίζω", "στοιχέω"),
+    (("απλουντ", "απλουσ"), "ἀπολόω", "ἁπλόω"),
+    (("ειρηνευσ",), "εἰρηνέω", "εἰρηνεύω"),
+    (("εγχρωσ",), "ἐγχράω", "ἐγχρώννυμι"),
+    (("περιχωσ",), "περιχέω", "περιχόω"),
+    (("συγχωσ",), "συγχέω", "συγχόω"),
+    (("ενιζησ",), "ἐνζάω", "ἐνιζάνω"),
+    (("συρραξ",), "συναράσσω", "συρράσσω"),
+    (("επιρριψ",), "ἐπιρριπτέω", "ἐπιρρίπτω"),
+    (("επαφεντ", "επαφεισ"), "ἐφάπτω", "ἐπαφίημι"),
+    (("φλοιουσ", "φλοιοντ"), "φλοιόω", "φλοίω"),
+    (("καταλειψ",), "καταλείβω", "καταλείπω"),
+    (("απολειψ",), "ἀπολείβω", "ἀπολείπω"),
+    (("παραλειφθ",), "παραλείφω", "παραλείπω"),
+    (("καλλιωτερ",), "κάλλιον", "καλός"),
+    (("θατερο",), "θατέρως", "ἕτερος"),
+    (("δακτυλ",), "δάχτυλο", "δάκτυλος"),
+    (("πορπατ",), "πορπάω", "περιπατέω"),
+    (("απηρασι",), "ἀπεράω", "ἀπαίρω"),
 )
 
 # The perfect of αἱρέω and its compounds has ᾑρη- (ἐξῄρηται, ἐξῃρημένον,
@@ -105,10 +154,11 @@ def respelled_lemma(form: str, lemma: str) -> str:
     unless one of the records above corrects it."""
     if lemma in REVIEWED_LEMMA_RESPELLINGS:
         return REVIEWED_LEMMA_RESPELLINGS[lemma]
-    if "\u0345" in lemma:
+    if "\u0345" in lemma and len(_letters(lemma)) > 2:
         # An iota subscript under ε, which no Greek word has, is the crasis
         # ᾀ of κᾀγώ or κᾀπειτα read back onto the word: ἐͅγώ is ἐγώ (#159).
-        # A precomposed ᾳ, ῃ or ῳ has no separate U+0345 in NFC.
+        # A precomposed ᾳ, ῃ or ῳ has no separate U+0345 in NFC. The bare
+        # artefact ἐͅ (κᾀν, ᾐ) is no word either way and stays as it is.
         lemma = _without_epsilon_subscript(lemma)
     if lemma in _STEM_READING_LEMMAS:
         letters = _letters(form)
