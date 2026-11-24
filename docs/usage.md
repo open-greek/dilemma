@@ -449,6 +449,29 @@ vowel (`εἰκόνισεν` is not `ἐκόνισεν` of `κονίω`). `εἰ
 the Modern Greek `εικονίζω`, because no source lists the Ancient aorist of
 `εἰκονίζω`.
 
+An oblique active participle with no row of its own (`-οντ-`, `-ουντ-`,
+`-ωντ-`, `-αντ-`, `-εντ-`, `-υντ-`, `-οτ-` and the feminines) is read last,
+after the normalizer, the compound and prefix fallbacks, through its masculine
+nominative (`-ων`, `-ῶν`, `-ας`, `-είς`, `-ύς`, `-ώς`) with each accent it
+can take: `Συμπτύσσοντες` gives `συμπτύσσω` through `συμπτύσσων`, with
+`via="active_participle"` (#157). The nominative must be an Ancient lookup
+key that reads a verb's citation form a lexicon heads. When two nominatives
+read different verbs, or the form may be a misaccent of a nominative that
+reads another word, there is no answer (`παροῦντα`, beside `παρῶν` of
+`παρόω` and `παρών` of `πάρειμι`).
+
+A word with the second accent a following enclitic adds, whose lookup keys
+read nothing or something that is no Ancient headword, reads the rows of its
+spelling without that accent when they give an Ancient headword (a head of
+LSJ, the other lexica or the word lists): `ἐφαπτόμενοί` gives `ἐφάπτω`
+through `ἐφαπτόμενοι`, not the Modern `εφάπτομαι` of its accent-stripped key,
+and `Ἡσίοδός` gives `Ἡσίοδος` (#157). A headword its keys do give keeps its
+place (`ταῦτόν` stays `ταὐτός`). When the keys give nothing, a row that reads
+the spelling without the accent as itself counts only for a nominative in
+`-ος` (`πολυστέφανός` gives `πολυστέφανος`): the word lists head some
+inflected forms as cross-references, so `ἐκφῦναί` goes on to the later steps
+and gives `ἐκφύω`.
+
 Non-Greek and NON-LEXICAL tokens (see `classify_nonlexical`) still pass through
 unchanged: those are classifications, not lemma guesses. For a per-candidate
 confidence signal, use `lemmatize_verbose()` - each candidate's `score` (1.0
@@ -779,7 +802,11 @@ under another citation form (`πᾶσι` PRON stays `πᾶς` against a cell's
 `πᾶν`, `οἷα` CCONJ `οἷος`). A form with no entry for the tag still follows
 the lookup (`αἶ` INTJ gives `αἶα`; its SCONJ and PART cells are reviewed
 additions in `data/pos_cell_corrections.json`).
-Under PROPN a lookup reading answers as its capitalized twin. When the row
+Under PROPN a lookup reading answers as its capitalized twin, except for the
+ordinal adjectives from `πρῶτος` to `δωδέκατος`, `ἔννατος` and `εἰκοστός`:
+capitalized and tagged PROPN, as a heading or the first word of a sentence
+often is (`Ἕβδομον`, `Δέκατον`), they keep the ordinal, not the rare name of
+their spelling (#157). When the row
 reads a verb, that twin is a name that only shares the verb's citation
 spelling, and a PROPN entry under the form's own spelling that names a
 capitalized lemma outranks it: `φάων` PROPN gives `Φάων` (not the `Φάω` of
@@ -944,7 +971,7 @@ tags one Ancient lemma carries across tagsets.
 The Modern Greek entries carry no SCONJ tag, so an SCONJ request reads the
 Modern CCONJ entry when the Ancient POS tables record no CCONJ entry for the
 form (`νὰ` SCONJ gives `να`, not `νή`; `σὰν` SCONJ gives `σαν`). Ancient
-conjunctions keep their Ancient entries (`ἐπειδὴ` SCONJ gives `ἐπεί`).
+conjunctions keep their Ancient entries (`ἐπειδὴ` SCONJ gives `ἐπειδή`).
 
 In every other case the lookup candidates decide, as they do for all polytonic
 input in 1.3.23: the same word in monotonic spelling gives the Ancient
@@ -1032,7 +1059,21 @@ and rejected source claims still protect against conflicting projections.
 Explicit Ancient Greek POS calls also reject those documented unsupported
 targets if an older POS table or the ordinary lookup offers them as a fallback.
 This applies equally to scalar and batch calls; it does not change untyped
-`lemmatize()` or Modern Greek behavior. The rejection audit must match the
+`lemmatize()` or Modern Greek behavior. When the rejection leaves a word with
+no answer at all, and the rejected untagged answer is the one headword of
+an edited dictionary (LSJ, the DGE, Cunliffe, the LBG) written with other
+marks (breathing, accent, diaeresis or iota subscript), that headword stands:
+`ἴσταται` VERB, whose untagged answer is the rejected `ἴστημι`, gives
+`ἵστημι` instead of nothing, and `Θράκῃ` PROPN gives `Θρᾴκη` (#157). A
+rejected answer that spells no such headword, or two, stays vetoed, as most
+of them are artefacts of corpus rows (`ἔχόντων` untagged gives `ἔχοω`, and
+VERB nothing). So does one that spells a headword with no row of its own
+(`ὀδόντ` untagged gives `ὁδοντ`), or whose own rows read another word, a
+form the dictionary heads as a cross-reference (`ἱστήκει` untagged gives
+`ἵτω`, which spells `ἴτω`, a form of `εἶμι`; VERB gives nothing), and one
+accented on other letters than the headword, which is another word
+(`ταύτῃσιν` untagged gives `ταῦτος`, not `ταὐτός`).
+The rejection audit must match the
 exact `grc_lexical_heads.json` bytes. Missing or mismatched evidence raises a
 data-mismatch error rather than trusting an unbound rejection list. Refresh
 both files with `python -m dilemma download --no-tagger` (use `--dir PATH`
@@ -1316,6 +1357,27 @@ vowel, marking the elision with an apostrophe (U+0313 in polytonic
 encoding, U+1FBD/U+02B9/U+02BC/U+1FBF/U+2019/ASCII `'`/U+0060 in other
 encodings). All of these resolve identically: the lemma never depends on
 which apostrophe codepoint the source text used.
+
+Some editions and their OCR print the apostrophe as a spacing acute
+(U+00B4, or the Greek oxia U+1FFD), chiefly `δι´` and `Δι´` in the
+Patrologia Graeca, and less often as the Greek tonos (U+0384) or a prime
+(U+2032): `δι΄`, `παρ΄`. A final acute, tonos or prime after an elided Greek
+word is read as the elision mark, in every entry point and in the
+`attested_only` gate: `δι´` and `δι΄` give `διά` (ADP) and `ἀλλ´` gives
+`ἀλλά` (#157). The POS tables key an elided form under ’ or under ᾽, and a
+cell under either mark counts as the form's own (`εἶθ´` ADV gives `εἶτα`).
+An elided word with a breathing or an accent ends in a consonant, so after
+a final vowel or `ς` in such a word the mark is a stray and is dropped
+(`ἀλλὰ´` is `ἀλλὰ`, `ἵνα´` `ἵνα`). A word with neither is read as elided
+only when it is one of the elided words written so (`δι`, `παρ`, `μετ`,
+`μεθ`, `κατ`, `καθ`, `μηδ`, `ποτ`, `ποθ`, `αλλ`); other letters with the
+mark are a numeral and keep their spelling: `ιβ´`, `ιστ΄`, `κα΄` and the
+numerals that tables print in any order of their letters (`δε´`, `βφ΄`).
+One letter keeps its spelling too (`ε´`, `β´`, `δ΄`, `Ὄ΄`), except `δ` or
+`τ` with the acute, which are read as elided (`δέ` and `τε` are far commoner
+than 4 and 300). Tagged NUM, these and the numerals the OCR gave a breathing
+or an accent (`ἰδ´`, `ῖη΄`, and `ἐο´`, 75, in either order of its letters)
+stay the numeral: the token, or `None` with `guess=False`.
 
 **Exact elided entries first:** the lookup table stores corpus-derived
 lemmas for elided forms under one canonical key (U+1FBD), and these win

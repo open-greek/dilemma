@@ -697,7 +697,10 @@ when one of them changes.
 `build_lookup_db.py` declines a listed lemma when it is a self-mapped head,
 its stem has at least four letters, and no dictionary table
 (`wiktionary_grc`, `grc_merged`, `grc_lexicon_expansion`, `lbg_generated`)
-gives its genitive singular in `-ου`. Three reviewed heads are not declined
+gives its genitive singular in `-ου` with its nominative plural in `-οι`. A
+genitive alone is no table: a Wiktionary page restored beside the head can
+give the singular and nothing else, and then the plural cells come from here
+(`ἀγχίαλοι`, `ἀγχιάλοις`, `ἀξύλοις`; #147). Three reviewed heads are not declined
 (`NOT_DECLINED`): the Byzantine headwords `μεγάλος`, `τοσαῦτος` and
 `μισοτοιοῦτος`, whose cells are forms of `μέγας`, of `τοσοῦτος` and of a
 compound of `τοιοῦτος` (`μεγάλον` read `μέγας` before and still does). The
@@ -1064,6 +1067,14 @@ seven reviewed ones are listed in `dilemma/grc_rejected_lemmas.py` under the
 reason `corpus_lemmatizer_artifact`. Three reviewed tables in
 `build_lookup_db.py` go with them:
 
+- `dilemma/grc_reviewed_respellings.py`. Lemma spellings that some rows give
+  and that LSJ spells otherwise (`λήμπω`, built from the Koine `λημφθεῖσα`,
+  is `λαμβάνω`; `ὀρθοπνοικός` is LSJ's `ὀρθοπνοϊκός`), and the readings of a few letter
+  sequences that GLAUx gives to a verb of close spelling (`πλαττ-` to
+  `πλήσσω` for `πλάσσω`, and to the compounds of `πλήσσω` for those of
+  `πλάσσω`, as `καταπλάττειν`; `διηρ-` to `διερέω` for `διαιρέω`). The lookup
+  build rewrites every such reading of the combined and the Ancient table,
+  and the treebank POS build every such cell, so the two agree (#157).
 - `REVIEWED_ABSENT_KEY_READINGS`. A reviewed override changes only a key the
   tables hold. Rejecting a lemma can leave a form with no reading at all, so
   the forms of the seven artefacts are listed here with their real lemma

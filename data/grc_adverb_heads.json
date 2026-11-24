@@ -4,14 +4,14 @@
 "inputs": {
 "ag_pos_lookup.json": "d9ae633bafe88fc3f4b38a0aa9f1e639754a3ce7d5ed7877196ae2bc24b7dfa9",
 "lsj9_pos_lookup.json": "a0219dffa55bb43d3a797a08895d87db09d9446ee6aaa6551190f423792abe31",
-"treebank_pos_lookup.json": "5428cb6ddc861b1cc9f345dee1115b9985739dce6f4ca5789b1cae5461c01634",
+"treebank_pos_lookup.json": "36807a8ba1935ff1a634fbd811d8197c8b3278811781656db290a387140df1fb",
 "glaux_pos_lookup.json": "9b07318bbddccec9866b15833585606077a966a785b2e1aa787027d2ae081b49",
 "ag_headwords.json": "e33ab11ff0ac9a1098d69809ab26bc715ef50f6a81706a4397b3e5a4ccfc3e69",
 "lsj_headwords.json": "b0686ceecf689d754a7b3f8d10c77a7bc1a482edf07f025926ba37f65046cb9a",
 "lsj10_headwords.json": "d90d63d5dac12e58172df86147ddcb29f3c57298209384da7ef1e3f87551fafa",
 "dge_headwords.json": "8159190c95c046b7f6a2f0f1492b113d1360a026357133671b3c16d3b54e6f66",
 "cunliffe_headwords.json": "7b4ddc2d7ba135bbf45a99544492f472c1c78a048be27b02bc6e7ed4dd04233e",
-"lookup.db": "16b9bea841269cf10ae287c4ffdb98e62ff10ee627d87725e0a4c7f3565a44b9",
+"lookup.db": "952b9290572f35f73739496a0cfaa1e14ee7c5ab7ec9046276e08022ea815352",
 "grc_adverb_review.json": "dcef4bc10a110d9cdc21d048e037e8ba6130a36218c7083665ab449a0c03cb77"
 },
 "evidence": {

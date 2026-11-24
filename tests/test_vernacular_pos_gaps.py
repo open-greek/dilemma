@@ -204,8 +204,9 @@ def shipped_models():
     ("wiktionary", ["νὰ", "νὰ", "νὰ", "σὰν", "σὰν", "σὰ", "ὄντας"],
      ["SCONJ", "PART", "CCONJ", "SCONJ", "CCONJ", "SCONJ", "SCONJ"],
      ["να", "να", "να", "σαν", "σαν", "σα", "είμαι"]),
-    # Ancient conjunctions keep their Ancient entries.
-    ("wiktionary", ["ἐπειδὴ", "ὅτι"], ["SCONJ", "SCONJ"], ["ἐπεί", "ὅτι"]),
+    # Ancient conjunctions keep their Ancient entries (ἐπειδή is its own
+    # LSJ head, #157).
+    ("wiktionary", ["ἐπειδὴ", "ὅτι"], ["SCONJ", "SCONJ"], ["ἐπειδή", "ὅτι"]),
     # #121
     ("wiktionary", ["στὸ", "στὸν", "στὴν", "στὰ", "στοὺς", "στῆς"],
      ["DET"] * 6, ["ο"] * 6),

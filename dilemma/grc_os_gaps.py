@@ -307,6 +307,13 @@ def genitive_singular(lemma: str) -> str | None:
     return cells[0][0] if cells else None
 
 
+def nominative_plural(lemma: str) -> str | None:
+    """The word's nominative plural in -οι, which a table that declines
+    the word gives beside the genitive singular."""
+    return next((form for form, cell in os_cells(lemma, "noun")
+                 if cell == "nominative/vocative plural"), None)
+
+
 def is_name_twin(reading: str | None, lemma: str) -> bool:
     """Whether ``reading`` is the capitalized spelling of ``lemma``: the
     name a lowercase headword's key reads as (ἐπάρατος, Ἐπάρατος)."""
@@ -334,9 +341,12 @@ def select_os_lemmas(
     itself in ``lookup`` (or to the name of the same spelling, which keeps
     its key: ``reads_itself``), has the breathing its first letter needs and no
     other, has a stem of at least ``MIN_STEM_LETTERS`` letters, is not one
-    of the reviewed ``NOT_DECLINED``, and no table gives its genitive
-    singular in -ου: a table that gives the genitive declines the word
-    already, and its gaps are its own business.
+    of the reviewed ``NOT_DECLINED``, and no table gives both its genitive
+    singular in -ου and its nominative plural in -οι: a table that gives
+    them declines the word already, and its gaps are its own business. A
+    genitive alone is no table: a Wiktionary page restored beside the
+    headword can give the singular and nothing else (ἀγχιάλου, ἀξύλου),
+    and the word's plural cells then had no source (#147).
 
     ``source_of`` gives a key's lookup source code. With it, only a genitive
     from a ``DECLINING_SOURCES`` row counts as a table's: a corpus pair or a
@@ -356,7 +366,8 @@ def select_os_lemmas(
             continue
         if lookup.get(genitive) == lemma and (
                 source_of is None
-                or source_of(genitive) in DECLINING_SOURCES | {None}):
+                or source_of(genitive) in DECLINING_SOURCES | {None}) and (
+                lookup.get(nominative_plural(lemma)) == lemma):
             continue
         selected[lemma] = listed[lemma]
     return selected

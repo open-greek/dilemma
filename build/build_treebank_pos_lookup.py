@@ -39,6 +39,7 @@ if str(ROOT) not in sys.path:
 from dilemma.citation import hyphenated_lemma
 from dilemma.form_sanitize import is_capitalized
 from dilemma.grammatical_lemmas import correct_grammatical_lemma
+from dilemma.grc_reviewed_respellings import respelled_lemma
 from dilemma.preverb_lemma import heads_by_accent_fold, preverb_lemma_head
 
 TREEBANKS_DIR = Path(__file__).parent.parent / "data" / "treebanks"
@@ -949,6 +950,10 @@ def build_lookup():
         for upos in ("VERB", "AUX"):
             if upos in readings:
                 readings[upos] = correct_grammatical_lemma(form, readings[upos])
+        # Lemmas LSJ spells otherwise, as build_lookup_db.py respells them.
+        for upos, lemma in readings.items():
+            if isinstance(lemma, str):
+                readings[upos] = respelled_lemma(form, lemma)
 
     # Sort for stable output
     lookup = dict(sorted(lookup.items()))
