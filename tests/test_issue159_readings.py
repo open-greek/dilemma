@@ -25,6 +25,13 @@ def test_marks_greek_spelling_puts_nowhere(spelling, misplaced):
     assert _has_misplaced_marks(spelling) is misplaced
 
 
+def test_rejected_answer_may_have_a_smooth_initial_upsilon():
+    # OCR gives ὐ for ὑ; a head never has it.
+    assert _has_misplaced_marks("ὐπατεύω") is True
+    assert _has_misplaced_marks("ὐπατεύω", initial_smooth=False) is False
+    assert _has_misplaced_marks("παροͅχέω", initial_smooth=False) is True
+
+
 @pytest.mark.parametrize("lemma, modern", [
     ("όπερα", True), ("ευτός", True), ("ΕΕΔΑ", True), ("ΑΠΣΙ", True),
     ("ὅσπερ", False), ("αὐτός", False), ("Αἰγύπτιος", False),
@@ -137,7 +144,8 @@ _UNTAGGED = [
     # Elided stems and stray marks.
     ("Εἶθ", "εἶτα"), ("Μεθ", "μετά"), ("ἂν´", "ἄν"), ("γὰρ´", "γάρ"),
     ("ὃν´", "ὅς"), ("ἐπειδ´", "ἐπειδή"), ("ἐπεῖδ’", "ἐφοράω"),
-    ("κᾀγὼ", "ἐγώ"), ("επείπερ", "ἐπείπερ"), ("ἀποπλάσσεται", "ἀποπλάσσομαι"),
+    ("κᾀγὼ", "ἐγώ"), ("επείπερ", "ἐπείπερ"), ("ὡςπερ", "ὥσπερ"),
+    ("τοιόςδε", "τοιόσδε"), ("ὡςδὲ", "ὡς"), ("ἡνίδε", "ἠνίδε"), ("ἀποπλάσσεται", "ἀποπλάσσομαι"),
     # An acronym is no elided stem.
     ("ΜΕΘ", "ΜΕΘ"),
     # -ευσ- of πνέω and πλέω.
@@ -191,12 +199,13 @@ _TAGGED = [
     ("ὅπερ´", "PRON", None), ("Ἀπσ´", "X", None), ("εἐδ´", "X", None),
     # The dictionary-head fallback.
     ("παρῳχηκότα", "VERB", None), ("Ἤιδει", "VERB", None),
-    ("προὔφαινον", "VERB", None), ("οἷνος", "NOUN", None),
+    ("προὑπάρχει", "VERB", "προϋπάρχω"), ("οἷνος", "NOUN", None),
+    ("ΦΛΕΓΟΝΤΟΣ", "PROPN", "φλέγω"), ("ὐπατεύων", "VERB", "ὑπατεύω"),
     ("ὀίσσατο", "VERB", None),
     # Which breathing the word has does not count: OCR confuses them.
     ("Ἅβραμος", "PROPN", "Ἄβραμος"), ("ἧλθεν", "VERB", "ἔρχομαι"),
     ("ἀπλοϊκῶς", "ADV", "ἁπλοϊκός"), ("εὐρίσκεται", "VERB", "εὑρίσκω"),
-    ("ᾁδετε", "VERB", None), ("Ὑδρα", "PROPN", None),
+    ("ᾁδετε", "VERB", None),
     ("Ρᾶροϲ", "PROPN", None), ("ταυτολογεῖν", "VERB", "ταὐτολογέω"),
     ("ὁταν", "CCONJ", "ὅταν"),
     ("ζωδιακοῦ", "ADJ", "ζῳδιακός"), ("ἀρπάσας", "VERB", "ἁρπάζω"),

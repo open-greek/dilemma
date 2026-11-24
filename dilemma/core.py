@@ -370,7 +370,7 @@ def _marked_letters(spelling: str, marks: str) -> tuple:
                  if own & set(marks))
 
 
-def _has_misplaced_marks(spelling: str) -> bool:
+def _has_misplaced_marks(spelling: str, initial_smooth: bool = True) -> bool:
     """Whether *spelling* has a mark where Greek spelling puts none (#159).
 
     An iota subscript stands only under α, η and ω: ο with a subscript is
@@ -378,7 +378,9 @@ def _has_misplaced_marks(spelling: str) -> bool:
     with one the ᾀ of a crasis (ἐͅ for κᾀν), not a headword written with
     other marks. One on ι or υ is a stray of the encoding (εὐρίͅσκω for
     εὑρίσκω) and does not count. A breathing is never smooth on an initial
-    ρ or υ (the head Ρ̓ᾶρος). A breathing on a later letter, a coronis,
+    ρ or υ (the head Ρ̓ᾶρος); with *initial_smooth* false that does not
+    count either, as for a rejected answer that OCR gave the wrong
+    breathing (ὐπατεύω for ὐπατεύων is ὑπατεύω). A breathing on a later letter, a coronis,
     does count: the crasis heads of LSJ are words of their own (ταυτολογεῖν
     ταὐτολογέω, Ταὐτὸν ταὐτός), and keeping them out removed 26 tagged
     answers of the corpus annotations, of which five were wrong (χωμοὺς
@@ -387,7 +389,8 @@ def _has_misplaced_marks(spelling: str) -> bool:
     for index, (letter, marks) in enumerate(_letter_marks(spelling)):
         if "\u0345" in marks and letter not in "αηωιυ":
             return True
-        if index == 0 and letter in "ρυ" and "\u0313" in marks:
+        if (initial_smooth and index == 0 and letter in "ρυ"
+                and "\u0313" in marks):
             return True
     return False
 
@@ -4306,14 +4309,16 @@ class Dilemma:
                          letters, ())
                      if strip_accents(head).endswith(
                          tuple(strip_accents(s) for s in _PARTICLE_SUFFIXES))]
-            if len(heads) > 1:
-                # Several spellings of the letters (ὥσπερ, ὤσπερ): the one
-                # with the word's breathing (ὡςπερ ὥσπερ).
-                def breathings(spelling):
-                    return [(index, marks & {"\u0313", "\u0314"})
-                            for index, (_, marks)
-                            in enumerate(_letter_marks(spelling))
-                            if marks & {"\u0313", "\u0314"}]
+            def breathings(spelling):
+                return [(index, marks & {"\u0313", "\u0314"})
+                        for index, (_, marks)
+                        in enumerate(_letter_marks(spelling))
+                        if marks & {"\u0313", "\u0314"}]
+            if breathings(lower) and (len(heads) > 1 or "ς" in lower[:-1]):
+                # Of several heads, or for a word with a final sigma inside,
+                # the one with the word's breathing: ὡςπερ is ὥσπερ, not
+                # ὤσπερ, and ὡςδὲ, two words, is not ὦσδε (ἡνίδε is still
+                # ἠνίδε).
                 heads = [head for head in heads
                          if breathings(head) == breathings(lower)]
             if len(heads) == 1:
@@ -5139,17 +5144,14 @@ class Dilemma:
         return self.lang == "grc" or (self.lang == "all" and polytonic)
 
     def _pos_rejections(self, word: str, upos: str | None) -> frozenset[str]:
-        """Bind the source-target veto for explicit Ancient Greek POS calls,
-        and veto for a noun or a name the verb that only the participle
-        resolver reads (#159): γέλωντος NOUN is no form of γελάω, nor
-        Μάνεντος PROPN of μαίνομαι."""
-        rejected = self._bound_pos_rejections(word, upos)
-        if upos in ("NOUN", "PROPN") and self.lang != "el" \
-                and isinstance(word, str):
-            participle = self._participle_only_reading(word)
-            if participle:
-                return rejected | {grave_to_acute(participle)}
-        return rejected
+        """Bind the source-target veto for explicit Ancient Greek POS calls.
+
+        A noun or name tag does not veto the verb that only the participle
+        resolver reads (#159): the tagger calls many participles PROPN,
+        capitalized or in capitals (ΦΛΕΓΟΝΤΟΣ φλέγω), and such a veto
+        removed 629 answers of the corpus annotations' token and tag pairs,
+        nearly all of them right."""
+        return self._bound_pos_rejections(word, upos)
 
     def _participle_only_reading(self, word: str) -> str | None:
         """The lemma the participle resolver reads for *word* when the
@@ -6757,13 +6759,14 @@ class Dilemma:
 
         The marks must also be the same letters' (#159). A lemma or a head
         with a mark where Greek spelling puts none (_has_misplaced_marks:
-        παροͅχέω, the head Ρ̓ᾶρος, the crasis χὠμός) is no answer. A
-        breathing on another letter than the head's is another syllable
-        (ἀιδέω for Ἤιδει is not αἰδέω, ὀίζω not οἴζω). Given the *word*,
+        παροͅχέω, the head Ρ̓ᾶρος) is no answer; a coronis is no such mark,
+        as LSJ heads crasis words (ταὐτολογέω). A first breathing on another
+        letter than the head's is another syllable (ἀιδέω for Ἤιδει is not
+        αἰδέω, ὀίζω not οἴζω). Given the *word*,
         the head's breathing must stand on the letter where the word has
-        its own (οἷνος is not ὄνος), and a diaeresis may not stand where
-        the word has a breathing (προὔφαινον, a crasis, is not προϋφαίνω).
-        Which breathing the word has does not count: OCR and editions
+        its own (οἷνος is not ὄνος); a diaeresis of the head may stand
+        where the word has a breathing (προὑπάρχει προϋπάρχω). Which
+        breathing the word has does not count: OCR and editions
         confuse them (Ἅβραμος Ἄβραμος, ἧλθεν ἔρχομαι, ἀπλοϊκῶς
         ἁπλοϊκός): a check of it removed 117 answers of the corpus
         annotations' token and tag pairs, of which 18 were wrong (Ἁγίαν
@@ -6772,7 +6775,7 @@ class Dilemma:
         if not isinstance(lemma, str) or not lemma or self.lang == "el":
             return None
         lemma = unicodedata.normalize("NFC", lemma)
-        if _has_misplaced_marks(lemma):
+        if _has_misplaced_marks(lemma, initial_smooth=False):
             return None
         heads = self._dictionary_heads_by_letters().get(
             _bare_letters(lemma), ())
@@ -6806,11 +6809,6 @@ class Dilemma:
         answer *lemma* (see _headword_of_variant)."""
         units = _letter_marks(word)
         head_units = _letter_marks(head)
-        for (letter, marks), (head_letter, head_marks) in zip(units, head_units):
-            if letter != head_letter:
-                break
-            if marks & {"\u0313", "\u0314"} and "\u0308" in head_marks:
-                return False
         # A crasis (κᾀγώ) has its mark after a consonant: no evidence.
         marked = [index for index, (letter, marks) in enumerate(units[:2])
                   if marks & {"\u0313", "\u0314"}]
