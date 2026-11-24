@@ -193,21 +193,20 @@ def test_the_enclitic_step_needs_a_reading_that_is_no_headword(model_from):
     assert step("Ἡσίοδός") == "Ἡσίοδος"
     # The cascade reads a headword, which keeps its place.
     assert step("προεπίστασθαί") == "προεπίσταμαι"
-    # The cascade finds nothing: the word goes on to the later steps, and
-    # the own rows come last (#159). They stand when they read another
+    # The cascade finds nothing: the own rows stand when they read another
     # spelling, or the bare spelling itself only when it is a nominative in
-    # -ος (ἐκφῦναι is an inflected form LSJ heads as a cross-reference).
+    # -ος (ἐκφῦναι is an inflected form LSJ heads as a cross-reference),
+    # in the step and in the late step (#159).
     late = model._enclitic_fallback_reading
-    for word in ("βακχεύεσθαί", "πολυστέφανός", "ἐκφῦναί"):
-        assert step(word) is None
+    assert step("βακχεύεσθαί") == "βακχεύω"
+    assert step("πολυστέφανός") == "πολυστέφανος"
+    assert step("ἐκφῦναί") is None
     assert late("βακχεύεσθαί") == "βακχεύω"
     assert late("πολυστέφανός") == "πολυστέφανος"
     assert late("ἐκφῦναί") is None
     assert plain(model, "βακχεύεσθαί") == "βακχεύω"
-    # The cascade reads nothing for ῥᾷόν: the own rows of ῥᾷον stand, in
-    # the late step.
-    assert step("ῥᾷόν") is None
-    assert late("ῥᾷόν") == "ῥᾴδιος"
+    # The cascade reads nothing for ῥᾷόν: the own rows of ῥᾷον stand.
+    assert step("ῥᾷόν") == "ῥᾴδιος"
 
 
 @pytest.mark.parametrize("word", ["συμπτύσσοντες", "Συμπτύσσοντες",

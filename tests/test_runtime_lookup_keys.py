@@ -200,10 +200,12 @@ def test_lowercase_word_keeps_a_modern_lexical_head_under_all(model_from):
 def test_shipped_lowercase_word_reads_no_modern_name(shipped_models):
     model = shipped_models["grc"]
     # Rows of the surnames Αγγελούδης, Ατσάλης and Αεράκης and of the
-    # abbreviations Οτ and ΕΙΠ.
-    forms = ["ἀγγελοῦδι", "ἀτσάλι", "ἀεράκι", "ὅτ", "εἴπ"]
-    assert model.lemmatize_batch(forms, guess=False) == [None] * 5
-    assert [model.lemmatize(f, guess=False) for f in forms] == [None] * 5
+    # abbreviation ΕΙΠ.
+    forms = ["ἀγγελοῦδι", "ἀτσάλι", "ἀεράκι", "εἴπ"]
+    assert model.lemmatize_batch(forms, guess=False) == [None] * 4
+    assert [model.lemmatize(f, guess=False) for f in forms] == [None] * 4
+    # ὅτ, not the abbreviation Οτ, is ὅτε with its elision mark lost (#159).
+    assert model.lemmatize("ὅτ", guess=False) == "ὅτε"
     assert model.lemmatize_pos("ἀγγελοῦδι", "NOUN", guess=False) is None
     assert model.lemmatize_verbose("εἴπ", guess=False) == []
     # A capitalized form keeps the name; a later reading can now answer.

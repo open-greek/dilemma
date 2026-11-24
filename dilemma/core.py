@@ -373,29 +373,22 @@ def _marked_letters(spelling: str, marks: str) -> tuple:
 def _has_misplaced_marks(spelling: str) -> bool:
     """Whether *spelling* has a mark where Greek spelling puts none (#159).
 
-    An iota subscript stands only under α, η and ω (one on ι or υ is a
-    stray of the encoding, as in εὐρίͅσκω for εὑρίσκω, and does not
-    count); a breathing only on
-    the first letter, or on the second vowel of a diphthong that opens the
-    word (αἰ, οὐ), and never smooth on an initial ρ or υ. A breathing on a
-    later letter is a coronis, the mark of a crasis (χὠμός), and
-    ο with a subscript is the ῳ of an augmented οι read back as ο
-    (παροͅχέω for παρῴχηκα), not a headword written with other marks.
+    An iota subscript stands only under α, η and ω: ο with a subscript is
+    the ῳ of an augmented οι read back as ο (παροͅχέω for παρῴχηκα), and ε
+    with one the ᾀ of a crasis (ἐͅ for κᾀν), not a headword written with
+    other marks. One on ι or υ is a stray of the encoding (εὐρίͅσκω for
+    εὑρίσκω) and does not count. A breathing is never smooth on an initial
+    ρ or υ (the head Ρ̓ᾶρος). A breathing on a later letter, a coronis,
+    does count: the crasis heads of LSJ are words of their own (ταυτολογεῖν
+    ταὐτολογέω, Ταὐτὸν ταὐτός), and keeping them out removed 26 tagged
+    answers of the corpus annotations, of which five were wrong (χωμοὺς
+    χὠμός, χὡς χῶς).
     """
-    units = _letter_marks(spelling)
-    for index, (letter, marks) in enumerate(units):
+    for index, (letter, marks) in enumerate(_letter_marks(spelling)):
         if "\u0345" in marks and letter not in "αηωιυ":
             return True
-        if not marks & {"\u0313", "\u0314"}:
-            continue
-        if index == 0:
-            if letter in "ρυ" and "\u0313" in marks:
-                return True
-            continue
-        if (index == 1 and units[0][0] + letter in _BREATHING_DIPHTHONGS
-                and not units[0][1]):
-            continue
-        return True
+        if index == 0 and letter in "ρυ" and "\u0313" in marks:
+            return True
     return False
 
 
@@ -2969,13 +2962,14 @@ class Dilemma:
         Ἔνετος), which the lowercase rows of the bare spelling would turn
         into another word (σώνω, ἔμετος).
 
-        When the cascade finds nothing, the word goes on to the later
-        steps, and the rows without the second accent come only after the
-        normalizers, the compounds and the prefixes
-        (_enclitic_fallback_reading): the rows of a bare spelling include
-        expansion and corpus rows of other words, while the later steps
-        read what 1.3.29 read (ὑπόποδός ὑπόπους, not the cross-reference
-        ὑπόποδος), and ὅτιπέρ reads LSJ's head ὅτιπερ, not ὅ.
+        When the cascade finds nothing, the own rows of the bare spelling
+        stand if they read an Ancient headword, as in 1.3.30 (ἡρμήνευσέ
+        ἑρμηνεύω, ἥττηταί ἡσσάομαι, ἐλεοῦντός ἐλεέω), read as the late
+        step reads them (_enclitic_answer): the later steps, which 1.3.31
+        first tried before them, gave 72 corpus forms another answer or
+        none, about four in five of them worse (ἥττηταί αἰτέω, ἐλεοῦντός
+        Ἐλαιοῦς). A bare spelling without such rows goes on to the later
+        steps, and its normalizers come last (_enclitic_fallback_reading).
         """
         lemma = self._lookup_cascade(word, prefer_modern=prefer_modern,
                                      step=step)
@@ -2985,9 +2979,15 @@ class Dilemma:
             # A row that reads a word with an enclitic's accent as itself
             # (Τιμῶσάν: Τιμῶσά) is no reading (#159).
             lemma = None
-        if (step not in (None, self._OWN_ROWS) or self.lang == "el"
-                or not lemma):
+        if step not in (None, self._OWN_ROWS) or self.lang == "el":
             return lemma
+        if not lemma:
+            bare = self._without_enclitic_accent(word)
+            if bare == word:
+                return lemma
+            own = self._enclitic_own_reading(bare, prefer_modern=prefer_modern,
+                                             late=True)
+            return self._enclitic_answer(word, bare, own) if own else None
         bare = self._without_enclitic_accent(word)
         if bare == word or self._is_ancient_headword(lemma):
             return lemma
@@ -3112,8 +3112,15 @@ class Dilemma:
         if (own_letters[:2] != bare_letters[:2]
                 and own_letters[:-2] not in bare_letters):
             return None
-        heads = self._dictionary_head_set()
-        if "ου" in bare_letters:
+        return self._enclitic_answer(word, bare, own)
+
+    def _enclitic_answer(self, word: str, bare: str, own: str) -> str:
+        """The reading *own* of *bare*, *word* without an enclitic's
+        accent, as the enclitic steps give it: the better attested spelling
+        of a contract verb (νοοῦντά νοέω), and for a capitalized word the
+        name an edited dictionary heads with the letters of a lowercase
+        reading (Ἐβίωνός Ἐβίων)."""
+        if "ου" in _bare_letters(bare).lower():
             own = self._better_attested_contract_twin(own)
         if is_capitalized(word) and not is_capitalized(own):
             names = [head for head in self._dictionary_heads_by_letters().get(
@@ -4289,12 +4296,26 @@ class Dilemma:
         # without its breathing or accent, is that word: επείπερ is
         # ἐπείπερ, not ἐπεί (#159). A final sigma inside the word is a
         # medial one (ὡςπερ is ὥσπερ, not ὡς).
-        if self.lang != "el":
-            medial = lower[:-1].replace("ς", "σ") + lower[-1:]
+        medial = lower[:-1].replace("ς", "σ") + lower[-1:]
+        letters = _bare_letters(medial)
+        if self.lang != "el" and any(
+                letters.endswith(strip_accents(suffix))
+                and len(letters) - len(strip_accents(suffix)) >= 2
+                for suffix in _PARTICLE_SUFFIXES):
             heads = [head for head in self._dictionary_heads_by_letters().get(
-                         _bare_letters(medial), ())
+                         letters, ())
                      if strip_accents(head).endswith(
                          tuple(strip_accents(s) for s in _PARTICLE_SUFFIXES))]
+            if len(heads) > 1:
+                # Several spellings of the letters (ὥσπερ, ὤσπερ): the one
+                # with the word's breathing (ὡςπερ ὥσπερ).
+                def breathings(spelling):
+                    return [(index, marks & {"\u0313", "\u0314"})
+                            for index, (_, marks)
+                            in enumerate(_letter_marks(spelling))
+                            if marks & {"\u0313", "\u0314"}]
+                heads = [head for head in heads
+                         if breathings(head) == breathings(lower)]
             if len(heads) == 1:
                 return heads[0]
 
@@ -5133,6 +5154,8 @@ class Dilemma:
     def _participle_only_reading(self, word: str) -> str | None:
         """The lemma the participle resolver reads for *word* when the
         lookup reads nothing, as the convention gives it."""
+        if getattr(self, "_lookup", None) is None:
+            return None
         cache = self.__dict__.setdefault("_participle_only_cache", {})
         if word in cache:
             return cache[word]
@@ -6669,11 +6692,13 @@ class Dilemma:
         A word with a breathing, a circumflex, a grave or an iota subscript
         is no Modern monotonic word, but its POS cells may come from the
         Modern tables and rows: ὅποτε PRON όποτε, ἕξης NOUN έξη, ἔννοιας
-        NOUN έγνοια. Its reading by the Ancient tables alone (lang="grc",
-        untagged) stands when that reading is Ancient and the tag allows
-        it (ὁπότε, ἑξῆς, ἔννοια), and otherwise the one Ancient headword
-        the Modern lemma spells with other marks (_headword_of_variant);
-        without either, the answer is kept.
+        NOUN έγνοια. Where the Modern lemma is the same word, written with
+        the same letters, the Ancient spelling stands: the reading by the
+        Ancient tables alone (lang="grc", untagged) when it has those
+        letters and the tag allows it (ὅποτε ὁπότε). Otherwise the answer
+        is left alone, since vernacular texts have Modern words written
+        polytonic (ὧρες ώρα, σεῖς εσείς, not the Ancient head ἐσεῖς), and
+        so is έξη for ἕξης.
         """
         if (self.lang != "all" or not isinstance(lemma, str) or not lemma
                 or not isinstance(word, str) or not word
@@ -6689,9 +6714,10 @@ class Dilemma:
             reading = self._ancient_model().lemmatize_batch(
                 [word], attested_only=attested_only, guess=False)[0]
             if (not reading or _is_modern_or_acronym(reading)
+                    or (_bare_letters(reading).lower()
+                        != _bare_letters(lemma).lower())
                     or self._checked_pos_result(word, upos, reading) is None):
-                reading = self._checked_pos_result(
-                    word, upos, self._headword_of_variant(lemma, word))
+                reading = None
             cache[key] = reading or lemma
         return cache[key]
 
@@ -6760,7 +6786,10 @@ class Dilemma:
             return None
         breathings = _marked_letters(lemma, "\u0313\u0314")
         head_breathings = _marked_letters(head, "\u0313\u0314")
-        if breathings and head_breathings and breathings != head_breathings:
+        if (breathings and head_breathings
+                and breathings[0] != head_breathings[0]):
+            # The first breathing (a stray one later in the word, as in
+            # ὁτἀν for ὁταν or ἐἀν for Ἐἀν, is no syllable of its own).
             return None
         if isinstance(word, str) and word and not self._word_breathing_allows(
                 unicodedata.normalize("NFC", word), lemma, head):
