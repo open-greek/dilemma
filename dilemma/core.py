@@ -697,8 +697,10 @@ _MG_ARTICLE_LEMMA = "ο"
 # Ancient Greek appends particles like -περ, -γε, -δε, and deictic -ι to
 # words without changing the lemma. Ordered longest-first for greedy match.
 _PARTICLE_SUFFIXES = ["περ", "γε", "δε"]
-# Endings of a noun or an adjective that no verb form a Byzantine normalizer
-# reads for the late enclitic step has (-ον is, without -ντον and -σον).
+# Endings of a noun or an adjective, for which the late enclitic step takes no
+# verb from the Byzantine normalizers (-ον too, but not -ντον and -σον). Some
+# participles end so as well; in the corpus the normalizers read them rarely
+# and mostly wrong.
 _NOMINAL_ENCLITIC_ENDINGS = ("ις", "ευς", "υς", "ος", "ης", "ην", "ιν")
 
 # Deictic -ι is only stripped from demonstrative pronoun stems.
