@@ -697,6 +697,9 @@ _MG_ARTICLE_LEMMA = "ο"
 # Ancient Greek appends particles like -περ, -γε, -δε, and deictic -ι to
 # words without changing the lemma. Ordered longest-first for greedy match.
 _PARTICLE_SUFFIXES = ["περ", "γε", "δε"]
+# Endings of a noun or an adjective that no verb form a Byzantine normalizer
+# reads for the late enclitic step has (-ον is, without -ντον and -σον).
+_NOMINAL_ENCLITIC_ENDINGS = ("ις", "ευς", "υς", "ος", "ης", "ην", "ιν")
 
 # Deictic -ι is only stripped from demonstrative pronoun stems.
 # These are accent-stripped stems of common demonstratives (οὗτος, ὅδε, etc.)
@@ -908,6 +911,12 @@ _APOSTROPHE_SHAPED_MARKS = ("\u00b4", "\u0384", "\u2032")
 # read as a word, unless it is tagged NUM (_is_marked_numeral).
 _UNMARKED_ELIDED_STEMS = frozenset((
     "δι", "παρ", "μετ", "μεθ", "κατ", "καθ", "μηδ", "ποτ", "ποθ", "αλλ"))
+# The stems of elided function words that end in a consonant no whole word
+# ends in, which OCR prints with a grave before the mark (ὰλλ´, ὲπ´, Ὢστ´).
+_GRAVE_ELIDED_STEMS = frozenset((
+    "αλλ", "επ", "εφ", "απ", "αφ", "υπ", "υφ", "κατ", "καθ", "μετ", "μεθ",
+    "αντ", "ανθ", "ωστ", "ωσθ", "ουδ", "μηδ", "ουτ", "ουθ", "μητ", "μηθ",
+    "ειτ", "ειθ", "επειτ", "επειθ"))
 _STEM_MARKS = ("\u0313", "\u0314", "\u0301", "\u0300", "\u0342")
 # The one-letter elided words that the acute marks more often than it marks
 # the numeral: δ´ is δέ and τ´ is τε far more often than 4 or 300. γ´, θ´,
@@ -929,7 +938,8 @@ def to_standard_elision(s: str) -> str:
     An elided word with a breathing or an accent ends in a consonant, so
     after a vowel or a final sigma in such a word the mark is a stray and is
     dropped (ἀλλὰ´ is ἀλλὰ, ἵνα´ ἵνα, οἱ´ οἱ), as it is after a word with a
-    grave, which an elided word never has (γὰρ´ is γὰρ). One letter is left as it is
+    grave (γὰρ´ is γὰρ), except after the stem of an elided function word,
+    whose grave is the OCR's (Ὢστ´ is Ὢστ’). One letter is left as it is
     (ε´, β´, Ὄ΄ and δ΄ are numerals), but δ and τ with the acute are δέ and
     τε. A word with no breathing and no accent is read as elided only when
     it is one of the elided words written so (δι, παρ, κατ, μηδ ...); other
@@ -965,6 +975,11 @@ def to_standard_elision(s: str) -> str:
     if "\u0300" in nfd:
         # A grave stands only on a whole word's last syllable, never before
         # an elision: the mark is a stray (ἂν´ ἄν, γὰρ´ γάρ, ὃν´ ὅς; #159).
+        # The stem of an elided function word is the exception, its grave
+        # the OCR's (Ὢστ´ ὥστε, ὰλλ´ ἀλλά, ὲπ´ ἐπί); a name that ends in a
+        # consonant keeps the stray (Δαβὶδ´ Δαυίδ, Μιχαὴλ´ Μιχαήλ).
+        if _bare_letters(stem).lower() in _GRAVE_ELIDED_STEMS:
+            return stem + "\u2019"
         return stem
     if _is_explicit_numeral(s):
         return s
@@ -3070,7 +3085,8 @@ class Dilemma:
 
         if omega_sigma:
             # -ωσ- is an -όω verb's: one read as such stays (χωσάντος χόω).
-            if lemma.endswith(("άω", "έω")):
+            # The Ionic aorist ἔπλωσα is πλέω's (διαπλώσαντα διαπλέω).
+            if lemma.endswith(("άω", "έω")) and not lemma.endswith("πλέω"):
                 twin = lemma[:-2] + "όω"
                 return twin if twin in heads and count(twin) else lemma
             return lemma
@@ -3114,9 +3130,21 @@ class Dilemma:
             return None
         # The own rows, then the Byzantine normalizers, as the bare spelling
         # would be read (Ἀππίωνά: Ἀππίωνα, which the normalizer reads Ἀπίων).
-        own = (self._enclitic_own_reading(bare, late=True)
-               or self._normalize_byzantine(bare, use_normalizer=False)
-               or self._normalize_byzantine(bare, use_normalizer=True))
+        own = self._enclitic_own_reading(bare, late=True)
+        if not own:
+            own = (self._normalize_byzantine(bare, use_normalizer=False)
+                   or self._normalize_byzantine(bare, use_normalizer=True))
+            letters = _bare_letters(bare).lower()
+            if (own and _is_verb_citation_spelling(own.lower())
+                    and (letters.endswith(_NOMINAL_ENCLITIC_ENDINGS)
+                         or (letters.endswith("ον")
+                             and not letters.endswith(("ντον", "σον"))))):
+                # A noun's or an adjective's ending, which the normalizers
+                # read as a verb (ἄγνιεύς ἁγνίζω, ὕπαρόν ὑπαρόω, περίφρασσίς
+                # περιφράσσω): of the corpus annotations' token and tag
+                # pairs it gave, 38 tagged NOUN, ADJ or PROPN (66 tokens)
+                # were nearly all wrong (#159).
+                return None
         if not own:
             return None
         own_letters = _single_consonants(_bare_letters(own).lower())
@@ -4310,9 +4338,20 @@ class Dilemma:
         # medial one (ὡςπερ is ὥσπερ, not ὡς).
         medial = lower[:-1].replace("ς", "σ") + lower[-1:]
         letters = _bare_letters(medial)
+
+        def particle_base(suffix):
+            # The word before the particle must itself be a head of an
+            # edited dictionary: ἀπέεργε, a head of Cunliffe's, is a verb
+            # form, not ἀπέερ with γε (#159).
+            rest = letters[:-len(strip_accents(suffix))]
+            if len(rest) < 2:
+                return False
+            rest = rest[:-1] + "ς" if rest.endswith("σ") else rest
+            return bool(self._dictionary_heads_by_letters().get(rest))
+
         if self.lang != "el" and any(
                 letters.endswith(strip_accents(suffix))
-                and len(letters) - len(strip_accents(suffix)) >= 2
+                and particle_base(strip_accents(suffix))
                 for suffix in _PARTICLE_SUFFIXES):
             heads = [head for head in self._dictionary_heads_by_letters().get(
                          letters, ())
@@ -4585,13 +4624,14 @@ class Dilemma:
             if cut < (4 if nominatives == ("ώς",) else 3):
                 continue
             kinds = self._participle_accent_kinds(stripped, cut, ending, accent)
-            if (kinds == "-^" and not ending.startswith("ωντ")
-                    and not is_capitalized(word)):
+            if (kinds == "-^" and not is_capitalized(word)
+                    and not (ending.startswith("ωντ")
+                             and stripped[:cut].endswith("γελ"))):
                 # A lowercase word may misplace an ending accent on the
-                # stem (ἀφίεντες ἀφιέντες, ἀρρώστουντα); a name may not
-                # (Μάνεντος is Μάνης, not μανέντος), nor -ωντ-, which
-                # with the accent on the stem is the noun γέλως's
-                # γέλωντος, not γελῶντος.
+                # stem (ἀφίεντες ἀφιέντες, ἀρρώστουντα, ἀπάντωντα,
+                # μαλκίῳντι); a name may not (Μάνεντος is Μάνης, not
+                # μανέντος), nor γέλωντ-, the noun γέλως's γέλωντος, not
+                # γελῶντος (#159).
                 kinds = "-^="
             stem = nfd[:letters[cut]]
             bare = "".join(ch for ch in stem if ch not in "\u0301\u0300\u0342")

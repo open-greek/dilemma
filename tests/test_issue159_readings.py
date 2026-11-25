@@ -61,6 +61,10 @@ def test_doubled_consonants_count_once():
     ("ἂν´", "ἂν"), ("γὰρ´", "γὰρ"), ("ὃν´", "ὃν"), ("παρὰ´", "παρὰ"),
     # Elided words keep the mark as ’.
     ("ἐπειδ´", "ἐπειδ’"), ("ὅπερ´", "ὅπερ’"), ("τοῦτ´", "τοῦτ’"),
+    # After the stem of an elided function word the grave is the OCR's and
+    # the mark an elision; a name keeps the stray.
+    ("Ὢστ´", "Ὢστ’"), ("ὰλλ´", "ὰλλ’"), ("ὲπ´", "ὲπ’"), ("Ἃλλ´", "Ἃλλ’"),
+    ("Δαβὶδ´", "Δαβὶδ"), ("Μιχαὴλ´", "Μιχαὴλ"), ("ἂμ´", "ἂμ"),
 ])
 def test_a_grave_before_the_mark_makes_it_a_stray(printed, read):
     assert to_standard_elision(printed) == read
@@ -141,9 +145,18 @@ _UNTAGGED = [
     ("Σιδώνιόν", "Σιδώνιος"), ("βακχεύεσθαί", "βακχεύω"),
     ("Ἡσίοδός", "Ἡσίοδος"), ("πολυστέφανός", "πολυστέφανος"),
     ("Ἀππίωνά", "Ἀπίων"), ("ἐκφῦναί", "ἐκφύω"), ("ἄνθετό", None),
+    # The normalizers do not read a noun's or an adjective's ending as a
+    # verb (review of the 1.3.31 branch).
+    ("ἄγνιεύς", None), ("ὕπαρόν", None), ("περίφρασσίς", None),
+    ("ἕδραιόν", None), ("κατηξίωσέ", "καταξιόω"), ("χρῆζαί", "χρῄζω"),
+    # The participle resolver: the stem accent of -ωντ- rules out only
+    # γέλωντ-; πλέω's Ionic aorist; a verb form in -γε is no particle word.
+    ("μαλκίῳντι", "μαλκιάω"), ("διαπλώσαντα", "διαπλέω"),
+    ("ἀπέεργε", None),
     # Elided stems and stray marks.
     ("Εἶθ", "εἶτα"), ("Μεθ", "μετά"), ("ἂν´", "ἄν"), ("γὰρ´", "γάρ"),
     ("ὃν´", "ὅς"), ("ἐπειδ´", "ἐπειδή"), ("ἐπεῖδ’", "ἐφοράω"),
+    ("Ὢστ´", "ὥστε"), ("ὰλλ´", "ἀλλά"),
     ("κᾀγὼ", "ἐγώ"), ("επείπερ", "ἐπείπερ"), ("ὡςπερ", "ὥσπερ"), ("κᾀντεῦθεν", "ἐντεῦθεν"),
     ("τοιόςδε", "τοιόσδε"), ("ὡςδὲ", "ὡς"), ("ἡνίδε", "ἠνίδε"), ("ἀποπλάσσεται", "ἀποπλάσσομαι"),
     # An acronym is no elided stem.
@@ -198,6 +211,7 @@ _TAGGED = [
     ("ἐπειδ´", "CCONJ", "ἐπειδή"), ("κάπειτ᾽", "ADV", "ἔπειτα"),
     ("Ἀπσ´", "X", None), ("εἐδ´", "X", None),
     ("ἆ", "INTJ", "ἆ"), ("ᾶ", "INTJ", "ᾶ"),
+    ("ὕπαρόν", "NOUN", None), ("ἄγνιεύς", "NOUN", None), ("Ὢστ´", "INTJ", "ὥστε"),
     # The dictionary-head fallback.
     ("παρῳχηκότα", "VERB", None), ("Ἤιδει", "VERB", None),
     ("προὑπάρχει", "VERB", "προϋπάρχω"), ("οἷνος", "NOUN", None),
