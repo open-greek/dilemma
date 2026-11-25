@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from dilemma import core
+from dilemma.grc_reviewed_respellings import respelled_lemma
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLE_PATH = ROOT / "data" / "treebank_pos_lookup.json"
@@ -197,5 +198,10 @@ def test_shipped_table_keeps_verbs_known_by_an_agreeing_vote(shipped_model):
     table = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
     for form, cell in cells.items():
         assert table[form] == {cell["upos"]: cell["lemma"]}
-        assert shipped_model.lemmatize(form, guess=False) == cell["lemma"]
+        # The reviewed readings correct a vote (προεπίστανται is
+        # προεπίσταμαι, not προεφίστημι), and a vote's lemma loses the
+        # accent of an enclitic (ἀποκτίννυμί; #159).
+        assert shipped_model.lemmatize(form, guess=False) == \
+            core.Dilemma._without_enclitic_accent(
+                respelled_lemma(form, cell["lemma"]))
     assert shipped_model.lemmatize("προσκαθημένας", guess=False) == "προσκάθημαι"
