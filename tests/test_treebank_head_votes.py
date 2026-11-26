@@ -199,9 +199,11 @@ def test_shipped_table_keeps_verbs_known_by_an_agreeing_vote(shipped_model):
     for form, cell in cells.items():
         assert table[form] == {cell["upos"]: cell["lemma"]}
         # The reviewed readings correct a vote (προεπίστανται is
-        # προεπίσταμαι, not προεφίστημι), and a vote's lemma loses the
-        # accent of an enclitic (ἀποκτίννυμί; #159).
-        assert shipped_model.lemmatize(form, guess=False) == \
-            core.Dilemma._without_enclitic_accent(
-                respelled_lemma(form, cell["lemma"]))
+        # προεπίσταμαι, not προεφίστημι), a vote's lemma loses the accent
+        # of an enclitic (ἀποκτίννυμί; #159), and a malformed one gives
+        # way to the headword it misspells (λε͂γω λέγω; #162).
+        want = core.Dilemma._without_enclitic_accent(
+            respelled_lemma(form, cell["lemma"]))
+        want = shipped_model._repaired_lemma(want) or want
+        assert shipped_model.lemmatize(form, guess=False) == want
     assert shipped_model.lemmatize("προσκαθημένας", guess=False) == "προσκάθημαι"

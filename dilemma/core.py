@@ -50,6 +50,8 @@ from .citation import malformed_tonal_reason as _malformed_tonal_reason
 from .form_sanitize import is_capitalized, sanitize_form
 from .grc_rejected_lemmas import REJECTED_LEMMAS as _REJECTED_POS_LEMMAS
 from .grc_view_rows import GRC_VIEW_ROWS as _GRC_VIEW_ROWS
+from .grc_reviewed_forms import GRC_REVIEWED_FORMS as _GRC_REVIEWED_FORMS
+from .crasis import crasis_restorations, is_crasis_shaped
 from .grc_reviewed_respellings import respelled_lemma as _respelled_lemma
 from .grammatical_lemmas import (
     correct_grammatical_lemma, preferred_reviewed_lemma, reviewed_verb_grammar,
@@ -787,7 +789,8 @@ class LemmaCandidate:
     lemma: str
     lang: str = ""       # "el" (SMG), "grc" (AG), "med" (Medieval), "" (unknown)
     proper: bool = False  # True if lemma is a proper noun (capitalized headword)
-    source: str = ""      # "lookup", "elision", "crasis", "model", "article"
+    source: str = ""      # "lookup", "elision", "crasis", "model", "article",
+                          # "reviewed" (a reading of _whole_word_fixes)
     score: float = 1.0    # confidence (1.0 for lookup, lower for model)
     via: str = ""         # how the lookup matched: "exact", "lower", "mono",
                           # "stripped", "elision:ε" (which vowel expanded), etc.
@@ -1743,10 +1746,19 @@ _PREPOSITION_LEMMAS = frozenset((
 # preposition, a conjunction or a particle: its POS cells under the loose
 # keys and the other elision mark belong to other words (ὑφ’ NOUN is not
 # ὑφή, οὐδ’ NOUN not οὐδός, Μεθ’ PROPN not the Modern Μετά; #159).
+# The lemmas a crasis with a stem of two or three letters may read
+# (Dilemma._crasis_reading): of καί, a function word's; of the article,
+# the possessive's or ἄλλος's (τοὐμόν, τἀμά, τἄλλ’).
+_AMBIGUOUS = object()
+_SHORT_ARTICLE_CRASIS_LEMMAS = frozenset(("ἐμός", "ἄλλος"))
+_SHORT_CRASIS_LEMMAS = frozenset((
+    "ἀμφί", "ἀνά", "ἀντί", "ἀπό", "διά", "ἐπί", "κατά", "μετά", "παρά",
+    "ὑπό", "ἐν", "ἐκ", "εἰς", "ἐς", "ἄν", "ἐάν", "εἰ", "ἐγώ", "ἐμός",
+    "ἀλλά", "ἄλλος", "ἀεί", "ἔτι", "εἶτα"))
 _ELIDED_FUNCTION_LEMMAS = frozenset((
     "ἀμφί", "ἀνά", "ἀντί", "ἀπό", "διά", "ἐπί", "κατά", "μετά", "παρά",
     "ὑπό", "ἀλλά", "οὐδέ", "μηδέ", "οὔτε", "μήτε", "εἶτα", "ἔπειτα", "ἄρα",
-    "ἅμα", "μάλα", "ἵνα", "ὅτε", "τότε", "ποτέ", "ἔτι"))
+    "ἅμα", "μάλα", "μάλιστα", "ἵνα", "ὅτε", "τότε", "ποτέ", "ἔτι"))
 # Particles and conjunctions that a stray mark after the whole word leaves
 # as they are under any tag (δὲ´ VERB is δέ, not ἔδω; #159).
 _STRAY_MARK_FUNCTION_LEMMAS = frozenset((
@@ -1778,6 +1790,24 @@ _ORDINAL_ADJECTIVES = frozenset((
     "πρῶτος", "δεύτερος", "τρίτος", "τέταρτος", "πέμπτος", "ἕκτος",
     "ἕβδομος", "ὄγδοος", "ἔνατος", "ἔννατος", "δέκατος", "ἑνδέκατος",
     "δωδέκατος", "εἰκοστός"))
+
+
+_NUMERAL_LETTER_VALUES = {
+    letter: value for letters, values in (
+        ("αβγδεϛζηθ", range(1, 10)), ("ικλμνξοπϟ", range(10, 100, 10)),
+        ("ρστυφχψωϡ", range(100, 1000, 100)))
+    for letter, value in zip(letters, values)}
+
+
+def _is_numeral_spelling(letters: str) -> bool:
+    """Whether bare lowercase *letters* spell a numeral below 1000, the
+    hundreds before the tens before the units (οθ 79, υπ 480; not αφ or
+    ουδ)."""
+    values = [_NUMERAL_LETTER_VALUES.get(letter) for letter in letters]
+    if not values or None in values:
+        return False
+    places = [len(str(value)) for value in values]
+    return all(a > b for a, b in zip(places, places[1:]))
 
 
 def is_numeral_ordinal(word: str) -> bool:
@@ -2028,8 +2058,9 @@ class Dilemma:
         if LOOKUP_DB_PATH.exists():
             # SQLite: instant startup for all language modes
             if self.lang == "grc":
-                self._lookup = LookupDB(LOOKUP_DB_PATH, lang='grc',
-                                        reviewed_rows=_GRC_VIEW_ROWS)
+                self._lookup = LookupDB(
+                    LOOKUP_DB_PATH, lang='grc',
+                    reviewed_rows={**_GRC_REVIEWED_FORMS, **_GRC_VIEW_ROWS})
                 self._ag_lookup = self._lookup
             elif self.lang == "el":
                 # Modern Greek reads the combined table as it is stored: the
@@ -2039,8 +2070,12 @@ class Dilemma:
                 self._ag_lookup = LookupDB(LOOKUP_DB_PATH, lang='grc')
                 self._mg_lookup = LookupDB(LOOKUP_DB_PATH, lang='el')
             else:
-                self._lookup = LookupDB(LOOKUP_DB_PATH, lang='all')
-                self._ag_lookup = LookupDB(LOOKUP_DB_PATH, lang='grc')
+                # The reviewed Ancient forms have no row in any table, so
+                # the combined view takes them too (#161).
+                self._lookup = LookupDB(LOOKUP_DB_PATH, lang='all',
+                                        reviewed_rows=_GRC_REVIEWED_FORMS)
+                self._ag_lookup = LookupDB(LOOKUP_DB_PATH, lang='grc',
+                                           reviewed_rows=_GRC_REVIEWED_FORMS)
                 # Load MG lookup for triantafyllidis convention: MG entries
                 # should take priority over AG for monotonic MG forms.
                 if self._convention_name == "triantafyllidis":
@@ -2094,8 +2129,13 @@ class Dilemma:
                     elif _is_self_map(k, self._lookup[k]) and not _is_self_map(k, v):
                         self._lookup[k] = v
         elif self.lang == "grc":
-            self._ag_lookup = {**self._ag_lookup, **_GRC_VIEW_ROWS}
+            self._ag_lookup = {**self._ag_lookup, **_GRC_REVIEWED_FORMS,
+                               **_GRC_VIEW_ROWS}
             self._lookup = dict(self._ag_lookup)
+        if self.lang == "all":
+            self._ag_lookup = {**self._ag_lookup, **_GRC_REVIEWED_FORMS}
+            for form, lemma in _GRC_REVIEWED_FORMS.items():
+                self._lookup.setdefault(form, lemma)
 
     def _load_pos_lookups(self, *, include_treebank=True, data_dir=None):
         """Load POS disambiguation tables from JSON.
@@ -3017,12 +3057,24 @@ class Dilemma:
         bare = self._without_enclitic_accent(word)
         if bare == word or self._is_ancient_headword(lemma):
             return lemma
+        own = self._enclitic_own_reading(bare, prefer_modern=prefer_modern)
         if (is_capitalized(word) and is_capitalized(lemma)
                 and not _is_verb_citation_spelling(lemma.lower())):
             # A name's reading (Σῶνόν Σῶνος), but a verb's citation form is
-            # no name (Ἐποίησέ: the row Ἐποιέω, not ποιέω; #159).
+            # no name (Ἐποίησέ: the row Ἐποιέω, not ποιέω; #159). The rows
+            # of the word with the enclitic's accent are rarer and noisier
+            # than those of the bare spelling: where the bare spelling reads
+            # another capitalized head, that is the name (Κλήμεντά Κλήμης,
+            # not Κλήμες; Πολύευκτός Πολύευκτος, not Πολυεύκτος; Ἆγίς Ἆγις),
+            # and where it reads a lowercase head, that word stands where
+            # the cascade's name is that word (_name_is_other_word: Εἴπατέ
+            # εἶπον, not Εἴπατος; Ἀποκοτταβίζουσί ἀποκοτταβίζω, not
+            # Ἀποκοτταβίζων; Σῶνόν keeps Σῶνος) (#161, #162).
+            if own and own != lemma and (
+                    is_capitalized(own) or self._name_is_other_word(
+                        lemma, own, bare)):
+                return self._enclitic_answer(word, bare, own)
             return lemma
-        own = self._enclitic_own_reading(bare, prefer_modern=prefer_modern)
         if not own:
             return lemma
         own_letters = _bare_letters(own).lower()
@@ -3036,6 +3088,29 @@ class Dilemma:
             # plural the LBG heads, and δυοκαιεξηκοντάεδρος).
             return lemma
         return own
+
+    def _name_is_other_word(self, name: str, own: str, bare: str) -> bool:
+        """Whether *name*, the capitalized reading of a word with an
+        enclitic's accent, is the lowercase word *own* that the bare
+        spelling *bare* reads: a participle of that verb written with a
+        capital (Ἀποκοτταβίζων, Ἐναγίζων), or a name no dictionary heads
+        that the treebanks give once at most, where *own* is a word they
+        give often and its letters stand in the word (Εἴπατος, which GLAUx
+        gives once, for εἶπον; Κάλεσος for καλέω). Σῶνος and Ἔνετος stay
+        (#159, #162)."""
+        paradigm = self._lookup_word(name.lower()) == own
+        if paradigm and _is_verb_citation_spelling(own.lower()):
+            return True
+        if name in self._dictionary_head_set():
+            return False
+        counts = (self.attestation(name) or {}).get("source_counts") or {}
+        if counts.get("glaux", 0) + counts.get("diorisis", 0) > 1:
+            # A name the treebanks give: Θυραῖόν keeps Θυραῖον.
+            return False
+        own_letters = _single_consonants(_bare_letters(own).lower())
+        return (self._attested_count(own) >= 50
+                and own_letters[:-2] in _single_consonants(
+                    _bare_letters(bare).lower()))
 
     def _enclitic_own_reading(self, bare: str, *,
                               prefer_modern: bool | None = None,
@@ -3195,6 +3270,14 @@ class Dilemma:
             acronym = lemma.isupper() and not word.isupper() and len(lemma) > 1
             if not (echo or acronym):
                 return None
+            if echo and "\u0300" in unicodedata.normalize("NFD", word[1:]):
+                # A grave after the first letter stands on a whole word's
+                # last syllable, never before an elision: πὸτ is the Doric
+                # πότ, which reads πρός, not ποτ’ (ποτέ; #162).
+                acute = grave_to_acute(word)
+                whole = self._lookup_word(acute) if acute != word else None
+                if whole and _bare_letters(whole).lower() != letters:
+                    return whole
         marked = word + "\u2019"
         bridged = self._lookup_elided(marked) or self._expand_elision(marked)
         return bridged if bridged in _ELIDED_FUNCTION_LEMMAS else None
@@ -3238,8 +3321,18 @@ class Dilemma:
             if len(letters) < 2:
                 return None
             allowed = _ELIDED_FUNCTION_LEMMAS
-        elif (upos == "PROPN" and is_capitalized(spelling)
-              and letters in _preposition_letters()):
+            if stem is None and "\u0300" in unicodedata.normalize(
+                    "NFD", spelling[1:]):
+                # A whole word with its grave (πὸτ, the Doric πότ: πρός;
+                # #162), as _bare_elided_function_word reads it.
+                allowed = _ELIDED_FUNCTION_LEMMAS | _STRAY_MARK_FUNCTION_LEMMAS
+        elif (is_capitalized(spelling) and letters in _preposition_letters()
+              and (upos == "PROPN" or "\u0300" in unicodedata.normalize(
+                  "NFD", spelling))):
+            # With a grave on its last syllable the capital is a
+            # preposition under any tag: Διὰ NOUN and ADJ are διά, not Ζεύς
+            # and διος (Δία, the accusative of Ζεύς, has its accent on the
+            # ι; #161).
             allowed = _PREPOSITION_LEMMAS
         else:
             return None
@@ -4626,14 +4719,17 @@ class Dilemma:
             if cut < (4 if nominatives == ("ώς",) else 3):
                 continue
             kinds = self._participle_accent_kinds(stripped, cut, ending, accent)
-            if (kinds == "-^" and not is_capitalized(word)
+            if (kinds == "-^"
+                    and (not is_capitalized(word)
+                         or stripped.endswith(("ντες", "ντας", "ντων")))
                     and not (ending.startswith("ωντ")
                              and stripped[:cut].endswith("γελ"))):
                 # A lowercase word may misplace an ending accent on the
                 # stem (ἀφίεντες ἀφιέντες, ἀρρώστουντα, ἀπάντωντα,
                 # μαλκίῳντι); a name may not (Μάνεντος is Μάνης, not
                 # μανέντος), nor γέλωντ-, the noun γέλως's γέλωντος, not
-                # γελῶντος (#159).
+                # γελῶντος (#159). A capitalized plural is no name
+                # (Κατάσχοντες κατέχω; #162).
                 kinds = "-^="
             stem = nfd[:letters[cut]]
             bare = "".join(ch for ch in stem if ch not in "\u0301\u0300\u0342")
@@ -4873,8 +4969,359 @@ class Dilemma:
         return [None if is_numeral_ordinal(word) else result
                 for word, result in zip(words, results)]
 
+    # ---- Readings of whole-word shapes the lookup misses (#161, #162) ----
+
+    def _spelling_reading(self, spelling: str) -> str | None:
+        """The lookup reading of a respelled word, or its elided reading."""
+        lemma = None
+        if not _is_consonant_psili_elision(spelling):
+            lemma = self._lookup_word(spelling)
+            if lemma and _is_elided_junk_value(lemma):
+                lemma = None
+        if not lemma and _strip_elision(spelling) is not None:
+            lemma = (self._lookup_elided(spelling)
+                     or self._expand_elision(spelling))
+        return lemma
+
+    def _crasis_reading(self, word: str) -> str | None:
+        """The lemma of a crasis of καί or of the article: the second
+        word's (κᾀκείνων ἐκεῖνος, τοὐπιχειρεῖν ἐπιχειρέω, τἀμφίβληστρα
+        ἀμφίβληστρον). The spellings the second word may have had are read
+        tier by tier (dilemma.crasis.crasis_restorations), by their own rows
+        and, where none has one, by the looser keys; the first tier that
+        gives a headword answers when it gives exactly one, so κἀνιδρύουσα,
+        which may be ἀνιδρύουσα or ἐνιδρύουσα, has none. An enclitic's
+        second accent is dropped (ταὐτόματόν αὐτόματον)."""
+        bare = self._without_enclitic_accent(word) or word
+        article = bare[:1].lower() == "τ"
+        for tier in crasis_restorations(bare):
+            for loose in (False, True):
+                heads = []
+                for spelling in tier:
+                    lemma = self._crasis_spelling_reading(
+                        spelling, loose=loose, article=article)
+                    if lemma is _AMBIGUOUS:
+                        return None
+                    if lemma and lemma not in heads:
+                        heads.append(lemma)
+                if heads:
+                    return heads[0] if len(heads) == 1 else None
+        return None
+
+    def _crasis_spelling_reading(self, spelling: str, *, loose: bool,
+                                 article: bool):
+        """The headword one restored spelling of a crasis reads (see
+        _crasis_reading), None, or _AMBIGUOUS when the spelling may be an
+        elided word's as well, with another reading."""
+        letters = _bare_letters(spelling).lower()
+        if not loose:
+            # The spelling's own rows: the looser keys of the cascade read
+            # other words (ἀτό ἀπατός, ἀρχαῖ ἀρχή).
+            lemma = self._lookup_cascade(spelling, step=self._OWN_ROWS)
+            if lemma and _is_elided_junk_value(lemma):
+                lemma = None
+            if not lemma and _strip_elision(spelling) is not None:
+                lemma = (self._lookup_elided(spelling)
+                         or self._expand_elision(spelling))
+        elif len(letters) >= 4:
+            # The looser keys count for a misplaced accent only, where the
+            # reading has the spelling's letters but the last (ἔκεινα
+            # ἐκεῖνος).
+            lemma = self._lookup_word(spelling)
+            lemma_letters = _bare_letters(lemma or "").lower()
+            shared = 0
+            while (shared < min(len(letters), len(lemma_letters))
+                   and letters[shared] == lemma_letters[shared]):
+                shared += 1
+            if shared < len(letters) - 1:
+                return None
+        else:
+            return None
+        if not (lemma and self._is_ancient_headword(lemma)
+                and not is_crasis_shaped(lemma)):
+            return None
+        if lemma[:1].isupper() and lemma not in self._dictionary_head_set():
+            # A name that no edited dictionary heads (κἀνεῖνος is no
+            # Ἀνεῖνος).
+            return None
+        if len(letters) <= 3 and not (
+                lemma in (_SHORT_ARTICLE_CRASIS_LEMMAS if article
+                          else _SHORT_CRASIS_LEMMAS)
+                and _bare_letters(lemma).lower().startswith(letters[:2])):
+            # A stem of two or three letters is a function word's (κᾀν ἐν,
+            # τοὐμῷ ἐμός); τοὐτ is no ἐπί, τοὔτ no ἔτι, τοὔμ no ὄμμα.
+            return None
+        if letters[-1:] in ("α", "ε", "ι", "ο") and (
+                not unicodedata.normalize("NFD", spelling).endswith("\u0300")
+                and _strip_elision(spelling) is None):
+            # A final vowel may be an elided word's that lost its mark:
+            # τἀναντί is τἀναντί’ (τὰ ἐναντία, ἐναντίος) as well as ἐναντί
+            # (ἔναντι), and has no answer. A grave stands on a whole word
+            # (κᾀπὶ ἐπί).
+            elided = self._spelling_reading(spelling + "\u2019")
+            if (elided and elided != lemma
+                    and self._is_ancient_headword(elided)):
+                return _AMBIGUOUS
+        return lemma
+
+    @staticmethod
+    def _preverb_vowel(word: str) -> tuple | None:
+        """(the third letter's marks, the letters after it) of a word that
+        opens with προ and υ or ι (προϋπάρχειν, προὐπάρχειν, προϊστορεῖν),
+        in lowercase NFD; None for another word."""
+        units = []
+        for ch in unicodedata.normalize("NFD", unicodedata.normalize(
+                "NFC", word).lower()):
+            if unicodedata.combining(ch):
+                if units:
+                    units[-1][1].append(ch)
+            else:
+                units.append([ch, []])
+        if (len(units) < 6 or "".join(u[0] for u in units[:3]) != "προ"
+                or any(u[1] for u in units[:3]) or units[3][0] not in "υι"):
+            return None
+        return (units[3][0], units[3][1],
+                "".join(base + "".join(marks) for base, marks in units[4:]))
+
+    def _preverb_diaeresis_reading(self, word: str) -> str | None:
+        """προ with a verb or noun that opens with ὑ- or ἱ-, written with
+        the diaeresis: the compound of the second word's lemma, when a
+        dictionary or word list heads it (προϋπηργμένου προϋπάρχω,
+        προϋφεστήκασιν προϋφίστημι, προϋπεῖναι προΰπειμι, προϊστορήσαντες
+        προϊστορέω; #161)."""
+        parts = self._preverb_vowel(word)
+        if parts is None or "\u0308" not in parts[1]:
+            return None
+        vowel, marks, tail = parts
+        accent = "".join(m for m in marks if m in "\u0301\u0300\u0342")
+        base = self._spelling_reading(unicodedata.normalize(
+            "NFC", vowel + "\u0314" + accent + tail))
+        if not base:
+            return None
+        units = _letter_marks(base)
+        if (not units or units[0][0] != vowel or "\u0314" not in units[0][1]
+                or base[:1].isupper()):
+            return None
+        nfd = unicodedata.normalize("NFD", base)
+        end = 1
+        while end < len(nfd) and unicodedata.combining(nfd[end]):
+            end += 1
+        head_accent = "".join(m for m in nfd[1:end] if m in "\u0301\u0300\u0342")
+        compound = unicodedata.normalize(
+            "NFC", "προ" + vowel + "\u0308" + head_accent + nfd[end:])
+        return compound if self._is_ancient_headword(compound) else None
+
+    def _proe_crasis_reading(self, word: str) -> str | None:
+        """προὔ- and προὐ- with a smooth breathing are the crasis of προε-,
+        the preverb before an augment or an ε (προὔφαινον προέφαινον
+        προφαίνω, προὐταξάμην προτάσσω, προὐννέπω προεννέπω; #161, #162)."""
+        parts = self._preverb_vowel(word)
+        if (parts is None or parts[0] != "υ" or "\u0313" not in parts[1]
+                or "\u0314" in parts[1] or "\u0308" in parts[1]
+                or len(_bare_letters(parts[2])) < 3):
+            return None
+        accent = "".join(m for m in parts[1] if m in "\u0301\u0300\u0342")
+        # The ε is the verb's (προεννέπω) or the augment, which the word
+        # read without it has too (προὐξένησεν προξενέω, not ἐκνέω from
+        # προεξένησεν): the answer must be a compound of προ.
+        for spelling in ("προε" + accent + parts[2], "προ" + parts[2]):
+            lemma = self._spelling_reading(
+                unicodedata.normalize("NFC", spelling))
+            if (lemma and _bare_letters(lemma).startswith("προ")
+                    and _is_verb_citation_spelling(lemma.lower())
+                    and self._is_ancient_headword(lemma)):
+                return lemma
+        return None
+
+    def _attested_count(self, lemma: str) -> int:
+        counts = (self.attestation(lemma) or {}).get("source_counts") or {}
+        return sum(counts.get(source, 0)
+                   for source in ("glaux", "diorisis", "oga"))
+
+    _MALFORMED_LEMMA = re.compile(
+        "( [\u0300-\u036f]+|[εο][\u0300-\u0341\u0343-\u036f]*\u0342"
+        "|[εαο]\u0301υ(?![\u0300-\u036f])|ε\u0313?υ\u0313\u0308"
+        "|ε\u0313υ(?![\u0300-\u036f])|^πρου(?!\u0308))")
+
+    def _repaired_lemma(self, lemma: str) -> str | None:
+        """The headword a malformed lemma misspells, if it is one: a mark
+        after a space (Δηΐ ̈φοβος Δηΐφοβος), a circumflex on ε or ο
+        (καλε͂ω καλέω), the accent of a diphthong on its first vowel
+        (ἀνασκινδυλέυω ἀνασκινδυλεύω), the breathing of Homer's ἐϋ- on the
+        υ or its diaeresis dropped (εὐ̈σχιδής, ἐυκτήμων ἐϋκτήμων), or προϋ-
+        without the diaeresis (#161, #162). None when it is none."""
+        nfd = unicodedata.normalize("NFD", lemma)
+        if not self._MALFORMED_LEMMA.search(nfd):
+            return None
+        fixed = re.sub(" [\u0300-\u036f]+", "", nfd)
+        fixed = re.sub("([εο][\u0300-\u0341\u0343-\u036f]*)\u0342",
+                       "\\1\u0301", fixed)
+        fixed = re.sub("([εαο])\u0301υ(?![\u0300-\u036f])",
+                       "\\1υ\u0301", fixed)
+        fixed = re.sub("ε\u0313?υ\u0313\u0308", "ε\u0313υ\u0308", fixed)
+        fixed = re.sub("ε\u0313υ(?![\u0300-\u036f])", "ε\u0313υ\u0308",
+                       fixed)
+        fixed = re.sub("^πρου(?!\u0308)", "πρου\u0308", fixed)
+        fixed = unicodedata.normalize("NFC", fixed)
+        return fixed if fixed != lemma and self._is_ancient_headword(fixed) \
+            else None
+
+    def _whole_word_fixes(self, word, lemma, upos=None):
+        """The readings of 1.3.32 for shapes the lookup misses or misreads,
+        applied to the answer of every call (#161, #162).
+
+        The reviewed readings of the lookup also correct the answers of the
+        other steps (παραλειφθεῖσί παραλείπω, from the normalizers). A
+        capitalized crasis reads as its lowercase spelling (Κἀκεῖ ἐκεῖ, not
+        ἀκέομαι; Κᾆτα εἶτα). A crasis with no answer, or with one that no
+        dictionary heads, reads its second word (_crasis_reading: κᾀκείνων
+        ἐκεῖνος, not ἐκείνω; κᾄπειτ’ ἔπειτα); a προϋ- or προϊ- word, the
+        compound of its second word (_preverb_diaeresis_reading); and προὐ-
+        the crasis of προε- (_proe_crasis_reading), where nothing a
+        dictionary heads answers or the διαίρεσις head is rarer
+        (προὔφαινον προφαίνω, not προϋφαίνω). A malformed lemma gives way
+        to the headword it misspells (_repaired_lemma).
+        """
+        if (self.lang == "el" or not isinstance(word, str) or not word
+                or getattr(self, "_convention_name", None) == "triantafyllidis"
+                or upos == "NUM" or not self._has_lookup_state()):
+            return lemma
+        word = to_plain_double_rho(to_standard_elision(to_standard_sigma(
+            unicodedata.normalize("NFC", word))))
+        if lemma is not None and lemma == word and _classify_nonlexical(word):
+            return lemma
+        if lemma in ("οἵ", "αἵ") and _bare_letters(word).lower() in ("οι", "αι"):
+            # Mostly the article before an enclitic (οἵ τε, αἵ γε: 142 of the
+            # 158 in the Gorman trees), which the untagged call leaves as it
+            # leaves οἱ; the reviewed relative reading is for the rows.
+            return lemma
+        if lemma:
+            lemma = _respelled_lemma(word, lemma)
+        head = bool(lemma) and self._is_ancient_headword(lemma)
+        # The readings below are the Ancient tables' (under lang="all",
+        # τοὐναν would read the Modern ένας), made only for the words they
+        # read.
+        reader = self if self.lang == "grc" else None
+        if is_crasis_shaped(word):
+            reader = reader or self._ancient_model()
+            crasis = reader._crasis_reading(word)
+            if (word[:1].isupper() and not word.isupper()
+                    and not (head and lemma == crasis)):
+                # The lowercase spelling's answer, unless the word already
+                # reads its second word (Τοὐντεῦθεν keeps ἐντεῦθεν) or the
+                # answer is a crasis (Κἂν, κἀν).
+                lower = reader.lemmatize_batch([word.lower()], guess=False)[0]
+                if (lower and lower != lemma and not is_crasis_shaped(lower)
+                        and self._is_ancient_headword(lower)):
+                    return lower
+            if not head and crasis:
+                return crasis
+        parts = self._preverb_vowel(word)
+        # προ and a ϊ or ϋ (not προίκα) for a word without a head's answer,
+        # or προ and ὐ. Under lang="all" a vernacular answer stands for a
+        # word written without a breathing, a circumflex, a grave or a
+        # subscript and not tagged VERB (προϋπόθεση, προϋπόσταση NOUN; but
+        # προϋπάρξῃ προϋπάρχω, not the Modern προΰπαρξη).
+        if (parts is not None and self.lang == "all" and lemma and not head
+                and upos not in ("VERB", "AUX")
+                and lemma in _lexical_heads("el")
+                and not any(ord(ch) in _POLYTONIC_WORD_MARKS
+                            for ch in unicodedata.normalize("NFD", word))):
+            parts = None
+        diaeresis = parts is not None and not head and "\u0308" in parts[1]
+        smooth = (parts is not None and parts[0] == "υ"
+                  and "\u0313" in parts[1])
+        if diaeresis or smooth:
+            reader = reader or self._ancient_model()
+        if diaeresis:
+            preverb = reader._preverb_diaeresis_reading(word)
+            if preverb:
+                return preverb
+        proe = reader._proe_crasis_reading(word) if smooth else None
+        if proe and proe != lemma and (
+                not lemma or lemma not in self._dictionary_head_set()
+                or (_bare_letters(lemma).lower().startswith("πρου")
+                    and self._attested_count(proe)
+                    > self._attested_count(lemma))):
+            return proe
+        if lemma and (not head or lemma.startswith("πρου")):
+            # A head of a word list written πρου- gives way to the προϋ-
+            # head as well (προυποβάλλω προϋποβάλλω).
+            repaired = self._repaired_lemma(lemma)
+            if repaired:
+                return repaired
+        contract = self._contract_participle_verb(word, lemma)
+        if contract:
+            return contract
+        return lemma
+
+    def _checked_fix(self, word, lemma):
+        """_whole_word_fixes() for lemmatize_batch(): a reading the citation
+        policy refuses leaves the answer as it was, as in lemmatize()."""
+        fixed = self._whole_word_fixes(word, lemma)
+        if fixed and lemma and fixed != lemma and not self._apply_convention(fixed):
+            return lemma
+        return fixed
+
+    def _has_lookup_state(self) -> bool:
+        """Whether the model has loaded its tables: a test model made with
+        __new__ and the steps it needs stubbed has not, and the readings of
+        _whole_word_fixes() leave its answers alone."""
+        return "_headword_sets" in self.__dict__ and "_lookup" in self.__dict__
+
+    _CONTRACT_PARTICIPLE = re.compile("ουντ(?:ες|ας|ων|ος|α|ι|οιν)$")
+
+    def _contract_participle_verb(self, word, lemma):
+        """The -όω or -έω verb of an -ουντ- participle read as an -άω verb
+        with another stem: an -άω verb has no -ουντ-, and περατοῦντες is
+        περατόω's, not περάω's (#162). The verb must be the one of the two
+        spellings that an Ancient dictionary or word list heads. None for
+        any other word or reading (ἐπινούντες ἐπινέω, θαρροῦντες θαρσέω)."""
+        if not lemma or not lemma.endswith("άω") or "-" in word:
+            return None
+        letters = _bare_letters(word).lower()
+        match = self._CONTRACT_PARTICIPLE.search(letters)
+        if not match or match.start() < 3:
+            return None
+        stem = letters[:match.start()]
+        if _bare_letters(lemma).lower()[:-2] == stem:
+            return None
+        nfd = unicodedata.normalize("NFD", word.lower())
+        prefix, seen = [], 0
+        for ch in nfd:
+            if not unicodedata.combining(ch):
+                if seen == len(stem):
+                    break
+                seen += 1
+            if ch not in "\u0301\u0300\u0342":
+                prefix.append(ch)
+        heads = [verb for verb in (
+                     unicodedata.normalize("NFC", "".join(prefix) + ending)
+                     for ending in ("όω", "έω"))
+                 if self._is_ancient_headword(verb)]
+        return heads[0] if len(heads) == 1 else None
+
     def lemmatize(self, word: str, *, attested_only: bool = False,
                   guess: bool = True) -> str | None:
+        """Lemmatize a single Greek word.
+
+        The steps are those of _lemmatize_steps(); the readings of
+        _whole_word_fixes() then apply to the answer (#161, #162).
+        """
+        lemma = self._lemmatize_steps(word, attested_only=attested_only,
+                                      guess=guess)
+        if (attested_only and lemma is None and isinstance(word, str)
+                and word and not word.isdigit()
+                and self._resolve_attested_form(word) is None):
+            return lemma
+        fixed = self._whole_word_fixes(word, lemma)
+        if fixed == lemma or not fixed:
+            return lemma
+        # A reading the citation policy refuses leaves the answer as it was.
+        return self._apply_convention(fixed) or lemma
+
+    def _lemmatize_steps(self, word: str, *, attested_only: bool = False,
+                         guess: bool = True) -> str | None:
         """Lemmatize a single Greek word.
 
         Resolution order:
@@ -6420,6 +6867,18 @@ class Dilemma:
             wiktionary = self._wiktionary_grc_heads = _lexical_heads(
                 "grc_wiktionary")
         lsj = self._get_headword_set("lsj")
+        dictionary = self._dictionary_head_set()
+
+        def attested(head):
+            # A head of the other edited dictionaries (the DGE, the LBG)
+            # counts when the treebanks lemmatize it often: ἐνανθρωπήσει
+            # NOUN is ἐνανθρώπησις, which GLAUx and the OGA give 283
+            # times (#162), while θέρισις and μέρισις are rare.
+            if head not in dictionary or not self._is_ancient_headword(head):
+                return False
+            counts = (self.attestation(head) or {}).get("source_counts") or {}
+            return sum(counts.get(source, 0)
+                       for source in ("glaux", "diorisis", "oga")) >= 20
         nfd = unicodedata.normalize("NFD", lower[:-2])
         bare = "".join(ch for ch in nfd if ch not in "\u0301\u0300\u0342")
         heads = set()
@@ -6432,7 +6891,7 @@ class Dilemma:
             for accent in ("\u0301", "\u0342"):
                 head = unicodedata.normalize(
                     "NFC", bare[:end] + accent + bare[end:] + "ις")
-                if head in lsj or head in wiktionary:
+                if head in lsj or head in wiktionary or attested(head):
                     heads.add(head)
         if len(heads) != 1:
             return None
@@ -6712,8 +7171,63 @@ class Dilemma:
         if lemma is None:
             lemma = self._vetoed_untagged_answer(
                 word, upos, attested_only=attested_only, guess=guess)
-        return self._ancient_reading_of_modern_answer(
+        lemma = self._ancient_reading_of_modern_answer(
             word, upos, lemma, attested_only=attested_only)
+        return self._tagged_whole_word_fixes(word, upos, lemma,
+                                             attested_only=attested_only)
+
+    _VERB_ENDING_LETTERS = ("σθαι", "ται", "ειν", "ουσα", "ουσαι", "ουσι",
+                            "ουσιν", "οσι", "σεν", "ζε", "θε", "λαι", "ωσι",
+                            "ωσιν")
+
+    def _tagged_whole_word_fixes(self, word, upos, lemma, *,
+                                 attested_only: bool = False):
+        """The answer of a tagged call after _whole_word_fixes() and two
+        checks of the tag (#162).
+
+        A stem whose elision mark is lost reads as elided only for a word:
+        tagged NUM, a stem whose letters spell a numeral is the numeral
+        (οθ, 79, is not ὅτε) and gets no lemma; αντ and ουδ, which are no
+        numeral, keep ἀντί and οὐδέ. A lowercase word with an enclitic's
+        second accent, tagged NOUN or ADJ, is no verb the late steps read
+        from its letters unless it has a participle's or a verb's ending
+        (σχήματό NOUN is not σχηματόω, νηπίαχαί ADJ not νηπιάχω; κακῶντόν
+        ADJ keeps κακάω, βδελύττεσθαί NOUN βδελύσσομαι).
+        """
+        if (self.lang == "el" or not isinstance(word, str) or not word
+                or getattr(self, "_convention_name", None) == "triantafyllidis"
+                or not self._has_lookup_state()):
+            return lemma
+        printed = to_standard_elision(to_standard_sigma(
+            unicodedata.normalize("NFC", word)))
+        if upos == "NUM":
+            letters = _bare_letters(printed).lower()
+            if (lemma in _ELIDED_FUNCTION_LEMMAS and len(letters) >= 2
+                    and letters[-1] in _ELIDED_STEM_FINALS
+                    and _is_numeral_spelling(letters)
+                    and _strip_elision(printed) is None
+                    and self._lookup_cascade(printed, step=self._OWN_ROWS)
+                    != lemma):
+                return None
+            return lemma
+        if attested_only and lemma is None:
+            return lemma
+        fixed = self._whole_word_fixes(printed, lemma, upos)
+        if fixed != lemma and fixed:
+            fixed = self._checked_pos_result(
+                printed, upos, self._apply_convention(fixed))
+            if fixed:
+                lemma = fixed
+        if (lemma and upos in ("NOUN", "ADJ") and printed[:1].islower()
+                and _is_verb_citation_spelling(lemma.lower())):
+            bare = self._without_enclitic_accent(printed)
+            letters = _bare_letters(bare).lower()
+            if (bare != printed and "ντ" not in letters[-5:]
+                    and "μεν" not in letters[-6:]
+                    and not letters.endswith(self._VERB_ENDING_LETTERS)
+                    and not self._lookup_cascade(printed)):
+                return None
+        return lemma
 
     def _ancient_reading_of_modern_answer(self, word, upos, lemma, *,
                                           attested_only: bool = False):
@@ -7358,6 +7872,9 @@ class Dilemma:
             elif not (upos == "NUM" and _is_marked_numeral(word)):
                 final[i] = self._ancient_reading_of_modern_answer(
                     word, upos, final[i], attested_only=attested_only)
+        final = [self._tagged_whole_word_fixes(word, upos, lemma,
+                                               attested_only=attested_only)
+                 for word, upos, lemma in zip(given, upos_tags, final)]
         return self._without_skipped_ordinals(words, final)
 
     @staticmethod
@@ -7440,6 +7957,20 @@ class Dilemma:
             if attested_only and attest_key is None:
                 return []
         candidates = self._lemmatize_verbose_impl(word, prev_word, guess=guess)
+        first = candidates[0] if candidates else None
+        if (isinstance(word, str) and word
+                and (first is None or first.source != "nonlexical")):
+            # The readings of _whole_word_fixes(), as lemmatize() gives them.
+            given = first.lemma if first else None
+            fixed = self._whole_word_fixes(word, given)
+            if fixed and fixed != given:
+                fixed = self._apply_convention(fixed)
+            if fixed and fixed != given:
+                candidates = [LemmaCandidate(
+                    lemma=fixed, lang=self._lang_of(fixed),
+                    proper=self._is_proper(fixed), source="reviewed",
+                    via="whole-word")] + [
+                        c for c in candidates if c.lemma != fixed]
         if with_attestation and attest_key is not None:
             payload = self.form_attestation(attest_key)
             for c in candidates:
@@ -8086,6 +8617,12 @@ class Dilemma:
                         elif enclitic:
                             pred = enclitic
                 results[idx] = pred
+
+        # The readings of whole-word shapes the steps miss or misread
+        # (#161, #162), as in lemmatize().
+        results = [self._checked_fix(word, result)
+                   if isinstance(word, str) and word else result
+                   for word, result in zip(words, results)]
 
         # Apply convention remapping and citation-form validation to all
         # results. This always runs, even without a named convention, because
