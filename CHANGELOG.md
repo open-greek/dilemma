@@ -35,19 +35,21 @@ Measurements compare it with 1.3.31, with `guess=False`.
   `Dilemma(lang="all", resolve_articles=True).lemmatize_batch_pos(guess=False)`):
   580 pairs (58,751 tokens) change their lemma, 853 pairs
   (5,292 tokens) that had no answer get one, and 113 pairs
-  (220 tokens) lose theirs. 54,856 of the changed tokens are
-  `μάλιστα` and its elided forms, which read `μάλα` in 1.3.31 (54,830 of
-  them tagged ADV; `μάλιστα` ADV alone 50,435); most of the rest are the
-  crasis and `προϋ-` words above. The pairs that lose their answer are 80
-  tokens of stems tagged NUM whose letters spell a numeral (`οθ` 79 and
-  `υπ` 480, which read `ὅτε` and `ὑπό`), 133 tokens of words tagged NOUN or
-  ADJ that the late enclitic step read as verbs, nearly all wrong
-  (`εφάνιστή` `ἐπανίστημι`, `χρεῖτόν` `κρεω`, `νηπίαχαί` `νηπιάχω`,
+  (220 tokens) lose theirs. 54,856 of the changed tokens are `μάλιστα`
+  in all its spellings, elided or not (`μάλιστά`, the lunate `μάλιϲτα`,
+  `μάλιστ’`), which read `μάλα` in 1.3.31 (54,830 of them tagged ADV;
+  `μάλιστα` ADV alone 50,435); most of the rest are the crasis and `προϋ-`
+  words above. The pairs that lose their answer are 80 tokens of stems
+  tagged NUM whose letters spell a numeral (`οθ` 79 and `υπ` 480, which
+  read `ὅτε` and `ὑπό`), 133 tokens of words tagged NOUN or ADJ that the
+  late enclitic step read as verbs, nearly all wrong (`εφάνιστή`
+  `ἐπανίστημι`, `χρεῖτόν` `κρεω`, `νηπίαχαί` `νηπιάχω`,
   `σύμφαρόν` `συμπάρειμι`), and 7 of artefacts read as `παρόω`.
 - The 300 largest changes and a random 200 of each table were read, over
   six rounds, and an independent review read the branch from the diff, the
-  two change tables and the issues. Rules that did more harm than good
-  were narrowed or dropped on that reading, each measured on the
+  two change tables and the issues; a second one reran both tables on the
+  branch and found the counts given here. Rules that did more harm than
+  good were narrowed or dropped on that reading, each measured on the
   changed forms. The crasis reading read the second word through the looser
   keys of the lookup (`τἀτὸ` `ἀπατός`, `τἀρχαῖ` `ἀρχή`, `τοὐναν` the Modern
   `ένας`; it now reads its own rows and, for a misplaced accent only, a
@@ -214,22 +216,29 @@ Measurements compare it with 1.3.31, with `guess=False`.
   table heads (`Νεουάντων`, `Στύλλαν`, `Ἀριόχον`, `Ὑσαεῖς`,
   `Ἀραβαιγύπτιοι`, `ἀάβυκτον`, `αὐέρα`, the quoted `ἐΰτρεφον`) and
   `κἀνιδρύουσα`, which may be `ἀνιδρύουσα` or `ἐνιδρύουσα`.
-- Answers of #161 that are wrong or doubtful and left as they were:
+- Other answers of #161 that are wrong or doubtful and left as they were
+  (the single forms of the enclitic step are in the next item):
   `Συάγρου` and `Σύαγρός` read `σύαγρος` untagged (tagged PROPN they read
   the name `Σύαγρος`; the untagged call does not tell the name from the
   boar); `συναίτης` reads `συναιτέω` (no table heads a noun `συναίτης`);
-  `Προειδοῦσα` reads `προειδώ`, where `πρόοιδα` (`προειδώς`) may be
-  meant; `παρήρτηντο` reads `παραρτέομαι`, where it may be `παραρτάω`;
-  `ἠκάχημαι` reads `ἀχεύω` by the verb steps, while the lookup reads
-  `ἀκάχημαι` as `ἄχνυμαι`.
+  `Προειδοῦσα` reads `προειδώ`, where `πρόοιδα`, which `προειδυῖα`
+  reads, may be meant; `παρήρτηντο` reads `παραρτέομαι`, where it may be
+  `παραρτάω`; `ἠκάχημαι` reads `ἀχεύω` by the verb steps, where LSJ gives
+  the perfect `ἀκάχημαι` under `ἀκαχίζω` (the lookup reads `ἀκάχημαι` as
+  `ἄχνυμαι`); `νηπίαχαί` reads `νηπιάχω` untagged (tagged ADJ it now has
+  no answer); `ἄλουργόν` reads `ἁλουργής`, where the ending is
+  `ἁλουργός`'s; `Κούρησί` reads the plural `Κούρητες`, for `Κούρης`.
 - Wrong answers of #161 and #162 left as they were: `όπερ` PRON the Modern
   `όπερ` (26 tokens) and, untagged under `lang="all"`, `ὅποτε` `όποτε`;
   `ἀξιό` ADJ the river `Ἀξιός` (16); `Ἁγίαν` PROPN `Ἀγίας` (27); `Ὑδρα`
   PROPN `ὕδρος` (5); `ὃ` PRON `ὅς` where it is Homer's demonstrative;
   `-ουντ-` participles whose `-έω` spelling no dictionary heads with rows
   (`ἐπινούντες` `ἐπινέω`, `ἐννοῦντος` `ἐννέω`, `ὑπαροῦντες` `ὑπαρόω`,
-  `φληναφούντων` `φληναφάω`); `Κεκάδοντος` PROPN no answer (a capitalized
-  singular participle is not told from a name); the action nouns
+  `φληναφούντων` `φληναφάω`), and the rule that reads `περατοῦντες` as
+  `περατόω` gives `Μειδιούντι` PROPN the LBG's `μειδιόω` (1 token; 1.3.31
+  `μειδάω`), where it may be `μειδιάω` (the rule tries only -όω and -έω);
+  `Κεκάδοντος` PROPN no answer (a capitalized singular participle is not
+  told from a name); the action nouns
   `ἠχήσει`, `μερίσει`, `θειώσει`, `ὑπνώσει` and `ἡλώσει` NOUN, which read
   the verbs (too rarely lemmatized to count as heads); `Μέλαινά`
   `Μελαίνα`; `καταλειβόμενοι` no answer; `οἷόπερ` itself; `ἐπίταδέ` and
@@ -244,36 +253,40 @@ Measurements compare it with 1.3.31, with `guess=False`.
   `Κάλυδνόν` `Καλύδναι`, `ημεῖόν` `ἡμεῖς`, `αφεντόπουλόν`, `βέχεταί`,
   `φάδιόν`, `Μάρισά`, `δοῦὲν`). `εἶγε` keeps `εἴγε` (see Measurements); the
   Gorman trees lemmatize `εἴγε` as `εἰ`.
-- Crasis readings that are still wrong, about 70 tokens: `κᾒν` `ἐν` (20;
-  καὶ ἤν, `ἐάν`, or `κἂν`), `τἀπίσω` `ἔπισος`, `κἆλλον` `εἴλλω`, `κἀξια`
-  `ἐξιάομαι`, `τοὔτῃ` `οὐτάω`, `τἀρίστον` `ἀριστάω`, `τἆργον` `Ἄργος`,
-  `κἀντῷ` `ἀντάω`, `κἄνον` `ἔνος`, `κᾦνον` `ὦνος`, `τἀληθὲ` `ἀλήθω`,
-  `ταὐτην` `αὐτός` (likely `ταύτην`), `τοὔμπρος` the vernacular `ὀμπρός`
-  of the LBG (3 tokens untagged, 5 tagged; 1.3.31 `ἔμπρος`, which no
-  dictionary heads), `κἄγαθος` ADJ the name `Ἄγαθος` (1; καὶ ἀγαθός) and
-  `κἀκὶν` NOUN `Ἄκις` (1). A capitalized crasis can take a dictionary head
-  that reads the whole word (`Κἀρετῶν` `καρέτα`, `Κἀλλὰ` `καλλά`). The
-  reading does not look at the tag (`κᾀξομοιώσει` VERB the noun
-  `ἐξομοίωσις`). `Κἄν` reads `ἄν`, as the crasis table has `κἄν`, though
-  it often stands for καὶ ἐάν.
+- Crasis readings that are still wrong, about 50 tokens of the annotation
+  pairs and 25 of the form table: `κᾒν` `ἐν` (13 and 7; καὶ ἤν, `ἐάν`, or
+  `κἂν`), `τἀπίσω` `ἔπισος`, `κἆλλον` `εἴλλω`, `κἀξια` `ἐξιάομαι`,
+  `τοὔτῃ` `οὐτάω`, `τἀρίστον` `ἀριστάω`, `τἆργον` `Ἄργος`, `κἀντῷ`
+  `ἀντάω`, `κἄνον` `ἔνος`, `κᾦνον` `ὦνος`, `τἀληθὲ` `ἀλήθω`, `ταὐτην`
+  `αὐτός` (likely `ταύτην`), `τοὔμπρος` the vernacular `ὀμπρός` of the LBG
+  (5 and 3; likely τὸ ἐμπρός; 1.3.31 `ἔμπρος`, which no dictionary heads),
+  `κἄγαθος` ADJ the name `Ἄγαθος` (καὶ ἀγαθός), `κἀκὶν` NOUN the name
+  `Ἄκις`, `κἀγαθοῖ` ADJ `ἀγαθόω` (καὶ ἀγαθοί), `κἀδόκους` ADJ `δοκόω` and
+  `κἀντραγεῖν` the infinitive `ἐντραγεῖν`, for `ἐντρώγω` (4 and 2). A
+  capitalized crasis can take a dictionary head that reads the whole word
+  (`Κἀρετῶν` `καρέτα`, `Κἀλλὰ` `καλλά`). The reading does not look at the
+  tag (`κᾀξομοιώσει` VERB the noun `ἐξομοίωσις`). `Κἄν` reads `ἄν`, as the
+  crasis table has `κἄν`, though it often stands for καὶ ἐάν.
 - The NOUN and ADJ veto still drops a few right verbs with other endings
   (`θάπτομέ`, `ὅμοσόν`, `δεῖχνύς`, `κάκτεινόν`, `ἀγνοοῦνθές`; 5 tokens), and
   the repair of malformed lemmas reads `ποῦϲ` and `ποῦς` ADV as `πός` (14
-  tokens; 1.3.31 `πο͂ς`). `Μειδιούντι` PROPN reads the LBG's `μειδιόω` (1
-  token; 1.3.31 `μειδάω`), where it may be `μειδιάω` with a late -ουντ-.
-- Under `lang="all"` the readings of crasis and `προϋ-`, `προϊ-` and
-  `προὐ-` words load a second, Ancient model (about 300 MB once in use) the
-  first time they read a word (a capitalized crasis, a crasis or a `προϋ-`
-  or `προϊ-` word whose answer is no head, or a `προὐ-` word), in the
-  untagged calls as well as the tagged ones; untagged, `προϊστάμενος`
-  reads `προΐστημι` there, as in 1.3.31, and `προϋπαντήσεις` NOUN the
-  Modern `προϋπάντηση`. `lemmatize_batch_pos()` applies the whole-word
-  readings twice per pair (in its untagged pass and its tagged one), and
-  the `reviewed` candidate of `lemmatize_verbose()` carries no grammar
-  record. Where the first candidate of `lemmatize_verbose()` is not the
-  answer `lemmatize()` starts from, the two can differ: for `καὐτὸ` it is
-  `καυτός`, a head, which the crasis reading leaves, while `lemmatize()`
-  reads `κἀτός` and then `αὐτός`.
+  tokens; 1.3.31 `πο͂ς`).
+- Under `lang="all"` the readings of crasis and `προϋ-`, `προϊ-` and `προὐ-`
+  words load a second, Ancient model (about 300 MB once in use) the first
+  time they look at such a word, whether or not a reading changes it: a
+  capitalized crasis (`Κἀκεῖνος`), a crasis whose answer is no head
+  (`κἀνιδρύουσα`), a `προϋ-` or `προϊ-` word with the diaeresis whose answer
+  is no head (but not an unmarked word with a Modern answer, `προϋπόθεση`),
+  and any `προὐ-` or `προὔ-` word (`προὔργου`). They do so in the untagged
+  calls as well as the tagged ones; untagged, `προϊστάμενος` reads
+  `προΐστημι` there, as in 1.3.31, and `προϋπαντήσεις` NOUN the Modern
+  `προϋπάντηση`. `lemmatize_batch_pos()` applies the whole-word readings
+  twice per pair (in its untagged pass and its tagged one), and the
+  `reviewed` candidate of `lemmatize_verbose()` carries no grammar record.
+  Where the first candidate of `lemmatize_verbose()` is not the answer
+  `lemmatize()` starts from, the two can differ: for `καὐτὸ` it is `καυτός`,
+  LSJ's "burnt", which the crasis reading leaves because it is a head, while
+  `lemmatize()` reads `κἀτός` and then `αὐτός`.
 - Pre-existing, as in 1.3.31: for `ἀρπάζοντες` VERB the scalar
   `lemmatize_pos()` gives the Modern `αρπάζω` and `lemmatize_batch_pos()`
   `ἁρπάζω`.

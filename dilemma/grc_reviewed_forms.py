@@ -28,7 +28,7 @@ GRC_REVIEWED_FORM_RECORDS: dict[str, dict[str, str]] = {
     },
     "ἀνείησι": {
         "lemma": "ἀνίημι",
-        "reason": "Subjunctive of ἀνίημι with the epic ending -ησι (-ῃσι).",
+        "reason": "Subjunctive of ἀνίημι with the epic ending -ῃσι, printed -ησι.",
         "evidence": "Philodemus, De musica (Kemke): archive.org philodemidemusic00phil, scan n101 (#161)",
     },
     "ἀπήχθημεν": {
