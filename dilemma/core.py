@@ -5200,7 +5200,7 @@ class Dilemma:
         head = bool(lemma) and self._is_ancient_headword(lemma)
         # The readings below are the Ancient tables' (under lang="all",
         # τοὐναν would read the Modern ένας), made only for the words they
-        # read (a crasis that is not capitalized and whose answer is a head
+        # read (a crasis in lowercase or all capitals whose answer is a head
         # reads none, and under lang="all" loads no Ancient model for it).
         reader = self if self.lang == "grc" else None
         capital = word[:1].isupper() and not word.isupper()

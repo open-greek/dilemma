@@ -216,8 +216,8 @@ Measurements compare it with 1.3.31, with `guess=False`.
   table heads (`Νεουάντων`, `Στύλλαν`, `Ἀριόχον`, `Ὑσαεῖς`,
   `Ἀραβαιγύπτιοι`, `ἀάβυκτον`, `αὐέρα`, the quoted `ἐΰτρεφον`) and
   `κἀνιδρύουσα`, which may be `ἀνιδρύουσα` or `ἐνιδρύουσα`.
-- Other answers of #161 that are wrong or doubtful and left as they were
-  (the single forms of the enclitic step are in the next item):
+- More answers of #161 that are wrong or doubtful and left as they were
+  (others are in the next item):
   `Συάγρου` and `Σύαγρός` read `σύαγρος` untagged (tagged PROPN they read
   the name `Σύαγρος`; the untagged call does not tell the name from the
   boar); `συναίτης` reads `συναιτέω` (no table heads a noun `συναίτης`);
@@ -225,9 +225,7 @@ Measurements compare it with 1.3.31, with `guess=False`.
   reads, may be meant; `παρήρτηντο` reads `παραρτέομαι`, where it may be
   `παραρτάω`; `ἠκάχημαι` reads `ἀχεύω` by the verb steps, where LSJ gives
   the perfect `ἀκάχημαι` under `ἀκαχίζω` (the lookup reads `ἀκάχημαι` as
-  `ἄχνυμαι`); `νηπίαχαί` reads `νηπιάχω` untagged (tagged ADJ it now has
-  no answer); `ἄλουργόν` reads `ἁλουργής`, where the ending is
-  `ἁλουργός`'s; `Κούρησί` reads the plural `Κούρητες`, for `Κούρης`.
+  `ἄχνυμαι`).
 - Wrong answers of #161 and #162 left as they were: `όπερ` PRON the Modern
   `όπερ` (26 tokens) and, untagged under `lang="all"`, `ὅποτε` `όποτε`;
   `ἀξιό` ADJ the river `Ἀξιός` (16); `Ἁγίαν` PROPN `Ἀγίας` (27); `Ὑδρα`
@@ -251,8 +249,11 @@ Measurements compare it with 1.3.31, with `guess=False`.
   (`συνουσιαζόμενοι` `συνουσιαζόμενος`, `ἄλυχόν` `ἀλυχή`, `δίχτυόν`
   `δίχτυ`, `Ἴασεύς` `ἴασις`, `ὕβρισήν` `ὕβρισις`, `Ἀλήσιοί` `ἀλήσιον`,
   `Κάλυδνόν` `Καλύδναι`, `ημεῖόν` `ἡμεῖς`, `αφεντόπουλόν`, `βέχεταί`,
-  `φάδιόν`, `Μάρισά`, `δοῦὲν`). `εἶγε` keeps `εἴγε` (see Measurements); the
-  Gorman trees lemmatize `εἴγε` as `εἰ`.
+  `φάδιόν`, `Μάρισά`, `δοῦὲν`, `νηπίαχαί` `νηπιάχω` untagged, where tagged
+  ADJ it now has no answer, `ἄλουργόν` `ἁλουργής`, where the ending is
+  `ἁλουργός`'s, and `Κούρησί` the plural `Κούρητες`, for `Κούρης`). `εἶγε`
+  keeps `εἴγε` (see Measurements); the Gorman trees lemmatize `εἴγε` as
+  `εἰ`.
 - Crasis readings that are still wrong, about 50 tokens of the annotation
   pairs and 25 of the form table: `κᾒν` `ἐν` (13 and 7; καὶ ἤν, `ἐάν`, or
   `κἂν`), `τἀπίσω` `ἔπισος`, `κἆλλον` `εἴλλω`, `κἀξια` `ἐξιάομαι`,
@@ -276,8 +277,9 @@ Measurements compare it with 1.3.31, with `guess=False`.
   time they look at such a word, whether or not a reading changes it: a
   capitalized crasis (`Κἀκεῖνος`), a crasis whose answer is no head
   (`κἀνιδρύουσα`), a `προϋ-` or `προϊ-` word with the diaeresis whose answer
-  is no head (but not an unmarked word with a Modern answer, `προϋπόθεση`),
-  and any `προὐ-` or `προὔ-` word (`προὔργου`). They do so in the untagged
+  is no head (but not an unmarked word with a Modern answer that is not
+  tagged VERB, `προϋπόθεση`), and a `προὐ-` or `προὔ-` word of six letters
+  or more (`προὔργου`). They do so in the untagged
   calls as well as the tagged ones; untagged, `προϊστάμενος` reads
   `προΐστημι` there, as in 1.3.31, and `προϋπαντήσεις` NOUN the Modern
   `προϋπάντηση`. `lemmatize_batch_pos()` applies the whole-word readings
