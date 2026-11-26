@@ -243,6 +243,10 @@ def test_modern_words_need_no_ancient_model():
     assert model.lemmatize_batch(words, guess=False) == [
         model._lemmatize_steps(word, guess=False) for word in words]
     assert "_ancient_sibling" not in model.__dict__
+    # Nor does a lowercase crasis whose answer is a head.
+    assert [model.lemmatize(word, guess=False)
+            for word in ("κἀγώ", "κἀκεῖ")] == ["ἐγώ", "ἐκεῖ"]
+    assert "_ancient_sibling" not in model.__dict__
 
 
 def test_vernacular_model_reads_no_crasis():

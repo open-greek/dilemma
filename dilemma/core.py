@@ -5200,13 +5200,14 @@ class Dilemma:
         head = bool(lemma) and self._is_ancient_headword(lemma)
         # The readings below are the Ancient tables' (under lang="all",
         # τοὐναν would read the Modern ένας), made only for the words they
-        # read.
+        # read (a lowercase crasis whose answer is a head reads none, and
+        # under lang="all" loads no Ancient model for it).
         reader = self if self.lang == "grc" else None
-        if is_crasis_shaped(word):
+        capital = word[:1].isupper() and not word.isupper()
+        if is_crasis_shaped(word) and (capital or not head):
             reader = reader or self._ancient_model()
             crasis = reader._crasis_reading(word)
-            if (word[:1].isupper() and not word.isupper()
-                    and not (head and lemma == crasis)):
+            if capital and not (head and lemma == crasis):
                 # The lowercase spelling's answer, unless the word already
                 # reads its second word (Τοὐντεῦθεν keeps ἐντεῦθεν) or the
                 # answer is a crasis (Κἂν, κἀν).

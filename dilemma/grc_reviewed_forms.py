@@ -28,7 +28,7 @@ GRC_REVIEWED_FORM_RECORDS: dict[str, dict[str, str]] = {
     },
     "ἀνείησι": {
         "lemma": "ἀνίημι",
-        "reason": "Subjunctive of ἀνίημι with the epic -ῃσι ending.",
+        "reason": "Subjunctive of ἀνίημι with the epic ending -ησι (-ῃσι).",
         "evidence": "Philodemus, De musica (Kemke): archive.org philodemidemusic00phil, scan n101 (#161)",
     },
     "ἀπήχθημεν": {
@@ -113,7 +113,7 @@ GRC_REVIEWED_FORM_RECORDS: dict[str, dict[str, str]] = {
     },
     "προὐταξάμην": {
         "lemma": "προτάσσω",
-        "reason": "προετάξαμην with the crasis of προ and the augment.",
+        "reason": "προεταξάμην with the crasis of προ and the augment.",
         "evidence": "Themistius, Oratio 1 (Dindorf): archive.org themistiioratio01dindgoog, scan n53 (#161)",
     },
     "προϋπεῖναι": {
