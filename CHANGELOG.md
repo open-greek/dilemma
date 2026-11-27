@@ -6,6 +6,8 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.32] - 2026-11-26
+
 This release answers most of the corrected corpus words that 1.3.31 left
 without a lemma (#161) and fixes most of the wrong answers listed on #161 and
 #162. It changes the code only: the data are those of 1.3.30 and 1.3.31, and
@@ -2952,6 +2954,7 @@ First stable release.
   is replaced by the AGDT original (CC BY-SA), and the NonCommercial GLAUx and
   PTA texts are filtered out. See NOTICE for the full per-source list.
 
+[1.3.32]: https://github.com/open-greek/dilemma/releases/tag/1.3.32
 [1.3.31]: https://github.com/open-greek/dilemma/releases/tag/1.3.31
 [1.3.30]: https://github.com/open-greek/dilemma/releases/tag/1.3.30
 [1.3.29]: https://github.com/open-greek/dilemma/releases/tag/1.3.29
