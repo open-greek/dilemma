@@ -27,6 +27,26 @@ REVIEWED_LEMMA_RESPELLINGS = {
     # GLAUx gives the capitalized Περὶ and Περί the bare letters περι, which
     # no dictionary heads: they are the preposition (#159).
     "περι": "περί",
+    # The heads of the προϋ- verbs and adjectives have the diaeresis; rows
+    # that drop it give a second, misspelled head beside the right one
+    # (προὐπάρχειν προυπάρχω, προὐπάρχων προϋπάρχω; #161). GLAUx's
+    # προυφαίνω is the lemma it gives the imperfect προὔφαινε, the crasis
+    # of προέφαινε: the verb is προφαίνω (προϋφαίνω, weave before, has the
+    # diaeresis; #162).
+    "προυπάρχω": "προϋπάρχω", "προυποτίθημι": "προϋποτίθημι",
+    "προυπαλείφω": "προϋπαλείφω", "προυφίστημι": "προϋφίστημι",
+    "προύπειμι": "προΰπειμι", "πραυντικός": "πραϋντικός",
+    "προυφαίνω": "προφαίνω",
+    # Rows that read a form as itself, or as a lemma no dictionary heads,
+    # where the dictionaries head another spelling (#161): προὐννέπω is the
+    # crasis of προεννέπω, προέργου the uncontracted προὔργου, ἆισμα the
+    # unsubscripted ᾆσμα, εὐύδροις the dative of εὔυδρος, Ἰάπυγες the
+    # plural of Ἰᾶπυξ, τοῦνομα the crasis of τὸ ὄνομα (as τοὔνομα in the
+    # crasis table), κυανόχρωτος the stem of κυανόχρως, and προνοοῦμαι
+    # the middle of προνοέω, which the lookup reads for προνοοῦμαι itself.
+    "προὐννέπω": "προεννέπω", "προέργου": "προὔργου", "ἆισμα": "ᾆσμα",
+    "εὐύδροις": "εὔυδρος", "Ἰάπυγες": "Ἰᾶπυξ", "τοῦνομα": "ὄνομα",
+    "κυανόχρωτος": "κυανόχρως", "προνοοῦμαι": "προνοέω",
 }
 
 # (initial letters of the form, lowercase and without marks; the lemma a
@@ -65,7 +85,8 @@ REVIEWED_STEM_READINGS = (
     # ὅτιπερ the ὅ of ὅστις, where LSJ heads ὅτιπερ itself.
     (("οπερ",), "ὅπερ", "ὅσπερ"),
     (("οπερ", "ηπερ", "απερ", "οιπερ", "αιπερ", "ουπερ", "ωπερ", "ησπερ",
-      "ονπερ", "ηνπερ", "ωνπερ", "οισπερ", "αισπερ", "ουσπερ", "ασπερ"),
+      "ονπερ", "ηνπερ", "ωνπερ", "οισπερ", "αισπερ", "ουσπερ", "ασπερ",
+      "ανπερ"),
      "ὅς", "ὅσπερ"),
     (("ωσπερ", "ωςπερ"), "ὡς", "ὥσπερ"),
     (("οτιπερ",), "ὅ", "ὅτιπερ"),
@@ -115,6 +136,38 @@ REVIEWED_STEM_READINGS = (
     (("καντευθεν",), "ἐντεῦθα", "ἐντεῦθεν"),
     (("παραινουντ",), "παρανέω", "παραινέω"),
     (("παραλειφθ",), "παραλαμβάνω", "παραλείπω"),
+    # The elided μάλιστ’ and μάλισθ’, and μάλιστα under ADV, are the
+    # superlative μάλιστα, which LSJ and Cunliffe head and the untagged
+    # lookup reads; GLAUx folds it into μάλα, the Gorman trees and the AGDT
+    # do not (μάλιστα and its elided forms: μάλιστα 520 times, μάλα 23 in
+    # the Gorman trees; 260 and 45 in the AGDT) (#161).
+    (("μαλιστ", "μαλισθ"), "μάλα", "μάλιστα"),
+    # Wrong answers of the corpus generation (#161, #162), each a form of
+    # the second word by its letters: ἐξηγόρασε is the aorist of ἐξαγοράζω
+    # (ἐξηγορέω has -ησ-), συναπιοῦσα the participle of συνάπειμι (εἶμι),
+    # περιειλήσας of περιειλέω, προϋποστάσης, with the accent on -στά-,
+    # the aorist participle of προϋφίστημι (the Modern noun προϋπόσταση
+    # has it on -πό-), the word εὐοῖ alone the Bacchic cry (εὕοι, εὕοιμι
+    # are εὕω's optative), πολυσήμαντος LSJ's own head beside πολύσημος,
+    # βῆλα the Byzantine βῆλον, curtain (βάλλω has no βηλ-), τιμῶσα, τιμῶσι the
+    # participle and the present of τιμάω, φυράσω the future of φυράω
+    # (φύρω has φύρσω), ὑδαταινούσῃσιν the participle of ὑδαταίνω (the row
+    # reads the crasis artefact ὑδαταινούσει), and παρώσασθε the aorist of
+    # παρωθέω.
+    (("εξηγορασ",), "ἐξηγορέω", "ἐξαγοράζω"),
+    (("συναπι",), "συναπέρχομαι", "συνάπειμι"),
+    (("περιειλη",), "περιείλω", "περιειλέω"),
+    (("προυποστάσ",), "προϋπόσταση", "προϋφίστημι"),
+    (("ευοι$",), "εὕω", "εὐοῖ"),
+    (("πολυσημαντ",), "πολύσημος", "πολυσήμαντος"),
+    (("βηλ",), "βάλλω", "βῆλον"),
+    (("τιμωσ",), "τιμή", "τιμάω"),
+    (("φυρασ",), "φύρω", "φυράω"),
+    (("υδαταινουσ",), "ὑδαταινούσει", "ὑδαταίνω"),
+    (("παρωσ",), "παρόω", "παρωθέω"),
+    # ἅνπερ is the Doric accusative of ὅσπερ (ἥνπερ), not ἄνπερ, if (with
+    # the rough breathing only; _ROUGH_RELATIVES; #162).
+    (("ανπερ",), "ἄνπερ", "ὅσπερ"),
 )
 
 # The perfect of αἱρέω and its compounds has ᾑρη- (ἐξῄρηται, ἐξῃρημένον,
@@ -143,6 +196,31 @@ def _letters(form: str) -> str:
     return "".join(ch for ch in nfd if not unicodedata.combining(ch)).lower()
 
 
+def _accented_letters(form: str) -> str:
+    """*form* in lowercase with its accents (a grave read as an acute) and
+    no other mark."""
+    nfd = unicodedata.normalize("NFD", form.lower()).replace("\u0300", "\u0301")
+    return unicodedata.normalize("NFC", "".join(
+        ch for ch in nfd
+        if not unicodedata.combining(ch) or ch in "\u0301\u0342"))
+
+
+def _stem_reads(form: str, letters: str, initials: tuple) -> bool:
+    """Whether *form* opens with one of a stem reading's *initials*: its
+    bare letters, or the letters with their accents for an initial written
+    with one (προυποστάσ), or the whole word for one ending in $ (ευοι$)."""
+    for initial in initials:
+        if initial.endswith("$"):
+            if letters == initial[:-1]:
+                return True
+        elif initial != _letters(initial):
+            if _accented_letters(form).startswith(initial):
+                return True
+        elif letters.startswith(initial):
+            return True
+    return False
+
+
 _STEM_READING_LEMMAS = frozenset(given for _, given, _ in REVIEWED_STEM_READINGS)
 
 
@@ -160,7 +238,7 @@ def _without_epsilon_subscript(lemma: str) -> str:
 
 # The relative read from its own letters needs the word's rough breathing:
 # ἆ and ἄ, with a smooth one, are the interjection (#159).
-_ROUGH_RELATIVES = frozenset(("ἅ", "αἵ", "οἵ"))
+_ROUGH_RELATIVES = frozenset(("ἅ", "αἵ", "οἵ", "ἄνπερ"))
 
 
 def respelled_lemma(form: str, lemma: str) -> str:
@@ -177,7 +255,7 @@ def respelled_lemma(form: str, lemma: str) -> str:
     if lemma in _STEM_READING_LEMMAS:
         letters = _letters(form)
         for initials, given, corrected in REVIEWED_STEM_READINGS:
-            if (lemma == given and letters.startswith(initials)
+            if (lemma == given and _stem_reads(form, letters, initials)
                     and (given not in _ROUGH_RELATIVES
                          or "\u0314" in unicodedata.normalize("NFD", form))):
                 return corrected

@@ -6,6 +6,293 @@ All notable changes to Dilemma are documented here. The format follows
 
 ## [Unreleased]
 
+This release answers most of the corrected corpus words that 1.3.31 left
+without a lemma (#161) and fixes most of the wrong answers listed on #161 and
+#162. It changes the code only: the data are those of 1.3.30 and 1.3.31, and
+the corrections to readings are applied when the tables are read.
+Measurements compare it with 1.3.31, with `guess=False`.
+
+### Measurements
+
+- **Data.** Unchanged: `lookup.db`, the POS tables and the Modern tables are
+  those of 1.3.30.
+- **Corpus vocabulary** (the 971,758 forms of the `corpus-2026-11-26` form
+  table read with `Dilemma(lang="grc", skip_numeral_ordinals=True).lemmatize_batch(guess=False)`,
+  counted by corpus tokens): 351 forms (7,215 tokens) change their lemma, 98
+  forms (1,056 tokens) that had no answer get one, and 3 forms (4 tokens)
+  lose theirs. Of the changed tokens, 2,999 are crasis words of καί or the
+  article (`κᾀν` `ἐν` 966, was `ἐͅ`; `κᾀνταῦθα` `ἐνταῦθα` 477; `Κἄν` `ἄν`
+  320; `Κἀγὼ` `ἐγώ` 300; `κᾄπειτα` `ἔπειτα` 215), 1,742 the elided
+  `μάλιστ` and `μάλισθ` (`μάλιστα`, were `μάλα`), 1,557 the `προϋ-`, `προϊ-`
+  and `προὐ-` words (`προϋπάρχω`, `προϋφίστημι`, `προφαίνω`, `προνοέω`, were
+  `προυπάρχω`, `προυφίστημι`, `προυφαίνω`, `προνοοῦμαι`), 266 `τοῦνομα`
+  (`ὄνομα`) and 180 malformed lemmas repaired. Of the gained tokens, 984 are
+  crasis words (`κᾀπὶ` `ἐπί` 383, `τἄλλ` `ἄλλος` 124). The forms that lose
+  their answer are artefacts read as `παρόω` (`παροῦντοντες`, `πεπαροι`,
+  `ἐπαροῆς`).
+- **Corpus annotations** (the 3,138,395 token and UPOS pairs of the
+  `corpus-2026-11-26` annotations, 81.6 million tokens, read with
+  `Dilemma(lang="all", resolve_articles=True).lemmatize_batch_pos(guess=False)`):
+  580 pairs (58,751 tokens) change their lemma, 853 pairs
+  (5,292 tokens) that had no answer get one, and 113 pairs
+  (220 tokens) lose theirs. 54,856 of the changed tokens are `μάλιστα`
+  in all its spellings, elided or not (`μάλιστά`, the lunate `μάλιϲτα`,
+  `μάλιστ’`), which read `μάλα` in 1.3.31 (54,830 of them tagged ADV;
+  `μάλιστα` ADV alone 50,435); most of the rest are the crasis and `προϋ-`
+  words above. The pairs that lose their answer are 80 tokens of stems
+  tagged NUM whose letters spell a numeral (`οθ` 79 and `υπ` 480, which
+  read `ὅτε` and `ὑπό`), 133 tokens of words tagged NOUN or ADJ that the
+  late enclitic step read as verbs, nearly all wrong (`εφάνιστή`
+  `ἐπανίστημι`, `χρεῖτόν` `κρεω`, `νηπίαχαί` `νηπιάχω`,
+  `σύμφαρόν` `συμπάρειμι`), and 7 of artefacts read as `παρόω`.
+- The 300 largest changes and a random 200 of each table were read, over
+  six rounds, and an independent review read the branch from the diff, the
+  two change tables and the issues; a second one reran both tables on the
+  branch and found the counts given here. Rules that did more harm than
+  good were narrowed or dropped on that reading, each measured on the
+  changed forms. The crasis reading read the second word through the looser
+  keys of the lookup (`τἀτὸ` `ἀπατός`, `τἀρχαῖ` `ἀρχή`, `τοὐναν` the Modern
+  `ένας`; it now reads its own rows and, for a misplaced accent only, a
+  looser key with the same letters), read short stems as any word (`τοὐτ`
+  `ἐπί`, `τοὔμ` `ὄμμα`; a stem of two or three letters now reads only a
+  function word), and tried a rough breathing for the second word (κ and τ
+  turn a rough breathing into χ and θ). The `προὐ-` reading took a word that
+  is no compound of προ (`προὐξένησεν` `ἐκνέω`) and nouns (`προὔτιμην`
+  `προτιμή`; it now reads verbs only). The name check of the enclitic step
+  dropped names the treebanks give (`Θυραῖόν` `θυραῖος`, `Κλόνιός`
+  `κλόνις`). A check of the particle words' accents, for `εἶγε`, broke
+  right readings (`τοῖοςδε` `τοῖος`, `ἕπειπερ` `ἕπομαι`, `Εὥσπερ` `ἐάω`) and
+  is dropped: the corpus has `εἶγε` for `εἴ γε` (`εἶγε μέλλοι τις`), not
+  `εἶ γε` as #162 had it, and it keeps `εἴγε`. Applying the reviewed
+  readings to every answer read the untagged `οἵ` and `αἵ` as the relative
+  (6,848 tokens), where they are mostly the article before an enclitic (`οἵ
+  τε`; 142 of 158 in the Gorman trees); they are left as the untagged call
+  leaves `οἱ`. Three new stem readings were too broad: `βῆλα` is the
+  Byzantine `βῆλον`, curtain, not `βηλός`; `εὕοιμι` is εὕω's optative, and
+  only the word `εὐοῖ` is the cry; `προϋποστάσης` is the participle by its
+  accent on -στά-, where the Modern noun `προϋπόσταση` has it on -πό-. The
+  NUM rule dropped elided prepositions whose letters are no numeral (`αντ`
+  NUM, `αφ`, `ουδ`, `ἀμφ`); the NOUN and ADJ veto dropped verbs with a
+  verb's ending (`βδελύττεσθαί` NOUN, `ἐσαγγεῖλαί`, `προπάθωσί`).
+- **Benchmarks.** `bench_fast` AG Classical 99.7%, Katharevousa 95.6%,
+  Demotic 96.0% (the regression gate passes); `eval_dbbe.py` equivalence
+  90.1% without POS and 93.1% with gold POS; `eval_gorman_gold.py` 93.9%:
+  all as in 1.3.31.
+- **Annotation evaluation** (tagger 0.7.0 with `lemmatize_batch_pos`, as
+  the corpus annotations run it): Gorman test fold 95.98% (1.3.31
+  95.92%), synthetic OCR 4,683 of 5,025 (4,680), DBBE Byzantine 7,409 of
+  8,299 (7,413). Every scored change against 1.3.31 is `μάλιστα` tagged
+  ADV: the Gorman reference has `μάλιστα` (three tokens fixed in each
+  Gorman set), the DBBE reference `μάλα` (five broken, one fixed).
+
+### Fixed
+
+- **Corrected corpus words without an answer** (#161). Of the 51 forms
+  listed, 42 have an answer; the other nine are under Known gaps. 23 forms
+  (24 spellings) have a reviewed row (`dilemma/grc_reviewed_forms.py`, each
+  with its lemma, the reason and the page of the printed edition where it
+  was read): Homeric, Ionic and Doric endings (`ἀίξασκε` `ἀΐσσω`,
+  `εὐπατρίδῃσι` `εὐπατρίδης`, `χοροιτυπίην` `χοροιτυπία`, `ἀνείησι`
+  `ἀνίημι`, `καθυπερτάταν` `καθυπέρτατος`, `ποτέοικε` `ποτέοικα`,
+  `νεικεογεννήτοισιν` `νεικεογέννητος`), verb forms the paradigms lack
+  (`ἀπήχθημεν` `ἀπάγω`, `παρήχθητε` `παράγω`, `Ἐνήργηκε` `ἐνεργέω`,
+  `κατωθήσας` `κατωθέω`, `ἀπέσμηξε` `ἀποσμήχω`, `παρέπλαττεν` `παραπλάσσω`,
+  `προὐταξάμην` `προτάσσω`, `προϋπεῖναι` `προΰπειμι`, `προϋποτεθεῖσαν`
+  `προϋποτίθημι`, `προϋφεστήκασιν` `προϋφίστημι`) and spellings of a head
+  (`ἐϋκμήτῳ` `εὔκμητος`, `Τηυγέτη` `Τηϋγέτη`, `ταυτοποιὸν` `ταὐτοποιός`,
+  `μεσσούριον` `μεσούριον`, `Χριστέμποροι` `χριστέμπορος`, `αὐχεῖθ`
+  `αὐχέω`). The rows answer under `lang="grc"` and `lang="all"`; none of the
+  forms has a row of its own in any table, in lowercase or capitalized,
+  which a test checks. Some of them are also read by the rules below.
+- **Crasis.** A word that opens with κ or τ and a vowel or diphthong with a
+  coronis is read as its second word, the convention of the crasis table
+  (`κᾀκείνων` `ἐκεῖνος`, `κᾄπειτ’` `ἔπειτα`, `κᾀνταῦθ’` `ἐνταῦθα`,
+  `τοὐπιχειρεῖν` `ἐπιχειρέω`, `τἀμφίβληστρα` `ἀμφίβληστρον`, `κἄνθρωπον`
+  `ἄνθρωπος`), where it has no answer or one that no Ancient dictionary or
+  word list heads (`κᾀκείνων` was `κᾀκείνος` untagged and `ἐκείνω` VERB,
+  `κᾄπειτ’` VERB `καρἔπεχομαι`, `κᾀν` `ἐͅ`, `κᾀνταῦθ’` `ἐνταῦτα`). The
+  spellings the second word may have had are read in tiers
+  (`dilemma.crasis.crasis_restorations`): a subscript under the vowel is
+  καί's ι, so `κᾀ-` is καὶ ἐ- before καὶ ἀ-, and the second word had a
+  smooth breathing. The first tier that reads a headword answers when it
+  reads exactly one, so `κἀνιδρύουσα`, which may be `ἀνιδρύουσα` or
+  `ἐνιδρύουσα`, has none, and so does a stem that ends in a vowel and may
+  have lost its elision mark with another reading (`τἀναντί`, τὰ ἐναντία or
+  `ἐναντί`). A capitalized crasis reads as its lowercase spelling (`Κἀκεῖ`
+  `ἐκεῖ`, not `ἀκέομαι`; `Κᾆτα` `εἶτα`; `Κἀγὼ` `ἐγώ`), unless it already
+  reads its second word (`Τοὐντεῦθεν` keeps `ἐντεῦθεν`).
+- **`προ` with ὑ- or ἱ-.** A word written `προϋ-` or `προϊ-` reads the
+  compound of its second word's lemma where an Ancient dictionary or word
+  list heads it (`προϋπηργμένου` `προϋπάρχω`, `προϋφεστακόσιν`
+  `προϋφίστημι`, `προϊστορήσαντες` `προϊστορέω`, `προϋπαντῶντες`
+  `προϋπαντάω`). `προὐ-` and `προὔ-`, with a smooth breathing, are the
+  crasis of προ and ε, the verb's or the augment (`προὔφαινον` `προφαίνω`,
+  not `προϋφαίνω`; `προὐννέπω` `προεννέπω`; `προὐνόησε` `προνοέω`), where
+  nothing a dictionary heads answers or the `προϋ-` head is rarer. The heads
+  written `πρου-` without the diaeresis are read with it (`προυπάρχω`
+  `προϋπάρχω`, `προυπόκειμαι` `προϋπόκειμαι`, `προυποβάλλω` `προϋποβάλλω`,
+  `προύπειμι` `προΰπειμι`, `πραυντικός` `πραϋντικός`), and `προνοοῦμαι`,
+  which no dictionary heads, is `προνοέω`. Under `lang="all"` a vernacular
+  answer stands for a word with no breathing, circumflex, grave or
+  subscript that is not tagged VERB (`προϋπόθεση`, `προϋπόσταση` NOUN), so
+  `προϋπάρξῃ` VERB reads `προϋπάρχω`, not the Modern `προΰπαρξη`, and
+  `προϊστάμενα` VERB `προΐστημι`, not `προϊστάμενος`.
+- **`μάλιστα`.** The Gorman trees lemmatize `μάλιστα` as `μάλιστα` 520
+  times and as `μάλα` 23 times, the AGDT 260 and 45 times, and Dilemma's
+  untagged reading is `μάλιστα`; the treebank POS table's ADV cell, from
+  GLAUx, gave `μάλα`. `μάλιστα` and its elided forms (`μάλιστ`, `μάλισθ`,
+  `μάλιστ’`) now read `μάλιστα` under every tag (#161). The DBBE
+  reference has `μάλα`, so the DBBE score of the annotation evaluation
+  drops by four tokens.
+- **Malformed lemmas** give way to the headword they misspell, when one is:
+  a mark after a space (`Δηίφοβός` `Δηίφοβος`, was `Δηΐ ̈φοβος`;
+  `Βρισηὶς` `Βρισηΐς`), a circumflex on ε or ο (`καλοῦντόν` `καλέω`, was
+  `καλε͂ω`), the accent of a diphthong on its first vowel
+  (`ἀνασκινδυλευομένων` `ἀνασκινδυλεύω`), Homer's `ἐϋ-` with the breathing
+  on the υ or without the diaeresis (`εὐκτήμονος` `ἐϋκτήμων`), and `πρου-`
+  without the diaeresis (above).
+- **Enclitic accents and names.** A capitalized word with an enclitic's
+  second accent keeps the cascade's name only where the bare spelling reads
+  no other word: where it reads another capitalized head, that is the name
+  (`Κλήμεντά` `Κλήμης`, not `Κλήμες`; `Μυοῦντός` `Μυοῦς`, not `Μυόεις`;
+  `Πολύευκτός` `Πολύευκτος`; `Ἀστυπάλαιά` `Ἀστυπάλαια`); where it reads a
+  lowercase word, that word, when the name is a participle of that verb
+  (`Ἀποκοτταβίζουσί` `ἀποκοτταβίζω`, `Ἐναγίζουσί` `ἐναγίζω`) or a name no
+  dictionary heads that the treebanks give once at most, beside a word they
+  give often whose letters stand in the form (`Εἴπατέ` `εἶπον`, not
+  `Εἴπατος`; `Κάλεσόν` `καλέω`). `Σῶνόν`, `Ἔνετοί`, `Θυραῖόν` and
+  `Κλόνιός` keep their names.
+- **`ἅνπερ`**, with the rough breathing, is the Doric accusative of
+  `ὅσπερ`, not `ἄνπερ`.
+- **Elision and numerals.** A whole word with its grave and no elision mark
+  reads as the grave's word under any tag: `πὸτ`, the Doric `πότ`, gives
+  `πρός`, not `ποτέ` (21 tokens untagged, 32 tagged). A capitalized
+  preposition with a grave reads the preposition under any tag (`Διὰ` NOUN
+  `διά`, was `Ζεύς`, 99 tokens; `Κατὰ` CCONJ `κατά`, was `καί`). Tagged NUM,
+  a stem without its mark whose letters spell a numeral has no lemma: `οθ`
+  NUM is 79, not `ὅτε` (57 tokens), and `υπ` NUM 480; `αντ`, `αφ`, `ουδ` and
+  `ἀμφ`, which spell none, keep their prepositions.
+- **The reviewed readings** are applied to the answer of every step, not
+  only to the rows of the tables, and new ones are added
+  (`dilemma/grc_reviewed_respellings.py`): `ἐξηγόρασε` `ἐξαγοράζω` (was
+  `ἐξηγορέω`), `συναπιοῦσαν` `συνάπειμι` (`συναπέρχομαι`), `περιείλησε`
+  `περιειλέω` (`περιείλω`), `προϋποστάσης` `προϋφίστημι` (the Modern
+  `προϋπόσταση`), `εὐοΐ` `εὐοῖ` (`εὕω`), `πολυσήμαντόν` `πολυσήμαντος`
+  (`πολύσημος`), `βῆλα` `βῆλον` (`βάλλω`), `Τιμῶσάν` `τιμάω` (`τιμή`),
+  `φυράσωντι` `φυράω` (`φύρω`), `ὑδαταινούσῃσιν` `ὑδαταίνω`, `παρώσασθέ`
+  `παρωθέω` (`παρόω`), `ἆισμα` `ᾆσμα`, `εὐΰδροις` `εὔυδρος`, `Ἰάπυγές`
+  `Ἰᾶπυξ`, `κυανόχρωτά` `κυανόχρως`, `προέργου` `προὔργου`, `τοῦνομα`
+  `ὄνομα`. A stem reading may now require the word's accents (`προυποστάσ`)
+  or the whole word (`ευοι$`). Applied to every answer, the readings of
+  1.3.31 reach the normalizers' answers (`παραλειφθεῖσί` `παραλείπω`, not
+  `παραλαμβάνω`; `ἀπολεῖψαι` `ἀπολείπω`).
+- **Participles.** A capitalized plural participle with the accent on the
+  stem keeps its verb (`Κατάσχοντες` VERB `κατέχω`): a name is not plural.
+  An `-ουντ-` participle read as an `-άω` verb with another stem is the
+  `-όω` or `-έω` verb a dictionary or word list heads (`περατοῦντες`
+  `περατόω`, not `περάω`).
+- **Tagged NOUN and ADJ.** A lowercase word with an enclitic's second
+  accent, tagged NOUN or ADJ, gets no verb from the late steps unless it has
+  a participle's or a verb's ending (`σχήματό` NOUN no longer `σχηματόω`,
+  `νηπίαχαί` ADJ no longer `νηπιάχω`, `χρεῖτόν` NOUN no longer `κρεω`;
+  `βδελύττεσθαί` NOUN keeps `βδελύσσομαι`).
+- **Action nouns under NOUN** may be heads of the DGE or the LBG that
+  GLAUx, Diorisis and the OGA lemmatize 20 times or more: `ἐνανθρωπήσει`
+  NOUN gives `ἐνανθρώπησις` (30 tokens; 1.3.31 `ἐνανθρωπέω`), while
+  `θερίσει` and `σώσει` keep their verbs.
+- **`ϗ`**, the καί compendium, is a word, not a consonant cluster, for
+  `classify_nonlexical()`; its lemma was already `καί`.
+- **`lemmatize_verbose()`** applies these readings to its first candidate
+  as `lemmatize()` applies them to its answer, and gives the reading first,
+  with the source `reviewed`. A reading the citation policy refuses leaves
+  the answer as it was, in `lemmatize()`, `lemmatize_batch()` and
+  `lemmatize_verbose()` alike, and `lemmatize()` with `attested_only=True`
+  applies the readings to an attested word with no answer, as
+  `lemmatize_batch()` does.
+
+### Known gaps
+
+- Nine of the 51 corrected forms of #161 have no answer: names and words no
+  table heads (`Νεουάντων`, `Στύλλαν`, `Ἀριόχον`, `Ὑσαεῖς`,
+  `Ἀραβαιγύπτιοι`, `ἀάβυκτον`, `αὐέρα`, the quoted `ἐΰτρεφον`) and
+  `κἀνιδρύουσα`, which may be `ἀνιδρύουσα` or `ἐνιδρύουσα`.
+- More answers of #161 that are wrong or doubtful and left as they were
+  (others are in the next item):
+  `Συάγρου` and `Σύαγρός` read `σύαγρος` untagged (tagged PROPN they read
+  the name `Σύαγρος`; the untagged call does not tell the name from the
+  boar); `συναίτης` reads `συναιτέω` (no table heads a noun `συναίτης`);
+  `Προειδοῦσα` reads `προειδώ`, where `πρόοιδα`, which `προειδυῖα`
+  reads, may be meant; `παρήρτηντο` reads `παραρτέομαι`, where it may be
+  `παραρτάω`; `ἠκάχημαι` reads `ἀχεύω` by the verb steps, where LSJ gives
+  the perfect `ἀκάχημαι` under `ἀκαχίζω` (the lookup reads `ἀκάχημαι` as
+  `ἄχνυμαι`).
+- Wrong answers of #161 and #162 left as they were: `όπερ` PRON the Modern
+  `όπερ` (26 tokens) and, untagged under `lang="all"`, `ὅποτε` `όποτε`;
+  `ἀξιό` ADJ the river `Ἀξιός` (16); `Ἁγίαν` PROPN `Ἀγίας` (27); `Ὑδρα`
+  PROPN `ὕδρος` (5); `ὃ` PRON `ὅς` where it is Homer's demonstrative;
+  `-ουντ-` participles whose `-έω` spelling no dictionary heads with rows
+  (`ἐπινούντες` `ἐπινέω`, `ἐννοῦντος` `ἐννέω`, `ὑπαροῦντες` `ὑπαρόω`,
+  `φληναφούντων` `φληναφάω`), and the rule that reads `περατοῦντες` as
+  `περατόω` gives `Μειδιούντι` PROPN the LBG's `μειδιόω` (1 token; 1.3.31
+  `μειδάω`), where it may be `μειδιάω` (the rule tries only -όω and -έω);
+  `Κεκάδοντος` PROPN no answer (a capitalized singular participle is not
+  told from a name); the action nouns
+  `ἠχήσει`, `μερίσει`, `θειώσει`, `ὑπνώσει` and `ἡλώσει` NOUN, which read
+  the verbs (too rarely lemmatized to count as heads); `Μέλαινά`
+  `Μελαίνα`; `καταλειβόμενοι` no answer; `οἷόπερ` itself; `ἐπίταδέ` and
+  `ἐξὺπερ` no answer; `εὐνοὺς` `Εὐνοῦς`; `Σῶνόν` and `Θυραῖόν` PROPN no
+  answer; `τἀφ` `ἐπί` and `τοὐπ` `ὑπό`; `λείψαντά` `λείβω`; `εἔ` VERB
+  `ἐγώ`, `οὐν’` CCONJ `Οὐνέ`, `κἂθ’` ADV `ἔτι`, `ἄμοργύν` NOUN `Ἀμοργός`;
+  `ιἦ` `εἷς`, `ὕσπερ` `ὗσπερ`, `Αῤ` `ἀρίς`, `ἐπὶμιῇ` `ἐπιμύω`, `κᾷνταῦθα`
+  `ε͂νταῦθα` and `ἐϋσχιδέων` `εὐ̈σχιδής` (no head to repair to); and the
+  single forms of #161 read by the enclitic step or the Modern tables
+  (`συνουσιαζόμενοι` `συνουσιαζόμενος`, `ἄλυχόν` `ἀλυχή`, `δίχτυόν`
+  `δίχτυ`, `Ἴασεύς` `ἴασις`, `ὕβρισήν` `ὕβρισις`, `Ἀλήσιοί` `ἀλήσιον`,
+  `Κάλυδνόν` `Καλύδναι`, `ημεῖόν` `ἡμεῖς`, `αφεντόπουλόν`, `βέχεταί`,
+  `φάδιόν`, `Μάρισά`, `δοῦὲν`, `νηπίαχαί` `νηπιάχω` untagged, where tagged
+  ADJ it now has no answer, `ἄλουργόν` `ἁλουργής`, where the ending is
+  `ἁλουργός`'s, and `Κούρησί` the plural `Κούρητες`, for `Κούρης`). `εἶγε`
+  keeps `εἴγε` (see Measurements); the Gorman trees lemmatize `εἴγε` as
+  `εἰ`.
+- Crasis readings that are still wrong, about 50 tokens of the annotation
+  pairs and 25 of the form table: `κᾒν` `ἐν` (13 and 7; καὶ ἤν, `ἐάν`, or
+  `κἂν`), `τἀπίσω` `ἔπισος`, `κἆλλον` `εἴλλω`, `κἀξια` `ἐξιάομαι`,
+  `τοὔτῃ` `οὐτάω`, `τἀρίστον` `ἀριστάω`, `τἆργον` `Ἄργος`, `κἀντῷ`
+  `ἀντάω`, `κἄνον` `ἔνος`, `κᾦνον` `ὦνος`, `τἀληθὲ` `ἀλήθω`, `ταὐτην`
+  `αὐτός` (likely `ταύτην`), `τοὔμπρος` the vernacular `ὀμπρός` of the LBG
+  (5 and 3; likely τὸ ἐμπρός; 1.3.31 `ἔμπρος`, which no dictionary heads),
+  `κἄγαθος` ADJ the name `Ἄγαθος` (καὶ ἀγαθός), `κἀκὶν` NOUN the name
+  `Ἄκις`, `κἀγαθοῖ` ADJ `ἀγαθόω` (καὶ ἀγαθοί), `κἀδόκους` ADJ `δοκόω` and
+  `κἀντραγεῖν` the infinitive `ἐντραγεῖν`, for `ἐντρώγω` (4 and 2). A
+  capitalized crasis can take a dictionary head that reads the whole word
+  (`Κἀρετῶν` `καρέτα`, `Κἀλλὰ` `καλλά`). The reading does not look at the
+  tag (`κᾀξομοιώσει` VERB the noun `ἐξομοίωσις`). `Κἄν` reads `ἄν`, as the
+  crasis table has `κἄν`, though it often stands for καὶ ἐάν.
+- The NOUN and ADJ veto still drops a few right verbs with other endings
+  (`θάπτομέ`, `ὅμοσόν`, `δεῖχνύς`, `κάκτεινόν`, `ἀγνοοῦνθές`; 5 tokens), and
+  the repair of malformed lemmas reads `ποῦϲ` and `ποῦς` ADV as `πός` (14
+  tokens; 1.3.31 `πο͂ς`).
+- Under `lang="all"` the readings of crasis and `προϋ-`, `προϊ-` and `προὐ-`
+  words load a second, Ancient model (about 300 MB once in use) the first
+  time they look at such a word, whether or not a reading changes it: a
+  capitalized crasis (`Κἀκεῖνος`), a crasis whose answer is no head
+  (`κἀνιδρύουσα`), a `προϋ-` or `προϊ-` word with the diaeresis whose answer
+  is no head (but not an unmarked word with a Modern answer that is not
+  tagged VERB, `προϋπόθεση`), and a `προὐ-` or `προὔ-` word of six letters
+  or more (`προὔργου`). They do so in the untagged
+  calls as well as the tagged ones; untagged, `προϊστάμενος` reads
+  `προΐστημι` there, as in 1.3.31, and `προϋπαντήσεις` NOUN the Modern
+  `προϋπάντηση`. `lemmatize_batch_pos()` applies the whole-word readings
+  twice per pair (in its untagged pass and its tagged one), and the
+  `reviewed` candidate of `lemmatize_verbose()` carries no grammar record.
+  Where the first candidate of `lemmatize_verbose()` is not the answer
+  `lemmatize()` starts from, the two can differ: for `καὐτὸ` it is `καυτός`,
+  LSJ's "burnt", which the crasis reading leaves because it is a head, while
+  `lemmatize()` reads `κἀτός` and then `αὐτός`.
+- Pre-existing, as in 1.3.31: for `ἀρπάζοντες` VERB the scalar
+  `lemmatize_pos()` gives the Modern `αρπάζω` and `lemmatize_batch_pos()`
+  `ἁρπάζω`.
+
 ## [1.3.31] - 2026-11-25
 
 This release fixes the wrong answers listed on #159, left after 1.3.30. It

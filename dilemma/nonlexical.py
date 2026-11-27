@@ -69,6 +69,11 @@ NONLEXICAL_POS = "X"
 _GREEK_VOWELS = set("αεηιουω"  # a e h i o u w
                     "ΑΕΗΙΟΥΩ")
 
+# Letters that stand for a whole word: the καί compendium ϗ (U+03D7 GREEK KAI
+# SYMBOL, category Ll) and its capital Ϗ have no vowel, but are the word καί,
+# which the lookup reads (#161).
+_WORD_SYMBOLS = {"ϗ", "Ϗ"}
+
 # Unambiguous numeral signs: the keraia (U+0374) and its NFC form, the modifier
 # letter prime (U+02B9). A token bearing one is a numeral even if a single
 # letter.
@@ -254,7 +259,8 @@ def classify_nonlexical(token: str) -> str | None:
     greek_bases = [c for c in nfd
                    if unicodedata.category(c)[0] == "L"
                    and ("Ͱ" <= c <= "Ͽ" or "ἀ" <= c <= "῿")]
-    if greek_bases and not any(c in _GREEK_VOWELS for c in greek_bases):
+    if greek_bases and not any(c in _GREEK_VOWELS or c in _WORD_SYMBOLS
+                               for c in greek_bases):
         return CONSONANT_CLUSTER
     return None
 
